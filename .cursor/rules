@@ -1,0 +1,40 @@
+# Duru Notes — Cursor Global Rules (Scope-Locked MVP)
+global:
+  product_principles:
+    - Mobile-only V1 (iOS + Android + tablets).
+    - Local-first: user content lives on device; only ciphertext is stored in Supabase.
+    - E2EE required: XChaCha20-Poly1305 + HKDF; keys in Keychain/Keystore.
+    - Supabase is the only backend (Auth/DB/Storage/RLS). Custom auth is FORBIDDEN.
+    - 3-sec-capture SLO: share-sheet → saved note in ≤ 3.0s (avg).
+    - One-time price $4.99; no subscriptions.
+  code_quality:
+    - No TODO / No mock / No placeholder.
+    - `flutter analyze` must be clean; tests required for crypto/merge/sync.
+  security:
+    - Sending plaintext note content to Supabase is FORBIDDEN. Use only *_enc (bytea) fields.
+  boundaries:
+    - Out of scope for V1: Web/PWA, email-in, browser clipper, real-time co-editing.
+  testing_ci:
+    - Run scripts/ci.sh at every sprint closure (analyze + tests).
+
+auth:
+  source_of_truth: "Supabase Auth (GoTrue)"
+  rules:
+    - Only signInWithPassword / signInWithOtp flows.
+    - Use onAuthStateChange for session management.
+    - On sign-out, clear local keys or keep with explicit user consent.
+
+paths:
+  - pattern: "lib/data/**"
+    rules:
+      - Separate IO (Supabase/SQLite) and Crypto; no business logic in Widgets.
+  - pattern: "docs/sprints/**"
+    rules:
+      - Only sprint prompts; acceptance criteria must be measurable.
+
+prohibited:
+  - "TODO:"; "FIXME:"; "MOCK"; "PLACEHOLDER"
+  - Any non-Supabase backend/SaaS SDK
+
+commit_conventions:
+  - format: "feat|fix|chore|refactor(scope): message"
