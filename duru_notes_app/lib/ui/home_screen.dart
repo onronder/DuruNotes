@@ -4,109 +4,159 @@ import 'package:duru_notes_app/data/local/app_db.dart';
 import 'package:duru_notes_app/repository/notes_repository.dart';
 import 'package:duru_notes_app/repository/sync_service.dart';
 import 'package:duru_notes_app/ui/edit_note_screen.dart';
+import 'package:duru_notes_app/ui/note_search_delegate.dart';
+import 'package:duru_notes_app/ui/tags_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-final Provider<AppDb> dbProvider = Provider<AppDb>((ref) => AppDb());
-final Provider<KeyManager> keyManagerProvider = Provider<KeyManager>(
-  (ref) => KeyManager(),
-);
-final Provider<CryptoBox> cryptoBoxProvider = Provider<CryptoBox>(
-  (ref) => CryptoBox(ref.read(keyManagerProvider)),
-);
+// --- Providers (uygulama scope’unda kullanılacak) ---
+final dbProvider = Provider<AppDb>((ref) => AppDb());
 
-final Provider<NotesRepository> repoProvider = Provider<NotesRepository>((ref) {
-  final session = Supabase.instance.client.auth.currentSession!;
-  final userId = session.user.id;
+final keyManagerProvider = Provider<KeyManager>((ref) => KeyManager());
+
+final cryptoBoxProvider =
+    Provider<CryptoBox>((ref) => CryptoBox(ref.read(keyManagerProvider)));
+
+final repoProvider = Provider<NotesRepository>((ref) {
+  final session = Supabase.instance.client.auth.currentSession;
+  if (session == null) {
+    throw StateError('No active Supabase session');
+  }
   return NotesRepository(
     db: ref.read(dbProvider),
     crypto: ref.read(cryptoBoxProvider),
     client: Supabase.instance.client,
-    userId: userId,
+    userId: session.user.id,
   );
 });
 
-final Provider<SyncService> syncProvider = Provider<SyncService>(
-  (ref) => SyncService(ref.read(repoProvider)),
-);
+final syncProvider =
+    Provider<SyncService>((ref) => SyncService(ref.read(repoProvider)));
 
-final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
-    FutureProvider.autoDispose<List<LocalNote>>((ref) async {
-      try {
-        await ref.read(syncProvider).syncNow();
-      } on Object {
-        // ignore sync errors, show local notes
-      }
-      return ref.read(repoProvider).list();
-    });
+/// Not listesi: Önce hızlıca lokali gösterir, ardından sync dener.
+final notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((ref) async {
+  try {
+    await ref.read(syncProvider).syncNow();
+  } on Object {
+    // sync hataları UI’yı bloklamasın; local göster.
+  }
+  return ref.read(repoProvider).list();
+});
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(notesListProvider);
+    try {
+      await ref.read(syncProvider).syncNow();
+    } on Object {
+      // sessiz geç
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notesAsync = ref.watch(notesListProvider);
+    final AsyncValue<List<LocalNote>> notesAsync = ref.watch(notesListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Duru Notes'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: () async {
+              await showSearch<LocalNote?>(
+                context: context,
+                delegate: NoteSearchDelegate(db: ref.read(dbProvider)),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(notesListProvider),
+            onPressed: () => _refresh(ref),
+            tooltip: 'Refresh',
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {
-              if (v == 'reset') {
-                await ref.read(syncProvider).reset();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Local cache cleared')),
+              switch (v) {
+                case 'reset':
+                  await ref.read(syncProvider).reset();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Local cache cleared')),
+                    );
+                  }
+                  ref.invalidate(notesListProvider);
+                  return;
+                case 'tags':
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const TagsScreen(),
+                    ),
                   );
-                }
-                ref.invalidate(notesListProvider);
-              } else if (v == 'logout') {
-                await Supabase.instance.client.auth.signOut();
+                  return;
+                case 'logout':
+                  await Supabase.instance.client.auth.signOut();
+                  return;
               }
             },
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'reset', child: Text('Reset local cache')),
+              PopupMenuItem(value: 'tags', child: Text('Tags')),
               PopupMenuItem(value: 'logout', child: Text('Sign out')),
             ],
           ),
         ],
       ),
       body: notesAsync.when(
-        data: (notes) => notes.isEmpty
-            ? const Center(child: Text('No notes yet'))
-            : ListView.separated(
-                itemCount: notes.length,
-                separatorBuilder: (BuildContext _, int index) =>
-                    const Divider(height: 1),
-                itemBuilder: (BuildContext context, int i) {
-                  final n = notes[i];
-                  return ListTile(
-                    title: Text(n.title),
-                    subtitle: Text(
-                      n.body,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => EditNoteScreen(
-                            noteId: n.id,
-                            initialTitle: n.title,
-                            initialBody: n.body,
-                          ),
-                        ),
-                      );
-                      ref.invalidate(notesListProvider);
-                    },
-                  );
-                },
+        data: (notes) {
+          if (notes.isEmpty) {
+            // RefreshIndicator boş listede de çalışsın diye ListView
+            return RefreshIndicator(
+              onRefresh: () => _refresh(ref),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text('No notes yet')),
+                ],
               ),
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: () => _refresh(ref),
+            child: ListView.separated(
+              itemCount: notes.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final n = notes[i];
+                return ListTile(
+                  title: Text(n.title),
+                  subtitle: Text(
+                    n.body,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => EditNoteScreen(
+                          noteId: n.id,
+                          initialTitle: n.title,
+                          initialBody: n.body,
+                        ),
+                      ),
+                    );
+                    ref.invalidate(notesListProvider);
+                  },
+                );
+              },
+            ),
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
