@@ -10,13 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// --- Providers (uygulama scope’unda kullanılacak) ---
+/// --- Providers ---
 final dbProvider = Provider<AppDb>((ref) => AppDb());
-
 final keyManagerProvider = Provider<KeyManager>((ref) => KeyManager());
-
-final cryptoBoxProvider =
-    Provider<CryptoBox>((ref) => CryptoBox(ref.read(keyManagerProvider)));
+final cryptoBoxProvider = Provider<CryptoBox>(
+  (ref) => CryptoBox(ref.read(keyManagerProvider)),
+);
 
 final repoProvider = Provider<NotesRepository>((ref) {
   final session = Supabase.instance.client.auth.currentSession;
@@ -31,15 +30,18 @@ final repoProvider = Provider<NotesRepository>((ref) {
   );
 });
 
-final syncProvider =
-    Provider<SyncService>((ref) => SyncService(ref.read(repoProvider)));
+final syncProvider = Provider<SyncService>(
+  (ref) => SyncService(ref.read(repoProvider)),
+);
 
-/// Not listesi: Önce hızlıca lokali gösterir, ardından sync dener.
-final notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((ref) async {
+/// Not listesi: Önce lokali gösterir, ardından sync dener
+final notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((
+  ref,
+) async {
   try {
     await ref.read(syncProvider).syncNow();
   } on Object {
-    // sync hataları UI’yı bloklamasın; local göster.
+    // sync hatalarını yut
   }
   return ref.read(repoProvider).list();
 });
@@ -68,10 +70,12 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.search),
             tooltip: 'Search',
             onPressed: () async {
+              final db = ref.read(dbProvider);
               await showSearch<LocalNote?>(
                 context: context,
-                delegate: NoteSearchDelegate(db: ref.read(dbProvider)),
+                delegate: NoteSearchDelegate(db: db),
               );
+              ref.invalidate(notesListProvider);
             },
           ),
           IconButton(
@@ -114,7 +118,6 @@ class HomeScreen extends ConsumerWidget {
       body: notesAsync.when(
         data: (notes) {
           if (notes.isEmpty) {
-            // RefreshIndicator boş listede de çalışsın diye ListView
             return RefreshIndicator(
               onRefresh: () => _refresh(ref),
               child: ListView(
@@ -131,8 +134,8 @@ class HomeScreen extends ConsumerWidget {
             child: ListView.separated(
               itemCount: notes.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final n = notes[i];
+              itemBuilder: (context, index) {
+                final n = notes[index];
                 return ListTile(
                   title: Text(n.title),
                   subtitle: Text(

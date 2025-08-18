@@ -21,15 +21,14 @@ class LocalNotes extends Table {
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
 
   @override
-  Set<GeneratedColumn> get primaryKey => {id};
+  Set<Column> get primaryKey => {id};
 }
 
 @DataClassName('PendingOp')
 class PendingOps extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entityId => text()();
-  /// 'upsert_note' | 'delete_note'
-  TextColumn get kind => text()();
+  TextColumn get kind => text()(); // 'upsert_note' | 'delete_note'
   TextColumn get payload => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -40,7 +39,7 @@ class NoteTags extends Table {
   TextColumn get tag => text()();
 
   @override
-  Set<GeneratedColumn> get primaryKey => {noteId, tag};
+  Set<Column> get primaryKey => {noteId, tag};
 }
 
 @DataClassName('NoteLink')
@@ -48,21 +47,22 @@ class NoteLinks extends Table {
   /// Linki içeren notun id’si
   TextColumn get sourceId => text()();
 
-  /// Hedef başlık (ör. [[Title]] ya da @Title ile bulunur)
+  /// Hedef başlık (ör. `[[Title]]` ya da `@Title` ile bulunur)
   TextColumn get targetTitle => text()();
 
-  /// Opsiyonel hedef id (ör. [[id:<UUID>]] veya @id:<UUID>)
+  /// Opsiyonel hedef id (ör. `[[id:<UUID>]]` veya `@id:<UUID>`)
   TextColumn get targetId => text().nullable()();
 
   @override
-  Set<GeneratedColumn> get primaryKey => {sourceId, targetTitle};
+  Set<Column> get primaryKey => {sourceId, targetTitle};
 }
 
 /// UI’da kullanmak için küçük bir taşıyıcı sınıf
 class BacklinkPair {
+  const BacklinkPair({required this.link, this.source});
+
   final NoteLink link;
   final LocalNote? source;
-  const BacklinkPair({required this.link, this.source});
 }
 
 /// ----------------------
@@ -80,29 +80,29 @@ class AppDb extends _$AppDb {
   /// v2: + NoteTags + NoteLinks
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-        },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(noteTags);
-            await m.createTable(noteLinks);
-          }
-        },
-      );
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(noteTags);
+        await m.createTable(noteLinks);
+      }
+    },
+  );
 
   // ----------------------
   // Notes
   // ----------------------
 
-  /// '@' autocomplete için başlığa göre öneri (prefix + kelime başı eşleşmesi).
+  /// '@' önerileri için: başlığa göre not araması (prefix + kelime başı).
   Future<List<LocalNote>> suggestNotesByTitlePrefix(
     String query, {
     int limit = 8,
   }) {
     final q = query.trim();
 
-    // Boş sorguda en son güncellenenler
+    // Son güncellenenler en üstte; boş arama kısa liste döndürür.
     if (q.isEmpty) {
       return (select(localNotes)
             ..where((t) => t.deleted.equals(false))
@@ -118,6 +118,7 @@ class AppDb extends _$AppDb {
           ..where(
             (t) =>
                 t.deleted.equals(false) &
+                // Başlangıç veya kelime başı eşleşmesi
                 (t.title.like(startsWith) | t.title.like(wordStart)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.title)])
@@ -125,10 +126,11 @@ class AppDb extends _$AppDb {
         .get();
   }
 
-  Future<List<LocalNote>> allNotes() => (select(localNotes)
-        ..where((t) => t.deleted.equals(false))
-        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-      .get();
+  Future<List<LocalNote>> allNotes() =>
+      (select(localNotes)
+            ..where((t) => t.deleted.equals(false))
+            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          .get();
 
   Future<void> upsertNote(LocalNote n) =>
       into(localNotes).insertOnConflictUpdate(n);
@@ -158,10 +160,11 @@ class AppDb extends _$AppDb {
     await (delete(pendingOps)..where((t) => t.id.isIn(ids.toList()))).go();
   }
 
-  /// Atomik fetch & clear (sync için)
+  /// Atomically fetch & clear (used by sync)
   Future<List<PendingOp>> dequeueAll() async {
-    final ops =
-        await (select(pendingOps)..orderBy([(o) => OrderingTerm.asc(o.id)])).get();
+    final ops = await (select(
+      pendingOps,
+    )..orderBy([(o) => OrderingTerm.asc(o.id)])).get();
     await delete(pendingOps).go();
     return ops;
   }
@@ -180,8 +183,9 @@ class AppDb extends _$AppDb {
   }
 
   Future<Set<String>> getLocalActiveNoteIds() async {
-    final rows =
-        await (select(localNotes)..where((t) => t.deleted.equals(false))).get();
+    final rows = await (select(
+      localNotes,
+    )..where((t) => t.deleted.equals(false))).get();
     return rows.map((e) => e.id).toSet();
   }
 
@@ -196,7 +200,9 @@ class AppDb extends _$AppDb {
         await batch((b) {
           b.insertAll(
             noteTags,
-            tags.map((t) => NoteTagsCompanion.insert(noteId: noteId, tag: t)),
+            tags.map(
+              (t) => NoteTagsCompanion.insert(noteId: noteId, tag: t),
+            ),
           );
         });
       }
@@ -204,8 +210,9 @@ class AppDb extends _$AppDb {
   }
 
   Future<Set<String>> tagsOf(String noteId) async {
-    final rows =
-        await (select(noteTags)..where((t) => t.noteId.equals(noteId))).get();
+    final rows = await (select(
+      noteTags,
+    )..where((t) => t.noteId.equals(noteId))).get();
     return rows.map((e) => e.tag).toSet();
   }
 
@@ -225,8 +232,9 @@ class AppDb extends _$AppDb {
   }
 
   Future<List<String>> noteIdsWithTag(String tag) async {
-    final rows =
-        await (select(noteTags)..where((t) => t.tag.equals(tag))).get();
+    final rows = await (select(
+      noteTags,
+    )..where((t) => t.tag.equals(tag))).get();
     return rows.map((e) => e.noteId).toList();
   }
 
@@ -243,7 +251,7 @@ class AppDb extends _$AppDb {
   // Links index
   // ----------------------
 
-  /// Parser bazı durumlarda `title` veya `id` üretebilir.
+  /// Parser `title` veya `id` üretebilir.
   /// DB’de `targetTitle` NOT NULL olduğu için sanitize ediyoruz.
   Future<void> replaceLinksForNote(
     String noteId,
@@ -276,12 +284,11 @@ class AppDb extends _$AppDb {
     return (select(noteLinks)..where((t) => t.targetTitle.equals(title))).get();
   }
 
-  /// Backlink satırları + opsiyonel kaynak not (başlık gösterebilmek için)
+  /// Backlink satırları + opsiyonel kaynak not (başlık göstermek için)
   Future<List<BacklinkPair>> backlinksWithSources(String title) async {
     final rows = await (select(noteLinks).join([
       leftOuterJoin(localNotes, localNotes.id.equalsExp(noteLinks.sourceId)),
-    ])..where(noteLinks.targetTitle.equals(title)))
-        .get();
+    ])..where(noteLinks.targetTitle.equals(title))).get();
 
     return rows
         .map(
@@ -294,25 +301,26 @@ class AppDb extends _$AppDb {
   }
 
   /// Basit lokal arama.
-  /// - Genel arama: başlık + gövdede LIKE
-  /// - #tag ile başlarsa: tag tablosundan eşleşen notlar
+  /// - `#tag` ile başlarsa: tag tablosu
+  /// - değilse: başlık + gövdede LIKE
   Future<List<LocalNote>> searchNotes(String raw) async {
     final q = raw.trim();
-    if (q.isEmpty) return allNotes();
+    if (q.isEmpty) {
+      return allNotes();
+    }
 
     String likeWrap(String s) {
       final esc = s.replaceAll('%', r'\%').replaceAll('_', r'\_');
       return '%$esc%';
     }
 
-    // Tag araması (#work gibi)
     if (q.startsWith('#')) {
       final needle = q.substring(1).trim();
       if (needle.isEmpty) return allNotes();
 
-      final tagRows =
-          await (select(noteTags)..where((t) => t.tag.like(likeWrap(needle))))
-              .get();
+      final tagRows = await (select(
+        noteTags,
+      )..where((t) => t.tag.like(likeWrap(needle)))).get();
 
       final ids = tagRows.map((e) => e.noteId).toSet().toList();
       if (ids.isEmpty) return <LocalNote>[];
@@ -323,12 +331,13 @@ class AppDb extends _$AppDb {
           .get();
     }
 
-    // Genel arama (başlık + gövde)
     final pattern = likeWrap(q);
     return (select(localNotes)
-          ..where((t) =>
-              t.deleted.equals(false) &
-              (t.title.like(pattern) | t.body.like(pattern)))
+          ..where(
+            (t) =>
+                t.deleted.equals(false) &
+                (t.title.like(pattern) | t.body.like(pattern)),
+          )
           ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
         .get();
   }
