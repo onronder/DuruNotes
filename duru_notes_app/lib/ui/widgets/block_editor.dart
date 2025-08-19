@@ -14,12 +14,11 @@ class BlockEditor extends StatefulWidget {
     Key? key,
   }) : super(key: key);
 
-  /// The initial blocks to edit. The list is copied internally; mutations
-  /// inside the editor will not modify the provided list directly.
+  /// The blocks to edit. We keep the *same list reference* to avoid
+  /// re-creating controllers on every keystroke.
   final List<NoteBlock> blocks;
 
-  /// Called whenever the list of blocks changes. This includes text edits,
-  /// adding/removing blocks, toggling checkboxes and reordering.
+  /// Called whenever the list of blocks changes.
   final ValueChanged<List<NoteBlock>> onChanged;
 
   @override
@@ -39,14 +38,18 @@ class _BlockEditorState extends State<BlockEditor> {
   @override
   void didUpdateWidget(BlockEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.blocks != widget.blocks) {
+    // Only re-init if parent provides a different list instance
+    // (e.g., switching to another note). This prevents cursor jumps.
+    if (!identical(oldWidget.blocks, widget.blocks)) {
       _initFromBlocks(widget.blocks);
     }
   }
 
   void _initFromBlocks(List<NoteBlock> blocks) {
-    _blocks = List<NoteBlock>.from(blocks);
-    _controllers = _blocks.map<TextEditingController?>((block) {
+    // Keep the same reference to avoid identity changes.
+    _blocks = blocks;
+    _controllers = List<TextEditingController?>.generate(_blocks.length, (i) {
+      final block = _blocks[i];
       switch (block.type) {
         case NoteBlockType.paragraph:
         case NoteBlockType.heading1:
@@ -55,24 +58,23 @@ class _BlockEditorState extends State<BlockEditor> {
         case NoteBlockType.quote:
           return TextEditingController(text: block.data as String);
         case NoteBlockType.code:
-          final code = (block.data as CodeBlockData).code;
-          return TextEditingController(text: code);
+          return TextEditingController(text: (block.data as CodeBlockData).code);
         case NoteBlockType.todo:
+          return TextEditingController(text: (block.data as TodoBlockData).text);
         case NoteBlockType.table:
           return null;
       }
-    }).toList();
+    }, growable: true);
   }
 
   void _notifyChange() {
-    widget.onChanged(List<NoteBlock>.from(_blocks));
+    // Pass the same list back; this avoids didUpdateWidget re-inits.
+    widget.onChanged(_blocks);
   }
 
   void _insertBlock(NoteBlockType type, [int? index]) {
     final insertIndex = index ?? _blocks.length;
 
-    // Construct a new block instance based on the selected type. Use
-    // const constructors where possible and avoid redundant parameters.
     late final NoteBlock newBlock;
     if (type == NoteBlockType.paragraph) {
       newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
@@ -110,7 +112,15 @@ class _BlockEditorState extends State<BlockEditor> {
       _blocks.insert(insertIndex, newBlock);
       _controllers.insert(
         insertIndex,
-        _needsController(newBlock) ? TextEditingController(text: '') : null,
+        _needsController(newBlock)
+            ? TextEditingController(
+                text: newBlock.type == NoteBlockType.code
+                    ? (newBlock.data as CodeBlockData).code
+                    : newBlock.type == NoteBlockType.todo
+                        ? (newBlock.data as TodoBlockData).text
+                        : (newBlock.data as String),
+              )
+            : null,
       );
     });
     _notifyChange();
@@ -124,8 +134,8 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.heading3:
       case NoteBlockType.quote:
       case NoteBlockType.code:
-        return true;
       case NoteBlockType.todo:
+        return true;
       case NoteBlockType.table:
         return false;
     }
@@ -146,35 +156,20 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.paragraph:
         return _buildTextBlock(index, block, controller!, isParagraph: true);
       case NoteBlockType.heading1:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        );
+        return _buildTextBlock(index, block, controller!,
+            fontSize: 24, fontWeight: FontWeight.bold);
       case NoteBlockType.heading2:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        );
+        return _buildTextBlock(index, block, controller!,
+            fontSize: 20, fontWeight: FontWeight.bold);
       case NoteBlockType.heading3:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        );
+        return _buildTextBlock(index, block, controller!,
+            fontSize: 18, fontWeight: FontWeight.w600);
       case NoteBlockType.quote:
         return _buildQuoteBlock(index, block, controller!);
       case NoteBlockType.code:
         return _buildCodeBlock(index, block, controller!);
       case NoteBlockType.todo:
-        return _buildTodoBlock(index, block);
+        return _buildTodoBlock(index, block, controller!);
       case NoteBlockType.table:
         return _buildTableBlock(index, block);
     }
@@ -201,6 +196,7 @@ class _BlockEditorState extends State<BlockEditor> {
               border: InputBorder.none,
             ),
             onChanged: (value) {
+              // Update only the model; controller already has the new text.
               setState(() {
                 _blocks[index] = _blocks[index].copyWith(data: value);
               });
@@ -303,13 +299,17 @@ class _BlockEditorState extends State<BlockEditor> {
               ),
             ],
           ),
-          // Optional: a language picker could be added here.
+          // Optional: add a language picker here.
         ],
       ),
     );
   }
 
-  Widget _buildTodoBlock(int index, NoteBlock block) {
+  Widget _buildTodoBlock(
+    int index,
+    NoteBlock block,
+    TextEditingController controller,
+  ) {
     final todo = block.data as TodoBlockData;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -327,7 +327,7 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         Expanded(
           child: TextField(
-            controller: TextEditingController(text: todo.text),
+            controller: controller,
             maxLines: null,
             decoration: const InputDecoration(
               hintText: 'Todo',
@@ -335,9 +335,8 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             onChanged: (value) {
               setState(() {
-                _blocks[index] = _blocks[index].copyWith(
-                  data: todo.copyWith(text: value),
-                );
+                _blocks[index] =
+                    _blocks[index].copyWith(data: todo.copyWith(text: value));
               });
               _notifyChange();
             },
@@ -353,8 +352,7 @@ class _BlockEditorState extends State<BlockEditor> {
 
   Widget _buildTableBlock(int index, NoteBlock block) {
     final table = block.data as TableBlockData;
-    // Render a simple read-only preview of the table. Editing support could
-    // be added in the future.
+    // Simple read-only preview for now.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -375,14 +373,12 @@ class _BlockEditorState extends State<BlockEditor> {
           children: [
             TextButton(
               onPressed: () {
-                // Add a new row of empty cells.
                 setState(() {
                   final cols = table.rows.first.length;
                   final newRows = List<List<String>>.from(table.rows)
                     ..add(List<String>.filled(cols, ''));
-                  _blocks[index] = _blocks[index].copyWith(
-                    data: table.copyWith(rows: newRows),
-                  );
+                  _blocks[index] =
+                      _blocks[index].copyWith(data: table.copyWith(rows: newRows));
                 });
                 _notifyChange();
               },
@@ -390,14 +386,11 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             TextButton(
               onPressed: () {
-                // Add a new column to each row.
                 setState(() {
-                  final newRows = table.rows
-                      .map((r) => List<String>.from(r)..add(''))
-                      .toList();
-                  _blocks[index] = _blocks[index].copyWith(
-                    data: table.copyWith(rows: newRows),
-                  );
+                  final newRows =
+                      table.rows.map((r) => List<String>.from(r)..add('')).toList();
+                  _blocks[index] =
+                      _blocks[index].copyWith(data: table.copyWith(rows: newRows));
                 });
                 _notifyChange();
               },
@@ -428,46 +421,20 @@ class _BlockEditorState extends State<BlockEditor> {
             );
           },
         ),
-        // Add block button at the bottom.
         Align(
           alignment: Alignment.centerLeft,
           child: PopupMenuButton<NoteBlockType>(
             tooltip: 'Add block',
-            // Use a tear-off to satisfy unnecessary_lambdas lint.
             onSelected: _insertBlock,
             itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: NoteBlockType.paragraph,
-                child: Text('Paragraph'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.heading1,
-                child: Text('Heading 1'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.heading2,
-                child: Text('Heading 2'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.heading3,
-                child: Text('Heading 3'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.todo,
-                child: Text('Todo'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.quote,
-                child: Text('Quote'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.code,
-                child: Text('Code'),
-              ),
-              PopupMenuItem(
-                value: NoteBlockType.table,
-                child: Text('Table'),
-              ),
+              PopupMenuItem(value: NoteBlockType.paragraph, child: Text('Paragraph')),
+              PopupMenuItem(value: NoteBlockType.heading1, child: Text('Heading 1')),
+              PopupMenuItem(value: NoteBlockType.heading2, child: Text('Heading 2')),
+              PopupMenuItem(value: NoteBlockType.heading3, child: Text('Heading 3')),
+              PopupMenuItem(value: NoteBlockType.todo, child: Text('Todo')),
+              PopupMenuItem(value: NoteBlockType.quote, child: Text('Quote')),
+              PopupMenuItem(value: NoteBlockType.code, child: Text('Code')),
+              PopupMenuItem(value: NoteBlockType.table, child: Text('Table')),
             ],
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),

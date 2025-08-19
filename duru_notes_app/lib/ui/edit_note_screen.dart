@@ -150,7 +150,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
               Container(
                 constraints: const BoxConstraints(minHeight: 200),
                 child: _preview
-                    // Use MarkdownBody to avoid nested scrollables.
+                    // Use MarkdownBody (non-scrollable) to avoid nested scrollables.
                     ? MarkdownBody(
                         data: blocksToMarkdown(_blocks),
                         onTapLink: (text, href, title) async {
@@ -168,6 +168,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                       )
                     : BlockEditor(
                         blocks: _blocks,
+                        // We pass the same list reference back to avoid controller rebuilds.
                         onChanged: (blocks) => setState(() => _blocks = blocks),
                       ),
               ),
