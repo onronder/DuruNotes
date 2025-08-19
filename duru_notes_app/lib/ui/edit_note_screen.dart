@@ -2,11 +2,20 @@ import 'dart:async';
 
 import 'package:duru_notes_app/data/local/app_db.dart';
 import 'package:duru_notes_app/ui/home_screen.dart';
+import 'package:duru_notes_app/models/note_block.dart';
+import 'package:duru_notes_app/core/parser/note_block_parser.dart';
+import 'package:duru_notes_app/ui/widgets/block_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// A note editing screen that uses a block-based editor for the note body.
+/// This widget supports both editing and preview modes. It uses Riverpod
+/// providers to access the notes repository, sync service and local
+/// database. The note body is stored in Markdown form; internally the
+/// block editor works with [NoteBlock] objects and converts back to
+/// Markdown when saving.
 class EditNoteScreen extends ConsumerStatefulWidget {
   const EditNoteScreen({
     super.key,
@@ -24,212 +33,81 @@ class EditNoteScreen extends ConsumerStatefulWidget {
 }
 
 class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
-  late final TextEditingController _title = TextEditingController(
-    text: widget.initialTitle ?? '',
-  );
-  late final TextEditingController _body = TextEditingController(
-    text: widget.initialBody ?? '',
-  );
-
-  final FocusNode _bodyFocus = FocusNode();
-  final LayerLink _bodyLink = LayerLink();
-  final GlobalKey _bodyFieldKey = GlobalKey();
-
-  OverlayEntry? _overlay;
+  late final TextEditingController _title;
+  late List<NoteBlock> _blocks;
   bool _preview = false;
-
-  // Öneriler ve durum
-  List<LocalNote> _suggestions = <LocalNote>[];
-  Timer? _debounce;
-  String _lastQuery = '';
 
   @override
   void initState() {
     super.initState();
-
-    _bodyFocus.addListener(() {
-      if (!_bodyFocus.hasFocus) {
-        _removeOverlay();
-      }
-    });
+    _title = TextEditingController(text: widget.initialTitle ?? '');
+    final body = widget.initialBody ?? '';
+    final parsed = parseMarkdownToBlocks(body);
+    _blocks = parsed.isNotEmpty
+        ? parsed
+        : [const NoteBlock(type: NoteBlockType.paragraph, data: '')];
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _removeOverlay();
-    _bodyFocus.dispose();
     _title.dispose();
-    _body.dispose();
     super.dispose();
   }
 
-  // ---------- Autocomplete ----------
-
-  // İmlecin öncesine bakıp aktif '@' token’ını çıkarır.
-  // Örn: "Merhaba @pro" -> "pro"; eğer uygun değilse null.
-  String? _extractAtQuery() {
-    final sel = _body.selection;
-    if (!sel.isValid || !sel.isCollapsed) return null;
-
-    final text = _body.text;
-    final caret = sel.baseOffset;
-    if (caret <= 0 || caret > text.length) return null;
-
-    final before = text.substring(0, caret);
-    final atIndex = before.lastIndexOf('@');
-    if (atIndex == -1) return null;
-
-    // '@' ile imleç arasında boşluk/yeni satır varsa aktif token değil.
-    final segment = before.substring(atIndex + 1);
-    if (segment.contains(' ') || segment.contains('\n')) return null;
-
-    // '@' öncesi bir sınır olmalı (başlangıç, boşluk veya noktalama gibi)
-    if (atIndex > 0) {
-      final prev = before[atIndex - 1];
-      const boundaries = ' \t\n([{,-.;:\'"“”‘’`';
-      if (!boundaries.contains(prev)) return null;
+  Future<void> _saveOrUpdate(BuildContext context) async {
+    final repo = ref.read(repoProvider);
+    final sync = ref.read(syncProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final bodyMarkdown = blocksToMarkdown(_blocks);
+    try {
+      await repo.createOrUpdate(
+        title: _title.text.trim(),
+        body: bodyMarkdown,
+        id: widget.noteId,
+      );
+      if (!context.mounted) return;
+      Navigator.of(context).pop(true);
+      // trigger sync asynchronously
+      unawaited(
+        sync.syncNow().catchError((Object e, _) {
+          debugPrint('Sync error after save: $e');
+        }),
+      );
+    } on Object catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
     }
-
-    // segment boş olabilir — bu durumda popülerleri göster.
-    return segment; // "" | "pro" | "Pro"
   }
 
-  void _onBodyChanged(String _) {
-    if (_preview || !_bodyFocus.hasFocus) {
-      _removeOverlay();
-      return;
+  Future<void> _deleteNote(BuildContext context) async {
+    final repo = ref.read(repoProvider);
+    final sync = ref.read(syncProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final noteId = widget.noteId;
+    if (noteId == null) return;
+    try {
+      await repo.delete(noteId);
+      if (!context.mounted) return;
+      Navigator.of(context).pop(true);
+      unawaited(
+        sync.syncNow().catchError((Object e, _) {
+          debugPrint('Sync error after delete: $e');
+        }),
+      );
+    } on Object catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
     }
-
-    final query = _extractAtQuery();
-    if (query == null) {
-      _removeOverlay();
-      return;
-    }
-
-    // Aynı sorguysa gereksiz çalıştırma
-    if (query == _lastQuery && _overlay != null) return;
-    _lastQuery = query;
-
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 120), () async {
-      final db = ref.read(dbProvider);
-      final results = await db.suggestNotesByTitlePrefix(
-        query,
-      ); // DB çağrısı
-      if (!mounted) return;
-
-      setState(() {
-        _suggestions = results;
-      });
-      _showOverlay(); // her seferinde güncelle
-    });
   }
-
-  void _showOverlay() {
-    if (_suggestions.isEmpty) {
-      _removeOverlay();
-      return;
-    }
-
-    final overlay = Overlay.of(context);
-
-    // Eğer hâlihazırda overlay varsa yeniden çizdir.
-    if (_overlay != null) {
-      _overlay!.markNeedsBuild();
-      return;
-    }
-
-    _overlay = OverlayEntry(
-      builder: (context) {
-        final box =
-            _bodyFieldKey.currentContext?.findRenderObject() as RenderBox?;
-        final width = box?.size.width ?? 320.0;
-
-        return Positioned.fill(
-          child: IgnorePointer(
-            ignoring: false,
-            child: CompositedTransformFollower(
-              link: _bodyLink,
-              // showWhenUnlinked varsayılan olarak false; belirtmeye gerek yok.
-              offset: const Offset(0, 8), // textfield’ın hemen altı
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(8),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: width,
-                    maxHeight: 240,
-                    minWidth: 240,
-                  ),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: _suggestions.length,
-                    itemBuilder: (context, i) {
-                      final n = _suggestions[i];
-                      final title = (n.title.trim().isEmpty)
-                          ? '(untitled)'
-                          : n.title.trim();
-                      return ListTile(
-                        dense: true,
-                        visualDensity: VisualDensity.compact,
-                        title: Text(title),
-                        onTap: () => _insertAtToken(title),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    overlay.insert(_overlay!);
-  }
-
-  void _removeOverlay() {
-    _overlay?.remove();
-    _overlay = null;
-  }
-
-  // '@...' yerini '@Başlık ' ile değiştirir.
-  void _insertAtToken(String title) {
-    final sel = _body.selection;
-    if (!sel.isValid || !sel.isCollapsed) return;
-
-    final text = _body.text;
-    final caret = sel.baseOffset;
-    final before = text.substring(0, caret);
-    final after = text.substring(caret);
-
-    final atIndex = before.lastIndexOf('@');
-    if (atIndex < 0) return;
-
-    final newBefore = '${before.substring(0, atIndex)}@$title ';
-    final newText = newBefore + after;
-
-    _body.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newBefore.length),
-    );
-
-    _removeOverlay();
-  }
-
-  // ---------- UI ----------
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(repoProvider);
-    final sync = ref.read(syncProvider);
     final db = ref.read(dbProvider);
-
     final effectiveTitle = _title.text.trim().isEmpty
         ? '(untitled)'
         : _title.text.trim();
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
@@ -238,23 +116,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
             icon: const Icon(Icons.delete_outline),
             onPressed: widget.noteId == null
                 ? null
-                : () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await repo.delete(widget.noteId!); // local-first
-                      if (!context.mounted) return;
-                      Navigator.of(context).pop(true); // anında kapan
-                      unawaited(
-                        sync.syncNow().catchError((Object e, _) {
-                          debugPrint('Sync error after delete: $e');
-                        }),
-                      );
-                    } on Object catch (e) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Delete failed: $e')),
-                      );
-                    }
-                  },
+                : () => _deleteNote(context),
           ),
         ],
       ),
@@ -276,72 +138,39 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                     value: _preview,
                     onChanged: (v) {
                       setState(() => _preview = v);
-                      if (v) _removeOverlay();
                     },
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              // Gövde editörü + anchor
-              CompositedTransformTarget(
-                link: _bodyLink,
-                child: Container(
-                  key: _bodyFieldKey,
-                  constraints: const BoxConstraints(minHeight: 200),
-                  child: _preview
-                      ? Markdown(
-                          data: _body.text,
-                          onTapLink: (text, href, title) async {
-                            if (href == null || href.isEmpty) return;
-                            final uri = Uri.tryParse(href);
-                            if (uri == null) return;
-
-                            final messenger = ScaffoldMessenger.of(context);
-                            final ok = await launchUrl(uri);
-                            if (!ok) {
-                              messenger.showSnackBar(
-                                SnackBar(content: Text('Could not open $href')),
-                              );
-                            }
-                          },
-                        )
-                      : TextField(
-                          controller: _body,
-                          focusNode: _bodyFocus,
-                          maxLines: null,
-                          onChanged: _onBodyChanged,
-                          decoration: const InputDecoration(
-                            labelText:
-                                'Body (Markdown supported, #tags and [[Links]] / @Links)',
-                          ),
-                        ),
-                ),
+              Container(
+                constraints: const BoxConstraints(minHeight: 200),
+                child: _preview
+                    ? Markdown(
+                        data: blocksToMarkdown(_blocks),
+                        onTapLink: (text, href, title) async {
+                          if (href == null || href.isEmpty) return;
+                          final uri = Uri.tryParse(href);
+                          if (uri == null) return;
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ok = await launchUrl(uri);
+                          if (!ok) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('Could not open $href')),
+                            );
+                          }
+                        },
+                      )
+                    : BlockEditor(
+                        blocks: _blocks,
+                        onChanged: (blocks) => setState(() => _blocks = blocks),
+                      ),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await repo.createOrUpdate(
-                        title: _title.text.trim(),
-                        body: _body.text,
-                        id: widget.noteId,
-                      ); // local-first
-                      if (!context.mounted) return;
-                      Navigator.of(context).pop(true);
-                      unawaited(
-                        sync.syncNow().catchError((Object e, _) {
-                          debugPrint('Sync error after save: $e');
-                        }),
-                      );
-                    } on Object catch (e) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Save failed: $e')),
-                      );
-                    }
-                  },
+                  onPressed: () => _saveOrUpdate(context),
                   child: const Text('Save'),
                 ),
               ),

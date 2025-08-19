@@ -35,16 +35,17 @@ final syncProvider = Provider<SyncService>(
 );
 
 /// Not listesi: Önce lokali gösterir, ardından sync dener
-final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((
-  ref,
-) async {
-  try {
-    await ref.read(syncProvider).syncNow();
-  } on Object {
-    // sync hatalarını yut
-  }
-  return ref.read(repoProvider).list();
-});
+final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
+    FutureProvider.autoDispose<List<LocalNote>>((
+      ref,
+    ) async {
+      try {
+        await ref.read(syncProvider).syncNow();
+      } on Object {
+        // sync hatalarını yut
+      }
+      return ref.read(repoProvider).list();
+    });
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
