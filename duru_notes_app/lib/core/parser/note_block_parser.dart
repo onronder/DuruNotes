@@ -3,25 +3,27 @@ import 'dart:math' as math;
 import 'package:duru_notes_app/models/note_block.dart';
 
 /// Parses a markdown string into a list of [NoteBlock]s. The parser uses
-/// simple heuristics to detect headings, todo items, quotes, code blocks and
+/// simple heuristics to detect headings, task items, quotes, code blocks and
 /// tables. Lines that do not match any special pattern are grouped into
-/// paragraph blocks. Blank lines separate paragraphs. This is a best effort
+/// paragraph blocks. Blank lines separate paragraphs. This is a best-effort
 /// parser: it does not handle the full Markdown spec but aims to cover the
 /// constructs used in DuruNotes.
 List<NoteBlock> parseMarkdownToBlocks(String markdown) {
   final lines = markdown.split(RegExp(r'\r?\n'));
   final blocks = <NoteBlock>[];
-  int i = 0;
+  // Use `var` for the line index; explicit type annotation is unnecessary.
+  var i = 0;
+
   while (i < lines.length) {
     final line = lines[i];
 
-    // Skip blank lines
+    // Skip blank lines.
     if (line.trim().isEmpty) {
       i++;
       continue;
     }
 
-    // Code block (```)
+    // Code block (```).
     if (line.startsWith('```')) {
       final language = line.length > 3 ? line.substring(3).trim() : null;
       final buffer = <String>[];
@@ -43,7 +45,7 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Table block (lines starting with |)
+    // Table block (lines starting with |).
     if (line.trim().startsWith('|')) {
       final tableLines = <String>[];
       while (i < lines.length && lines[i].trim().startsWith('|')) {
@@ -52,7 +54,7 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       }
       final rows = <List<String>>[];
       for (final tableLine in tableLines) {
-        // Remove leading and trailing pipe, then split
+        // Remove leading and trailing pipe, then split.
         final trimmed = tableLine.trim();
         final cells = trimmed
             .substring(1, math.max(1, trimmed.length - 1))
@@ -70,11 +72,11 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Quote block (line starts with >)
+    // Quote block (line starts with >).
     if (line.trimLeft().startsWith('>')) {
       final quotes = <String>[];
       while (i < lines.length && lines[i].trimLeft().startsWith('>')) {
-        // Remove leading '>' and optional space
+        // Remove leading '>' and optional space.
         final quoteLine = lines[i].trimLeft().substring(1).trimLeft();
         quotes.add(quoteLine);
         i++;
@@ -83,8 +85,8 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Heading (#+ space)
-    final headingMatch = RegExp(r'^(#{1,3})\s+(.*)\$').firstMatch(line.trim());
+    // Heading (#+ space).
+    final headingMatch = RegExp(r'^(#{1,3})\s+(.*)$').firstMatch(line.trim());
     if (headingMatch != null) {
       final hashes = headingMatch.group(1)!;
       final text = headingMatch.group(2)!.trim();
@@ -99,9 +101,9 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Todo item (- [ ] or - [x])
+    // Task list item (- [ ] or - [x]).
     final todoMatch = RegExp(
-      r'^[-*]\s*\[( |x|X)\]\s*(.*)\$',
+      r'^[-*]\s*\[( |x|X)\]\s*(.*)$',
     ).firstMatch(line.trim());
     if (todoMatch != null) {
       final checked = todoMatch.group(1)!.toLowerCase() == 'x';
@@ -116,16 +118,16 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Paragraph: accumulate until blank line or other block starts
+    // Paragraph: accumulate until blank line or another block begins.
     final buffer = <String>[line];
     i++;
     while (i < lines.length) {
       final l = lines[i];
       if (l.trim().isEmpty) {
-        // blank line ends paragraph
+        // Blank line ends paragraph.
         break;
       }
-      // stop if next line begins a special block
+      // Stop if next line begins a special block.
       final trimmed = l.trimLeft();
       if (trimmed.startsWith('```') ||
           trimmed.startsWith('|') ||
@@ -141,65 +143,59 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       NoteBlock(type: NoteBlockType.paragraph, data: buffer.join('\n')),
     );
   }
+
   return blocks;
 }
 
 /// Serializes a list of [NoteBlock]s back into a Markdown string. Blocks are
-/// separated by a blank line. This inverse operation ensures that blocks
-/// created in the editor can be persisted back into the existing body
-/// database field without changing the underlying schema.
+/// separated by a blank line.
 String blocksToMarkdown(List<NoteBlock> blocks) {
   final buffer = StringBuffer();
+
   for (var i = 0; i < blocks.length; i++) {
     final block = blocks[i];
-    switch (block.type) {
-      case NoteBlockType.paragraph:
-        buffer.writeln(block.data as String);
-        break;
-      case NoteBlockType.heading1:
-        buffer.writeln('# ${(block.data as String).trim()}');
-        break;
-      case NoteBlockType.heading2:
-        buffer.writeln('## ${(block.data as String).trim()}');
-        break;
-      case NoteBlockType.heading3:
-        buffer.writeln('### ${(block.data as String).trim()}');
-        break;
-      case NoteBlockType.todo:
-        final todo = block.data as TodoBlockData;
-        final box = todo.checked ? '[x]' : '[ ]';
-        buffer.writeln('- $box ${todo.text}');
-        break;
-      case NoteBlockType.quote:
-        final text = block.data as String;
-        for (final line in text.split('\n')) {
-          buffer.writeln('> $line');
+
+    // Use if/else chain (avoids unnecessary_breaks in a switch).
+    if (block.type == NoteBlockType.paragraph) {
+      buffer.writeln(block.data as String);
+    } else if (block.type == NoteBlockType.heading1) {
+      buffer.writeln('# ${(block.data as String).trim()}');
+    } else if (block.type == NoteBlockType.heading2) {
+      buffer.writeln('## ${(block.data as String).trim()}');
+    } else if (block.type == NoteBlockType.heading3) {
+      buffer.writeln('### ${(block.data as String).trim()}');
+    } else if (block.type == NoteBlockType.todo) {
+      final todo = block.data as TodoBlockData;
+      final box = todo.checked ? '[x]' : '[ ]';
+      buffer.writeln('- $box ${todo.text}');
+    } else if (block.type == NoteBlockType.quote) {
+      final text = block.data as String;
+      for (final line in text.split('\n')) {
+        buffer.writeln('> $line');
+      }
+    } else if (block.type == NoteBlockType.code) {
+      final data = block.data as CodeBlockData;
+      final lang = data.language;
+      buffer.writeln('```${lang ?? ''}');
+      buffer.writeln(data.code);
+      buffer.writeln('```');
+    } else if (block.type == NoteBlockType.table) {
+      final table = block.data as TableBlockData;
+      for (var rowIdx = 0; rowIdx < table.rows.length; rowIdx++) {
+        final row = table.rows[rowIdx];
+        buffer.writeln('| ${row.join(' | ')} |');
+        // Insert a separator row after header if needed.
+        if (rowIdx == 0 && table.rows.length > 1) {
+          final sepCells = List<String>.filled(row.length, '---');
+          buffer.writeln('| ${sepCells.join(' | ')} |');
         }
-        break;
-      case NoteBlockType.code:
-        final data = block.data as CodeBlockData;
-        final lang = data.language;
-        buffer.writeln('```${lang ?? ''}');
-        buffer.writeln(data.code);
-        buffer.writeln('```');
-        break;
-      case NoteBlockType.table:
-        final table = block.data as TableBlockData;
-        for (var rowIdx = 0; rowIdx < table.rows.length; rowIdx++) {
-          final row = table.rows[rowIdx];
-          buffer.writeln('| ${row.join(' | ')} |');
-          // If this is the header row and the table has more than one row,
-          // insert a separator row after the header for Markdown syntax.
-          if (rowIdx == 0 && table.rows.length > 1) {
-            final sepCells = List<String>.filled(row.length, '---');
-            buffer.writeln('| ${sepCells.join(' | ')} |');
-          }
-        }
-        break;
+      }
     }
+
     if (i != blocks.length - 1) {
       buffer.writeln();
     }
   }
+
   return buffer.toString();
 }

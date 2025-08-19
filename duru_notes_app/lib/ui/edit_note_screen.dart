@@ -1,9 +1,11 @@
 import 'dart:async';
 
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/ui/home_screen.dart';
-import 'package:duru_notes_app/models/note_block.dart';
 import 'package:duru_notes_app/core/parser/note_block_parser.dart';
+import 'package:duru_notes_app/data/local/app_db.dart';
+import 'package:duru_notes_app/models/note_block.dart';
+import 'package:duru_notes_app/repository/notes_repository.dart';
+import 'package:duru_notes_app/repository/sync_service.dart';
+import 'package:duru_notes_app/ui/home_screen.dart';
 import 'package:duru_notes_app/ui/widgets/block_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -59,6 +61,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     final sync = ref.read(syncProvider);
     final messenger = ScaffoldMessenger.of(context);
     final bodyMarkdown = blocksToMarkdown(_blocks);
+
     try {
       await repo.createOrUpdate(
         title: _title.text.trim(),
@@ -67,7 +70,8 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       );
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
-      // trigger sync asynchronously
+
+      // Trigger a background sync after save.
       unawaited(
         sync.syncNow().catchError((Object e, _) {
           debugPrint('Sync error after save: $e');
@@ -86,10 +90,12 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final noteId = widget.noteId;
     if (noteId == null) return;
+
     try {
       await repo.delete(noteId);
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
+
       unawaited(
         sync.syncNow().catchError((Object e, _) {
           debugPrint('Sync error after delete: $e');
@@ -105,18 +111,16 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   @override
   Widget build(BuildContext context) {
     final db = ref.read(dbProvider);
-    final effectiveTitle = _title.text.trim().isEmpty
-        ? '(untitled)'
-        : _title.text.trim();
+    final effectiveTitle =
+        _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: widget.noteId == null
-                ? null
-                : () => _deleteNote(context),
+            onPressed: widget.noteId == null ? null : () => _deleteNote(context),
           ),
         ],
       ),
@@ -146,7 +150,8 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
               Container(
                 constraints: const BoxConstraints(minHeight: 200),
                 child: _preview
-                    ? Markdown(
+                    // Use MarkdownBody to avoid nested scrollables.
+                    ? MarkdownBody(
                         data: blocksToMarkdown(_blocks),
                         onTapLink: (text, href, title) async {
                           if (href == null || href.isEmpty) return;

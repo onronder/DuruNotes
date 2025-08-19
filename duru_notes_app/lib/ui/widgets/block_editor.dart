@@ -1,6 +1,5 @@
+import 'package:duru_notes_app/models/note_block.dart';
 import 'package:flutter/material.dart';
-
-import '../../models/note_block.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
@@ -10,10 +9,10 @@ import '../../models/note_block.dart';
 /// code blocks and tables.
 class BlockEditor extends StatefulWidget {
   const BlockEditor({
-    super.key,
     required this.blocks,
     required this.onChanged,
-  });
+    Key? key,
+  }) : super(key: key);
 
   /// The initial blocks to edit. The list is copied internally; mutations
   /// inside the editor will not modify the provided list directly.
@@ -46,7 +45,7 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   void _initFromBlocks(List<NoteBlock> blocks) {
-    _blocks = blocks.map((b) => b).toList();
+    _blocks = List<NoteBlock>.from(blocks);
     _controllers = _blocks.map<TextEditingController?>((block) {
       switch (block.type) {
         case NoteBlockType.paragraph:
@@ -54,8 +53,10 @@ class _BlockEditorState extends State<BlockEditor> {
         case NoteBlockType.heading2:
         case NoteBlockType.heading3:
         case NoteBlockType.quote:
-        case NoteBlockType.code:
           return TextEditingController(text: block.data as String);
+        case NoteBlockType.code:
+          final code = (block.data as CodeBlockData).code;
+          return TextEditingController(text: code);
         case NoteBlockType.todo:
         case NoteBlockType.table:
           return null;
@@ -64,52 +65,47 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   void _notifyChange() {
-    widget.onChanged(_blocks.map((b) => b).toList());
+    widget.onChanged(List<NoteBlock>.from(_blocks));
   }
 
   void _insertBlock(NoteBlockType type, [int? index]) {
     final insertIndex = index ?? _blocks.length;
-    NoteBlock newBlock;
-    switch (type) {
-      case NoteBlockType.paragraph:
-        newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
-        break;
-      case NoteBlockType.heading1:
-        newBlock = const NoteBlock(type: NoteBlockType.heading1, data: '');
-        break;
-      case NoteBlockType.heading2:
-        newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
-        break;
-      case NoteBlockType.heading3:
-        newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
-        break;
-      case NoteBlockType.todo:
-        newBlock = NoteBlock(
-          type: NoteBlockType.todo,
-          data: const TodoBlockData(text: '', checked: false),
-        );
-        break;
-      case NoteBlockType.quote:
-        newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
-        break;
-      case NoteBlockType.code:
-        newBlock = NoteBlock(
-          type: NoteBlockType.code,
-          data: const CodeBlockData(code: '', language: null),
-        );
-        break;
-      case NoteBlockType.table:
-        newBlock = NoteBlock(
-          type: NoteBlockType.table,
-          data: const TableBlockData(
-            rows: [
-              <String>['', ''],
-              <String>['', ''],
-            ],
-          ),
-        );
-        break;
+
+    // Construct a new block instance based on the selected type. Use
+    // const constructors where possible and avoid redundant parameters.
+    late final NoteBlock newBlock;
+    if (type == NoteBlockType.paragraph) {
+      newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
+    } else if (type == NoteBlockType.heading1) {
+      newBlock = const NoteBlock(type: NoteBlockType.heading1, data: '');
+    } else if (type == NoteBlockType.heading2) {
+      newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
+    } else if (type == NoteBlockType.heading3) {
+      newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
+    } else if (type == NoteBlockType.todo) {
+      newBlock = NoteBlock(
+        type: NoteBlockType.todo,
+        data: const TodoBlockData(text: '', checked: false),
+      );
+    } else if (type == NoteBlockType.quote) {
+      newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
+    } else if (type == NoteBlockType.code) {
+      newBlock = const NoteBlock(
+        type: NoteBlockType.code,
+        data: CodeBlockData(code: ''),
+      );
+    } else {
+      newBlock = const NoteBlock(
+        type: NoteBlockType.table,
+        data: TableBlockData(
+          rows: <List<String>>[
+            <String>['', ''],
+            <String>['', ''],
+          ],
+        ),
+      );
     }
+
     setState(() {
       _blocks.insert(insertIndex, newBlock);
       _controllers.insert(
@@ -154,7 +150,7 @@ class _BlockEditorState extends State<BlockEditor> {
           index,
           block,
           controller!,
-          fontSize: 24.0,
+          fontSize: 24,
           fontWeight: FontWeight.bold,
         );
       case NoteBlockType.heading2:
@@ -162,7 +158,7 @@ class _BlockEditorState extends State<BlockEditor> {
           index,
           block,
           controller!,
-          fontSize: 20.0,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
         );
       case NoteBlockType.heading3:
@@ -170,7 +166,7 @@ class _BlockEditorState extends State<BlockEditor> {
           index,
           block,
           controller!,
-          fontSize: 18.0,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
         );
       case NoteBlockType.quote:
@@ -233,7 +229,7 @@ class _BlockEditorState extends State<BlockEditor> {
             width: 4,
           ),
         ),
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -271,7 +267,7 @@ class _BlockEditorState extends State<BlockEditor> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(8),
@@ -307,7 +303,7 @@ class _BlockEditorState extends State<BlockEditor> {
               ),
             ],
           ),
-          // TODO: optional language picker could be added here
+          // Optional: a language picker could be added here.
         ],
       ),
     );
@@ -371,9 +367,7 @@ class _BlockEditorState extends State<BlockEditor> {
             ],
             rows: [
               for (final row in table.rows)
-                DataRow(
-                  cells: [for (final cell in row) DataCell(Text(cell))],
-                ),
+                DataRow(cells: [for (final cell in row) DataCell(Text(cell))]),
             ],
           ),
         ),
@@ -381,7 +375,7 @@ class _BlockEditorState extends State<BlockEditor> {
           children: [
             TextButton(
               onPressed: () {
-                // Add a new row of empty cells
+                // Add a new row of empty cells.
                 setState(() {
                   final cols = table.rows.first.length;
                   final newRows = List<List<String>>.from(table.rows)
@@ -396,7 +390,7 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             TextButton(
               onPressed: () {
-                // Add a new column to each row
+                // Add a new column to each row.
                 setState(() {
                   final newRows = table.rows
                       .map((r) => List<String>.from(r)..add(''))
@@ -429,53 +423,54 @@ class _BlockEditorState extends State<BlockEditor> {
           itemCount: _blocks.length,
           itemBuilder: (context, index) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: _buildBlock(index),
             );
           },
         ),
-        // Add block button at the bottom
+        // Add block button at the bottom.
         Align(
           alignment: Alignment.centerLeft,
           child: PopupMenuButton<NoteBlockType>(
             tooltip: 'Add block',
-            onSelected: (type) => _insertBlock(type),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            // Use a tear-off to satisfy unnecessary_lambdas lint.
+            onSelected: _insertBlock,
+            itemBuilder: (context) => const [
+              PopupMenuItem(
                 value: NoteBlockType.paragraph,
                 child: Text('Paragraph'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.heading1,
                 child: Text('Heading 1'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.heading2,
                 child: Text('Heading 2'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.heading3,
                 child: Text('Heading 3'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.todo,
                 child: Text('Todo'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.quote,
                 child: Text('Quote'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.code,
                 child: Text('Code'),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: NoteBlockType.table,
                 child: Text('Table'),
               ),
             ],
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
