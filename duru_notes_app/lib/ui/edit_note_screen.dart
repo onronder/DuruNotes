@@ -116,7 +116,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       final db = ref.read(dbProvider);
       final results = await db.suggestNotesByTitlePrefix(
         query,
-        limit: 8,
       ); // DB çağrısı
       if (!mounted) return;
 
@@ -134,7 +133,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     }
 
     final overlay = Overlay.of(context);
-    if (overlay == null) return;
 
     // Eğer hâlihazırda overlay varsa yeniden çizdir.
     if (_overlay != null) {
@@ -209,7 +207,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     final atIndex = before.lastIndexOf('@');
     if (atIndex < 0) return;
 
-    final newBefore = before.substring(0, atIndex) + '@$title ';
+    final newBefore = '${before.substring(0, atIndex)}@$title ';
     final newText = newBefore + after;
 
     _body.value = TextEditingValue(
@@ -244,7 +242,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                     final messenger = ScaffoldMessenger.of(context);
                     try {
                       await repo.delete(widget.noteId!); // local-first
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.of(context).pop(true); // anında kapan
                       unawaited(
                         sync.syncNow().catchError((Object e, _) {
@@ -331,7 +329,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                         body: _body.text,
                         id: widget.noteId,
                       ); // local-first
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       Navigator.of(context).pop(true);
                       unawaited(
                         sync.syncNow().catchError((Object e, _) {
@@ -388,7 +386,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                           onTap: () async {
                             final existing =
                                 src ?? await db.findNote(l.sourceId);
-                            if (!mounted) return;
+                            if (!context.mounted) return;
                             if (existing != null) {
                               await Navigator.of(context).push(
                                 MaterialPageRoute<void>(

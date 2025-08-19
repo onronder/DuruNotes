@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 
 /// Bir link hedefini temsil eder.
 /// - `@Title` veya `[[Title]]` -> title = "Title", id = null
-/// - `@id:<UUID>` veya `[[id:<UUID>]]` -> title = "<UUID>", id = "<UUID>"
+/// - `@id:UUID` veya `[[id:UUID]]` -> title = "UUID", id = "UUID"
 class LinkTarget {
   const LinkTarget({this.title, this.id});
   final String? title;

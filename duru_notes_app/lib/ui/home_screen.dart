@@ -35,7 +35,7 @@ final syncProvider = Provider<SyncService>(
 );
 
 /// Not listesi: Önce lokali gösterir, ardından sync dener
-final notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((
+final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider = FutureProvider.autoDispose<List<LocalNote>>((
   ref,
 ) async {
   try {
@@ -60,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<LocalNote>> notesAsync = ref.watch(notesListProvider);
+    final notesAsync = ref.watch(notesListProvider);
 
     return Scaffold(
       appBar: AppBar(
