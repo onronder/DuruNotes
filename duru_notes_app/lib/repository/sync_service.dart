@@ -37,6 +37,12 @@ class SyncService {
   final _changes = StreamController<void>.broadcast();
   Stream<void> get changes => _changes.stream;
 
+  /// Maximum duration to wait for network operations inside a sync. If remote
+  /// operations (pulling notes or fetching active IDs) exceed this timeout,
+  /// the sync will abort those calls and continue. This prevents the UI from
+  /// hanging indefinitely when the network is slow or Supabase is unreachable.
+  static const Duration _networkTimeout = Duration(seconds: 10);
+
   Future<void> syncNow() {
     // Eşzamanlı çağrıları birleştir
     final inFlight = _ongoingSync;
@@ -59,16 +65,40 @@ class SyncService {
     // 1) Pending değişiklikleri push et
     await repo.pushAllPending();
 
-    // 2) Son çekim zamanından bu yana pull et
+    // 2) Son çekim zamanından bu yana pull et. Ağ çağrılarını sınırlamak
+    // için bir zaman aşımı uygula; zaman aşımı durumunda bir hata loglanır
+    // ve sonraki adımlara geçilir.
     final prefs = await SharedPreferences.getInstance();
     final sinceIso = prefs.getString(_lastPullKey);
     final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
 
-    await repo.pullSince(since);
+    try {
+      await repo.pullSince(since).timeout(_networkTimeout);
+    } on TimeoutException catch (e) {
+      if (kDebugMode) debugPrint('pullSince timed out: $e');
+    } on Object catch (e) {
+      // Log other errors but continue.
+      if (kDebugMode) debugPrint('pullSince failed: $e');
+    }
 
-    // 3) Hard delete uzaktan gerçeği kabul et
-    final remoteIds = await repo.fetchRemoteActiveIds();
-    await repo.reconcileHardDeletes(remoteIds);
+    // 3) Hard delete uzaktan gerçeği kabul et. fetchRemoteActiveIds
+    // ağ çağrısı olduğundan, yine bir zaman aşımı uygulanır.
+    Set<String> remoteIds = const {};
+    try {
+      remoteIds = await repo.fetchRemoteActiveIds().timeout(_networkTimeout);
+    } on TimeoutException catch (e) {
+      if (kDebugMode) debugPrint('fetchRemoteActiveIds timed out: $e');
+    } on Object catch (e) {
+      if (kDebugMode) debugPrint('fetchRemoteActiveIds failed: $e');
+    }
+
+    try {
+      if (remoteIds.isNotEmpty) {
+        await repo.reconcileHardDeletes(remoteIds);
+      }
+    } on Object catch (e) {
+      if (kDebugMode) debugPrint('reconcileHardDeletes failed: $e');
+    }
 
     // 4) Son çekim zamanını güncelle
     await prefs.setString(

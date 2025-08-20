@@ -4,6 +4,9 @@ platform :ios, '13.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# 👉 Bu satır modüler başlıkları etkinleştirir ve sqlite3_flutter_libs hatasını giderir.
+use_modular_headers!
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -30,7 +33,7 @@ flutter_ios_podfile_setup
 target 'Runner' do
   # Eğer bir eklenti özellikle gerektirmiyorsa framework moda geçmeyin:
   # use_frameworks!
-  # use_modular_headers!
+  # use_modular_headers!  # globalde zaten kullanıldı
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
@@ -42,7 +45,6 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    # iOS 9/12 uyarılarını susturmak ve 13.0'a sabitlemek için:
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
     end
