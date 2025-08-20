@@ -41,10 +41,9 @@ final syncChangesProvider = StreamProvider<void>(
   (ref) => ref.read(syncProvider).changes,
 );
 
-/// Not listesi: Önce lokali gösterir, ardından senkronizasyonu arka planda tetikler.
+/// Not listesi: lokali döndürür ve senkronizasyonu arka planda tetikler.
 final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
     FutureProvider.autoDispose<List<LocalNote>>((ref) async {
-  // Senkronizasyonu başlat ama await etme; UI’yi bloke etmesin.
   unawaited(ref.read(syncProvider).syncNow());
   return ref.read(repoProvider).list();
 });
@@ -57,20 +56,19 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Dinleyici aboneliğini tutar.
   ProviderSubscription<AsyncValue<void>>? _syncSub;
 
   @override
   void initState() {
     super.initState();
 
-    // Widget ağacı kurulduktan sonra Realtime başlat ve ilk senkronizasyon.
+    // Widget ağacı kurulduktan sonra Realtime başlat ve ilk sync
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncProvider).startRealtime();
       unawaited(ref.read(syncProvider).syncNow());
     });
 
-    // Senkronizasyon sinyali geldiğinde not listesini güncelle.
+    // Sync tamamlandığında not listesi invalidate
     _syncSub = ref.listenManual<AsyncValue<void>>(
       syncChangesProvider,
       (prev, next) {
@@ -91,7 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       await ref.read(syncProvider).syncNow();
     } on Object {
-      // Hataları sessizce yut.
+      // sessizce yut
     }
   }
 
@@ -162,42 +160,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
                   SizedBox(height: 120),
-                    Center(child: Text('No notes yet')),
-                  ],
-                ),
-              );
-            }
-          );
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              itemCount: notes.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final n = notes[index];
-                return ListTile(
-                  title: Text(n.title),
-                  subtitle: Text(
-                    n.body,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => EditNoteScreen(
-                          noteId: n.id,
-                          initialTitle: n.title,
-                          initialBody: n.body,
+                  Center(child: Text('No notes yet')),
+                ],
+              ),
+            );
+          } else {
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                itemCount: notes.length,
+                separatorBuilder: (context, index) =>
+                    const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final n = notes[index];
+                  return ListTile(
+                    title: Text(n.title),
+                    subtitle: Text(
+                      n.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => EditNoteScreen(
+                            noteId: n.id,
+                            initialTitle: n.title,
+                            initialBody: n.body,
+                          ),
                         ),
-                      ),
-                    );
-                    ref.invalidate(notesListProvider);
-                  },
-                );
-              },
-            ),
-          );
+                      );
+                      ref.invalidate(notesListProvider);
+                    },
+                  );
+                },
+              ),
+            );
+          }
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
