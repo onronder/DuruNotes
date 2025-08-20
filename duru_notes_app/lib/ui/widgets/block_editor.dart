@@ -1,12 +1,15 @@
-import 'package:duru_notes_app/models/note_block.dart';
 import 'package:flutter/material.dart';
+
+import 'package:duru_notes_app/models/note_block.dart';
+import 'package:duru_notes_app/services/attachment_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
 /// exposes the updated list of blocks via the [onChanged] callback whenever
 /// the user edits or reorders blocks. Use this editor in place of a single
-/// large `TextField` to support rich content such as headings, todos,
-/// quotes, code blocks, tables and attachments.
+/// large `TextField` to support rich content such as headings, todos, quotes,
+/// code blocks and tables.
 class BlockEditor extends StatefulWidget {
   const BlockEditor({
     Key? key,
@@ -14,11 +17,12 @@ class BlockEditor extends StatefulWidget {
     required this.onChanged,
   }) : super(key: key);
 
-  /// The blocks to edit. We keep the same list reference to avoid
-  /// re-creating controllers on every keystroke.
+  /// The initial blocks to edit. The list is copied internally; mutations
+  /// inside the editor will not modify the provided list directly.
   final List<NoteBlock> blocks;
 
-  /// Called whenever the list of blocks changes.
+  /// Called whenever the list of blocks changes. This includes text edits,
+  /// adding/removing blocks, toggling checkboxes and reordering.
   final ValueChanged<List<NoteBlock>> onChanged;
 
   @override
@@ -38,113 +42,78 @@ class _BlockEditorState extends State<BlockEditor> {
   @override
   void didUpdateWidget(BlockEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only re-init if parent provides a different list instance
-    if (!identical(oldWidget.blocks, widget.blocks)) {
+    if (oldWidget.blocks != widget.blocks) {
       _initFromBlocks(widget.blocks);
     }
   }
 
   void _initFromBlocks(List<NoteBlock> blocks) {
-    // Keep the same reference to avoid identity changes.
-    _blocks = blocks;
-    _controllers = List<TextEditingController?>.generate(_blocks.length, (i) {
-      final block = _blocks[i];
+    _blocks = blocks.map((b) => b).toList();
+    _controllers = _blocks.map<TextEditingController?>((block) {
       switch (block.type) {
         case NoteBlockType.paragraph:
         case NoteBlockType.heading1:
         case NoteBlockType.heading2:
         case NoteBlockType.heading3:
         case NoteBlockType.quote:
-          return TextEditingController(text: block.data as String);
         case NoteBlockType.code:
-          return TextEditingController(
-            text: (block.data as CodeBlockData).code,
-          );
+          return TextEditingController(text: block.data as String);
         case NoteBlockType.todo:
-          return TextEditingController(
-            text: (block.data as TodoBlockData).text,
-          );
         case NoteBlockType.table:
         case NoteBlockType.attachment:
           return null;
       }
-    }, growable: true);
+    }).toList();
   }
 
   void _notifyChange() {
-    // Pass the same list back; this avoids didUpdateWidget re-inits.
-    widget.onChanged(_blocks);
+    widget.onChanged(_blocks.map((b) => b).toList());
   }
 
   void _insertBlock(NoteBlockType type, [int? index]) {
     final insertIndex = index ?? _blocks.length;
-
-    late final NoteBlock newBlock;
+    // Construct a new block instance based on the selected type. Use
+    // const constructors where possible and avoid redundant `language: null`.
+    // If the user selected an attachment block, handle file picking and
+    // uploading asynchronously. Other block types can be inserted
+    // synchronously.
+    if (type == NoteBlockType.attachment) {
+      _createAttachmentBlock(insertIndex);
+      return;
+    }
+    NoteBlock newBlock;
     if (type == NoteBlockType.paragraph) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.paragraph,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
     } else if (type == NoteBlockType.heading1) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.heading1,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.heading1, data: '');
     } else if (type == NoteBlockType.heading2) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.heading2,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
     } else if (type == NoteBlockType.heading3) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.heading3,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
     } else if (type == NoteBlockType.todo) {
       newBlock = const NoteBlock(
         type: NoteBlockType.todo,
         data: TodoBlockData(text: '', checked: false),
       );
     } else if (type == NoteBlockType.quote) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.quote,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
     } else if (type == NoteBlockType.code) {
       newBlock = const NoteBlock(
         type: NoteBlockType.code,
         data: CodeBlockData(code: ''),
       );
-    } else if (type == NoteBlockType.attachment) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.attachment,
-        data: AttachmentBlockData(filename: '', url: ''),
-      );
     } else {
+      // Table block
       newBlock = const NoteBlock(
         type: NoteBlockType.table,
-        data: TableBlockData(
-          rows: [
-            ['', ''],
-            ['', ''],
-          ],
-        ),
+        data: TableBlockData(rows: [<String>['', ''], <String>['', '']]),
       );
     }
-
     setState(() {
       _blocks.insert(insertIndex, newBlock);
       _controllers.insert(
         insertIndex,
-        _needsController(newBlock)
-            ? TextEditingController(
-                text: newBlock.type == NoteBlockType.code
-                    ? (newBlock.data as CodeBlockData).code
-                    : newBlock.type == NoteBlockType.todo
-                        ? (newBlock.data as TodoBlockData).text
-                        : (newBlock.data as String),
-              )
-            : null,
+        _needsController(newBlock) ? TextEditingController(text: '') : null,
       );
     });
     _notifyChange();
@@ -158,8 +127,8 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.heading3:
       case NoteBlockType.quote:
       case NoteBlockType.code:
-      case NoteBlockType.todo:
         return true;
+      case NoteBlockType.todo:
       case NoteBlockType.table:
       case NoteBlockType.attachment:
         return false;
@@ -174,6 +143,57 @@ class _BlockEditorState extends State<BlockEditor> {
     _notifyChange();
   }
 
+  /// Handles insertion of an attachment block by opening the file picker
+  /// and uploading the selected file. If the user cancels the picker or
+  /// an upload error occurs, no block is inserted.
+  Future<void> _createAttachmentBlock(int insertIndex) async {
+    final client = Supabase.instance.client;
+    final service = AttachmentService(client);
+    // Show a loading indicator while picking/uploading. We use a
+    // modal progress indicator for clarity, but other UX patterns are
+    // possible.
+    // Show a simple dialog with CircularProgressIndicator and label.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          ),
+        );
+      },
+    );
+    AttachmentBlockData? data;
+    try {
+      data = await service.pickAndUpload();
+    } catch (e) {
+      // Dismiss the dialog before showing error.
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Attachment upload failed: $e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    // Dismiss the progress dialog.
+    Navigator.of(context).pop();
+    if (data == null) {
+      // User cancelled.
+      return;
+    }
+    // Insert the new attachment block.
+    setState(() {
+      final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data);
+      _blocks.insert(insertIndex, newBlock);
+      _controllers.insert(insertIndex, null);
+    });
+    _notifyChange();
+  }
+
   Widget _buildBlock(int index) {
     final block = _blocks[index];
     final controller = _controllers[index];
@@ -181,35 +201,17 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.paragraph:
         return _buildTextBlock(index, block, controller!, isParagraph: true);
       case NoteBlockType.heading1:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        );
+        return _buildTextBlock(index, block, controller!, fontSize: 24, fontWeight: FontWeight.bold);
       case NoteBlockType.heading2:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        );
+        return _buildTextBlock(index, block, controller!, fontSize: 20, fontWeight: FontWeight.bold);
       case NoteBlockType.heading3:
-        return _buildTextBlock(
-          index,
-          block,
-          controller!,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        );
+        return _buildTextBlock(index, block, controller!, fontSize: 18, fontWeight: FontWeight.w600);
       case NoteBlockType.quote:
         return _buildQuoteBlock(index, block, controller!);
       case NoteBlockType.code:
         return _buildCodeBlock(index, block, controller!);
       case NoteBlockType.todo:
-        return _buildTodoBlock(index, block, controller!);
+        return _buildTodoBlock(index, block);
       case NoteBlockType.table:
         return _buildTableBlock(index, block);
       case NoteBlockType.attachment:
@@ -253,17 +255,13 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
-  Widget _buildQuoteBlock(
-    int index,
-    NoteBlock block,
-    TextEditingController controller,
-  ) {
+  Widget _buildQuoteBlock(int index, NoteBlock block, TextEditingController controller) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          left:
-              BorderSide(color: Theme.of(context).colorScheme.outline, width: 4),
+          left: BorderSide(color: Theme.of(context).colorScheme.outline, width: 4),
         ),
+        // Use surfaceContainerHighest instead of the deprecated surfaceVariant.
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -274,10 +272,7 @@ class _BlockEditorState extends State<BlockEditor> {
             child: TextField(
               controller: controller,
               maxLines: null,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Quote',
-              ),
+              decoration: const InputDecoration(border: InputBorder.none, hintText: 'Quote'),
               onChanged: (value) {
                 setState(() {
                   _blocks[index] = _blocks[index].copyWith(data: value);
@@ -295,13 +290,10 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
-  Widget _buildCodeBlock(
-    int index,
-    NoteBlock block,
-    TextEditingController controller,
-  ) {
+  Widget _buildCodeBlock(int index, NoteBlock block, TextEditingController controller) {
     return Container(
       decoration: BoxDecoration(
+        // Use surfaceContainerHighest instead of the deprecated surfaceVariant.
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
       ),
@@ -338,16 +330,13 @@ class _BlockEditorState extends State<BlockEditor> {
               ),
             ],
           ),
+          // TODO: optional language picker could be added here
         ],
       ),
     );
   }
 
-  Widget _buildTodoBlock(
-    int index,
-    NoteBlock block,
-    TextEditingController controller,
-  ) {
+  Widget _buildTodoBlock(int index, NoteBlock block) {
     final todo = block.data as TodoBlockData;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -365,17 +354,12 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         Expanded(
           child: TextField(
-            controller: controller,
+            controller: TextEditingController(text: todo.text),
             maxLines: null,
-            decoration: const InputDecoration(
-              hintText: 'Todo',
-              border: InputBorder.none,
-            ),
+            decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
             onChanged: (value) {
               setState(() {
-                _blocks[index] = _blocks[index].copyWith(
-                  data: todo.copyWith(text: value),
-                );
+                _blocks[index] = _blocks[index].copyWith(data: todo.copyWith(text: value));
               });
               _notifyChange();
             },
@@ -391,6 +375,8 @@ class _BlockEditorState extends State<BlockEditor> {
 
   Widget _buildTableBlock(int index, NoteBlock block) {
     final table = block.data as TableBlockData;
+    // Render a simple read-only preview of the table. Editing support could
+    // be added in the future.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -413,6 +399,7 @@ class _BlockEditorState extends State<BlockEditor> {
           children: [
             TextButton(
               onPressed: () {
+                // Add a new row of empty cells
                 setState(() {
                   final cols = table.rows.first.length;
                   final newRows = List<List<String>>.from(table.rows)
@@ -427,6 +414,7 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             TextButton(
               onPressed: () {
+                // Add a new column to each row
                 setState(() {
                   final newRows = table.rows
                       .map((r) => List<String>.from(r)..add(''))
@@ -519,46 +507,47 @@ class _BlockEditorState extends State<BlockEditor> {
             );
           },
         ),
-        // Add block button at the bottom.
+        // Add block button at the bottom
         Align(
           alignment: Alignment.centerLeft,
           child: PopupMenuButton<NoteBlockType>(
             tooltip: 'Add block',
+            // Use a tear-off to satisfy unnecessary_lambdas lint.
             onSelected: _insertBlock,
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem(
                 value: NoteBlockType.paragraph,
                 child: Text('Paragraph'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.heading1,
                 child: Text('Heading 1'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.heading2,
                 child: Text('Heading 2'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.heading3,
                 child: Text('Heading 3'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.todo,
                 child: Text('Todo'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.quote,
                 child: Text('Quote'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.code,
                 child: Text('Code'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.table,
                 child: Text('Table'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: NoteBlockType.attachment,
                 child: Text('Attachment'),
               ),

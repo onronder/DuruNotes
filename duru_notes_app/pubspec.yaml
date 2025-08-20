@@ -14,6 +14,8 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_markdown: ^0.7.7+1
+  file_picker: ^10.3.1   # dosya seçimi için
+  crypto: ^3.0.6         # SHA-256 hesaplamak için
   flutter_riverpod: ^2.6.1
   flutter_secure_storage: ^9.2.4
   freezed_annotation: ^3.1.0
