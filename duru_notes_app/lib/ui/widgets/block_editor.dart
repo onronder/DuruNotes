@@ -58,9 +58,13 @@ class _BlockEditorState extends State<BlockEditor> {
         case NoteBlockType.quote:
           return TextEditingController(text: block.data as String);
         case NoteBlockType.code:
-          return TextEditingController(text: (block.data as CodeBlockData).code);
+          return TextEditingController(
+            text: (block.data as CodeBlockData).code,
+          );
         case NoteBlockType.todo:
-          return TextEditingController(text: (block.data as TodoBlockData).text);
+          return TextEditingController(
+            text: (block.data as TodoBlockData).text,
+          );
         case NoteBlockType.table:
           return null;
       }
@@ -117,8 +121,8 @@ class _BlockEditorState extends State<BlockEditor> {
                 text: newBlock.type == NoteBlockType.code
                     ? (newBlock.data as CodeBlockData).code
                     : newBlock.type == NoteBlockType.todo
-                        ? (newBlock.data as TodoBlockData).text
-                        : (newBlock.data as String),
+                    ? (newBlock.data as TodoBlockData).text
+                    : (newBlock.data as String),
               )
             : null,
       );
@@ -156,14 +160,29 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.paragraph:
         return _buildTextBlock(index, block, controller!, isParagraph: true);
       case NoteBlockType.heading1:
-        return _buildTextBlock(index, block, controller!,
-            fontSize: 24, fontWeight: FontWeight.bold);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        );
       case NoteBlockType.heading2:
-        return _buildTextBlock(index, block, controller!,
-            fontSize: 20, fontWeight: FontWeight.bold);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        );
       case NoteBlockType.heading3:
-        return _buildTextBlock(index, block, controller!,
-            fontSize: 18, fontWeight: FontWeight.w600);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        );
       case NoteBlockType.quote:
         return _buildQuoteBlock(index, block, controller!);
       case NoteBlockType.code:
@@ -335,8 +354,9 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             onChanged: (value) {
               setState(() {
-                _blocks[index] =
-                    _blocks[index].copyWith(data: todo.copyWith(text: value));
+                _blocks[index] = _blocks[index].copyWith(
+                  data: todo.copyWith(text: value),
+                );
               });
               _notifyChange();
             },
@@ -377,8 +397,9 @@ class _BlockEditorState extends State<BlockEditor> {
                   final cols = table.rows.first.length;
                   final newRows = List<List<String>>.from(table.rows)
                     ..add(List<String>.filled(cols, ''));
-                  _blocks[index] =
-                      _blocks[index].copyWith(data: table.copyWith(rows: newRows));
+                  _blocks[index] = _blocks[index].copyWith(
+                    data: table.copyWith(rows: newRows),
+                  );
                 });
                 _notifyChange();
               },
@@ -387,10 +408,12 @@ class _BlockEditorState extends State<BlockEditor> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  final newRows =
-                      table.rows.map((r) => List<String>.from(r)..add('')).toList();
-                  _blocks[index] =
-                      _blocks[index].copyWith(data: table.copyWith(rows: newRows));
+                  final newRows = table.rows
+                      .map((r) => List<String>.from(r)..add(''))
+                      .toList();
+                  _blocks[index] = _blocks[index].copyWith(
+                    data: table.copyWith(rows: newRows),
+                  );
                 });
                 _notifyChange();
               },
@@ -427,10 +450,22 @@ class _BlockEditorState extends State<BlockEditor> {
             tooltip: 'Add block',
             onSelected: _insertBlock,
             itemBuilder: (context) => const [
-              PopupMenuItem(value: NoteBlockType.paragraph, child: Text('Paragraph')),
-              PopupMenuItem(value: NoteBlockType.heading1, child: Text('Heading 1')),
-              PopupMenuItem(value: NoteBlockType.heading2, child: Text('Heading 2')),
-              PopupMenuItem(value: NoteBlockType.heading3, child: Text('Heading 3')),
+              PopupMenuItem(
+                value: NoteBlockType.paragraph,
+                child: Text('Paragraph'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.heading1,
+                child: Text('Heading 1'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.heading2,
+                child: Text('Heading 2'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.heading3,
+                child: Text('Heading 3'),
+              ),
               PopupMenuItem(value: NoteBlockType.todo, child: Text('Todo')),
               PopupMenuItem(value: NoteBlockType.quote, child: Text('Quote')),
               PopupMenuItem(value: NoteBlockType.code, child: Text('Code')),

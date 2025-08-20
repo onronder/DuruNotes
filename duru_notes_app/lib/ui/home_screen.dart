@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:duru_notes_app/core/crypto/crypto_box.dart';
 import 'package:duru_notes_app/core/crypto/key_manager.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
@@ -34,23 +36,62 @@ final syncProvider = Provider<SyncService>(
   (ref) => SyncService(ref.read(repoProvider)),
 );
 
+/// SyncService'ten sinyal alan stream provider (UI invalidation için)
+final syncChangesProvider = StreamProvider<void>(
+  (ref) => ref.read(syncProvider).changes,
+);
+
 /// Not listesi: Önce lokali gösterir, ardından sync dener
 final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
-    FutureProvider.autoDispose<List<LocalNote>>((
-      ref,
-    ) async {
-      try {
-        await ref.read(syncProvider).syncNow();
-      } on Object {
-        // sync hatalarını yut
-      }
-      return ref.read(repoProvider).list();
-    });
+    FutureProvider.autoDispose<List<LocalNote>>((ref) async {
+  try {
+    await ref.read(syncProvider).syncNow();
+  } on Object {
+    // sync hatalarını sessiz geç
+  }
+  return ref.read(repoProvider).list();
+});
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
-  Future<void> _refresh(WidgetRef ref) async {
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // listenManual için doğru generic: StreamProvider<void> -> AsyncValue<void>
+  ProviderSubscription<AsyncValue<void>>? _syncSub;
+  bool _syncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Widget ağacı kurulduktan sonra Realtime başlat
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncProvider).startRealtime();
+      // İlk açılışta bir kere sync
+      unawaited(ref.read(syncProvider).syncNow());
+    });
+
+    // Realtime veya manuel sync bittiğinde listeyi güncelle
+    _syncSub = ref.listenManual<AsyncValue<void>>(
+      syncChangesProvider,
+      (prev, next) {
+        ref.invalidate(notesListProvider);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.close();
+    ref.read(syncProvider).stopRealtime();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
     ref.invalidate(notesListProvider);
     try {
       await ref.read(syncProvider).syncNow();
@@ -60,7 +101,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
 
     return Scaffold(
@@ -81,7 +122,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _refresh(ref),
+            onPressed: _refresh,
             tooltip: 'Refresh',
           ),
           PopupMenuButton<String>(
@@ -104,7 +145,10 @@ class HomeScreen extends ConsumerWidget {
                   );
                   return;
                 case 'logout':
+                  // Realtime’ı kapat + Supabase oturumunu kapat
+                  ref.read(syncProvider).stopRealtime();
                   await Supabase.instance.client.auth.signOut();
+                  // Not: Auth guard/Router login ekranına yönlendirmelidir
                   return;
               }
             },
@@ -120,7 +164,7 @@ class HomeScreen extends ConsumerWidget {
         data: (notes) {
           if (notes.isEmpty) {
             return RefreshIndicator(
-              onRefresh: () => _refresh(ref),
+              onRefresh: _refresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
@@ -131,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () => _refresh(ref),
+            onRefresh: _refresh,
             child: ListView.separated(
               itemCount: notes.length,
               separatorBuilder: (context, index) => const Divider(height: 1),

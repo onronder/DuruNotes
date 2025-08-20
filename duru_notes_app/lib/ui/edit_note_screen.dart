@@ -111,8 +111,9 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   @override
   Widget build(BuildContext context) {
     final db = ref.read(dbProvider);
-    final effectiveTitle =
-        _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
+    final effectiveTitle = _title.text.trim().isEmpty
+        ? '(untitled)'
+        : _title.text.trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -120,7 +121,9 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: widget.noteId == null ? null : () => _deleteNote(context),
+            onPressed: widget.noteId == null
+                ? null
+                : () => _deleteNote(context),
           ),
         ],
       ),
