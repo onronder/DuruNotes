@@ -44,13 +44,11 @@ final syncChangesProvider = StreamProvider<void>(
 /// Not listesi: Önce lokali gösterir, ardından sync dener
 final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
     FutureProvider.autoDispose<List<LocalNote>>((ref) async {
-  try {
-    await ref.read(syncProvider).syncNow();
-  } on Object {
-    // sync hatalarını sessiz geç
-  }
+  // Sync in background; do not await to avoid blocking UI
+  unawaited(ref.read(syncProvider).syncNow());
   return ref.read(repoProvider).list();
 });
+
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
