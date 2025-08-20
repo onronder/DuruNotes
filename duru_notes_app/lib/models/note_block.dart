@@ -13,6 +13,10 @@ enum NoteBlockType {
   quote,
   code,
   table,
+  /// Represents a file attachment. Attachments store a file name and a
+  /// remote URL (e.g. from Supabase Storage). The data for this block is
+  /// an [AttachmentBlockData] instance.
+  attachment,
 }
 
 /// Base class for a note block. Each block has a [type] and associated
@@ -82,5 +86,27 @@ class TableBlockData {
 
   TableBlockData copyWith({List<List<String>>? rows}) {
     return TableBlockData(rows: rows ?? this.rows);
+  }
+}
+
+/// Data model for attachment blocks. An attachment consists of a file name
+/// (used as a label) and a URL pointing to the uploaded file. When
+/// serialized to Markdown, attachments are represented using the image
+/// syntax: `![filename](url)`.
+@immutable
+class AttachmentBlockData {
+  const AttachmentBlockData({required this.filename, required this.url});
+
+  /// The label or file name shown to the user.
+  final String filename;
+
+  /// The remote URL of the attachment (e.g. in Supabase Storage).
+  final String url;
+
+  AttachmentBlockData copyWith({String? filename, String? url}) {
+    return AttachmentBlockData(
+      filename: filename ?? this.filename,
+      url: url ?? this.url,
+    );
   }
 }

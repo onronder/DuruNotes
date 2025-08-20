@@ -3,15 +3,12 @@ import 'dart:math' as math;
 import 'package:duru_notes_app/models/note_block.dart';
 
 /// Parses a markdown string into a list of [NoteBlock]s. The parser uses
-/// simple heuristics to detect headings, task items, quotes, code blocks and
-/// tables. Lines that do not match any special pattern are grouped into
-/// paragraph blocks. Blank lines separate paragraphs. This is a best-effort
-/// parser: it does not handle the full Markdown spec but aims to cover the
-/// constructs used in DuruNotes.
+/// simple heuristics to detect headings, task items, quotes, code blocks,
+/// tables and attachments. Lines that do not match any special pattern
+/// are grouped into paragraph blocks. Blank lines separate paragraphs.
 List<NoteBlock> parseMarkdownToBlocks(String markdown) {
   final lines = markdown.split(RegExp(r'\r?\n'));
   final blocks = <NoteBlock>[];
-  // Use `var` for the line index; explicit type annotation is unnecessary.
   var i = 0;
 
   while (i < lines.length) {
@@ -81,12 +78,15 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
         quotes.add(quoteLine);
         i++;
       }
-      blocks.add(NoteBlock(type: NoteBlockType.quote, data: quotes.join('\n')));
+      blocks.add(
+        NoteBlock(type: NoteBlockType.quote, data: quotes.join('\n')),
+      );
       continue;
     }
 
     // Heading (#+ space).
-    final headingMatch = RegExp(r'^(#{1,3})\s+(.*)$').firstMatch(line.trim());
+    final headingMatch =
+        RegExp(r'^(#{1,3})\s+(.*)$').firstMatch(line.trim());
     if (headingMatch != null) {
       final hashes = headingMatch.group(1)!;
       final text = headingMatch.group(2)!.trim();
@@ -94,17 +94,16 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       final type = level == 1
           ? NoteBlockType.heading1
           : level == 2
-          ? NoteBlockType.heading2
-          : NoteBlockType.heading3;
+              ? NoteBlockType.heading2
+              : NoteBlockType.heading3;
       blocks.add(NoteBlock(type: type, data: text));
       i++;
       continue;
     }
 
     // Task list item (- [ ] or - [x]).
-    final todoMatch = RegExp(
-      r'^[-*]\s*\[( |x|X)\]\s*(.*)$',
-    ).firstMatch(line.trim());
+    final todoMatch =
+        RegExp(r'^[-*]\s*\[( |x|X)\]\s*(.*)$').firstMatch(line.trim());
     if (todoMatch != null) {
       final checked = todoMatch.group(1)!.toLowerCase() == 'x';
       final text = todoMatch.group(2) ?? '';
@@ -118,13 +117,28 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
+    // Attachment block: a single line in the form ![filename](url).
+    final attachmentMatch =
+        RegExp(r'^!\[(.*?)\]\(([^)]+)\)\s*$').firstMatch(line.trim());
+    if (attachmentMatch != null) {
+      final filename = attachmentMatch.group(1)?.trim() ?? '';
+      final url = attachmentMatch.group(2)?.trim() ?? '';
+      blocks.add(
+        NoteBlock(
+          type: NoteBlockType.attachment,
+          data: AttachmentBlockData(filename: filename, url: url),
+        ),
+      );
+      i++;
+      continue;
+    }
+
     // Paragraph: accumulate until blank line or another block begins.
     final buffer = <String>[line];
     i++;
     while (i < lines.length) {
       final l = lines[i];
       if (l.trim().isEmpty) {
-        // Blank line ends paragraph.
         break;
       }
       // Stop if next line begins a special block.
@@ -133,7 +147,8 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
           trimmed.startsWith('|') ||
           trimmed.startsWith('>') ||
           RegExp(r'^(#{1,3})\s').hasMatch(trimmed) ||
-          RegExp(r'^[-*]\s*\[( |x|X)\]').hasMatch(trimmed)) {
+          RegExp(r'^[-*]\s*\[( |x|X)\]').hasMatch(trimmed) ||
+          RegExp(r'^!\[').hasMatch(trimmed)) {
         break;
       }
       buffer.add(l);
@@ -184,12 +199,15 @@ String blocksToMarkdown(List<NoteBlock> blocks) {
       for (var rowIdx = 0; rowIdx < table.rows.length; rowIdx++) {
         final row = table.rows[rowIdx];
         buffer.writeln('| ${row.join(' | ')} |');
-        // Insert a separator row after header if needed.
+        // Insert a separator row after the header if needed.
         if (rowIdx == 0 && table.rows.length > 1) {
           final sepCells = List<String>.filled(row.length, '---');
           buffer.writeln('| ${sepCells.join(' | ')} |');
         }
       }
+    } else if (block.type == NoteBlockType.attachment) {
+      final attach = block.data as AttachmentBlockData;
+      buffer.writeln('![${attach.filename}](${attach.url})');
     }
 
     if (i != blocks.length - 1) {

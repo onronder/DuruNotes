@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 /// [NoteBlock]s and allows the user to edit each block independently. It
 /// exposes the updated list of blocks via the [onChanged] callback whenever
 /// the user edits or reorders blocks. Use this editor in place of a single
-/// large `TextField` to support rich content such as headings, todos, quotes,
-/// code blocks and tables.
+/// large `TextField` to support rich content such as headings, todos,
+/// quotes, code blocks, tables and attachments.
 class BlockEditor extends StatefulWidget {
   const BlockEditor({
+    Key? key,
     required this.blocks,
     required this.onChanged,
-    Key? key,
   }) : super(key: key);
 
-  /// The blocks to edit. We keep the *same list reference* to avoid
+  /// The blocks to edit. We keep the same list reference to avoid
   /// re-creating controllers on every keystroke.
   final List<NoteBlock> blocks;
 
@@ -39,7 +39,6 @@ class _BlockEditorState extends State<BlockEditor> {
   void didUpdateWidget(BlockEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Only re-init if parent provides a different list instance
-    // (e.g., switching to another note). This prevents cursor jumps.
     if (!identical(oldWidget.blocks, widget.blocks)) {
       _initFromBlocks(widget.blocks);
     }
@@ -66,6 +65,7 @@ class _BlockEditorState extends State<BlockEditor> {
             text: (block.data as TodoBlockData).text,
           );
         case NoteBlockType.table:
+        case NoteBlockType.attachment:
           return null;
       }
     }, growable: true);
@@ -81,32 +81,52 @@ class _BlockEditorState extends State<BlockEditor> {
 
     late final NoteBlock newBlock;
     if (type == NoteBlockType.paragraph) {
-      newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
+      newBlock = const NoteBlock(
+        type: NoteBlockType.paragraph,
+        data: '',
+      );
     } else if (type == NoteBlockType.heading1) {
-      newBlock = const NoteBlock(type: NoteBlockType.heading1, data: '');
+      newBlock = const NoteBlock(
+        type: NoteBlockType.heading1,
+        data: '',
+      );
     } else if (type == NoteBlockType.heading2) {
-      newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
+      newBlock = const NoteBlock(
+        type: NoteBlockType.heading2,
+        data: '',
+      );
     } else if (type == NoteBlockType.heading3) {
-      newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
+      newBlock = const NoteBlock(
+        type: NoteBlockType.heading3,
+        data: '',
+      );
     } else if (type == NoteBlockType.todo) {
-      newBlock = NoteBlock(
+      newBlock = const NoteBlock(
         type: NoteBlockType.todo,
-        data: const TodoBlockData(text: '', checked: false),
+        data: TodoBlockData(text: '', checked: false),
       );
     } else if (type == NoteBlockType.quote) {
-      newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
+      newBlock = const NoteBlock(
+        type: NoteBlockType.quote,
+        data: '',
+      );
     } else if (type == NoteBlockType.code) {
       newBlock = const NoteBlock(
         type: NoteBlockType.code,
         data: CodeBlockData(code: ''),
       );
+    } else if (type == NoteBlockType.attachment) {
+      newBlock = const NoteBlock(
+        type: NoteBlockType.attachment,
+        data: AttachmentBlockData(filename: '', url: ''),
+      );
     } else {
       newBlock = const NoteBlock(
         type: NoteBlockType.table,
         data: TableBlockData(
-          rows: <List<String>>[
-            <String>['', ''],
-            <String>['', ''],
+          rows: [
+            ['', ''],
+            ['', ''],
           ],
         ),
       );
@@ -121,8 +141,8 @@ class _BlockEditorState extends State<BlockEditor> {
                 text: newBlock.type == NoteBlockType.code
                     ? (newBlock.data as CodeBlockData).code
                     : newBlock.type == NoteBlockType.todo
-                    ? (newBlock.data as TodoBlockData).text
-                    : (newBlock.data as String),
+                        ? (newBlock.data as TodoBlockData).text
+                        : (newBlock.data as String),
               )
             : null,
       );
@@ -141,6 +161,7 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.todo:
         return true;
       case NoteBlockType.table:
+      case NoteBlockType.attachment:
         return false;
     }
   }
@@ -191,6 +212,8 @@ class _BlockEditorState extends State<BlockEditor> {
         return _buildTodoBlock(index, block, controller!);
       case NoteBlockType.table:
         return _buildTableBlock(index, block);
+      case NoteBlockType.attachment:
+        return _buildAttachmentBlock(index, block);
     }
   }
 
@@ -215,7 +238,6 @@ class _BlockEditorState extends State<BlockEditor> {
               border: InputBorder.none,
             ),
             onChanged: (value) {
-              // Update only the model; controller already has the new text.
               setState(() {
                 _blocks[index] = _blocks[index].copyWith(data: value);
               });
@@ -239,10 +261,8 @@ class _BlockEditorState extends State<BlockEditor> {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          left: BorderSide(
-            color: Theme.of(context).colorScheme.outline,
-            width: 4,
-          ),
+          left:
+              BorderSide(color: Theme.of(context).colorScheme.outline, width: 4),
         ),
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
@@ -318,7 +338,6 @@ class _BlockEditorState extends State<BlockEditor> {
               ),
             ],
           ),
-          // Optional: add a language picker here.
         ],
       ),
     );
@@ -372,7 +391,6 @@ class _BlockEditorState extends State<BlockEditor> {
 
   Widget _buildTableBlock(int index, NoteBlock block) {
     final table = block.data as TableBlockData;
-    // Simple read-only preview for now.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -385,7 +403,9 @@ class _BlockEditorState extends State<BlockEditor> {
             ],
             rows: [
               for (final row in table.rows)
-                DataRow(cells: [for (final cell in row) DataCell(Text(cell))]),
+                DataRow(
+                  cells: [for (final cell in row) DataCell(Text(cell))],
+                ),
             ],
           ),
         ),
@@ -429,6 +449,61 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
+  /// Builds a widget for an attachment block. This renders two text fields
+  /// for the filename and the URL, and notifies listeners whenever either
+  /// value changes. A delete icon allows the block to be removed.
+  Widget _buildAttachmentBlock(int index, NoteBlock block) {
+    final data = block.data as AttachmentBlockData;
+    final filenameController = TextEditingController(text: data.filename);
+    final urlController = TextEditingController(text: data.url);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: filenameController,
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  labelText: 'File name',
+                ),
+                onChanged: (value) {
+                  final updated = data.copyWith(filename: value);
+                  setState(() {
+                    _blocks[index] = _blocks[index].copyWith(data: updated);
+                  });
+                  _notifyChange();
+                },
+              ),
+              TextField(
+                controller: urlController,
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  labelText: 'URL',
+                ),
+                onChanged: (value) {
+                  final updated = data.copyWith(url: value);
+                  setState(() {
+                    _blocks[index] = _blocks[index].copyWith(data: updated);
+                  });
+                  _notifyChange();
+                },
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 20),
+          onPressed: () => _removeBlock(index),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -444,6 +519,7 @@ class _BlockEditorState extends State<BlockEditor> {
             );
           },
         ),
+        // Add block button at the bottom.
         Align(
           alignment: Alignment.centerLeft,
           child: PopupMenuButton<NoteBlockType>(
@@ -466,10 +542,26 @@ class _BlockEditorState extends State<BlockEditor> {
                 value: NoteBlockType.heading3,
                 child: Text('Heading 3'),
               ),
-              PopupMenuItem(value: NoteBlockType.todo, child: Text('Todo')),
-              PopupMenuItem(value: NoteBlockType.quote, child: Text('Quote')),
-              PopupMenuItem(value: NoteBlockType.code, child: Text('Code')),
-              PopupMenuItem(value: NoteBlockType.table, child: Text('Table')),
+              PopupMenuItem(
+                value: NoteBlockType.todo,
+                child: Text('Todo'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.quote,
+                child: Text('Quote'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.code,
+                child: Text('Code'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.table,
+                child: Text('Table'),
+              ),
+              PopupMenuItem(
+                value: NoteBlockType.attachment,
+                child: Text('Attachment'),
+              ),
             ],
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
