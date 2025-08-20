@@ -37,17 +37,12 @@ class SyncService {
   final _changes = StreamController<void>.broadcast();
   Stream<void> get changes => _changes.stream;
 
-  /// Maximum duration to wait for network operations inside a sync. If remote
-  /// operations (pulling notes or fetching active IDs) exceed this timeout,
-  /// the sync will abort those calls and continue. This prevents the UI from
-  /// hanging indefinitely when the network is slow or Supabase is unreachable.
+  /// Ağ çağrıları için maksimum bekleme süresi
   static const Duration _networkTimeout = Duration(seconds: 10);
 
   Future<void> syncNow() {
-    // Eşzamanlı çağrıları birleştir
     final inFlight = _ongoingSync;
     if (inFlight != null) return inFlight;
-
     final future = _syncInternal();
     _ongoingSync = future;
     return future.whenComplete(() {
@@ -65,9 +60,7 @@ class SyncService {
     // 1) Pending değişiklikleri push et
     await repo.pushAllPending();
 
-    // 2) Son çekim zamanından bu yana pull et. Ağ çağrılarını sınırlamak
-    // için bir zaman aşımı uygula; zaman aşımı durumunda bir hata loglanır
-    // ve sonraki adımlara geçilir.
+    // 2) Değişiklikleri Supabase’ten çek (zaman aşımı ile)
     final prefs = await SharedPreferences.getInstance();
     final sinceIso = prefs.getString(_lastPullKey);
     final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
@@ -77,15 +70,14 @@ class SyncService {
     } on TimeoutException catch (e) {
       if (kDebugMode) debugPrint('pullSince timed out: $e');
     } on Object catch (e) {
-      // Log other errors but continue.
       if (kDebugMode) debugPrint('pullSince failed: $e');
     }
 
-    // 3) Hard delete uzaktan gerçeği kabul et. fetchRemoteActiveIds
-    // ağ çağrısı olduğundan, yine bir zaman aşımı uygulanır.
+    // 3) Hard delete uzaktan gerçeği kabul et (yine zaman aşımı ile)
     Set<String> remoteIds = const {};
     try {
-      remoteIds = await repo.fetchRemoteActiveIds().timeout(_networkTimeout);
+      remoteIds =
+          await repo.fetchRemoteActiveIds().timeout(_networkTimeout);
     } on TimeoutException catch (e) {
       if (kDebugMode) debugPrint('fetchRemoteActiveIds timed out: $e');
     } on Object catch (e) {
@@ -106,7 +98,7 @@ class SyncService {
       DateTime.now().toUtc().toIso8601String(),
     );
 
-    // 5) UI'a haber ver
+    // 5) UI'ı bilgilendir
     _changes.add(null);
   }
 
@@ -117,24 +109,22 @@ class SyncService {
     _changes.add(null);
   }
 
-  /// Realtime aboneliğini başlat/değiştir.
+  /// Realtime aboneliğini başlat
   void startRealtime() {
     final client = Supabase.instance.client;
 
-    // Auth state değişince kanalı yeniden kur
     _authSub?.cancel();
     _authSub = client.auth.onAuthStateChange.listen((event) {
       if (kDebugMode) debugPrint('Auth state changed: ${event.event}');
       _bindRealtime();
 
-      // Login sonrası küçük bir gecikmeyle senkronizasyon tetikle
+      // Girişten sonra küçük gecikmeyle sync
       if (event.session != null) {
         _debounce?.cancel();
         _debounce = Timer(const Duration(milliseconds: 250), () {
           unawaited(syncNow());
         });
       } else {
-        // Logout -> yereli temizle (kullanıcı izolasyonu)
         unawaited(reset());
       }
     });
@@ -146,13 +136,12 @@ class SyncService {
     final client = Supabase.instance.client;
     final uid = client.auth.currentUser?.id;
 
-    // Önce eski kanalı kaldır
+    // Eski kanalı kaldır
     if (_notesChannel != null) {
       client.removeChannel(_notesChannel!);
       _notesChannel = null;
     }
 
-    // Oturum yoksa abone olma
     if (uid == null) return;
 
     final ch = client.channel('public:notes');
@@ -162,14 +151,13 @@ class SyncService {
         event: ev,
         schema: 'public',
         table: 'notes',
-        // v2 API: typed filter kullanımı
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
           column: 'user_id',
           value: uid,
         ),
         callback: (PostgresChangePayload payload) {
-          // Çoklu olayları tek sync'e topla (debounce)
+          // Olayları toplu sync’e dönüştür (debounce).
           _debounce?.cancel();
           _debounce = Timer(const Duration(milliseconds: 400), () {
             unawaited(syncNow());

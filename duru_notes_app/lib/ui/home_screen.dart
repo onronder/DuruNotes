@@ -41,14 +41,13 @@ final syncChangesProvider = StreamProvider<void>(
   (ref) => ref.read(syncProvider).changes,
 );
 
-/// Not listesi: Önce lokali gösterir, ardından sync dener
+/// Not listesi: Önce lokali gösterir, ardından senkronizasyonu arka planda tetikler.
 final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
     FutureProvider.autoDispose<List<LocalNote>>((ref) async {
-  // Sync in background; do not await to avoid blocking UI
+  // Senkronizasyonu başlat ama await etme; UI’yi bloke etmesin.
   unawaited(ref.read(syncProvider).syncNow());
   return ref.read(repoProvider).list();
 });
-
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -58,22 +57,20 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // listenManual için doğru generic: StreamProvider<void> -> AsyncValue<void>
+  // Dinleyici aboneliğini tutar.
   ProviderSubscription<AsyncValue<void>>? _syncSub;
-  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Widget ağacı kurulduktan sonra Realtime başlat
+    // Widget ağacı kurulduktan sonra Realtime başlat ve ilk senkronizasyon.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncProvider).startRealtime();
-      // İlk açılışta bir kere sync
       unawaited(ref.read(syncProvider).syncNow());
     });
 
-    // Realtime veya manuel sync bittiğinde listeyi güncelle
+    // Senkronizasyon sinyali geldiğinde not listesini güncelle.
     _syncSub = ref.listenManual<AsyncValue<void>>(
       syncChangesProvider,
       (prev, next) {
@@ -94,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       await ref.read(syncProvider).syncNow();
     } on Object {
-      // sessiz geç
+      // Hataları sessizce yut.
     }
   }
 
@@ -143,10 +140,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                   return;
                 case 'logout':
-                  // Realtime’ı kapat + Supabase oturumunu kapat
                   ref.read(syncProvider).stopRealtime();
                   await Supabase.instance.client.auth.signOut();
-                  // Not: Auth guard/Router login ekranına yönlendirmelidir
                   return;
               }
             },
@@ -167,11 +162,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
                   SizedBox(height: 120),
-                  Center(child: Text('No notes yet')),
-                ],
-              ),
-            );
-          }
+                    Center(child: Text('No notes yet')),
+                  ],
+                ),
+              );
+            }
+          );
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView.separated(
