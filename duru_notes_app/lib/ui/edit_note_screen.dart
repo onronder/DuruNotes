@@ -1,16 +1,23 @@
 import 'dart:async';
 
-import 'package:duru_notes_app/core/parser/note_block_parser.dart';
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/models/note_block.dart';
-import 'package:duru_notes_app/repository/notes_repository.dart';
-import 'package:duru_notes_app/repository/sync_service.dart';
-import 'package:duru_notes_app/ui/home_screen.dart';
-import 'package:duru_notes_app/ui/widgets/block_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'package:duru_notes_app/core/parser/note_block_parser.dart';
+import 'package:duru_notes_app/data/local/app_db.dart';
+import 'package:duru_notes_app/models/note_block.dart';
+import 'package:duru_notes_app/ui/home_screen.dart';
+// Import the repository and sync service providers so we can call repoProvider
+// and syncProvider within this screen. Without these imports, the identifiers
+// would be undefined.
+import 'package:duru_notes_app/repository/notes_repository.dart';
+import 'package:duru_notes_app/repository/sync_service.dart';
+// Import the OCR service to handle camera-based text scanning. This service
+// encapsulates permission requests, image capture and text recognition.
+import 'package:duru_notes_app/services/ocr_service.dart';
+import 'package:duru_notes_app/ui/widgets/block_editor.dart';
 
 /// A note editing screen that uses a block-based editor for the note body.
 /// This widget supports both editing and preview modes. It uses Riverpod
@@ -61,7 +68,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     final sync = ref.read(syncProvider);
     final messenger = ScaffoldMessenger.of(context);
     final bodyMarkdown = blocksToMarkdown(_blocks);
-
     try {
       await repo.createOrUpdate(
         title: _title.text.trim(),
@@ -70,8 +76,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       );
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
-
-      // Trigger a background sync after save.
+      // trigger sync asynchronously
       unawaited(
         sync.syncNow().catchError((Object e, _) {
           debugPrint('Sync error after save: $e');
@@ -90,12 +95,10 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final noteId = widget.noteId;
     if (noteId == null) return;
-
     try {
       await repo.delete(noteId);
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
-
       unawaited(
         sync.syncNow().catchError((Object e, _) {
           debugPrint('Sync error after delete: $e');
@@ -108,22 +111,46 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     }
   }
 
+  /// Launches the OCR service to capture an image from the camera and
+  /// recognize text. If text is successfully recognized, it is appended
+  /// as a new paragraph block to the current list of blocks. Errors or
+  /// cancellations are silently ignored.
+  Future<void> _scanDocument(BuildContext context) async {
+    final ocr = OCRService();
+    try {
+      final text = await ocr.pickAndScanImage();
+      if (text == null || text.trim().isEmpty) return;
+      setState(() {
+        _blocks.add(
+          NoteBlock(type: NoteBlockType.paragraph, data: text.trim()),
+        );
+      });
+    } catch (e) {
+      debugPrint('OCR scan failed: $e');
+    } finally {
+      // Dispose the text recognizer to free native resources.
+      ocr.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final db = ref.read(dbProvider);
-    final effectiveTitle = _title.text.trim().isEmpty
-        ? '(untitled)'
-        : _title.text.trim();
-
+    final effectiveTitle = _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
         actions: [
+          // Launch the OCR scan flow when tapped. This allows the user to
+          // capture an image and insert the recognized text as a new block.
+          IconButton(
+            icon: const Icon(Icons.camera_alt),
+            tooltip: 'Scan Document',
+            onPressed: () => _scanDocument(context),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: widget.noteId == null
-                ? null
-                : () => _deleteNote(context),
+            onPressed: widget.noteId == null ? null : () => _deleteNote(context),
           ),
         ],
       ),
@@ -153,8 +180,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
               Container(
                 constraints: const BoxConstraints(minHeight: 200),
                 child: _preview
-                    // Use MarkdownBody (non-scrollable) to avoid nested scrollables.
-                    ? MarkdownBody(
+                    ? Markdown(
                         data: blocksToMarkdown(_blocks),
                         onTapLink: (text, href, title) async {
                           if (href == null || href.isEmpty) return;
@@ -171,7 +197,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                       )
                     : BlockEditor(
                         blocks: _blocks,
-                        // We pass the same list reference back to avoid controller rebuilds.
                         onChanged: (blocks) => setState(() => _blocks = blocks),
                       ),
               ),
@@ -208,8 +233,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: items.length,
-                      separatorBuilder: (context, _) =>
-                          const Divider(height: 1),
+                      separatorBuilder: (context, _) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final item = items[i];
                         final l = item.link;
@@ -222,8 +246,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                           title: Text(title),
                           subtitle: Text('links to: ${l.targetTitle}'),
                           onTap: () async {
-                            final existing =
-                                src ?? await db.findNote(l.sourceId);
+                            final existing = src ?? await db.findNote(l.sourceId);
                             if (!context.mounted) return;
                             if (existing != null) {
                               await Navigator.of(context).push(

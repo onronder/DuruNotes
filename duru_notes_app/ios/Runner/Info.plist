@@ -49,5 +49,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+<string>Belge taraması ve resim çekimi için kamera izni gerekiyor.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Seçilen veya çekilen görüntüleri kaydetmek için fotoğraf galerisi izni gerekiyor.</string>
 </dict>
 </plist>

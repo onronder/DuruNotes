@@ -11,8 +11,8 @@ class NotesRepository {
     required this.crypto,
     required this.client,
     required this.userId,
-  }) : api = SupabaseNoteApi(client),
-       _indexer = NoteIndexer(db);
+  })  : api = SupabaseNoteApi(client),
+        _indexer = NoteIndexer(db);
 
   final AppDb db;
   final CryptoBox crypto;
@@ -39,6 +39,8 @@ class NotesRepository {
     );
     await db.upsertNote(n);
     await _indexer.updateIndex(n);
+    // FTS güncellemesi
+    await db.updateFtsForNote(n);
     await db.enqueue(noteId, 'upsert_note');
     return noteId;
   }
@@ -48,14 +50,18 @@ class NotesRepository {
       db.localNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (n != null) {
-      await db.upsertNote(n.copyWith(deleted: true, updatedAt: DateTime.now()));
+      final deletedNote =
+          n.copyWith(deleted: true, updatedAt: DateTime.now());
+      await db.upsertNote(deletedNote);
+      await _indexer.updateIndex(deletedNote);
+      await db.updateFtsForNote(deletedNote);
       await db.enqueue(id, 'upsert_note');
     }
   }
 
   Future<void> pushAllPending() async {
     final ops = await db.getPendingOps();
-    final processedIds = <int>[];
+    final List<int> processedIds = [];
 
     for (final op in ops) {
       try {
@@ -122,7 +128,7 @@ class NotesRepository {
         final body = (props['body'] as String?) ?? '';
         final updatedAt =
             DateTime.tryParse((props['updatedAt'] as String?) ?? '') ??
-            DateTime.now();
+                DateTime.now();
 
         final local = await (db.select(
           db.localNotes,
@@ -137,6 +143,7 @@ class NotesRepository {
           );
           await db.upsertNote(n);
           await _indexer.updateIndex(n);
+          await db.updateFtsForNote(n);
         }
       } on Object {
         // skip malformed rows
@@ -157,9 +164,11 @@ class NotesRepository {
           db.localNotes,
         )..where((t) => t.id.equals(id))).getSingleOrNull();
         if (n != null) {
-          await db.upsertNote(
-            n.copyWith(deleted: true, updatedAt: DateTime.now()),
-          );
+          final deletedNote =
+              n.copyWith(deleted: true, updatedAt: DateTime.now());
+          await db.upsertNote(deletedNote);
+          await _indexer.updateIndex(deletedNote);
+          await db.updateFtsForNote(deletedNote);
         }
       }
     }

@@ -16,13 +16,15 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   file_picker: ^10.3.1   # dosya seçimi için
   crypto: ^3.0.6         # SHA-256 hesaplamak için
+  image_picker: ^0.8.7+5
+  google_mlkit_text_recognition: ^0.10.0
+  permission_handler: ^11.3.0
   flutter_riverpod: ^2.6.1
   flutter_secure_storage: ^9.2.4
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
   path: ^1.9.1
   path_provider: ^2.1.5
-  permission_handler: ^12.0.1
   riverpod: ^2.6.1
   shared_preferences: ^2.5.3
   sqlite3_flutter_libs: ^0.5.39
