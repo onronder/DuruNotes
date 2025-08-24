@@ -78,17 +78,21 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     _backlinkDebounce = Timer(const Duration(milliseconds: 600), () {
       final db = ref.read(dbProvider);
       final t = _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
-      setState(() {
-        _backlinksFuture = db.backlinksWithSources(t);
-      });
+      if (mounted) {
+        setState(() {
+          _backlinksFuture = db.backlinksWithSources(t);
+        });
+      }
     });
   }
 
   void _markAsChanged() {
     if (!_hasUnsavedChanges) {
-      setState(() {
-        _hasUnsavedChanges = true;
-      });
+      if (mounted) {
+        setState(() {
+          _hasUnsavedChanges = true;
+        });
+      }
     }
     _scheduleAutosave();
   }
@@ -142,9 +146,11 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
         body: bodyMarkdown,
         id: widget.noteId,
       );
-      setState(() {
-        _hasUnsavedChanges = false;
-      });
+      if (mounted) {
+        setState(() {
+          _hasUnsavedChanges = false;
+        });
+      }
       if (!context.mounted) return;
       if (showSuccess) {
         Navigator.of(context).pop(true);
@@ -195,10 +201,13 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     try {
       final text = await ocr.pickAndScanImage();
       if (text == null || text.trim().isEmpty) return;
-      setState(() {
-        _blocks.add(
-          NoteBlock(type: NoteBlockType.paragraph, data: text.trim()),
-        );
+      if (mounted) {
+        setState(() {
+          _blocks.add(
+            NoteBlock(type: NoteBlockType.paragraph, data: text.trim()),
+          );
+        });
+      }
       });
     } catch (e) {
       debugPrint('OCR scan failed: $e');
@@ -248,7 +257,9 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                   textDirection: TextDirection.ltr,
                   decoration: const InputDecoration(labelText: 'Title'),
                   onChanged: (_) {
-                    setState(() {});            // UI'daki başlık vs. güncellensin
+                    if (mounted) {
+                      setState(() {});            // UI'daki başlık vs. güncellensin
+                    }
                     _scheduleBacklinksRecalc(); // backlink sorgusunu debounce et
                     _markAsChanged();           // Mark as changed for autosave
                   },

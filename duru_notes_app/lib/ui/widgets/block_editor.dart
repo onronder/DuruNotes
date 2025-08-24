@@ -157,13 +157,15 @@ class _BlockEditorState extends State<BlockEditor> {
         data: TableBlockData(rows: [<String>['', ''], <String>['', '']]),
       );
     }
-    setState(() {
-      _blocks.insert(insertIndex, newBlock);
-      _controllers.insert(
-        insertIndex,
-        _needsController(newBlock) ? TextEditingController(text: '') : null,
-      );
-    });
+    if (mounted) {
+      setState(() {
+        _blocks.insert(insertIndex, newBlock);
+        _controllers.insert(
+          insertIndex,
+          _needsController(newBlock) ? TextEditingController(text: '') : null,
+        );
+      });
+    }
     _notifyChange();
   }
 
@@ -184,11 +186,13 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   void _removeBlock(int index) {
-    setState(() {
-      _blocks.removeAt(index);
-      _controllers.removeAt(index);
-    });
-    _notifyChange();
+    if (mounted) {
+      setState(() {
+        _blocks.removeAt(index);
+        _controllers.removeAt(index);
+      });
+      _notifyChange();
+    }
   }
 
   /// Handles insertion of an attachment block by opening the file picker
@@ -234,11 +238,13 @@ class _BlockEditorState extends State<BlockEditor> {
       return;
     }
     // Insert the new attachment block.
-    setState(() {
-      final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data);
-      _blocks.insert(insertIndex, newBlock);
-      _controllers.insert(insertIndex, null);
-    });
+    if (mounted) {
+      setState(() {
+        final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data);
+        _blocks.insert(insertIndex, newBlock);
+        _controllers.insert(insertIndex, null);
+      });
+    }
     _notifyChange();
   }
 
@@ -289,10 +295,12 @@ class _BlockEditorState extends State<BlockEditor> {
               border: InputBorder.none,
             ),
             onChanged: (value) {
-              setState(() {
-                _blocks[index] = _blocks[index].copyWith(data: value);
-              });
-              _notifyChange();
+              if (mounted) {
+                setState(() {
+                  _blocks[index] = _blocks[index].copyWith(data: value);
+                });
+                _notifyChange();
+              }
             },
           ),
         ),
@@ -324,10 +332,12 @@ class _BlockEditorState extends State<BlockEditor> {
               textDirection: TextDirection.ltr,
               decoration: const InputDecoration(border: InputBorder.none, hintText: 'Quote'),
               onChanged: (value) {
-                setState(() {
-                  _blocks[index] = _blocks[index].copyWith(data: value);
-                });
-                _notifyChange();
+                if (mounted) {
+                  setState(() {
+                    _blocks[index] = _blocks[index].copyWith(data: value);
+                  });
+                  _notifyChange();
+                }
               },
             ),
           ),
@@ -366,12 +376,14 @@ class _BlockEditorState extends State<BlockEditor> {
                   ),
                   onChanged: (value) {
                     final data = block.data as CodeBlockData;
-                    setState(() {
-                      _blocks[index] = _blocks[index].copyWith(
-                        data: data.copyWith(code: value),
-                      );
-                    });
-                    _notifyChange();
+                    if (mounted) {
+                      setState(() {
+                        _blocks[index] = _blocks[index].copyWith(
+                          data: data.copyWith(code: value),
+                        );
+                      });
+                      _notifyChange();
+                    }
                   },
                 ),
               ),
@@ -395,11 +407,13 @@ class _BlockEditorState extends State<BlockEditor> {
         Checkbox(
           value: todo.checked,
           onChanged: (checked) {
-            setState(() {
-              _blocks[index] = _blocks[index].copyWith(
-                data: todo.copyWith(checked: checked ?? false),
-              );
-            });
+            if (mounted) {
+              setState(() {
+                _blocks[index] = _blocks[index].copyWith(
+                  data: todo.copyWith(checked: checked ?? false),
+                );
+              });
+            }
             _notifyChange();
           },
         ),
@@ -410,9 +424,11 @@ class _BlockEditorState extends State<BlockEditor> {
             textDirection: TextDirection.ltr,
             decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
             onChanged: (value) {
-              setState(() {
-                _blocks[index] = _blocks[index].copyWith(data: todo.copyWith(text: value));
-              });
+              if (mounted) {
+                setState(() {
+                  _blocks[index] = _blocks[index].copyWith(data: todo.copyWith(text: value));
+                });
+              }
               _notifyChange();
             },
           ),
@@ -452,14 +468,16 @@ class _BlockEditorState extends State<BlockEditor> {
             TextButton(
               onPressed: () {
                 // Add a new row of empty cells
-                setState(() {
-                  final cols = table.rows.first.length;
-                  final newRows = List<List<String>>.from(table.rows)
-                    ..add(List<String>.filled(cols, ''));
-                  _blocks[index] = _blocks[index].copyWith(
-                    data: table.copyWith(rows: newRows),
-                  );
-                });
+                if (mounted) {
+                  setState(() {
+                    final cols = table.rows.first.length;
+                    final newRows = List<List<String>>.from(table.rows)
+                      ..add(List<String>.filled(cols, ''));
+                    _blocks[index] = _blocks[index].copyWith(
+                      data: table.copyWith(rows: newRows),
+                    );
+                  });
+                }
                 _notifyChange();
               },
               child: const Text('+ Row'),
@@ -467,14 +485,16 @@ class _BlockEditorState extends State<BlockEditor> {
             TextButton(
               onPressed: () {
                 // Add a new column to each row
-                setState(() {
-                  final newRows = table.rows
-                      .map((r) => List<String>.from(r)..add(''))
-                      .toList();
-                  _blocks[index] = _blocks[index].copyWith(
-                    data: table.copyWith(rows: newRows),
-                  );
-                });
+                if (mounted) {
+                  setState(() {
+                    final newRows = table.rows
+                        .map((r) => List<String>.from(r)..add(''))
+                        .toList();
+                    _blocks[index] = _blocks[index].copyWith(
+                      data: table.copyWith(rows: newRows),
+                    );
+                  });
+                }
                 _notifyChange();
               },
               child: const Text('+ Col'),
@@ -620,9 +640,11 @@ class _BlockEditorState extends State<BlockEditor> {
         filename: filenameController.text,
         url: urlController.text,
       );
-      setState(() {
-        _blocks[index] = _blocks[index].copyWith(data: updated);
-      });
+      if (mounted) {
+        setState(() {
+          _blocks[index] = _blocks[index].copyWith(data: updated);
+        });
+      }
       _notifyChange();
     }
     
