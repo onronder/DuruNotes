@@ -25,6 +25,7 @@ dependencies:
   json_annotation: ^4.9.0
   path: ^1.9.1
   path_provider: ^2.1.5
+  receive_sharing_intent: ^1.4.5  # Android share sheet integration
   riverpod: ^2.6.1
   shared_preferences: ^2.5.3
   sqlite3_flutter_libs: ^0.5.39

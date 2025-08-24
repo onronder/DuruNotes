@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -45,6 +46,19 @@ class OCRService {
       return recognizedText.text;
     } catch (_) {
       // On any exception, return null to indicate failure.
+      return null;
+    }
+  }
+
+  /// Processes an image file directly for OCR (useful for shared images).
+  /// Returns the recognized text as a single string, or null if recognition fails.
+  Future<String?> processImageFile(File file) async {
+    try {
+      final inputImage = InputImage.fromFile(file);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+      return recognizedText.text;
+    } catch (e) {
+      debugPrint('OCR processing failed: $e');
       return null;
     }
   }

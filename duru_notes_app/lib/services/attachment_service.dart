@@ -67,4 +67,49 @@ class AttachmentService {
     final publicUrl = urlResponse;
     return AttachmentBlockData(filename: file.name, url: publicUrl);
   }
+
+  /// Uploads a file from bytes (for shared content) to Supabase Storage.
+  /// This method is useful when handling shared files from other apps.
+  /// Returns the AttachmentBlockData with filename and URL if successful,
+  /// or null if upload fails.
+  Future<AttachmentBlockData?> uploadFromBytes({
+    required String filename,
+    required Uint8List bytes,
+  }) async {
+    try {
+      // Compute a SHA‑256 digest of the file contents to use as a unique key.
+      final digest = crypto.sha256.convert(bytes);
+      final hash = digest.toString();
+      
+      // Preserve the original file extension so that the storage object
+      // retains a recognizable type. If no extension, leave it empty.
+      final ext = p.extension(filename);
+      final objectPath = ext.isNotEmpty ? '$hash$ext' : hash;
+      
+      // Attempt to upload the file. Use upsert: false to avoid overwriting
+      // existing files with the same hash. If the file already exists, the
+      // storage API will throw an error which we catch and ignore.
+      try {
+        await client.storage
+            .from(bucket)
+            .uploadBinary(objectPath, bytes, fileOptions: const FileOptions(upsert: false));
+      } catch (e) {
+        // Ignore "already exists" errors. Other errors should be rethrown.
+        final msg = e.toString();
+        if (!msg.contains('already exists')) {
+          rethrow;
+        }
+      }
+      
+      // Generate a public URL for the uploaded file. If your bucket is not
+      // public, you may need to create a signed URL instead.
+      final urlResponse = client.storage.from(bucket).getPublicUrl(objectPath);
+      final publicUrl = urlResponse;
+      
+      return AttachmentBlockData(filename: filename, url: publicUrl);
+    } on Exception catch (e) {
+      // Return null on any error
+      return null;
+    }
+  }
 }
