@@ -57,30 +57,61 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   void _initFromBlocks(List<NoteBlock> blocks) {
-    // Dispose existing controllers first
-    for (final controller in _controllers) {
-      controller?.dispose();
-    }
-    
     _blocks = blocks.map((b) => b).toList();
-    _controllers = _blocks.map<TextEditingController?>((block) {
-      switch (block.type) {
-        case NoteBlockType.paragraph:
-        case NoteBlockType.heading1:
-        case NoteBlockType.heading2:
-        case NoteBlockType.heading3:
-        case NoteBlockType.quote:
-          final text = block.data as String? ?? '';
-          return TextEditingController(text: text);
-        case NoteBlockType.code:
-          final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
-          return TextEditingController(text: codeData.code);
-        case NoteBlockType.todo:
-        case NoteBlockType.table:
-        case NoteBlockType.attachment:
-          return null;
+    
+    // Only recreate controllers if the list length changed
+    if (_controllers.length != _blocks.length) {
+      // Dispose old controllers
+      for (final controller in _controllers) {
+        controller?.dispose();
       }
-    }).toList();
+      
+      _controllers = _blocks.map<TextEditingController?>((block) {
+        switch (block.type) {
+          case NoteBlockType.paragraph:
+          case NoteBlockType.heading1:
+          case NoteBlockType.heading2:
+          case NoteBlockType.heading3:
+          case NoteBlockType.quote:
+            final text = block.data as String? ?? '';
+            return TextEditingController(text: text);
+          case NoteBlockType.code:
+            final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
+            return TextEditingController(text: codeData.code);
+          case NoteBlockType.todo:
+          case NoteBlockType.table:
+          case NoteBlockType.attachment:
+            return null;
+        }
+      }).toList();
+    } else {
+      // Update existing controllers with new text
+      for (int i = 0; i < _blocks.length; i++) {
+        final block = _blocks[i];
+        final controller = _controllers[i];
+        if (controller != null) {
+          String newText = '';
+          switch (block.type) {
+            case NoteBlockType.paragraph:
+            case NoteBlockType.heading1:
+            case NoteBlockType.heading2:
+            case NoteBlockType.heading3:
+            case NoteBlockType.quote:
+              newText = block.data as String? ?? '';
+              break;
+            case NoteBlockType.code:
+              final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
+              newText = codeData.code;
+              break;
+            default:
+              break;
+          }
+          if (controller.text != newText) {
+            controller.text = newText;
+          }
+        }
+      }
+    }
   }
 
   void _notifyChange() {
