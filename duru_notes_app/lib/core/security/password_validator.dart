@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 /// Password strength levels
@@ -187,11 +189,109 @@ class PasswordValidator {
   /// Get all password criteria for UI display
   static List<PasswordCriterion> getCriteria() => _criteria;
 
-  /// Generate password hash for history comparison
-  static String hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
+  /// Generate secure password hash for history comparison using PBKDF2
+  /// 
+  /// Uses PBKDF2 with SHA-256, 100,000 iterations, and a unique salt per password
+  /// This provides protection against rainbow table and dictionary attacks
+  static String hashPassword(String password, {String? providedSalt}) {
+    // Generate a unique salt if not provided (for new passwords)
+    final salt = providedSalt ?? _generateSalt();
+    
+    // Use PBKDF2 with SHA-256, 100,000 iterations for security
+    final iterations = 100000;
+    final keyLength = 32; // 256 bits
+    
+    final passwordBytes = utf8.encode(password);
+    final saltBytes = utf8.encode(salt);
+    
+    // Perform PBKDF2 key derivation
+    final derivedKey = _pbkdf2(passwordBytes, saltBytes, iterations, keyLength);
+    
+    // Return salt:hash format for storage
+    final hashHex = _bytesToHex(derivedKey);
+    return '$salt:$hashHex';
+  }
+  
+  /// Generate a cryptographically secure random salt
+  static String _generateSalt({int length = 32}) {
+    final random = Random.secure();
+    final saltBytes = Uint8List(length);
+    for (int i = 0; i < length; i++) {
+      saltBytes[i] = random.nextInt(256);
+    }
+    return _bytesToHex(saltBytes);
+  }
+  
+  /// PBKDF2 implementation using HMAC-SHA256
+  static Uint8List _pbkdf2(List<int> password, List<int> salt, int iterations, int keyLength) {
+    final hmac = Hmac(sha256, password);
+    final derivedKey = Uint8List(keyLength);
+    var currentBlock = 1;
+    var pos = 0;
+    
+    while (pos < keyLength) {
+      final blockData = Uint8List.fromList([...salt, ...(_intToBytes(currentBlock))]);
+      var u = hmac.convert(blockData).bytes;
+      var result = List<int>.from(u);
+      
+      for (int i = 1; i < iterations; i++) {
+        u = hmac.convert(u).bytes;
+        for (int j = 0; j < result.length; j++) {
+          result[j] ^= u[j];
+        }
+      }
+      
+      final copyLength = keyLength - pos < result.length ? keyLength - pos : result.length;
+      derivedKey.setRange(pos, pos + copyLength, result);
+      pos += copyLength;
+      currentBlock++;
+    }
+    
+    return derivedKey;
+  }
+  
+  /// Convert integer to 4-byte big-endian representation
+  static List<int> _intToBytes(int value) {
+    return [
+      (value >> 24) & 0xff,
+      (value >> 16) & 0xff,
+      (value >> 8) & 0xff,
+      value & 0xff,
+    ];
+  }
+  
+  /// Convert bytes to hexadecimal string
+  static String _bytesToHex(Uint8List bytes) {
+    return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+  }
+  
+  /// Verify a password against a stored hash
+  static bool verifyPassword(String password, String storedHash) {
+    try {
+      final parts = storedHash.split(':');
+      if (parts.length != 2) return false;
+      
+      final salt = parts[0];
+      final expectedHash = parts[1];
+      
+      final computedHash = hashPassword(password, providedSalt: salt);
+      final computedHashPart = computedHash.split(':')[1];
+      
+      return _constantTimeEquals(expectedHash, computedHashPart);
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  /// Constant-time string comparison to prevent timing attacks
+  static bool _constantTimeEquals(String a, String b) {
+    if (a.length != b.length) return false;
+    
+    var result = 0;
+    for (int i = 0; i < a.length; i++) {
+      result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return result == 0;
   }
 
   /// Get strength color for UI

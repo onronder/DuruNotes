@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -60,6 +61,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           _errorMessage = 'Password does not meet security requirements. Please improve your password strength.';
         });
         return;
+      }
+      
+      // Check password reuse for existing users (password reset scenario)
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null) {
+        final isReused = await _passwordHistoryService.isPasswordReused(
+          currentUser.id, 
+          _passwordController.text,
+        );
+        if (isReused) {
+          setState(() {
+            _errorMessage = 'You cannot reuse a previous password. Please choose a different password.';
+          });
+          return;
+        }
       }
     }
 
@@ -125,8 +141,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _errorMessage = e.message;
       });
     } catch (e) {
+      // Log error for debugging but don't expose details to user
+      if (kDebugMode) {
+        print('Auth error: $e');
+      }
       setState(() {
-        _errorMessage = 'An unexpected error occurred: $e';
+        _errorMessage = 'An unexpected error occurred. Please try again.';
       });
     } finally {
       if (mounted) {

@@ -14,9 +14,6 @@ class PasswordHistoryService {
   /// Check if a password has been used before
   Future<bool> isPasswordReused(String userId, String newPassword) async {
     try {
-      // Hash the new password
-      final newPasswordHash = PasswordValidator.hashPassword(newPassword);
-      
       // Query the password history table
       final response = await _client
           .from('password_history')
@@ -27,10 +24,10 @@ class PasswordHistoryService {
 
       final passwordHistory = response as List<dynamic>;
       
-      // Check if the new password hash matches any previous password
+      // Check if the new password matches any previous password using secure verification
       for (final record in passwordHistory) {
         final historicalHash = record['password_hash'] as String;
-        if (historicalHash == newPasswordHash) {
+        if (PasswordValidator.verifyPassword(newPassword, historicalHash)) {
           return true; // Password has been used before
         }
       }

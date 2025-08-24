@@ -134,14 +134,29 @@ void main() {
     });
 
     group('hashPassword', () {
-      test('should generate consistent hashes', () {
+      test('should generate consistent hashes with same salt', () {
         const password = 'TestPassword123!';
+        const salt = 'testsalt123456789abcdef0123456789abcdef0123456789abcdef0123456789ab';
         
+        final hash1 = PasswordValidator.hashPassword(password, providedSalt: salt);
+        final hash2 = PasswordValidator.hashPassword(password, providedSalt: salt);
+        
+        // Should be consistent with same salt
+        expect(hash1, equals(hash2));
+        expect(hash1, isNotEmpty);
+      });
+      
+      test('should generate different hashes with different salts', () {
+        const password = 'TestPassword123!';
         final hash1 = PasswordValidator.hashPassword(password);
         final hash2 = PasswordValidator.hashPassword(password);
         
-        expect(hash1, equals(hash2));
-        expect(hash1, isNotEmpty);
+        // Should be different with random salts
+        expect(hash1, isNot(equals(hash2)));
+        
+        // But both should verify correctly
+        expect(PasswordValidator.verifyPassword(password, hash1), isTrue);
+        expect(PasswordValidator.verifyPassword(password, hash2), isTrue);
       });
 
       test('should generate different hashes for different passwords', () {
