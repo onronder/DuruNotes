@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes_app/core/crypto/key_manager.dart';
 import 'package:duru_notes_app/core/security/password_validator.dart';
 import 'package:duru_notes_app/core/security/password_history_service.dart';
+import 'package:duru_notes_app/core/auth/auth_service.dart';
 import 'package:duru_notes_app/ui/widgets/password_strength_meter.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -21,12 +22,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordValidator = PasswordValidator();
   final _passwordHistoryService = PasswordHistoryService();
+  final _authService = AuthService();
   
   bool _isLoading = false;
   bool _isSignUp = false;
   bool _showPassword = false;
   String? _errorMessage;
   PasswordValidationResult? _passwordValidation;
+  int? _attemptsRemaining;
+  Duration? _lockoutDuration;
 
   @override
   void initState() {
@@ -85,25 +89,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
-      final client = Supabase.instance.client;
+      AuthResult result;
       
       if (_isSignUp) {
-        // Sign up
-        final response = await client.auth.signUp(
+        // Sign up with basic retry
+        result = await _authService.signUpWithRetry(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
         
-        if (response.user != null && response.session != null) {
+        if (result.success && result.user != null) {
           // Store password hash in history for future reference
           await _passwordHistoryService.storePasswordHash(
-            response.user!.id, 
+            result.user!.id, 
             _passwordController.text,
           );
           
           // Initialize encryption key for new user
           final keyManager = KeyManager();
-          await keyManager.getOrCreateMasterKey(response.user!.id);
+          await keyManager.getOrCreateMasterKey(result.user!.id);
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -115,16 +119,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           }
         }
       } else {
-        // Sign in
-        final response = await client.auth.signInWithPassword(
+        // Sign in with enhanced retry and rate limiting
+        result = await _authService.signInWithRetry(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          enableRetry: true,
         );
         
-        if (response.user != null && response.session != null) {
+        if (result.success && result.user != null) {
           // Initialize encryption key for existing user
           final keyManager = KeyManager();
-          await keyManager.getOrCreateMasterKey(response.user!.id);
+          await keyManager.getOrCreateMasterKey(result.user!.id);
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -136,10 +141,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           }
         }
       }
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-      });
+      
+      // Handle authentication result
+      if (!result.success) {
+        setState(() {
+          _errorMessage = result.error;
+          _attemptsRemaining = result.attemptsRemaining;
+          _lockoutDuration = result.lockoutDuration;
+        });
+      }
+      
     } catch (e) {
       // Log error for debugging but don't expose details to user
       if (kDebugMode) {
@@ -147,6 +158,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
+        _attemptsRemaining = null;
+        _lockoutDuration = null;
       });
     } finally {
       if (mounted) {
@@ -261,7 +274,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
                 const SizedBox(height: 24),
 
-                // Error Message
+                // Error Message with Rate Limiting Info
                 if (_errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -272,11 +285,72 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         color: Theme.of(context).colorScheme.error.withOpacity(0.5),
                       ),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _lockoutDuration != null 
+                                  ? Icons.lock_outline 
+                                  : Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        // Additional security info
+                        if (_attemptsRemaining != null && _attemptsRemaining! > 0 && !_isSignUp) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '⚠️ $_attemptsRemaining login attempts remaining',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        
+                        if (_lockoutDuration != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.error.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Account temporarily locked for security',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),

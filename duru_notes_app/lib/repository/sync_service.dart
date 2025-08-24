@@ -9,6 +9,23 @@ import 'package:realtime_client/realtime_client.dart'
 
 import 'package:duru_notes_app/repository/notes_repository.dart';
 
+/// Sync operation result with detailed status
+class SyncResult {
+  const SyncResult({
+    required this.success,
+    this.error,
+    this.isAuthError = false,
+    this.isRateLimited = false,
+    this.retryAfter,
+  });
+
+  final bool success;
+  final String? error;
+  final bool isAuthError;
+  final bool isRateLimited;
+  final Duration? retryAfter;
+}
+
 class SyncService {
   SyncService(this.repo);
 
@@ -28,6 +45,11 @@ class SyncService {
 
   DateTime? _nextAllowedSyncAt;
   int _consecutiveFailures = 0;
+  
+  // Enhanced retry configuration
+  static const Duration _baseRetryDelay = Duration(seconds: 1);
+  static const Duration _maxRetryDelay = Duration(minutes: 5);
+  static const int _maxRetries = 5;
 
   bool get _isBackoffActive =>
       _nextAllowedSyncAt != null &&
@@ -100,6 +122,148 @@ class SyncService {
     if (kDebugMode) {
       debugPrint('syncNow $label -> backoff ${backoff.inSeconds}s ($e)');
     }
+  }
+
+  /// Enhanced sync with retry logic and better error handling
+  Future<SyncResult> syncWithRetry() async {
+    if (_isBackoffActive) {
+      if (kDebugMode) {
+        debugPrint('Sync skipped (backoff active until $_nextAllowedSyncAt)');
+      }
+      return SyncResult(
+        success: false,
+        error: 'Sync in backoff until $_nextAllowedSyncAt',
+      );
+    }
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      if (kDebugMode) debugPrint('Sync skipped: no active session');
+      return const SyncResult(
+        success: false, 
+        error: 'No active session',
+        isAuthError: true,
+      );
+    }
+
+    Exception? lastException;
+    
+    for (int attempt = 0; attempt < _maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          final delay = _calculateRetryDelay(attempt - 1);
+          if (kDebugMode) {
+            debugPrint('Sync retry attempt $attempt after ${delay.inSeconds}s delay');
+          }
+          await Future.delayed(delay);
+        }
+
+        await _performSyncOperations();
+        
+        // Success - reset failure count
+        _consecutiveFailures = 0;
+        _nextAllowedSyncAt = null;
+        _changes.add(null);
+        
+        return const SyncResult(success: true);
+
+      } on AuthException catch (e) {
+        lastException = e;
+        
+        // Don't retry auth errors
+        return SyncResult(
+          success: false,
+          error: e.message,
+          isAuthError: true,
+        );
+        
+      } on TimeoutException catch (e) {
+        lastException = e;
+        
+        if (attempt == _maxRetries - 1) {
+          _scheduleBackoff(e, label: 'timeout');
+        }
+        
+      } catch (e) {
+        lastException = Exception(e.toString());
+        
+        // Check if it's a rate limiting error
+        if (_isRateLimitError(e)) {
+          final retryAfter = _extractRetryAfter(e);
+          _scheduleBackoff(e, label: 'rate_limit');
+          
+          return SyncResult(
+            success: false,
+            error: 'Rate limited',
+            isRateLimited: true,
+            retryAfter: retryAfter,
+          );
+        }
+        
+        // For other errors, continue retrying unless it's the last attempt
+        if (attempt == _maxRetries - 1) {
+          _scheduleBackoff(e, label: 'error');
+        }
+      }
+    }
+
+    // All retries failed
+    return SyncResult(
+      success: false,
+      error: lastException?.toString() ?? 'Sync failed after $_maxRetries attempts',
+    );
+  }
+
+  /// Perform the actual sync operations
+  Future<void> _performSyncOperations() async {
+    await repo.pushAllPending().timeout(const Duration(seconds: 10));
+
+    final prefs = await SharedPreferences.getInstance();
+    final sinceIso = prefs.getString(_lastPullKey);
+    final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+
+    await repo.pullSince(since).timeout(const Duration(seconds: 10));
+
+    final remoteIds =
+        await repo.fetchRemoteActiveIds().timeout(const Duration(seconds: 10));
+    await repo.reconcileHardDeletes(remoteIds);
+
+    await prefs.setString(
+      _lastPullKey,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+  }
+
+  /// Calculate retry delay with exponential backoff and jitter
+  Duration _calculateRetryDelay(int attemptNumber) {
+    final exponentialDelay = Duration(
+      milliseconds: _baseRetryDelay.inMilliseconds * pow(2, attemptNumber).toInt()
+    );
+    
+    // Add jitter to prevent thundering herd (±25% of delay)
+    final jitterRange = (exponentialDelay.inMilliseconds * 0.25).toInt();
+    final jitter = Duration(
+      milliseconds: Random().nextInt(jitterRange * 2) - jitterRange
+    );
+    
+    final totalDelay = exponentialDelay + jitter;
+    return totalDelay > _maxRetryDelay ? _maxRetryDelay : totalDelay;
+  }
+
+  /// Check if error indicates rate limiting
+  bool _isRateLimitError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('rate limit') ||
+           errorStr.contains('too many requests') ||
+           errorStr.contains('429') ||
+           errorStr.contains('quota exceeded');
+  }
+
+  /// Extract retry-after duration from error (if available)
+  Duration? _extractRetryAfter(dynamic error) {
+    // This would parse headers or error messages for retry-after values
+    // For now, return a default delay
+    return const Duration(seconds: 30);
   }
 
   Future<void> reset() async {
