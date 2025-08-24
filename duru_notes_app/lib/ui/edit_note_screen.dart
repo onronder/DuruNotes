@@ -237,12 +237,11 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
             IconButton(
               icon: const Icon(Icons.camera_alt),
               tooltip: 'Scan Document',
-              onPressed: () => _scanDocument(context),
+              onPressed: mounted ? () => _scanDocument(context) : null,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              onPressed:
-                  widget.noteId == null ? null : () => _deleteNote(context),
+              onPressed: (widget.noteId == null || !mounted) ? null : () => _deleteNote(context),
             ),
           ],
         ),
@@ -318,7 +317,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => _saveOrUpdate(context),
+                    onPressed: mounted ? () => _saveOrUpdate(context) : null,
                     child: const Text('Save'),
                   ),
                 ),

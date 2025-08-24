@@ -312,7 +312,7 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 20),
-          onPressed: () => _removeBlock(index),
+          onPressed: mounted ? () => _removeBlock(index) : null,
         ),
       ],
     );
@@ -349,7 +349,7 @@ class _BlockEditorState extends State<BlockEditor> {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 20),
-            onPressed: () => _removeBlock(index),
+            onPressed: mounted ? () => _removeBlock(index) : null,
           ),
         ],
       ),
@@ -395,7 +395,7 @@ class _BlockEditorState extends State<BlockEditor> {
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => _removeBlock(index),
+                onPressed: mounted ? () => _removeBlock(index) : null,
               ),
             ],
           ),
@@ -412,16 +412,16 @@ class _BlockEditorState extends State<BlockEditor> {
       children: [
         Checkbox(
           value: todo.checked,
-          onChanged: (checked) {
+          onChanged: mounted ? (checked) {
             if (mounted) {
               setState(() {
                 _blocks[index] = _blocks[index].copyWith(
                   data: todo.copyWith(checked: checked ?? false),
                 );
               });
+              _notifyChange();
             }
-            _notifyChange();
-          },
+          } : null,
         ),
         Expanded(
           child: TextField(
@@ -441,7 +441,7 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         IconButton(
           icon: const Icon(Icons.delete_outline, size: 20),
-          onPressed: () => _removeBlock(index),
+          onPressed: mounted ? () => _removeBlock(index) : null,
         ),
       ],
     );
@@ -472,7 +472,7 @@ class _BlockEditorState extends State<BlockEditor> {
         Row(
           children: [
             TextButton(
-              onPressed: () {
+              onPressed: mounted ? () {
                 // Add a new row of empty cells
                 if (mounted) {
                   setState(() {
@@ -485,11 +485,11 @@ class _BlockEditorState extends State<BlockEditor> {
                   });
                 }
                 _notifyChange();
-              },
+              } : null,
               child: const Text('+ Row'),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: mounted ? () {
                 // Add a new column to each row
                 if (mounted) {
                   setState(() {
@@ -502,12 +502,12 @@ class _BlockEditorState extends State<BlockEditor> {
                   });
                 }
                 _notifyChange();
-              },
+              } : null,
               child: const Text('+ Col'),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 20),
-              onPressed: () => _removeBlock(index),
+              onPressed: mounted ? () => _removeBlock(index) : null,
             ),
           ],
         ),
@@ -557,12 +557,12 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => _editAttachment(index, data),
+              onPressed: mounted ? () => _editAttachment(index, data) : null,
               tooltip: 'Edit attachment',
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 20),
-              onPressed: () => _removeBlock(index),
+              onPressed: mounted ? () => _removeBlock(index) : null,
               tooltip: 'Delete attachment',
             ),
           ],
@@ -679,7 +679,7 @@ class _BlockEditorState extends State<BlockEditor> {
           child: PopupMenuButton<NoteBlockType>(
             tooltip: 'Add block',
             // Use a tear-off to satisfy unnecessary_lambdas lint.
-            onSelected: _insertBlock,
+            onSelected: mounted ? _insertBlock : null,
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: NoteBlockType.paragraph,
