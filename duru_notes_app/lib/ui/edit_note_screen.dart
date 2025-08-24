@@ -1,23 +1,18 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:crypto/crypto.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:permission_handler/permission_handler.dart';
+
 
 import 'package:duru_notes_app/core/parser/note_block_parser.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
 import 'package:duru_notes_app/models/note_block.dart';
 import 'package:duru_notes_app/ui/home_screen.dart';
 
-// Repo & sync servisleri
-import 'package:duru_notes_app/repository/notes_repository.dart';
-import 'package:duru_notes_app/repository/sync_service.dart';
+
 
 // Kamera ile OCR
 import 'package:duru_notes_app/services/ocr_service.dart';
@@ -104,11 +99,13 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       Navigator.of(context).pop(true);
 
       // Sync'i arka planda tetikle (başarısız olursa logla)
-      unawaited(
-        sync.syncNow().catchError((Object e, _) {
-          debugPrint('Sync error after save: $e');
-        }),
-      );
+      if (sync != null) {
+        unawaited(
+          sync.syncNow().catchError((Object e, _) {
+            debugPrint('Sync error after save: $e');
+          }),
+        );
+      }
     } on Object catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Save failed: $e')),
@@ -126,11 +123,13 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       await repo.delete(noteId);
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
-      unawaited(
-        sync.syncNow().catchError((Object e, _) {
-          debugPrint('Sync error after delete: $e');
-        }),
-      );
+      if (sync != null) {
+        unawaited(
+          sync.syncNow().catchError((Object e, _) {
+            debugPrint('Sync error after delete: $e');
+          }),
+        );
+      }
     } on Object catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Delete failed: $e')),

@@ -165,8 +165,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                   return;
                 case 'logout':
+                  final client = Supabase.instance.client;
+                  final userId = client.auth.currentUser?.id;
+                  
+                  // Stop realtime sync
                   ref.read(syncProvider)?.stopRealtime();
-                  await Supabase.instance.client.auth.signOut();
+                  
+                  // Clear encryption keys (enforce E2EE)
+                  if (userId != null) {
+                    await ref.read(keyManagerProvider).deleteMasterKey(userId);
+                  }
+                  
+                  // Sign out from Supabase
+                  await client.auth.signOut();
+                  
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Signed out')),

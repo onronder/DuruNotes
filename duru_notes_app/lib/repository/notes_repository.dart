@@ -1,4 +1,3 @@
-// lib/repository/notes_repository.dart
 import 'package:duru_notes_app/core/crypto/crypto_box.dart';
 import 'package:duru_notes_app/core/parser/note_indexer.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
@@ -21,8 +20,10 @@ class NotesRepository {
   final String userId;
   final SupabaseNoteApi api;
   final NoteIndexer _indexer;
+
   final _uuid = const Uuid();
 
+  // Gizli RTL/BiDi kontrol karakterlerini temizle
   String _stripBidi(String s) =>
       s.replaceAll(RegExp(r'[\u202A-\u202E\u2066-\u2069]'), '');
 
@@ -34,35 +35,162 @@ class NotesRepository {
     final noteId = id ?? _uuid.v4();
     final now = DateTime.now();
 
+    // Metni temizle (ters yazmayı tetikleyen kontrolleri kaldır)
+    final cleanTitle = _stripBidi(title.trim());
+    final cleanBody = _stripBidi(body);
+
     final n = LocalNote(
       id: noteId,
-      title: _stripBidi(title.trim()),
-      body: _stripBidi(body),
+      title: cleanTitle,
+      body: cleanBody,
       updatedAt: now,
       deleted: false,
     );
 
     await db.upsertNote(n);
     await _indexer.updateIndex(n);
-    await db.updateFtsForNote(n);
     await db.enqueue(noteId, 'upsert_note');
     return noteId;
   }
 
   Future<void> delete(String id) async {
-    final n = await (db.select(db.localNotes)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    final n = await (db.select(
+      db.localNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
 
     if (n != null) {
       final deletedNote =
           n.copyWith(deleted: true, updatedAt: DateTime.now());
       await db.upsertNote(deletedNote);
       await _indexer.updateIndex(deletedNote);
-      await db.updateFtsForNote(deletedNote);
       await db.enqueue(id, 'upsert_note');
     }
   }
 
-  // ... (pushAllPending, pullSince, fetchRemoteActiveIds, reconcileHardDeletes, list)
+  Future<void> pushAllPending() async {
+    final ops = await db.getPendingOps();
+    final List<int> processedIds = [];
+
+    for (final op in ops) {
+      try {
+        if (op.kind == 'upsert_note') {
+          final n = await (db.select(
+            db.localNotes,
+          )..where((t) => t.id.equals(op.entityId))).getSingleOrNull();
+
+          if (n == null) {
+            processedIds.add(op.id);
+            continue;
+          }
+
+          final titleEnc = await crypto.encryptStringForNote(
+            userId: userId,
+            noteId: n.id,
+            text: n.title,
+          );
+
+          final propsEnc = await crypto.encryptJsonForNote(
+            userId: userId,
+            noteId: n.id,
+            json: {
+              'body': n.body,
+              'updatedAt': n.updatedAt.toIso8601String(),
+              'deleted': n.deleted,
+            },
+          );
+
+          await api.upsertEncryptedNote(
+            id: n.id,
+            titleEnc: titleEnc,
+            propsEnc: propsEnc,
+            deleted: n.deleted,
+          );
+
+          processedIds.add(op.id);
+        }
+      } on Object {
+        // hata alındıysa bırak; sonraki sync'te tekrar denenecek
+      }
+    }
+
+    if (processedIds.isNotEmpty) {
+      await db.deletePendingByIds(processedIds);
+    }
+  }
+
+  Future<void> pullSince(DateTime? since) async {
+    final rows = await api.fetchEncryptedNotes(since: since);
+
+    for (final r in rows) {
+      try {
+        final id = r['id'] as String;
+        final deleted = (r['deleted'] as bool?) ?? false;
+
+        final titleEnc = SupabaseNoteApi.asBytes(r['title_enc']);
+        final propsEnc = SupabaseNoteApi.asBytes(r['props_enc']);
+
+        var title = await crypto.decryptStringForNote(
+          userId: userId,
+          noteId: id,
+          data: titleEnc,
+        );
+        final props = await crypto.decryptJsonForNote(
+          userId: userId,
+          noteId: id,
+          data: propsEnc,
+        );
+
+        // BiDi temizliği
+        title = _stripBidi(title);
+        final body = _stripBidi((props['body'] as String?) ?? '');
+
+        final updatedAt =
+            DateTime.tryParse((props['updatedAt'] as String?) ?? '') ??
+                DateTime.now();
+
+        final local = await (db.select(
+          db.localNotes,
+        )..where((t) => t.id.equals(id))).getSingleOrNull();
+
+        if (local == null || local.updatedAt.isBefore(updatedAt)) {
+          final n = LocalNote(
+            id: id,
+            title: title,
+            body: body,
+            updatedAt: updatedAt,
+            deleted: deleted,
+          );
+          await db.upsertNote(n);
+          await _indexer.updateIndex(n);
+        }
+      } on Object {
+        // bozuk satırları atla
+      }
+    }
+  }
+
+  Future<Set<String>> fetchRemoteActiveIds() => api.fetchAllActiveIds();
+
+  Future<void> reconcileHardDeletes(Set<String> remoteActiveIds) async {
+    final localIds = await db.getLocalActiveNoteIds();
+    final pending = await db.getPendingOps();
+    final pendingIds = pending.map((p) => p.entityId).toSet();
+
+    for (final id in localIds) {
+      if (!remoteActiveIds.contains(id) && !pendingIds.contains(id)) {
+        final n = await (db.select(
+          db.localNotes,
+        )..where((t) => t.id.equals(id))).getSingleOrNull();
+
+        if (n != null) {
+          final deletedNote =
+              n.copyWith(deleted: true, updatedAt: DateTime.now());
+          await db.upsertNote(deletedNote);
+          await _indexer.updateIndex(deletedNote);
+        }
+      }
+    }
+  }
+
+  Future<List<LocalNote>> list() => db.allNotes();
 }
