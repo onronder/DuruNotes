@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:duru_notes_app/core/crypto/key_manager.dart';
+import 'package:duru_notes_app/core/security/password_validator.dart';
+import 'package:duru_notes_app/core/security/password_history_service.dart';
+import 'package:duru_notes_app/ui/widgets/password_strength_meter.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -14,20 +18,50 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _passwordValidator = PasswordValidator();
+  final _passwordHistoryService = PasswordHistoryService();
   
   bool _isLoading = false;
   bool _isSignUp = false;
+  bool _showPassword = false;
   String? _errorMessage;
+  PasswordValidationResult? _passwordValidation;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_onPasswordChanged);
+  }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  void _onPasswordChanged() {
+    if (_isSignUp) {
+      setState(() {
+        _passwordValidation = _passwordValidator.validatePassword(_passwordController.text);
+      });
+    }
+  }
+
   Future<void> _handleAuth() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Additional password validation for sign up
+    if (_isSignUp) {
+      final validation = _passwordValidator.validatePassword(_passwordController.text);
+      if (!validation.isValid) {
+        setState(() {
+          _errorMessage = 'Password does not meet security requirements. Please improve your password strength.';
+        });
+        return;
+      }
+    }
 
     setState(() {
       _isLoading = true;
@@ -45,6 +79,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
         
         if (response.user != null && response.session != null) {
+          // Store password hash in history for future reference
+          await _passwordHistoryService.storePasswordHash(
+            response.user!.id, 
+            _passwordController.text,
+          );
+          
           // Initialize encryption key for new user
           final keyManager = KeyManager();
           await keyManager.getOrCreateMasterKey(response.user!.id);
@@ -153,22 +193,52 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: !_showPassword,
+                  decoration: InputDecoration(
                     labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outlined),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _showPassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showPassword = !_showPassword;
+                        });
+                      },
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Password is required';
                     }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                    
+                    // Enhanced validation for sign up
+                    if (_isSignUp) {
+                      final validation = _passwordValidator.validatePassword(value);
+                      if (!validation.isValid) {
+                        return 'Password must meet security requirements';
+                      }
+                    } else {
+                      // Basic validation for sign in
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
                     }
                     return null;
                   },
                 ),
+                
+                // Password Strength Meter (only for sign up)
+                if (_isSignUp && _passwordValidation != null) ...[
+                  const SizedBox(height: 16),
+                  PasswordStrengthMeter(
+                    validationResult: _passwordValidation!,
+                    showCriteria: true,
+                    showScore: false,
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Error Message
@@ -213,6 +283,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           setState(() {
                             _isSignUp = !_isSignUp;
                             _errorMessage = null;
+                            // Trigger password validation if switching to sign up
+                            if (_isSignUp && _passwordController.text.isNotEmpty) {
+                              _passwordValidation = _passwordValidator.validatePassword(_passwordController.text);
+                            } else {
+                              _passwordValidation = null;
+                            }
                           });
                         },
                   child: Text(
