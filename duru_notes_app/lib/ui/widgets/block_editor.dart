@@ -31,7 +31,7 @@ class BlockEditor extends StatefulWidget {
 
 class _BlockEditorState extends State<BlockEditor> {
   late List<NoteBlock> _blocks;
-  late List<TextEditingController?> _controllers;
+  List<TextEditingController?> _controllers = [];
 
   @override
   void initState() {
@@ -258,11 +258,9 @@ class _BlockEditorState extends State<BlockEditor> {
               border: InputBorder.none,
             ),
             onChanged: (value) {
-              debugPrint('Text changed: "$value"'); // Debug print
               setState(() {
                 _blocks[index] = _blocks[index].copyWith(data: value);
               });
-              debugPrint('Block data after update: "${_blocks[index].data}"'); // Debug print
               _notifyChange();
             },
           ),

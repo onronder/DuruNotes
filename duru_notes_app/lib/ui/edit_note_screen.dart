@@ -275,13 +275,10 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: _preview
-                      ? Container(
+                      ? SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
-                          child: Markdown(
+                          child: MarkdownBody(
                             data: blocksToMarkdown(_blocks),
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.zero,
                             onTapLink: (text, href, title) async {
                               if (href == null || href.isEmpty) return;
                               final uri = Uri.tryParse(href);
