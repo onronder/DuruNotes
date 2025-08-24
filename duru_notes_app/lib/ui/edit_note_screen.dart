@@ -387,8 +387,8 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                     },
                   ),
                 ],
+                const SizedBox(height: 100), // Extra padding for scrolling
               ],
-              const SizedBox(height: 100), // Extra padding for scrolling
             ),
           ),
         ),
