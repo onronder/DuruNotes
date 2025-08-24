@@ -208,7 +208,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
           );
         });
       }
-      });
     } catch (e) {
       debugPrint('OCR scan failed: $e');
     } finally {
