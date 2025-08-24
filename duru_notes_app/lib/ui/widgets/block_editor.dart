@@ -79,6 +79,8 @@ class _BlockEditorState extends State<BlockEditor> {
             final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
             return TextEditingController(text: codeData.code);
           case NoteBlockType.todo:
+            final todoData = block.data as TodoBlockData? ?? const TodoBlockData(text: '', checked: false);
+            return TextEditingController(text: todoData.text);
           case NoteBlockType.table:
           case NoteBlockType.attachment:
             return null;
@@ -102,6 +104,10 @@ class _BlockEditorState extends State<BlockEditor> {
             case NoteBlockType.code:
               final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
               newText = codeData.code;
+              break;
+            case NoteBlockType.todo:
+              final todoData = block.data as TodoBlockData? ?? const TodoBlockData(text: '', checked: false);
+              newText = todoData.text;
               break;
             default:
               break;
@@ -177,8 +183,8 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.heading3:
       case NoteBlockType.quote:
       case NoteBlockType.code:
-        return true;
       case NoteBlockType.todo:
+        return true;
       case NoteBlockType.table:
       case NoteBlockType.attachment:
         return false;
@@ -419,7 +425,7 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         Expanded(
           child: TextField(
-            controller: TextEditingController(text: todo.text),
+            controller: _controllers[index],
             maxLines: null,
             textDirection: TextDirection.ltr,
             decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
@@ -428,8 +434,8 @@ class _BlockEditorState extends State<BlockEditor> {
                 setState(() {
                   _blocks[index] = _blocks[index].copyWith(data: todo.copyWith(text: value));
                 });
+                _notifyChange();
               }
-              _notifyChange();
             },
           ),
         ),
