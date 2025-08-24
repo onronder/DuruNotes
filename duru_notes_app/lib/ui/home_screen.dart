@@ -9,6 +9,7 @@ import 'package:duru_notes_app/repository/sync_service.dart';
 import 'package:duru_notes_app/ui/edit_note_screen.dart';
 import 'package:duru_notes_app/ui/note_search_delegate.dart';
 import 'package:duru_notes_app/ui/tags_screen.dart';
+import 'package:duru_notes_app/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -110,6 +111,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (f != null) await f;
     } on Object {
       // sessizce yut
+    }
+  }
+
+  /// Generate a clean preview from note body by stripping markdown
+  String _generatePreview(String body) {
+    if (body.trim().isEmpty) return '';
+    
+    // Strip markdown formatting for cleaner preview
+    final preview = body
+        .replaceAll(RegExp(r'^#{1,6}\s+'), '') // Remove headings
+        .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1') // Remove bold
+        .replaceAll(RegExp(r'\*(.*?)\*'), r'$1') // Remove italic
+        .replaceAll(RegExp(r'`(.*?)`'), r'$1') // Remove inline code
+        .replaceAll(RegExp(r'^\s*[-*]\s+', multiLine: true), '') // Remove list markers
+        .replaceAll(RegExp(r'^\s*>\s+', multiLine: true), '') // Remove quotes
+        .replaceAll(RegExp(r'!\[.*?\]\(.*?\)'), '[Image]') // Replace images
+        .replaceAll(RegExp(r'\[.*?\]\(.*?\)'), '') // Remove links
+        .replaceAll(RegExp(r'\n+'), ' ') // Replace newlines with spaces
+        .trim();
+    
+    return preview;
+  }
+
+  /// Format date for display in note list
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      final hours = difference.inHours;
+      final minutes = difference.inMinutes;
+      
+      if (hours == 0) {
+        if (minutes <= 1) return 'Just now';
+        return '${minutes}m ago';
+      }
+      return '${hours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      // Show actual date for older notes
+      return '${date.day}/${date.month}/${date.year}';
     }
   }
 
@@ -217,9 +262,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onRefresh: _refresh,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 120),
-                        Center(child: Text('No notes yet')),
+                      children: [
+                        const SizedBox(height: 120),
+                        EmptyDisplay(
+                          icon: Icons.note_outlined,
+                          title: 'No notes yet',
+                          subtitle: hasSession 
+                            ? 'Tap the + button to create your first note'
+                            : 'Sign in to sync your notes across devices',
+                          action: hasSession ? null : TextButton(
+                            onPressed: () {
+                              // User is not signed in - this shouldn't happen in normal flow
+                              // but provides helpful feedback
+                            },
+                            child: const Text('Sign In'),
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -232,12 +290,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final n = notes[index];
+                        final preview = _generatePreview(n.body);
                         return ListTile(
-                          title: Text(n.title),
-                          subtitle: Text(
-                            n.body,
-                            maxLines: 1,
+                          title: Text(
+                            n.title.isEmpty ? '(Untitled)' : n.title,
+                            style: n.title.isEmpty 
+                              ? TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                )
+                              : null,
+                          ),
+                          subtitle: preview.isNotEmpty ? Text(
+                            preview,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                          ) : null,
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                _formatDate(n.updatedAt),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                              if (!hasSession) 
+                                Icon(
+                                  Icons.offline_pin_outlined,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                ),
+                            ],
                           ),
                           onTap: () async {
                             await Navigator.of(context).push(
@@ -257,8 +342,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 }
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              loading: () => const LoadingDisplay(message: 'Loading notes...'),
+              error: (e, _) => ErrorDisplay(
+                error: e,
+                message: 'Failed to load notes',
+                onRetry: () => ref.invalidate(notesListProvider),
+              ),
             ),
           ),
         ],

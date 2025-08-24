@@ -39,6 +39,8 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   late final TextEditingController _title;
   late List<NoteBlock> _blocks;
   bool _preview = false;
+  bool _hasUnsavedChanges = false;
+  Timer? _autosaveTimer;
 
   // RTL/ters yazmayı tetikleyen görünmez BiDi kontrol karakterlerini blokla
   static final _bidiBlocker = FilteringTextInputFormatter.deny(
@@ -69,6 +71,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   @override
   void dispose() {
     _backlinkDebounce?.cancel();
+    _autosaveTimer?.cancel();
     _title.dispose();
     super.dispose();
   }
@@ -84,7 +87,54 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     });
   }
 
-  Future<void> _saveOrUpdate(BuildContext context) async {
+  void _markAsChanged() {
+    if (!_hasUnsavedChanges) {
+      setState(() {
+        _hasUnsavedChanges = true;
+      });
+    }
+    _scheduleAutosave();
+  }
+
+  void _scheduleAutosave() {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(seconds: 3), () {
+      if (_hasUnsavedChanges) {
+        _saveOrUpdate(context, showSuccess: false);
+      }
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_hasUnsavedChanges) return true;
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved Changes'),
+        content: const Text('You have unsaved changes. Do you want to save before leaving?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      await _saveOrUpdate(context);
+      return true;
+    }
+    
+    return result == false;
+  }
+
+  Future<void> _saveOrUpdate(BuildContext context, {bool showSuccess = true}) async {
     final repo = ref.read(repoProvider);
     final sync = ref.read(syncProvider);
     final messenger = ScaffoldMessenger.of(context);
@@ -95,8 +145,13 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
         body: bodyMarkdown,
         id: widget.noteId,
       );
+      setState(() {
+        _hasUnsavedChanges = false;
+      });
       if (!context.mounted) return;
-      Navigator.of(context).pop(true);
+      if (showSuccess) {
+        Navigator.of(context).pop(true);
+      }
 
       // Sync'i arka planda tetikle (başarısız olursa logla)
       if (sync != null) {
@@ -157,14 +212,24 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveTitle =
-        _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
 
-    return Directionality( // tüm alt ağaç LTR
-      textDirection: TextDirection.ltr,
-      child: Scaffold(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop && _hasUnsavedChanges) {
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Directionality( // tüm alt ağaç LTR
+        textDirection: TextDirection.ltr,
+        child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
+          title: Text(
+            '${widget.noteId == null ? 'New note' : 'Edit note'}${_hasUnsavedChanges ? ' •' : ''}',
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.camera_alt),
@@ -192,6 +257,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                   onChanged: (_) {
                     setState(() {});            // UI'daki başlık vs. güncellensin
                     _scheduleBacklinksRecalc(); // backlink sorgusunu debounce et
+                    _markAsChanged();           // Mark as changed for autosave
                   },
                 ),
                 const SizedBox(height: 8),
@@ -228,7 +294,10 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                       : BlockEditor(
                           blocks: _blocks,
                           // BlockEditor içindeki tüm text alanları üstteki Directionality'den LTR alır.
-                          onChanged: (blocks) => setState(() => _blocks = blocks),
+                          onChanged: (blocks) {
+                            setState(() => _blocks = blocks);
+                            _markAsChanged();
+                          },
                         ),
                 ),
                 const SizedBox(height: 12),
@@ -309,6 +378,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

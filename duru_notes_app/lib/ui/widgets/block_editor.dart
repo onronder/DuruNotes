@@ -437,59 +437,145 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
-  /// Builds a widget for an attachment block. This renders two text fields
-  /// for the filename and the URL, and notifies listeners whenever either
-  /// value changes. A delete icon allows the block to be removed.
+  /// Builds a widget for an attachment block. This renders the attachment
+  /// as a file link with preview capabilities and editing options.
   Widget _buildAttachmentBlock(int index, NoteBlock block) {
     final data = block.data as AttachmentBlockData;
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(
+              _getFileIcon(data.filename),
+              size: 24,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.filename.isNotEmpty ? data.filename : 'Untitled attachment',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (data.url.isNotEmpty)
+                    Text(
+                      data.url,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              onPressed: () => _editAttachment(index, data),
+              tooltip: 'Edit attachment',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              onPressed: () => _removeBlock(index),
+              tooltip: 'Delete attachment',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Get appropriate icon for file type
+  IconData _getFileIcon(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      case 'mp4':
+      case 'mov':
+        return Icons.video_file;
+      case 'mp3':
+      case 'wav':
+        return Icons.audio_file;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      default:
+        return Icons.attach_file;
+    }
+  }
+
+  /// Show dialog to edit attachment details
+  Future<void> _editAttachment(int index, AttachmentBlockData data) async {
     final filenameController = TextEditingController(text: data.filename);
     final urlController = TextEditingController(text: data.url);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: filenameController,
-                maxLines: 1,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  labelText: 'File name',
-                ),
-                onChanged: (value) {
-                  final updated = data.copyWith(filename: value);
-                  setState(() {
-                    _blocks[index] = _blocks[index].copyWith(data: updated);
-                  });
-                  _notifyChange();
-                },
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Attachment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: filenameController,
+              decoration: const InputDecoration(
+                labelText: 'File name',
+                border: OutlineInputBorder(),
               ),
-              TextField(
-                controller: urlController,
-                maxLines: 1,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  labelText: 'URL',
-                ),
-                onChanged: (value) {
-                  final updated = data.copyWith(url: value);
-                  setState(() {
-                    _blocks[index] = _blocks[index].copyWith(data: updated);
-                  });
-                  _notifyChange();
-                },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'URL',
+                border: OutlineInputBorder(),
               ),
-            ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20),
-          onPressed: () => _removeBlock(index),
-        ),
-      ],
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
+    
+    if (result == true) {
+      final updated = data.copyWith(
+        filename: filenameController.text,
+        url: urlController.text,
+      );
+      setState(() {
+        _blocks[index] = _blocks[index].copyWith(data: updated);
+      });
+      _notifyChange();
+    }
+    
+    filenameController.dispose();
+    urlController.dispose();
   }
 
   @override
