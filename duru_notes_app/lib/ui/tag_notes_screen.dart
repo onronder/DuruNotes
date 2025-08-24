@@ -1,51 +1,209 @@
 import 'package:duru_notes_app/data/local/app_db.dart';
 import 'package:duru_notes_app/ui/edit_note_screen.dart';
 import 'package:duru_notes_app/ui/home_screen.dart';
+import 'package:duru_notes_app/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TagNotesScreen extends ConsumerWidget {
+class TagNotesScreen extends ConsumerStatefulWidget {
   const TagNotesScreen({required this.tag, super.key});
   final String tag;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.read(dbProvider);
+  ConsumerState<TagNotesScreen> createState() => _TagNotesScreenState();
+}
+
+class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
+  bool _isLoading = true;
+  List<LocalNote> _notes = [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotes();
+  }
+
+  Future<void> _loadNotes() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final db = ref.read(dbProvider);
+      final notes = await db.notesWithTag(widget.tag);
+      
+      if (mounted) {
+        setState(() {
+          _notes = notes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  String _generatePreview(String body) {
+    // Strip markdown formatting for cleaner preview
+    String preview = body
+        .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Remove bold
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Remove italic
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Remove code
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1') // Remove links
+        .trim();
+
+    return preview.isEmpty ? '(No content)' : preview;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('#$tag')),
-      body: FutureBuilder<List<LocalNote>>(
-        future: db.notesWithTag(tag),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final notes = snap.data!;
-          if (notes.isEmpty) {
-            return const Center(child: Text('No notes'));
-          }
-          return ListView.separated(
-            itemCount: notes.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final n = notes[i];
-              return ListTile(
-                title: Text(n.title.isEmpty ? '(untitled)' : n.title),
-                subtitle: Text(
-                  n.body,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      appBar: AppBar(
+        title: Text('#${widget.tag}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadNotes,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+      body: _buildContent(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const EditNoteScreen(),
+            ),
+          );
+          // Refresh notes after returning from editor
+          _loadNotes();
+        },
+        child: const Icon(Icons.add),
+        tooltip: 'Create note with #${widget.tag}',
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const LoadingDisplay();
+    }
+
+    if (_error != null) {
+      return ErrorDisplay(
+        error: _error!,
+        message: 'Failed to load notes',
+        onRetry: _loadNotes,
+      );
+    }
+
+    if (_notes.isEmpty) {
+      return EmptyDisplay(
+        title: 'No notes with #${widget.tag}',
+        subtitle: 'Create a note and add #${widget.tag} to see it here',
+        icon: Icons.tag,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadNotes,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _notes.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 8),
+        itemBuilder: (context, i) {
+          final note = _notes[i];
+          final preview = _generatePreview(note.body);
+          
+          return Card(
+            elevation: 0,
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              title: Text(
+                note.title.isEmpty ? '(Untitled)' : note.title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                onTap: () => Navigator.of(context).push(
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (preview != '(No content)') ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      preview,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDate(note.updatedAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => EditNoteScreen(
-                      noteId: n.id,
-                      initialTitle: n.title,
-                      initialBody: n.body,
+                      noteId: note.id,
+                      initialTitle: note.title,
+                      initialBody: note.body,
                     ),
                   ),
-                ),
-              );
-            },
+                );
+                // Refresh notes after returning from editor
+                _loadNotes();
+              },
+            ),
           );
         },
       ),

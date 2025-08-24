@@ -51,11 +51,18 @@ class NoteLinks extends Table {
   Set<Column> get primaryKey => {sourceId, targetTitle};
 }
 
-/// UI’da kullanmak için küçük taşıyıcı
+/// UI'da kullanmak için küçük taşıyıcı
 class BacklinkPair {
   const BacklinkPair({required this.link, this.source});
   final NoteLink link;
   final LocalNote? source;
+}
+
+/// Tag with note count for UI display
+class TagCount {
+  const TagCount({required this.tag, required this.count});
+  final String tag;
+  final int count;
 }
 
 /// ----------------------
@@ -296,7 +303,47 @@ class AppDb extends _$AppDb {
     ).get();
 
     return rows.map((r) => r.read<String>('tag')).toList();
-    }
+  }
+
+  /// Get tags with their note counts
+  Future<List<TagCount>> getTagsWithCounts() async {
+    final rows = await customSelect(
+      '''
+      SELECT t.tag AS tag, COUNT(DISTINCT t.note_id) AS count
+      FROM note_tags t
+      JOIN local_notes n ON n.id = t.note_id
+      WHERE n.deleted = 0
+      GROUP BY t.tag
+      ORDER BY LOWER(t.tag) ASC
+      ''',
+      readsFrom: {noteTags, localNotes},
+    ).get();
+
+    return rows.map((r) => TagCount(
+      tag: r.read<String>('tag'),
+      count: r.read<int>('count'),
+    )).toList();
+  }
+
+  /// Search tags by prefix
+  Future<List<String>> searchTags(String prefix) async {
+    if (prefix.trim().isEmpty) return distinctTags();
+    
+    final rows = await customSelect(
+      '''
+      SELECT DISTINCT t.tag AS tag
+      FROM note_tags t
+      JOIN local_notes n ON n.id = t.note_id
+      WHERE n.deleted = 0 AND LOWER(t.tag) LIKE LOWER(?)
+      ORDER BY LOWER(t.tag) ASC
+      LIMIT 20
+      ''',
+      variables: [Variable('${prefix.trim()}%')],
+      readsFrom: {noteTags, localNotes},
+    ).get();
+
+    return rows.map((r) => r.read<String>('tag')).toList();
+  }
 
   Future<List<LocalNote>> notesWithTag(String tag) async {
     final list = await customSelect(
