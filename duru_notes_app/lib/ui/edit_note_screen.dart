@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
+
 
 
 import 'package:duru_notes_app/core/parser/note_block_parser.dart';
@@ -42,10 +42,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   bool _hasUnsavedChanges = false;
   Timer? _autosaveTimer;
 
-  // RTL/ters yazmayı tetikleyen görünmez BiDi kontrol karakterlerini blokla
-  static final _bidiBlocker = FilteringTextInputFormatter.deny(
-    RegExp(r'[\u202A-\u202E\u2066-\u2069]'),
-  );
+
 
   // Backlink sorgusunu her tuş vuruşunda değil, debounce ile tetikle
   Timer? _backlinkDebounce;
@@ -223,9 +220,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
           }
         }
       },
-      child: Directionality( // tüm alt ağaç LTR
-        textDirection: TextDirection.ltr,
-        child: Scaffold(
+      child: Scaffold(
         appBar: AppBar(
           title: Text(
             '${widget.noteId == null ? 'New note' : 'Edit note'}${_hasUnsavedChanges ? ' •' : ''}',
@@ -251,8 +246,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                 TextField(
                   controller: _title,
                   textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.start,
-                  inputFormatters: [_bidiBlocker],
                   decoration: const InputDecoration(labelText: 'Title'),
                   onChanged: (_) {
                     setState(() {});            // UI'daki başlık vs. güncellensin
@@ -275,29 +268,43 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
                 const SizedBox(height: 4),
                 Container(
                   constraints: const BoxConstraints(minHeight: 200),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: _preview
-                      ? Markdown(
-                          data: blocksToMarkdown(_blocks),
-                          onTapLink: (text, href, title) async {
-                            if (href == null || href.isEmpty) return;
-                            final uri = Uri.tryParse(href);
-                            if (uri == null) return;
-                            final ok = await launchUrl(uri);
-                            if (!ok && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text('Could not open $href')),
-                              );
-                            }
-                          },
+                      ? Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Markdown(
+                            data: blocksToMarkdown(_blocks),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            onTapLink: (text, href, title) async {
+                              if (href == null || href.isEmpty) return;
+                              final uri = Uri.tryParse(href);
+                              if (uri == null) return;
+                              final ok = await launchUrl(uri);
+                              if (!ok && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('Could not open $href')),
+                                );
+                              }
+                            },
+                          ),
                         )
-                      : BlockEditor(
-                          blocks: _blocks,
-                          // BlockEditor içindeki tüm text alanları üstteki Directionality'den LTR alır.
-                          onChanged: (blocks) {
-                            setState(() => _blocks = blocks);
-                            _markAsChanged();
-                          },
+                      : Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: BlockEditor(
+                            blocks: _blocks,
+                            onChanged: (blocks) {
+                              setState(() => _blocks = blocks);
+                              _markAsChanged();
+                            },
+                          ),
                         ),
                 ),
                 const SizedBox(height: 12),
@@ -378,7 +385,6 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
           ),
         ),
       ),
-    ),
     );
   }
 }

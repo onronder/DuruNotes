@@ -234,6 +234,7 @@ class _BlockEditorState extends State<BlockEditor> {
           child: TextField(
             controller: controller,
             maxLines: null,
+            textDirection: TextDirection.ltr,
             style: TextStyle(fontSize: fontSize, fontWeight: fontWeight),
             decoration: InputDecoration(
               hintText: isParagraph ? 'Paragraph' : null,
@@ -272,6 +273,7 @@ class _BlockEditorState extends State<BlockEditor> {
             child: TextField(
               controller: controller,
               maxLines: null,
+              textDirection: TextDirection.ltr,
               decoration: const InputDecoration(border: InputBorder.none, hintText: 'Quote'),
               onChanged: (value) {
                 setState(() {
@@ -308,6 +310,7 @@ class _BlockEditorState extends State<BlockEditor> {
                 child: TextField(
                   controller: controller,
                   maxLines: null,
+                  textDirection: TextDirection.ltr,
                   style: const TextStyle(fontFamily: 'monospace'),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
@@ -356,6 +359,7 @@ class _BlockEditorState extends State<BlockEditor> {
           child: TextField(
             controller: TextEditingController(text: todo.text),
             maxLines: null,
+            textDirection: TextDirection.ltr,
             decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
             onChanged: (value) {
               setState(() {
