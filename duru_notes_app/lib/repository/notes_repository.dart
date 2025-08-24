@@ -24,8 +24,11 @@ class NotesRepository {
   final _uuid = const Uuid();
 
   // Gizli RTL/BiDi kontrol karakterlerini temizle
-  String _stripBidi(String s) =>
-      s.replaceAll(RegExp(r'[\u202A-\u202E\u2066-\u2069]'), '');
+  String _stripBidi(String s) {
+    // Temporarily disable to debug text corruption issue
+    return s;
+    // return s.replaceAll(RegExp(r'[\u202A-\u202E\u2066-\u2069]'), '');
+  }
 
   Future<String> createOrUpdate({
     required String title,

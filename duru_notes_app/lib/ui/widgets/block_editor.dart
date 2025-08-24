@@ -47,7 +47,21 @@ class _BlockEditorState extends State<BlockEditor> {
     }
   }
 
+  @override
+  void dispose() {
+    // Dispose all text controllers
+    for (final controller in _controllers) {
+      controller?.dispose();
+    }
+    super.dispose();
+  }
+
   void _initFromBlocks(List<NoteBlock> blocks) {
+    // Dispose existing controllers first
+    for (final controller in _controllers) {
+      controller?.dispose();
+    }
+    
     _blocks = blocks.map((b) => b).toList();
     _controllers = _blocks.map<TextEditingController?>((block) {
       switch (block.type) {
@@ -56,8 +70,11 @@ class _BlockEditorState extends State<BlockEditor> {
         case NoteBlockType.heading2:
         case NoteBlockType.heading3:
         case NoteBlockType.quote:
+          final text = block.data as String? ?? '';
+          return TextEditingController(text: text);
         case NoteBlockType.code:
-          return TextEditingController(text: block.data as String);
+          final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
+          return TextEditingController(text: codeData.code);
         case NoteBlockType.todo:
         case NoteBlockType.table:
         case NoteBlockType.attachment:
@@ -241,9 +258,11 @@ class _BlockEditorState extends State<BlockEditor> {
               border: InputBorder.none,
             ),
             onChanged: (value) {
+              debugPrint('Text changed: "$value"'); // Debug print
               setState(() {
                 _blocks[index] = _blocks[index].copyWith(data: value);
               });
+              debugPrint('Block data after update: "${_blocks[index].data}"'); // Debug print
               _notifyChange();
             },
           ),
