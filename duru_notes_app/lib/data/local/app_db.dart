@@ -11,7 +11,6 @@ part 'app_db.g.dart';
 /// ----------------------
 /// Table definitions
 /// ----------------------
-
 @DataClassName('LocalNote')
 class LocalNotes extends Table {
   TextColumn get id => text()();
@@ -44,23 +43,17 @@ class NoteTags extends Table {
 
 @DataClassName('NoteLink')
 class NoteLinks extends Table {
-  /// Linki içeren notun id’si
   TextColumn get sourceId => text()();
-
-  /// Hedef başlık (ör. `[[Title]]` ya da `@Title` ile bulunur)
   TextColumn get targetTitle => text()();
-
-  /// Opsiyonel hedef id (ör. `[[id:<UUID>]]` veya `@id:<UUID>`)
   TextColumn get targetId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {sourceId, targetTitle};
 }
 
-/// UI’da kullanmak için küçük bir taşıyıcı sınıf
+/// UI’da kullanmak için küçük taşıyıcı
 class BacklinkPair {
   const BacklinkPair({required this.link, this.source});
-
   final NoteLink link;
   final LocalNote? source;
 }
@@ -73,36 +66,105 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
-  /// Migrations:
-  /// v1: LocalNotes + PendingOps
-  /// v2: + NoteTags + NoteLinks
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
-    },
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.createTable(noteTags);
-        await m.createTable(noteLinks);
-      }
-    },
-  );
+        onCreate: (m) async {
+          await m.createAll();
+
+          // FTS tablosu
+          await customStatement(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
+          );
+
+          // Tetikleyiciler: local_notes <-> fts_notes senkron
+          await _createFtsTriggers();
+
+          // İndeksler
+          await _createIndexes();
+
+          // Mevcut veriyi FTS’ye tohumla
+          await customStatement(
+            'INSERT INTO fts_notes(id, title, body) '
+            'SELECT id, title, body FROM local_notes WHERE deleted = 0',
+          );
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(noteTags);
+            await m.createTable(noteLinks);
+          }
+          // FTS tablosu ve tetikleyiciler/indeksler
+          await customStatement(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
+          );
+          if (from < 3) {
+            await _createFtsTriggers();
+            await _createIndexes();
+            await customStatement('DELETE FROM fts_notes');
+            await customStatement(
+              'INSERT INTO fts_notes(id, title, body) '
+              'SELECT id, title, body FROM local_notes WHERE deleted = 0',
+            );
+          }
+        },
+      );
+
+  Future<void> _createIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_local_notes_updated_notdeleted '
+      'ON local_notes(updated_at DESC) WHERE deleted = 0',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_links_target_title '
+      'ON note_links(target_title)',
+    );
+  }
+
+  Future<void> _createFtsTriggers() async {
+    // INSERT -> fts’ye ekle (silinmiş değilse)
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_local_notes_ai
+      AFTER INSERT ON local_notes
+      BEGIN
+        INSERT INTO fts_notes(id, title, body)
+        SELECT NEW.id, NEW.title, NEW.body WHERE NEW.deleted = 0;
+      END;
+    ''');
+
+    // UPDATE -> fts’yi güncelle / sil
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_local_notes_au
+      AFTER UPDATE ON local_notes
+      BEGIN
+        DELETE FROM fts_notes WHERE id = NEW.id;
+        INSERT INTO fts_notes(id, title, body)
+        SELECT NEW.id, NEW.title, NEW.body WHERE NEW.deleted = 0;
+      END;
+    ''');
+
+    // DELETE -> fts’den sil
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_local_notes_ad
+      AFTER DELETE ON local_notes
+      BEGIN
+        DELETE FROM fts_notes WHERE id = OLD.id;
+      END;
+    ''');
+  }
 
   // ----------------------
   // Notes
   // ----------------------
-
-  /// '@' önerileri için: başlığa göre not araması (prefix + kelime başı).
   Future<List<LocalNote>> suggestNotesByTitlePrefix(
     String query, {
     int limit = 8,
   }) {
     final q = query.trim();
-
-    // Son güncellenenler en üstte; boş arama kısa liste döndürür.
     if (q.isEmpty) {
       return (select(localNotes)
             ..where((t) => t.deleted.equals(false))
@@ -115,12 +177,9 @@ class AppDb extends _$AppDb {
     final wordStart = '% $q%';
 
     return (select(localNotes)
-          ..where(
-            (t) =>
-                t.deleted.equals(false) &
-                // Başlangıç veya kelime başı eşleşmesi
-                (t.title.like(startsWith) | t.title.like(wordStart)),
-          )
+          ..where((t) =>
+              t.deleted.equals(false) &
+              (t.title.like(startsWith) | t.title.like(wordStart)))
           ..orderBy([(t) => OrderingTerm.asc(t.title)])
           ..limit(limit))
         .get();
@@ -135,15 +194,13 @@ class AppDb extends _$AppDb {
   Future<void> upsertNote(LocalNote n) =>
       into(localNotes).insertOnConflictUpdate(n);
 
-  /// Tek not (yoksa null)
   Future<LocalNote?> findNote(String id) =>
       (select(localNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   // ----------------------
   // Queue (PendingOps)
   // ----------------------
-
-  Future<void> enqueue(String entityId, String kind, {String? payload}) =>
+  Future<int> enqueue(String entityId, String kind, {String? payload}) =>
       into(pendingOps).insert(
         PendingOpsCompanion.insert(
           entityId: entityId,
@@ -160,11 +217,10 @@ class AppDb extends _$AppDb {
     await (delete(pendingOps)..where((t) => t.id.isIn(ids.toList()))).go();
   }
 
-  /// Atomically fetch & clear (used by sync)
   Future<List<PendingOp>> dequeueAll() async {
-    final ops = await (select(
-      pendingOps,
-    )..orderBy([(o) => OrderingTerm.asc(o.id)])).get();
+    final ops = await (select(pendingOps)
+          ..orderBy([(o) => OrderingTerm.asc(o.id)]))
+        .get();
     await delete(pendingOps).go();
     return ops;
   }
@@ -172,27 +228,25 @@ class AppDb extends _$AppDb {
   // ----------------------
   // Maintenance
   // ----------------------
-
   Future<void> clearAll() async {
     await transaction(() async {
       await delete(pendingOps).go();
       await delete(localNotes).go();
       await delete(noteTags).go();
       await delete(noteLinks).go();
+      await customStatement('DELETE FROM fts_notes');
     });
   }
 
   Future<Set<String>> getLocalActiveNoteIds() async {
-    final rows = await (select(
-      localNotes,
-    )..where((t) => t.deleted.equals(false))).get();
+    final rows =
+        await (select(localNotes)..where((t) => t.deleted.equals(false))).get();
     return rows.map((e) => e.id).toSet();
   }
 
   // ----------------------
-  // Tags index
+  // Tags & Links index
   // ----------------------
-
   Future<void> replaceTagsForNote(String noteId, Set<String> tags) async {
     await transaction(() async {
       await (delete(noteTags)..where((t) => t.noteId.equals(noteId))).go();
@@ -209,100 +263,95 @@ class AppDb extends _$AppDb {
     });
   }
 
-  Future<Set<String>> tagsOf(String noteId) async {
-    final rows = await (select(
-      noteTags,
-    )..where((t) => t.noteId.equals(noteId))).get();
-    return rows.map((e) => e.tag).toSet();
-  }
-
-  Future<List<String>> distinctTags() async {
-    final q = customSelect(
-      'SELECT DISTINCT tag FROM note_tags',
-      readsFrom: {noteTags},
-    );
-    final rows = await q.get();
-    final list = <String>[];
-    for (final r in rows) {
-      final v = r.data['tag'];
-      if (v is String && v.isNotEmpty) list.add(v);
-    }
-    list.sort();
-    return list;
-  }
-
-  Future<List<String>> noteIdsWithTag(String tag) async {
-    final rows = await (select(
-      noteTags,
-    )..where((t) => t.tag.equals(tag))).get();
-    return rows.map((e) => e.noteId).toList();
-  }
-
-  Future<List<LocalNote>> notesWithTag(String tag) async {
-    final ids = await noteIdsWithTag(tag);
-    if (ids.isEmpty) return <LocalNote>[];
-    return (select(localNotes)
-          ..where((t) => t.deleted.equals(false) & t.id.isIn(ids))
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-        .get();
-  }
-
-  // ----------------------
-  // Links index
-  // ----------------------
-
-  /// Parser `title` veya `id` üretebilir.
-  /// DB’de `targetTitle` NOT NULL olduğu için sanitize ediyoruz.
-  Future<void> replaceLinksForNote(
-    String noteId,
-    List<LinkTarget> links,
-  ) async {
+  Future<void> replaceLinksForNote(String noteId, List<LinkTarget> links) async {
     await transaction(() async {
       await (delete(noteLinks)..where((t) => t.sourceId.equals(noteId))).go();
-
       if (links.isNotEmpty) {
-        final rows = <NoteLinksCompanion>[];
-        for (final l in links) {
-          final safeTitle = ((l.title ?? l.id) ?? '').trim();
-          if (safeTitle.isEmpty) continue; // boş başlıkla kaydetme
-          rows.add(
-            NoteLinksCompanion.insert(
-              sourceId: noteId,
-              targetTitle: safeTitle,
-              targetId: Value(l.id),
+        await batch((b) {
+          b.insertAll(
+            noteLinks,
+            links.map(
+              (l) => NoteLinksCompanion.insert(
+                sourceId: noteId,
+                targetTitle: l.title ?? '',
+                targetId: Value(l.id),
+              ),
             ),
           );
-        }
-        if (rows.isNotEmpty) {
-          await batch((b) => b.insertAll(noteLinks, rows));
-        }
+        });
       }
     });
   }
 
-  Future<List<NoteLink>> backlinksForTitle(String title) {
-    return (select(noteLinks)..where((t) => t.targetTitle.equals(title))).get();
+  Future<List<String>> distinctTags() async {
+    final rows = await customSelect(
+      '''
+      SELECT DISTINCT t.tag AS tag
+      FROM note_tags t
+      JOIN local_notes n ON n.id = t.note_id
+      WHERE n.deleted = 0
+      ORDER BY LOWER(t.tag) ASC
+      ''',
+      readsFrom: {noteTags, localNotes},
+    ).get();
+
+    return rows.map((r) => r.read<String>('tag')).toList();
+    }
+
+  Future<List<LocalNote>> notesWithTag(String tag) async {
+    final list = await customSelect(
+      '''
+      SELECT n.*
+      FROM local_notes n
+      JOIN note_tags t ON n.id = t.note_id
+      WHERE n.deleted = 0 AND t.tag = ?
+      ORDER BY n.updated_at DESC
+      ''',
+      variables: [Variable(tag)],
+      readsFrom: {localNotes, noteTags},
+    ).map<LocalNote>((row) => localNotes.map(row.data)).get();
+
+    return list;
   }
 
-  /// Backlink satırları + opsiyonel kaynak not (başlık göstermek için)
-  Future<List<BacklinkPair>> backlinksWithSources(String title) async {
-    final rows = await (select(noteLinks).join([
-      leftOuterJoin(localNotes, localNotes.id.equalsExp(noteLinks.sourceId)),
-    ])..where(noteLinks.targetTitle.equals(title))).get();
+  Future<List<BacklinkPair>> backlinksWithSources(String targetTitle) async {
+    final links = await (select(noteLinks)
+          ..where((l) => l.targetTitle.equals(targetTitle)))
+        .get();
 
-    return rows
-        .map(
-          (r) => BacklinkPair(
-            link: r.readTable(noteLinks),
-            source: r.readTableOrNull(localNotes),
-          ),
-        )
+    if (links.isEmpty) return const <BacklinkPair>[];
+
+    final sourceIds = links.map((l) => l.sourceId).toSet().toList();
+    final sources = await (select(localNotes)
+          ..where((n) => n.deleted.equals(false) & n.id.isIn(sourceIds)))
+        .get();
+
+    final byId = {for (final n in sources) n.id: n};
+    return links
+        .map((l) => BacklinkPair(link: l, source: byId[l.sourceId]))
         .toList();
   }
 
-  /// Basit lokal arama.
-  /// - `#tag` ile başlarsa: tag tablosu
-  /// - değilse: başlık + gövdede LIKE
+  // ----------------------
+  // FTS5 support
+  // ----------------------
+  // Güvenli MATCH ifadesi oluştur
+  String _ftsQuery(String input) {
+    final parts = input
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .map((t) {
+      var s = t.replaceAll('"', '').replaceAll("'", '');
+      if (!s.endsWith('*')) s = '$s*';
+      return s;
+    }).toList();
+    if (parts.isEmpty) return '';
+    // Tüm kelimeler eşleşsin
+    return parts.join(' AND ');
+  }
+
+  /// `#tag` => etiket, diğerleri => FTS5 MATCH (LIKE fallback)
   Future<List<LocalNote>> searchNotes(String raw) async {
     final q = raw.trim();
     if (q.isEmpty) {
@@ -318,12 +367,12 @@ class AppDb extends _$AppDb {
       final needle = q.substring(1).trim();
       if (needle.isEmpty) return allNotes();
 
-      final tagRows = await (select(
-        noteTags,
-      )..where((t) => t.tag.like(likeWrap(needle)))).get();
+      final tagRows = await (select(noteTags)
+            ..where((t) => t.tag.like(likeWrap(needle))))
+          .get();
 
       final ids = tagRows.map((e) => e.noteId).toSet().toList();
-      if (ids.isEmpty) return <LocalNote>[];
+      if (ids.isEmpty) return const <LocalNote>[];
 
       return (select(localNotes)
             ..where((t) => t.deleted.equals(false) & t.id.isIn(ids))
@@ -331,15 +380,34 @@ class AppDb extends _$AppDb {
           .get();
     }
 
-    final pattern = likeWrap(q);
-    return (select(localNotes)
-          ..where(
-            (t) =>
+    final match = _ftsQuery(q);
+    if (match.isEmpty) return allNotes();
+
+    try {
+      final res = await customSelect(
+        '''
+        SELECT n.*
+        FROM local_notes n
+        JOIN fts_notes f ON n.id = f.id
+        WHERE n.deleted = 0
+          AND f MATCH ?
+        ORDER BY n.updated_at DESC
+        ''',
+        variables: [Variable(match)],
+        readsFrom: {localNotes},
+      ).map<LocalNote>((row) => localNotes.map(row.data)).get();
+
+      return res;
+    } catch (_) {
+      // FTS bir nedenden hata verirse LIKE'a dönüş
+      final needle = likeWrap(q);
+      return (select(localNotes)
+            ..where((t) =>
                 t.deleted.equals(false) &
-                (t.title.like(pattern) | t.body.like(pattern)),
-          )
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-        .get();
+                (t.title.like(needle) | t.body.like(needle)))
+            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          .get();
+    }
   }
 }
 

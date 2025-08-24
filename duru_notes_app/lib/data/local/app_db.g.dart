@@ -506,8 +506,6 @@ class $PendingOpsTable extends PendingOps
 class PendingOp extends DataClass implements Insertable<PendingOp> {
   final int id;
   final String entityId;
-
-  /// 'upsert_note' | 'delete_note'
   final String kind;
   final String? payload;
   final DateTime createdAt;
@@ -1019,13 +1017,8 @@ class $NoteLinksTable extends NoteLinks
 }
 
 class NoteLink extends DataClass implements Insertable<NoteLink> {
-  /// Linki içeren notun id’si
   final String sourceId;
-
-  /// Hedef başlık (ör. [[Title]] ya da @Title ile bulunur)
   final String targetTitle;
-
-  /// Opsiyonel hedef id (ör. [[id:<UUID>]] veya @id:<UUID>)
   final String? targetId;
   const NoteLink({
     required this.sourceId,

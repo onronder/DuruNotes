@@ -1,30 +1,29 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:crypto/crypto.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:duru_notes_app/core/parser/note_block_parser.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
 import 'package:duru_notes_app/models/note_block.dart';
 import 'package:duru_notes_app/ui/home_screen.dart';
-// Import the repository and sync service providers so we can call repoProvider
-// and syncProvider within this screen. Without these imports, the identifiers
-// would be undefined.
+
+// Repo & sync servisleri
 import 'package:duru_notes_app/repository/notes_repository.dart';
 import 'package:duru_notes_app/repository/sync_service.dart';
-// Import the OCR service to handle camera-based text scanning. This service
-// encapsulates permission requests, image capture and text recognition.
+
+// Kamera ile OCR
 import 'package:duru_notes_app/services/ocr_service.dart';
 import 'package:duru_notes_app/ui/widgets/block_editor.dart';
 
-/// A note editing screen that uses a block-based editor for the note body.
-/// This widget supports both editing and preview modes. It uses Riverpod
-/// providers to access the notes repository, sync service and local
-/// database. The note body is stored in Markdown form; internally the
-/// block editor works with [NoteBlock] objects and converts back to
-/// Markdown when saving.
+/// Block tabanlı not düzenleme ekranı.
 class EditNoteScreen extends ConsumerStatefulWidget {
   const EditNoteScreen({
     super.key,
@@ -46,6 +45,15 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
   late List<NoteBlock> _blocks;
   bool _preview = false;
 
+  // RTL/ters yazmayı tetikleyen görünmez BiDi kontrol karakterlerini blokla
+  static final _bidiBlocker = FilteringTextInputFormatter.deny(
+    RegExp(r'[\u202A-\u202E\u2066-\u2069]'),
+  );
+
+  // Backlink sorgusunu her tuş vuruşunda değil, debounce ile tetikle
+  Timer? _backlinkDebounce;
+  Future<List<BacklinkPair>>? _backlinksFuture;
+
   @override
   void initState() {
     super.initState();
@@ -55,12 +63,30 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     _blocks = parsed.isNotEmpty
         ? parsed
         : [const NoteBlock(type: NoteBlockType.paragraph, data: '')];
+
+    // İlk backlink sorgusu (yalnızca var olan notlarda anlamlı ama zararsız)
+    final db = ref.read(dbProvider);
+    final initTitle =
+        _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
+    _backlinksFuture = db.backlinksWithSources(initTitle);
   }
 
   @override
   void dispose() {
+    _backlinkDebounce?.cancel();
     _title.dispose();
     super.dispose();
+  }
+
+  void _scheduleBacklinksRecalc() {
+    _backlinkDebounce?.cancel();
+    _backlinkDebounce = Timer(const Duration(milliseconds: 600), () {
+      final db = ref.read(dbProvider);
+      final t = _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
+      setState(() {
+        _backlinksFuture = db.backlinksWithSources(t);
+      });
+    });
   }
 
   Future<void> _saveOrUpdate(BuildContext context) async {
@@ -76,7 +102,8 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
       );
       if (!context.mounted) return;
       Navigator.of(context).pop(true);
-      // trigger sync asynchronously
+
+      // Sync'i arka planda tetikle (başarısız olursa logla)
       unawaited(
         sync.syncNow().catchError((Object e, _) {
           debugPrint('Sync error after save: $e');
@@ -111,10 +138,7 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     }
   }
 
-  /// Launches the OCR service to capture an image from the camera and
-  /// recognize text. If text is successfully recognized, it is appended
-  /// as a new paragraph block to the current list of blocks. Errors or
-  /// cancellations are silently ignored.
+  /// Kamera ile belge tara ve metni yeni bir paragraf blok olarak ekle.
   Future<void> _scanDocument(BuildContext context) async {
     final ocr = OCRService();
     try {
@@ -128,145 +152,161 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen> {
     } catch (e) {
       debugPrint('OCR scan failed: $e');
     } finally {
-      // Dispose the text recognizer to free native resources.
       ocr.dispose();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final db = ref.read(dbProvider);
-    final effectiveTitle = _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
-        actions: [
-          // Launch the OCR scan flow when tapped. This allows the user to
-          // capture an image and insert the recognized text as a new block.
-          IconButton(
-            icon: const Icon(Icons.camera_alt),
-            tooltip: 'Scan Document',
-            onPressed: () => _scanDocument(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: widget.noteId == null ? null : () => _deleteNote(context),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        minimum: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: _title,
-                decoration: const InputDecoration(labelText: 'Title'),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Preview'),
-                  Switch(
-                    value: _preview,
-                    onChanged: (v) {
-                      setState(() => _preview = v);
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Container(
-                constraints: const BoxConstraints(minHeight: 200),
-                child: _preview
-                    ? Markdown(
-                        data: blocksToMarkdown(_blocks),
-                        onTapLink: (text, href, title) async {
-                          if (href == null || href.isEmpty) return;
-                          final uri = Uri.tryParse(href);
-                          if (uri == null) return;
-                          final messenger = ScaffoldMessenger.of(context);
-                          final ok = await launchUrl(uri);
-                          if (!ok) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text('Could not open $href')),
-                            );
-                          }
-                        },
-                      )
-                    : BlockEditor(
-                        blocks: _blocks,
-                        onChanged: (blocks) => setState(() => _blocks = blocks),
-                      ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => _saveOrUpdate(context),
-                  child: const Text('Save'),
-                ),
-              ),
-              if (widget.noteId != null) ...[
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Backlinks',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+    final effectiveTitle =
+        _title.text.trim().isEmpty ? '(untitled)' : _title.text.trim();
+
+    return Directionality( // tüm alt ağaç LTR
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.noteId == null ? 'New note' : 'Edit note'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.camera_alt),
+              tooltip: 'Scan Document',
+              onPressed: () => _scanDocument(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed:
+                  widget.noteId == null ? null : () => _deleteNote(context),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          minimum: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: _title,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.start,
+                  inputFormatters: [_bidiBlocker],
+                  decoration: const InputDecoration(labelText: 'Title'),
+                  onChanged: (_) {
+                    setState(() {});            // UI'daki başlık vs. güncellensin
+                    _scheduleBacklinksRecalc(); // backlink sorgusunu debounce et
+                  },
                 ),
                 const SizedBox(height: 8),
-                FutureBuilder<List<BacklinkPair>>(
-                  future: db.backlinksWithSources(effectiveTitle),
-                  builder: (context, snap) {
-                    if (!snap.hasData) return const SizedBox.shrink();
-                    final items = snap.data!;
-                    if (items.isEmpty) {
-                      return const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('No backlinks'),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: items.length,
-                      separatorBuilder: (context, _) => const Divider(height: 1),
-                      itemBuilder: (context, i) {
-                        final item = items[i];
-                        final l = item.link;
-                        final src = item.source;
-                        final title = (src == null || src.title.trim().isEmpty)
-                            ? l.sourceId
-                            : src.title.trim();
-                        return ListTile(
-                          dense: true,
-                          title: Text(title),
-                          subtitle: Text('links to: ${l.targetTitle}'),
-                          onTap: () async {
-                            final existing = src ?? await db.findNote(l.sourceId);
-                            if (!context.mounted) return;
-                            if (existing != null) {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => EditNoteScreen(
-                                    noteId: existing.id,
-                                    initialTitle: existing.title,
-                                    initialBody: existing.body,
-                                  ),
-                                ),
+                Row(
+                  children: [
+                    const Text('Preview'),
+                    Switch(
+                      value: _preview,
+                      onChanged: (v) {
+                        setState(() => _preview = v);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 200),
+                  child: _preview
+                      ? Markdown(
+                          data: blocksToMarkdown(_blocks),
+                          onTapLink: (text, href, title) async {
+                            if (href == null || href.isEmpty) return;
+                            final uri = Uri.tryParse(href);
+                            if (uri == null) return;
+                            final ok = await launchUrl(uri);
+                            if (!ok && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Could not open $href')),
                               );
                             }
                           },
-                        );
-                      },
-                    );
-                  },
+                        )
+                      : BlockEditor(
+                          blocks: _blocks,
+                          // BlockEditor içindeki tüm text alanları üstteki Directionality'den LTR alır.
+                          onChanged: (blocks) => setState(() => _blocks = blocks),
+                        ),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _saveOrUpdate(context),
+                    child: const Text('Save'),
+                  ),
+                ),
+                if (widget.noteId != null) ...[
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Backlinks',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder<List<BacklinkPair>>(
+                    future: _backlinksFuture,
+                    builder: (context, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const SizedBox.shrink();
+                      }
+                      if (!snap.hasData) return const SizedBox.shrink();
+                      final items = snap.data!;
+                      if (items.isEmpty) {
+                        return const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('No backlinks'),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: items.length,
+                        separatorBuilder: (context, _) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final item = items[i];
+                          final l = item.link;
+                          final src = item.source;
+                          final title = (src == null || src.title.trim().isEmpty)
+                              ? l.sourceId
+                              : src.title.trim();
+                          return ListTile(
+                            dense: true,
+                            title: Text(title, textDirection: TextDirection.ltr),
+                            subtitle: Text('links to: ${l.targetTitle}',
+                                textDirection: TextDirection.ltr),
+                            onTap: () async {
+                              final db = ref.read(dbProvider);
+                              final existing =
+                                  src ?? await db.findNote(l.sourceId);
+                              if (!context.mounted) return;
+                              if (existing != null) {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => EditNoteScreen(
+                                      noteId: existing.id,
+                                      initialTitle: existing.title,
+                                      initialBody: existing.body,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

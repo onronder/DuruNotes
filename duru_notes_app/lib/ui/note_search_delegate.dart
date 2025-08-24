@@ -1,19 +1,18 @@
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/ui/edit_note_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:duru_notes_app/data/local/app_db.dart';
 
-/// Basit arama delegesi:
-/// - `#tag` ile tag araması
-/// - Düz metinle başlık/gövde LIKE araması
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
-  NoteSearchDelegate({required this.db})
-    : super(searchFieldLabel: 'Search notes (#tag or text)');
+  NoteSearchDelegate({required this.db});
 
   final AppDb db;
+  int _token = 0; // yarış durumlarını atlamak için
+
+  @override
+  String? get searchFieldLabel => 'Search notes (#tag supported)';
 
   @override
   List<Widget>? buildActions(BuildContext context) {
-    return <Widget>[
+    return [
       if (query.isNotEmpty)
         IconButton(
           tooltip: 'Clear',
@@ -32,66 +31,72 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     );
   }
 
-  @override
-  Widget buildResults(BuildContext context) {
-    return _ResultsList(db: db, queryText: query);
+  Future<List<LocalNote>> _doSearch(String q, int myToken) async {
+    final res = await db.searchNotes(q);
+    // Eski isteklerin sonuçlarını yut
+    if (myToken != _token) return const <LocalNote>[];
+    return res;
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return _ResultsList(db: db, queryText: query);
-  }
-}
-
-class _ResultsList extends StatelessWidget {
-  const _ResultsList({required this.db, required this.queryText});
-
-  final AppDb db;
-  final String queryText;
-
-  @override
-  Widget build(BuildContext context) {
+    final current = ++_token;
     return FutureBuilder<List<LocalNote>>(
-      future: db.searchNotes(queryText),
-      builder: (context, snapshot) {
-        final notes = snapshot.data;
-        if (notes == null) {
-          return const Center(child: CircularProgressIndicator());
+      future: db.suggestNotesByTitlePrefix(query, limit: 8),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)));
         }
-        if (notes.isEmpty) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              SizedBox(height: 120),
-              Center(child: Text('No results')),
-            ],
-          );
+        final items = snap.data ?? const <LocalNote>[];
+        if (items.isEmpty) {
+          return const Center(child: Text('No suggestions'));
         }
-
         return ListView.separated(
-          itemCount: notes.length,
-          separatorBuilder: (context, index) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final note = notes[index];
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (_, i) {
+            final n = items[i];
             return ListTile(
-              title: Text(note.title),
+              title: Text(n.title.isEmpty ? '(Untitled)' : n.title),
               subtitle: Text(
-                note.body,
+                n.body,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              onTap: () async {
-                final navigator = Navigator.of(context);
-                await navigator.push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => EditNoteScreen(
-                      noteId: note.id,
-                      initialTitle: note.title,
-                      initialBody: note.body,
-                    ),
-                  ),
-                );
-              },
+              onTap: () => close(context, n),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final myToken = ++_token;
+    return FutureBuilder<List<LocalNote>>(
+      future: _doSearch(query, myToken),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snap.data ?? const <LocalNote>[];
+        if (items.isEmpty) {
+          return const Center(child: Text('No results'));
+        }
+        return ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (_, i) {
+            final n = items[i];
+            return ListTile(
+              title: Text(n.title.isEmpty ? '(Untitled)' : n.title),
+              subtitle: Text(
+                n.body,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => close(context, n),
             );
           },
         );

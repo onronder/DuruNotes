@@ -1,15 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:realtime_client/realtime_client.dart'
-    show
-        PostgresChangeEvent,
-        PostgresChangeFilter,
-        PostgresChangeFilterType,
-        PostgresChangePayload,
-        RealtimeChannel;
+    show PostgresChangeEvent, PostgresChangeFilter, PostgresChangeFilterType;
 
 import 'package:duru_notes_app/repository/notes_repository.dart';
 
@@ -18,31 +14,39 @@ class SyncService {
 
   final NotesRepository repo;
 
-  // last_pull anahtarını kullanıcıya özel tut (çok kullanıcı güvenliği)
   static const _kLastPullBase = 'last_pull_at';
   String get _lastPullKey {
     final uid = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
     return '$_kLastPullBase:$uid';
   }
 
-  // Realtime
   RealtimeChannel? _notesChannel;
   StreamSubscription<AuthState>? _authSub;
   Timer? _debounce;
 
-  // Sync reentrancy guard
   Future<void>? _ongoingSync;
 
-  // UI invalidation için yayın
+  DateTime? _nextAllowedSyncAt;
+  int _consecutiveFailures = 0;
+
+  bool get _isBackoffActive =>
+      _nextAllowedSyncAt != null &&
+      DateTime.now().isBefore(_nextAllowedSyncAt!);
+
   final _changes = StreamController<void>.broadcast();
   Stream<void> get changes => _changes.stream;
 
-  /// Ağ çağrıları için maksimum bekleme süresi
-  static const Duration _networkTimeout = Duration(seconds: 10);
-
   Future<void> syncNow() {
+    if (_isBackoffActive) {
+      if (kDebugMode) {
+        debugPrint('Sync skipped (backoff active until $_nextAllowedSyncAt)');
+      }
+      return Future.value();
+    }
+
     final inFlight = _ongoingSync;
     if (inFlight != null) return inFlight;
+
     final future = _syncInternal();
     _ongoingSync = future;
     return future.whenComplete(() {
@@ -57,59 +61,56 @@ class SyncService {
       return;
     }
 
-    // 1) Pending değişiklikleri push et
-    await repo.pushAllPending();
-
-    // 2) Değişiklikleri Supabase’ten çek (zaman aşımı ile)
-    final prefs = await SharedPreferences.getInstance();
-    final sinceIso = prefs.getString(_lastPullKey);
-    final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
-
     try {
-      await repo.pullSince(since).timeout(_networkTimeout);
+      await repo.pushAllPending().timeout(const Duration(seconds: 10));
+
+      final prefs = await SharedPreferences.getInstance();
+      final sinceIso = prefs.getString(_lastPullKey);
+      final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+
+      await repo.pullSince(since).timeout(const Duration(seconds: 10));
+
+      final remoteIds =
+          await repo.fetchRemoteActiveIds().timeout(const Duration(seconds: 10));
+      await repo.reconcileHardDeletes(remoteIds);
+
+      await prefs.setString(
+        _lastPullKey,
+        DateTime.now().toUtc().toIso8601String(),
+      );
+
+      _consecutiveFailures = 0;
+      _nextAllowedSyncAt = null;
+
+      _changes.add(null);
     } on TimeoutException catch (e) {
-      if (kDebugMode) debugPrint('pullSince timed out: $e');
-    } on Object catch (e) {
-      if (kDebugMode) debugPrint('pullSince failed: $e');
+      _scheduleBackoff(e, label: 'timeout');
+      rethrow;
+    } catch (e) {
+      _scheduleBackoff(e, label: 'error');
+      rethrow;
     }
+  }
 
-    // 3) Hard delete uzaktan gerçeği kabul et (yine zaman aşımı ile)
-    Set<String> remoteIds = const {};
-    try {
-      remoteIds =
-          await repo.fetchRemoteActiveIds().timeout(_networkTimeout);
-    } on TimeoutException catch (e) {
-      if (kDebugMode) debugPrint('fetchRemoteActiveIds timed out: $e');
-    } on Object catch (e) {
-      if (kDebugMode) debugPrint('fetchRemoteActiveIds failed: $e');
+  void _scheduleBackoff(Object e, {required String label}) {
+    _consecutiveFailures = min(_consecutiveFailures + 1, 6);
+    final seconds = pow(2, _consecutiveFailures).toInt();
+    final backoff = Duration(seconds: min(seconds, 64));
+    _nextAllowedSyncAt = DateTime.now().add(backoff);
+    if (kDebugMode) {
+      debugPrint('syncNow $label -> backoff ${backoff.inSeconds}s ($e)');
     }
-
-    try {
-      if (remoteIds.isNotEmpty) {
-        await repo.reconcileHardDeletes(remoteIds);
-      }
-    } on Object catch (e) {
-      if (kDebugMode) debugPrint('reconcileHardDeletes failed: $e');
-    }
-
-    // 4) Son çekim zamanını güncelle
-    await prefs.setString(
-      _lastPullKey,
-      DateTime.now().toUtc().toIso8601String(),
-    );
-
-    // 5) UI'ı bilgilendir
-    _changes.add(null);
   }
 
   Future<void> reset() async {
     await repo.db.clearAll();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_lastPullKey);
+    _consecutiveFailures = 0;
+    _nextAllowedSyncAt = null;
     _changes.add(null);
   }
 
-  /// Realtime aboneliğini başlat
   void startRealtime() {
     final client = Supabase.instance.client;
 
@@ -118,11 +119,12 @@ class SyncService {
       if (kDebugMode) debugPrint('Auth state changed: ${event.event}');
       _bindRealtime();
 
-      // Girişten sonra küçük gecikmeyle sync
       if (event.session != null) {
         _debounce?.cancel();
         _debounce = Timer(const Duration(milliseconds: 250), () {
-          unawaited(syncNow());
+          if (!_isBackoffActive) {
+            unawaited(syncNow());
+          }
         });
       } else {
         unawaited(reset());
@@ -136,15 +138,13 @@ class SyncService {
     final client = Supabase.instance.client;
     final uid = client.auth.currentUser?.id;
 
-    // Eski kanalı kaldır
     if (_notesChannel != null) {
       client.removeChannel(_notesChannel!);
       _notesChannel = null;
     }
-
     if (uid == null) return;
 
-    final ch = client.channel('public:notes');
+    final ch = client.channel('realtime:notes:$uid');
 
     void register(PostgresChangeEvent ev) {
       ch.onPostgresChanges(
@@ -156,16 +156,16 @@ class SyncService {
           column: 'user_id',
           value: uid,
         ),
-        callback: (PostgresChangePayload payload) {
-          // Olayları toplu sync’e dönüştür (debounce).
+        callback: (_) {
+          if (_isBackoffActive) return;
+
           _debounce?.cancel();
           _debounce = Timer(const Duration(milliseconds: 400), () {
             unawaited(syncNow());
           });
 
           if (kDebugMode) {
-            final id = payload.newRecord['id'] ?? payload.oldRecord['id'];
-            debugPrint('Realtime ${ev.name} on notes id=$id');
+            debugPrint('Realtime ${ev.name} on notes');
           }
         },
       );
