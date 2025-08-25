@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:duru_notes_app/models/note_block.dart';
 import 'package:duru_notes_app/services/attachment_service.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
@@ -734,4 +735,6 @@ class _BlockEditorState extends State<BlockEditor> {
       ],
     );
   }
+
+
 }

@@ -1,0 +1,11 @@
+#include "Generated.xcconfig"
+
+// Development Environment Configuration
+FLUTTER_FLAVOR = dev
+PRODUCT_BUNDLE_IDENTIFIER = com.example.duru_notes_app.dev
+PRODUCT_NAME = Duru Notes Dev
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon-Dev
+MARKETING_VERSION = 1.0.0-dev
+
+// Define FLUTTER_FLAVOR for runtime use
+DART_DEFINES[config]=FLAVOR%3Ddev

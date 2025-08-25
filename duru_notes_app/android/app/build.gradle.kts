@@ -30,8 +30,43 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "environment"
+    
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            manifestPlaceholders["appName"] = "Duru Notes Dev"
+            buildConfigField("String", "FLAVOR", "\"dev\"")
+        }
+        
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            manifestPlaceholders["appName"] = "Duru Notes Staging"
+            buildConfigField("String", "FLAVOR", "\"staging\"")
+        }
+        
+        create("prod") {
+            dimension = "environment"
+            manifestPlaceholders["appName"] = "Duru Notes"
+            buildConfigField("String", "FLAVOR", "\"prod\"")
+        }
+    }
+
     buildTypes {
+        debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+        }
+        
         release {
+            isDebuggable = false
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")

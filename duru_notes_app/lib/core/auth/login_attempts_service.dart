@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,7 +35,7 @@ class LoginAttemptsService {
     try {
       final lockStatus = await checkAccountLockout(email);
       return !lockStatus.isLocked;
-    } catch (e) {
+    } on Exception catch (e) {
       // If there's an error checking lockout status, allow login attempt
       // This ensures the app doesn't break if the table doesn't exist
       if (kDebugMode) {

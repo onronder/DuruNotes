@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:duru_notes_app/core/monitoring/app_logger.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
+import 'package:duru_notes_app/services/analytics/analytics_service.dart';
+import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
 
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   NoteSearchDelegate({required this.db});
@@ -55,7 +58,39 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
 
   Future<List<LocalNote>> _doSearch(String q, int myToken) async {
+    // Track search attempt
+    analytics.startTiming('search_query');
+    analytics.event(AnalyticsEvents.searchPerformed, properties: {
+      AnalyticsProperties.searchQuery: q.length.toString() + ' characters',
+      AnalyticsProperties.searchQueryLength: q.length,
+      'is_tag_search': q.startsWith('#'),
+      'is_empty_query': q.trim().isEmpty,
+    });
+    
+    logger.info('Search performed', data: {
+      'query_length': q.length,
+      'is_tag_search': q.startsWith('#'),
+    });
+    
     final res = await db.searchNotes(q);
+    
+    // Track search results
+    analytics.endTiming('search_query', properties: {
+      AnalyticsProperties.searchResultCount: res.length,
+      AnalyticsProperties.searchQueryLength: q.length,
+    });
+    
+    analytics.event(AnalyticsEvents.searchResults, properties: {
+      AnalyticsProperties.searchResultCount: res.length,
+      AnalyticsProperties.searchQueryLength: q.length,
+      'has_results': res.isNotEmpty,
+    });
+    
+    logger.breadcrumb('Search completed', data: {
+      'result_count': res.length,
+      'query_length': q.length,
+    });
+    
     // Eski isteklerin sonuçlarını yut
     if (myToken != _token) return const <LocalNote>[];
     return res;
@@ -84,22 +119,46 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }
   }
 
+  // Cache for preview generation to avoid repeated regex processing
+  static final Map<String, String> _previewCache = <String, String>{};
+  
   String _generatePreview(String body) {
-    // Strip markdown formatting for cleaner preview
-    String preview = body
+    if (body.trim().isEmpty) return '(No content)';
+    
+    // Check cache first
+    final bodyHash = body.hashCode.toString();
+    if (_previewCache.containsKey(bodyHash)) {
+      return _previewCache[bodyHash]!;
+    }
+    
+    // Limit input length to prevent long processing
+    final limitedBody = body.length > 300 ? body.substring(0, 300) : body;
+    
+    // Strip markdown formatting for cleaner preview (optimized)
+    String preview = limitedBody
         .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
-        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Remove bold
-        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Remove italic
-        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Remove code
-        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1') // Remove links
+        .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
+        .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
+        .replaceAll(RegExp(r'`([^`]*)`'), r'$1') // Remove code (non-greedy)
+        .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // Remove links (non-greedy)
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
         .trim();
 
-    return preview.isEmpty ? '(No content)' : preview;
+    final result = preview.isEmpty ? '(No content)' : 
+        (preview.length > 100 ? '${preview.substring(0, 100)}...' : preview);
+    
+    // Cache result (limit cache size)
+    if (_previewCache.length > 50) {
+      _previewCache.clear();
+    }
+    _previewCache[bodyHash] = result;
+    
+    return result;
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final current = ++_token;
+    ++_token;
     
     // If query starts with #, show tag suggestions
     if (query.startsWith('#')) {
@@ -240,7 +299,24 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                   ),
                 ],
               ),
-              onTap: () => close(context, note),
+              onTap: () {
+                // Track search result click
+                analytics.event(AnalyticsEvents.searchResultClicked, properties: {
+                  'note_id': note.id,
+                  'search_query_length': query.length,
+                  'result_position': items.indexOf(note) + 1,
+                  'total_results': items.length,
+                  'note_has_title': note.title.trim().isNotEmpty,
+                });
+                
+                logger.breadcrumb('Search result clicked', data: {
+                  'note_id': note.id,
+                  'result_position': items.indexOf(note) + 1,
+                  'total_results': items.length,
+                });
+                
+                close(context, note);
+              },
             );
           },
         );
@@ -344,7 +420,25 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                   ],
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => close(context, note),
+                onTap: () {
+                  // Track search result click
+                  analytics.event(AnalyticsEvents.searchResultClicked, properties: {
+                    'note_id': note.id,
+                    'search_query_length': query.length,
+                    'result_position': items.indexOf(note) + 1,
+                    'total_results': items.length,
+                    'note_has_title': note.title.trim().isNotEmpty,
+                    'context': 'results',
+                  });
+                  
+                  logger.breadcrumb('Search result clicked', data: {
+                    'note_id': note.id,
+                    'result_position': items.indexOf(note) + 1,
+                    'total_results': items.length,
+                  });
+                  
+                  close(context, note);
+                },
               ),
             );
           },

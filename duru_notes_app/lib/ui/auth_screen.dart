@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:duru_notes_app/core/config/environment_config.dart';
 import 'package:duru_notes_app/core/crypto/key_manager.dart';
 import 'package:duru_notes_app/core/security/password_validator.dart';
 import 'package:duru_notes_app/core/security/password_history_service.dart';
 import 'package:duru_notes_app/core/auth/auth_service.dart';
+import 'package:duru_notes_app/core/monitoring/app_logger.dart';
+import 'package:duru_notes_app/services/analytics/analytics_service.dart';
+import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
 import 'package:duru_notes_app/ui/widgets/password_strength_meter.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -36,6 +40,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   void initState() {
     super.initState();
     _passwordController.addListener(_onPasswordChanged);
+    
+    // Track screen view
+    analytics.screen('AuthScreen');
+    logger.breadcrumb('AuthScreen opened');
   }
 
   @override
@@ -92,6 +100,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       AuthResult result;
       
       if (_isSignUp) {
+        // Track signup attempt
+        analytics.event(AnalyticsEvents.authSignupAttempt, properties: {
+          'password_strength': _passwordValidation?.strength.name ?? 'unknown',
+          'has_email': _emailController.text.trim().isNotEmpty,
+        });
+        logger.info('User signup attempt', data: {
+          'has_email': _emailController.text.trim().isNotEmpty,
+        });
+        
         // Sign up with basic retry
         result = await _authService.signUpWithRetry(
           email: _emailController.text.trim(),
@@ -109,6 +126,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           final keyManager = KeyManager();
           await keyManager.getOrCreateMasterKey(result.user!.id);
           
+          // Track successful signup
+          analytics.event(AnalyticsEvents.authSignupSuccess, properties: {
+            'user_id': result.user!.id,
+            'password_strength': _passwordValidation?.strength.name ?? 'unknown',
+          });
+          analytics.setUser(result.user!.id);
+          logger.info('User signup successful', data: {
+            'user_id': result.user!.id,
+          });
+          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -119,6 +146,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           }
         }
       } else {
+        // Track login attempt
+        analytics.event(AnalyticsEvents.authLoginAttempt, properties: {
+          'has_email': _emailController.text.trim().isNotEmpty,
+        });
+        logger.info('User login attempt', data: {
+          'has_email': _emailController.text.trim().isNotEmpty,
+        });
+        
         // Sign in with enhanced retry and rate limiting
         result = await _authService.signInWithRetry(
           email: _emailController.text.trim(),
@@ -130,6 +165,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // Initialize encryption key for existing user
           final keyManager = KeyManager();
           await keyManager.getOrCreateMasterKey(result.user!.id);
+          
+          // Track successful login
+          analytics.event(AnalyticsEvents.authLoginSuccess, properties: {
+            'user_id': result.user!.id,
+          });
+          analytics.setUser(result.user!.id);
+          logger.info('User login successful', data: {
+            'user_id': result.user!.id,
+          });
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -144,6 +188,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       
       // Handle authentication result
       if (!result.success) {
+        // Track authentication failure
+        final eventName = _isSignUp ? AnalyticsEvents.authSignupFailure : AnalyticsEvents.authLoginFailure;
+        analytics.event(eventName, properties: {
+          'error_type': result.error?.split(':')[0] ?? 'unknown',
+          'attempts_remaining': result.attemptsRemaining,
+          'has_lockout': result.lockoutDuration != null,
+        });
+        logger.warn('Authentication failed', data: {
+          'is_signup': _isSignUp,
+          'error': result.error,
+          'attempts_remaining': result.attemptsRemaining,
+        });
+        
         setState(() {
           _errorMessage = result.error;
           _attemptsRemaining = result.attemptsRemaining;
@@ -195,7 +252,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 Text(
                   'Secure, encrypted note-taking',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -203,6 +260,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                 // Email Field
                 TextFormField(
+                  key: const Key('email_field'),
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
@@ -225,6 +283,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                 // Password Field
                 TextFormField(
+                  key: const Key('password_field'),
                   controller: _passwordController,
                   obscureText: !_showPassword,
                   decoration: InputDecoration(
@@ -279,10 +338,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.error.withOpacity(0.5),
+                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Column(
@@ -316,7 +375,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           Text(
                             '⚠️ $_attemptsRemaining login attempts remaining',
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
                               fontSize: 12,
                             ),
                           ),
@@ -327,7 +386,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.error.withOpacity(0.05),
+                              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(
@@ -335,13 +394,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 Icon(
                                   Icons.timer_outlined,
                                   size: 16,
-                                  color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Account temporarily locked for security',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -391,6 +450,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         : 'Don\'t have an account? Sign Up',
                   ),
                 ),
+                
+                // Test Sentry (Development only)
+                if (EnvironmentConfig.debugMode) ...[
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      // Force a test crash for Sentry
+                      analytics.event('test_crash_initiated');
+                      logger.info('User initiated test crash for Sentry');
+                      throw Exception('Test crash for Sentry - this is intentional!');
+                    },
+                    child: const Text(
+                      'Test Crash (Dev)',
+                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

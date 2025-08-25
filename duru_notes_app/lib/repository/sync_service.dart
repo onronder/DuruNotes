@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:realtime_client/realtime_client.dart'
     show PostgresChangeEvent, PostgresChangeFilter, PostgresChangeFilterType;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:duru_notes_app/repository/notes_repository.dart';
 
@@ -84,16 +84,16 @@ class SyncService {
     }
 
     try {
-      await repo.pushAllPending().timeout(const Duration(seconds: 10));
+      await repo.pushAllPending().timeout(const Duration(seconds: 30));
 
       final prefs = await SharedPreferences.getInstance();
       final sinceIso = prefs.getString(_lastPullKey);
       final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
 
-      await repo.pullSince(since).timeout(const Duration(seconds: 10));
+      await repo.pullSince(since).timeout(const Duration(seconds: 30));
 
       final remoteIds =
-          await repo.fetchRemoteActiveIds().timeout(const Duration(seconds: 10));
+          await repo.fetchRemoteActiveIds().timeout(const Duration(seconds: 30));
       await repo.reconcileHardDeletes(remoteIds);
 
       await prefs.setString(
@@ -155,7 +155,7 @@ class SyncService {
           if (kDebugMode) {
             debugPrint('Sync retry attempt $attempt after ${delay.inSeconds}s delay');
           }
-          await Future.delayed(delay);
+          await Future<void>.delayed(delay);
         }
 
         await _performSyncOperations();

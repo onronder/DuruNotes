@@ -19,7 +19,7 @@ class ShareService {
 
   final Ref ref;
   StreamSubscription<List<SharedMediaFile>>? _intentDataStreamSubscription;
-  StreamSubscription<String>? _intentTextStreamSubscription;
+  StreamSubscription<List<SharedMediaFile>>? _intentTextStreamSubscription;
 
   /// Initialize the share service and start listening for shared content
   void initialize(BuildContext context) {
@@ -36,10 +36,13 @@ class ShareService {
     );
 
     // Listen for shared text
-    _intentTextStreamSubscription = ReceiveSharingIntent.instance.getTextStream().listen(
-      (String text) {
-        if (text.isNotEmpty) {
-          _handleSharedText(context, text);
+    _intentTextStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (List<SharedMediaFile> files) {
+        // Check if any file contains text content
+        for (final file in files) {
+          if (file.type == SharedMediaType.text) {
+            _handleSharedText(context, file.path);
+          }
         }
       },
       onError: (Object err) {
@@ -54,11 +57,7 @@ class ShareService {
       }
     });
 
-    ReceiveSharingIntent.instance.getInitialText().then((String? text) {
-      if (text != null && text.isNotEmpty) {
-        _handleSharedText(context, text);
-      }
-    });
+    // Text sharing is handled through getInitialMedia for this package version
   }
 
   /// Handle shared media files (primarily images)

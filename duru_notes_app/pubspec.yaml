@@ -13,6 +13,7 @@ dependencies:
   drift: ^2.28.1
   flutter:
     sdk: flutter
+  flutter_dotenv: ^5.1.0
   flutter_markdown: ^0.7.7+1
   file_picker: ^10.3.1   # dosya seçimi için
   crypto: ^3.0.6         # SHA-256 hesaplamak için
@@ -32,16 +33,35 @@ dependencies:
   supabase_flutter: ^2.9.1
   url_launcher: ^6.3.2
   uuid: ^4.5.1
+  sentry_flutter: ^9.6.0
+  cached_network_image: ^3.3.1
+  speech_to_text: ^6.6.0
+  flutter_local_notifications: ^17.0.0
+  geolocator: ^12.0.0
+  geofence_service: ^6.0.0
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.1.1
   build_runner: ^2.6.0
   drift_dev: ^2.28.1
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter
   freezed: ^3.2.0
+  integration_test:
+    sdk: flutter
   json_serializable: ^6.10.0
+  mockito: ^5.4.4
   very_good_analysis: ^9.0.0
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/env/
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: durunotes
+  org: fittechs
