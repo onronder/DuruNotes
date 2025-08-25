@@ -193,4 +193,13 @@ class NotesRepository {
   }
 
   Future<List<LocalNote>> list() => db.allNotes();
+
+  /// Paginated list using keyset pagination for better performance at scale
+  /// Returns notes after the given cursor, ordered by updatedAt DESC
+  Future<List<LocalNote>> listAfter(DateTime? cursor, {int limit = 20}) =>
+      db.notesAfter(cursor: cursor, limit: limit);
+
+  /// Fallback pagination method using offset (for debugging/small datasets)
+  Future<List<LocalNote>> listWithOffset({int limit = 20, int offset = 0}) =>
+      db.pagedNotes(limit: limit, offset: offset);
 }

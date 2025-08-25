@@ -69,17 +69,41 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     }
   }
 
+  // Cache for preview generation to avoid repeated regex processing
+  static final Map<String, String> _previewCache = <String, String>{};
+  
   String _generatePreview(String body) {
-    // Strip markdown formatting for cleaner preview
-    String preview = body
+    if (body.trim().isEmpty) return '(No content)';
+    
+    // Check cache first
+    final bodyHash = body.hashCode.toString();
+    if (_previewCache.containsKey(bodyHash)) {
+      return _previewCache[bodyHash]!;
+    }
+    
+    // Limit input length to prevent long processing
+    final limitedBody = body.length > 300 ? body.substring(0, 300) : body;
+    
+    // Strip markdown formatting for cleaner preview (optimized)
+    String preview = limitedBody
         .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
-        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1') // Remove bold
-        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1') // Remove italic
-        .replaceAll(RegExp(r'`([^`]+)`'), r'$1') // Remove code
-        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1') // Remove links
+        .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
+        .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
+        .replaceAll(RegExp(r'`([^`]*)`'), r'$1') // Remove code (non-greedy)
+        .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // Remove links (non-greedy)
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
         .trim();
 
-    return preview.isEmpty ? '(No content)' : preview;
+    final result = preview.isEmpty ? '(No content)' : 
+        (preview.length > 100 ? '${preview.substring(0, 100)}...' : preview);
+    
+    // Cache result (limit cache size)
+    if (_previewCache.length > 50) {
+      _previewCache.clear();
+    }
+    _previewCache[bodyHash] = result;
+    
+    return result;
   }
 
   @override

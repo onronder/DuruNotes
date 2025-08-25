@@ -1183,6 +1183,1312 @@ class NoteLinksCompanion extends UpdateCompanion<NoteLink> {
   }
 }
 
+class $NoteRemindersTable extends NoteReminders
+    with TableInfo<$NoteRemindersTable, NoteReminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteRemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<ReminderType, int> type =
+      GeneratedColumn<int>(
+        'type',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<ReminderType>($NoteRemindersTable.$convertertype);
+  static const VerificationMeta _remindAtMeta = const VerificationMeta(
+    'remindAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remindAt = GeneratedColumn<DateTime>(
+    'remind_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _radiusMeta = const VerificationMeta('radius');
+  @override
+  late final GeneratedColumn<double> radius = GeneratedColumn<double>(
+    'radius',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationNameMeta = const VerificationMeta(
+    'locationName',
+  );
+  @override
+  late final GeneratedColumn<String> locationName = GeneratedColumn<String>(
+    'location_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<RecurrencePattern, int>
+  recurrencePattern =
+      GeneratedColumn<int>(
+        'recurrence_pattern',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(RecurrencePattern.none),
+      ).withConverter<RecurrencePattern>(
+        $NoteRemindersTable.$converterrecurrencePattern,
+      );
+  static const VerificationMeta _recurrenceEndDateMeta = const VerificationMeta(
+    'recurrenceEndDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recurrenceEndDate =
+      GeneratedColumn<DateTime>(
+        'recurrence_end_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceIntervalMeta =
+      const VerificationMeta('recurrenceInterval');
+  @override
+  late final GeneratedColumn<int> recurrenceInterval = GeneratedColumn<int>(
+    'recurrence_interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _snoozedUntilMeta = const VerificationMeta(
+    'snoozedUntil',
+  );
+  @override
+  late final GeneratedColumn<DateTime> snoozedUntil = GeneratedColumn<DateTime>(
+    'snoozed_until',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _snoozeCountMeta = const VerificationMeta(
+    'snoozeCount',
+  );
+  @override
+  late final GeneratedColumn<int> snoozeCount = GeneratedColumn<int>(
+    'snooze_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _notificationTitleMeta = const VerificationMeta(
+    'notificationTitle',
+  );
+  @override
+  late final GeneratedColumn<String> notificationTitle =
+      GeneratedColumn<String>(
+        'notification_title',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notificationBodyMeta = const VerificationMeta(
+    'notificationBody',
+  );
+  @override
+  late final GeneratedColumn<String> notificationBody = GeneratedColumn<String>(
+    'notification_body',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notificationImageMeta = const VerificationMeta(
+    'notificationImage',
+  );
+  @override
+  late final GeneratedColumn<String> notificationImage =
+      GeneratedColumn<String>(
+        'notification_image',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _timeZoneMeta = const VerificationMeta(
+    'timeZone',
+  );
+  @override
+  late final GeneratedColumn<String> timeZone = GeneratedColumn<String>(
+    'time_zone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _lastTriggeredMeta = const VerificationMeta(
+    'lastTriggered',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastTriggered =
+      GeneratedColumn<DateTime>(
+        'last_triggered',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _triggerCountMeta = const VerificationMeta(
+    'triggerCount',
+  );
+  @override
+  late final GeneratedColumn<int> triggerCount = GeneratedColumn<int>(
+    'trigger_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    noteId,
+    title,
+    body,
+    type,
+    remindAt,
+    isActive,
+    latitude,
+    longitude,
+    radius,
+    locationName,
+    recurrencePattern,
+    recurrenceEndDate,
+    recurrenceInterval,
+    snoozedUntil,
+    snoozeCount,
+    notificationTitle,
+    notificationBody,
+    notificationImage,
+    timeZone,
+    createdAt,
+    lastTriggered,
+    triggerCount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteReminder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('remind_at')) {
+      context.handle(
+        _remindAtMeta,
+        remindAt.isAcceptableOrUnknown(data['remind_at']!, _remindAtMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    }
+    if (data.containsKey('radius')) {
+      context.handle(
+        _radiusMeta,
+        radius.isAcceptableOrUnknown(data['radius']!, _radiusMeta),
+      );
+    }
+    if (data.containsKey('location_name')) {
+      context.handle(
+        _locationNameMeta,
+        locationName.isAcceptableOrUnknown(
+          data['location_name']!,
+          _locationNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_end_date')) {
+      context.handle(
+        _recurrenceEndDateMeta,
+        recurrenceEndDate.isAcceptableOrUnknown(
+          data['recurrence_end_date']!,
+          _recurrenceEndDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_interval')) {
+      context.handle(
+        _recurrenceIntervalMeta,
+        recurrenceInterval.isAcceptableOrUnknown(
+          data['recurrence_interval']!,
+          _recurrenceIntervalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('snoozed_until')) {
+      context.handle(
+        _snoozedUntilMeta,
+        snoozedUntil.isAcceptableOrUnknown(
+          data['snoozed_until']!,
+          _snoozedUntilMeta,
+        ),
+      );
+    }
+    if (data.containsKey('snooze_count')) {
+      context.handle(
+        _snoozeCountMeta,
+        snoozeCount.isAcceptableOrUnknown(
+          data['snooze_count']!,
+          _snoozeCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_title')) {
+      context.handle(
+        _notificationTitleMeta,
+        notificationTitle.isAcceptableOrUnknown(
+          data['notification_title']!,
+          _notificationTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_body')) {
+      context.handle(
+        _notificationBodyMeta,
+        notificationBody.isAcceptableOrUnknown(
+          data['notification_body']!,
+          _notificationBodyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_image')) {
+      context.handle(
+        _notificationImageMeta,
+        notificationImage.isAcceptableOrUnknown(
+          data['notification_image']!,
+          _notificationImageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('time_zone')) {
+      context.handle(
+        _timeZoneMeta,
+        timeZone.isAcceptableOrUnknown(data['time_zone']!, _timeZoneMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('last_triggered')) {
+      context.handle(
+        _lastTriggeredMeta,
+        lastTriggered.isAcceptableOrUnknown(
+          data['last_triggered']!,
+          _lastTriggeredMeta,
+        ),
+      );
+    }
+    if (data.containsKey('trigger_count')) {
+      context.handle(
+        _triggerCountMeta,
+        triggerCount.isAcceptableOrUnknown(
+          data['trigger_count']!,
+          _triggerCountMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteReminder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      type: $NoteRemindersTable.$convertertype.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}type'],
+        )!,
+      ),
+      remindAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remind_at'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      ),
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      ),
+      radius: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}radius'],
+      ),
+      locationName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location_name'],
+      ),
+      recurrencePattern: $NoteRemindersTable.$converterrecurrencePattern
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}recurrence_pattern'],
+            )!,
+          ),
+      recurrenceEndDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recurrence_end_date'],
+      ),
+      recurrenceInterval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}recurrence_interval'],
+      )!,
+      snoozedUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}snoozed_until'],
+      ),
+      snoozeCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}snooze_count'],
+      )!,
+      notificationTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_title'],
+      ),
+      notificationBody: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_body'],
+      ),
+      notificationImage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_image'],
+      ),
+      timeZone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}time_zone'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastTriggered: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_triggered'],
+      ),
+      triggerCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}trigger_count'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteRemindersTable createAlias(String alias) {
+    return $NoteRemindersTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<ReminderType, int, int> $convertertype =
+      const EnumIndexConverter<ReminderType>(ReminderType.values);
+  static JsonTypeConverter2<RecurrencePattern, int, int>
+  $converterrecurrencePattern = const EnumIndexConverter<RecurrencePattern>(
+    RecurrencePattern.values,
+  );
+}
+
+class NoteReminder extends DataClass implements Insertable<NoteReminder> {
+  final int id;
+  final String noteId;
+  final String title;
+  final String body;
+  final ReminderType type;
+  final DateTime? remindAt;
+  final bool isActive;
+  final double? latitude;
+  final double? longitude;
+  final double? radius;
+  final String? locationName;
+  final RecurrencePattern recurrencePattern;
+  final DateTime? recurrenceEndDate;
+  final int recurrenceInterval;
+  final DateTime? snoozedUntil;
+  final int snoozeCount;
+  final String? notificationTitle;
+  final String? notificationBody;
+  final String? notificationImage;
+  final String? timeZone;
+  final DateTime createdAt;
+  final DateTime? lastTriggered;
+  final int triggerCount;
+  const NoteReminder({
+    required this.id,
+    required this.noteId,
+    required this.title,
+    required this.body,
+    required this.type,
+    this.remindAt,
+    required this.isActive,
+    this.latitude,
+    this.longitude,
+    this.radius,
+    this.locationName,
+    required this.recurrencePattern,
+    this.recurrenceEndDate,
+    required this.recurrenceInterval,
+    this.snoozedUntil,
+    required this.snoozeCount,
+    this.notificationTitle,
+    this.notificationBody,
+    this.notificationImage,
+    this.timeZone,
+    required this.createdAt,
+    this.lastTriggered,
+    required this.triggerCount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['note_id'] = Variable<String>(noteId);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    {
+      map['type'] = Variable<int>(
+        $NoteRemindersTable.$convertertype.toSql(type),
+      );
+    }
+    if (!nullToAbsent || remindAt != null) {
+      map['remind_at'] = Variable<DateTime>(remindAt);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || radius != null) {
+      map['radius'] = Variable<double>(radius);
+    }
+    if (!nullToAbsent || locationName != null) {
+      map['location_name'] = Variable<String>(locationName);
+    }
+    {
+      map['recurrence_pattern'] = Variable<int>(
+        $NoteRemindersTable.$converterrecurrencePattern.toSql(
+          recurrencePattern,
+        ),
+      );
+    }
+    if (!nullToAbsent || recurrenceEndDate != null) {
+      map['recurrence_end_date'] = Variable<DateTime>(recurrenceEndDate);
+    }
+    map['recurrence_interval'] = Variable<int>(recurrenceInterval);
+    if (!nullToAbsent || snoozedUntil != null) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil);
+    }
+    map['snooze_count'] = Variable<int>(snoozeCount);
+    if (!nullToAbsent || notificationTitle != null) {
+      map['notification_title'] = Variable<String>(notificationTitle);
+    }
+    if (!nullToAbsent || notificationBody != null) {
+      map['notification_body'] = Variable<String>(notificationBody);
+    }
+    if (!nullToAbsent || notificationImage != null) {
+      map['notification_image'] = Variable<String>(notificationImage);
+    }
+    if (!nullToAbsent || timeZone != null) {
+      map['time_zone'] = Variable<String>(timeZone);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || lastTriggered != null) {
+      map['last_triggered'] = Variable<DateTime>(lastTriggered);
+    }
+    map['trigger_count'] = Variable<int>(triggerCount);
+    return map;
+  }
+
+  NoteRemindersCompanion toCompanion(bool nullToAbsent) {
+    return NoteRemindersCompanion(
+      id: Value(id),
+      noteId: Value(noteId),
+      title: Value(title),
+      body: Value(body),
+      type: Value(type),
+      remindAt: remindAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remindAt),
+      isActive: Value(isActive),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      radius: radius == null && nullToAbsent
+          ? const Value.absent()
+          : Value(radius),
+      locationName: locationName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationName),
+      recurrencePattern: Value(recurrencePattern),
+      recurrenceEndDate: recurrenceEndDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceEndDate),
+      recurrenceInterval: Value(recurrenceInterval),
+      snoozedUntil: snoozedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozedUntil),
+      snoozeCount: Value(snoozeCount),
+      notificationTitle: notificationTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationTitle),
+      notificationBody: notificationBody == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationBody),
+      notificationImage: notificationImage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationImage),
+      timeZone: timeZone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(timeZone),
+      createdAt: Value(createdAt),
+      lastTriggered: lastTriggered == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastTriggered),
+      triggerCount: Value(triggerCount),
+    );
+  }
+
+  factory NoteReminder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteReminder(
+      id: serializer.fromJson<int>(json['id']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      type: $NoteRemindersTable.$convertertype.fromJson(
+        serializer.fromJson<int>(json['type']),
+      ),
+      remindAt: serializer.fromJson<DateTime?>(json['remindAt']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      radius: serializer.fromJson<double?>(json['radius']),
+      locationName: serializer.fromJson<String?>(json['locationName']),
+      recurrencePattern: $NoteRemindersTable.$converterrecurrencePattern
+          .fromJson(serializer.fromJson<int>(json['recurrencePattern'])),
+      recurrenceEndDate: serializer.fromJson<DateTime?>(
+        json['recurrenceEndDate'],
+      ),
+      recurrenceInterval: serializer.fromJson<int>(json['recurrenceInterval']),
+      snoozedUntil: serializer.fromJson<DateTime?>(json['snoozedUntil']),
+      snoozeCount: serializer.fromJson<int>(json['snoozeCount']),
+      notificationTitle: serializer.fromJson<String?>(
+        json['notificationTitle'],
+      ),
+      notificationBody: serializer.fromJson<String?>(json['notificationBody']),
+      notificationImage: serializer.fromJson<String?>(
+        json['notificationImage'],
+      ),
+      timeZone: serializer.fromJson<String?>(json['timeZone']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastTriggered: serializer.fromJson<DateTime?>(json['lastTriggered']),
+      triggerCount: serializer.fromJson<int>(json['triggerCount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'noteId': serializer.toJson<String>(noteId),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'type': serializer.toJson<int>(
+        $NoteRemindersTable.$convertertype.toJson(type),
+      ),
+      'remindAt': serializer.toJson<DateTime?>(remindAt),
+      'isActive': serializer.toJson<bool>(isActive),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'radius': serializer.toJson<double?>(radius),
+      'locationName': serializer.toJson<String?>(locationName),
+      'recurrencePattern': serializer.toJson<int>(
+        $NoteRemindersTable.$converterrecurrencePattern.toJson(
+          recurrencePattern,
+        ),
+      ),
+      'recurrenceEndDate': serializer.toJson<DateTime?>(recurrenceEndDate),
+      'recurrenceInterval': serializer.toJson<int>(recurrenceInterval),
+      'snoozedUntil': serializer.toJson<DateTime?>(snoozedUntil),
+      'snoozeCount': serializer.toJson<int>(snoozeCount),
+      'notificationTitle': serializer.toJson<String?>(notificationTitle),
+      'notificationBody': serializer.toJson<String?>(notificationBody),
+      'notificationImage': serializer.toJson<String?>(notificationImage),
+      'timeZone': serializer.toJson<String?>(timeZone),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastTriggered': serializer.toJson<DateTime?>(lastTriggered),
+      'triggerCount': serializer.toJson<int>(triggerCount),
+    };
+  }
+
+  NoteReminder copyWith({
+    int? id,
+    String? noteId,
+    String? title,
+    String? body,
+    ReminderType? type,
+    Value<DateTime?> remindAt = const Value.absent(),
+    bool? isActive,
+    Value<double?> latitude = const Value.absent(),
+    Value<double?> longitude = const Value.absent(),
+    Value<double?> radius = const Value.absent(),
+    Value<String?> locationName = const Value.absent(),
+    RecurrencePattern? recurrencePattern,
+    Value<DateTime?> recurrenceEndDate = const Value.absent(),
+    int? recurrenceInterval,
+    Value<DateTime?> snoozedUntil = const Value.absent(),
+    int? snoozeCount,
+    Value<String?> notificationTitle = const Value.absent(),
+    Value<String?> notificationBody = const Value.absent(),
+    Value<String?> notificationImage = const Value.absent(),
+    Value<String?> timeZone = const Value.absent(),
+    DateTime? createdAt,
+    Value<DateTime?> lastTriggered = const Value.absent(),
+    int? triggerCount,
+  }) => NoteReminder(
+    id: id ?? this.id,
+    noteId: noteId ?? this.noteId,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    type: type ?? this.type,
+    remindAt: remindAt.present ? remindAt.value : this.remindAt,
+    isActive: isActive ?? this.isActive,
+    latitude: latitude.present ? latitude.value : this.latitude,
+    longitude: longitude.present ? longitude.value : this.longitude,
+    radius: radius.present ? radius.value : this.radius,
+    locationName: locationName.present ? locationName.value : this.locationName,
+    recurrencePattern: recurrencePattern ?? this.recurrencePattern,
+    recurrenceEndDate: recurrenceEndDate.present
+        ? recurrenceEndDate.value
+        : this.recurrenceEndDate,
+    recurrenceInterval: recurrenceInterval ?? this.recurrenceInterval,
+    snoozedUntil: snoozedUntil.present ? snoozedUntil.value : this.snoozedUntil,
+    snoozeCount: snoozeCount ?? this.snoozeCount,
+    notificationTitle: notificationTitle.present
+        ? notificationTitle.value
+        : this.notificationTitle,
+    notificationBody: notificationBody.present
+        ? notificationBody.value
+        : this.notificationBody,
+    notificationImage: notificationImage.present
+        ? notificationImage.value
+        : this.notificationImage,
+    timeZone: timeZone.present ? timeZone.value : this.timeZone,
+    createdAt: createdAt ?? this.createdAt,
+    lastTriggered: lastTriggered.present
+        ? lastTriggered.value
+        : this.lastTriggered,
+    triggerCount: triggerCount ?? this.triggerCount,
+  );
+  NoteReminder copyWithCompanion(NoteRemindersCompanion data) {
+    return NoteReminder(
+      id: data.id.present ? data.id.value : this.id,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      type: data.type.present ? data.type.value : this.type,
+      remindAt: data.remindAt.present ? data.remindAt.value : this.remindAt,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      radius: data.radius.present ? data.radius.value : this.radius,
+      locationName: data.locationName.present
+          ? data.locationName.value
+          : this.locationName,
+      recurrencePattern: data.recurrencePattern.present
+          ? data.recurrencePattern.value
+          : this.recurrencePattern,
+      recurrenceEndDate: data.recurrenceEndDate.present
+          ? data.recurrenceEndDate.value
+          : this.recurrenceEndDate,
+      recurrenceInterval: data.recurrenceInterval.present
+          ? data.recurrenceInterval.value
+          : this.recurrenceInterval,
+      snoozedUntil: data.snoozedUntil.present
+          ? data.snoozedUntil.value
+          : this.snoozedUntil,
+      snoozeCount: data.snoozeCount.present
+          ? data.snoozeCount.value
+          : this.snoozeCount,
+      notificationTitle: data.notificationTitle.present
+          ? data.notificationTitle.value
+          : this.notificationTitle,
+      notificationBody: data.notificationBody.present
+          ? data.notificationBody.value
+          : this.notificationBody,
+      notificationImage: data.notificationImage.present
+          ? data.notificationImage.value
+          : this.notificationImage,
+      timeZone: data.timeZone.present ? data.timeZone.value : this.timeZone,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastTriggered: data.lastTriggered.present
+          ? data.lastTriggered.value
+          : this.lastTriggered,
+      triggerCount: data.triggerCount.present
+          ? data.triggerCount.value
+          : this.triggerCount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteReminder(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('type: $type, ')
+          ..write('remindAt: $remindAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('radius: $radius, ')
+          ..write('locationName: $locationName, ')
+          ..write('recurrencePattern: $recurrencePattern, ')
+          ..write('recurrenceEndDate: $recurrenceEndDate, ')
+          ..write('recurrenceInterval: $recurrenceInterval, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
+          ..write('snoozeCount: $snoozeCount, ')
+          ..write('notificationTitle: $notificationTitle, ')
+          ..write('notificationBody: $notificationBody, ')
+          ..write('notificationImage: $notificationImage, ')
+          ..write('timeZone: $timeZone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastTriggered: $lastTriggered, ')
+          ..write('triggerCount: $triggerCount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    noteId,
+    title,
+    body,
+    type,
+    remindAt,
+    isActive,
+    latitude,
+    longitude,
+    radius,
+    locationName,
+    recurrencePattern,
+    recurrenceEndDate,
+    recurrenceInterval,
+    snoozedUntil,
+    snoozeCount,
+    notificationTitle,
+    notificationBody,
+    notificationImage,
+    timeZone,
+    createdAt,
+    lastTriggered,
+    triggerCount,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteReminder &&
+          other.id == this.id &&
+          other.noteId == this.noteId &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.type == this.type &&
+          other.remindAt == this.remindAt &&
+          other.isActive == this.isActive &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.radius == this.radius &&
+          other.locationName == this.locationName &&
+          other.recurrencePattern == this.recurrencePattern &&
+          other.recurrenceEndDate == this.recurrenceEndDate &&
+          other.recurrenceInterval == this.recurrenceInterval &&
+          other.snoozedUntil == this.snoozedUntil &&
+          other.snoozeCount == this.snoozeCount &&
+          other.notificationTitle == this.notificationTitle &&
+          other.notificationBody == this.notificationBody &&
+          other.notificationImage == this.notificationImage &&
+          other.timeZone == this.timeZone &&
+          other.createdAt == this.createdAt &&
+          other.lastTriggered == this.lastTriggered &&
+          other.triggerCount == this.triggerCount);
+}
+
+class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
+  final Value<int> id;
+  final Value<String> noteId;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<ReminderType> type;
+  final Value<DateTime?> remindAt;
+  final Value<bool> isActive;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<double?> radius;
+  final Value<String?> locationName;
+  final Value<RecurrencePattern> recurrencePattern;
+  final Value<DateTime?> recurrenceEndDate;
+  final Value<int> recurrenceInterval;
+  final Value<DateTime?> snoozedUntil;
+  final Value<int> snoozeCount;
+  final Value<String?> notificationTitle;
+  final Value<String?> notificationBody;
+  final Value<String?> notificationImage;
+  final Value<String?> timeZone;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> lastTriggered;
+  final Value<int> triggerCount;
+  const NoteRemindersCompanion({
+    this.id = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.type = const Value.absent(),
+    this.remindAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.radius = const Value.absent(),
+    this.locationName = const Value.absent(),
+    this.recurrencePattern = const Value.absent(),
+    this.recurrenceEndDate = const Value.absent(),
+    this.recurrenceInterval = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
+    this.snoozeCount = const Value.absent(),
+    this.notificationTitle = const Value.absent(),
+    this.notificationBody = const Value.absent(),
+    this.notificationImage = const Value.absent(),
+    this.timeZone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastTriggered = const Value.absent(),
+    this.triggerCount = const Value.absent(),
+  });
+  NoteRemindersCompanion.insert({
+    this.id = const Value.absent(),
+    required String noteId,
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    required ReminderType type,
+    this.remindAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.radius = const Value.absent(),
+    this.locationName = const Value.absent(),
+    this.recurrencePattern = const Value.absent(),
+    this.recurrenceEndDate = const Value.absent(),
+    this.recurrenceInterval = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
+    this.snoozeCount = const Value.absent(),
+    this.notificationTitle = const Value.absent(),
+    this.notificationBody = const Value.absent(),
+    this.notificationImage = const Value.absent(),
+    this.timeZone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastTriggered = const Value.absent(),
+    this.triggerCount = const Value.absent(),
+  }) : noteId = Value(noteId),
+       type = Value(type);
+  static Insertable<NoteReminder> custom({
+    Expression<int>? id,
+    Expression<String>? noteId,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<int>? type,
+    Expression<DateTime>? remindAt,
+    Expression<bool>? isActive,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<double>? radius,
+    Expression<String>? locationName,
+    Expression<int>? recurrencePattern,
+    Expression<DateTime>? recurrenceEndDate,
+    Expression<int>? recurrenceInterval,
+    Expression<DateTime>? snoozedUntil,
+    Expression<int>? snoozeCount,
+    Expression<String>? notificationTitle,
+    Expression<String>? notificationBody,
+    Expression<String>? notificationImage,
+    Expression<String>? timeZone,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastTriggered,
+    Expression<int>? triggerCount,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (noteId != null) 'note_id': noteId,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (type != null) 'type': type,
+      if (remindAt != null) 'remind_at': remindAt,
+      if (isActive != null) 'is_active': isActive,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (radius != null) 'radius': radius,
+      if (locationName != null) 'location_name': locationName,
+      if (recurrencePattern != null) 'recurrence_pattern': recurrencePattern,
+      if (recurrenceEndDate != null) 'recurrence_end_date': recurrenceEndDate,
+      if (recurrenceInterval != null) 'recurrence_interval': recurrenceInterval,
+      if (snoozedUntil != null) 'snoozed_until': snoozedUntil,
+      if (snoozeCount != null) 'snooze_count': snoozeCount,
+      if (notificationTitle != null) 'notification_title': notificationTitle,
+      if (notificationBody != null) 'notification_body': notificationBody,
+      if (notificationImage != null) 'notification_image': notificationImage,
+      if (timeZone != null) 'time_zone': timeZone,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastTriggered != null) 'last_triggered': lastTriggered,
+      if (triggerCount != null) 'trigger_count': triggerCount,
+    });
+  }
+
+  NoteRemindersCompanion copyWith({
+    Value<int>? id,
+    Value<String>? noteId,
+    Value<String>? title,
+    Value<String>? body,
+    Value<ReminderType>? type,
+    Value<DateTime?>? remindAt,
+    Value<bool>? isActive,
+    Value<double?>? latitude,
+    Value<double?>? longitude,
+    Value<double?>? radius,
+    Value<String?>? locationName,
+    Value<RecurrencePattern>? recurrencePattern,
+    Value<DateTime?>? recurrenceEndDate,
+    Value<int>? recurrenceInterval,
+    Value<DateTime?>? snoozedUntil,
+    Value<int>? snoozeCount,
+    Value<String?>? notificationTitle,
+    Value<String?>? notificationBody,
+    Value<String?>? notificationImage,
+    Value<String?>? timeZone,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? lastTriggered,
+    Value<int>? triggerCount,
+  }) {
+    return NoteRemindersCompanion(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      type: type ?? this.type,
+      remindAt: remindAt ?? this.remindAt,
+      isActive: isActive ?? this.isActive,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      radius: radius ?? this.radius,
+      locationName: locationName ?? this.locationName,
+      recurrencePattern: recurrencePattern ?? this.recurrencePattern,
+      recurrenceEndDate: recurrenceEndDate ?? this.recurrenceEndDate,
+      recurrenceInterval: recurrenceInterval ?? this.recurrenceInterval,
+      snoozedUntil: snoozedUntil ?? this.snoozedUntil,
+      snoozeCount: snoozeCount ?? this.snoozeCount,
+      notificationTitle: notificationTitle ?? this.notificationTitle,
+      notificationBody: notificationBody ?? this.notificationBody,
+      notificationImage: notificationImage ?? this.notificationImage,
+      timeZone: timeZone ?? this.timeZone,
+      createdAt: createdAt ?? this.createdAt,
+      lastTriggered: lastTriggered ?? this.lastTriggered,
+      triggerCount: triggerCount ?? this.triggerCount,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<int>(
+        $NoteRemindersTable.$convertertype.toSql(type.value),
+      );
+    }
+    if (remindAt.present) {
+      map['remind_at'] = Variable<DateTime>(remindAt.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (radius.present) {
+      map['radius'] = Variable<double>(radius.value);
+    }
+    if (locationName.present) {
+      map['location_name'] = Variable<String>(locationName.value);
+    }
+    if (recurrencePattern.present) {
+      map['recurrence_pattern'] = Variable<int>(
+        $NoteRemindersTable.$converterrecurrencePattern.toSql(
+          recurrencePattern.value,
+        ),
+      );
+    }
+    if (recurrenceEndDate.present) {
+      map['recurrence_end_date'] = Variable<DateTime>(recurrenceEndDate.value);
+    }
+    if (recurrenceInterval.present) {
+      map['recurrence_interval'] = Variable<int>(recurrenceInterval.value);
+    }
+    if (snoozedUntil.present) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil.value);
+    }
+    if (snoozeCount.present) {
+      map['snooze_count'] = Variable<int>(snoozeCount.value);
+    }
+    if (notificationTitle.present) {
+      map['notification_title'] = Variable<String>(notificationTitle.value);
+    }
+    if (notificationBody.present) {
+      map['notification_body'] = Variable<String>(notificationBody.value);
+    }
+    if (notificationImage.present) {
+      map['notification_image'] = Variable<String>(notificationImage.value);
+    }
+    if (timeZone.present) {
+      map['time_zone'] = Variable<String>(timeZone.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastTriggered.present) {
+      map['last_triggered'] = Variable<DateTime>(lastTriggered.value);
+    }
+    if (triggerCount.present) {
+      map['trigger_count'] = Variable<int>(triggerCount.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteRemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('type: $type, ')
+          ..write('remindAt: $remindAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('radius: $radius, ')
+          ..write('locationName: $locationName, ')
+          ..write('recurrencePattern: $recurrencePattern, ')
+          ..write('recurrenceEndDate: $recurrenceEndDate, ')
+          ..write('recurrenceInterval: $recurrenceInterval, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
+          ..write('snoozeCount: $snoozeCount, ')
+          ..write('notificationTitle: $notificationTitle, ')
+          ..write('notificationBody: $notificationBody, ')
+          ..write('notificationImage: $notificationImage, ')
+          ..write('timeZone: $timeZone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastTriggered: $lastTriggered, ')
+          ..write('triggerCount: $triggerCount')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -1190,6 +2496,7 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $PendingOpsTable pendingOps = $PendingOpsTable(this);
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $NoteLinksTable noteLinks = $NoteLinksTable(this);
+  late final $NoteRemindersTable noteReminders = $NoteRemindersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1199,6 +2506,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     pendingOps,
     noteTags,
     noteLinks,
+    noteReminders,
   ];
 }
 
@@ -1874,6 +3182,569 @@ typedef $$NoteLinksTableProcessedTableManager =
       NoteLink,
       PrefetchHooks Function()
     >;
+typedef $$NoteRemindersTableCreateCompanionBuilder =
+    NoteRemindersCompanion Function({
+      Value<int> id,
+      required String noteId,
+      Value<String> title,
+      Value<String> body,
+      required ReminderType type,
+      Value<DateTime?> remindAt,
+      Value<bool> isActive,
+      Value<double?> latitude,
+      Value<double?> longitude,
+      Value<double?> radius,
+      Value<String?> locationName,
+      Value<RecurrencePattern> recurrencePattern,
+      Value<DateTime?> recurrenceEndDate,
+      Value<int> recurrenceInterval,
+      Value<DateTime?> snoozedUntil,
+      Value<int> snoozeCount,
+      Value<String?> notificationTitle,
+      Value<String?> notificationBody,
+      Value<String?> notificationImage,
+      Value<String?> timeZone,
+      Value<DateTime> createdAt,
+      Value<DateTime?> lastTriggered,
+      Value<int> triggerCount,
+    });
+typedef $$NoteRemindersTableUpdateCompanionBuilder =
+    NoteRemindersCompanion Function({
+      Value<int> id,
+      Value<String> noteId,
+      Value<String> title,
+      Value<String> body,
+      Value<ReminderType> type,
+      Value<DateTime?> remindAt,
+      Value<bool> isActive,
+      Value<double?> latitude,
+      Value<double?> longitude,
+      Value<double?> radius,
+      Value<String?> locationName,
+      Value<RecurrencePattern> recurrencePattern,
+      Value<DateTime?> recurrenceEndDate,
+      Value<int> recurrenceInterval,
+      Value<DateTime?> snoozedUntil,
+      Value<int> snoozeCount,
+      Value<String?> notificationTitle,
+      Value<String?> notificationBody,
+      Value<String?> notificationImage,
+      Value<String?> timeZone,
+      Value<DateTime> createdAt,
+      Value<DateTime?> lastTriggered,
+      Value<int> triggerCount,
+    });
+
+class $$NoteRemindersTableFilterComposer
+    extends Composer<_$AppDb, $NoteRemindersTable> {
+  $$NoteRemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<ReminderType, ReminderType, int> get type =>
+      $composableBuilder(
+        column: $table.type,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<DateTime> get remindAt => $composableBuilder(
+    column: $table.remindAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get radius => $composableBuilder(
+    column: $table.radius,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<RecurrencePattern, RecurrencePattern, int>
+  get recurrencePattern => $composableBuilder(
+    column: $table.recurrencePattern,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recurrenceEndDate => $composableBuilder(
+    column: $table.recurrenceEndDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get recurrenceInterval => $composableBuilder(
+    column: $table.recurrenceInterval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get snoozeCount => $composableBuilder(
+    column: $table.snoozeCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationTitle => $composableBuilder(
+    column: $table.notificationTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationBody => $composableBuilder(
+    column: $table.notificationBody,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationImage => $composableBuilder(
+    column: $table.notificationImage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timeZone => $composableBuilder(
+    column: $table.timeZone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastTriggered => $composableBuilder(
+    column: $table.lastTriggered,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get triggerCount => $composableBuilder(
+    column: $table.triggerCount,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteRemindersTableOrderingComposer
+    extends Composer<_$AppDb, $NoteRemindersTable> {
+  $$NoteRemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remindAt => $composableBuilder(
+    column: $table.remindAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get radius => $composableBuilder(
+    column: $table.radius,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get recurrencePattern => $composableBuilder(
+    column: $table.recurrencePattern,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get recurrenceEndDate => $composableBuilder(
+    column: $table.recurrenceEndDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get recurrenceInterval => $composableBuilder(
+    column: $table.recurrenceInterval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get snoozeCount => $composableBuilder(
+    column: $table.snoozeCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notificationTitle => $composableBuilder(
+    column: $table.notificationTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notificationBody => $composableBuilder(
+    column: $table.notificationBody,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notificationImage => $composableBuilder(
+    column: $table.notificationImage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timeZone => $composableBuilder(
+    column: $table.timeZone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastTriggered => $composableBuilder(
+    column: $table.lastTriggered,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get triggerCount => $composableBuilder(
+    column: $table.triggerCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteRemindersTableAnnotationComposer
+    extends Composer<_$AppDb, $NoteRemindersTable> {
+  $$NoteRemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<ReminderType, int> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remindAt =>
+      $composableBuilder(column: $table.remindAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<double> get radius =>
+      $composableBuilder(column: $table.radius, builder: (column) => column);
+
+  GeneratedColumn<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<RecurrencePattern, int>
+  get recurrencePattern => $composableBuilder(
+    column: $table.recurrencePattern,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get recurrenceEndDate => $composableBuilder(
+    column: $table.recurrenceEndDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get recurrenceInterval => $composableBuilder(
+    column: $table.recurrenceInterval,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get snoozeCount => $composableBuilder(
+    column: $table.snoozeCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notificationTitle => $composableBuilder(
+    column: $table.notificationTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notificationBody => $composableBuilder(
+    column: $table.notificationBody,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notificationImage => $composableBuilder(
+    column: $table.notificationImage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get timeZone =>
+      $composableBuilder(column: $table.timeZone, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastTriggered => $composableBuilder(
+    column: $table.lastTriggered,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get triggerCount => $composableBuilder(
+    column: $table.triggerCount,
+    builder: (column) => column,
+  );
+}
+
+class $$NoteRemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $NoteRemindersTable,
+          NoteReminder,
+          $$NoteRemindersTableFilterComposer,
+          $$NoteRemindersTableOrderingComposer,
+          $$NoteRemindersTableAnnotationComposer,
+          $$NoteRemindersTableCreateCompanionBuilder,
+          $$NoteRemindersTableUpdateCompanionBuilder,
+          (
+            NoteReminder,
+            BaseReferences<_$AppDb, $NoteRemindersTable, NoteReminder>,
+          ),
+          NoteReminder,
+          PrefetchHooks Function()
+        > {
+  $$NoteRemindersTableTableManager(_$AppDb db, $NoteRemindersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteRemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteRemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteRemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<ReminderType> type = const Value.absent(),
+                Value<DateTime?> remindAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
+                Value<double?> radius = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
+                Value<RecurrencePattern> recurrencePattern =
+                    const Value.absent(),
+                Value<DateTime?> recurrenceEndDate = const Value.absent(),
+                Value<int> recurrenceInterval = const Value.absent(),
+                Value<DateTime?> snoozedUntil = const Value.absent(),
+                Value<int> snoozeCount = const Value.absent(),
+                Value<String?> notificationTitle = const Value.absent(),
+                Value<String?> notificationBody = const Value.absent(),
+                Value<String?> notificationImage = const Value.absent(),
+                Value<String?> timeZone = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> lastTriggered = const Value.absent(),
+                Value<int> triggerCount = const Value.absent(),
+              }) => NoteRemindersCompanion(
+                id: id,
+                noteId: noteId,
+                title: title,
+                body: body,
+                type: type,
+                remindAt: remindAt,
+                isActive: isActive,
+                latitude: latitude,
+                longitude: longitude,
+                radius: radius,
+                locationName: locationName,
+                recurrencePattern: recurrencePattern,
+                recurrenceEndDate: recurrenceEndDate,
+                recurrenceInterval: recurrenceInterval,
+                snoozedUntil: snoozedUntil,
+                snoozeCount: snoozeCount,
+                notificationTitle: notificationTitle,
+                notificationBody: notificationBody,
+                notificationImage: notificationImage,
+                timeZone: timeZone,
+                createdAt: createdAt,
+                lastTriggered: lastTriggered,
+                triggerCount: triggerCount,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String noteId,
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                required ReminderType type,
+                Value<DateTime?> remindAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
+                Value<double?> radius = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
+                Value<RecurrencePattern> recurrencePattern =
+                    const Value.absent(),
+                Value<DateTime?> recurrenceEndDate = const Value.absent(),
+                Value<int> recurrenceInterval = const Value.absent(),
+                Value<DateTime?> snoozedUntil = const Value.absent(),
+                Value<int> snoozeCount = const Value.absent(),
+                Value<String?> notificationTitle = const Value.absent(),
+                Value<String?> notificationBody = const Value.absent(),
+                Value<String?> notificationImage = const Value.absent(),
+                Value<String?> timeZone = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> lastTriggered = const Value.absent(),
+                Value<int> triggerCount = const Value.absent(),
+              }) => NoteRemindersCompanion.insert(
+                id: id,
+                noteId: noteId,
+                title: title,
+                body: body,
+                type: type,
+                remindAt: remindAt,
+                isActive: isActive,
+                latitude: latitude,
+                longitude: longitude,
+                radius: radius,
+                locationName: locationName,
+                recurrencePattern: recurrencePattern,
+                recurrenceEndDate: recurrenceEndDate,
+                recurrenceInterval: recurrenceInterval,
+                snoozedUntil: snoozedUntil,
+                snoozeCount: snoozeCount,
+                notificationTitle: notificationTitle,
+                notificationBody: notificationBody,
+                notificationImage: notificationImage,
+                timeZone: timeZone,
+                createdAt: createdAt,
+                lastTriggered: lastTriggered,
+                triggerCount: triggerCount,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteRemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $NoteRemindersTable,
+      NoteReminder,
+      $$NoteRemindersTableFilterComposer,
+      $$NoteRemindersTableOrderingComposer,
+      $$NoteRemindersTableAnnotationComposer,
+      $$NoteRemindersTableCreateCompanionBuilder,
+      $$NoteRemindersTableUpdateCompanionBuilder,
+      (
+        NoteReminder,
+        BaseReferences<_$AppDb, $NoteRemindersTable, NoteReminder>,
+      ),
+      NoteReminder,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -1886,4 +3757,6 @@ class $AppDbManager {
       $$NoteTagsTableTableManager(_db, _db.noteTags);
   $$NoteLinksTableTableManager get noteLinks =>
       $$NoteLinksTableTableManager(_db, _db.noteLinks);
+  $$NoteRemindersTableTableManager get noteReminders =>
+      $$NoteRemindersTableTableManager(_db, _db.noteReminders);
 }

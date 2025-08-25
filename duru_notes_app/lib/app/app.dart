@@ -7,12 +7,15 @@ import 'package:duru_notes_app/ui/auth_screen.dart';
 import 'package:duru_notes_app/ui/home_screen.dart';
 
 class App extends ConsumerWidget {
-  const App({super.key});
+  const App({this.navigatorKey, super.key});
+  
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Duru Notes',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C5CE7)),

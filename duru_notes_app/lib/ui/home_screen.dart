@@ -10,6 +10,7 @@ import 'package:duru_notes_app/ui/edit_note_screen.dart';
 import 'package:duru_notes_app/ui/note_search_delegate.dart';
 import 'package:duru_notes_app/ui/tags_screen.dart';
 import 'package:duru_notes_app/ui/widgets/error_display.dart';
+import 'package:duru_notes_app/features/notes/pagination_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -65,6 +66,12 @@ final AutoDisposeFutureProvider<List<LocalNote>> notesListProvider =
   return ref.read(repoProvider).list();
 });
 
+/// Paginated notes provider for infinite scroll
+final notesPageProvider = StateNotifierProvider<NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
+  final repo = ref.watch(repoProvider);
+  return NotesPaginationNotifier(repo)..loadMore(); // Load first page immediately
+});
+
 /// --------------------
 /// UI
 /// --------------------
@@ -77,36 +84,70 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   ProviderSubscription<AsyncValue<void>>? _syncSub;
+  SyncService? _syncService; // Cache sync service to avoid using ref after disposal
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
 
+    // Set up infinite scroll listener
+    _scrollController.addListener(_onScroll);
+
     // Widget ağacı kurulduktan sonra varsa realtime + ilk sync başlat.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final sync = ref.read(syncProvider);
-      sync?.startRealtime();
-      final f = sync?.syncNow();
+      _syncService = ref.read(syncProvider);
+      _syncService?.startRealtime();
+      final f = _syncService?.syncNow();
       if (f != null) unawaited(f);
     });
 
     // Sync event geldikçe listeyi invalidate et.
     _syncSub = ref.listenManual<AsyncValue<void>>(
       syncChangesProvider,
-      (prev, next) => ref.invalidate(notesListProvider),
+      (prev, next) {
+        // Only invalidate if widget is still mounted
+        if (mounted) {
+          ref.invalidate(notesListProvider);
+          ref.invalidate(notesPageProvider); // Also invalidate pagination
+        }
+      },
     );
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _syncSub?.close();
-    ref.read(syncProvider)?.stopRealtime();
+    // Use cached sync service to avoid "ref after disposal" error
+    _syncService?.stopRealtime();
+    _syncService = null;
     super.dispose();
   }
 
+  /// Handle scroll events for infinite scrolling
+  void _onScroll() {
+    if (!mounted) return;
+    
+    final position = _scrollController.position;
+    final notifier = ref.read(notesPageProvider.notifier);
+    
+    notifier.checkLoadMore(position.pixels, position.maxScrollExtent);
+  }
+
   Future<void> _refresh() async {
+    // Check if widget is still mounted before using ref
+    if (!mounted) return;
+    
+    // Refresh both traditional and paginated providers
     ref.invalidate(notesListProvider);
+    
+    // Refresh pagination
+    final notifier = ref.read(notesPageProvider.notifier);
+    await notifier.refresh();
+    
     try {
+      if (!mounted) return;
       final f = ref.read(syncProvider)?.syncNow();
       if (f != null) await f;
     } on Object {
@@ -114,24 +155,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  // Cache for preview generation to avoid repeated regex processing
+  static final Map<String, String> _previewCache = <String, String>{};
+  
   /// Generate a clean preview from note body by stripping markdown
+  /// Optimized with caching and length limits to prevent hangs
   String _generatePreview(String body) {
     if (body.trim().isEmpty) return '';
     
-    // Strip markdown formatting for cleaner preview
-    final preview = body
+    // Check cache first (using body hash for memory efficiency)
+    final bodyHash = body.hashCode.toString();
+    if (_previewCache.containsKey(bodyHash)) {
+      return _previewCache[bodyHash]!;
+    }
+    
+    // Limit input length to prevent long processing
+    final limitedBody = body.length > 500 ? body.substring(0, 500) : body;
+    
+    // Strip markdown formatting for cleaner preview (optimized regex)
+    final preview = limitedBody
         .replaceAll(RegExp(r'^#{1,6}\s+'), '') // Remove headings
-        .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1') // Remove bold
-        .replaceAll(RegExp(r'\*(.*?)\*'), r'$1') // Remove italic
-        .replaceAll(RegExp(r'`(.*?)`'), r'$1') // Remove inline code
+        .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
+        .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
+        .replaceAll(RegExp(r'`([^`]*)`'), r'$1') // Remove inline code (non-greedy)
         .replaceAll(RegExp(r'^\s*[-*]\s+', multiLine: true), '') // Remove list markers
         .replaceAll(RegExp(r'^\s*>\s+', multiLine: true), '') // Remove quotes
-        .replaceAll(RegExp(r'!\[.*?\]\(.*?\)'), '[Image]') // Replace images
-        .replaceAll(RegExp(r'\[.*?\]\(.*?\)'), '') // Remove links
-        .replaceAll(RegExp(r'\n+'), ' ') // Replace newlines with spaces
+        .replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), '[Image]') // Replace images (non-greedy)
+        .replaceAll(RegExp(r'\[[^\]]*\]\([^)]*\)'), '') // Remove links (non-greedy)
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
         .trim();
     
-    return preview;
+    // Limit preview length
+    final result = preview.length > 150 ? '${preview.substring(0, 150)}...' : preview;
+    
+    // Cache result (limit cache size to prevent memory issues)
+    if (_previewCache.length > 100) {
+      _previewCache.clear(); // Simple cache eviction
+    }
+    _previewCache[bodyHash] = result;
+    
+    return result;
   }
 
   /// Format date for display in note list
@@ -285,6 +348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   return RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView.separated(
+                      controller: _scrollController,
                       itemCount: notes.length,
                       separatorBuilder: (context, index) =>
                           const Divider(height: 1),
@@ -365,4 +429,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+
 }

@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:duru_notes_app/core/auth/login_attempts_service.dart';
 
@@ -87,14 +86,14 @@ class AuthService {
     AuthResult? result;
     Exception? lastException;
 
-    for (int attempt = 0; attempt < _maxRetries; attempt++) {
+    for (var attempt = 0; attempt < _maxRetries; attempt++) {
       try {
         if (attempt > 0) {
           final delay = _calculateDelay(attempt - 1);
           if (kDebugMode) {
             print('Auth retry attempt $attempt after ${delay.inSeconds}s delay');
           }
-          await Future.delayed(delay);
+          await Future<void>.delayed(delay);
         }
 
         result = await _performSingleSignIn(normalizedEmail, password);
@@ -123,6 +122,8 @@ class AuthService {
           // Don't retry credential errors
           break;
         }
+      } on Exception catch (e) {
+        lastException = e;
       } catch (e) {
         lastException = Exception(e.toString());
       }
@@ -192,7 +193,7 @@ class AuthService {
         lockoutDuration: lockStatus.remainingLockoutTime,
         attemptsRemaining: lockStatus.attemptsRemaining,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       // Record generic failed attempt
       await _loginAttemptsService.recordFailedLogin(email, e.toString());
       
@@ -238,7 +239,7 @@ class AuthService {
         success: false,
         error: e.message,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       if (kDebugMode) {
         print('Signup error: $e');
       }
