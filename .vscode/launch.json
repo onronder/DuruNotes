@@ -1,0 +1,68 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Duru Notes (Development)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--flavor", "dev",
+                "--dart-define=FLAVOR=dev"
+            ]
+        },
+        {
+            "name": "Duru Notes (Staging)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--flavor", "staging",
+                "--dart-define=FLAVOR=staging"
+            ]
+        },
+        {
+            "name": "Duru Notes (Production)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--flavor", "prod",
+                "--dart-define=FLAVOR=prod"
+            ]
+        },
+        {
+            "name": "Duru Notes (Development - Release)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--release",
+                "--flavor", "dev",
+                "--dart-define=FLAVOR=dev"
+            ]
+        },
+        {
+            "name": "Duru Notes (Staging - Release)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--release",
+                "--flavor", "staging",
+                "--dart-define=FLAVOR=staging"
+            ]
+        },
+        {
+            "name": "Duru Notes (Production - Release)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--release",
+                "--flavor", "prod",
+                "--dart-define=FLAVOR=prod"
+            ]
+        }
+    ]
+}
