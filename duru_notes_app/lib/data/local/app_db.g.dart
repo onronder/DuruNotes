@@ -1317,7 +1317,7 @@ class $NoteRemindersTable extends NoteReminders
         false,
         type: DriftSqlType.int,
         requiredDuringInsert: false,
-        defaultValue: const Constant(RecurrencePattern.none),
+        defaultValue: Constant(RecurrencePattern.none.index),
       ).withConverter<RecurrencePattern>(
         $NoteRemindersTable.$converterrecurrencePattern,
       );

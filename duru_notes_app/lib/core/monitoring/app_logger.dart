@@ -1,5 +1,5 @@
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Log levels for the application
 enum LogLevel {
@@ -9,265 +9,147 @@ enum LogLevel {
   error,
 }
 
-/// Abstract logger interface for the application
+/// Application logger interface
 abstract class AppLogger {
-  /// Log an informational message
-  void info(String message, {Map<String, Object?>? data});
+  /// Log a debug message
+  void debug(String message, {Map<String, dynamic>? data});
+  
+  /// Log an info message
+  void info(String message, {Map<String, dynamic>? data});
   
   /// Log a warning message
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data});
+  void warning(String message, {Map<String, dynamic>? data});
   
   /// Log an error message
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data});
+  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data});
   
-  /// Log a debug message (only in debug mode)
-  void debug(String message, {Map<String, Object?>? data});
+  /// Log a breadcrumb (for debugging user flows)
+  void breadcrumb(String message, {Map<String, dynamic>? data});
   
-  /// Add a breadcrumb for debugging context
-  void breadcrumb(String message, {Map<String, Object?>? data, String? category});
-  
-  /// Set user context for logging
-  void setUser(String? userId, {String? email, Map<String, Object?>? extra});
-  
-  /// Clear user context
-  void clearUser();
-  
-  /// Add extra context to all logs
-  void setContext(String key, Map<String, Object?> context);
-  
-  /// Remove context
-  void removeContext(String key);
+  /// Flush any pending logs
+  Future<void> flush();
 }
 
-/// Sentry implementation of the app logger
-class SentryLogger implements AppLogger {
-
-  
-  @override
-  void info(String message, {Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('ℹ️ [INFO] $message');
-      if (data != null) print('   Data: $data');
-    }
-    
-    breadcrumb(message, data: data, category: 'info');
-  }
-  
-  @override
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('⚠️ [WARN] $message');
-      if (error != null) print('   Error: $error');
-      if (data != null) print('   Data: $data');
-    }
-    
-    Sentry.captureMessage(
-      message,
-      level: SentryLevel.warning,
-      withScope: (scope) {
-        if (data != null) {
-          scope.setContexts('warning_data', data);
-        }
-        if (error != null) {
-          scope.setTag('error_type', error.runtimeType.toString());
-        }
-      },
-    );
-    
-    breadcrumb(message, data: data, category: 'warning');
-  }
-  
-  @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('❌ [ERROR] $message');
-      if (error != null) print('   Error: $error');
-      if (stackTrace != null) print('   Stack: $stackTrace');
-      if (data != null) print('   Data: $data');
-    }
-    
-    Sentry.captureException(
-      error ?? Exception(message),
-      stackTrace: stackTrace,
-      withScope: (scope) {
-        scope.level = SentryLevel.error;
-        scope.setTag('error_context', 'app_logger');
-        if (data != null) {
-          scope.setContexts('error_data', data);
-        }
-      },
-    );
-    
-    breadcrumb(message, data: data, category: 'error');
-  }
-  
-  @override
-  void debug(String message, {Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('🐛 [DEBUG] $message');
-      if (data != null) print('   Data: $data');
-    }
-    
-    // Only add breadcrumb in debug mode to avoid noise
-    if (kDebugMode) {
-      breadcrumb(message, data: data, category: 'debug');
-    }
-  }
-  
-  @override
-  void breadcrumb(String message, {Map<String, Object?>? data, String? category}) {
-    Sentry.addBreadcrumb(
-      Breadcrumb(
-        message: message,
-        data: data,
-        category: category ?? 'default',
-        level: SentryLevel.info,
-        timestamp: DateTime.now(),
-      ),
-    );
-  }
-  
-  @override
-  void setUser(String? userId, {String? email, Map<String, Object?>? extra}) {
-    Sentry.configureScope((scope) {
-      scope.setUser(SentryUser(
-        id: userId,
-        email: email,
-        data: extra,
-      ));
-    });
-    
-    if (kDebugMode) {
-      print('👤 [USER] Set user context: $userId');
-    }
-  }
-  
-  @override
-  void clearUser() {
-    Sentry.configureScope((scope) {
-      scope.setUser(null);
-    });
-    
-    if (kDebugMode) {
-      print('👤 [USER] Cleared user context');
-    }
-  }
-  
-  @override
-  void setContext(String key, Map<String, Object?> context) {
-    Sentry.configureScope((scope) {
-      scope.setContexts(key, context);
-    });
-    
-    if (kDebugMode) {
-      print('📝 [CONTEXT] Set context "$key": $context');
-    }
-  }
-  
-  @override
-  void removeContext(String key) {
-    Sentry.configureScope((scope) {
-      scope.removeContexts(key);
-    });
-    
-    if (kDebugMode) {
-      print('📝 [CONTEXT] Removed context "$key"');
-    }
-  }
-}
-
-/// Console-only logger for development/testing
+/// Console logger implementation
 class ConsoleLogger implements AppLogger {
-
+  final LogLevel _minLevel;
+  
+  const ConsoleLogger({LogLevel minLevel = LogLevel.debug}) : _minLevel = minLevel;
   
   @override
-  void info(String message, {Map<String, Object?>? data}) {
-    print('ℹ️ [INFO] $message');
-    if (data != null) print('   Data: $data');
-  }
-  
-  @override
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    print('⚠️ [WARN] $message');
-    if (error != null) print('   Error: $error');
-    if (data != null) print('   Data: $data');
-  }
-  
-  @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    print('❌ [ERROR] $message');
-    if (error != null) print('   Error: $error');
-    if (stackTrace != null) print('   Stack: $stackTrace');
-    if (data != null) print('   Data: $data');
-  }
-  
-  @override
-  void debug(String message, {Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('🐛 [DEBUG] $message');
-      if (data != null) print('   Data: $data');
+  void debug(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.debug)) {
+      _log('DEBUG', message, data: data);
     }
   }
   
   @override
-  void breadcrumb(String message, {Map<String, Object?>? data, String? category}) {
-    if (kDebugMode) {
-      print('🍞 [BREADCRUMB] [$category] $message');
-      if (data != null) print('   Data: $data');
+  void info(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.info)) {
+      _log('INFO', message, data: data);
     }
   }
   
   @override
-  void setUser(String? userId, {String? email, Map<String, Object?>? extra}) {
-    print('👤 [USER] Set user context: $userId (email: $email)');
+  void warning(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.warning)) {
+      _log('WARNING', message, data: data);
+    }
   }
   
   @override
-  void clearUser() {
-    print('👤 [USER] Cleared user context');
+  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.error)) {
+      _log('ERROR', message, data: data, error: error, stackTrace: stackTrace);
+    }
   }
   
   @override
-  void setContext(String key, Map<String, Object?> context) {
-    print('📝 [CONTEXT] Set context "$key": $context');
+  void breadcrumb(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.debug)) {
+      _log('BREADCRUMB', message, data: data);
+    }
   }
   
   @override
-  void removeContext(String key) {
-    print('📝 [CONTEXT] Removed context "$key"');
+  Future<void> flush() async {
+    // Console logging doesn't need flushing
+  }
+  
+  bool _shouldLog(LogLevel level) {
+    return level.index >= _minLevel.index;
+  }
+  
+  void _log(String level, String message, {
+    Map<String, dynamic>? data,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final timestamp = DateTime.now().toIso8601String();
+    final dataStr = data?.isNotEmpty == true 
+        ? ' | DATA: ${data!.entries.map((e) => '${e.key}=${e.value}').join(', ')}'
+        : '';
+    
+    final logMessage = '[$timestamp] $level: $message$dataStr';
+    
+    if (kDebugMode) {
+      developer.log(
+        logMessage,
+        name: 'DuruNotes',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } else {
+      print(logMessage);
+      if (error != null) {
+        print('ERROR: $error');
+      }
+      if (stackTrace != null) {
+        print('STACK: $stackTrace');
+      }
+    }
   }
 }
 
-/// Logger factory to create the appropriate logger instance
+/// No-op logger for production when logging is disabled
+class NoOpLogger implements AppLogger {
+  const NoOpLogger();
+  
+  @override
+  void debug(String message, {Map<String, dynamic>? data}) {}
+  
+  @override
+  void info(String message, {Map<String, dynamic>? data}) {}
+  
+  @override
+  void warning(String message, {Map<String, dynamic>? data}) {}
+  
+  @override
+  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {}
+  
+  @override
+  void breadcrumb(String message, {Map<String, dynamic>? data}) {}
+  
+  @override
+  Future<void> flush() async {}
+}
+
+/// Logger factory for creating logger instances
 class LoggerFactory {
   static AppLogger? _instance;
   
-  /// Get the singleton logger instance
-  static AppLogger get instance {
-    return _instance ?? _createLogger();
-  }
-  
-  /// Initialize the logger with the specified type
-  static void initialize({bool useSentry = true}) {
-    if (useSentry) {
-      _instance = SentryLogger();
+  static void initialize({LogLevel minLevel = LogLevel.debug, bool enabled = true}) {
+    if (enabled) {
+      _instance = ConsoleLogger(minLevel: minLevel);
     } else {
-      _instance = ConsoleLogger();
+      _instance = const NoOpLogger();
     }
   }
   
-  /// Create the appropriate logger based on environment
-  static AppLogger _createLogger() {
-    // Default to console logger if not explicitly initialized
-    _instance = ConsoleLogger();
-    return _instance!;
-  }
-  
-  /// Reset the logger instance (useful for testing)
-  static void reset() {
-    _instance = null;
+  static AppLogger get instance {
+    return _instance ?? const ConsoleLogger();
   }
 }
 
-/// Global logger instance for convenience
-AppLogger get logger => LoggerFactory.instance;
+/// Global logger instance for easy access
+final logger = LoggerFactory.instance;

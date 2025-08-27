@@ -1,71 +1,273 @@
 import 'dart:io';
-
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../core/monitoring/app_logger.dart';
+import 'analytics/analytics_service.dart';
 
-/// Provides functions to capture an image from the camera and perform
-/// optical character recognition (OCR) on the captured image. This
-/// service requests the necessary camera permission, launches the camera
-/// via [ImagePicker], and uses Google ML Kit's text recognizer to
-/// extract text from the image. The service should be disposed when no
-/// longer needed to release native resources.
+/// OCR (Optical Character Recognition) service for extracting text from images
 class OCRService {
-  OCRService()
-      : _picker = ImagePicker(),
-        _textRecognizer = TextRecognizer();
+  OCRService({
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
-  final ImagePicker _picker;
-  final TextRecognizer _textRecognizer;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+  final ImagePicker _imagePicker = ImagePicker();
+  TextRecognizer? _textRecognizer;
 
-  /// Captures an image using the device camera and runs text recognition on
-  /// the captured image. Returns the recognized text as a single string, or
-  /// `null` if the user cancels the capture, the permission is denied or
-  /// recognition fails. The caller is responsible for disposing the
-  /// [OCRService] when done.
-  Future<String?> pickAndScanImage() async {
-    // Request camera permission if not already granted.
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      return null;
-    }
-
-    // Open the camera to capture an image.
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.camera);
-    if (pickedFile == null) {
-      return null;
-    }
-
-    final File file = File(pickedFile.path);
-    final inputImage = InputImage.fromFile(file);
-    try {
-      final RecognizedText recognizedText =
-          await _textRecognizer.processImage(inputImage);
-      return recognizedText.text;
-    } catch (_) {
-      // On any exception, return null to indicate failure.
-      return null;
-    }
+  /// Initialize the OCR service
+  void _initializeRecognizer() {
+    _textRecognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
   }
 
-  /// Processes an image file directly for OCR (useful for shared images).
-  /// Returns the recognized text as a single string, or null if recognition fails.
-  Future<String?> processImageFile(File file) async {
+  /// Pick image from camera and extract text
+  Future<String?> pickAndScanImage({ImageSource source = ImageSource.camera}) async {
     try {
-      final inputImage = InputImage.fromFile(file);
-      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
-      return recognizedText.text;
+      _analytics.startTiming('ocr_scan');
+      _initializeRecognizer();
+      
+      // Pick image
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 80, // Reduce quality for faster processing
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+      
+      if (image == null) {
+        _analytics.endTiming('ocr_scan', properties: {
+          'success': false,
+          'reason': 'no_image_selected',
+        });
+        return null;
+      }
+      
+      // Extract text from image
+      final text = await extractTextFromImagePath(image.path);
+      
+      _analytics.endTiming('ocr_scan', properties: {
+        'success': text != null,
+        'text_length': text?.length ?? 0,
+        'source': source.name,
+      });
+      
+      return text;
     } catch (e) {
-      debugPrint('OCR processing failed: $e');
+      _logger.error('Failed to pick and scan image', error: e);
+      _analytics.endTiming('ocr_scan', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
       return null;
     }
   }
 
-  /// Releases resources held by the underlying text recognizer. Should be
-  /// called when the service is no longer needed.
-  void dispose() {
-    _textRecognizer.close();
+  /// Extract text from image file path
+  Future<String?> extractTextFromImagePath(String imagePath) async {
+    try {
+      _analytics.startTiming('ocr_extract_text');
+      _initializeRecognizer();
+      
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final recognizedText = await _textRecognizer!.processImage(inputImage);
+      
+      final extractedText = recognizedText.text;
+      
+      _analytics.endTiming('ocr_extract_text', properties: {
+        'success': extractedText.isNotEmpty,
+        'text_length': extractedText.length,
+        'blocks_detected': recognizedText.blocks.length,
+        'lines_detected': recognizedText.blocks
+            .map((block) => block.lines.length)
+            .fold(0, (a, b) => a + b),
+      });
+      
+      _analytics.featureUsed('ocr_text_extracted', properties: {
+        'text_length': extractedText.length,
+        'word_count': extractedText.split(' ').where((w) => w.isNotEmpty).length,
+        'confidence_scores': recognizedText.blocks
+            .map((block) => block.confidence ?? 0.0)
+            .toList(),
+      });
+      
+      _logger.info('Text extracted from image', data: {
+        'text_length': extractedText.length,
+        'blocks': recognizedText.blocks.length,
+      });
+      
+      return extractedText.isNotEmpty ? extractedText : null;
+    } catch (e) {
+      _logger.error('Failed to extract text from image', error: e, data: {
+        'image_path': imagePath,
+      });
+      
+      _analytics.endTiming('ocr_extract_text', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      
+      return null;
+    }
   }
+
+  /// Extract structured text data from image (with positioning info)
+  Future<OCRResult?> extractStructuredText(String imagePath) async {
+    try {
+      _initializeRecognizer();
+      
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final recognizedText = await _textRecognizer!.processImage(inputImage);
+      
+      final blocks = <OCRTextBlock>[];
+      
+      for (final textBlock in recognizedText.blocks) {
+        final lines = <OCRTextLine>[];
+        
+        for (final line in textBlock.lines) {
+          final elements = <OCRTextElement>[];
+          
+          for (final element in line.elements) {
+            elements.add(OCRTextElement(
+              text: element.text,
+              confidence: element.confidence,
+              boundingBox: element.boundingBox,
+            ));
+          }
+          
+          lines.add(OCRTextLine(
+            text: line.text,
+            confidence: line.confidence,
+            boundingBox: line.boundingBox,
+            elements: elements,
+          ));
+        }
+        
+        blocks.add(OCRTextBlock(
+          text: textBlock.text,
+          confidence: textBlock.confidence,
+          boundingBox: textBlock.boundingBox,
+          lines: lines,
+        ));
+      }
+      
+      final result = OCRResult(
+        fullText: recognizedText.text,
+        blocks: blocks,
+      );
+      
+      _analytics.featureUsed('ocr_structured_extraction', properties: {
+        'blocks_count': blocks.length,
+        'total_confidence': blocks.isNotEmpty 
+            ? blocks.map((b) => b.confidence ?? 0.0).reduce((a, b) => a + b) / blocks.length
+            : 0.0,
+      });
+      
+      return result;
+    } catch (e) {
+      _logger.error('Failed to extract structured text', error: e);
+      return null;
+    }
+  }
+
+  /// Scan image from camera
+  Future<String?> scanFromCamera() async {
+    return await pickAndScanImage(source: ImageSource.camera);
+  }
+
+  /// Scan image from gallery
+  Future<String?> scanFromGallery() async {
+    return await pickAndScanImage(source: ImageSource.gallery);
+  }
+
+  /// Check if OCR is available on this device
+  Future<bool> isAvailable() async {
+    try {
+      _initializeRecognizer();
+      return _textRecognizer != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get supported languages for OCR
+  List<String> getSupportedLanguages() {
+    // MLKit supports many languages, but we'll return common ones
+    return [
+      'en', // English
+      'es', // Spanish
+      'fr', // French
+      'de', // German
+      'it', // Italian
+      'pt', // Portuguese
+      'ru', // Russian
+      'ja', // Japanese
+      'ko', // Korean
+      'zh', // Chinese
+      'ar', // Arabic
+      'hi', // Hindi
+    ];
+  }
+
+  /// Dispose of resources
+  void dispose() {
+    _textRecognizer?.close();
+    _textRecognizer = null;
+  }
+}
+
+/// OCR result containing structured text data
+class OCRResult {
+  final String fullText;
+  final List<OCRTextBlock> blocks;
+  
+  const OCRResult({
+    required this.fullText,
+    required this.blocks,
+  });
+}
+
+/// OCR text block
+class OCRTextBlock {
+  final String text;
+  final double? confidence;
+  final Rect boundingBox;
+  final List<OCRTextLine> lines;
+  
+  const OCRTextBlock({
+    required this.text,
+    this.confidence,
+    required this.boundingBox,
+    required this.lines,
+  });
+}
+
+/// OCR text line
+class OCRTextLine {
+  final String text;
+  final double? confidence;
+  final Rect boundingBox;
+  final List<OCRTextElement> elements;
+  
+  const OCRTextLine({
+    required this.text,
+    this.confidence,
+    required this.boundingBox,
+    required this.elements,
+  });
+}
+
+/// OCR text element (word)
+class OCRTextElement {
+  final String text;
+  final double? confidence;
+  final Rect boundingBox;
+  
+  const OCRTextElement({
+    required this.text,
+    this.confidence,
+    required this.boundingBox,
+  });
 }

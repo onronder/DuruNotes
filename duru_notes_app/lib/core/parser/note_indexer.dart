@@ -1,4 +1,4 @@
-import 'package:duru_notes_app/data/local/app_db.dart';
+import '../../data/local/app_db.dart';
 import 'package:uuid/uuid.dart';
 
 /// Bir link hedefini temsil eder.

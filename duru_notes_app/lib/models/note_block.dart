@@ -1,112 +1,231 @@
-import 'package:flutter/foundation.dart';
-
-/// Defines the type of a note block. A block represents a single unit of
-/// content in the note editor, such as a paragraph, heading, todo item,
-/// quote, code block or table. This enum allows the editor to render and
-/// serialize blocks appropriately.
+/// Types of note blocks supported in the editor
 enum NoteBlockType {
   paragraph,
   heading1,
   heading2,
   heading3,
-  todo,
+  bulletList,
+  numberedList,
   quote,
   code,
   table,
-  /// Represents a file attachment. Attachments store a file name and a
-  /// remote URL (e.g. from Supabase Storage). The data for this block is
-  /// an [AttachmentBlockData] instance.
+  todo,
   attachment,
 }
 
-/// Base class for a note block. Each block has a [type] and associated
-/// [data]. The data field is typed as `dynamic` so that different block
-/// types can store whatever structured data they require. For example,
-/// a paragraph or heading stores a simple `String`, whereas a todo block
-/// stores a [TodoBlockData] object and a table block stores a
-/// [TableBlockData].
-@immutable
+/// Base class for all note blocks
 class NoteBlock {
-  const NoteBlock({required this.type, required this.data});
+  const NoteBlock({
+    required this.type,
+    required this.data,
+    this.id,
+  });
 
   final NoteBlockType type;
-  final dynamic data;
+  final String data; // Simplified to always be String
+  final String? id;
 
-  NoteBlock copyWith({NoteBlockType? type, dynamic data}) {
+  /// Creates a copy of this block with the given fields replaced
+  NoteBlock copyWith({
+    NoteBlockType? type,
+    String? data,
+    String? id,
+  }) {
     return NoteBlock(
       type: type ?? this.type,
       data: data ?? this.data,
+      id: id ?? this.id,
     );
   }
-}
 
-/// Data model for todo blocks. A todo block consists of a boolean to track
-/// whether the item is checked and a string containing the task text.
-@immutable
-class TodoBlockData {
-  const TodoBlockData({required this.text, required this.checked});
-
-  final String text;
-  final bool checked;
-
-  TodoBlockData copyWith({String? text, bool? checked}) {
-    return TodoBlockData(
-      text: text ?? this.text,
-      checked: checked ?? this.checked,
-    );
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is NoteBlock &&
+        other.type == type &&
+        other.data == data &&
+        other.id == id;
   }
+
+  @override
+  int get hashCode => Object.hash(type, data, id);
 }
 
-/// Data model for code blocks. Includes the code text and an optional
-/// language identifier. Syntax highlighting can be implemented later based
-/// on this language string.
-@immutable
+/// Data classes for complex block types
 class CodeBlockData {
-  const CodeBlockData({required this.code, this.language});
+  const CodeBlockData({
+    required this.code,
+    this.language,
+  });
 
   final String code;
   final String? language;
 
-  CodeBlockData copyWith({String? code, String? language}) {
+  CodeBlockData copyWith({
+    String? code,
+    String? language,
+  }) {
     return CodeBlockData(
       code: code ?? this.code,
       language: language ?? this.language,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CodeBlockData &&
+        other.code == code &&
+        other.language == language;
+  }
+
+  @override
+  int get hashCode => Object.hash(code, language);
 }
 
-/// Data model for table blocks. A table is represented as a list of rows,
-/// where each row is a list of cell strings. All rows should have the same
-/// length. Editing of tables is handled in the UI layer.
-@immutable
+/// Table block data class
 class TableBlockData {
-  const TableBlockData({required this.rows});
+  const TableBlockData({
+    required this.headers,
+    required this.rows,
+  });
 
+  final List<String> headers;
   final List<List<String>> rows;
 
-  TableBlockData copyWith({List<List<String>>? rows}) {
-    return TableBlockData(rows: rows ?? this.rows);
+  TableBlockData copyWith({
+    List<String>? headers,
+    List<List<String>>? rows,
+  }) {
+    return TableBlockData(
+      headers: headers ?? this.headers,
+      rows: rows ?? this.rows,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TableBlockData &&
+        _listEquals(other.headers, headers) &&
+        _listOfListsEquals(other.rows, rows);
+  }
+
+  @override
+  int get hashCode => Object.hash(headers, rows);
+
+  bool _listEquals<T>(List<T>? a, List<T>? b) {
+    if (a == null) return b == null;
+    if (b == null || a.length != b.length) return false;
+    for (int index = 0; index < a.length; index += 1) {
+      if (a[index] != b[index]) return false;
+    }
+    return true;
+  }
+
+  bool _listOfListsEquals(List<List<String>>? a, List<List<String>>? b) {
+    if (a == null) return b == null;
+    if (b == null || a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (!_listEquals(a[i], b[i])) return false;
+    }
+    return true;
   }
 }
 
-/// Data model for attachment blocks. An attachment consists of a file name
-/// (used as a label) and a URL pointing to the uploaded file. When
-/// serialized to Markdown, attachments are represented using the image
-/// syntax: `![filename](url)`.
-@immutable
-class AttachmentBlockData {
-  const AttachmentBlockData({required this.filename, required this.url});
+/// Todo block data class
+class TodoBlockData {
+  const TodoBlockData({
+    required this.text,
+    required this.isCompleted,
+  });
 
-  /// The label or file name shown to the user.
-  final String filename;
+  final String text;
+  final bool isCompleted;
 
-  /// The remote URL of the attachment (e.g. in Supabase Storage).
-  final String url;
-
-  AttachmentBlockData copyWith({String? filename, String? url}) {
-    return AttachmentBlockData(
-      filename: filename ?? this.filename,
-      url: url ?? this.url,
+  TodoBlockData copyWith({
+    String? text,
+    bool? isCompleted,
+  }) {
+    return TodoBlockData(
+      text: text ?? this.text,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TodoBlockData &&
+        other.text == text &&
+        other.isCompleted == isCompleted;
+  }
+
+  @override
+  int get hashCode => Object.hash(text, isCompleted);
+}
+
+/// Attachment block data class
+class AttachmentBlockData {
+  const AttachmentBlockData({
+    required this.fileName,
+    required this.fileSize,
+    required this.mimeType,
+    this.url,
+    this.localPath,
+    this.thumbnailUrl,
+    this.description,
+  });
+
+  final String fileName;
+  final int fileSize;
+  final String mimeType;
+  final String? url;
+  final String? localPath;
+  final String? thumbnailUrl;
+  final String? description;
+
+  AttachmentBlockData copyWith({
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
+    String? url,
+    String? localPath,
+    String? thumbnailUrl,
+    String? description,
+  }) {
+    return AttachmentBlockData(
+      fileName: fileName ?? this.fileName,
+      fileSize: fileSize ?? this.fileSize,
+      mimeType: mimeType ?? this.mimeType,
+      url: url ?? this.url,
+      localPath: localPath ?? this.localPath,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      description: description ?? this.description,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AttachmentBlockData &&
+        other.fileName == fileName &&
+        other.fileSize == fileSize &&
+        other.mimeType == mimeType &&
+        other.url == url &&
+        other.localPath == localPath &&
+        other.thumbnailUrl == thumbnailUrl &&
+        other.description == description;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        fileName,
+        fileSize,
+        mimeType,
+        url,
+        localPath,
+        thumbnailUrl,
+        description,
+      );
 }

@@ -2,66 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:duru_notes_app/services/share_service.dart';
-import 'package:duru_notes_app/ui/auth_screen.dart';
-import 'package:duru_notes_app/ui/home_screen.dart';
+import '../ui/auth_screen.dart';
+import '../ui/notes_list_screen.dart';
 
+/// Main application widget with authentication flow
 class App extends ConsumerWidget {
-  const App({this.navigatorKey, super.key});
-  
   final GlobalKey<NavigatorState>? navigatorKey;
+
+  const App({
+    super.key,
+    this.navigatorKey,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Duru Notes',
       navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C5CE7)),
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
       ),
-      home: ShareAwareWrapper(ref: ref),
+      home: const AuthWrapper(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class ShareAwareWrapper extends StatefulWidget {
-  const ShareAwareWrapper({required this.ref, super.key});
-  
-  final WidgetRef ref;
-
-  @override
-  State<ShareAwareWrapper> createState() => _ShareAwareWrapperState();
-}
-
-class _ShareAwareWrapperState extends State<ShareAwareWrapper> {
-  late ShareService _shareService;
-
-  @override
-  void initState() {
-    super.initState();
-    _shareService = widget.ref.read(shareServiceProvider);
-    // Initialize share service after the first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _shareService.initialize(context);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _shareService.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const AuthWrapper();
-  }
-}
-
+/// Wrapper that handles authentication state
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
 
@@ -70,11 +43,23 @@ class AuthWrapper extends ConsumerWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        // Show loading while checking auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // Check if user is authenticated
         final session = snapshot.hasData ? snapshot.data!.session : null;
         
         if (session != null) {
-          return const HomeScreen();
+          // User is authenticated - show main app
+          return const NotesListScreen();
         } else {
+          // User is not authenticated - show login screen
           return const AuthScreen();
         }
       },

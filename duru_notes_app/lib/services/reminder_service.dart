@@ -1,339 +1,411 @@
-import 'dart:convert';
-import 'dart:io';
-
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:timezone/timezone.dart' as tz;
-
 import '../core/monitoring/app_logger.dart';
-import '../data/local/app_db.dart';
 import 'analytics/analytics_service.dart';
-import 'analytics/analytics_sentry.dart';
 
-/// Service for scheduling and managing local notifications for note reminders.
-/// 
-/// Handles:
-/// - Notification permissions
-/// - Scheduling time-based reminders 
-/// - Canceling reminders
-/// - Deep link payload for routing to notes
-class ReminderService {
-  ReminderService(this._plugin, this._db);
+/// Reminder types supported by the app
+enum ReminderType {
+  once,
+  daily,
+  weekly,
+  monthly,
+}
 
-  final FlutterLocalNotificationsPlugin _plugin;
-  final AppDb _db;
-  
-  static const String _channelId = 'notes_reminders';
-  static const String _channelName = 'Notes Reminders';
-  static const String _channelDescription = 'Reminders for your notes';
-  
-  bool _initialized = false;
-  
-  /// Initialize the service and create notification channels
-  Future<void> init() async {
-    if (_initialized) return;
-    
-    try {
-      // Android notification channel
-      const androidChannel = AndroidNotificationChannel(
-        _channelId,
-        _channelName,
-        description: _channelDescription,
-        importance: Importance.high,
-        playSound: true,
-        enableVibration: true,
-      );
-      
-      // Create the channel
-      await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(androidChannel);
-      
-      _initialized = true;
-      
-      logger.info('ReminderService initialized');
-      analytics.event('app.feature_enabled', properties: {
-        'feature': 'reminders',
-      });
-      
-    } catch (e, stack) {
-      logger.error('Failed to initialize ReminderService', error: e, stackTrace: stack);
-      analytics.event('reminder.init_error', properties: {
-        'error': e.toString(),
-      });
-      rethrow;
-    }
-  }
-  
-  /// Request notification permissions
-  Future<bool> requestPermissions() async {
-    try {
-      bool granted = false;
-      
-      if (Platform.isIOS) {
-        // iOS permissions
-        final result = await _plugin
-            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-            ?.requestPermissions(
-              alert: true,
-              badge: true,
-              sound: true,
-            );
-        granted = result ?? false;
-      } else if (Platform.isAndroid) {
-        // Android 13+ permissions
-        final status = await Permission.notification.request();
-        granted = status.isGranted;
-      }
-      
-      logger.info('Notification permission requested', data: {
-        'granted': granted,
-        'platform': Platform.operatingSystem,
-      });
-      
-      analytics.event(
-        granted ? AnalyticsEvents.reminderPermissionGranted : AnalyticsEvents.reminderPermissionDenied,
-        properties: {'platform': Platform.operatingSystem},
-      );
-      
-      return granted;
-    } catch (e, stack) {
-      logger.error('Failed to request notification permissions', error: e, stackTrace: stack);
-      analytics.event('reminder.permission_error', properties: {
-        'error': e.toString(),
-      });
-      return false;
-    }
-  }
-  
-  /// Check if notification permissions are granted
-  Future<bool> hasPermissions() async {
-    try {
-      if (Platform.isIOS) {
-        // For iOS, we need to check via the plugin
-        // This is a simplified check - in real app you might want to store the permission state
-        return true; // Assume granted for now - iOS will show permission dialog if needed
-      } else if (Platform.isAndroid) {
-        final status = await Permission.notification.status;
-        return status.isGranted;
-      }
-      return true;
-    } catch (e) {
-      logger.warn('Failed to check notification permissions', error: e);
-      return false;
-    }
-  }
-  
-  /// Schedule a reminder notification
-  Future<bool> schedule({
-    required String noteId,
-    required DateTime remindAtUtc,
+/// Reminder data class
+class Reminder {
+  final String id;
+  final String noteId;
+  final String title;
+  final String? body;
+  final DateTime scheduledTime;
+  final ReminderType type;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime? completedAt;
+
+  const Reminder({
+    required this.id,
+    required this.noteId,
+    required this.title,
+    this.body,
+    required this.scheduledTime,
+    required this.type,
+    this.isActive = true,
+    required this.createdAt,
+    this.completedAt,
+  });
+
+  Reminder copyWith({
+    String? id,
+    String? noteId,
     String? title,
     String? body,
-  }) async {
-    if (!_initialized) {
-      throw StateError('ReminderService not initialized. Call init() first.');
-    }
-    
-    try {
-      // Check permissions
-      if (!await hasPermissions()) {
-        logger.warn('Cannot schedule reminder - no permissions');
-        analytics.event(AnalyticsEvents.reminderPermissionDenied);
-        return false;
-      }
-      
-      // Check if time is in the future
-      if (remindAtUtc.isBefore(DateTime.now().toUtc())) {
-        logger.warn('Cannot schedule reminder - time is in the past');
-        analytics.event('reminder.schedule_past_time');
-        return false;
-      }
-      
-      // Generate stable notification ID from noteId
-      final notificationId = _generateNotificationId(noteId);
-      
-      // Create notification payload
-      final payload = jsonEncode({'noteId': noteId});
-      
-      // Convert UTC to device timezone for scheduling
-      final localTime = tz.TZDateTime.from(remindAtUtc, tz.local);
-      
-      // Schedule the notification
-      await _plugin.zonedSchedule(
-        notificationId,
-        title ?? 'Note Reminder',
-        body ?? 'You have a note reminder',
-        localTime,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: _channelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: payload,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.dateAndTime,
+    DateTime? scheduledTime,
+    ReminderType? type,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? completedAt,
+  }) {
+    return Reminder(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      scheduledTime: scheduledTime ?? this.scheduledTime,
+      type: type ?? this.type,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Reminder &&
+        other.id == id &&
+        other.noteId == noteId &&
+        other.title == title &&
+        other.body == body &&
+        other.scheduledTime == scheduledTime &&
+        other.type == type &&
+        other.isActive == isActive &&
+        other.createdAt == createdAt &&
+        other.completedAt == completedAt;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        noteId,
+        title,
+        body,
+        scheduledTime,
+        type,
+        isActive,
+        createdAt,
+        completedAt,
       );
-      
-      logger.info('Reminder scheduled successfully', data: {
-        'noteId': noteId,
-        'remindAt': remindAtUtc.toIso8601String(),
-        'localTime': localTime.toIso8601String(),
-        'notificationId': notificationId,
+}
+
+/// Service for managing note reminders and notifications
+class ReminderService {
+  ReminderService({
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
+
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
+
+  /// Initialize the notification system
+  Future<bool> initialize() async {
+    if (_isInitialized) return true;
+
+    try {
+      _analytics.startTiming('reminder_service_init');
+
+      // Check notification permissions
+      final notificationPermission = await Permission.notification.status;
+      if (notificationPermission.isDenied) {
+        final granted = await Permission.notification.request();
+        if (!granted.isGranted) {
+          _logger.warning('Notification permission denied');
+          return false;
+        }
+      }
+
+      // Initialize platform-specific settings
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestSoundPermission: true,
+        requestBadgePermission: true,
+        requestAlertPermission: true,
+      );
+
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+
+      // Initialize the notification plugin
+      final initialized = await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+
+      if (!initialized) {
+        throw Exception('Failed to initialize notifications');
+      }
+
+      _isInitialized = true;
+
+      _analytics.endTiming('reminder_service_init', properties: {
+        'success': true,
       });
-      
-      analytics.event(AnalyticsEvents.reminderScheduled, properties: {
-        'hoursFromNow': remindAtUtc.difference(DateTime.now().toUtc()).inHours,
-      });
-      
+
+      _logger.info('Reminder service initialized successfully');
       return true;
+    } catch (e) {
+      _logger.error('Failed to initialize reminder service', error: e);
       
-    } catch (e, stack) {
-      logger.error('Failed to schedule reminder', error: e, stackTrace: stack, data: {
-        'noteId': noteId,
-        'remindAt': remindAtUtc.toIso8601String(),
-      });
-      
-      analytics.event('reminder.schedule_error', properties: {
+      _analytics.endTiming('reminder_service_init', properties: {
+        'success': false,
         'error': e.toString(),
       });
       
       return false;
     }
   }
-  
-  /// Cancel a scheduled reminder
-  Future<void> cancel(String noteId) async {
-    try {
-      final notificationId = _generateNotificationId(noteId);
-      await _plugin.cancel(notificationId);
-      
-      logger.info('Reminder canceled', data: {
-        'noteId': noteId,
-        'notificationId': notificationId,
-      });
-      
-      analytics.event(AnalyticsEvents.reminderCanceled);
-      
-    } catch (e, stack) {
-      logger.error('Failed to cancel reminder', error: e, stackTrace: stack, data: {
-        'noteId': noteId,
-      });
-      
-      analytics.event('reminder.cancel_error', properties: {
-        'error': e.toString(),
-      });
+
+  /// Schedule a reminder notification
+  Future<bool> scheduleReminder(Reminder reminder) async {
+    if (!_isInitialized && !await initialize()) {
+      return false;
     }
-  }
-  
-  /// Cancel all scheduled notifications
-  Future<void> cancelAll() async {
+
     try {
-      await _plugin.cancelAll();
+      _analytics.startTiming('schedule_reminder');
+
+      final notificationId = reminder.id.hashCode;
       
-      logger.info('All reminders canceled');
-      analytics.event('reminder.canceled_all');
-      
-    } catch (e, stack) {
-      logger.error('Failed to cancel all reminders', error: e, stackTrace: stack);
-      analytics.event('reminder.cancel_all_error', properties: {
-        'error': e.toString(),
+      // Create notification details
+      final androidDetails = AndroidNotificationDetails(
+        'reminders',
+        'Note Reminders',
+        channelDescription: 'Reminders for your notes',
+        importance: Importance.high,
+        priority: Priority.high,
+        ticker: 'Note Reminder',
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      // Schedule the notification
+      await _notifications.zonedSchedule(
+        notificationId,
+        reminder.title,
+        reminder.body ?? 'Tap to view your note',
+        _convertToTZDateTime(reminder.scheduledTime),
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.wallClockTime,
+        payload: reminder.noteId,
+      );
+
+      _analytics.endTiming('schedule_reminder', properties: {
+        'success': true,
+        'reminder_type': reminder.type.name,
       });
-    }
-  }
-  
-  /// Cancel reminders for deleted notes
-  Future<void> cancelAllForDeletedNotes(Set<String> deletedNoteIds) async {
-    try {
-      for (final noteId in deletedNoteIds) {
-        await cancel(noteId);
-      }
-      
-      logger.info('Canceled reminders for deleted notes', data: {
-        'count': deletedNoteIds.length,
+
+      _analytics.featureUsed('reminder_scheduled', properties: {
+        'type': reminder.type.name,
+        'has_body': reminder.body != null,
       });
-      
-      analytics.event('reminder.cleanup_deleted', properties: {
-        'count': deletedNoteIds.length,
+
+      _logger.info('Reminder scheduled successfully', data: {
+        'reminder_id': reminder.id,
+        'note_id': reminder.noteId,
+        'scheduled_time': reminder.scheduledTime.toIso8601String(),
       });
-      
-    } catch (e, stack) {
-      logger.error('Failed to cancel reminders for deleted notes', error: e, stackTrace: stack);
-    }
-  }
-  
-  /// Reschedule all reminders (useful after timezone changes)
-  Future<void> rescheduleAll() async {
-    try {
-      // Get all reminders from database
-      final reminders = await _db.getAllReminders();
-      
-      // Cancel all existing notifications
-      await cancelAll();
-      
-      // Reschedule each one
-      for (final reminder in reminders) {
-        // Get note details for notification content
-        final note = await _db.findNote(reminder.noteId);
-        if (note != null && !note.deleted) {
-          await schedule(
-            noteId: reminder.noteId,
-            remindAtUtc: reminder.remindAt,
-            title: 'Note Reminder',
-            body: note.title.isNotEmpty ? note.title : 'You have a note reminder',
-          );
-        }
-      }
-      
-      logger.info('Rescheduled all reminders', data: {
-        'count': reminders.length,
-      });
-      
-      analytics.event('reminder.rescheduled_all', properties: {
-        'count': reminders.length,
-      });
-      
-    } catch (e, stack) {
-      logger.error('Failed to reschedule all reminders', error: e, stackTrace: stack);
-    }
-  }
-  
-  /// Generate a stable notification ID from noteId
-  int _generateNotificationId(String noteId) {
-    // Use hashCode for a stable integer ID
-    return noteId.hashCode.abs();
-  }
-  
-  /// Get pending notifications (for debugging)
-  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    try {
-      return await _plugin.pendingNotificationRequests();
+
+      return true;
     } catch (e) {
-      logger.warn('Failed to get pending notifications', error: e);
+      _logger.error('Failed to schedule reminder', error: e, data: {
+        'reminder_id': reminder.id,
+        'note_id': reminder.noteId,
+      });
+
+      _analytics.endTiming('schedule_reminder', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+
+      return false;
+    }
+  }
+
+  /// Cancel a scheduled reminder
+  Future<bool> cancelReminder(String reminderId) async {
+    if (!_isInitialized) return false;
+
+    try {
+      final notificationId = reminderId.hashCode;
+      await _notifications.cancel(notificationId);
+
+      _analytics.featureUsed('reminder_cancelled');
+      
+      _logger.info('Reminder cancelled', data: {
+        'reminder_id': reminderId,
+      });
+
+      return true;
+    } catch (e) {
+      _logger.error('Failed to cancel reminder', error: e, data: {
+        'reminder_id': reminderId,
+      });
+      return false;
+    }
+  }
+
+  /// Get all pending notifications
+  Future<List<PendingNotificationRequest>> getPendingReminders() async {
+    if (!_isInitialized) return [];
+
+    try {
+      return await _notifications.pendingNotificationRequests();
+    } catch (e) {
+      _logger.error('Failed to get pending reminders', error: e);
       return [];
     }
   }
+
+  /// Cancel all reminders
+  Future<void> cancelAllReminders() async {
+    if (!_isInitialized) return;
+
+    try {
+      await _notifications.cancelAll();
+      _analytics.featureUsed('all_reminders_cancelled');
+      _logger.info('All reminders cancelled');
+    } catch (e) {
+      _logger.error('Failed to cancel all reminders', error: e);
+    }
+  }
+
+  /// Show immediate notification (for testing)
+  Future<void> showImmediateNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (!_isInitialized && !await initialize()) {
+      return;
+    }
+
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'general',
+        'General Notifications',
+        channelDescription: 'General app notifications',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+
+      _analytics.featureUsed('immediate_notification_shown');
+    } catch (e) {
+      _logger.error('Failed to show immediate notification', error: e);
+    }
+  }
+
+  /// Handle notification tap
+  void _onNotificationTapped(NotificationResponse response) {
+    final payload = response.payload;
+    
+    _analytics.featureUsed('notification_tapped', properties: {
+      'has_payload': payload != null,
+    });
+
+    _logger.info('Notification tapped', data: {
+      'payload': payload,
+      'notification_id': response.id,
+    });
+
+    // TODO: Navigate to the specific note
+    // This would typically involve using a navigator or routing system
+  }
+
+  /// Convert DateTime to TZDateTime (simplified)
+  dynamic _convertToTZDateTime(DateTime dateTime) {
+    // This is a simplified implementation
+    // In a real app, you'd use the timezone package for proper timezone handling
+    return dateTime;
+  }
+
+  /// Check if notifications are enabled
+  Future<bool> areNotificationsEnabled() async {
+    final status = await Permission.notification.status;
+    return status.isGranted;
+  }
+
+  /// Request notification permissions
+  Future<bool> requestNotificationPermissions() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  /// Create a quick reminder (in X minutes)
+  Future<bool> scheduleQuickReminder({
+    required String noteId,
+    required String title,
+    required int minutesFromNow,
+    String? body,
+  }) async {
+    final scheduledTime = DateTime.now().add(Duration(minutes: minutesFromNow));
+    
+    final reminder = Reminder(
+      id: 'quick_${DateTime.now().millisecondsSinceEpoch}',
+      noteId: noteId,
+      title: title,
+      body: body,
+      scheduledTime: scheduledTime,
+      type: ReminderType.once,
+      createdAt: DateTime.now(),
+    );
+
+    return await scheduleReminder(reminder);
+  }
+
+  /// Get reminder type display name
+  static String getReminderTypeDisplayName(ReminderType type) {
+    switch (type) {
+      case ReminderType.once:
+        return 'Once';
+      case ReminderType.daily:
+        return 'Daily';
+      case ReminderType.weekly:
+        return 'Weekly';
+      case ReminderType.monthly:
+        return 'Monthly';
+    }
+  }
+
+  /// Dispose of resources
+  void dispose() {
+    // Clean up resources if needed
+  }
 }
-
-/// Provider for ReminderService
-final reminderServiceProvider = Provider<ReminderService>((ref) {
-  final plugin = FlutterLocalNotificationsPlugin();
-  final db = ref.read(appDbProvider);
-  return ReminderService(plugin, db);
-});
-
-/// Provider for the database
-final appDbProvider = Provider<AppDb>((ref) {
-  return AppDb();
-});

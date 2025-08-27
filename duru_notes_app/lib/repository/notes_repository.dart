@@ -1,7 +1,7 @@
-import 'package:duru_notes_app/core/crypto/crypto_box.dart';
-import 'package:duru_notes_app/core/parser/note_indexer.dart';
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/data/remote/supabase_note_api.dart';
+import '../core/crypto/crypto_box.dart';
+import '../core/parser/note_indexer.dart';
+import '../data/local/app_db.dart';
+import '../data/remote/supabase_note_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 

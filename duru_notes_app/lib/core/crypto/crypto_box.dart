@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
-import 'package:duru_notes_app/core/crypto/key_manager.dart';
+import 'key_manager.dart';
 
 class CryptoBox {
   CryptoBox(this._keys);
