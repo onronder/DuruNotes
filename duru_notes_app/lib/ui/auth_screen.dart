@@ -1,18 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:duru_notes_app/core/config/environment_config.dart';
-import 'package:duru_notes_app/core/crypto/key_manager.dart';
-import 'package:duru_notes_app/core/security/password_validator.dart';
-import 'package:duru_notes_app/core/security/password_history_service.dart';
-import 'package:duru_notes_app/core/auth/auth_service.dart';
-import 'package:duru_notes_app/core/monitoring/app_logger.dart';
-import 'package:duru_notes_app/services/analytics/analytics_service.dart';
-import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
-import 'package:duru_notes_app/ui/widgets/password_strength_meter.dart';
-
+/// Authentication screen for user login/signup
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
@@ -24,205 +14,57 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _passwordValidator = PasswordValidator();
-  final _passwordHistoryService = PasswordHistoryService();
-  final _authService = AuthService();
-  
   bool _isLoading = false;
   bool _isSignUp = false;
-  bool _showPassword = false;
-  String? _errorMessage;
-  PasswordValidationResult? _passwordValidation;
-  int? _attemptsRemaining;
-  Duration? _lockoutDuration;
-
-  @override
-  void initState() {
-    super.initState();
-    _passwordController.addListener(_onPasswordChanged);
-    
-    // Track screen view
-    analytics.screen('AuthScreen');
-    logger.breadcrumb('AuthScreen opened');
-  }
 
   @override
   void dispose() {
-    _passwordController.removeListener(_onPasswordChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _onPasswordChanged() {
-    if (_isSignUp) {
-      setState(() {
-        _passwordValidation = _passwordValidator.validatePassword(_passwordController.text);
-      });
-    }
-  }
-
-  Future<void> _handleAuth() async {
+  Future<void> _authenticate() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Additional password validation for sign up
-    if (_isSignUp) {
-      final validation = _passwordValidator.validatePassword(_passwordController.text);
-      if (!validation.isValid) {
-        setState(() {
-          _errorMessage = 'Password does not meet security requirements. Please improve your password strength.';
-        });
-        return;
-      }
-      
-      // Check password reuse for existing users (password reset scenario)
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser != null) {
-        final isReused = await _passwordHistoryService.isPasswordReused(
-          currentUser.id, 
-          _passwordController.text,
-        );
-        if (isReused) {
-          setState(() {
-            _errorMessage = 'You cannot reuse a previous password. Please choose a different password.';
-          });
-          return;
-        }
-      }
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      AuthResult result;
-      
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
       if (_isSignUp) {
-        // Track signup attempt
-        analytics.event(AnalyticsEvents.authSignupAttempt, properties: {
-          'password_strength': _passwordValidation?.strength.name ?? 'unknown',
-          'has_email': _emailController.text.trim().isNotEmpty,
-        });
-        logger.info('User signup attempt', data: {
-          'has_email': _emailController.text.trim().isNotEmpty,
-        });
-        
-        // Sign up with basic retry
-        result = await _authService.signUpWithRetry(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+        await Supabase.instance.client.auth.signUp(
+          email: email,
+          password: password,
         );
         
-        if (result.success && result.user != null) {
-          // Store password hash in history for future reference
-          await _passwordHistoryService.storePasswordHash(
-            result.user!.id, 
-            _passwordController.text,
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Check your email to confirm your account!'),
+              backgroundColor: Colors.green,
+            ),
           );
-          
-          // Initialize encryption key for new user
-          final keyManager = KeyManager();
-          await keyManager.getOrCreateMasterKey(result.user!.id);
-          
-          // Track successful signup
-          analytics.event(AnalyticsEvents.authSignupSuccess, properties: {
-            'user_id': result.user!.id,
-            'password_strength': _passwordValidation?.strength.name ?? 'unknown',
-          });
-          analytics.setUser(result.user!.id);
-          logger.info('User signup successful', data: {
-            'user_id': result.user!.id,
-          });
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Account created successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
         }
       } else {
-        // Track login attempt
-        analytics.event(AnalyticsEvents.authLoginAttempt, properties: {
-          'has_email': _emailController.text.trim().isNotEmpty,
-        });
-        logger.info('User login attempt', data: {
-          'has_email': _emailController.text.trim().isNotEmpty,
-        });
-        
-        // Sign in with enhanced retry and rate limiting
-        result = await _authService.signInWithRetry(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          enableRetry: true,
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
         );
-        
-        if (result.success && result.user != null) {
-          // Initialize encryption key for existing user
-          final keyManager = KeyManager();
-          await keyManager.getOrCreateMasterKey(result.user!.id);
-          
-          // Track successful login
-          analytics.event(AnalyticsEvents.authLoginSuccess, properties: {
-            'user_id': result.user!.id,
-          });
-          analytics.setUser(result.user!.id);
-          logger.info('User login successful', data: {
-            'user_id': result.user!.id,
-          });
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Signed in successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        }
       }
-      
-      // Handle authentication result
-      if (!result.success) {
-        // Track authentication failure
-        final eventName = _isSignUp ? AnalyticsEvents.authSignupFailure : AnalyticsEvents.authLoginFailure;
-        analytics.event(eventName, properties: {
-          'error_type': result.error?.split(':')[0] ?? 'unknown',
-          'attempts_remaining': result.attemptsRemaining,
-          'has_lockout': result.lockoutDuration != null,
-        });
-        logger.warn('Authentication failed', data: {
-          'is_signup': _isSignUp,
-          'error': result.error,
-          'attempts_remaining': result.attemptsRemaining,
-        });
-        
-        setState(() {
-          _errorMessage = result.error;
-          _attemptsRemaining = result.attemptsRemaining;
-          _lockoutDuration = result.lockoutDuration;
-        });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-      
-    } catch (e) {
-      // Log error for debugging but don't expose details to user
-      if (kDebugMode) {
-        print('Auth error: $e');
-      }
-      setState(() {
-        _errorMessage = 'An unexpected error occurred. Please try again.';
-        _attemptsRemaining = null;
-        _lockoutDuration = null;
-      });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -239,41 +81,46 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // App Title
+                // App Logo and Title
+                const Icon(
+                  Icons.note_alt,
+                  size: 80,
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Duru Notes',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
                   textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Secure, encrypted note-taking',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+                  'Your secure note-taking companion',
                   textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
                 ),
                 const SizedBox(height: 48),
 
                 // Email Field
                 TextFormField(
-                  key: const Key('email_field'),
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
+                  enabled: !_isLoading,
                   decoration: const InputDecoration(
                     labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Email is required';
                     }
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+                    if (!value.contains('@')) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -283,194 +130,132 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                 // Password Field
                 TextFormField(
-                  key: const Key('password_field'),
                   controller: _passwordController,
-                  obscureText: !_showPassword,
-                  decoration: InputDecoration(
+                  obscureText: true,
+                  enabled: !_isLoading,
+                  decoration: const InputDecoration(
                     labelText: 'Password',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showPassword = !_showPassword;
-                        });
-                      },
-                    ),
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Password is required';
                     }
-                    
-                    // Enhanced validation for sign up
-                    if (_isSignUp) {
-                      final validation = _passwordValidator.validatePassword(value);
-                      if (!validation.isValid) {
-                        return 'Password must meet security requirements';
-                      }
-                    } else {
-                      // Basic validation for sign in
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
+                    if (_isSignUp && value.length < 6) {
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
-                
-                // Password Strength Meter (only for sign up)
-                if (_isSignUp && _passwordValidation != null) ...[
-                  const SizedBox(height: 16),
-                  PasswordStrengthMeter(
-                    validationResult: _passwordValidation!,
-                    showCriteria: true,
-                    showScore: false,
-                  ),
-                ],
                 const SizedBox(height: 24),
 
-                // Error Message with Rate Limiting Info
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                // Auth Button
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _authenticate,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              _lockoutDuration != null 
-                                  ? Icons.lock_outline 
-                                  : Icons.error_outline,
-                              color: Theme.of(context).colorScheme.error,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Additional security info
-                        if (_attemptsRemaining != null && _attemptsRemaining! > 0 && !_isSignUp) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            '⚠️ $_attemptsRemaining login attempts remaining',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                        
-                        if (_lockoutDuration != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.timer_outlined,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Account temporarily locked for security',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Submit Button
-                FilledButton(
-                  onPressed: _isLoading ? null : _handleAuth,
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(_isSignUp ? 'Create Account' : 'Sign In'),
+                      : Text(
+                          _isSignUp ? 'Sign Up' : 'Sign In',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                 ),
                 const SizedBox(height: 16),
 
-                // Toggle Mode
+                // Toggle between Sign In/Sign Up
                 TextButton(
                   onPressed: _isLoading
                       ? null
-                      : () {
-                          setState(() {
-                            _isSignUp = !_isSignUp;
-                            _errorMessage = null;
-                            // Trigger password validation if switching to sign up
-                            if (_isSignUp && _passwordController.text.isNotEmpty) {
-                              _passwordValidation = _passwordValidator.validatePassword(_passwordController.text);
-                            } else {
-                              _passwordValidation = null;
-                            }
-                          });
-                        },
+                      : () => setState(() => _isSignUp = !_isSignUp),
                   child: Text(
                     _isSignUp
                         ? 'Already have an account? Sign In'
                         : 'Don\'t have an account? Sign Up',
                   ),
                 ),
-                
-                // Test Sentry (Development only)
-                if (EnvironmentConfig.debugMode) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      // Force a test crash for Sentry
-                      analytics.event('test_crash_initiated');
-                      logger.info('User initiated test crash for Sentry');
-                      throw Exception('Test crash for Sentry - this is intentional!');
-                    },
-                    child: const Text(
-                      'Test Crash (Dev)',
-                      style: TextStyle(fontSize: 12, color: Colors.orange),
-                    ),
+
+                const SizedBox(height: 32),
+
+                // Features Preview
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
                   ),
-                ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Features:',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const _FeatureItem(
+                        icon: Icons.security,
+                        text: 'End-to-end encryption',
+                      ),
+                      const _FeatureItem(
+                        icon: Icons.upload_file,
+                        text: 'Import from Markdown, Evernote, Obsidian',
+                      ),
+                      const _FeatureItem(
+                        icon: Icons.sync,
+                        text: 'Cloud sync across devices',
+                      ),
+                      const _FeatureItem(
+                        icon: Icons.search,
+                        text: 'Powerful search capabilities',
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _FeatureItem({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.blue),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
       ),
     );
   }

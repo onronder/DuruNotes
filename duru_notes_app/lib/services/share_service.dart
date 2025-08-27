@@ -1,326 +1,481 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import '../data/local/app_db.dart';
+import '../core/monitoring/app_logger.dart';
+import 'analytics/analytics_service.dart';
 
-import 'package:duru_notes_app/models/note_block.dart';
-import 'package:duru_notes_app/services/attachment_service.dart';
-import 'package:duru_notes_app/services/ocr_service.dart';
-import 'package:duru_notes_app/ui/edit_note_screen.dart';
+/// Share formats supported by the app
+enum ShareFormat {
+  plainText,
+  markdown,
+  html,
+  json,
+}
 
-/// Service to handle shared content from other apps via Android share sheet.
-/// Supports text content and images (with optional OCR processing).
+/// Share options for customizing the sharing experience
+class ShareOptions {
+  final ShareFormat format;
+  final bool includeTitle;
+  final bool includeMetadata;
+  final String? customSubject;
+  
+  const ShareOptions({
+    this.format = ShareFormat.markdown,
+    this.includeTitle = true,
+    this.includeMetadata = false,
+    this.customSubject,
+  });
+}
+
+/// Service for sharing notes via various methods
 class ShareService {
-  ShareService({required this.ref});
+  ShareService({
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
-  final Ref ref;
-  StreamSubscription<List<SharedMediaFile>>? _intentDataStreamSubscription;
-  StreamSubscription<List<SharedMediaFile>>? _intentTextStreamSubscription;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
 
-  /// Initialize the share service and start listening for shared content
-  void initialize(BuildContext context) {
-    // Listen for shared media files (images, etc.)
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen(
-      (List<SharedMediaFile> files) {
-        if (files.isNotEmpty) {
-          _handleSharedMedia(context, files);
-        }
-      },
-      onError: (Object err) {
-        debugPrint('Share service media error: $err');
-      },
-    );
+  /// Share a single note
+  Future<bool> shareNote(
+    LocalNote note, {
+    ShareOptions options = const ShareOptions(),
+  }) async {
+    try {
+      _analytics.startTiming('share_note');
 
-    // Listen for shared text
-    _intentTextStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen(
-      (List<SharedMediaFile> files) {
-        // Check if any file contains text content
-        for (final file in files) {
-          if (file.type == SharedMediaType.text) {
-            _handleSharedText(context, file.path);
-          }
-        }
-      },
-      onError: (Object err) {
-        debugPrint('Share service text error: $err');
-      },
-    );
+      final content = _formatNoteContent(note, options);
+      final subject = options.customSubject ?? note.title.isNotEmpty 
+          ? note.title 
+          : 'Shared Note';
 
-    // Handle initial shared content when app is launched via share
-    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> files) {
-      if (files.isNotEmpty) {
-        _handleSharedMedia(context, files);
+      // Use platform share if available, otherwise copy to clipboard
+      if (await _canUseNativeShare()) {
+        await _shareViaNativeShare(content, subject);
+      } else {
+        await _shareViaClipboard(content);
       }
-    });
 
-    // Text sharing is handled through getInitialMedia for this package version
+      _analytics.endTiming('share_note', properties: {
+        'success': true,
+        'format': options.format.name,
+        'include_title': options.includeTitle,
+        'include_metadata': options.includeMetadata,
+      });
+
+      _analytics.featureUsed('note_shared', properties: {
+        'format': options.format.name,
+        'method': await _canUseNativeShare() ? 'native' : 'clipboard',
+      });
+
+      _logger.info('Note shared successfully', data: {
+        'note_id': note.id,
+        'format': options.format.name,
+      });
+
+      return true;
+    } catch (e) {
+      _logger.error('Failed to share note', error: e, data: {
+        'note_id': note.id,
+      });
+
+      _analytics.endTiming('share_note', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+
+      return false;
+    }
   }
 
-  /// Handle shared media files (primarily images)
-  Future<void> _handleSharedMedia(BuildContext context, List<SharedMediaFile> files) async {
-    if (!context.mounted) return;
-
+  /// Share multiple notes
+  Future<bool> shareNotes(
+    List<LocalNote> notes, {
+    ShareOptions options = const ShareOptions(),
+    String? collectionTitle,
+  }) async {
     try {
-      final blocks = <NoteBlock>[];
+      _analytics.startTiming('share_multiple_notes');
+
+      final content = _formatMultipleNotesContent(notes, options, collectionTitle);
+      final subject = collectionTitle ?? 'Shared Notes (${notes.length})';
+
+      if (await _canUseNativeShare()) {
+        await _shareViaNativeShare(content, subject);
+      } else {
+        await _shareViaClipboard(content);
+      }
+
+      _analytics.endTiming('share_multiple_notes', properties: {
+        'success': true,
+        'note_count': notes.length,
+        'format': options.format.name,
+      });
+
+      _analytics.featureUsed('multiple_notes_shared', properties: {
+        'count': notes.length,
+        'format': options.format.name,
+      });
+
+      _logger.info('Multiple notes shared successfully', data: {
+        'note_count': notes.length,
+        'format': options.format.name,
+      });
+
+      return true;
+    } catch (e) {
+      _logger.error('Failed to share multiple notes', error: e, data: {
+        'note_count': notes.length,
+      });
+
+      _analytics.endTiming('share_multiple_notes', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+
+      return false;
+    }
+  }
+
+  /// Export note as file
+  Future<String?> exportNoteAsFile(
+    LocalNote note, {
+    ShareFormat format = ShareFormat.markdown,
+    String? directory,
+  }) async {
+    try {
+      _analytics.startTiming('export_note_file');
+
+      final content = _formatNoteContent(note, ShareOptions(format: format));
+      final fileName = _generateFileName(note, format);
       
-      for (final file in files) {
-        final path = file.path;
-        if (path.isEmpty) continue;
+      // Get export directory
+      final dir = directory != null 
+          ? Directory(directory)
+          : await getApplicationDocumentsDirectory();
+      
+      final file = File(path.join(dir.path, fileName));
+      await file.writeAsString(content);
 
-        final fileExtension = path.split('.').last.toLowerCase();
-        
-        // Handle images with optional OCR
-        if (['jpg', 'jpeg', 'png', 'gif'].contains(fileExtension)) {
-          await _handleImageFile(context, path, blocks);
-        } else {
-          // Handle other file types as attachments
-          await _handleFileAsAttachment(context, path, blocks);
-        }
-      }
+      _analytics.endTiming('export_note_file', properties: {
+        'success': true,
+        'format': format.name,
+        'file_size': content.length,
+      });
 
-      if (blocks.isNotEmpty) {
-        await _createNoteWithBlocks(context, blocks, 'Shared content');
-      }
-    } on Exception catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process shared files: $e')),
-        );
-      }
-    }
-  }
+      _analytics.featureUsed('note_exported_as_file', properties: {
+        'format': format.name,
+      });
 
-  /// Handle shared text content
-  Future<void> _handleSharedText(BuildContext context, String text) async {
-    if (!context.mounted) return;
+      _logger.info('Note exported as file', data: {
+        'note_id': note.id,
+        'file_path': file.path,
+        'format': format.name,
+      });
 
-    try {
-      final blocks = [
-        NoteBlock(type: NoteBlockType.paragraph, data: text.trim()),
-      ];
-
-      await _createNoteWithBlocks(context, blocks, 'Shared text');
+      return file.path;
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process shared text: $e')),
-        );
-      }
-    }
-  }
+      _logger.error('Failed to export note as file', error: e, data: {
+        'note_id': note.id,
+      });
 
-  /// Handle image files with optional OCR processing
-  Future<void> _handleImageFile(BuildContext context, String path, List<NoteBlock> blocks) async {
-    // Show dialog asking user what to do with the image
-    final action = await _showImageActionDialog(context);
-    if (action == null) return;
+      _analytics.endTiming('export_note_file', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
 
-          switch (action) {
-        case ImageAction.attachment:
-          await _handleFileAsAttachment(context, path, blocks);
-        case ImageAction.ocr:
-          await _handleImageOCR(context, path, blocks);
-        case ImageAction.both:
-          await _handleFileAsAttachment(context, path, blocks);
-          await _handleImageOCR(context, path, blocks);
-      }
-  }
-
-  /// Show dialog asking user how to handle shared image
-  Future<ImageAction?> _showImageActionDialog(BuildContext context) async {
-    return showDialog<ImageAction>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Shared Image'),
-        content: const Text('How would you like to handle this image?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(ImageAction.attachment),
-            child: const Text('As Attachment'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(ImageAction.ocr),
-            child: const Text('Extract Text (OCR)'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(ImageAction.both),
-            child: const Text('Both'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Handle image OCR processing
-  Future<void> _handleImageOCR(BuildContext context, String path, List<NoteBlock> blocks) async {
-    try {
-      final file = File(path);
-      if (!await file.exists()) return;
-
-      final ocrService = OCRService();
-      try {
-        // Create a temporary XFile-like interface for OCR
-        final recognizedText = await _extractTextFromImageFile(file);
-        
-        if (recognizedText != null && recognizedText.trim().isNotEmpty) {
-          blocks.add(
-            NoteBlock(type: NoteBlockType.paragraph, data: recognizedText.trim()),
-          );
-        }
-      } finally {
-        ocrService.dispose();
-      }
-    } catch (e) {
-      debugPrint('OCR processing failed: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Text extraction failed')),
-        );
-      }
-    }
-  }
-
-  /// Extract text from image file using ML Kit
-  Future<String?> _extractTextFromImageFile(File file) async {
-    try {
-      final ocrService = OCRService();
-      try {
-        return await ocrService.processImageFile(file);
-      } finally {
-        ocrService.dispose();
-      }
-    } catch (e) {
-      debugPrint('OCR extraction failed: $e');
       return null;
     }
   }
 
-  /// Handle file as attachment by uploading to Supabase Storage
-  Future<void> _handleFileAsAttachment(BuildContext context, String path, List<NoteBlock> blocks) async {
+  /// Copy note to clipboard
+  Future<bool> copyToClipboard(
+    LocalNote note, {
+    ShareOptions options = const ShareOptions(),
+  }) async {
     try {
-      final file = File(path);
-      if (!await file.exists()) return;
+      final content = _formatNoteContent(note, options);
+      await _shareViaClipboard(content);
 
-      final bytes = await file.readAsBytes();
-      final filename = path.split('/').last;
+      _analytics.featureUsed('note_copied_to_clipboard', properties: {
+        'format': options.format.name,
+      });
 
-      // Upload file using enhanced AttachmentService
-      final client = Supabase.instance.client;
-      final attachmentData = await _uploadFileToStorage(
-        client, 
-        filename, 
-        bytes,
-      );
-      
-      if (attachmentData != null) {
-        blocks.add(
-          NoteBlock(type: NoteBlockType.attachment, data: attachmentData),
-        );
-      }
+      return true;
     } catch (e) {
-      debugPrint('Attachment upload failed: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload attachment: $e')),
-        );
-      }
+      _logger.error('Failed to copy note to clipboard', error: e);
+      return false;
     }
   }
 
-  /// Upload file to Supabase Storage using AttachmentService
-  Future<AttachmentBlockData?> _uploadFileToStorage(
-    SupabaseClient client,
-    String filename,
-    Uint8List bytes,
-  ) async {
-    try {
-      final attachmentService = AttachmentService(client);
-      return await attachmentService.uploadFromBytes(
-        filename: filename,
-        bytes: bytes,
-      );
-    } catch (e) {
-      debugPrint('Storage upload failed: $e');
-      return null;
+  /// Format note content based on options
+  String _formatNoteContent(LocalNote note, ShareOptions options) {
+    switch (options.format) {
+      case ShareFormat.plainText:
+        return _formatAsPlainText(note, options);
+      case ShareFormat.markdown:
+        return _formatAsMarkdown(note, options);
+      case ShareFormat.html:
+        return _formatAsHtml(note, options);
+      case ShareFormat.json:
+        return _formatAsJson(note, options);
     }
   }
 
-  /// Create a new note with the processed blocks
-  Future<void> _createNoteWithBlocks(
-    BuildContext context,
-    List<NoteBlock> blocks,
-    String defaultTitle,
-  ) async {
-    if (!context.mounted || blocks.isEmpty) return;
-
-    try {
-      // Navigate to edit screen with pre-populated content
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => EditNoteScreen(
-            initialTitle: defaultTitle,
-            initialBody: _blocksToInitialBody(blocks),
-          ),
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create note: $e')),
-        );
-      }
-    }
-  }
-
-  /// Convert blocks to initial body text for EditNoteScreen
-  String _blocksToInitialBody(List<NoteBlock> blocks) {
+  /// Format as plain text
+  String _formatAsPlainText(LocalNote note, ShareOptions options) {
     final buffer = StringBuffer();
     
-    for (final block in blocks) {
-              switch (block.type) {
-        case NoteBlockType.paragraph:
-          buffer.writeln(block.data as String);
-        case NoteBlockType.attachment:
-          final attachment = block.data as AttachmentBlockData;
-          buffer.writeln('![${attachment.filename}](${attachment.url})');
-        case NoteBlockType.heading1:
-        case NoteBlockType.heading2:
-        case NoteBlockType.heading3:
-        case NoteBlockType.todo:
-        case NoteBlockType.quote:
-        case NoteBlockType.code:
-        case NoteBlockType.table:
-          buffer.writeln(block.data.toString());
-      }
-      buffer.writeln(); // Add spacing between blocks
+    if (options.includeTitle && note.title.isNotEmpty) {
+      buffer.writeln(note.title);
+      buffer.writeln('=' * note.title.length);
+      buffer.writeln();
+    }
+    
+    buffer.writeln(note.body);
+    
+    if (options.includeMetadata) {
+      buffer.writeln();
+      buffer.writeln('---');
+      buffer.writeln('Created: ${_formatDate(note.createdAt)}');
+      buffer.writeln('Updated: ${_formatDate(note.updatedAt)}');
     }
     
     return buffer.toString().trim();
   }
 
-  /// Clean up resources
-  void dispose() {
-    _intentDataStreamSubscription?.cancel();
-    _intentTextStreamSubscription?.cancel();
+  /// Format as markdown
+  String _formatAsMarkdown(LocalNote note, ShareOptions options) {
+    final buffer = StringBuffer();
+    
+    if (options.includeTitle && note.title.isNotEmpty) {
+      buffer.writeln('# ${note.title}');
+      buffer.writeln();
+    }
+    
+    buffer.writeln(note.body);
+    
+    if (options.includeMetadata) {
+      buffer.writeln();
+      buffer.writeln('---');
+      buffer.writeln('**Created:** ${_formatDate(note.createdAt)}');
+      buffer.writeln('**Updated:** ${_formatDate(note.updatedAt)}');
+    }
+    
+    return buffer.toString().trim();
+  }
+
+  /// Format as HTML
+  String _formatAsHtml(LocalNote note, ShareOptions options) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('<!DOCTYPE html>');
+    buffer.writeln('<html>');
+    buffer.writeln('<head>');
+    buffer.writeln('<meta charset="UTF-8">');
+    if (note.title.isNotEmpty) {
+      buffer.writeln('<title>${_escapeHtml(note.title)}</title>');
+    }
+    buffer.writeln('<style>');
+    buffer.writeln('body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; }');
+    buffer.writeln('pre { background: #f5f5f5; padding: 16px; border-radius: 8px; }');
+    buffer.writeln('</style>');
+    buffer.writeln('</head>');
+    buffer.writeln('<body>');
+    
+    if (options.includeTitle && note.title.isNotEmpty) {
+      buffer.writeln('<h1>${_escapeHtml(note.title)}</h1>');
+    }
+    
+    // Simple markdown to HTML conversion
+    final htmlBody = _simpleMarkdownToHtml(note.body);
+    buffer.writeln(htmlBody);
+    
+    if (options.includeMetadata) {
+      buffer.writeln('<hr>');
+      buffer.writeln('<p><small>');
+      buffer.writeln('<strong>Created:</strong> ${_formatDate(note.createdAt)}<br>');
+      buffer.writeln('<strong>Updated:</strong> ${_formatDate(note.updatedAt)}');
+      buffer.writeln('</small></p>');
+    }
+    
+    buffer.writeln('</body>');
+    buffer.writeln('</html>');
+    
+    return buffer.toString();
+  }
+
+  /// Format as JSON
+  String _formatAsJson(LocalNote note, ShareOptions options) {
+    final data = <String, dynamic>{
+      'title': note.title,
+      'body': note.body,
+    };
+    
+    if (options.includeMetadata) {
+      data['created_at'] = note.createdAt.toIso8601String();
+      data['updated_at'] = note.updatedAt.toIso8601String();
+      data['id'] = note.id;
+    }
+    
+    // Simple JSON encoding (in a real app, use dart:convert)
+    return data.entries
+        .map((e) => '"${e.key}": "${_escapeJson(e.value.toString())}"')
+        .join(',\n  ');
+  }
+
+  /// Format multiple notes content
+  String _formatMultipleNotesContent(
+    List<LocalNote> notes,
+    ShareOptions options,
+    String? collectionTitle,
+  ) {
+    final buffer = StringBuffer();
+    
+    if (collectionTitle != null && collectionTitle.isNotEmpty) {
+      switch (options.format) {
+        case ShareFormat.markdown:
+          buffer.writeln('# $collectionTitle');
+          buffer.writeln();
+          break;
+        case ShareFormat.html:
+          buffer.writeln('<h1>${_escapeHtml(collectionTitle)}</h1>');
+          break;
+        default:
+          buffer.writeln(collectionTitle);
+          buffer.writeln('=' * collectionTitle.length);
+          buffer.writeln();
+      }
+    }
+    
+    for (int i = 0; i < notes.length; i++) {
+      final note = notes[i];
+      
+      if (i > 0) {
+        buffer.writeln();
+        buffer.writeln(options.format == ShareFormat.html ? '<hr>' : '---');
+        buffer.writeln();
+      }
+      
+      buffer.writeln(_formatNoteContent(note, options));
+    }
+    
+    return buffer.toString();
+  }
+
+  /// Check if native share is available
+  Future<bool> _canUseNativeShare() async {
+    // Simplified check - in a real app, you'd use packages like share_plus
+    return Platform.isAndroid || Platform.isIOS;
+  }
+
+  /// Share via native platform share
+  Future<void> _shareViaNativeShare(String content, String subject) async {
+    // This would use a package like share_plus in a real implementation
+    // For now, we'll just copy to clipboard
+    await _shareViaClipboard(content);
+  }
+
+  /// Share via clipboard
+  Future<void> _shareViaClipboard(String content) async {
+    await Clipboard.setData(ClipboardData(text: content));
+  }
+
+  /// Generate filename for export
+  String _generateFileName(LocalNote note, ShareFormat format) {
+    final title = note.title.isNotEmpty 
+        ? note.title.replaceAll(RegExp(r'[^\w\s-]'), '').trim()
+        : 'Note_${note.id}';
+    
+    final extension = _getFileExtension(format);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    
+    return '${title}_$timestamp.$extension';
+  }
+
+  /// Get file extension for format
+  String _getFileExtension(ShareFormat format) {
+    switch (format) {
+      case ShareFormat.plainText:
+        return 'txt';
+      case ShareFormat.markdown:
+        return 'md';
+      case ShareFormat.html:
+        return 'html';
+      case ShareFormat.json:
+        return 'json';
+    }
+  }
+
+  /// Format date for display
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Escape HTML
+  String _escapeHtml(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+  }
+
+  /// Escape JSON
+  String _escapeJson(String text) {
+    return text
+        .replaceAll('\\', '\\\\')
+        .replaceAll('"', '\\"')
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r')
+        .replaceAll('\t', '\\t');
+  }
+
+  /// Simple markdown to HTML conversion
+  String _simpleMarkdownToHtml(String markdown) {
+    var html = _escapeHtml(markdown);
+    
+    // Headers
+    html = html.replaceAllMapped(RegExp(r'^### (.+)$', multiLine: true), 
+        (match) => '<h3>${match.group(1)}</h3>');
+    html = html.replaceAllMapped(RegExp(r'^## (.+)$', multiLine: true), 
+        (match) => '<h2>${match.group(1)}</h2>');
+    html = html.replaceAllMapped(RegExp(r'^# (.+)$', multiLine: true), 
+        (match) => '<h1>${match.group(1)}</h1>');
+    
+    // Bold and italic
+    html = html.replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'), 
+        (match) => '<strong>${match.group(1)}</strong>');
+    html = html.replaceAllMapped(RegExp(r'\*(.+?)\*'), 
+        (match) => '<em>${match.group(1)}</em>');
+    
+    // Code
+    html = html.replaceAllMapped(RegExp(r'`(.+?)`'), 
+        (match) => '<code>${match.group(1)}</code>');
+    
+    // Line breaks
+    html = html.replaceAll('\n', '<br>\n');
+    
+    return html;
+  }
+
+  /// Get share format display name
+  static String getShareFormatDisplayName(ShareFormat format) {
+    switch (format) {
+      case ShareFormat.plainText:
+        return 'Plain Text';
+      case ShareFormat.markdown:
+        return 'Markdown';
+      case ShareFormat.html:
+        return 'HTML';
+      case ShareFormat.json:
+        return 'JSON';
+    }
   }
 }
-
-/// Actions that can be performed on shared images
-enum ImageAction {
-  attachment,
-  ocr,
-  both,
-}
-
-/// Provider for ShareService
-final shareServiceProvider = Provider<ShareService>((ref) {
-  return ShareService(ref: ref);
-});

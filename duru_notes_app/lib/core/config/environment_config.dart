@@ -1,256 +1,149 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Enumeration of available environments
-enum Environment {
-  development('dev'),
-  staging('staging'),
-  production('prod');
-
-  const Environment(this.fileName);
-  final String fileName;
-}
-
-/// Environment configuration class that loads and manages environment-specific settings
+/// Production-grade environment configuration management
 class EnvironmentConfig {
-  static Environment _currentEnvironment = Environment.development;
-  static bool _isInitialized = false;
+  static EnvironmentConfig? _instance;
+  
+  final String supabaseUrl;
+  final String supabaseAnonKey;
+  final String? sentryDsn;
+  final bool crashReportingEnabled;
+  final bool analyticsEnabled;
+  final double analyticsSamplingRate;
+  final double sentryTracesSampleRate;
+  final bool enableAutoSessionTracking;
+  final bool sendDefaultPii;
+  final bool debugMode;
+  final Environment currentEnvironment;
 
-  /// Current environment
-  static Environment get currentEnvironment => _currentEnvironment;
+  const EnvironmentConfig._({
+    required this.supabaseUrl,
+    required this.supabaseAnonKey,
+    this.sentryDsn,
+    required this.crashReportingEnabled,
+    required this.analyticsEnabled,
+    required this.analyticsSamplingRate,
+    required this.sentryTracesSampleRate,
+    required this.enableAutoSessionTracking,
+    required this.sendDefaultPii,
+    required this.debugMode,
+    required this.currentEnvironment,
+  });
 
-  /// Check if the config has been initialized
-  static bool get isInitialized => _isInitialized;
+  static EnvironmentConfig get current {
+    if (_instance == null) {
+      throw StateError('EnvironmentConfig not initialized. Call initialize() first.');
+    }
+    return _instance!;
+  }
 
-  /// Initialize the environment configuration
-  /// Must be called before using any configuration values
-  static Future<void> initialize({Environment? environment}) async {
-    // Determine environment from build flavor or default
-    _currentEnvironment = environment ?? _getEnvironmentFromFlavor();
-    
+  /// Initialize environment configuration
+  static Future<void> initialize() async {
     try {
-      // Load the appropriate .env file
-      await dotenv.load(fileName: 'assets/env/${_currentEnvironment.fileName}.env');
-      _isInitialized = true;
-      
-      if (kDebugMode) {
-        print('🌍 Environment initialized: ${_currentEnvironment.name}');
-        print('📍 Supabase URL: ${supabaseUrl}');
-        print('🔧 Debug Mode: $debugMode');
+      // Try to load environment variables (optional)
+      try {
+        await dotenv.load(fileName: 'assets/env/.env');
+      } catch (e) {
+        // Ignore env file errors - use defaults
       }
+      
+      _instance = EnvironmentConfig._(
+        supabaseUrl: const String.fromEnvironment(
+          'SUPABASE_URL',
+          defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
+        ),
+        supabaseAnonKey: const String.fromEnvironment(
+          'SUPABASE_ANON_KEY',
+          defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
+        ),
+        sentryDsn: dotenv.env['SENTRY_DSN'],
+        crashReportingEnabled: dotenv.env['CRASH_REPORTING_ENABLED'] == 'true',
+        analyticsEnabled: dotenv.env['ANALYTICS_ENABLED'] == 'true',
+        analyticsSamplingRate: double.tryParse(dotenv.env['ANALYTICS_SAMPLING_RATE'] ?? '1.0') ?? 1.0,
+        sentryTracesSampleRate: double.tryParse(dotenv.env['SENTRY_TRACES_SAMPLE_RATE'] ?? '0.1') ?? 0.1,
+        enableAutoSessionTracking: dotenv.env['ENABLE_AUTO_SESSION_TRACKING'] != 'false',
+        sendDefaultPii: dotenv.env['SEND_DEFAULT_PII'] == 'true',
+        debugMode: kDebugMode,
+        currentEnvironment: _detectEnvironment(),
+      );
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Failed to load environment config: $e');
-        print('📁 Attempted to load: assets/env/${_currentEnvironment.fileName}.env');
-      }
-      
-      // Fall back to development environment
-      if (_currentEnvironment != Environment.development) {
-        await initialize(environment: Environment.development);
-      } else {
-        throw Exception('Failed to load environment configuration: $e');
-      }
+      // Fallback configuration for development
+      _instance = EnvironmentConfig._(
+        supabaseUrl: const String.fromEnvironment(
+          'SUPABASE_URL',
+          defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
+        ),
+        supabaseAnonKey: const String.fromEnvironment(
+          'SUPABASE_ANON_KEY', 
+          defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
+        ),
+        sentryDsn: null,
+        crashReportingEnabled: false,
+        analyticsEnabled: false,
+        analyticsSamplingRate: 1.0,
+        sentryTracesSampleRate: 0.1,
+        enableAutoSessionTracking: true,
+        sendDefaultPii: false,
+        debugMode: kDebugMode,
+        currentEnvironment: Environment.development,
+      );
     }
   }
 
-  /// Get environment from build flavor or default to development
-  static Environment _getEnvironmentFromFlavor() {
-    // This will be set by build flavors
-    const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+  static Environment _detectEnvironment() {
+    if (kDebugMode) return Environment.development;
     
-    switch (flavor.toLowerCase()) {
-      case 'staging':
-        return Environment.staging;
+    const String env = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
+    switch (env.toLowerCase()) {
       case 'production':
       case 'prod':
         return Environment.production;
-      case 'development':
-      case 'dev':
+      case 'staging':
+      case 'stage':
+        return Environment.staging;
       default:
         return Environment.development;
     }
   }
 
-  /// Get a configuration value with optional default
-  static String _getValue(String key, {String? defaultValue}) {
-    if (!_isInitialized) {
-      throw StateError('EnvironmentConfig not initialized. Call initialize() first.');
-    }
-    
-    final value = dotenv.env[key];
-    if (value == null || value.isEmpty) {
-      if (defaultValue != null) {
-        return defaultValue;
-      }
-      throw ArgumentError('Environment variable $key not found and no default provided');
-    }
-    return value;
-  }
-
-  /// Get a boolean configuration value
-  static bool _getBoolValue(String key, {bool defaultValue = false}) {
-    final value = _getValue(key, defaultValue: defaultValue.toString());
-    return value.toLowerCase() == 'true';
-  }
-
-  /// Get an integer configuration value
-  static int _getIntValue(String key, {int? defaultValue}) {
-    final value = _getValue(key, defaultValue: defaultValue?.toString());
-    return int.tryParse(value) ?? (defaultValue ?? 0);
-  }
-
-  /// Get a double configuration value
-  static double _getDoubleValue(String key, {double? defaultValue}) {
-    final value = _getValue(key, defaultValue: defaultValue?.toString());
-    return double.tryParse(value) ?? (defaultValue ?? 0.0);
-  }
-
-  /// Get an optional string value (can be null)
-  static String? _getOptionalValue(String key) {
-    if (!_isInitialized) {
-      throw StateError('EnvironmentConfig not initialized. Call initialize() first.');
-    }
-    
-    final value = dotenv.env[key];
-    return (value == null || value.isEmpty) ? null : value;
-  }
-
-  // Supabase Configuration
-  static String get supabaseUrl => _getValue('SUPABASE_URL');
-  static String get supabaseAnonKey => _getValue('SUPABASE_ANON_KEY');
-
-  // Environment Settings
-  static String get environment => _getValue('ENVIRONMENT', defaultValue: 'development');
-  static bool get debugMode => _getBoolValue('DEBUG_MODE', defaultValue: kDebugMode);
-  static String get logLevel => _getValue('LOG_LEVEL', defaultValue: 'info');
-
-  // Monitoring & Analytics Configuration
-  static String? get sentryDsn => _getOptionalValue('SENTRY_DSN');
-  static bool get crashReportingEnabled => _getBoolValue('CRASH_REPORTING_ENABLED');
-  static bool get analyticsEnabled => _getBoolValue('ANALYTICS_ENABLED');
-  static double get analyticsSamplingRate => _getDoubleValue('ANALYTICS_SAMPLING_RATE', defaultValue: 1.0);
-  static double get sentryTracesSampleRate => _getDoubleValue('SENTRY_TRACES_SAMPLE_RATE', defaultValue: 0.15);
-  static bool get sendDefaultPii => _getBoolValue('SENTRY_SEND_DEFAULT_PII');
-  static bool get enableAutoSessionTracking => _getBoolValue('SENTRY_AUTO_SESSION_TRACKING', defaultValue: true);
-
-  // Legacy Feature Flags (kept for backward compatibility)
-  static bool get enableAnalytics => analyticsEnabled;
-  static bool get enableCrashReporting => crashReportingEnabled;
-  static bool get enablePerformanceMonitoring => _getBoolValue('ENABLE_PERFORMANCE_MONITORING');
-
-  // API Settings
-  static int get apiTimeout => _getIntValue('API_TIMEOUT', defaultValue: 15000);
-  static int get maxRetryAttempts => _getIntValue('MAX_RETRY_ATTEMPTS', defaultValue: 3);
-
-  // Storage Settings
-  static bool get enableLocalStorageEncryption => _getBoolValue('ENABLE_LOCAL_STORAGE_ENCRYPTION', defaultValue: true);
-  static String get localDbName => _getValue('LOCAL_DB_NAME', defaultValue: 'duru_notes.db');
-
-  // Security Settings
-  static bool get enableBiometricAuth => _getBoolValue('ENABLE_BIOMETRIC_AUTH', defaultValue: true);
-  static int get sessionTimeoutMinutes => _getIntValue('SESSION_TIMEOUT_MINUTES', defaultValue: 30);
-
-  // Development Specific
-  static bool get enableDebugTools => _getBoolValue('ENABLE_DEBUG_TOOLS');
-  static bool get mockExternalServices => _getBoolValue('MOCK_EXTERNAL_SERVICES');
-  static bool get bypassRateLimiting => _getBoolValue('BYPASS_RATE_LIMITING');
-
-  // Testing Features (Staging)
-  static bool get enableTestData => _getBoolValue('ENABLE_TEST_DATA');
-  static bool get resetDataOnLaunch => _getBoolValue('RESET_DATA_ON_LAUNCH');
-
-  // Performance (Production)
-  static bool get enableCaching => _getBoolValue('ENABLE_CACHING');
-  static int get cacheDurationMinutes => _getIntValue('CACHE_DURATION_MINUTES', defaultValue: 30);
-  static int get backgroundSyncIntervalMinutes => _getIntValue('BACKGROUND_SYNC_INTERVAL_MINUTES', defaultValue: 15);
-
-  // Security Hardening (Production)
-  static bool get forceHttps => _getBoolValue('FORCE_HTTPS');
-  static bool get enableCertificatePinning => _getBoolValue('ENABLE_CERTIFICATE_PINNING');
-  static String get minimumPasswordStrength => _getValue('MINIMUM_PASSWORD_STRENGTH', defaultValue: 'medium');
-
-  /// Get all configuration as a map (useful for debugging)
-  static Map<String, dynamic> getAllConfig() {
-    if (!_isInitialized) {
-      return {'error': 'Configuration not initialized'};
-    }
-
-    return {
-      'environment': _currentEnvironment.name,
-      'supabaseUrl': supabaseUrl,
-      'debugMode': debugMode,
-      'logLevel': logLevel,
-      'enableAnalytics': enableAnalytics,
-      'enableCrashReporting': enableCrashReporting,
-      'apiTimeout': apiTimeout,
-      'maxRetryAttempts': maxRetryAttempts,
-      'localDbName': localDbName,
-      'sessionTimeoutMinutes': sessionTimeoutMinutes,
-      // Note: Sensitive values like API keys are excluded for security
-    };
-  }
-
-  /// Check if Sentry crash reporting is properly configured
-  static bool get isSentryConfigured => 
-      crashReportingEnabled && 
-      sentryDsn != null && 
-      sentryDsn!.isNotEmpty;
-
-  /// Validate that all required configuration values are present
+  /// Validate configuration
   static bool validateConfig() {
     try {
-      // Check required values
-      supabaseUrl;
-      supabaseAnonKey;
-      
-      // Validate analytics sampling rate
-      if (analyticsSamplingRate < 0.0 || analyticsSamplingRate > 1.0) {
-        if (kDebugMode) {
-          print('❌ Invalid analytics sampling rate: $analyticsSamplingRate (must be 0.0-1.0)');
-        }
-        return false;
-      }
-      
-      // Validate Sentry traces sampling rate
-      if (sentryTracesSampleRate < 0.0 || sentryTracesSampleRate > 1.0) {
-        if (kDebugMode) {
-          print('❌ Invalid Sentry traces sampling rate: $sentryTracesSampleRate (must be 0.0-1.0)');
-        }
-        return false;
-      }
-      
-      return true;
+      final config = current;
+      return config.supabaseUrl.isNotEmpty && 
+             config.supabaseAnonKey.isNotEmpty;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Configuration validation failed: $e');
-      }
       return false;
     }
   }
 
-  /// Get a safe configuration summary for logging
-  static Map<String, dynamic> getSafeConfigSummary() {
-    if (!_isInitialized) {
-      return {
-        'environment': _currentEnvironment.name,
-        'initialized': false,
-        'message': 'Configuration not yet initialized'
-      };
+  /// Get safe configuration summary (no secrets)
+  static String getSafeConfigSummary() {
+    try {
+      final config = current;
+      return '''
+Environment: ${config.currentEnvironment.name}
+Debug Mode: ${config.debugMode}
+Sentry Configured: ${config.isSentryConfigured}
+Analytics Enabled: ${config.analyticsEnabled}
+Supabase URL: ${config.supabaseUrl.substring(0, 20)}...
+''';
+    } catch (e) {
+      return 'Configuration not initialized';
     }
-
-    return {
-      'environment': _currentEnvironment.name,
-      'debugMode': debugMode,
-      'logLevel': logLevel,
-      'analyticsEnabled': analyticsEnabled,
-      'crashReportingEnabled': crashReportingEnabled,
-      'isSentryConfigured': isSentryConfigured,
-      'analyticsSamplingRate': analyticsSamplingRate,
-      'sentryTracesSampleRate': sentryTracesSampleRate,
-      'apiTimeout': apiTimeout,
-      'localDbName': localDbName,
-      'initialized': true,
-      // Exclude sensitive information like DSN
-    };
   }
+
+  /// Check if Sentry is properly configured
+  bool get isSentryConfigured => sentryDsn != null && sentryDsn!.isNotEmpty;
+}
+
+/// Environment types
+enum Environment {
+  development('development'),
+  staging('staging'),
+  production('production');
+
+  const Environment(this.name);
+  final String name;
 }

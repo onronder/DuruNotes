@@ -1,355 +1,256 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-
 import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_sentry.dart';
+import 'analytics/analytics_service.dart';
 
-typedef PartialCallback = void Function(String text);
-typedef FinalCallback = void Function(String text);
-typedef ErrorCallback = void Function(String error);
-
-/// Service for managing voice transcription using on-device speech-to-text.
-/// 
-/// This service provides a facade around the speech_to_text package with
-/// privacy-safe analytics, lifecycle management, and error handling.
+/// Voice transcription service for converting speech to text
 class VoiceTranscriptionService {
-  final stt.SpeechToText _stt = stt.SpeechToText();
-  bool _available = false;
+  VoiceTranscriptionService({
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
+
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+  final SpeechToText _speechToText = SpeechToText();
+  
+  bool _isInitialized = false;
   bool _isListening = false;
-  DateTime? _sessionStartTime;
-  String? _sessionId;
-  DateTime? _lastPartialEvent;
+  String _lastWords = '';
   
-  // Callbacks for the current session
-  PartialCallback? _onPartial;
-  FinalCallback? _onFinal;
-  ErrorCallback? _onError;
-  
-  /// Initialize the speech-to-text service
-  Future<bool> init() async {
+  /// Callback functions
+  Function(String)? _onPartial;
+  Function(String)? _onFinal;
+  Function(String)? _onError;
+
+  /// Initialize the speech service
+  Future<bool> initialize() async {
+    if (_isInitialized) return true;
+    
     try {
-      logger.breadcrumb('VoiceTranscriptionService init started');
+      _analytics.startTiming('voice_transcription_init');
       
-      _available = await _stt.initialize(
-        onStatus: _handleStatus,
+      // Check microphone permission
+      final micPermission = await Permission.microphone.status;
+      if (micPermission.isDenied) {
+        final granted = await Permission.microphone.request();
+        if (!granted.isGranted) {
+          throw Exception('Microphone permission denied');
+        }
+      }
+      
+      // Initialize speech to text
+      final available = await _speechToText.initialize(
         onError: _handleError,
-        debugLogging: kDebugMode,
+        onStatus: _handleStatus,
       );
       
-      logger.info('VoiceTranscriptionService initialized', data: {
-        'available': _available,
-        'hasPermission': await _hasPermission(),
+      if (!available) {
+        throw Exception('Speech recognition not available');
+      }
+      
+      _isInitialized = true;
+      
+      _analytics.endTiming('voice_transcription_init', properties: {
+        'success': true,
       });
       
-      return _available;
+      _logger.info('Voice transcription service initialized');
+      return true;
     } catch (e) {
-      logger.error('Failed to initialize VoiceTranscriptionService', error: e);
+      _logger.error('Failed to initialize voice transcription', error: e);
+      
+      _analytics.endTiming('voice_transcription_init', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      
       return false;
     }
   }
-  
-  /// Check if microphone permission is granted
-  Future<bool> _hasPermission() async {
-    try {
-      final status = await Permission.microphone.status;
-      return status.isGranted;
-    } catch (e) {
-      logger.error('Failed to check microphone permission', error: e);
-      return false;
-    }
-  }
-  
-  /// Request microphone permission
-  Future<bool> requestPermission() async {
-    try {
-      final status = await Permission.microphone.request();
-      
-      logger.info('Microphone permission requested', data: {
-        'status': status.toString(),
-        'isGranted': status.isGranted,
-      });
-      
-      analytics.event('voice.permission_requested', properties: {
-        'status': status.toString(),
-        'granted': status.isGranted,
-      });
-      
-      return status.isGranted;
-    } catch (e) {
-      logger.error('Failed to request microphone permission', error: e);
-      analytics.trackError('Failed to request microphone permission', 
-        context: 'VoiceTranscriptionService');
-      return false;
-    }
-  }
-  
-  /// Start listening for speech with callbacks
+
+  /// Start listening for speech
   Future<bool> start({
-    required PartialCallback onPartial,
-    required FinalCallback onFinal,
-    ErrorCallback? onError,
-    String? localeId,
+    Function(String)? onPartial,
+    Function(String)? onFinal,
+    Function(String)? onError,
   }) async {
+    if (!_isInitialized && !await initialize()) {
+      return false;
+    }
+    
     if (_isListening) {
-      logger.warn('VoiceTranscriptionService already listening');
-      return false;
+      await stop();
     }
     
-    // Check if service is available
-    if (!_available) {
-      _available = await init();
-    }
-    
-    if (!_available) {
-      final error = 'Speech recognition not available';
-      logger.error(error);
-      onError?.call(error);
-      analytics.trackError(error, context: 'VoiceTranscriptionService');
-      return false;
-    }
-    
-    // Check permissions
-    if (!await _hasPermission()) {
-      final hasPermission = await requestPermission();
-      if (!hasPermission) {
-        final error = 'Microphone permission denied';
-        logger.error(error);
-        onError?.call(error);
-        analytics.event('voice.permission_denied');
-        return false;
-      }
-    }
+    _onPartial = onPartial;
+    _onFinal = onFinal;
+    _onError = onError;
     
     try {
-      // Set up session
-      _sessionStartTime = DateTime.now();
-      _sessionId = _sessionStartTime!.millisecondsSinceEpoch.toString();
-      _onPartial = onPartial;
-      _onFinal = onFinal;
-      _onError = onError;
+      _analytics.startTiming('voice_transcription_session');
       
-      // Start listening
-      final started = await _stt.listen(
+      await _speechToText.listen(
         onResult: _handleResult,
-        listenMode: stt.ListenMode.dictation,
-        localeId: localeId,
+        listenFor: const Duration(minutes: 5), // Max listen time
+        pauseFor: const Duration(seconds: 3), // Pause detection
         partialResults: true,
-        onSoundLevelChange: _handleSoundLevel,
-        cancelOnError: true,
-        pauseFor: const Duration(seconds: 3),
-        listenFor: const Duration(minutes: 10), // Max 10 minutes
+        localeId: 'en_US', // Can be made configurable
+        cancelOnError: false,
+        listenMode: ListenMode.confirmation,
       );
       
-      if (started == true) {
-        _isListening = true;
-        
-        logger.info('Voice transcription started', data: {
-          'sessionId': _sessionId,
-          'localeId': localeId,
-        });
-        
-        analytics.event('voice.start', properties: {
-          'session_id': _sessionId,
-          'locale': localeId ?? 'default',
-          'has_permission': true,
-        });
-        
-        return true;
-      } else {
-        final error = 'Failed to start speech recognition';
-        logger.error(error);
-        onError?.call(error);
-        analytics.trackError(error, context: 'VoiceTranscriptionService');
-        return false;
-      }
+      _isListening = true;
+      _lastWords = '';
+      
+      _analytics.featureUsed('voice_transcription_start');
+      _logger.info('Voice transcription started');
+      
+      return true;
     } catch (e) {
-      logger.error('Failed to start voice transcription', error: e);
-      onError?.call('Failed to start recording: $e');
-      analytics.trackError('Failed to start voice transcription', 
-        context: 'VoiceTranscriptionService');
+      _logger.error('Failed to start voice transcription', error: e);
+      _onError?.call('Failed to start recording: ${e.toString()}');
       return false;
     }
   }
-  
-  /// Stop listening and finalize the session
+
+  /// Stop listening
   Future<void> stop() async {
     if (!_isListening) return;
     
     try {
-      await _stt.stop();
-      _finalizeSession(false);
+      await _speechToText.stop();
+      _isListening = false;
       
-      logger.info('Voice transcription stopped', data: {
-        'sessionId': _sessionId,
+      // Send final result if we have words
+      if (_lastWords.isNotEmpty) {
+        _onFinal?.call(_lastWords);
+      }
+      
+      _analytics.endTiming('voice_transcription_session', properties: {
+        'success': true,
+        'words_transcribed': _lastWords.split(' ').length,
+      });
+      
+      _logger.info('Voice transcription stopped', data: {
+        'final_text': _lastWords,
       });
     } catch (e) {
-      logger.error('Failed to stop voice transcription', error: e);
-      analytics.trackError('Failed to stop voice transcription', 
-        context: 'VoiceTranscriptionService');
-      _finalizeSession(true);
+      _logger.error('Error stopping voice transcription', error: e);
     }
   }
-  
-  /// Cancel the current session
+
+  /// Cancel listening without sending final result
   Future<void> cancel() async {
     if (!_isListening) return;
     
     try {
-      await _stt.cancel();
-      _finalizeSession(true);
+      await _speechToText.cancel();
+      _isListening = false;
+      _lastWords = '';
       
-      logger.info('Voice transcription cancelled', data: {
-        'sessionId': _sessionId,
+      _analytics.endTiming('voice_transcription_session', properties: {
+        'success': false,
+        'reason': 'cancelled',
       });
       
-      analytics.event('voice.cancel', properties: {
-        'session_id': _sessionId,
-        'duration_ms': _getSessionDuration(),
-      });
+      _logger.info('Voice transcription cancelled');
     } catch (e) {
-      logger.error('Failed to cancel voice transcription', error: e);
-      analytics.trackError('Failed to cancel voice transcription', 
-        context: 'VoiceTranscriptionService');
-      _finalizeSession(true);
+      _logger.error('Error cancelling voice transcription', error: e);
     }
   }
-  
-  /// Check if currently listening
-  bool get isListening => _isListening;
-  
-  /// Check if service is available
-  bool get isAvailable => _available;
-  
-  /// Get available locales
-  Future<List<stt.LocaleName>> getLocales() async {
-    try {
-      if (!_available) {
-        await init();
-      }
-      return _stt.locales();
-    } catch (e) {
-      logger.error('Failed to get locales', error: e);
-      return [];
-    }
-  }
-  
+
   /// Handle speech recognition results
-  void _handleResult(dynamic result) {
-    final text = (result.recognizedWords as String).trim();
+  void _handleResult(result) {
+    final recognizedWords = result.recognizedWords as String;
+    final isFinal = result.finalResult as bool;
     
-    if (text.isEmpty) return;
+    _lastWords = recognizedWords;
     
-    logger.breadcrumb('Voice transcription result', data: {
-      'isFinal': result.finalResult,
-      'hasConfidence': result.hasConfidenceRating,
-      'confidence': result.confidence,
-      'textLength': text.length,
-    });
-    
-    if (result.finalResult == true) {
-      _onFinal?.call(text);
-      
-      analytics.event('voice.final', properties: {
-        'session_id': _sessionId,
-        'character_count': text.length,
-        'word_count': text.split(' ').where((String w) => w.isNotEmpty).length,
-        'has_confidence': result.hasConfidenceRating,
-        'confidence': result.hasConfidenceRating == true ? result.confidence : null,
-        'duration_ms': _getSessionDuration(),
+    if (isFinal) {
+      _onFinal?.call(recognizedWords);
+      _analytics.featureUsed('voice_transcription_final', properties: {
+        'word_count': recognizedWords.split(' ').length,
+        'character_count': recognizedWords.length,
       });
     } else {
-      _onPartial?.call(text);
-      
-      // Throttled partial analytics (max once per 2 seconds)  
-      final now = DateTime.now();
-      if (_lastPartialEvent == null || 
-          now.difference(_lastPartialEvent!).inSeconds >= 2) {
-        analytics.event('voice.partial', properties: {
-          'session_id': _sessionId,
-          'character_count': text.length,
-          'has_confidence': result.hasConfidenceRating,
-        });
-        _lastPartialEvent = now;
+      _onPartial?.call(recognizedWords);
+    }
+  }
+
+  /// Handle speech recognition errors
+  void _handleError(error) {
+    final errorMsg = error.errorMsg as String;
+    final errorType = error.errorType as String;
+    
+    _logger.error('Voice transcription error', data: {
+      'error_msg': errorMsg,
+      'error_type': errorType,
+    });
+    
+    _analytics.trackError('Voice transcription error', properties: {
+      'error_type': errorType,
+      'error_message': errorMsg,
+    });
+    
+    _onError?.call(errorMsg);
+  }
+
+  /// Handle speech recognition status changes
+  void _handleStatus(String status) {
+    _logger.debug('Voice transcription status: $status');
+    
+    if (status == 'done') {
+      _isListening = false;
+      if (_lastWords.isNotEmpty) {
+        _onFinal?.call(_lastWords);
       }
     }
   }
-  
-  /// Handle status changes
-  void _handleStatus(String status) {
-    logger.breadcrumb('Voice transcription status', data: {
-      'status': status,
-      'sessionId': _sessionId,
-    });
-    
-    if (status == 'done' || status == 'notListening') {
-      _finalizeSession(false);
+
+  /// Check if microphone permission is granted
+  Future<bool> hasPermissions() async {
+    final status = await Permission.microphone.status;
+    return status.isGranted;
+  }
+
+  /// Request microphone permission
+  Future<bool> requestPermissions() async {
+    final status = await Permission.microphone.request();
+    return status.isGranted;
+  }
+
+  /// Check if speech recognition is available
+  Future<bool> isAvailable() async {
+    try {
+      return await _speechToText.initialize();
+    } catch (e) {
+      return false;
     }
   }
-  
-  /// Handle errors
-  void _handleError(dynamic error) {
-    final errorMessage = error.errorMsg as String;
-    
-    logger.error('Voice transcription error', error: errorMessage, data: {
-      'permanent': error.permanent,
-      'sessionId': _sessionId,
-    });
-    
-    _onError?.call(errorMessage);
-    
-    analytics.event('voice.error', properties: {
-      'session_id': _sessionId,
-      'error_message': errorMessage,
-      'permanent': error.permanent,
-      'duration_ms': _getSessionDuration(),
-    });
-    
-    _finalizeSession(true);
-  }
-  
-  /// Handle sound level changes (optional, for UI feedback)
-  void _handleSoundLevel(double level) {
-    // Could be used for UI feedback like sound wave animation
-    // Currently just logged for debugging
-    if (kDebugMode) {
-      logger.breadcrumb('Sound level', data: {'level': level});
-    }
-  }
-  
-  /// Finalize the current session
-  void _finalizeSession(bool wasError) {
-    _isListening = false;
-    
-    if (!wasError && _sessionStartTime != null) {
-      analytics.event('voice.session_complete', properties: {
-        'session_id': _sessionId,
-        'duration_ms': _getSessionDuration(),
-        'success': !wasError,
-      });
+
+  /// Get available locales for speech recognition
+  Future<List<String>> getAvailableLocales() async {
+    if (!_isInitialized && !await initialize()) {
+      return [];
     }
     
-    // Clear session data
-    _sessionStartTime = null;
-    _sessionId = null;
-    _onPartial = null;
-    _onFinal = null;
-    _onError = null;
+    final locales = await _speechToText.locales();
+    return locales.map((locale) => locale.localeId).toList();
   }
-  
-  /// Get session duration in milliseconds
-  int? _getSessionDuration() {
-    if (_sessionStartTime == null) return null;
-    return DateTime.now().difference(_sessionStartTime!).inMilliseconds;
-  }
-  
-  /// Dispose of the service
+
+  /// Dispose of resources
   void dispose() {
     if (_isListening) {
       cancel();
     }
-    // Note: speech_to_text doesn't require explicit disposal
   }
+
+  /// Getters
+  bool get isInitialized => _isInitialized;
+  bool get isListening => _isListening;
+  String get lastWords => _lastWords;
 }

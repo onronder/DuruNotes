@@ -1,84 +1,272 @@
+import 'dart:io';
 import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_sentry.dart';
+import 'analytics/analytics_service.dart';
 
-/// Service for recording raw audio that can be saved as attachments.
-/// 
-/// This service works alongside VoiceTranscriptionService to optionally
-/// capture the raw audio while transcription is happening. The recorded
-/// audio can then be uploaded as an attachment.
-/// 
-/// NOTE: Currently disabled due to dependency compatibility issues.
-/// Voice transcription will work without audio recording.
+/// Audio recording service for recording voice notes
 class AudioRecordingService {
+  AudioRecordingService({
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
+
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+  final AudioRecorder _recorder = AudioRecorder();
+  
   bool _isRecording = false;
   String? _currentRecordingPath;
   DateTime? _recordingStartTime;
-  String? _sessionId;
-  
-  static const Duration maxRecordingDuration = Duration(minutes: 10);
-  static const int maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
-  
-  /// Start recording audio to a temporary file
+
+  /// Start recording audio
   Future<bool> startRecording({String? sessionId}) async {
-    // Audio recording temporarily disabled due to dependency compatibility issues
-    logger.info('Audio recording temporarily disabled - voice transcription will work without it');
-    analytics.event('audio_recording.disabled');
-    return false;
+    if (_isRecording) {
+      await stopRecording();
+    }
+    
+    try {
+      // Check microphone permission
+      final micPermission = await Permission.microphone.status;
+      if (micPermission.isDenied) {
+        final granted = await Permission.microphone.request();
+        if (!granted.isGranted) {
+          throw Exception('Microphone permission denied');
+        }
+      }
+      
+      // Check if recording is supported
+      if (!await _recorder.hasPermission()) {
+        throw Exception('Recording permission not granted');
+      }
+      
+      _analytics.startTiming('audio_recording_session');
+      
+      // Generate recording file path
+      final directory = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final sessionPrefix = sessionId != null ? '${sessionId}_' : '';
+      final filename = '${sessionPrefix}voice_note_$timestamp.m4a';
+      _currentRecordingPath = path.join(directory.path, filename);
+      
+      // Start recording
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: _currentRecordingPath!,
+      );
+      
+      _isRecording = true;
+      _recordingStartTime = DateTime.now();
+      
+      _analytics.featureUsed('audio_recording_start', properties: {
+        'session_id': sessionId,
+      });
+      
+      _logger.info('Audio recording started', data: {
+        'path': _currentRecordingPath,
+        'session_id': sessionId,
+      });
+      
+      return true;
+    } catch (e) {
+      _logger.error('Failed to start audio recording', error: e);
+      _analytics.trackError('Audio recording start failed', properties: {
+        'error': e.toString(),
+      });
+      return false;
+    }
   }
-  
+
   /// Stop recording and return the file path
   Future<String?> stopRecording() async {
     if (!_isRecording) return null;
-    // Audio recording disabled
-    return null;
+    
+    try {
+      final recordingPath = await _recorder.stop();
+      _isRecording = false;
+      
+      final duration = _recordingStartTime != null 
+          ? DateTime.now().difference(_recordingStartTime!)
+          : Duration.zero;
+      
+      _analytics.endTiming('audio_recording_session', properties: {
+        'success': true,
+        'duration_seconds': duration.inSeconds,
+        'file_path': recordingPath,
+      });
+      
+      _analytics.featureUsed('audio_recording_complete', properties: {
+        'duration_seconds': duration.inSeconds,
+      });
+      
+      _logger.info('Audio recording completed', data: {
+        'path': recordingPath,
+        'duration': duration.inSeconds,
+      });
+      
+      return recordingPath ?? _currentRecordingPath;
+    } catch (e) {
+      _logger.error('Failed to stop audio recording', error: e);
+      _analytics.endTiming('audio_recording_session', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      return null;
+    }
   }
 
-  /// Cancel the current recording
+  /// Cancel recording without saving
   Future<void> cancelRecording() async {
     if (!_isRecording) return;
-    // Audio recording disabled
-    _cleanup();
+    
+    try {
+      await _recorder.stop();
+      _isRecording = false;
+      
+      // Delete the recording file if it exists
+      if (_currentRecordingPath != null) {
+        final file = File(_currentRecordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+      
+      _analytics.endTiming('audio_recording_session', properties: {
+        'success': false,
+        'reason': 'cancelled',
+      });
+      
+      _logger.info('Audio recording cancelled');
+    } catch (e) {
+      _logger.error('Failed to cancel audio recording', error: e);
+    }
   }
-  
-  /// Read the recorded file as bytes
+
+  /// Get recording as bytes
   Future<Uint8List?> getRecordingBytes(String filePath) async {
-    // Audio recording disabled
-    return null;
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        _logger.warning('Recording file not found', data: {'path': filePath});
+        return null;
+      }
+      
+      final bytes = await file.readAsBytes();
+      
+      _logger.info('Recording file read', data: {
+        'path': filePath,
+        'size': bytes.length,
+      });
+      
+      return bytes;
+    } catch (e) {
+      _logger.error('Failed to read recording file', error: e, data: {
+        'path': filePath,
+      });
+      return null;
+    }
   }
-  
-  /// Delete a recording file
+
+  /// Delete recording file
   Future<bool> deleteRecording(String filePath) async {
-    // Audio recording disabled
-    return false;
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+        _logger.info('Recording file deleted', data: {'path': filePath});
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _logger.error('Failed to delete recording file', error: e, data: {
+        'path': filePath,
+      });
+      return false;
+    }
   }
-  
-  /// Get the suggested filename for the recording
-  String getSuggestedFilename({String? prefix}) {
+
+  /// Get duration of recording file
+  Future<Duration?> getRecordingDuration(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return null;
+      }
+      
+      // This is a simplified implementation
+      // In a real app, you might want to use a library like just_audio to get exact duration
+      final stat = await file.stat();
+      final size = stat.size;
+      
+      // Rough estimation: 128kbps bitrate
+      // Duration ≈ (file_size_bytes * 8) / bitrate_bps
+      final estimatedDurationSeconds = (size * 8) / 128000;
+      
+      return Duration(seconds: estimatedDurationSeconds.round());
+    } catch (e) {
+      _logger.error('Failed to get recording duration', error: e);
+      return null;
+    }
+  }
+
+  /// Get suggested filename for voice recording
+  String getSuggestedFilename({String prefix = 'voice_note'}) {
     final timestamp = DateTime.now();
-    final dateStr = timestamp.toIso8601String().substring(0, 19).replaceAll(':', '-');
-    return '${prefix ?? 'voice_note'}_$dateStr.m4a';
+    final formattedDate = '${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}';
+    final formattedTime = '${timestamp.hour.toString().padLeft(2, '0')}${timestamp.minute.toString().padLeft(2, '0')}';
+    
+    return '${prefix}_${formattedDate}_$formattedTime.m4a';
   }
-  
-  /// Check if currently recording
+
+  /// Check if recording is supported on this device
+  Future<bool> isSupported() async {
+    try {
+      return await _recorder.hasPermission();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check microphone permission
+  Future<bool> hasPermission() async {
+    final status = await Permission.microphone.status;
+    return status.isGranted;
+  }
+
+  /// Request microphone permission
+  Future<bool> requestPermission() async {
+    final status = await Permission.microphone.request();
+    return status.isGranted;
+  }
+
+  /// Get current recording state
   bool get isRecording => _isRecording;
   
-  /// Get current recording path (if any)
+  /// Get current recording path
   String? get currentRecordingPath => _currentRecordingPath;
   
-  /// Clean up session state
-  void _cleanup() {
-    _isRecording = false;
-    _currentRecordingPath = null;
-    _recordingStartTime = null;
-    _sessionId = null;
-  }
-  
-  /// Dispose of the service
-  Future<void> dispose() async {
-    if (_isRecording) {
-      await cancelRecording();
+  /// Get recording duration so far
+  Duration? get currentRecordingDuration {
+    if (!_isRecording || _recordingStartTime == null) {
+      return null;
     }
+    return DateTime.now().difference(_recordingStartTime!);
+  }
+
+  /// Dispose resources
+  void dispose() {
+    if (_isRecording) {
+      cancelRecording();
+    }
+    _recorder.dispose();
   }
 }

@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:duru_notes_app/core/monitoring/app_logger.dart';
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/repository/notes_repository.dart';
-import 'package:duru_notes_app/services/analytics/analytics_service.dart';
-import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
+import '../../core/monitoring/app_logger.dart';
+import '../../data/local/app_db.dart';
+import '../../repository/notes_repository.dart';
+import '../../services/analytics/analytics_service.dart';
 
 // Global instances
 final logger = LoggerFactory.instance;

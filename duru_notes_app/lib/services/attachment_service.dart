@@ -1,184 +1,350 @@
 import 'dart:typed_data';
-
-import 'package:crypto/crypto.dart' as crypto;
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:duru_notes_app/models/note_block.dart';
-import 'package:duru_notes_app/core/monitoring/app_logger.dart';
+import '../models/note_block.dart';
+import '../core/monitoring/app_logger.dart';
+import 'analytics/analytics_service.dart';
 
-import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
-
-/// Exception thrown when a file exceeds the maximum allowed size
-class AttachmentSizeException implements Exception {
-  final String message;
-  final int fileSizeBytes;
-  final int maxSizeBytes;
-
-  const AttachmentSizeException(
-    this.message, {
-    required this.fileSizeBytes,
-    required this.maxSizeBytes,
-  });
-
-  @override
-  String toString() => 'AttachmentSizeException: $message';
+/// Attachment size limits
+class AttachmentLimits {
+  static const int maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
+  static const int maxImageSizeBytes = 10 * 1024 * 1024; // 10MB
+  static const int maxVideoSizeBytes = 100 * 1024 * 1024; // 100MB
+  
+  static const List<String> supportedImageTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+  ];
+  
+  static const List<String> supportedVideoTypes = [
+    'video/mp4',
+    'video/mov',
+    'video/avi',
+  ];
+  
+  static const List<String> supportedDocumentTypes = [
+    'application/pdf',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
 }
 
-/// A service responsible for handling file attachments. It provides a
-/// convenience method to pick a file from the device, compute a
-/// content-based hash, upload it to a Supabase Storage bucket and return
-/// an [AttachmentBlockData] with the user friendly filename and the
-/// public URL. The service will avoid re-uploading duplicate files by
-/// naming objects based on the SHA‑256 hash of their content. Encryption
-/// of attachments is beyond the scope of this service and can be added
-/// separately if desired.
-class AttachmentService {
-  AttachmentService(this.client, {this.bucket = 'attachments'});
-
-  /// The Supabase client used to access the Storage API.
-  final SupabaseClient client;
+/// Exception thrown when attachment operations fail
+class AttachmentException implements Exception {
+  final String message;
+  final String? code;
   
-  // Local instances to avoid import conflicts
-  final _logger = LoggerFactory.instance;
-  final _analytics = AnalyticsFactory.instance;
+  const AttachmentException(this.message, {this.code});
+  
+  @override
+  String toString() => 'AttachmentException: $message';
+}
 
-  /// The name of the Supabase Storage bucket where attachments are stored.
-  final String bucket;
+/// Exception for file size violations
+class AttachmentSizeException extends AttachmentException {
+  final int actualSize;
+  final int maxSize;
+  
+  const AttachmentSizeException(
+    super.message,
+    this.actualSize,
+    this.maxSize,
+  ) : super(code: 'FILE_TOO_LARGE');
+}
 
-  /// Maximum file size allowed for attachments (50MB)
-  static const int maxFileSize = 50 * 1024 * 1024; // 50MB in bytes
+/// Attachment service for handling file uploads and downloads
+class AttachmentService {
+  AttachmentService({
+    SupabaseClient? client,
+    AppLogger? logger,
+    AnalyticsService? analytics,
+  })  : _client = client ?? Supabase.instance.client,
+        _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
-  /// Image file extensions that support compression
-  static const Set<String> compressibleImageTypes = {
-    '.jpg', '.jpeg', '.png', '.webp'
-  };
+  final SupabaseClient _client;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
 
-  /// Opens a file picker so the user can choose a file, then uploads the
-  /// selected file to Supabase Storage if it does not already exist. The
-  /// returned [AttachmentBlockData] contains the original filename and
-  /// the public URL of the uploaded object. If the user cancels the
-  /// picker or an error occurs, this method returns `null`.
+  /// Pick and upload a file from device
   Future<AttachmentBlockData?> pickAndUpload() async {
-    // Allow the user to pick a single file. Use withData to get the bytes
-    // directly so that we can compute a hash without reading from disk.
-    final result = await FilePicker.platform.pickFiles(withData: true);
-    if (result == null || result.files.isEmpty) {
-      return null;
-    }
-    final file = result.files.first;
-    final Uint8List? bytes = file.bytes;
-    if (bytes == null) {
-      return null;
-    }
-
-    // Validate file size
-    if (bytes.length > maxFileSize) {
-      final fileSizeMB = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
-      final maxSizeMB = (maxFileSize / (1024 * 1024)).toStringAsFixed(0);
-      
-      _logger.warn('File size exceeds limit', data: {
-        'file_name': file.name,
-        'file_size_bytes': bytes.length,
-        'file_size_mb': fileSizeMB,
-        'max_size_mb': maxSizeMB,
-      });
-
-      _analytics.event('attachment.size_limit_exceeded', properties: {
-        'file_size_mb': double.parse(fileSizeMB),
-        'max_size_mb': double.parse(maxSizeMB),
-        'file_extension': p.extension(file.name).toLowerCase(),
-      });
-
-      throw AttachmentSizeException(
-        'File size ($fileSizeMB MB) exceeds the maximum allowed size of $maxSizeMB MB.',
-        fileSizeBytes: bytes.length,
-        maxSizeBytes: maxFileSize,
-      );
-    }
-
-    _logger.breadcrumb('Attachment file selected', data: {
-      'file_name': file.name,
-      'file_size_bytes': bytes.length,
-      'file_size_mb': (bytes.length / (1024 * 1024)).toStringAsFixed(2),
-    });
-    // Compute a SHA‑256 digest of the file contents to use as a unique key.
-    final digest = crypto.sha256.convert(bytes);
-    final hash = digest.toString();
-    // Preserve the original file extension so that the storage object
-    // retains a recognizable type. If no extension, leave it empty.
-    final ext = p.extension(file.name);
-    final objectPath = ext.isNotEmpty ? '$hash$ext' : hash;
-    // Attempt to upload the file. Use upsert: false to avoid overwriting
-    // existing files with the same hash. If the file already exists, the
-    // storage API will throw an error which we catch and ignore.
     try {
-      await client.storage
-          .from(bucket)
-          .uploadBinary(objectPath, bytes, fileOptions: const FileOptions(upsert: false));
-    } catch (e) {
-      // Ignore "already exists" errors. Other errors should be rethrown.
-      final msg = e.toString();
-      if (!msg.contains('already exists')) {
-        rethrow;
+      _analytics.startTiming('attachment_pick_upload');
+      
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        allowedExtensions: null, // Allow all file types
+      );
+
+      if (result == null || result.files.isEmpty) {
+        _analytics.endTiming('attachment_pick_upload', properties: {
+          'success': false,
+          'reason': 'cancelled',
+        });
+        return null;
       }
+
+      final file = result.files.first;
+      
+      if (file.bytes == null) {
+        throw const AttachmentException('Failed to read file data');
+      }
+
+      return await uploadFromBytes(
+        bytes: file.bytes!,
+        filename: file.name,
+      );
+    } catch (e) {
+      _logger.error('Failed to pick and upload file', error: e);
+      _analytics.endTiming('attachment_pick_upload', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      rethrow;
     }
-    // Generate a public URL for the uploaded file. If your bucket is not
-    // public, you may need to create a signed URL instead.
-    final urlResponse = client.storage.from(bucket).getPublicUrl(objectPath);
-    final publicUrl = urlResponse;
-    return AttachmentBlockData(filename: file.name, url: publicUrl);
   }
 
-  /// Uploads a file from bytes (for shared content) to Supabase Storage.
-  /// This method is useful when handling shared files from other apps.
-  /// Returns the AttachmentBlockData with filename and URL if successful,
-  /// or null if upload fails.
+  /// Upload file from bytes
   Future<AttachmentBlockData?> uploadFromBytes({
-    required String filename,
     required Uint8List bytes,
+    required String filename,
   }) async {
     try {
-      // Compute a SHA‑256 digest of the file contents to use as a unique key.
-      final digest = crypto.sha256.convert(bytes);
-      final hash = digest.toString();
+      _validateFile(bytes, filename);
       
-      // Preserve the original file extension so that the storage object
-      // retains a recognizable type. If no extension, leave it empty.
-      final ext = p.extension(filename);
-      final objectPath = ext.isNotEmpty ? '$hash$ext' : hash;
+      _analytics.startTiming('attachment_upload');
       
-      // Attempt to upload the file. Use upsert: false to avoid overwriting
-      // existing files with the same hash. If the file already exists, the
-      // storage API will throw an error which we catch and ignore.
-      try {
-        await client.storage
-            .from(bucket)
-            .uploadBinary(objectPath, bytes, fileOptions: const FileOptions(upsert: false));
-      } catch (e) {
-        // Ignore "already exists" errors. Other errors should be rethrown.
-        final msg = e.toString();
-        if (!msg.contains('already exists')) {
-          rethrow;
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        throw const AttachmentException('User not authenticated');
+      }
+
+      // Generate unique filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final extension = filename.split('.').last;
+      final uniqueFilename = '${timestamp}_$filename';
+      final storagePath = '$userId/attachments/$uniqueFilename';
+
+      // Upload to Supabase Storage
+      await _client.storage
+          .from('attachments')
+          .uploadBinary(storagePath, bytes);
+
+      // Get public URL
+      final url = _client.storage
+          .from('attachments')
+          .getPublicUrl(storagePath);
+
+      final mimeType = _getMimeType(filename);
+      
+      final attachment = AttachmentBlockData(
+        fileName: filename,
+        fileSize: bytes.length,
+        mimeType: mimeType,
+        url: url,
+      );
+
+      _analytics.endTiming('attachment_upload', properties: {
+        'success': true,
+        'file_size': bytes.length,
+        'mime_type': mimeType,
+      });
+
+      _analytics.featureUsed('attachment_upload', properties: {
+        'file_type': mimeType.split('/').first,
+        'file_size_mb': (bytes.length / (1024 * 1024)).round(),
+      });
+
+      _logger.info('File uploaded successfully', data: {
+        'filename': filename,
+        'size': bytes.length,
+        'mime_type': mimeType,
+      });
+
+      return attachment;
+    } catch (e) {
+      _logger.error('Failed to upload file', error: e, data: {
+        'filename': filename,
+        'size': bytes.length,
+      });
+      
+      _analytics.endTiming('attachment_upload', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      
+      _analytics.trackError('Attachment upload failed', properties: {
+        'filename': filename,
+        'size': bytes.length,
+      });
+      
+      rethrow;
+    }
+  }
+
+  /// Download attachment from URL
+  Future<Uint8List?> download(String url) async {
+    try {
+      _analytics.startTiming('attachment_download');
+      
+      // For Supabase storage URLs, we can use the storage client
+      if (url.contains(_client.storageUrl)) {
+        final uri = Uri.parse(url);
+        final pathSegments = uri.pathSegments;
+        
+        if (pathSegments.length >= 3) {
+          final bucket = pathSegments[2];
+          final path = pathSegments.skip(3).join('/');
+          
+          final bytes = await _client.storage
+              .from(bucket)
+              .download(path);
+          
+          _analytics.endTiming('attachment_download', properties: {
+            'success': true,
+            'size': bytes.length,
+          });
+          
+          return bytes;
         }
       }
       
-      // Generate a public URL for the uploaded file. If your bucket is not
-      // public, you may need to create a signed URL instead.
-      final urlResponse = client.storage.from(bucket).getPublicUrl(objectPath);
-      final publicUrl = urlResponse;
+      // Fallback to HTTP client
+      final response = await _client.httpClient.get(Uri.parse(url));
       
-      return AttachmentBlockData(filename: filename, url: publicUrl);
-    } on Exception {
-      // Return null on any error
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        
+        _analytics.endTiming('attachment_download', properties: {
+          'success': true,
+          'size': bytes.length,
+        });
+        
+        return bytes;
+      } else {
+        throw AttachmentException('Download failed with status ${response.statusCode}');
+      }
+    } catch (e) {
+      _logger.error('Failed to download attachment', error: e, data: {
+        'url': url,
+      });
+      
+      _analytics.endTiming('attachment_download', properties: {
+        'success': false,
+        'error': e.toString(),
+      });
+      
       return null;
     }
   }
 
-  /// Validate file size before processing
-  static bool isFileSizeValid(int sizeBytes) {
-    return sizeBytes <= maxFileSize;
+  /// Delete attachment from storage
+  Future<bool> delete(String url) async {
+    try {
+      if (url.contains(_client.storageUrl)) {
+        final uri = Uri.parse(url);
+        final pathSegments = uri.pathSegments;
+        
+        if (pathSegments.length >= 3) {
+          final bucket = pathSegments[2];
+          final path = pathSegments.skip(3).join('/');
+          
+          await _client.storage
+              .from(bucket)
+              .remove([path]);
+          
+          _analytics.featureUsed('attachment_delete');
+          _logger.info('Attachment deleted', data: {'url': url});
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      _logger.error('Failed to delete attachment', error: e, data: {
+        'url': url,
+      });
+      return false;
+    }
+  }
+
+  /// Validate file before upload
+  void _validateFile(Uint8List bytes, String filename) {
+    // Check file size
+    if (bytes.length > AttachmentLimits.maxFileSizeBytes) {
+      throw AttachmentSizeException(
+        'File size exceeds limit',
+        bytes.length,
+        AttachmentLimits.maxFileSizeBytes,
+      );
+    }
+
+    final mimeType = _getMimeType(filename);
+    
+    // Check specific type limits
+    if (AttachmentLimits.supportedImageTypes.contains(mimeType) &&
+        bytes.length > AttachmentLimits.maxImageSizeBytes) {
+      throw AttachmentSizeException(
+        'Image size exceeds limit',
+        bytes.length,
+        AttachmentLimits.maxImageSizeBytes,
+      );
+    }
+    
+    if (AttachmentLimits.supportedVideoTypes.contains(mimeType) &&
+        bytes.length > AttachmentLimits.maxVideoSizeBytes) {
+      throw AttachmentSizeException(
+        'Video size exceeds limit',
+        bytes.length,
+        AttachmentLimits.maxVideoSizeBytes,
+      );
+    }
+  }
+
+  /// Get MIME type from filename
+  String _getMimeType(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+    
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/mov';
+      case 'avi':
+        return 'video/avi';
+      case 'pdf':
+        return 'application/pdf';
+      case 'txt':
+        return 'text/plain';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  /// Check if file type is supported
+  bool isSupported(String mimeType) {
+    return AttachmentLimits.supportedImageTypes.contains(mimeType) ||
+           AttachmentLimits.supportedVideoTypes.contains(mimeType) ||
+           AttachmentLimits.supportedDocumentTypes.contains(mimeType);
   }
 
   /// Get human-readable file size
@@ -193,18 +359,12 @@ class AttachmentService {
       return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     }
   }
-
-  /// Check if file type supports compression
-  static bool supportsCompression(String filename) {
-    final ext = p.extension(filename).toLowerCase();
-    return compressibleImageTypes.contains(ext);
-  }
-
-  /// Get maximum allowed file size in MB
-  static double get maxFileSizeMB => maxFileSize / (1024 * 1024);
 }
 
-/// Provider for AttachmentService
+/// Provider for attachment service
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
-  return AttachmentService(Supabase.instance.client);
+  return AttachmentService(
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+  );
 });

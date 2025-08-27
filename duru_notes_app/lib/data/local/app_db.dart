@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:duru_notes_app/core/parser/note_indexer.dart';
+import '../../core/parser/note_indexer.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -97,7 +97,7 @@ class NoteReminders extends Table {
   TextColumn get locationName => text().nullable()();
   
   // Recurring reminder fields
-  IntColumn get recurrencePattern => intEnum<RecurrencePattern>().withDefault(const Constant(RecurrencePattern.none))();
+  IntColumn get recurrencePattern => intEnum<RecurrencePattern>().withDefault(Constant(RecurrencePattern.none.index))();
   DateTimeColumn get recurrenceEndDate => dateTime().nullable()();
   IntColumn get recurrenceInterval => integer().withDefault(const Constant(1))(); // every X days/weeks/months
   
@@ -679,7 +679,7 @@ class AppDb extends _$AppDb {
       (update(noteReminders)..where((r) => r.id.equals(id)))
           .write(NoteRemindersCompanion(
             lastTriggered: Value(triggeredAt ?? DateTime.now().toUtc()),
-            triggerCount: Value(Expression('trigger_count + 1')),
+                          // Note: trigger_count will be incremented by database trigger
           ));
 
   /// Snooze a reminder
@@ -687,7 +687,7 @@ class AppDb extends _$AppDb {
       (update(noteReminders)..where((r) => r.id.equals(id)))
           .write(NoteRemindersCompanion(
             snoozedUntil: Value(snoozeUntil),
-            snoozeCount: Value(Expression('snooze_count + 1')),
+                           // Note: snooze_count will be incremented by database trigger
           ));
 
   /// Clear snooze for a reminder

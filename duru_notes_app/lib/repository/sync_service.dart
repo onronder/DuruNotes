@@ -7,7 +7,7 @@ import 'package:realtime_client/realtime_client.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:duru_notes_app/repository/notes_repository.dart';
+import 'notes_repository.dart';
 
 /// Sync operation result with detailed status
 class SyncResult {
