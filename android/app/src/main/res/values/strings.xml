@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">Duru Notes</string>
+    
+    <!-- Permission Rationale Messages -->
+    <string name="camera_permission_rationale">Duru Notes uses your camera to scan documents and capture text using OCR technology, helping you digitize printed text into your notes instantly.</string>
+    <string name="microphone_permission_rationale">Duru Notes uses your microphone to record voice notes and convert speech to text, making note-taking faster and more convenient.</string>
+    <string name="location_permission_rationale">Duru Notes uses your location to provide location-based reminders, alerting you about important notes when you arrive at or leave specific places.</string>
+    <string name="storage_permission_rationale">Duru Notes needs storage access to save attachments, export notes, and import files from other apps.</string>
+    <string name="notification_permission_rationale">Duru Notes sends notifications to remind you about your notes at scheduled times or when you reach specific locations.</string>
+    
+    <!-- Permission Dialog Titles -->
+    <string name="camera_permission_title">Camera Access Required</string>
+    <string name="microphone_permission_title">Microphone Access Required</string>
+    <string name="location_permission_title">Location Access Required</string>
+    <string name="storage_permission_title">Storage Access Required</string>
+    <string name="notification_permission_title">Notification Permission Required</string>
+    
+    <!-- Permission Dialog Actions -->
+    <string name="permission_grant">Grant Permission</string>
+    <string name="permission_deny">Not Now</string>
+    <string name="permission_settings">Open Settings</string>
+    
+    <!-- Feature Descriptions -->
+    <string name="voice_notes_feature">Voice Notes &amp; Transcription</string>
+    <string name="ocr_scanning_feature">Document Scanning &amp; OCR</string>
+    <string name="location_reminders_feature">Location-Based Reminders</string>
+    <string name="file_attachments_feature">File Attachments &amp; Export</string>
+    <string name="push_notifications_feature">Smart Notifications</string>
+    
+    <!-- Privacy Related -->
+    <string name="data_encryption_notice">All your data is encrypted end-to-end for maximum privacy and security.</string>
+    <string name="local_processing_notice">Voice recognition and OCR processing happens locally on your device.</string>
+    <string name="no_data_sharing_notice">Duru Notes never shares your personal data with third parties.</string>
+    
+    <!-- General UI -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="continue_text">Continue</string>
+    <string name="skip">Skip</string>
+    <string name="learn_more">Learn More</string>
+    
+    <!-- Onboarding -->
+    <string name="welcome_title">Welcome to Duru Notes</string>
+    <string name="welcome_subtitle">Your intelligent, secure note-taking companion</string>
+    <string name="permissions_explanation_title">Permissions Explained</string>
+    <string name="permissions_explanation_subtitle">Duru Notes requests only the permissions it needs to provide you with the best experience.</string>
+    
+    <!-- Error Messages -->
+    <string name="permission_denied_camera">Camera access is needed for document scanning. You can enable it in Settings.</string>
+    <string name="permission_denied_microphone">Microphone access is needed for voice notes. You can enable it in Settings.</string>
+    <string name="permission_denied_location">Location access is needed for location-based reminders. You can enable it in Settings.</string>
+    <string name="permission_denied_storage">Storage access is needed for file operations. You can enable it in Settings.</string>
+    <string name="permission_denied_notifications">Notification permission is needed for reminders. You can enable it in Settings.</string>
+</resources>

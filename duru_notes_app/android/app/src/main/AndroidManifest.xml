@@ -1,5 +1,30 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-<uses-permission android:name="android.permission.CAMERA" />
+    <!-- Camera permission for document scanning and photo capture -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- Microphone permission for voice notes and speech recognition -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
+    <!-- Location permissions for location-based reminders -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Storage permissions for file attachments -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    
+    <!-- Notification permissions for reminders -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- Internet permission for sync functionality -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Vibration for notification feedback -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="${appName}"
         android:name="${applicationName}"
