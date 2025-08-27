@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:path/path.dart' as path;
 
 import '../core/monitoring/app_logger.dart';
 import '../core/parser/note_block_parser.dart';
@@ -866,7 +867,7 @@ class ImportService {
   Future<List<NoteBlock>> _parseMarkdownToBlocks(String content) async {
     try {
       if (content.trim().isEmpty) {
-        return [createParagraphBlock(content: '')];
+        return [NoteBlock(type: NoteBlockType.paragraph, data: '')];
       }
       
       // Use the parser from the helper function
@@ -877,7 +878,7 @@ class ImportService {
     } catch (e) {
       _logger.error('Failed to parse markdown to blocks', error: e);
       // Fallback: create a single paragraph block
-      return [createParagraphBlock(content: content)];
+      return [NoteBlock(type: NoteBlockType.paragraph, data: content)];
     }
   }
 
@@ -925,9 +926,9 @@ class ImportService {
 
     try {
       // Create the note with timeout
-      final noteId = await _notesRepository.createNote(
-        title.trim(), 
-        blocksToMarkdown(blocks),
+      final noteId = await _notesRepository.createOrUpdate(
+        title: title.trim(), 
+        body: blocksToMarkdown(blocks),
       );
 
       // Create note object for indexing
@@ -935,8 +936,8 @@ class ImportService {
         id: noteId,
         title: title.trim(),
         body: blocksToMarkdown(blocks),
-        createdAt: createdAt ?? DateTime.now(),
         updatedAt: updatedAt ?? DateTime.now(),
+        deleted: false,
       );
 
       // Index for search
@@ -1019,7 +1020,16 @@ class ImportService {
 
   String _extractTitleFromFrontmatter(String frontmatter) {
     final titleMatch = RegExp(r'^title:\s*(.+)$', multiLine: true).firstMatch(frontmatter);
-    return titleMatch?.group(1)?.trim().replaceAll(RegExp(r'^["\'"'"']|["\'"'"']$'), '') ?? '';
+    final title = titleMatch?.group(1)?.trim() ?? '';
+    // Remove quotes from beginning and end
+    String result = title;
+    if (result.startsWith('"') && result.endsWith('"')) {
+      result = result.substring(1, result.length - 1);
+    }
+    if (result.startsWith("'") && result.endsWith("'")) {
+      result = result.substring(1, result.length - 1);
+    }
+    return result;
   }
 
   String _generateTitleFromFilename(String filename) {

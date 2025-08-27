@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
-import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
-import 'package:duru_notes_app/core/monitoring/app_logger.dart';
-
-// Global instances
-final logger = LoggerFactory.instance;
-final analytics = AnalyticsFactory.instance;
+import '../../main.dart';
 
 /// Cached image widget for attachment display
 /// Provides automatic caching, error handling, and analytics

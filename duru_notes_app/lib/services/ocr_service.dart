@@ -88,9 +88,7 @@ class OCRService {
       _analytics.featureUsed('ocr_text_extracted', properties: {
         'text_length': extractedText.length,
         'word_count': extractedText.split(' ').where((w) => w.isNotEmpty).length,
-        'confidence_scores': recognizedText.blocks
-            .map((block) => block.confidence ?? 0.0)
-            .toList(),
+        'block_count': recognizedText.blocks.length,
       });
       
       _logger.info('Text extracted from image', data: {
@@ -147,7 +145,7 @@ class OCRService {
         
         blocks.add(OCRTextBlock(
           text: textBlock.text,
-          confidence: textBlock.confidence,
+          confidence: 1.0, // Default confidence since ML Kit doesn't provide it
           boundingBox: textBlock.boundingBox,
           lines: lines,
         ));

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:duru_notes_app/core/monitoring/app_logger.dart';
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/services/analytics/analytics_service.dart';
-import 'package:duru_notes_app/services/analytics/analytics_sentry.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../main.dart';
+import '../providers.dart';
+import '../services/analytics/analytics_service.dart';
 
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   NoteSearchDelegate({required this.db});

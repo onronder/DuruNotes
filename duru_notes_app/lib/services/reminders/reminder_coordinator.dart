@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart';
+import '../../data/local/app_db.dart' hide NoteReminder;
+import '../../models/note_reminder.dart';
+import '../../providers.dart';
 import '../analytics/analytics_service.dart';
 import 'geofence_reminder_service.dart';
 import 'recurring_reminder_service.dart';
@@ -221,10 +223,7 @@ class ReminderCoordinator {
   // Reminder Management
   // ========================
 
-  /// Get all reminders for a note
-  Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
-    return await _db.getRemindersForNote(noteId);
-  }
+  // Method implementation moved below with proper conversion
 
   /// Update a reminder
   Future<void> updateReminder(int reminderId, NoteRemindersCompanion updates) async {
@@ -341,17 +340,60 @@ class ReminderCoordinator {
   // Cleanup
   // ========================
 
+  /// Get reminders for a specific note
+  Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
+    try {
+      // Get reminders from database
+      final dbReminders = await _db.getRemindersForNote(noteId);
+      
+      // Convert database NoteReminder objects to model NoteReminder objects
+      return dbReminders.map((dbReminder) {
+        return NoteReminder(
+          id: dbReminder.id,
+          noteId: dbReminder.noteId,
+          title: dbReminder.title,
+          body: dbReminder.body,
+          type: dbReminder.type,
+          scheduledTime: dbReminder.remindAt ?? DateTime.now(),
+          remindAt: dbReminder.remindAt,
+          isCompleted: false, // Not in database schema, derive from isActive or other fields if needed
+          isSnoozed: dbReminder.snoozedUntil != null && dbReminder.snoozedUntil!.isAfter(DateTime.now()),
+          snoozeUntil: dbReminder.snoozedUntil,
+          isActive: dbReminder.isActive ?? true,
+          recurrencePattern: dbReminder.recurrencePattern,
+          recurrenceInterval: dbReminder.recurrenceInterval,
+          recurrenceEndDate: dbReminder.recurrenceEndDate,
+          latitude: dbReminder.latitude,
+          longitude: dbReminder.longitude,
+          radius: dbReminder.radius,
+          locationName: dbReminder.locationName,
+          notificationTitle: dbReminder.notificationTitle,
+          notificationBody: dbReminder.notificationBody,
+          timeZone: dbReminder.timeZone,
+          createdAt: dbReminder.createdAt,
+          updatedAt: dbReminder.lastTriggered ?? dbReminder.createdAt, // Use lastTriggered as proxy for updatedAt
+        );
+      }).toList();
+    } catch (e, stack) {
+      logger.error('Failed to get reminders for note', error: e, stackTrace: stack);
+      return [];
+    }
+  }
+
   /// Cleanup and dispose of all services
   Future<void> dispose() async {
     try {
       await _geofenceService.dispose();
       logger.info('ReminderCoordinator disposed');
     } catch (e) {
-      logger.warn('Error disposing ReminderCoordinator', error: e);
+      logger.warn('Error disposing ReminderCoordinator: $e');
     }
   }
 }
 
+// Provider for ReminderCoordinator is defined in providers.dart
+
+/// Maintain compatibility with existing code
 /// Provider for ReminderCoordinator
 final reminderCoordinatorProvider = Provider<ReminderCoordinator>((ref) {
   final plugin = FlutterLocalNotificationsPlugin();
@@ -360,7 +402,6 @@ final reminderCoordinatorProvider = Provider<ReminderCoordinator>((ref) {
 });
 
 /// Maintain compatibility with existing code
-@Deprecated('Use reminderCoordinatorProvider instead')
 final advancedReminderServiceProvider = Provider<ReminderCoordinator>((ref) {
   return ref.read(reminderCoordinatorProvider);
 });

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/note_block.dart';
 import '../core/monitoring/app_logger.dart';
@@ -194,7 +195,7 @@ class AttachmentService {
       _analytics.startTiming('attachment_download');
       
       // For Supabase storage URLs, we can use the storage client
-      if (url.contains(_client.storageUrl)) {
+      if (url.contains('supabase') && url.contains('storage')) {
         final uri = Uri.parse(url);
         final pathSegments = uri.pathSegments;
         
@@ -216,7 +217,7 @@ class AttachmentService {
       }
       
       // Fallback to HTTP client
-      final response = await _client.httpClient.get(Uri.parse(url));
+              final response = await http.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
@@ -247,7 +248,7 @@ class AttachmentService {
   /// Delete attachment from storage
   Future<bool> delete(String url) async {
     try {
-      if (url.contains(_client.storageUrl)) {
+      if (url.contains('supabase') && url.contains('storage')) {
         final uri = Uri.parse(url);
         final pathSegments = uri.pathSegments;
         
@@ -361,10 +362,4 @@ class AttachmentService {
   }
 }
 
-/// Provider for attachment service
-final attachmentServiceProvider = Provider<AttachmentService>((ref) {
-  return AttachmentService(
-    logger: ref.watch(loggerProvider),
-    analytics: ref.watch(analyticsProvider),
-  );
-});
+// Provider for attachment service is defined in providers.dart

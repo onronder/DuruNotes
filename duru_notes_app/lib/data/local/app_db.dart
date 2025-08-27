@@ -420,7 +420,7 @@ class AppDb extends _$AppDb {
     });
   }
 
-  Future<void> replaceLinksForNote(String noteId, List<LinkTarget> links) async {
+  Future<void> replaceLinksForNote(String noteId, List<Map<String, String?>> links) async {
     await transaction(() async {
       await (delete(noteLinks)..where((t) => t.sourceId.equals(noteId))).go();
       if (links.isNotEmpty) {
@@ -430,8 +430,8 @@ class AppDb extends _$AppDb {
             links.map(
               (l) => NoteLinksCompanion.insert(
                 sourceId: noteId,
-                targetTitle: l.title ?? '',
-                targetId: Value(l.id),
+                targetTitle: l['title'] ?? '',
+                targetId: Value(l['id']),
               ),
             ),
           );

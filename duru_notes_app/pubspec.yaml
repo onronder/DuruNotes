@@ -54,6 +54,7 @@ dependencies:
   printing: ^5.12.0  # PDF printing and sharing
   share_plus: ^10.1.2  # Cross-platform sharing
   open_file: ^3.5.3  # Open files with system apps
+  adapty_flutter: ^3.10.0  # Subscription management and monetization
 
 dev_dependencies:
   sentry_dart_plugin: ^3.1.1

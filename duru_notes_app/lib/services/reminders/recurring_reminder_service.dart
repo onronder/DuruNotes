@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -56,12 +57,12 @@ class RecurringReminderService {
       final reminderId = await _db.createReminder(
         NoteRemindersCompanion.insert(
           noteId: noteId,
-          title: title,
-          body: body,
-          type: ReminderType.time,
+          title: Value(title),
+          body: Value(body),
+          type: ReminderType.recurring,
           remindAt: Value(remindAtUtc),
-          recurrencePattern: recurrence,
-          recurrenceInterval: recurrenceInterval,
+          recurrencePattern: Value(recurrence),
+          recurrenceInterval: Value(recurrenceInterval),
           recurrenceEndDate: Value(recurrenceEndDate),
           notificationTitle: Value(customNotificationTitle),
           notificationBody: Value(customNotificationBody),

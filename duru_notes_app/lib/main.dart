@@ -1,3 +1,4 @@
+import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,6 +78,18 @@ Future<void> _initializeServices() async {
   // Initialize analytics
   AnalyticsFactory.initialize();
   analytics = AnalyticsFactory.instance;
+
+  // Initialize Adapty SDK
+  try {
+    await Adapty().activate(
+      configuration: AdaptyConfiguration(
+        apiKey: 'public_live_auSluPc0.Qso83VlJGyzNxUmeZn6j',
+      ),
+    );
+    logger.info('Adapty SDK initialized successfully');
+  } catch (e) {
+    logger.error('Failed to initialize Adapty SDK: $e');
+  }
 
   logger.info('Services initialized successfully');
 }

@@ -12,7 +12,7 @@ class NotesRepository {
     required this.client,
     required this.userId,
   })  : api = SupabaseNoteApi(client),
-        _indexer = NoteIndexer(db);
+        _indexer = NoteIndexer();
 
   final AppDb db;
   final CryptoBox crypto;
@@ -48,7 +48,7 @@ class NotesRepository {
     );
 
     await db.upsertNote(n);
-    await _indexer.updateIndex(n);
+    await _indexer.indexNote(n);
     await db.enqueue(noteId, 'upsert_note');
     return noteId;
   }
@@ -67,7 +67,7 @@ class NotesRepository {
       final deletedNote =
           n.copyWith(deleted: true, updatedAt: DateTime.now());
       await db.upsertNote(deletedNote);
-      await _indexer.updateIndex(deletedNote);
+      await _indexer.indexNote(deletedNote);
       await db.enqueue(id, 'upsert_note');
     }
   }
@@ -166,7 +166,7 @@ class NotesRepository {
             deleted: deleted,
           );
           await db.upsertNote(n);
-          await _indexer.updateIndex(n);
+          await _indexer.indexNote(n);
         }
       } on Object {
         // bozuk satırları atla
@@ -191,7 +191,7 @@ class NotesRepository {
           final deletedNote =
               n.copyWith(deleted: true, updatedAt: DateTime.now());
           await db.upsertNote(deletedNote);
-          await _indexer.updateIndex(deletedNote);
+          await _indexer.indexNote(deletedNote);
         }
       }
     }

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'package:duru_notes_app/models/note_block.dart';
-import 'package:duru_notes_app/services/attachment_service.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/note_block.dart';
+import '../../services/attachment_service.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
@@ -74,14 +72,16 @@ class _BlockEditorState extends State<BlockEditor> {
           case NoteBlockType.heading2:
           case NoteBlockType.heading3:
           case NoteBlockType.quote:
-            final text = block.data as String? ?? '';
+          case NoteBlockType.bulletList:
+          case NoteBlockType.numberedList:
+            final text = block.data ?? '';
             return TextEditingController(text: text);
           case NoteBlockType.code:
-            final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
-            return TextEditingController(text: codeData.code);
+            final text = block.data ?? '';
+            return TextEditingController(text: text);
           case NoteBlockType.todo:
-            final todoData = block.data as TodoBlockData? ?? const TodoBlockData(text: '', checked: false);
-            return TextEditingController(text: todoData.text);
+            final text = block.data ?? '';
+            return TextEditingController(text: text);
           case NoteBlockType.table:
           case NoteBlockType.attachment:
             return null;
@@ -100,15 +100,11 @@ class _BlockEditorState extends State<BlockEditor> {
             case NoteBlockType.heading2:
             case NoteBlockType.heading3:
             case NoteBlockType.quote:
-              newText = block.data as String? ?? '';
-              break;
+            case NoteBlockType.bulletList:
+            case NoteBlockType.numberedList:
             case NoteBlockType.code:
-              final codeData = block.data as CodeBlockData? ?? const CodeBlockData(code: '');
-              newText = codeData.code;
-              break;
             case NoteBlockType.todo:
-              final todoData = block.data as TodoBlockData? ?? const TodoBlockData(text: '', checked: false);
-              newText = todoData.text;
+              newText = block.data ?? '';
               break;
             default:
               break;
@@ -145,23 +141,23 @@ class _BlockEditorState extends State<BlockEditor> {
       newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
     } else if (type == NoteBlockType.heading3) {
       newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
-    } else if (type == NoteBlockType.todo) {
+    } else     if (type == NoteBlockType.todo) {
       newBlock = const NoteBlock(
         type: NoteBlockType.todo,
-        data: TodoBlockData(text: '', checked: false),
+        data: '',
       );
     } else if (type == NoteBlockType.quote) {
       newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
     } else if (type == NoteBlockType.code) {
       newBlock = const NoteBlock(
         type: NoteBlockType.code,
-        data: CodeBlockData(code: ''),
+        data: '',
       );
     } else {
       // Table block
       newBlock = const NoteBlock(
         type: NoteBlockType.table,
-        data: TableBlockData(rows: [<String>['', ''], <String>['', '']]),
+        data: '',
       );
     }
     if (mounted) {
@@ -182,6 +178,8 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.heading1:
       case NoteBlockType.heading2:
       case NoteBlockType.heading3:
+      case NoteBlockType.bulletList:
+      case NoteBlockType.numberedList:
       case NoteBlockType.quote:
       case NoteBlockType.code:
       case NoteBlockType.todo:
@@ -207,7 +205,7 @@ class _BlockEditorState extends State<BlockEditor> {
   /// an upload error occurs, no block is inserted.
   Future<void> _createAttachmentBlock(int insertIndex) async {
     final client = Supabase.instance.client;
-    final service = AttachmentService(client);
+    final service = AttachmentService(client: client);
     // Show a loading indicator while picking/uploading. We use a
     // modal progress indicator for clarity, but other UX patterns are
     // possible.
@@ -247,7 +245,7 @@ class _BlockEditorState extends State<BlockEditor> {
     // Insert the new attachment block.
     if (mounted) {
       setState(() {
-        final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data);
+        final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data?.fileName ?? 'attachment');
         _blocks.insert(insertIndex, newBlock);
         _controllers.insert(insertIndex, null);
       });
@@ -267,6 +265,10 @@ class _BlockEditorState extends State<BlockEditor> {
         return _buildTextBlock(index, block, controller!, fontSize: 20, fontWeight: FontWeight.bold);
       case NoteBlockType.heading3:
         return _buildTextBlock(index, block, controller!, fontSize: 18, fontWeight: FontWeight.w600);
+      case NoteBlockType.bulletList:
+        return _buildListBlock(index, block, controller!, isBulleted: true);
+      case NoteBlockType.numberedList:
+        return _buildListBlock(index, block, controller!, isBulleted: false);
       case NoteBlockType.quote:
         return _buildQuoteBlock(index, block, controller!);
       case NoteBlockType.code:
@@ -315,6 +317,54 @@ class _BlockEditorState extends State<BlockEditor> {
           icon: const Icon(Icons.delete_outline, size: 20),
           onPressed: mounted ? () => _removeBlock(index) : null,
         ),
+      ],
+    );
+  }
+
+  Widget _buildBlockActions(int index) {
+    return IconButton(
+      icon: const Icon(Icons.delete_outline, size: 20),
+      onPressed: mounted ? () => _removeBlock(index) : null,
+    );
+  }
+
+  Widget _buildListBlock(
+    int index,
+    NoteBlock block,
+    TextEditingController controller, {
+    required bool isBulleted,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 20,
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            isBulleted ? '•' : '${index + 1}.',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            maxLines: null,
+            style: const TextStyle(fontSize: 16),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              hintText: 'List item...',
+            ),
+            onChanged: (value) {
+              _blocks[index] = block.copyWith(data: value);
+              _notifyChange();
+            },
+          ),
+        ),
+        _buildBlockActions(index),
       ],
     );
   }
@@ -382,12 +432,9 @@ class _BlockEditorState extends State<BlockEditor> {
                     hintText: 'Code',
                   ),
                   onChanged: (value) {
-                    final data = block.data as CodeBlockData;
                     if (mounted) {
                       setState(() {
-                        _blocks[index] = _blocks[index].copyWith(
-                          data: data.copyWith(code: value),
-                        );
+                        _blocks[index] = _blocks[index].copyWith(data: value);
                       });
                       _notifyChange();
                     }
@@ -407,18 +454,21 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   Widget _buildTodoBlock(int index, NoteBlock block) {
-    final todo = block.data as TodoBlockData;
+    // Simple implementation: use string data with [ ] or [x] prefix to indicate completion
+    final todoText = block.data;
+    final isCompleted = todoText.startsWith('[x]');
+    final cleanText = todoText.replaceFirst(RegExp(r'^\[[x\s]\]\s?'), '');
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Checkbox(
-          value: todo.checked,
+          value: isCompleted,
           onChanged: mounted ? (checked) {
             if (mounted) {
               setState(() {
-                _blocks[index] = _blocks[index].copyWith(
-                  data: todo.copyWith(checked: checked ?? false),
-                );
+                final prefix = (checked ?? false) ? '[x] ' : '[ ] ';
+                _blocks[index] = _blocks[index].copyWith(data: prefix + cleanText);
               });
               _notifyChange();
             }
@@ -426,14 +476,15 @@ class _BlockEditorState extends State<BlockEditor> {
         ),
         Expanded(
           child: TextField(
-            controller: _controllers[index],
+            controller: _controllers[index]?..text = cleanText,
             maxLines: null,
             textDirection: TextDirection.ltr,
             decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
             onChanged: (value) {
               if (mounted) {
                 setState(() {
-                  _blocks[index] = _blocks[index].copyWith(data: todo.copyWith(text: value));
+                  final prefix = isCompleted ? '[x] ' : '[ ] ';
+                  _blocks[index] = _blocks[index].copyWith(data: prefix + value);
                 });
                 _notifyChange();
               }
@@ -449,77 +500,60 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   Widget _buildTableBlock(int index, NoteBlock block) {
-    final table = block.data as TableBlockData;
-    // Render a simple read-only preview of the table. Editing support could
-    // be added in the future.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: [
-              for (var i = 0; i < table.rows.first.length; i++)
-                DataColumn(label: Text('Col ${i + 1}')),
-            ],
-            rows: [
-              for (final row in table.rows)
-                DataRow(
-                  cells: [for (final cell in row) DataCell(Text(cell))],
-                ),
+    // Simplified table implementation using string data
+    // Data format: "row1col1|row1col2\nrow2col1|row2col2"
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.table_chart, size: 16),
+              SizedBox(width: 8),
+              Text('Table', style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-        ),
-        Row(
-          children: [
-            TextButton(
-              onPressed: mounted ? () {
-                // Add a new row of empty cells
-                if (mounted) {
-                  setState(() {
-                    final cols = table.rows.first.length;
-                    final newRows = List<List<String>>.from(table.rows)
-                      ..add(List<String>.filled(cols, ''));
-                    _blocks[index] = _blocks[index].copyWith(
-                      data: table.copyWith(rows: newRows),
-                    );
-                  });
-                }
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controllers[index],
+            maxLines: null,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              hintText: 'Enter table data (use | for columns, newlines for rows)\nExample: Header1|Header2\nRow1Col1|Row1Col2',
+            ),
+            onChanged: (value) {
+              if (mounted) {
+                setState(() {
+                  _blocks[index] = _blocks[index].copyWith(data: value);
+                });
                 _notifyChange();
-              } : null,
-              child: const Text('+ Row'),
-            ),
-            TextButton(
-              onPressed: mounted ? () {
-                // Add a new column to each row
-                if (mounted) {
-                  setState(() {
-                    final newRows = table.rows
-                        .map((r) => List<String>.from(r)..add(''))
-                        .toList();
-                    _blocks[index] = _blocks[index].copyWith(
-                      data: table.copyWith(rows: newRows),
-                    );
-                  });
-                }
-                _notifyChange();
-              } : null,
-              child: const Text('+ Col'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
-              onPressed: mounted ? () => _removeBlock(index) : null,
-            ),
-          ],
-        ),
-      ],
+              }
+            },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: mounted ? () => _removeBlock(index) : null,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   /// Builds a widget for an attachment block. This renders the attachment
   /// as a file link with preview capabilities and editing options.
   Widget _buildAttachmentBlock(int index, NoteBlock block) {
-    final data = block.data as AttachmentBlockData;
+    // Simplified attachment block using string data (just the filename)
+    final fileName = block.data;
     
     return Card(
       child: Padding(
@@ -527,7 +561,7 @@ class _BlockEditorState extends State<BlockEditor> {
         child: Row(
           children: [
             Icon(
-              _getFileIcon(data.filename),
+              _getFileIcon(fileName),
               size: 24,
               color: Theme.of(context).colorScheme.primary,
             ),
@@ -537,28 +571,57 @@ class _BlockEditorState extends State<BlockEditor> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data.filename.isNotEmpty ? data.filename : 'Untitled attachment',
+                    fileName.isNotEmpty ? fileName : 'Untitled attachment',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (data.url.isNotEmpty)
-                    Text(
-                      data.url,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    'Attachment file',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
+                  ),
                 ],
               ),
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: mounted ? () => _editAttachment(index, data) : null,
+              onPressed: mounted ? () {
+                // Simple edit: just allow changing the filename
+                showDialog<String>(
+                  context: context,
+                  builder: (context) {
+                    final controller = TextEditingController(text: fileName);
+                    return AlertDialog(
+                      title: const Text('Edit Attachment'),
+                      content: TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(labelText: 'File name'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, controller.text),
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    );
+                  },
+                ).then((newName) {
+                  if (newName != null && newName.isNotEmpty && mounted) {
+                    setState(() {
+                      _blocks[index] = _blocks[index].copyWith(data: newName);
+                    });
+                    _notifyChange();
+                  }
+                });
+              } : null,
               tooltip: 'Edit attachment',
             ),
             IconButton(
@@ -573,8 +636,8 @@ class _BlockEditorState extends State<BlockEditor> {
   }
 
   /// Get appropriate icon for file type
-  IconData _getFileIcon(String filename) {
-    final extension = filename.split('.').last.toLowerCase();
+  IconData _getFileIcon(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
     switch (extension) {
       case 'pdf':
         return Icons.picture_as_pdf;
@@ -602,7 +665,7 @@ class _BlockEditorState extends State<BlockEditor> {
 
   /// Show dialog to edit attachment details
   Future<void> _editAttachment(int index, AttachmentBlockData data) async {
-    final filenameController = TextEditingController(text: data.filename);
+    final fileNameController = TextEditingController(text: data.fileName);
     final urlController = TextEditingController(text: data.url);
     
     final result = await showDialog<bool>(
@@ -613,7 +676,7 @@ class _BlockEditorState extends State<BlockEditor> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: filenameController,
+              controller: fileNameController,
               decoration: const InputDecoration(
                 labelText: 'File name',
                 border: OutlineInputBorder(),
@@ -642,20 +705,7 @@ class _BlockEditorState extends State<BlockEditor> {
       ),
     );
     
-    if (result == true) {
-      final updated = data.copyWith(
-        filename: filenameController.text,
-        url: urlController.text,
-      );
-      if (mounted) {
-        setState(() {
-          _blocks[index] = _blocks[index].copyWith(data: updated);
-        });
-      }
-      _notifyChange();
-    }
-    
-    filenameController.dispose();
+    fileNameController.dispose();
     urlController.dispose();
   }
 

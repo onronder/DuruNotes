@@ -392,7 +392,7 @@ class AttachmentBlockPreview extends StatelessWidget {
   });
 
   /// The attachment data to display
-  final AttachmentBlockData attachmentData;
+  final Map<String, String> attachmentData;
   
   /// Whether to show image previews
   final bool showPreview;
