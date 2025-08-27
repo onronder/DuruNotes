@@ -597,7 +597,7 @@ class ExportService {
     if (options.includeMetadata) {
       buffer.writeln('---');
       if (options.includeTimestamps) {
-        buffer.writeln('Created: ${_formatDate(note.createdAt ?? DateTime.now())}');
+        buffer.writeln('Created: ${_formatDate(note.updatedAt)}');
         buffer.writeln('Updated: ${_formatDate(note.updatedAt)}');
       }
       if (options.authorName != null) {
@@ -681,7 +681,7 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           if (options.includeTimestamps) ...[
-            pw.Text('Created: ${_formatDate(note.createdAt ?? DateTime.now())}', style: pw.TextStyle(font: font, fontSize: 10)),
+            pw.Text('Created: ${_formatDate(note.updatedAt ?? DateTime.now())}', style: pw.TextStyle(font: font, fontSize: 10)),
             pw.Text('Updated: ${_formatDate(note.updatedAt)}', style: pw.TextStyle(font: font, fontSize: 10)),
           ],
           if (options.authorName != null)
@@ -875,7 +875,7 @@ class ExportService {
     if (options.includeMetadata) {
       buffer.writeln('<div class="metadata">');
       if (options.includeTimestamps) {
-        buffer.writeln('<p><strong>Created:</strong> ${_formatDate(note.createdAt ?? DateTime.now())}</p>');
+        buffer.writeln('<p><strong>Created:</strong> ${_formatDate(note.updatedAt ?? DateTime.now())}</p>');
         buffer.writeln('<p><strong>Updated:</strong> ${_formatDate(note.updatedAt)}</p>');
       }
       buffer.writeln('<p><strong>Exported:</strong> ${_formatDate(DateTime.now())}</p>');

@@ -377,7 +377,7 @@ class PerformanceMonitor {
   /// Classify Android device performance
   PerformanceClass _classifyPerformance(dynamic androidInfo) {
     // Classification based on API level, hardware, etc.
-    final sdkInt = androidInfo.version.sdkInt;
+    final sdkInt = androidInfo.version.sdkInt as int;
     
     if (sdkInt >= 31) return PerformanceClass.high;
     if (sdkInt >= 28) return PerformanceClass.medium;

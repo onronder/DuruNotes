@@ -20,6 +20,8 @@ class AnalyticsEvents {
   // Reminder events
   static const String reminderSet = 'reminder_set';
   static const String reminderRemoved = 'reminder_removed';
+  static const String reminderPermissionGranted = 'reminder_permission_granted';
+  static const String reminderPermissionDenied = 'reminder_permission_denied';
   
   // Auth events
   static const String userSignIn = 'user_sign_in';
@@ -29,6 +31,10 @@ class AnalyticsEvents {
   // Feature usage
   static const String featureUsed = 'feature_used';
   static const String errorOccurred = 'error_occurred';
+  static const String screenView = 'screen_view';
+  static const String searchPerformed = 'search_performed';
+  static const String searchResults = 'search_results';
+  static const String searchResultClicked = 'search_result_clicked';
 }
 
 /// Analytics properties constants
@@ -50,6 +56,15 @@ class AnalyticsProperties {
   static const String hasCode = 'has_code';
   static const String hasLinks = 'has_links';
   static const String hasAttachments = 'has_attachments';
+  static const String sessionId = 'session_id';
+  static const String appVersion = 'app_version';
+  static const String environment = 'environment';
+  static const String screenName = 'screen_name';
+  static const String duration = 'duration';
+  static const String action = 'action';
+  static const String category = 'category';
+  static const String featureContext = 'feature_context';
+  static const String searchQueryLength = 'search_query_length';
 }
 
 /// Analytics helper for extracting metadata

@@ -2,16 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../core/monitoring/app_logger.dart';
+import '../data/local/app_db.dart' show ReminderType;
 import 'analytics/analytics_service.dart';
-
-/// Reminder types supported by the app
-enum ReminderType {
-  once,
-  daily,
-  weekly,
-  monthly,
-}
 
 /// Reminder data class
 class Reminder {
@@ -139,7 +133,7 @@ class ReminderService {
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
 
-      if (!initialized) {
+      if (initialized != true) {
         throw Exception('Failed to initialize notifications');
       }
 
@@ -201,7 +195,7 @@ class ReminderService {
         notificationId,
         reminder.title,
         reminder.body ?? 'Tap to view your note',
-        _convertToTZDateTime(reminder.scheduledTime),
+        tz.TZDateTime.from(reminder.scheduledTime, tz.local),
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.wallClockTime,
@@ -383,7 +377,7 @@ class ReminderService {
       title: title,
       body: body,
       scheduledTime: scheduledTime,
-      type: ReminderType.once,
+      type: ReminderType.time,
       createdAt: DateTime.now(),
     );
 
@@ -393,14 +387,12 @@ class ReminderService {
   /// Get reminder type display name
   static String getReminderTypeDisplayName(ReminderType type) {
     switch (type) {
-      case ReminderType.once:
-        return 'Once';
-      case ReminderType.daily:
-        return 'Daily';
-      case ReminderType.weekly:
-        return 'Weekly';
-      case ReminderType.monthly:
-        return 'Monthly';
+      case ReminderType.time:
+        return 'Time-based';
+      case ReminderType.location:
+        return 'Location-based';
+      case ReminderType.recurring:
+        return 'Recurring';
     }
   }
 

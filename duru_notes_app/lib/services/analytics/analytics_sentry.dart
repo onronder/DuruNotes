@@ -26,8 +26,8 @@ class SentryAnalytics implements AnalyticsService {
       logger.info('SentryAnalytics initialized', data: {
         'sessionId': _sessionId,
         'appVersion': _appVersion,
-        'analyticsEnabled': EnvironmentConfig.analyticsEnabled,
-        'samplingRate': EnvironmentConfig.analyticsSamplingRate,
+        'analyticsEnabled': EnvironmentConfig.current.analyticsEnabled,
+        'samplingRate': EnvironmentConfig.current.analyticsSamplingRate,
       });
     } catch (e) {
       logger.error('Failed to initialize SentryAnalytics', error: e);
@@ -36,22 +36,19 @@ class SentryAnalytics implements AnalyticsService {
   
   /// Check if analytics is enabled and should be sampled
   bool get _isEnabled {
-    return EnvironmentConfig.analyticsEnabled && 
-           AnalyticsHelper.shouldSample(EnvironmentConfig.analyticsSamplingRate);
+    return EnvironmentConfig.current.analyticsEnabled;
   }
   
   @override
-  void event(String name, {Map<String, Object?> properties = const {}}) {
+  void event(String name, {Map<String, dynamic>? properties}) {
     if (!_isEnabled) return;
     
     try {
-      final sanitizedProperties = AnalyticsHelper.sanitizeProperties(properties);
       final eventData = {
-        ...AnalyticsHelper.getStandardProperties(),
-        ...sanitizedProperties,
+        ...(properties ?? {}),
         AnalyticsProperties.sessionId: _sessionId,
         AnalyticsProperties.appVersion: _appVersion,
-        AnalyticsProperties.environment: EnvironmentConfig.currentEnvironment.name,
+        AnalyticsProperties.environment: EnvironmentConfig.current.currentEnvironment.name,
         if (_currentUserId != null) AnalyticsProperties.userId: _currentUserId,
       };
       
@@ -80,15 +77,15 @@ class SentryAnalytics implements AnalyticsService {
   }
   
   @override
-  void screen(String name, {Map<String, Object?> properties = const {}}) {
+  void screen(String name, {Map<String, dynamic>? properties}) {
     event(AnalyticsEvents.screenView, properties: {
       AnalyticsProperties.screenName: name,
-      ...properties,
+      ...(properties ?? {}),
     });
   }
   
   @override
-  void setUser(String? userId, {Map<String, Object?> properties = const {}}) {
+  void setUser(String? userId, {Map<String, dynamic>? properties}) {
     _currentUserId = userId;
     
     if (!_isEnabled) return;
@@ -97,13 +94,13 @@ class SentryAnalytics implements AnalyticsService {
           Sentry.configureScope((scope) {
       scope.setUser(SentryUser(
         id: userId,
-        data: AnalyticsHelper.sanitizeProperties(properties),
+        data: properties ?? {},
       ));
     });
       
       logger.info('Analytics user set', data: {
         'hasUserId': userId != null,
-        'propertyCount': properties.length,
+        'propertyCount': properties?.length ?? 0,
       });
     } catch (e) {
       logger.error('Failed to set analytics user', error: e);
@@ -153,7 +150,7 @@ class SentryAnalytics implements AnalyticsService {
   }
   
   @override
-  void endTiming(String name, {Map<String, Object?> properties = const {}}) {
+  void endTiming(String name, {Map<String, dynamic>? properties}) {
     final startTime = _timingEvents.remove(name);
     if (startTime == null) {
       logger.warn('Attempted to end timing for non-started event: $name');
@@ -164,43 +161,70 @@ class SentryAnalytics implements AnalyticsService {
     
     event('timing.$name', properties: {
       AnalyticsProperties.duration: duration,
-      ...properties,
+      ...(properties ?? {}),
     });
   }
   
   @override
-  void funnelStep(String funnelName, String stepName, {Map<String, Object?> properties = const {}}) {
+  void funnelStep(String funnelName, String stepName, {Map<String, dynamic>? properties}) {
     event('funnel.$funnelName.$stepName', properties: {
       'funnel_name': funnelName,
       'step_name': stepName,
-      ...properties,
+      ...(properties ?? {}),
     });
   }
   
   @override
-  void featureUsed(String featureName, {Map<String, Object?> properties = const {}}) {
+  void featureUsed(String featureName, {Map<String, dynamic>? properties}) {
     event('feature.used', properties: {
       AnalyticsProperties.featureName: featureName,
-      ...properties,
+      ...(properties ?? {}),
     });
   }
   
   @override
-  void engagement(String action, {String? category, Map<String, Object?> properties = const {}}) {
+  void engagement(String action, {String? category, Map<String, dynamic>? properties}) {
     event('engagement', properties: {
       AnalyticsProperties.action: action,
       if (category != null) AnalyticsProperties.category: category,
-      ...properties,
+      ...(properties ?? {}),
     });
   }
   
   @override
-  void trackError(String error, {String? context, Map<String, Object?> properties = const {}}) {
+  void trackError(String error, {String? context, Map<String, dynamic>? properties}) {
     event(AnalyticsEvents.errorOccurred, properties: {
       AnalyticsProperties.errorMessage: error,
       if (context != null) AnalyticsProperties.featureContext: context,
-      ...properties,
+      ...(properties ?? {}),
     });
+  }
+  
+  @override
+  void setUserProperties(Map<String, dynamic> properties) {
+    if (!_isEnabled) return;
+    
+    try {
+      // Set user properties in Sentry
+      Sentry.configureScope((scope) {
+        for (final entry in properties.entries) {
+          scope.setTag(entry.key, entry.value.toString());
+        }
+      });
+    } catch (e) {
+      logger.error('Failed to set user properties', error: e);
+    }
+  }
+  
+  @override
+  Future<void> flush() async {
+    if (!_isEnabled) return;
+    
+    try {
+      await Sentry.close();
+    } catch (e) {
+      logger.error('Failed to flush analytics', error: e);
+    }
   }
   
   /// Check if a key might contain PII
@@ -224,17 +248,17 @@ class SentryAnalytics implements AnalyticsService {
 /// No-op analytics implementation for when analytics is disabled
 class NoOpAnalytics implements AnalyticsService {
   @override
-  void event(String name, {Map<String, Object?> properties = const {}}) {
+  void event(String name, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void screen(String name, {Map<String, Object?> properties = const {}}) {
+  void screen(String name, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void setUser(String? userId, {Map<String, Object?> properties = const {}}) {
+  void setUser(String? userId, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
@@ -254,27 +278,37 @@ class NoOpAnalytics implements AnalyticsService {
   }
   
   @override
-  void endTiming(String name, {Map<String, Object?> properties = const {}}) {
+  void endTiming(String name, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void funnelStep(String funnelName, String stepName, {Map<String, Object?> properties = const {}}) {
+  void funnelStep(String funnelName, String stepName, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void featureUsed(String featureName, {Map<String, Object?> properties = const {}}) {
+  void featureUsed(String featureName, {Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void engagement(String action, {String? category, Map<String, Object?> properties = const {}}) {
+  void engagement(String action, {String? category, Map<String, dynamic>? properties}) {
     // No-op
   }
   
   @override
-  void trackError(String error, {String? context, Map<String, Object?> properties = const {}}) {
+  void trackError(String error, {String? context, Map<String, dynamic>? properties}) {
+    // No-op
+  }
+  
+  @override
+  void setUserProperties(Map<String, dynamic> properties) {
+    // No-op
+  }
+  
+  @override
+  Future<void> flush() async {
     // No-op
   }
 }
@@ -290,7 +324,7 @@ class AnalyticsFactory {
   
   /// Initialize the analytics service
   static Future<void> initialize() async {
-    if (EnvironmentConfig.analyticsEnabled && EnvironmentConfig.isSentryConfigured) {
+    if (EnvironmentConfig.current.analyticsEnabled && EnvironmentConfig.current.isSentryConfigured) {
       final sentryAnalytics = SentryAnalytics();
       await sentryAnalytics.initialize();
       _instance = sentryAnalytics;
@@ -300,7 +334,7 @@ class AnalyticsFactory {
     
     logger.info('Analytics service initialized', data: {
       'type': _instance.runtimeType.toString(),
-      'enabled': EnvironmentConfig.analyticsEnabled,
+      'enabled': EnvironmentConfig.current.analyticsEnabled,
     });
   }
   

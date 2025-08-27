@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:duru_notes_app/core/security/password_validator.dart';
+import 'password_validator.dart';
 
 /// Service to manage password history and prevent password reuse
 class PasswordHistoryService {

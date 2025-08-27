@@ -131,6 +131,9 @@ class NoOpLogger implements AppLogger {
   void warning(String message, {Map<String, dynamic>? data}) {}
   
   @override
+  void warn(String message, {Map<String, dynamic>? data}) {}
+  
+  @override
   void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {}
   
   @override

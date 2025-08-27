@@ -4,11 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/crypto/crypto_box.dart';
 import 'core/crypto/key_manager.dart';
 import 'core/monitoring/app_logger.dart';
+import 'core/parser/note_indexer.dart';
 import 'data/local/app_db.dart';
 import 'repository/notes_repository.dart';
 import 'repository/sync_service.dart';
 import 'features/notes/pagination_notifier.dart';
 import 'services/analytics/analytics_service.dart';
+import 'services/attachment_service.dart';
 import 'services/export_service.dart';
 import 'services/import_service.dart';
 
@@ -106,15 +108,18 @@ final exportServiceProvider = Provider<ExportService>((ref) {
 });
 
 /// Attachment service provider
-final attachmentServiceProvider = Provider((ref) {
-  return AttachmentService();
+final attachmentServiceProvider = Provider<AttachmentService>((ref) {
+  return AttachmentService(
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+  );
 });
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(
     notesRepository: ref.watch(notesRepositoryProvider),
-    noteIndexer: NoteIndexer(), // Simple instance creation
+    noteIndexer: NoteIndexer(logger: ref.watch(loggerProvider)),
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
   );

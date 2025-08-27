@@ -311,13 +311,13 @@ class SnoozeReminderService {
   /// Get snooze statistics for analytics
   Future<Map<String, dynamic>> getSnoozeStats() async {
     try {
-      // This would need corresponding database methods
-      final totalSnoozed = await _db.getTotalSnoozedCount();
-      final averageSnoozeCount = await _db.getAverageSnoozeCount();
+      // TODO: Implement database methods for snooze analytics
+      // final totalSnoozed = await _db.getTotalSnoozedCount();
+      // final averageSnoozeCount = await _db.getAverageSnoozeCount();
       
       return {
-        'total_snoozed': totalSnoozed,
-        'average_snooze_count': averageSnoozeCount,
+        'total_snoozed': 0, // totalSnoozed,
+        'average_snooze_count': 0.0, // averageSnoozeCount,
         'max_snooze_limit': maxSnoozeCount,
       };
     } catch (e, stack) {

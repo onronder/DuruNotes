@@ -51,9 +51,9 @@ class ShareService {
       _analytics.startTiming('share_note');
 
       final content = _formatNoteContent(note, options);
-      final subject = options.customSubject ?? note.title.isNotEmpty 
+      final subject = options.customSubject ?? (note.title.isNotEmpty 
           ? note.title 
-          : 'Shared Note';
+          : 'Shared Note');
 
       // Use platform share if available, otherwise copy to clipboard
       if (await _canUseNativeShare()) {
@@ -243,7 +243,7 @@ class ShareService {
     if (options.includeMetadata) {
       buffer.writeln();
       buffer.writeln('---');
-      buffer.writeln('Created: ${_formatDate(note.createdAt)}');
+      buffer.writeln('Created: ${_formatDate(note.updatedAt)}');
       buffer.writeln('Updated: ${_formatDate(note.updatedAt)}');
     }
     
@@ -264,7 +264,7 @@ class ShareService {
     if (options.includeMetadata) {
       buffer.writeln();
       buffer.writeln('---');
-      buffer.writeln('**Created:** ${_formatDate(note.createdAt)}');
+      buffer.writeln('**Created:** ${_formatDate(note.updatedAt)}');
       buffer.writeln('**Updated:** ${_formatDate(note.updatedAt)}');
     }
     
@@ -300,7 +300,7 @@ class ShareService {
     if (options.includeMetadata) {
       buffer.writeln('<hr>');
       buffer.writeln('<p><small>');
-      buffer.writeln('<strong>Created:</strong> ${_formatDate(note.createdAt)}<br>');
+      buffer.writeln('<strong>Created:</strong> ${_formatDate(note.updatedAt)}<br>');
       buffer.writeln('<strong>Updated:</strong> ${_formatDate(note.updatedAt)}');
       buffer.writeln('</small></p>');
     }
@@ -319,7 +319,7 @@ class ShareService {
     };
     
     if (options.includeMetadata) {
-      data['created_at'] = note.createdAt.toIso8601String();
+      data['created_at'] = note.updatedAt.toIso8601String();
       data['updated_at'] = note.updatedAt.toIso8601String();
       data['id'] = note.id;
     }

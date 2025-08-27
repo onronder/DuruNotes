@@ -1,9 +1,9 @@
-import 'package:duru_notes_app/data/local/app_db.dart';
-import 'package:duru_notes_app/ui/home_screen.dart';
-import 'package:duru_notes_app/ui/tag_notes_screen.dart';
-import 'package:duru_notes_app/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers.dart';
+import '../data/local/app_db.dart' show TagCount;
+import 'tag_notes_screen.dart';
+import 'widgets/error_display.dart';
 
 class TagsScreen extends ConsumerStatefulWidget {
   const TagsScreen({super.key});
@@ -41,7 +41,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     });
 
     try {
-      final db = ref.read(dbProvider);
+      final db = ref.read(appDbProvider);
       final tags = await db.getTagsWithCounts();
       
       if (mounted) {

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:duru_notes_app/core/security/password_validator.dart';
-import 'package:duru_notes_app/core/security/password_history_service.dart';
-import 'package:duru_notes_app/ui/widgets/password_strength_meter.dart';
+import '../core/security/password_validator.dart';
+import '../core/security/password_history_service.dart';
+// import '../ui/widgets/password_strength_meter.dart'; // Widget not available
 
 /// Secure password change screen with comprehensive validation
 class ChangePasswordScreen extends ConsumerStatefulWidget {
@@ -264,10 +264,22 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 // Password Strength Meter
                 if (_passwordValidation != null) ...[
                   const SizedBox(height: 16),
-                  PasswordStrengthMeter(
-                    validationResult: _passwordValidation!,
-                    showCriteria: true,
-                    showScore: false,
+                  // TODO: Implement PasswordStrengthMeter widget
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _passwordValidation!.isValid ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _passwordValidation!.isValid ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    child: Text(
+                      _passwordValidation!.isValid ? 'Password meets requirements' : 'Password does not meet requirements',
+                      style: TextStyle(
+                        color: _passwordValidation!.isValid ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),

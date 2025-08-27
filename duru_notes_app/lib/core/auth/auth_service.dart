@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:duru_notes_app/core/auth/login_attempts_service.dart';
+import 'login_attempts_service.dart';
 
 /// Result of an authentication attempt
 class AuthResult {
@@ -57,7 +57,7 @@ class AuthService {
     final normalizedEmail = email.trim().toLowerCase();
     
     // Check if account is locked
-    final lockStatus = await _loginAttemptsService.checkAccountLockout(normalizedEmail);
+    final lockStatus = await _loginAttemptsService.checkAccountLockout();
     if (lockStatus.isLocked) {
       return AuthResult(
         success: false,
@@ -142,9 +142,9 @@ class AuthService {
   Future<AuthResult> _performSingleSignIn(String email, String password) async {
     try {
       // Check rate limiting before attempting
-      final canAttempt = await _loginAttemptsService.canAttemptLogin(email);
+      final canAttempt = await _loginAttemptsService.canAttemptLogin();
       if (!canAttempt) {
-        final lockStatus = await _loginAttemptsService.checkAccountLockout(email);
+        final lockStatus = await _loginAttemptsService.checkAccountLockout();
         return AuthResult(
           success: false,
           isAccountLocked: lockStatus.isLocked,
@@ -163,7 +163,7 @@ class AuthService {
 
       if (response.user != null && response.session != null) {
         // Record successful login
-        await _loginAttemptsService.recordSuccessfulLogin(email);
+        await _loginAttemptsService.recordSuccessfulLogin();
         
         return AuthResult(
           success: true,
@@ -173,7 +173,7 @@ class AuthService {
       }
 
       // This shouldn't happen but handle edge case
-      await _loginAttemptsService.recordFailedLogin(email, 'No user or session returned');
+      await _loginAttemptsService.recordFailedLogin();
       return const AuthResult(
         success: false,
         error: 'Authentication failed - no session created',
@@ -181,10 +181,10 @@ class AuthService {
 
     } on AuthException catch (e) {
       // Record failed login attempt
-      await _loginAttemptsService.recordFailedLogin(email, e.message);
+      await _loginAttemptsService.recordFailedLogin();
 
       // Check if account is now locked after this attempt
-      final lockStatus = await _loginAttemptsService.checkAccountLockout(email);
+      final lockStatus = await _loginAttemptsService.checkAccountLockout();
       
       return AuthResult(
         success: false,
@@ -195,7 +195,7 @@ class AuthService {
       );
     } on Exception catch (e) {
       // Record generic failed attempt
-      await _loginAttemptsService.recordFailedLogin(email, e.toString());
+      await _loginAttemptsService.recordFailedLogin();
       
       if (kDebugMode) {
         print('Auth error: $e');

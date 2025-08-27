@@ -136,6 +136,9 @@ Supabase URL: ${config.supabaseUrl.substring(0, 20)}...
 
   /// Check if Sentry is properly configured
   bool get isSentryConfigured => sentryDsn != null && sentryDsn!.isNotEmpty;
+
+  /// Check if performance monitoring is enabled
+  bool get isPerformanceMonitoringEnabled => analyticsEnabled && debugMode;
 }
 
 /// Environment types

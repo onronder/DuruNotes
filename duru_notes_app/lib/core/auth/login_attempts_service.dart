@@ -1,6 +1,19 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Result of account lockout check
+class AccountLockoutStatus {
+  final bool isLocked;
+  final Duration? remainingLockoutTime;
+  final int attemptsRemaining;
+
+  const AccountLockoutStatus({
+    required this.isLocked,
+    this.remainingLockoutTime,
+    required this.attemptsRemaining,
+  });
+}
+
 /// Service for tracking and limiting login attempts to prevent brute force attacks
 class LoginAttemptsService {
   static const String _attemptsKey = 'login_attempts';
@@ -84,5 +97,28 @@ class LoginAttemptsService {
   /// Clear all login attempt data (admin function)
   Future<void> clearAttempts() async {
     await _resetAttempts();
+  }
+
+  /// Check account lockout status (alias for isLockedOut)
+  Future<AccountLockoutStatus> checkAccountLockout() async {
+    final isLocked = await isLockedOut();
+    final remaining = await getRemainingLockoutTime();
+    final attempts = await getRemainingAttempts();
+    
+    return AccountLockoutStatus(
+      isLocked: isLocked,
+      remainingLockoutTime: remaining,
+      attemptsRemaining: attempts,
+    );
+  }
+
+  /// Check if user can attempt login (alias for !isLockedOut)
+  Future<bool> canAttemptLogin() async {
+    return !(await isLockedOut());
+  }
+
+  /// Record failed login (alias for recordFailedAttempt)
+  Future<void> recordFailedLogin() async {
+    return recordFailedAttempt();
   }
 }
