@@ -1,31 +1,19 @@
 import 'package:flutter/material.dart';
-
 import '../../../models/note_block.dart';
 
-/// Widget for rendering and editing table blocks.
-/// 
-/// This widget handles:
-/// - Dynamic table structure with add/remove rows and columns
-/// - Cell editing with text input
-/// - Table navigation and layout
-/// - Responsive design for different screen sizes
-/// - Block deletion functionality
 class TableBlockWidget extends StatefulWidget {
   const TableBlockWidget({
     super.key,
     required this.block,
+    required this.isFocused,
     required this.onChanged,
-    required this.onDelete,
+    required this.onFocusChanged,
   });
 
-  /// The table block being edited
   final NoteBlock block;
-  
-  /// Callback when the block content changes
-  final ValueChanged<NoteBlock> onChanged;
-  
-  /// Callback when the block should be deleted
-  final VoidCallback onDelete;
+  final bool isFocused;
+  final Function(NoteBlock) onChanged;
+  final Function(bool) onFocusChanged;
 
   @override
   State<TableBlockWidget> createState() => _TableBlockWidgetState();
@@ -33,12 +21,13 @@ class TableBlockWidget extends StatefulWidget {
 
 class _TableBlockWidgetState extends State<TableBlockWidget> {
   late List<List<TextEditingController>> _controllers;
-  
-  TableBlockData get _tableData => widget.block.data as TableBlockData;
+  late List<String> _headers;
+  late List<List<String>> _rows;
 
   @override
   void initState() {
     super.initState();
+    _parseTableData();
     _initializeControllers();
   }
 
@@ -46,11 +35,9 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
   void didUpdateWidget(TableBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    final oldTable = oldWidget.block.data as TableBlockData;
-    if (oldTable.rows.length != _tableData.rows.length ||
-        (oldTable.rows.isNotEmpty && 
-         oldTable.rows.first.length != _tableData.rows.first.length)) {
+    if (widget.block.data != oldWidget.block.data) {
       _disposeControllers();
+      _parseTableData();
       _initializeControllers();
     }
   }
@@ -61,10 +48,31 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     super.dispose();
   }
 
+  void _parseTableData() {
+    final lines = widget.block.data.split('\n');
+    if (lines.isNotEmpty) {
+      _headers = lines[0].split('|');
+      _rows = lines.skip(1).map((line) => line.split('|')).toList();
+    } else {
+      _headers = ['Header 1', 'Header 2'];
+      _rows = [['Cell 1', 'Cell 2']];
+    }
+  }
+
   void _initializeControllers() {
-    _controllers = _tableData.rows.map((row) {
-      return row.map((cell) => TextEditingController(text: cell)).toList();
-    }).toList();
+    _controllers = [];
+    
+    // Header controllers
+    final headerControllers = _headers.map((header) => 
+        TextEditingController(text: header)).toList();
+    _controllers.add(headerControllers);
+    
+    // Row controllers
+    for (final row in _rows) {
+      final rowControllers = row.map((cell) => 
+          TextEditingController(text: cell)).toList();
+      _controllers.add(rowControllers);
+    }
   }
 
   void _disposeControllers() {
@@ -75,300 +83,193 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Table header with actions
-            _buildTableHeader(context),
-            const SizedBox(height: 8),
-            
-            // Table content
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: _buildTable(context),
-            ),
-            const SizedBox(height: 8),
-            
-            // Table actions
-            _buildTableActions(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTableHeader(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          Icons.table_chart,
-          size: 20,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Table (${_tableData.rows.length}×${_tableData.rows.isNotEmpty ? _tableData.rows.first.length : 0})',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20),
-          onPressed: widget.onDelete,
-          tooltip: 'Delete table',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTable(BuildContext context) {
-    if (_tableData.rows.isEmpty) {
-      return const Center(
-        child: Text('Empty table'),
-      );
-    }
-
-    return DataTable(
-      border: TableBorder.all(
-        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-        width: 1,
-      ),
-      columnSpacing: 0,
-      horizontalMargin: 0,
-      headingRowHeight: 48,
-      dataRowMinHeight: 48,
-      columns: List.generate(
-        _tableData.rows.first.length,
-        (index) => DataColumn(
-          label: Container(
-            width: 120,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              'Col ${index + 1}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-      rows: List.generate(
-        _tableData.rows.length,
-        (rowIndex) => DataRow(
-          cells: List.generate(
-            _tableData.rows[rowIndex].length,
-            (colIndex) => DataCell(
-              Container(
-                width: 120,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: TextField(
-                  controller: _controllers[rowIndex][colIndex],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                  onChanged: (value) => _updateCell(rowIndex, colIndex, value),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTableActions(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      children: [
-        ElevatedButton.icon(
-          onPressed: _addRow,
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Row'),
-        ),
-        ElevatedButton.icon(
-          onPressed: _addColumn,
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Column'),
-        ),
-        if (_tableData.rows.length > 1)
-          OutlinedButton.icon(
-            onPressed: _removeRow,
-            icon: const Icon(Icons.remove, size: 16),
-            label: const Text('Remove Row'),
-          ),
-        if (_tableData.rows.isNotEmpty && _tableData.rows.first.length > 1)
-          OutlinedButton.icon(
-            onPressed: _removeColumn,
-            icon: const Icon(Icons.remove, size: 16),
-            label: const Text('Remove Column'),
-          ),
-      ],
-    );
-  }
-
-  void _updateCell(int rowIndex, int colIndex, String value) {
-    final newRows = List<List<String>>.from(_tableData.rows);
-    newRows[rowIndex][colIndex] = value;
+  void _updateTable() {
+    // Update headers
+    _headers = _controllers[0].map((c) => c.text).toList();
     
-    final updatedData = _tableData.copyWith(rows: newRows);
-    final updatedBlock = widget.block.copyWith(data: updatedData);
-    widget.onChanged(updatedBlock);
-  }
-
-  void _addRow() {
-    final colCount = _tableData.rows.isNotEmpty ? _tableData.rows.first.length : 2;
-    final newRow = List<String>.filled(colCount, '');
-    final newRows = List<List<String>>.from(_tableData.rows)..add(newRow);
+    // Update rows
+    _rows = _controllers.skip(1).map((row) => 
+        row.map((c) => c.text).toList()).toList();
     
-    final updatedData = _tableData.copyWith(rows: newRows);
-    final updatedBlock = widget.block.copyWith(data: updatedData);
-    widget.onChanged(updatedBlock);
+    // Create table data string
+    final tableData = [
+      _headers.join('|'),
+      ..._rows.map((row) => row.join('|')),
+    ].join('\n');
+    
+    final newBlock = widget.block.copyWith(data: tableData);
+    widget.onChanged(newBlock);
   }
 
   void _addColumn() {
-    final newRows = _tableData.rows.map((row) {
-      return List<String>.from(row)..add('');
-    }).toList();
-    
-    final updatedData = _tableData.copyWith(rows: newRows);
-    final updatedBlock = widget.block.copyWith(data: updatedData);
-    widget.onChanged(updatedBlock);
+    setState(() {
+      _headers.add('New Header');
+      for (int i = 0; i < _rows.length; i++) {
+        _rows[i].add('New Cell');
+      }
+      
+      // Add controllers
+      _controllers[0].add(TextEditingController(text: 'New Header'));
+      for (int i = 1; i < _controllers.length; i++) {
+        _controllers[i].add(TextEditingController(text: 'New Cell'));
+      }
+    });
+    _updateTable();
   }
 
-  void _removeRow() {
-    if (_tableData.rows.length <= 1) return;
-    
-    final newRows = List<List<String>>.from(_tableData.rows)..removeLast();
-    final updatedData = _tableData.copyWith(rows: newRows);
-    final updatedBlock = widget.block.copyWith(data: updatedData);
-    widget.onChanged(updatedBlock);
+  void _addRow() {
+    setState(() {
+      final newRow = List.filled(_headers.length, 'New Cell');
+      _rows.add(newRow);
+      
+      // Add controllers
+      final rowControllers = newRow.map((cell) => 
+          TextEditingController(text: cell)).toList();
+      _controllers.add(rowControllers);
+    });
+    _updateTable();
   }
 
-  void _removeColumn() {
-    if (_tableData.rows.isEmpty || _tableData.rows.first.length <= 1) return;
-    
-    final newRows = _tableData.rows.map((row) {
-      final newRow = List<String>.from(row);
-      if (newRow.isNotEmpty) newRow.removeLast();
-      return newRow;
-    }).toList();
-    
-    final updatedData = _tableData.copyWith(rows: newRows);
-    final updatedBlock = widget.block.copyWith(data: updatedData);
-    widget.onChanged(updatedBlock);
+  void _removeColumn(int columnIndex) {
+    if (_headers.length > 1) {
+      setState(() {
+        _headers.removeAt(columnIndex);
+        for (int i = 0; i < _rows.length; i++) {
+          if (_rows[i].length > columnIndex) {
+            _rows[i].removeAt(columnIndex);
+          }
+        }
+        
+        // Remove controllers
+        _controllers[0][columnIndex].dispose();
+        _controllers[0].removeAt(columnIndex);
+        for (int i = 1; i < _controllers.length; i++) {
+          if (_controllers[i].length > columnIndex) {
+            _controllers[i][columnIndex].dispose();
+            _controllers[i].removeAt(columnIndex);
+          }
+        }
+      });
+      _updateTable();
+    }
   }
-}
 
-/// Widget for displaying table blocks in read-only mode.
-class TableBlockPreview extends StatelessWidget {
-  const TableBlockPreview({
-    super.key,
-    required this.tableData,
-    this.maxRows,
-    this.maxColumns,
-  });
-
-  /// The table data to display
-  final TableBlockData tableData;
-  
-  /// Maximum number of rows to show
-  final int? maxRows;
-  
-  /// Maximum number of columns to show
-  final int? maxColumns;
+  void _removeRow(int rowIndex) {
+    if (_rows.length > 1) {
+      setState(() {
+        _rows.removeAt(rowIndex);
+        
+        // Remove controllers (rowIndex + 1 because index 0 is headers)
+        final controllersIndex = rowIndex + 1;
+        for (final controller in _controllers[controllersIndex]) {
+          controller.dispose();
+        }
+        _controllers.removeAt(controllersIndex);
+      });
+      _updateTable();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (tableData.rows.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(
-            child: Text('Empty table'),
-          ),
-        ),
-      );
-    }
-
-    final rows = maxRows != null && tableData.rows.length > maxRows!
-        ? tableData.rows.take(maxRows!).toList()
-        : tableData.rows;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Table info
-            Row(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Table Actions
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
               children: [
-                Icon(
-                  Icons.table_chart,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
                 Text(
-                  'Table (${tableData.rows.length}×${tableData.rows.first.length})',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  'Table',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.add, size: 16),
+                  onPressed: _addColumn,
+                  tooltip: 'Add Column',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_box, size: 16),
+                  onPressed: _addRow,
+                  tooltip: 'Add Row',
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            
-            // Table content
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                border: TableBorder.all(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                ),
-                columns: List.generate(
-                  maxColumns != null && tableData.rows.first.length > maxColumns!
-                      ? maxColumns!
-                      : tableData.rows.first.length,
-                  (index) => DataColumn(
-                    label: Text('Col ${index + 1}'),
+          ),
+          
+          // Table Content
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: List.generate(_headers.length, (index) {
+                return DataColumn(
+                  label: Row(
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          controller: _controllers[0][index],
+                          onChanged: (_) => _updateTable(),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (_headers.length > 1)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 12),
+                          onPressed: () => _removeColumn(index),
+                        ),
+                    ],
                   ),
-                ),
-                rows: rows.map((row) {
-                  final cells = maxColumns != null && row.length > maxColumns!
-                      ? row.take(maxColumns!).toList()
-                      : row;
-                      
-                  return DataRow(
-                    cells: cells.map((cell) => DataCell(Text(cell))).toList(),
-                  );
-                }).toList(),
-              ),
+                );
+              }),
+              rows: List.generate(_rows.length, (rowIndex) {
+                return DataRow(
+                  cells: List.generate(_headers.length, (colIndex) {
+                    final controllerIndex = rowIndex + 1;
+                    return DataCell(
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            child: TextField(
+                              controller: _controllers[controllerIndex][colIndex],
+                              onChanged: (_) => _updateTable(),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          if (colIndex == 0 && _rows.length > 1)
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 12),
+                              onPressed: () => _removeRow(rowIndex),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                );
+              }),
             ),
-            
-            // Truncation indicator
-            if ((maxRows != null && tableData.rows.length > maxRows!) ||
-                (maxColumns != null && tableData.rows.first.length > maxColumns!))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '... and more',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -50,6 +50,10 @@ dependencies:
   geolocator: ^12.0.0
   geofence_service: ^6.0.0
   record: ^5.0.4  # Audio recording
+  pdf: ^3.11.1  # PDF generation
+  printing: ^5.12.0  # PDF printing and sharing
+  share_plus: ^10.1.2  # Cross-platform sharing
+  open_file: ^3.5.3  # Open files with system apps
 
 dev_dependencies:
   sentry_dart_plugin: ^3.1.1

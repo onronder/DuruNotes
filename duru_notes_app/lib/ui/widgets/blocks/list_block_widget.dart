@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/note_block.dart';
 
-class ParagraphBlockWidget extends StatefulWidget {
-  const ParagraphBlockWidget({
+class ListBlockWidget extends StatefulWidget {
+  const ListBlockWidget({
     super.key,
     required this.block,
     required this.isFocused,
     required this.onChanged,
     required this.onFocusChanged,
     required this.onNewLine,
-    this.isQuote = false,
   });
 
   final NoteBlock block;
@@ -18,13 +17,12 @@ class ParagraphBlockWidget extends StatefulWidget {
   final Function(NoteBlock) onChanged;
   final Function(bool) onFocusChanged;
   final VoidCallback onNewLine;
-  final bool isQuote;
 
   @override
-  State<ParagraphBlockWidget> createState() => _ParagraphBlockWidgetState();
+  State<ListBlockWidget> createState() => _ListBlockWidgetState();
 }
 
-class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
+class _ListBlockWidgetState extends State<ListBlockWidget> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
 
@@ -46,7 +44,7 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
   }
 
   @override
-  void didUpdateWidget(ParagraphBlockWidget oldWidget) {
+  void didUpdateWidget(ListBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     
     if (widget.block.data != oldWidget.block.data) {
@@ -72,55 +70,61 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
-      // Check if cursor is at the end
       if (_controller.selection.baseOffset == _controller.text.length) {
         widget.onNewLine();
       }
     }
   }
 
+  IconData _getListIcon() {
+    return widget.block.type == NoteBlockType.bulletList 
+        ? Icons.circle 
+        : Icons.looks_one;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: widget.isQuote
-          ? BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: Theme.of(context).primaryColor,
-                  width: 4,
-                ),
-              ),
-            )
-          : null,
-      padding: widget.isQuote ? const EdgeInsets.only(left: 16) : null,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          _handleKeyEvent(event);
-          return KeyEventResult.ignored;
-        },
-        child: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          onChanged: (_) => _handleTextChanged(),
-          decoration: InputDecoration(
-            hintText: widget.isQuote 
-                ? 'Quote...' 
-                : 'Type something...',
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // List Bullet/Number
+          Padding(
+            padding: const EdgeInsets.only(top: 12, right: 8),
+            child: Icon(
+              _getListIcon(),
+              size: 8,
+              color: Theme.of(context).primaryColor,
             ),
           ),
-          style: widget.isQuote
-              ? Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey.shade700,
-                )
-              : Theme.of(context).textTheme.bodyLarge,
-          maxLines: null,
-          textInputAction: TextInputAction.newline,
-        ),
+          
+          // List Item Text
+          Expanded(
+            child: Focus(
+              onKeyEvent: (node, event) {
+                _handleKeyEvent(event);
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                onChanged: (_) => _handleTextChanged(),
+                decoration: const InputDecoration(
+                  hintText: 'List item...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: Theme.of(context).textTheme.bodyLarge,
+                maxLines: null,
+                textInputAction: TextInputAction.newline,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

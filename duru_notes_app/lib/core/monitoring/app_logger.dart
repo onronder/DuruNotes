@@ -20,6 +20,9 @@ abstract class AppLogger {
   /// Log a warning message
   void warning(String message, {Map<String, dynamic>? data});
   
+  /// Log a warning message (alias for warning)
+  void warn(String message, {Map<String, dynamic>? data}) => warning(message, data: data);
+  
   /// Log an error message
   void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data});
   
@@ -56,6 +59,9 @@ class ConsoleLogger implements AppLogger {
       _log('WARNING', message, data: data);
     }
   }
+  
+  @override
+  void warn(String message, {Map<String, dynamic>? data}) => warning(message, data: data);
   
   @override
   void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
