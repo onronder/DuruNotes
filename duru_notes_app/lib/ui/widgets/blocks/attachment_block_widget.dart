@@ -30,7 +30,16 @@ class AttachmentBlockWidget extends StatelessWidget {
   /// Callback when the block should be deleted
   final VoidCallback onDelete;
 
-  AttachmentBlockData get _attachmentData => block.data as AttachmentBlockData;
+  // Parse attachment data from string format: "filename|path|size|mimeType"
+  Map<String, String> get _attachmentData {
+    final parts = block.data.split('|');
+    return {
+      'filename': parts.isNotEmpty ? parts[0] : 'Unknown file',
+      'path': parts.length > 1 ? parts[1] : '',
+      'size': parts.length > 2 ? parts[2] : '0',
+      'mimeType': parts.length > 3 ? parts[3] : 'application/octet-stream',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +52,7 @@ class AttachmentBlockWidget extends StatelessWidget {
           _buildAttachmentHeader(context),
           
           // Preview content
-          if (_isImageFile(_attachmentData.filename))
+          if (_isImageFile(_attachmentData['filename']!))
             _buildImagePreview(context)
           else
             _buildFilePreview(context),
@@ -61,7 +70,7 @@ class AttachmentBlockWidget extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            _getFileIcon(_attachmentData.filename),
+            _getFileIcon(_attachmentData['filename']!),
             size: 24,
             color: Theme.of(context).colorScheme.primary,
           ),
@@ -71,8 +80,8 @@ class AttachmentBlockWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _attachmentData.filename.isNotEmpty 
-                      ? _attachmentData.filename 
+                  _attachmentData['filename']!.isNotEmpty 
+                      ? _attachmentData['filename']! 
                       : 'Untitled attachment',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
@@ -80,9 +89,9 @@ class AttachmentBlockWidget extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (_attachmentData.url.isNotEmpty)
+                if (_attachmentData['path']?.isNotEmpty == true)
                   Text(
-                    _getFileTypeAndSize(_attachmentData.filename),
+                    _getFileTypeAndSize(_attachmentData['filename']!),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
@@ -102,7 +111,7 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   Widget _buildImagePreview(BuildContext context) {
-    if (_attachmentData.url.isEmpty) {
+    if (_attachmentData['path']?.isEmpty != false) {
       return const SizedBox.shrink();
     }
 
@@ -111,7 +120,7 @@ class AttachmentBlockWidget extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: AttachmentImage(
-          url: _attachmentData.url,
+          url: _attachmentData['path'] ?? '',
           width: double.infinity,
           height: 200,
           fit: BoxFit.cover,
@@ -135,13 +144,13 @@ class AttachmentBlockWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                _getFileIcon(_attachmentData.filename),
+                _getFileIcon(_attachmentData['filename']!),
                 size: 32,
                 color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 4),
               Text(
-                _getFileExtension(_attachmentData.filename).toUpperCase(),
+                _getFileExtension(_attachmentData['filename']!).toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
@@ -168,7 +177,7 @@ class AttachmentBlockWidget extends StatelessWidget {
           const SizedBox(width: 8),
           
           // View/Download button
-          if (_attachmentData.url.isNotEmpty)
+          if (_attachmentData['path']?.isNotEmpty == true)
             TextButton.icon(
               onPressed: () => _viewAttachment(context),
               icon: const Icon(Icons.open_in_new, size: 16),
@@ -189,8 +198,8 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   void _editAttachment(BuildContext context) async {
-    final filenameController = TextEditingController(text: _attachmentData.filename);
-    final urlController = TextEditingController(text: _attachmentData.url);
+    final filenameController = TextEditingController(text: _attachmentData['filename']!);
+    final urlController = TextEditingController(text: _attachmentData['path'] ?? '');
     
     final result = await showDialog<bool>(
       context: context,
@@ -231,12 +240,12 @@ class AttachmentBlockWidget extends StatelessWidget {
     );
     
     if (result == true) {
-      final updated = _attachmentData.copyWith(
-        filename: filenameController.text,
-        url: urlController.text,
-      );
-      final updatedBlock = block.copyWith(data: updated);
-      onChanged(updatedBlock);
+      // Update the attachment data
+      final updatedData = '${_attachmentData['filename']}|${urlController.text}|${_attachmentData['size']}|${_attachmentData['mimeType']}';
+      final updated = block.copyWith(data: updatedData);
+      onChanged(updated);
+      /* TODO: Implement proper attachment update
+      */
     }
     
     filenameController.dispose();
@@ -244,20 +253,20 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   void _viewAttachment(BuildContext context) {
-    if (_attachmentData.url.isEmpty) return;
+    if (_attachmentData['path']?.isEmpty == true) return;
     
-    if (_isImageFile(_attachmentData.filename)) {
+    if (_isImageFile(_attachmentData['filename']!)) {
       // Show image in full screen
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => AttachmentViewer(url: _attachmentData.url),
+          builder: (context) => AttachmentViewer(url: _attachmentData['path'] ?? ''),
         ),
       );
     } else {
       // Open URL externally (would need url_launcher package)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Opening ${_attachmentData.filename}...'),
+          content: Text('Opening ${_attachmentData['filename']!}...'),
           action: SnackBarAction(
             label: 'Copy URL',
             onPressed: () {
@@ -270,8 +279,7 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   void _replaceAttachment(BuildContext context) async {
-    final client = Supabase.instance.client;
-    final service = AttachmentService(client);
+    final service = AttachmentService();
     
     // Show loading dialog
     showDialog<void>(
@@ -288,21 +296,23 @@ class AttachmentBlockWidget extends StatelessWidget {
     );
 
     try {
-      final newAttachment = await service.pickAndUpload();
+      // TODO: Implement file picker and upload functionality
+      // final newAttachment = await service.pickAndUpload();
       
       // Dismiss loading dialog
       if (context.mounted) {
         Navigator.of(context).pop();
       }
       
-      if (newAttachment != null && context.mounted) {
-        final updatedBlock = block.copyWith(data: newAttachment);
-        onChanged(updatedBlock);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Attachment replaced successfully')),
-        );
-      }
+      // For now, just show placeholder behavior
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Attachment replacement will be implemented soon')),
+      );
+      
+      // if (newAttachment != null && context.mounted) {
+      //   final updatedBlock = block.copyWith(data: newAttachment);
+      //   onChanged(updatedBlock);
+      // }
       
     } catch (e) {
       // Dismiss loading dialog
@@ -395,15 +405,15 @@ class AttachmentBlockPreview extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              _getFileIcon(attachmentData.filename),
+              _getFileIcon(attachmentData['filename']!),
               size: 20,
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                attachmentData.filename.isNotEmpty 
-                    ? attachmentData.filename 
+                attachmentData['filename']?.isNotEmpty == true 
+                    ? attachmentData['filename']! 
                     : 'Attachment',
                 style: Theme.of(context).textTheme.bodySmall,
                 maxLines: 1,

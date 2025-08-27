@@ -9,6 +9,8 @@ import 'repository/notes_repository.dart';
 import 'repository/sync_service.dart';
 import 'features/notes/pagination_notifier.dart';
 import 'services/analytics/analytics_service.dart';
+import 'services/export_service.dart';
+import 'services/import_service.dart';
 
 // Export important types for easier importing
 export 'data/local/app_db.dart' show LocalNote, AppDb;
@@ -93,3 +95,27 @@ final analyticsProvider = Provider<AnalyticsService>((ref) {
 
 /// Database provider alias for compatibility
 final dbProvider = appDbProvider;
+
+/// Export service provider
+final exportServiceProvider = Provider<ExportService>((ref) {
+  return ExportService(
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+    attachmentService: ref.watch(attachmentServiceProvider),
+  );
+});
+
+/// Attachment service provider
+final attachmentServiceProvider = Provider((ref) {
+  return AttachmentService();
+});
+
+/// Import service provider
+final importServiceProvider = Provider<ImportService>((ref) {
+  return ImportService(
+    notesRepository: ref.watch(notesRepositoryProvider),
+    noteIndexer: NoteIndexer(), // Simple instance creation
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+  );
+});

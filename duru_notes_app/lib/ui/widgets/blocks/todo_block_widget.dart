@@ -1,172 +1,235 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import '../../../models/note_block.dart';
 
-/// Widget for rendering and editing todo/checklist blocks.
-/// 
-/// This widget handles:
-/// - Checkbox state management (checked/unchecked)
-/// - Text input for todo item description
-/// - Visual styling for completed vs pending todos
-/// - Block deletion functionality
-class TodoBlockWidget extends StatelessWidget {
+class TodoBlockWidget extends StatefulWidget {
   const TodoBlockWidget({
     super.key,
     required this.block,
-    required this.controller,
+    required this.isFocused,
     required this.onChanged,
-    required this.onDelete,
-    this.hintText = 'Todo',
+    required this.onFocusChanged,
+    required this.onNewLine,
   });
 
-  /// The todo block being edited
   final NoteBlock block;
-  
-  /// Text controller for the todo text
-  final TextEditingController controller;
-  
-  /// Callback when the block content or state changes
-  final ValueChanged<NoteBlock> onChanged;
-  
-  /// Callback when the block should be deleted
-  final VoidCallback onDelete;
-  
-  /// Hint text to display when empty
-  final String hintText;
-
-  TodoBlockData get _todoData => block.data as TodoBlockData;
+  final bool isFocused;
+  final Function(NoteBlock) onChanged;
+  final Function(bool) onFocusChanged;
+  final VoidCallback onNewLine;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Checkbox for todo completion state
-        Checkbox(
-          value: _todoData.checked,
-          onChanged: (checked) {
-            final updatedData = _todoData.copyWith(checked: checked ?? false);
-            final updatedBlock = block.copyWith(data: updatedData);
-            onChanged(updatedBlock);
-          },
-        ),
-        
-        // Todo text input
-        Expanded(
-          child: TextField(
-            controller: controller,
-            maxLines: null,
-            textDirection: TextDirection.ltr,
-            style: TextStyle(
-              decoration: _todoData.checked 
-                  ? TextDecoration.lineThrough 
-                  : TextDecoration.none,
-              color: _todoData.checked
-                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
-                  : null,
-            ),
-            decoration: InputDecoration(
-              hintText: hintText,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 8.0,
-                horizontal: 0.0,
-              ),
-            ),
-            onChanged: (value) {
-              final updatedData = _todoData.copyWith(text: value);
-              final updatedBlock = block.copyWith(data: updatedData);
-              onChanged(updatedBlock);
-            },
-          ),
-        ),
-        
-        // Delete button
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20),
-          onPressed: onDelete,
-          tooltip: 'Delete todo',
-        ),
-      ],
-    );
-  }
+  State<TodoBlockWidget> createState() => _TodoBlockWidgetState();
 }
 
-/// Widget for rendering a todo checklist summary.
-/// 
-/// This provides a compact view of todo completion status.
-class TodoSummaryWidget extends StatelessWidget {
-  const TodoSummaryWidget({
-    super.key,
-    required this.todos,
-    this.showProgress = true,
-  });
+class _TodoBlockWidgetState extends State<TodoBlockWidget> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  late bool _isCompleted;
+  late String _text;
 
-  /// List of todo blocks to summarize
-  final List<NoteBlock> todos;
-  
-  /// Whether to show progress indicator
-  final bool showProgress;
+  @override
+  void initState() {
+    super.initState();
+    _parseTodoData();
+    _controller = TextEditingController(text: _text);
+    _focusNode = FocusNode();
+    
+    _focusNode.addListener(() {
+      widget.onFocusChanged(_focusNode.hasFocus);
+    });
+
+    if (widget.isFocused) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(TodoBlockWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (widget.block.data != oldWidget.block.data) {
+      _parseTodoData();
+      _controller.text = _text;
+    }
+    
+    if (widget.isFocused && !oldWidget.isFocused) {
+      _focusNode.requestFocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _parseTodoData() {
+    final parts = widget.block.data.split(':');
+    if (parts.length >= 2) {
+      _isCompleted = parts[0] == 'completed';
+      _text = parts.skip(1).join(':');
+    } else {
+      _isCompleted = false;
+      _text = widget.block.data;
+    }
+  }
+
+  void _updateTodo() {
+    final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:$_text';
+    final newBlock = widget.block.copyWith(data: todoData);
+    widget.onChanged(newBlock);
+  }
+
+  void _handleTextChanged() {
+    _text = _controller.text;
+    _updateTodo();
+  }
+
+  void _toggleCompleted() {
+    setState(() {
+      _isCompleted = !_isCompleted;
+    });
+    _updateTodo();
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+      // Check if cursor is at the end
+      if (_controller.selection.baseOffset == _controller.text.length) {
+        widget.onNewLine();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (todos.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final todoItems = todos
-        .where((block) => block.type == NoteBlockType.todo)
-        .map((block) => block.data as TodoBlockData)
-        .toList();
-
-    final completedCount = todoItems.where((todo) => todo.checked).length;
-    final totalCount = todoItems.length;
-    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.checklist,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Todo List',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Checkbox
+          Padding(
+            padding: const EdgeInsets.only(top: 12, right: 8),
+            child: GestureDetector(
+              onTap: _toggleCompleted,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: _isCompleted 
+                        ? Theme.of(context).primaryColor 
+                        : Colors.grey.shade400,
+                    width: 2,
                   ),
+                  borderRadius: BorderRadius.circular(4),
+                  color: _isCompleted 
+                      ? Theme.of(context).primaryColor 
+                      : Colors.transparent,
                 ),
-                const Spacer(),
-                Text(
-                  '$completedCount of $totalCount',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
+                child: _isCompleted
+                    ? const Icon(
+                        Icons.check,
+                        size: 14,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
             ),
-            
-            if (showProgress) ...[
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: progress,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  progress == 1.0 
-                      ? Colors.green 
-                      : Theme.of(context).colorScheme.primary,
+          ),
+          
+          // Todo Text
+          Expanded(
+            child: Focus(
+              onKeyEvent: (node, event) {
+                _handleKeyEvent(event);
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                onChanged: (_) => _handleTextChanged(),
+                decoration: const InputDecoration(
+                  hintText: 'Todo item...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  decoration: _isCompleted 
+                      ? TextDecoration.lineThrough 
+                      : TextDecoration.none,
+                  color: _isCompleted 
+                      ? Colors.grey.shade500 
+                      : null,
+                ),
+                maxLines: null,
+                textInputAction: TextInputAction.newline,
+              ),
+            ),
+          ),
+          
+          // Priority Selector
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.flag_outlined,
+              size: 16,
+              color: Colors.grey.shade400,
+            ),
+            onSelected: (priority) {
+              // TODO: Implement priority handling
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'high',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.red, size: 16),
+                    SizedBox(width: 8),
+                    Text('High Priority'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'medium',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.orange, size: 16),
+                    SizedBox(width: 8),
+                    Text('Medium Priority'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'low',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.green, size: 16),
+                    SizedBox(width: 8),
+                    Text('Low Priority'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'none',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined, color: Colors.grey, size: 16),
+                    SizedBox(width: 8),
+                    Text('No Priority'),
+                  ],
                 ),
               ),
             ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

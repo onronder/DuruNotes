@@ -53,6 +53,11 @@ class NotesRepository {
     return noteId;
   }
 
+  /// Get a single note by ID
+  Future<LocalNote?> getNote(String id) async {
+    return await db.findNote(id);
+  }
+
   Future<void> delete(String id) async {
     final n = await (db.select(
       db.localNotes,
