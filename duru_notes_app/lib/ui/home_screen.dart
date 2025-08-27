@@ -4,13 +4,14 @@ import 'dart:async';
 import 'package:duru_notes_app/core/crypto/crypto_box.dart';
 import 'package:duru_notes_app/core/crypto/key_manager.dart';
 import 'package:duru_notes_app/data/local/app_db.dart';
+import 'package:duru_notes_app/features/notes/pagination_notifier.dart';
 import 'package:duru_notes_app/repository/notes_repository.dart';
 import 'package:duru_notes_app/repository/sync_service.dart';
 import 'package:duru_notes_app/ui/edit_note_screen.dart';
+import 'package:duru_notes_app/ui/help_screen.dart';
 import 'package:duru_notes_app/ui/note_search_delegate.dart';
 import 'package:duru_notes_app/ui/tags_screen.dart';
 import 'package:duru_notes_app/ui/widgets/error_display.dart';
-import 'package:duru_notes_app/features/notes/pagination_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -108,8 +109,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       (prev, next) {
         // Only invalidate if widget is still mounted
         if (mounted) {
-          ref.invalidate(notesListProvider);
-          ref.invalidate(notesPageProvider); // Also invalidate pagination
+          ref
+            ..invalidate(notesListProvider)
+            ..invalidate(notesPageProvider); // Also invalidate pagination
         }
       },
     );
@@ -272,6 +274,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   );
                   return;
+                case 'help':
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HelpScreen(),
+                    ),
+                  );
+                  return;
                 case 'logout':
                   final client = Supabase.instance.client;
                   final userId = client.auth.currentUser?.id;
@@ -299,6 +308,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'reset', child: Text('Reset local cache')),
               PopupMenuItem(value: 'tags', child: Text('Tags')),
+              PopupMenuItem(value: 'help', child: Text('Help & User Guide')),
               PopupMenuItem(value: 'logout', child: Text('Sign out')),
             ],
           ),

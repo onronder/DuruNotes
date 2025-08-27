@@ -1,11 +1,18 @@
-name: duru_notes_app
-description: "A new Flutter project."
+name: duru_notes
+description: "Duru Notes - Your intelligent, secure note-taking companion with advanced reminders, voice transcription, and OCR scanning capabilities."
 publish_to: 'none'
 
 version: 1.0.0+1
 
+# App metadata for store deployment
+homepage: https://durunotes.app
+repository: https://github.com/durunotes/duru-notes
+issue_tracker: https://github.com/durunotes/duru-notes/issues
+documentation: https://durunotes.app/docs
+
 environment:
   sdk: ^3.9.0
+  flutter: ">=3.9.0"
 
 dependencies:
   cryptography: ^2.7.0
@@ -36,6 +43,8 @@ dependencies:
   sentry_flutter: ^9.6.0
   cached_network_image: ^3.3.1
   speech_to_text: ^6.6.0
+  battery_plus: ^6.0.2
+  device_info_plus: ^10.1.2
   flutter_local_notifications: ^17.0.0
   geolocator: ^12.0.0
   geofence_service: ^6.0.0
@@ -53,12 +62,14 @@ dev_dependencies:
   json_serializable: ^6.10.0
   mockito: ^5.4.4
   very_good_analysis: ^9.0.0
+  image: ^4.1.7
 
 flutter:
   uses-material-design: true
   
   assets:
     - assets/env/
+    - docs/
 
 sentry:
   upload_debug_symbols: true

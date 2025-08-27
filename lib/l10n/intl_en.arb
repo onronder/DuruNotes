@@ -1,0 +1,184 @@
+{
+  "@@locale": "en",
+  "@@last_modified": "2024-08-26T22:50:00.000Z",
+  
+  "appTitle": "Duru Notes",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  
+  "homeTitle": "Duru Notes",
+  "@homeTitle": {
+    "description": "Title shown on the home screen"
+  },
+  
+  "newNote": "New Note",
+  "@newNote": {
+    "description": "Button text for creating a new note"
+  },
+  
+  "search": "Search",
+  "@search": {
+    "description": "Search button text"
+  },
+  
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Refresh button text"
+  },
+  
+  "help": "Help & User Guide",
+  "@help": {
+    "description": "Help menu item text"
+  },
+  
+  "tags": "Tags",
+  "@tags": {
+    "description": "Tags menu item text"
+  },
+  
+  "resetCache": "Reset local cache",
+  "@resetCache": {
+    "description": "Reset cache menu item text"
+  },
+  
+  "signOut": "Sign out",
+  "@signOut": {
+    "description": "Sign out menu item text"
+  },
+  
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings menu item text"
+  },
+  
+  "reminders": "Reminders",
+  "@reminders": {
+    "description": "Reminders screen title"
+  },
+  
+  "voiceNotes": "Voice Notes",
+  "@voiceNotes": {
+    "description": "Voice notes feature label"
+  },
+  
+  "ocrScanning": "OCR Scanning",
+  "@ocrScanning": {
+    "description": "OCR scanning feature label"
+  },
+  
+  "shareIntegration": "Share Integration",
+  "@shareIntegration": {
+    "description": "Share integration feature label"
+  },
+  
+  "timeBasedReminder": "Time-based Reminder",
+  "@timeBasedReminder": {
+    "description": "Time-based reminder type"
+  },
+  
+  "locationBasedReminder": "Location-based Reminder",
+  "@locationBasedReminder": {
+    "description": "Location-based reminder type"
+  },
+  
+  "recurringReminder": "Recurring Reminder",
+  "@recurringReminder": {
+    "description": "Recurring reminder type"
+  },
+  
+  "snoozeReminder": "Snooze",
+  "@snoozeReminder": {
+    "description": "Snooze reminder option"
+  },
+  
+  "save": "Save",
+  "@save": {
+    "description": "Save button text"
+  },
+  
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  
+  "edit": "Edit",
+  "@edit": {
+    "description": "Edit button text"
+  },
+  
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+  
+  "error": "Error",
+  "@error": {
+    "description": "Generic error label"
+  },
+  
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  
+  "close": "Close",
+  "@close": {
+    "description": "Close button text"
+  },
+  
+  "contactSupport": "Contact Support",
+  "@contactSupport": {
+    "description": "Contact support button text"
+  },
+  
+  "sendFeedback": "Send Feedback",
+  "@sendFeedback": {
+    "description": "Send feedback button text"
+  },
+  
+  "appInfo": "App Information",
+  "@appInfo": {
+    "description": "App information button text"
+  },
+  
+  "offlineMode": "Offline mode — No Supabase session. Sync disabled.",
+  "@offlineMode": {
+    "description": "Message shown when app is in offline mode"
+  },
+  
+  "noNotesYet": "No notes yet. Tap + to create your first note!",
+  "@noNotesYet": {
+    "description": "Message shown when there are no notes"
+  },
+  
+  "searchNotes": "Search notes...",
+  "@searchNotes": {
+    "description": "Search placeholder text"
+  },
+  
+  "createNote": "Create Note",
+  "@createNote": {
+    "description": "Create note action"
+  },
+  
+  "editNote": "Edit Note",
+  "@editNote": {
+    "description": "Edit note action"
+  },
+  
+  "deleteNote": "Delete Note",
+  "@deleteNote": {
+    "description": "Delete note action"
+  },
+  
+  "shareNote": "Share Note",
+  "@shareNote": {
+    "description": "Share note action"
+  }
+}

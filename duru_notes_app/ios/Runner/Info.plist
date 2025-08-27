@@ -2,10 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<key>NSCameraUsageDescription</key><string>Camera access is required for document scanning.</string>
-<key>NSMicrophoneUsageDescription</key><string>Microphone access is required for voice notes.</string>
-<key>NSSpeechRecognitionUsageDescription</key><string>Speech recognition is required for live transcription.</string>
-<key>NSLocationWhenInUseUsageDescription</key><string>Location is required for location-based reminders.</string>
+<key>NSCameraUsageDescription</key><string>Duru Notes uses your camera to scan documents and capture text using OCR technology, helping you digitize printed text into your notes instantly.</string>
+<key>NSMicrophoneUsageDescription</key><string>Duru Notes uses your microphone to record voice notes and convert speech to text, making note-taking faster and more convenient.</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>Duru Notes uses speech recognition to provide real-time transcription of your voice notes, converting spoken words into searchable text.</string>
+<key>NSLocationWhenInUseUsageDescription</key><string>Duru Notes uses your location to provide location-based reminders, alerting you about important notes when you arrive at or leave specific places.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Duru Notes uses your location to provide location-based reminders, alerting you about important notes when you arrive at or leave specific places.</string>
+<key>NSPhotoLibraryUsageDescription</key><string>Duru Notes accesses your photo library to attach images to your notes and scan text from existing photos using OCR.</string>
+<key>NSUserNotificationsUsageDescription</key><string>Duru Notes sends notifications to remind you about your notes at scheduled times or when you reach specific locations.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -49,9 +52,6 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-<string>Belge taraması ve resim çekimi için kamera izni gerekiyor.</string>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>Seçilen veya çekilen görüntüleri kaydetmek için fotoğraf galerisi izni gerekiyor.</string>
+	
 </dict>
 </plist>
