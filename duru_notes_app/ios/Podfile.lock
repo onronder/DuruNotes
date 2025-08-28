@@ -1,4 +1,15 @@
 PODS:
+  - Adapty (3.10.1)
+  - adapty_flutter (3.10.0):
+    - Adapty (= 3.10.1)
+    - AdaptyPlugin (= 3.10.1)
+    - AdaptyUI (= 3.10.1)
+    - Flutter
+  - AdaptyPlugin (3.10.1):
+    - Adapty (= 3.10.1)
+    - AdaptyUI (= 3.10.1)
+  - AdaptyUI (3.10.1):
+    - Adapty (= 3.10.1)
   - app_links (6.4.1):
     - Flutter
   - battery_plus (1.0.0):
@@ -47,6 +58,8 @@ PODS:
   - flutter_local_notifications (0.0.1):
     - Flutter
   - flutter_secure_storage (6.0.0):
+    - Flutter
+  - flutter_timezone (0.0.1):
     - Flutter
   - geofence_service (0.0.1):
     - Flutter
@@ -139,7 +152,7 @@ PODS:
   - PromisesObjC (2.4.0)
   - receive_sharing_intent (1.8.1):
     - Flutter
-  - record_darwin (1.0.0):
+  - record_ios (1.1.0):
     - Flutter
   - SDWebImage (5.21.1):
     - SDWebImage/Core (= 5.21.1)
@@ -191,6 +204,7 @@ PODS:
     - Flutter
 
 DEPENDENCIES:
+  - adapty_flutter (from `.symlinks/plugins/adapty_flutter/ios`)
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - battery_plus (from `.symlinks/plugins/battery_plus/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
@@ -200,6 +214,7 @@ DEPENDENCIES:
   - flutter_activity_recognition (from `.symlinks/plugins/flutter_activity_recognition/ios`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+  - flutter_timezone (from `.symlinks/plugins/flutter_timezone/ios`)
   - geofence_service (from `.symlinks/plugins/geofence_service/ios`)
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
   - google_mlkit_commons (from `.symlinks/plugins/google_mlkit_commons/ios`)
@@ -212,7 +227,7 @@ DEPENDENCIES:
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - printing (from `.symlinks/plugins/printing/ios`)
   - receive_sharing_intent (from `.symlinks/plugins/receive_sharing_intent/ios`)
-  - record_darwin (from `.symlinks/plugins/record_darwin/ios`)
+  - record_ios (from `.symlinks/plugins/record_ios/ios`)
   - sentry_flutter (from `.symlinks/plugins/sentry_flutter/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
@@ -223,6 +238,9 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - Adapty
+    - AdaptyPlugin
+    - AdaptyUI
     - DKImagePickerController
     - DKPhotoGallery
     - GoogleDataTransport
@@ -245,6 +263,8 @@ SPEC REPOS:
     - Try
 
 EXTERNAL SOURCES:
+  adapty_flutter:
+    :path: ".symlinks/plugins/adapty_flutter/ios"
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
   battery_plus:
@@ -263,6 +283,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
+  flutter_timezone:
+    :path: ".symlinks/plugins/flutter_timezone/ios"
   geofence_service:
     :path: ".symlinks/plugins/geofence_service/ios"
   geolocator_apple:
@@ -287,8 +309,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/printing/ios"
   receive_sharing_intent:
     :path: ".symlinks/plugins/receive_sharing_intent/ios"
-  record_darwin:
-    :path: ".symlinks/plugins/record_darwin/ios"
+  record_ios:
+    :path: ".symlinks/plugins/record_ios/ios"
   sentry_flutter:
     :path: ".symlinks/plugins/sentry_flutter/ios"
   share_plus:
@@ -305,6 +327,10 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
+  Adapty: 0f442bc6513aa2d83d719fd76491df193ad39fca
+  adapty_flutter: 2e3a349fcd2366f25da971888e64c822ffb3d5c1
+  AdaptyPlugin: d703eded378d715887ed4e3b6d7272f5ca82e0ac
+  AdaptyUI: 86bb1aaa8be6172c1841acb11cd82601192b7266
   app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
   battery_plus: b42253f6d2dde71712f8c36fef456d99121c5977
   device_info_plus: 71ffc6ab7634ade6267c7a93088ed7e4f74e5896
@@ -316,6 +342,7 @@ SPEC CHECKSUMS:
   flutter_activity_recognition: 52dfad4c1e9cec99f0841b3ed0efcc9d424b3deb
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  flutter_timezone: ee50ce7786b5fde27e2fe5375bbc8c9661ffc13f
   geofence_service: 55b58292760f0f491e22b6b91355aab40564cfad
   geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e
   google_mlkit_commons: 8c42b5f6f6b7efa19adaf7e32613abf59bba88ad
@@ -341,7 +368,7 @@ SPEC CHECKSUMS:
   printing: 54ff03f28fe9ba3aa93358afb80a8595a071dd07
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   receive_sharing_intent: 222384f00ffe7e952bbfabaa9e3967cb87e5fe00
-  record_darwin: fb1f375f1d9603714f55b8708a903bbb91ffdb0a
+  record_ios: f75fa1d57f840012775c0e93a38a7f3ceea1a374
   SDWebImage: f29024626962457f3470184232766516dee8dfea
   Sentry: 2cbbe3592f30050c60e916c63c7f5a2fa584005e
   sentry_flutter: 9b1e3e6934cb7040ffb71383c95a35f73523180c

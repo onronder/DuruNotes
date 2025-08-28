@@ -1,78 +1,63 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../core/monitoring/app_logger.dart';
 import 'analytics/analytics_service.dart';
 
-/// Voice transcription service for converting speech to text
+/// Service for converting speech to text using the microphone.
 class VoiceTranscriptionService {
-  VoiceTranscriptionService({
-    AppLogger? logger,
-    AnalyticsService? analytics,
-  })  : _logger = logger ?? LoggerFactory.instance,
+  VoiceTranscriptionService({AppLogger? logger, AnalyticsService? analytics})
+      : _logger = logger ?? LoggerFactory.instance,
         _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
   final SpeechToText _speechToText = SpeechToText();
-  
+
   bool _isInitialized = false;
   bool _isListening = false;
   String _lastWords = '';
-  
-  /// Callback functions
+
+  // Optional callback hooks
   Function(String)? _onPartial;
   Function(String)? _onFinal;
   Function(String)? _onError;
 
-  /// Initialize the speech service
+  /// Initialize the speech-to-text engine (request mic permission if needed).
   Future<bool> initialize() async {
     if (_isInitialized) return true;
-    
     try {
       _analytics.startTiming('voice_transcription_init');
-      
       // Check microphone permission
       final micPermission = await Permission.microphone.status;
-      if (micPermission.isDenied) {
+      if (!micPermission.isGranted) {
         final granted = await Permission.microphone.request();
         if (!granted.isGranted) {
           throw Exception('Microphone permission denied');
         }
       }
-      
-      // Initialize speech to text
+      // Initialize SpeechToText plugin
       final available = await _speechToText.initialize(
         onError: _handleError,
         onStatus: _handleStatus,
       );
-      
       if (!available) {
         throw Exception('Speech recognition not available');
       }
-      
       _isInitialized = true;
-      
-      _analytics.endTiming('voice_transcription_init', properties: {
-        'success': true,
-      });
-      
+      _analytics.endTiming('voice_transcription_init', properties: {'success': true});
       _logger.info('Voice transcription service initialized');
       return true;
     } catch (e) {
       _logger.error('Failed to initialize voice transcription', error: e);
-      
-      _analytics.endTiming('voice_transcription_init', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
-      
+      _analytics.endTiming('voice_transcription_init', properties: {'success': false, 'error': e.toString()});
       return false;
     }
   }
 
-  /// Start listening for speech
+  /// Start listening for speech input.
   Future<bool> start({
     Function(String)? onPartial,
     Function(String)? onFinal,
@@ -81,34 +66,27 @@ class VoiceTranscriptionService {
     if (!_isInitialized && !await initialize()) {
       return false;
     }
-    
     if (_isListening) {
       await stop();
     }
-    
     _onPartial = onPartial;
     _onFinal = onFinal;
     _onError = onError;
-    
     try {
       _analytics.startTiming('voice_transcription_session');
-      
       await _speechToText.listen(
         onResult: _handleResult,
-        listenFor: const Duration(minutes: 5), // Max listen time
-        pauseFor: const Duration(seconds: 3), // Pause detection
+        listenFor: const Duration(minutes: 5),
+        pauseFor: const Duration(seconds: 3),
         partialResults: true,
-        localeId: 'en_US', // Can be made configurable
+        localeId: 'en_US',
         cancelOnError: false,
         listenMode: ListenMode.confirmation,
       );
-      
       _isListening = true;
       _lastWords = '';
-      
       _analytics.featureUsed('voice_transcription_start');
       _logger.info('Voice transcription started');
-      
       return true;
     } catch (e) {
       _logger.error('Failed to start voice transcription', error: e);
@@ -117,59 +95,48 @@ class VoiceTranscriptionService {
     }
   }
 
-  /// Stop listening
+  /// Stop listening and finalize the transcription.
   Future<void> stop() async {
     if (!_isListening) return;
-    
     try {
       await _speechToText.stop();
       _isListening = false;
-      
-      // Send final result if we have words
+      // Deliver final result if available
       if (_lastWords.isNotEmpty) {
         _onFinal?.call(_lastWords);
       }
-      
       _analytics.endTiming('voice_transcription_session', properties: {
         'success': true,
         'words_transcribed': _lastWords.split(' ').length,
       });
-      
-      _logger.info('Voice transcription stopped', data: {
-        'final_text': _lastWords,
-      });
+      _logger.info('Voice transcription stopped', data: {'final_text': _lastWords});
     } catch (e) {
       _logger.error('Error stopping voice transcription', error: e);
     }
   }
 
-  /// Cancel listening without sending final result
+  /// Cancel listening without using the current partial result.
   Future<void> cancel() async {
     if (!_isListening) return;
-    
     try {
       await _speechToText.cancel();
       _isListening = false;
       _lastWords = '';
-      
       _analytics.endTiming('voice_transcription_session', properties: {
         'success': false,
         'reason': 'cancelled',
       });
-      
       _logger.info('Voice transcription cancelled');
     } catch (e) {
       _logger.error('Error cancelling voice transcription', error: e);
     }
   }
 
-  /// Handle speech recognition results
-  void _handleResult(result) {
-    final recognizedWords = result.recognizedWords as String;
-    final isFinal = result.finalResult as bool;
-    
+  /// Handle incoming speech recognition results.
+  void _handleResult(SpeechRecognitionResult result) {
+    final recognizedWords = result.recognizedWords;
+    final isFinal = result.finalResult;
     _lastWords = recognizedWords;
-    
     if (isFinal) {
       _onFinal?.call(recognizedWords);
       _analytics.featureUsed('voice_transcription_final', properties: {
@@ -181,28 +148,21 @@ class VoiceTranscriptionService {
     }
   }
 
-  /// Handle speech recognition errors
-  void _handleError(error) {
-    final errorMsg = error.errorMsg as String;
-    final errorType = error.errorType as String;
-    
-    _logger.error('Voice transcription error', data: {
-      'error_msg': errorMsg,
-      'error_type': errorType,
-    });
-    
+  /// Handle speech recognition errors.
+  void _handleError(SpeechRecognitionError error) {
+    final errorMsg = error.errorMsg;
+    final errorType = error.errorMsg; // Use errorMsg as errorType since errorType doesn't exist
+    _logger.error('Voice transcription error', data: {'error_msg': errorMsg, 'error_type': errorType});
     _analytics.trackError('Voice transcription error', properties: {
       'error_type': errorType,
       'error_message': errorMsg,
     });
-    
     _onError?.call(errorMsg);
   }
 
-  /// Handle speech recognition status changes
+  /// Handle speech recognition status changes.
   void _handleStatus(String status) {
     _logger.debug('Voice transcription status: $status');
-    
     if (status == 'done') {
       _isListening = false;
       if (_lastWords.isNotEmpty) {
@@ -211,45 +171,25 @@ class VoiceTranscriptionService {
     }
   }
 
-  /// Check if microphone permission is granted
+  /// Check if microphone permissions have been granted.
   Future<bool> hasPermissions() async {
     final status = await Permission.microphone.status;
     return status.isGranted;
   }
 
-  /// Request microphone permission
+  /// Request microphone permission from the user.
   Future<bool> requestPermissions() async {
     final status = await Permission.microphone.request();
     return status.isGranted;
   }
 
-  /// Check if speech recognition is available
-  Future<bool> isAvailable() async {
-    try {
-      return await _speechToText.initialize();
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Get available locales for speech recognition
-  Future<List<String>> getAvailableLocales() async {
-    if (!_isInitialized && !await initialize()) {
-      return [];
-    }
-    
-    final locales = await _speechToText.locales();
-    return locales.map((locale) => locale.localeId).toList();
-  }
-
-  /// Dispose of resources
+  /// Dispose any active resources (stop listening if active).
   void dispose() {
     if (_isListening) {
       cancel();
     }
   }
 
-  /// Getters
   bool get isInitialized => _isInitialized;
   bool get isListening => _isListening;
   String get lastWords => _lastWords;
