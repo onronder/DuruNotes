@@ -15,7 +15,6 @@ import '../core/monitoring/app_logger.dart';
 import '../services/analytics/analytics_service.dart';
 
 // If your enum lives in your DB layer, import it here.
-// This keeps your existing enum names (time/location/recurring).
 import '../data/local/app_db.dart' show ReminderType;
 
 /// Domain model (kept as-is, with minor nits cleaned)
@@ -24,7 +23,7 @@ class Reminder {
   final String noteId;
   final String title;
   final String? body;
-  final DateTime scheduledTime; // stored in local wall time
+  final DateTime scheduledTime; // local wall time
   final ReminderType type;
   final bool isActive;
   final DateTime createdAt;
@@ -67,21 +66,6 @@ class Reminder {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Reminder &&
-        other.id == id &&
-        other.noteId == noteId &&
-        other.title == title &&
-        other.body == body &&
-        other.scheduledTime == scheduledTime &&
-        other.type == type &&
-        other.isActive == isActive &&
-        other.createdAt == createdAt &&
-        other.completedAt == completedAt;
-  }
-
-  @override
   int get hashCode => Object.hash(
         id,
         noteId,
@@ -93,9 +77,22 @@ class Reminder {
         createdAt,
         completedAt,
       );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Reminder &&
+          other.id == id &&
+          other.noteId == noteId &&
+          other.title == title &&
+          other.body == body &&
+          other.scheduledTime == scheduledTime &&
+          other.type == type &&
+          other.isActive == isActive &&
+          other.createdAt == createdAt &&
+          other.completedAt == completedAt);
 }
 
-/// Reminder service (drop‑in)
 class ReminderService {
   ReminderService({
     AppLogger? logger,
@@ -111,25 +108,22 @@ class ReminderService {
   bool _isInitialized = false;
   bool _tzReady = false;
 
-  // ---- Public API ----------------------------------------------------------
+  // ---------------- Public API ----------------
 
-  /// Initialize the notification system
   Future<bool> initialize() async {
     if (_isInitialized) return true;
 
     try {
       _analytics.startTiming('reminder_service_init');
 
-      // 1) Permissions (cross‑platform: notifications)
+      // 1) Notifications permission
       final notifStatus = await Permission.notification.status;
       if (!notifStatus.isGranted) {
         final granted = await Permission.notification.request();
         if (!granted.isGranted) {
           _logger.warning('Notification permission denied');
-          _analytics.endTiming('reminder_service_init', properties: {
-            'success': false,
-            'denied': true,
-          });
+          _analytics.endTiming('reminder_service_init',
+              properties: {'success': false, 'denied': true});
           return false;
         }
       }
@@ -139,10 +133,10 @@ class ReminderService {
         await _maybeRequestExactAlarmPermission();
       }
 
-      // 3) Timezone initialization (always do this once)
+      // 3) Timezone
       await _ensureTimezone();
 
-      // 4) Platform init
+      // 4) Platform initialization
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosInit = DarwinInitializationSettings(
         requestSoundPermission: true,
@@ -162,43 +156,38 @@ class ReminderService {
         throw Exception('Failed to initialize notifications');
       }
 
-      // 5) Create Android channel explicitly for reliability
+      // 5) Explicit channels (Android 8+ reliability)
       await _createAndroidChannelsIfNeeded();
 
       _isInitialized = true;
-      _analytics.endTiming('reminder_service_init', properties: {
-        'success': true,
-      });
+      _analytics.endTiming('reminder_service_init',
+          properties: {'success': true});
       _logger.info('Reminder service initialized successfully');
       return true;
     } catch (e, st) {
-      _logger.error('Failed to initialize reminder service', error: e, stackTrace: st);
-      _analytics.endTiming('reminder_service_init', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _logger.error('Failed to initialize reminder service',
+          error: e, stackTrace: st);
+      _analytics.endTiming('reminder_service_init',
+          properties: {'success': false, 'error': e.toString()});
       return false;
     }
   }
 
-  /// Schedule a single reminder
   Future<bool> scheduleReminder(Reminder reminder) async {
     if (!_isInitialized && !await initialize()) return false;
 
     try {
       _analytics.startTiming('schedule_reminder');
 
-      // Guardrails
       final now = DateTime.now();
       if (reminder.scheduledTime.isBefore(now)) {
-        _logger.warning('Attempted to schedule in the past; aborting', data: {
-          'scheduled': reminder.scheduledTime.toIso8601String(),
-          'now': now.toIso8601String(),
-        });
-        _analytics.endTiming('schedule_reminder', properties: {
-          'success': false,
-          'reason': 'past_time',
-        });
+        _logger.warning('Attempted to schedule in the past; aborting',
+            data: {
+              'scheduled': reminder.scheduledTime.toIso8601String(),
+              'now': now.toIso8601String(),
+            });
+        _analytics.endTiming('schedule_reminder',
+            properties: {'success': false, 'reason': 'past_time'});
         return false;
       }
       if (!_tzReady) await _ensureTimezone();
@@ -219,7 +208,10 @@ class ReminderService {
         presentBadge: true,
         presentSound: true,
       );
-      final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
 
       final tzDate =
           tz.TZDateTime.from(reminder.scheduledTime, tz.local); // local wall time
@@ -236,14 +228,10 @@ class ReminderService {
         payload: reminder.noteId,
       );
 
-      _analytics.endTiming('schedule_reminder', properties: {
-        'success': true,
-        'reminder_type': reminder.type.name,
-      });
-      _analytics.featureUsed('reminder_scheduled', properties: {
-        'type': reminder.type.name,
-        'has_body': reminder.body != null,
-      });
+      _analytics.endTiming('schedule_reminder',
+          properties: {'success': true, 'reminder_type': reminder.type.name});
+      _analytics.featureUsed('reminder_scheduled',
+          properties: {'type': reminder.type.name, 'has_body': reminder.body != null});
       _logger.info('Reminder scheduled', data: {
         'reminder_id': reminder.id,
         'note_id': reminder.noteId,
@@ -252,19 +240,17 @@ class ReminderService {
       });
       return true;
     } catch (e, st) {
-      _logger.error('Failed to schedule reminder', error: e, stackTrace: st, data: {
+      _logger.error('Failed to schedule reminder',
+          error: e, stackTrace: st, data: {
         'reminder_id': reminder.id,
         'note_id': reminder.noteId,
       });
-      _analytics.endTiming('schedule_reminder', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming('schedule_reminder',
+          properties: {'success': false, 'error': e.toString()});
       return false;
     }
   }
 
-  /// Cancel a scheduled reminder
   Future<bool> cancelReminder(String reminderId) async {
     if (!_isInitialized) return false;
     try {
@@ -274,14 +260,12 @@ class ReminderService {
       _logger.info('Reminder cancelled', data: {'reminder_id': reminderId});
       return true;
     } catch (e, st) {
-      _logger.error('Failed to cancel reminder', error: e, stackTrace: st, data: {
-        'reminder_id': reminderId,
-      });
+      _logger.error('Failed to cancel reminder',
+          error: e, stackTrace: st, data: {'reminder_id': reminderId});
       return false;
     }
   }
 
-  /// Inspect pending notifications
   Future<List<PendingNotificationRequest>> getPendingReminders() async {
     if (!_isInitialized) return <PendingNotificationRequest>[];
     try {
@@ -292,7 +276,6 @@ class ReminderService {
     }
   }
 
-  /// Cancel all reminders
   Future<void> cancelAllReminders() async {
     if (!_isInitialized) return;
     try {
@@ -304,7 +287,6 @@ class ReminderService {
     }
   }
 
-  /// Fire-and-forget notification (debug)
   Future<void> showImmediateNotification({
     required String title,
     required String body,
@@ -339,14 +321,12 @@ class ReminderService {
     }
   }
 
-  /// Permissions helpers
   Future<bool> areNotificationsEnabled() async =>
       (await Permission.notification.status).isGranted;
 
   Future<bool> requestNotificationPermissions() async =>
       (await Permission.notification.request()).isGranted;
 
-  /// Quick helper (unchanged signature)
   Future<bool> scheduleQuickReminder({
     required String noteId,
     required String title,
@@ -377,11 +357,9 @@ class ReminderService {
     }
   }
 
-  void dispose() {
-    // nothing to dispose currently
-  }
+  void dispose() {}
 
-  // ---- Internals -----------------------------------------------------------
+  // ---------------- internals ----------------
 
   Future<void> _ensureTimezone() async {
     if (_tzReady) return;
@@ -401,8 +379,8 @@ class ReminderService {
 
   Future<void> _createAndroidChannelsIfNeeded() async {
     if (!Platform.isAndroid) return;
-    final android =
-        _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     const channel = AndroidNotificationChannel(
@@ -423,11 +401,10 @@ class ReminderService {
   }
 
   Future<void> _maybeRequestExactAlarmPermission() async {
-    final android =
-        _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
-    // Query & request if needed (Android 12+)
     final granted = await android.canScheduleExactNotifications();
     if (granted == false) {
       await android.requestExactAlarmsPermission();
@@ -436,17 +413,14 @@ class ReminderService {
 
   void _onNotificationTapped(NotificationResponse response) {
     final payload = response.payload;
-    _analytics.featureUsed('notification_tapped', properties: {
-      'has_payload': payload != null,
-    });
-    _logger.info('Notification tapped', data: {
-      'payload': payload,
-      'notification_id': response.id,
-    });
+    _analytics.featureUsed('notification_tapped',
+        properties: {'has_payload': payload != null});
+    _logger.info('Notification tapped',
+        data: {'payload': payload, 'notification_id': response.id});
     // TODO: Navigate to the specific note using your router/nav singleton.
   }
 
-  /// Stable 31‑bit hash for String IDs (don’t use String.hashCode)
+  /// Stable 31-bit hash for String IDs (don’t use String.hashCode)
   int _stableNotificationId(String s) {
     int hash = 0;
     for (final c in s.codeUnits) {
@@ -457,7 +431,6 @@ class ReminderService {
     hash = (hash + (hash << 3)) & 0x1fffffff;
     hash ^= (hash >> 11);
     hash = (hash + (hash << 15)) & 0x1fffffff;
-    // Never return 0 (treated as "no ID" by some OEMs)
     return hash == 0 ? 1 : hash;
   }
 }
