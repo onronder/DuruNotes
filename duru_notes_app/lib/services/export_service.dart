@@ -324,10 +324,10 @@ class ExportService {
       final pdf = pw.Document();
       
       // Load fonts with timeout and fallback
-      final fontRegular = await _loadPdfFont('OpenSans-Regular', pw.Font.helvetica);
-      final fontBold = await _loadPdfFont('OpenSans-Bold', pw.Font.helveticaBold);
-      final fontItalic = await _loadPdfFont('OpenSans-Italic', pw.Font.helveticaOblique);
-      final fontMono = await _loadPdfFont('RobotoMono-Regular', pw.Font.courier);
+      final fontRegular = await _loadPdfFont('OpenSans-Regular', pw.Font.helvetica());
+      final fontBold = await _loadPdfFont('OpenSans-Bold', pw.Font.helveticaBold());
+      final fontItalic = await _loadPdfFont('OpenSans-Italic', pw.Font.helveticaOblique());
+      final fontMono = await _loadPdfFont('RobotoMono-Regular', pw.Font.courier());
 
       // Build PDF content
       onProgress?.call(const ExportProgress(
@@ -989,7 +989,7 @@ class ExportService {
       await documentsFile.parent.create(recursive: true);
       await documentsFile.writeAsString(content, encoding: utf8);
     } catch (e) {
-      _logger.warning('Failed to save to documents directory', error: e);
+      _logger.error('Failed to save to documents directory', error: e);
     }
     
     return file;
@@ -1013,7 +1013,7 @@ class ExportService {
       await documentsFile.parent.create(recursive: true);
       await documentsFile.writeAsBytes(bytes);
     } catch (e) {
-      _logger.warning('Failed to save to documents directory', error: e);
+      _logger.error('Failed to save to documents directory', error: e);
     }
     
     return file;
@@ -1022,11 +1022,12 @@ class ExportService {
   /// Load PDF font with timeout and fallback
   Future<pw.Font> _loadPdfFont(String fontName, pw.Font fallbackFont) async {
     try {
-      // Try to load from assets first
+      // Try to load from assets first (if available)
       try {
         final fontData = await rootBundle.load('assets/fonts/$fontName.ttf');
         return pw.Font.ttf(fontData);
       } catch (e) {
+        // Asset fonts not available, try Google Fonts
         _logger.debug('Asset font not found, trying Google Fonts', data: {
           'font': fontName,
           'error': e.toString(),
@@ -1059,7 +1060,7 @@ class ExportService {
           return fallbackFont;
       }
     } catch (e) {
-      _logger.warning('Failed to load font, using fallback', error: e, data: {
+      _logger.error('Failed to load font, using fallback', error: e, data: {
         'font': fontName,
         'fallback': fallbackFont.toString(),
       });

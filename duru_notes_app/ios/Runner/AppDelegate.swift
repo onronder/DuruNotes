@@ -12,8 +12,8 @@ import UserNotifications
     // Register all Flutter plugins for the main isolate.
     GeneratedPluginRegistrant.register(with: self)
     
-    // Register custom share extension plugin
-    ShareExtensionPlugin.register(with: self.registrar(forPlugin: "ShareExtensionPlugin")!)
+    // TODO: Register custom share extension plugin when Xcode project is updated
+    // ShareExtensionPlugin.register(with: self.registrar(forPlugin: "ShareExtensionPlugin")!)
 
     // Show notifications while app is in foreground (iOS 10+)
     if #available(iOS 10.0, *) {
