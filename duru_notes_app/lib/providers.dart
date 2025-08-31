@@ -13,6 +13,7 @@ import 'services/analytics/analytics_service.dart';
 import 'services/attachment_service.dart';
 import 'services/export_service.dart';
 import 'services/import_service.dart';
+import 'services/share_extension_service.dart';
 
 // Export important types for easier importing
 export 'data/local/app_db.dart' show LocalNote, AppDb;
@@ -120,6 +121,16 @@ final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(
     notesRepository: ref.watch(notesRepositoryProvider),
     noteIndexer: NoteIndexer(logger: ref.watch(loggerProvider)),
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+  );
+});
+
+/// Share extension service provider
+final shareExtensionServiceProvider = Provider<ShareExtensionService>((ref) {
+  return ShareExtensionService(
+    notesRepository: ref.watch(notesRepositoryProvider),
+    attachmentService: ref.watch(attachmentServiceProvider),
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
   );

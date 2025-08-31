@@ -323,11 +323,11 @@ class ExportService {
       
       final pdf = pw.Document();
       
-      // Load fonts
-      final fontRegular = await PdfGoogleFonts.openSansRegular();
-      final fontBold = await PdfGoogleFonts.openSansBold();
-      final fontItalic = await PdfGoogleFonts.openSansItalic();
-      final fontMono = await PdfGoogleFonts.robotoMonoRegular();
+      // Load fonts with timeout and fallback
+      final fontRegular = await _loadPdfFont('OpenSans-Regular', pw.Font.helvetica);
+      final fontBold = await _loadPdfFont('OpenSans-Bold', pw.Font.helveticaBold);
+      final fontItalic = await _loadPdfFont('OpenSans-Italic', pw.Font.helveticaOblique);
+      final fontMono = await _loadPdfFont('RobotoMono-Regular', pw.Font.courier);
 
       // Build PDF content
       onProgress?.call(const ExportProgress(
@@ -976,13 +976,22 @@ class ExportService {
     required String filename,
     required ExportFormat format,
   }) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File(path.join(directory.path, 'exports', filename));
-    
-    // Ensure exports directory exists
-    await file.parent.create(recursive: true);
+    // Create temporary file for sharing
+    final tempDir = await getTemporaryDirectory();
+    final file = File(path.join(tempDir.path, filename));
     
     await file.writeAsString(content, encoding: utf8);
+    
+    // Also save to app documents for file sharing (iOS)
+    try {
+      final documentsDir = await getApplicationDocumentsDirectory();
+      final documentsFile = File(path.join(documentsDir.path, 'exports', filename));
+      await documentsFile.parent.create(recursive: true);
+      await documentsFile.writeAsString(content, encoding: utf8);
+    } catch (e) {
+      _logger.warning('Failed to save to documents directory', error: e);
+    }
+    
     return file;
   }
 
@@ -991,14 +1000,93 @@ class ExportService {
     required String filename,
     required ExportFormat format,
   }) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File(path.join(directory.path, 'exports', filename));
-    
-    // Ensure exports directory exists
-    await file.parent.create(recursive: true);
+    // Create temporary file for sharing
+    final tempDir = await getTemporaryDirectory();
+    final file = File(path.join(tempDir.path, filename));
     
     await file.writeAsBytes(bytes);
+    
+    // Also save to app documents for file sharing (iOS)
+    try {
+      final documentsDir = await getApplicationDocumentsDirectory();
+      final documentsFile = File(path.join(documentsDir.path, 'exports', filename));
+      await documentsFile.parent.create(recursive: true);
+      await documentsFile.writeAsBytes(bytes);
+    } catch (e) {
+      _logger.warning('Failed to save to documents directory', error: e);
+    }
+    
     return file;
+  }
+
+  /// Load PDF font with timeout and fallback
+  Future<pw.Font> _loadPdfFont(String fontName, pw.Font fallbackFont) async {
+    try {
+      // Try to load from assets first
+      try {
+        final fontData = await rootBundle.load('assets/fonts/$fontName.ttf');
+        return pw.Font.ttf(fontData);
+      } catch (e) {
+        _logger.debug('Asset font not found, trying Google Fonts', data: {
+          'font': fontName,
+          'error': e.toString(),
+        });
+      }
+      
+      // Fallback to Google Fonts with timeout
+      switch (fontName) {
+        case 'OpenSans-Regular':
+          return await PdfGoogleFonts.openSansRegular().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fallbackFont,
+          );
+        case 'OpenSans-Bold':
+          return await PdfGoogleFonts.openSansBold().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fallbackFont,
+          );
+        case 'OpenSans-Italic':
+          return await PdfGoogleFonts.openSansItalic().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fallbackFont,
+          );
+        case 'RobotoMono-Regular':
+          return await PdfGoogleFonts.robotoMonoRegular().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fallbackFont,
+          );
+        default:
+          return fallbackFont;
+      }
+    } catch (e) {
+      _logger.warning('Failed to load font, using fallback', error: e, data: {
+        'font': fontName,
+        'fallback': fallbackFont.toString(),
+      });
+      return fallbackFont;
+    }
+  }
+
+  /// Share exported file using platform share sheet
+  Future<bool> shareFile(File file, ExportFormat format) async {
+    try {
+      final result = await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Exported from Duru Notes',
+        subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
+      );
+      
+      _analytics.featureUsed('export_shared', properties: {
+        'format': format.name,
+        'file_size': file.lengthSync(),
+        'success': result.status == ShareResultStatus.success,
+      });
+      
+      return result.status == ShareResultStatus.success;
+    } catch (e) {
+      _logger.error('Failed to share exported file', error: e);
+      return false;
+    }
   }
 
   String _formatDate(DateTime date) {

@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/monitoring/app_logger.dart';
+import '../l10n/app_localizations.dart';
 import '../providers.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
 import 'edit_note_screen_simple.dart';
+import 'help_screen.dart';
 
 /// Main notes list screen showing user's notes
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -55,15 +58,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Notes'),
+        title: Text(AppLocalizations.of(context).notesListTitle),
         actions: [
           // Search button
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Search feature temporarily disabled'),
+                SnackBar(
+                  content: Text(AppLocalizations.of(context).searchFeatureTemporarilyDisabled),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -79,41 +82,54 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                   _showExportDialog(context);
                 case 'settings':
                   _showSettingsDialog(context);
+                case 'help':
+                  _showHelpScreen(context);
                 case 'logout':
                   _confirmLogout(context);
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'import',
                 child: ListTile(
-                  leading: Icon(Icons.upload_file),
-                  title: Text('Import Notes'),
+                  leading: const Icon(Icons.upload_file),
+                  title: Text(AppLocalizations.of(context).importNotes),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'export',
                 child: ListTile(
-                  leading: Icon(Icons.download),
-                  title: Text('Export Notes'),
+                  leading: const Icon(Icons.download),
+                  title: Text(AppLocalizations.of(context).exportNotes),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'settings',
                 child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text('Settings'),
+                  leading: const Icon(Icons.settings),
+                  title: Text(AppLocalizations.of(context).settings),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'help',
+                child: ListTile(
+                  leading: const Icon(Icons.help_outline),
+                  title: Text(AppLocalizations.of(context).help),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: ListTile(
-                  leading: Icon(Icons.logout, color: Colors.red),
-                  title: Text('Sign Out', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: Text(
+                    AppLocalizations.of(context).signOut, 
+                    style: const TextStyle(color: Colors.red)
+                  ),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -250,18 +266,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
             color: Colors.grey,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'No notes yet',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).noNotesYet,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.grey,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Tap + to create your first note',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).tapToCreateFirstNote,
+            style: const TextStyle(
               color: Colors.grey,
             ),
           ),
@@ -269,7 +285,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
           ElevatedButton.icon(
             onPressed: () => _createNewNote(context),
             icon: const Icon(Icons.add),
-            label: const Text('Create First Note'),
+            label: Text(AppLocalizations.of(context).createFirstNote),
           ),
         ],
       ),
@@ -450,31 +466,31 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Notes'),
-        content: const Column(
+        title: Text(AppLocalizations.of(context).importNotesTitle),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Choose what to import:'),
-            SizedBox(height: 16),
-            Text('• Single Markdown files (.md, .markdown)'),
-            Text('• Evernote export files (.enex)'),
-            Text('• Obsidian vault folders'),
-            SizedBox(height: 16),
-            Text('Features: Security validation, progress tracking, error recovery'),
+            Text(AppLocalizations.of(context).chooseWhatToImport),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context).singleMarkdownFiles),
+            Text(AppLocalizations.of(context).evernoteFiles),
+            Text(AppLocalizations.of(context).obsidianVaultFolders),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context).featuresSecurityValidation),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _showImportTypeSelection(context);
             },
-            child: const Text('Select Import Type'),
+            child: Text(AppLocalizations.of(context).selectImportType),
           ),
         ],
       ),
@@ -757,18 +773,61 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
   }
 
   void _showErrorDialog(BuildContext context, String message) {
+    final isExportError = message.toLowerCase().contains('export');
+    final isPdfTimeout = message.contains('timed out') && message.contains('PDF');
+    final isNetworkError = message.contains('network') || message.contains('fonts');
+    
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Import Error'),
+            const SizedBox(width: 8),
+            Text(isExportError ? 'Export Error' : 'Import Error'),
           ],
         ),
-        content: Text(message),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            if (isPdfTimeout) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'PDF export may fail in simulator due to network restrictions. Try:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Test on a physical device'),
+              const Text('• Check your internet connection'),
+              const Text('• Try exporting as Markdown instead'),
+            ] else if (isNetworkError) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Network-related issue detected. Try:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('• Check your internet connection'),
+              const Text('• Try again in a few moments'),
+              const Text('• Use a different export format'),
+            ],
+          ],
+        ),
         actions: [
+          if (isPdfTimeout)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Retry with Markdown format
+                final currentNotes = ref.read(currentNotesProvider);
+                if (currentNotes.isNotEmpty) {
+                  _exportNotes(context, [currentNotes.first], ExportFormat.markdown, ExportScope.latest);
+                }
+              },
+              child: const Text('Try Markdown'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
@@ -949,8 +1008,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
 
     final exportService = ref.read(exportServiceProvider);
     
-    // Show progress dialog
+    // Show progress dialog with cancel functionality
     final progressKey = GlobalKey<_ExportProgressDialogState>();
+    bool isCancelled = false;
     
     showDialog<void>(
       context: context,
@@ -959,6 +1019,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
         key: progressKey,
         totalNotes: notes.length,
         format: format,
+        onCancel: () {
+          isCancelled = true;
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Export cancelled'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
       ),
     );
 
@@ -971,33 +1041,66 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
       );
 
       for (int i = 0; i < notes.length; i++) {
+        // Check if export was cancelled
+        if (isCancelled) {
+          final logger = ref.read(loggerProvider);
+          logger.info('Export cancelled by user', data: {
+            'completed_notes': i,
+            'total_notes': notes.length,
+            'format': format.name,
+          });
+          return;
+        }
+        
         final note = notes[i];
         progressKey.currentState?.updateCurrentNote(i + 1, note.title);
         
         ExportResult result;
         
-        switch (format) {
-          case ExportFormat.markdown:
-            result = await exportService.exportToMarkdown(
-              note,
-              options: exportOptions,
-              onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
-            );
-          case ExportFormat.pdf:
-            result = await exportService.exportToPdf(
-              note,
-              options: exportOptions,
-              onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
-            );
-          case ExportFormat.html:
-            result = await exportService.exportToHtml(
-              note,
-              options: exportOptions,
-              onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
-            );
-          case ExportFormat.txt:
-          case ExportFormat.docx:
-            throw Exception('Export format ${format.displayName} not yet implemented');
+        try {
+          switch (format) {
+            case ExportFormat.markdown:
+              result = await exportService.exportToMarkdown(
+                note,
+                options: exportOptions,
+                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+              );
+            case ExportFormat.pdf:
+              result = await exportService.exportToPdf(
+                note,
+                options: exportOptions,
+                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+              ).timeout(
+                const Duration(minutes: 2),
+                onTimeout: () => ExportResult.failure(
+                  error: 'PDF export timed out. This may be due to network issues loading fonts.',
+                  errorCode: 'EXPORT_TIMEOUT',
+                  processingTime: const Duration(minutes: 2),
+                  format: ExportFormat.pdf,
+                ),
+              );
+            case ExportFormat.html:
+              result = await exportService.exportToHtml(
+                note,
+                options: exportOptions,
+                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+              );
+            case ExportFormat.txt:
+            case ExportFormat.docx:
+              result = ExportResult.failure(
+                error: 'Export format ${format.displayName} not yet implemented',
+                errorCode: 'FORMAT_NOT_IMPLEMENTED',
+                processingTime: Duration.zero,
+                format: format,
+              );
+          }
+        } catch (e) {
+          result = ExportResult.failure(
+            error: 'Failed to export note "${note.title}": $e',
+            errorCode: 'EXPORT_ERROR',
+            processingTime: Duration.zero,
+            format: format,
+          );
         }
         
         results.add(result);
@@ -1007,7 +1110,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
       if (context.mounted) {
         Navigator.pop(context);
         
-        // Show export summary
+        // Show export summary with share option
         await _showExportSummary(context, results, format, scope);
       }
     } on Exception catch (e) {
@@ -1087,7 +1190,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
           ],
         ),
         actions: [
-          if (successfulResults.isNotEmpty)
+          if (successfulResults.isNotEmpty) ...[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _shareExportedFiles(successfulResults, format);
+              },
+              child: const Text('Share Files'),
+            ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -1095,6 +1205,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
               },
               child: const Text('Open Folder'),
             ),
+          ],
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
@@ -1110,14 +1221,37 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  Future<void> _shareExportedFiles(List<ExportResult> results, ExportFormat format) async {
+    try {
+      final exportService = ref.read(exportServiceProvider);
+      final successfulFiles = results
+          .where((r) => r.success && r.file != null)
+          .map((r) => r.file!)
+          .toList();
+
+      if (successfulFiles.isEmpty) {
+        _showErrorDialog(context, 'No files available to share');
+        return;
+      }
+
+      // Share the first file (or could implement multi-file sharing)
+      final shared = await exportService.shareFile(successfulFiles.first, format);
+      
+      if (!shared) {
+        _showErrorDialog(context, 'Failed to share exported file');
+      }
+    } catch (e) {
+      _showErrorDialog(context, 'Error sharing files: $e');
+    }
+  }
+
   Future<void> _openExportsFolder() async {
     try {
-      // This would typically open the Downloads folder
-      // Implementation depends on platform-specific code
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Check your Downloads folder for exported files'),
+          content: Text('Files are saved in app Documents folder. Use "Share Files" to access them.'),
           backgroundColor: Colors.blue,
+          duration: Duration(seconds: 4),
         ),
       );
     } catch (e) {
@@ -1125,10 +1259,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     }
   }
 
+  void _showHelpScreen(BuildContext context) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const HelpScreen(),
+      ),
+    );
+  }
+
   void _showSettingsDialog(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Settings screen coming soon'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).settingsScreenComingSoon),
         backgroundColor: Colors.purple,
       ),
     );
@@ -1240,11 +1383,13 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
 class _ExportProgressDialog extends StatefulWidget {
   final int totalNotes;
   final ExportFormat format;
+  final VoidCallback? onCancel;
 
   const _ExportProgressDialog({
     super.key,
     required this.totalNotes,
     required this.format,
+    this.onCancel,
   });
 
   @override
@@ -1255,6 +1400,13 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
   ExportProgress? _currentProgress;
   int _currentNoteIndex = 0;
   String _currentNoteTitle = '';
+  DateTime? _startTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTime = DateTime.now();
+  }
 
   void updateProgress(ExportProgress progress) {
     if (mounted) {
@@ -1280,6 +1432,9 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
         ? (_currentNoteIndex / widget.totalNotes) 
         : 0.0;
     
+    // Calculate estimated time remaining
+    final estimatedTimeRemaining = _calculateEstimatedTime();
+    
     return AlertDialog(
       title: Row(
         children: [
@@ -1289,7 +1444,9 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text('Exporting to ${widget.format.displayName}'),
+          Expanded(
+            child: Text('Exporting to ${widget.format.displayName}'),
+          ),
         ],
       ),
       content: Column(
@@ -1302,6 +1459,16 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             'Current: ${_currentNoteTitle.length > 30 ? '${_currentNoteTitle.substring(0, 30)}...' : _currentNoteTitle}',
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
+          if (estimatedTimeRemaining != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Estimated time remaining: $estimatedTimeRemaining',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Text('Overall Progress:'),
           const SizedBox(height: 8),
@@ -1327,6 +1494,30 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
           ],
         ],
       ),
+      actions: [
+        if (widget.onCancel != null)
+          TextButton(
+            onPressed: widget.onCancel,
+            child: const Text('Cancel'),
+          ),
+      ],
     );
+  }
+
+  String? _calculateEstimatedTime() {
+    if (_currentNoteIndex == 0 || widget.totalNotes <= 1) return null;
+    
+    final elapsed = DateTime.now().difference(_startTime ?? DateTime.now());
+    final avgTimePerNote = elapsed.inSeconds / _currentNoteIndex;
+    final remainingNotes = widget.totalNotes - _currentNoteIndex;
+    final estimatedSeconds = (avgTimePerNote * remainingNotes).round();
+    
+    if (estimatedSeconds < 60) {
+      return '${estimatedSeconds}s';
+    } else {
+      final minutes = (estimatedSeconds / 60).floor();
+      final seconds = estimatedSeconds % 60;
+      return '${minutes}m ${seconds}s';
+    }
   }
 }

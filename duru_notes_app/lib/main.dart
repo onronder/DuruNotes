@@ -8,6 +8,8 @@ import 'app/app.dart';
 import 'core/config/environment_config.dart';
 import 'core/monitoring/app_logger.dart';
 import 'services/analytics/analytics_service.dart';
+import 'services/share_extension_service.dart';
+import 'providers.dart';
 
 // Global navigation key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -61,10 +63,10 @@ Future<void> main() async {
     }
   }
 
-  // Run the app
+  // Run the app with share extension initialization
   runApp(
     ProviderScope(
-      child: App(navigatorKey: navigatorKey),
+      child: _AppWithShareExtension(navigatorKey: navigatorKey),
     ),
   );
 }
@@ -92,4 +94,42 @@ Future<void> _initializeServices() async {
   }
 
   logger.info('Services initialized successfully');
+}
+
+/// App wrapper that initializes share extension service
+class _AppWithShareExtension extends ConsumerStatefulWidget {
+  final GlobalKey<NavigatorState> navigatorKey;
+  
+  const _AppWithShareExtension({required this.navigatorKey});
+
+  @override
+  ConsumerState<_AppWithShareExtension> createState() => _AppWithShareExtensionState();
+}
+
+class _AppWithShareExtensionState extends ConsumerState<_AppWithShareExtension> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize share extension service after app starts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeShareExtension();
+    });
+  }
+
+  Future<void> _initializeShareExtension() async {
+    try {
+      final shareExtensionService = ref.read(shareExtensionServiceProvider);
+      await shareExtensionService.initialize();
+      
+      logger.info('Share extension service initialized successfully');
+    } catch (e) {
+      logger.error('Failed to initialize share extension service: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return App(navigatorKey: widget.navigatorKey);
+  }
 }
