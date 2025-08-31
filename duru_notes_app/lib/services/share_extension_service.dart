@@ -66,36 +66,24 @@ class ShareExtensionService {
 
   /// Initialize Android sharing intent handling
   void _initializeAndroidSharing() {
-    // Listen for shared text
-    ReceiveSharingIntent.getTextStream().listen(
-      (String sharedText) {
-        _handleSharedText(sharedText);
-      },
-      onError: (dynamic err) {
-        _logger.error('Error receiving shared text', error: err);
-      },
-    );
-
-    // Listen for shared media (images, files)
-    ReceiveSharingIntent.getMediaStream().listen(
-      (List<SharedMediaFile> sharedFiles) {
-        _handleSharedMedia(sharedFiles);
+    // Listen for incoming media (files, images, text, etc.)
+    ReceiveSharingIntent.instance.getMediaStream().listen(
+      (List<SharedMediaFile> files) {
+        for (final file in files) {
+          _handleSharedMedia([file]);
+        }
       },
       onError: (dynamic err) {
         _logger.error('Error receiving shared media', error: err);
       },
     );
 
-    // Handle shared content when app is launched from sharing
-    ReceiveSharingIntent.getInitialText().then((String? sharedText) {
-      if (sharedText != null) {
-        _handleSharedText(sharedText);
-      }
-    });
-
-    ReceiveSharingIntent.getInitialMedia().then((List<SharedMediaFile> sharedFiles) {
-      if (sharedFiles.isNotEmpty) {
-        _handleSharedMedia(sharedFiles);
+    // Handle any media that caused the app to start
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> files) {
+      if (files.isNotEmpty) {
+        for (final file in files) {
+          _handleSharedMedia([file]);
+        }
       }
     });
   }
@@ -166,6 +154,39 @@ class ShareExtensionService {
     }
   }
 
+  /// Handle shared URL content
+  Future<void> _handleSharedUrl(String sharedUrl) async {
+    try {
+      _analytics.event('share_extension.url_received', properties: {
+        'url_length': sharedUrl.length,
+        'platform': Platform.operatingSystem,
+      });
+
+      final uri = Uri.tryParse(sharedUrl);
+      final title = uri?.host ?? 'Shared Link';
+      
+      final noteContent = '''# $title
+
+**Link**: $sharedUrl
+
+*Shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
+''';
+
+      await _createNoteFromSharedContent(
+        title: title,
+        content: noteContent,
+        type: 'url',
+      );
+
+      _logger.info('Successfully processed shared URL', data: {
+        'title': title,
+        'url': sharedUrl,
+      });
+    } catch (e) {
+      _logger.error('Failed to handle shared URL', error: e);
+    }
+  }
+
   /// Handle shared media files
   Future<void> _handleSharedMedia(List<SharedMediaFile> sharedFiles) async {
     try {
@@ -175,7 +196,23 @@ class ShareExtensionService {
       });
 
       for (final mediaFile in sharedFiles) {
-        await _processSharedMediaFile(mediaFile);
+        // Handle different content types based on SharedMediaType
+        switch (mediaFile.type) {
+          case SharedMediaType.text:
+            // For text content, the text is stored in the path field
+            await _handleSharedText(mediaFile.path);
+            break;
+          case SharedMediaType.url:
+            // For URL content, the URL is stored in the path field
+            await _handleSharedUrl(mediaFile.path);
+            break;
+          case SharedMediaType.image:
+          case SharedMediaType.video:
+          case SharedMediaType.file:
+            // For actual files, process as media file
+            await _processSharedMediaFile(mediaFile);
+            break;
+        }
       }
 
       _logger.info('Successfully processed shared media', data: {
@@ -267,9 +304,10 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
             filename: 'shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
           );
           
+          final url = attachment?.url ?? '';
           final noteContent = '''# $title
 
-![Shared Image](${attachment.url})
+![Shared Image]($url)
 
 *Image shared on ${DateTime.now().toString()}*
 *Size: ${_formatFileSize(imageSize)}*
@@ -313,9 +351,10 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
           filename: fileName,
         );
         
+        final url = attachment?.url ?? '';
         final noteContent = '''# Shared Image
 
-![${fileName}](${attachment.url})
+![$fileName]($url)
 
 *Shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
 ''';
@@ -332,9 +371,10 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
           filename: fileName,
         );
         
+        final url = attachment?.url ?? '';
         final noteContent = '''# Shared File: $fileName
 
-[Download ${fileName}](${attachment.url})
+[Download $fileName]($url)
 
 *File shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
 *Size: ${_formatFileSize(fileBytes.length)}*

@@ -71,32 +71,26 @@ dev_dependencies:
   freezed: ^3.2.0
   integration_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
   json_serializable: ^6.10.0
   mockito: ^5.4.4
   very_good_analysis: ^9.0.0
   image: ^4.1.7
   intl_utils: ^2.8.7
 
+# Configuration for flutter_launcher_icons package
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "design/app_icon.png"
+
 flutter:
   uses-material-design: true
   generate: true
-  
+
   assets:
     - assets/env/
-    - assets/fonts/
     - docs/
-  
-  fonts:
-    - family: OpenSans
-      fonts:
-        - asset: assets/fonts/OpenSans-Regular.ttf
-        - asset: assets/fonts/OpenSans-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/OpenSans-Italic.ttf
-          style: italic
-    - family: RobotoMono
-      fonts:
-        - asset: assets/fonts/RobotoMono-Regular.ttf
 
 sentry:
   upload_debug_symbols: true

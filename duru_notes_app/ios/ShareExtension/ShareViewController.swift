@@ -7,19 +7,24 @@
 
 import UIKit
 import Social
-import MobileCoreServices
-import UniformTypeIdentifiers
+import MobileCoreServices  // For iOS 13+ compatibility
 
 class ShareViewController: SLComposeServiceViewController {
 
     let appGroupID = "group.com.fittechs.durunotes" // Match entitlements
 
     override func isContentValid() -> Bool {
-        // Basic validation - ensure we have some content
+        // Basic validation: accept if we have text or attachments
         let text = contentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasAttachments = extensionContext?.inputItems.first?.attachments?.isEmpty == false
+        if !text.isEmpty { return true }
         
-        return !text.isEmpty || hasAttachments
+        // Properly cast to NSExtensionItem before accessing attachments
+        if let firstItem = extensionContext?.inputItems.first as? NSExtensionItem,
+           let attachments = firstItem.attachments,
+           !attachments.isEmpty {
+            return true
+        }
+        return false
     }
 
     override func didSelectPost() {
@@ -31,13 +36,13 @@ class ShareViewController: SLComposeServiceViewController {
         var itemsToSave: [[String: Any]] = []
 
         // Save the typed text (if any)
-        let text = contentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty {
-            let title = String(text.prefix(100)) // Use first 100 chars as title
+        let trimmed = contentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            let title = String(trimmed.prefix(50)) // Use first 50 chars as title
             itemsToSave.append([
                 "type": "text",
                 "title": title,
-                "content": text,
+                "content": trimmed,
                 "timestamp": ISO8601DateFormatter().string(from: Date())
             ])
         }
@@ -45,15 +50,16 @@ class ShareViewController: SLComposeServiceViewController {
         // Process attachments
         let dispatchGroup = DispatchGroup()
 
-        for item in context.inputItems {
-            guard let inputItem = item as? NSExtensionItem,
-                  let attachments = inputItem.attachments else { continue }
+        for input in context.inputItems {
+            // Properly cast to NSExtensionItem
+            guard let item = input as? NSExtensionItem,
+                  let attachments = item.attachments else { continue }
 
             for provider in attachments {
-                // Handle images
-                if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                // Handle images (using MobileCoreServices for iOS 13+ compatibility)
+                if provider.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
                     dispatchGroup.enter()
-                    provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { (data, error) in
+                    provider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (data, error) in
                         defer { dispatchGroup.leave() }
                         
                         if let error = error {
@@ -69,28 +75,10 @@ class ShareViewController: SLComposeServiceViewController {
                     }
                 }
                 
-                // Handle text/URLs
-                if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
+                // Handle URLs (using MobileCoreServices for iOS 13+ compatibility)
+                if provider.hasItemConformingToTypeIdentifier(kUTTypeURL as String) {
                     dispatchGroup.enter()
-                    provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { (data, error) in
-                        defer { dispatchGroup.leave() }
-                        
-                        if let sharedText = data as? String, !sharedText.isEmpty {
-                            let title = String(sharedText.prefix(100))
-                            itemsToSave.append([
-                                "type": "text",
-                                "title": title,
-                                "content": sharedText,
-                                "timestamp": ISO8601DateFormatter().string(from: Date())
-                            ])
-                        }
-                    }
-                }
-                
-                // Handle URLs
-                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-                    dispatchGroup.enter()
-                    provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { (data, error) in
+                    provider.loadItem(forTypeIdentifier: kUTTypeURL as String, options: nil) { (data, error) in
                         defer { dispatchGroup.leave() }
                         
                         if let url = data as? URL {
@@ -100,6 +88,24 @@ class ShareViewController: SLComposeServiceViewController {
                                 "title": url.host ?? "Shared Link",
                                 "content": urlText,
                                 "url": urlText,
+                                "timestamp": ISO8601DateFormatter().string(from: Date())
+                            ])
+                        }
+                    }
+                }
+                
+                // Handle plain text (using MobileCoreServices for iOS 13+ compatibility)
+                if provider.hasItemConformingToTypeIdentifier(kUTTypePlainText as String) {
+                    dispatchGroup.enter()
+                    provider.loadItem(forTypeIdentifier: kUTTypePlainText as String, options: nil) { (data, error) in
+                        defer { dispatchGroup.leave() }
+                        
+                        if let sharedText = data as? String, !sharedText.isEmpty {
+                            let title = String(sharedText.prefix(50))
+                            itemsToSave.append([
+                                "type": "text",
+                                "title": title,
+                                "content": sharedText,
                                 "timestamp": ISO8601DateFormatter().string(from: Date())
                             ])
                         }
@@ -120,55 +126,36 @@ class ShareViewController: SLComposeServiceViewController {
         return []
     }
 
-    // MARK: - Private Methods
+    // MARK: - Private Helper Methods
 
     private func saveImageFromURL(_ url: URL, to items: inout [[String: Any]]) {
-        do {
-            let imageData = try Data(contentsOf: url)
-            let fileName = UUID().uuidString + ".jpg"
-            
-            if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
-                let imagesDir = containerURL.appendingPathComponent("shared_images")
-                try? FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true, attributes: nil)
-                
-                let fileURL = imagesDir.appendingPathComponent(fileName)
-                try imageData.write(to: fileURL)
-                
-                items.append([
-                    "type": "image",
-                    "title": "Shared Image",
-                    "imagePath": fileURL.path,
-                    "imageSize": imageData.count,
-                    "timestamp": ISO8601DateFormatter().string(from: Date())
-                ])
-            }
-        } catch {
-            print("Error saving image from URL: \(error)")
-        }
+        self.saveAttachment(data: try! Data(contentsOf: url), extension: "jpg", into: &items)
     }
     
     private func saveImage(_ image: UIImage, to items: inout [[String: Any]]) {
         guard let imageData = image.jpegData(compressionQuality: 0.8) else { return }
-        
-        let fileName = UUID().uuidString + ".jpg"
-        
+        self.saveAttachment(data: imageData, extension: "jpg", into: &items)
+    }
+
+    private func saveAttachment(data: Data, extension ext: String, into items: inout [[String: Any]]) {
         if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
             let imagesDir = containerURL.appendingPathComponent("shared_images")
             try? FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true, attributes: nil)
             
-            let fileURL = imagesDir.appendingPathComponent(fileName)
+            let filename = UUID().uuidString + "." + ext
+            let fileURL = imagesDir.appendingPathComponent(filename)
             
             do {
-                try imageData.write(to: fileURL)
+                try data.write(to: fileURL)
                 items.append([
                     "type": "image",
                     "title": "Shared Image",
                     "imagePath": fileURL.path,
-                    "imageSize": imageData.count,
+                    "imageSize": data.count,
                     "timestamp": ISO8601DateFormatter().string(from: Date())
                 ])
             } catch {
-                print("Error saving image: \(error)")
+                print("Error saving attachment: \(error)")
             }
         }
     }
@@ -176,27 +163,30 @@ class ShareViewController: SLComposeServiceViewController {
     private func persistSharedItems(_ items: [[String: Any]]) {
         guard !items.isEmpty else { return }
         
-        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
-            let fileURL = containerURL.appendingPathComponent("shared_items.json")
-            
-            // Read existing items
-            var existingItems: [[String: Any]] = []
-            if let existingData = try? Data(contentsOf: fileURL),
-               let existing = try? JSONSerialization.jsonObject(with: existingData, options: []) as? [[String: Any]] {
-                existingItems = existing
-            }
-            
-            // Append new items
-            existingItems.append(contentsOf: items)
-            
-            // Save back to file
-            do {
-                let data = try JSONSerialization.data(withJSONObject: existingItems, options: .prettyPrinted)
-                try data.write(to: fileURL)
-                print("Successfully saved \(items.count) shared items")
-            } catch {
-                print("Error saving shared items: \(error)")
-            }
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
+            print("Error: Could not access app group container")
+            return
+        }
+        
+        let fileURL = containerURL.appendingPathComponent("shared_items.json")
+        
+        // Read existing items
+        var existingItems: [[String: Any]] = []
+        if let existingData = try? Data(contentsOf: fileURL),
+           let decoded = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
+            existingItems = decoded
+        }
+        
+        // Append new items
+        existingItems.append(contentsOf: items)
+        
+        // Save back to file
+        do {
+            let data = try JSONSerialization.data(withJSONObject: existingItems, options: .prettyPrinted)
+            try data.write(to: fileURL)
+            print("Successfully saved \(items.count) shared items")
+        } catch {
+            print("Error saving shared items: \(error)")
         }
     }
 }
