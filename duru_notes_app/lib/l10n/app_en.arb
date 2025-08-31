@@ -1,0 +1,352 @@
+{
+  "@@locale": "en",
+  
+  "@_MAIN_NAVIGATION": {},
+  "notesListTitle": "My Notes",
+  "createNewNote": "Create New Note",
+  "searchNotes": "Search Notes",
+  "noNotesYet": "No notes yet",
+  "tapToCreateFirstNote": "Tap + to create your first note",
+  "createFirstNote": "Create First Note",
+  
+  "@_MENU_ITEMS": {},
+  "importNotes": "Import Notes",
+  "exportNotes": "Export Notes", 
+  "settings": "Settings",
+  "help": "Help",
+  "signOut": "Sign Out",
+  "logout": "Sign Out",
+  
+  "@_IMPORT_EXPORT": {},
+  "import": "Import",
+  "export": "Export",
+  "importNotesTitle": "Import Notes",
+  "exportNotesTitle": "Export Notes",
+  "chooseWhatToImport": "Choose what to import:",
+  "exportYourNotes": "Export your notes to various formats:",
+  "availableNotes": "Available notes: {count}",
+  "@availableNotes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  
+  "@_IMPORT_TYPES": {},
+  "markdownFiles": "Markdown Files",
+  "evernoteExport": "Evernote Export",
+  "obsidianVault": "Obsidian Vault",
+  "importSingleMdFiles": "Import single .md or .markdown files",
+  "importEnexFiles": "Import .enex files from Evernote",
+  "importObsidianVaultFolder": "Import entire Obsidian vault folder",
+  "selectImportType": "Select Import Type",
+  
+  "@_EXPORT_TYPES": {},
+  "markdown": "Markdown",
+  "pdf": "PDF",
+  "html": "HTML",
+  "exportAsMdFiles": "Export as .md files with full formatting",
+  "exportAsPdfDocs": "Export as PDF documents for sharing",
+  "exportAsWebPages": "Export as web pages with styling",
+  "selectExportFormat": "Select Export Format",
+  "chooseFormat": "Choose Format",
+  
+  "@_EXPORT_SCOPE": {},
+  "exportAllNotes": "Export All Notes",
+  "exportRecentNotes": "Export Recent Notes",
+  "exportLatest10": "Export Latest 10",
+  "exportAllNotesDesc": "Export all {count} notes",
+  "@exportAllNotesDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportRecentNotesDesc": "Export notes from the last 30 days",
+  "exportLatest10Desc": "Export the 10 most recent notes",
+  
+  "@_PROGRESS_DIALOGS": {},
+  "importingNotes": "Importing Notes",
+  "exportingToFormat": "Exporting to {format}",
+  "@exportingToFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "initializingImport": "Initializing import...",
+  "initializingExport": "Initializing export...",
+  "currentFile": "File: {filename}",
+  "@currentFile": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "progressCount": "Progress: {current}/{total}",
+  "@progressCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noteProgress": "Note: {current}/{total}",
+  "@noteProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "currentNote": "Current: {title}",
+  "@currentNote": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "overallProgress": "Overall Progress:",
+  "estimatedTimeRemaining": "Estimated time remaining: {time}",
+  "@estimatedTimeRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  
+  "@_COMPLETION_DIALOGS": {},
+  "importComplete": "Import Complete",
+  "exportComplete": "Export Complete",
+  "successfullyImported": "✅ Successfully imported: {count} notes",
+  "@successfullyImported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "successfullyExported": "✅ Successfully exported: {count} notes",
+  "@successfullyExported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorsEncountered": "⚠️ Errors encountered: {count}",
+  "@errorsEncountered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importTook": "⏱️ Import took: {seconds} seconds",
+  "@importTook": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "exportTook": "⏱️ Export took: {seconds} seconds",
+  "@exportTook": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "totalSize": "📁 Total size: {size}",
+  "@totalSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "errorDetails": "Error details:",
+  "filesSavedToDownloads": "Files saved to Downloads folder",
+  "failedExports": "Failed exports:",
+  "shareFiles": "Share Files",
+  "openFolder": "Open Folder",
+  "close": "Close",
+  
+  "@_ERROR_MESSAGES": {},
+  "importError": "Import Error",
+  "exportError": "Export Error",
+  "noNotesToExport": "No notes to export",
+  "failedToSelectMarkdownFiles": "Failed to select Markdown files",
+  "failedToSelectEvernoteFile": "Failed to select Evernote file",
+  "failedToSelectObsidianVault": "Failed to select Obsidian vault",
+  "importFailed": "Import failed",
+  "exportFailed": "Export failed",
+  "obsidianImportFailed": "Obsidian import failed",
+  "noFilesAvailableToShare": "No files available to share",
+  "failedToShareExportedFile": "Failed to share exported file",
+  "errorSharingFiles": "Error sharing files",
+  "couldNotOpenExportsFolder": "Could not open exports folder",
+  
+  "@_ERROR_RECOVERY": {},
+  "pdfExportMayFailInSimulator": "PDF export may fail in simulator due to network restrictions. Try:",
+  "testOnPhysicalDevice": "• Test on a physical device",
+  "checkInternetConnection": "• Check your internet connection", 
+  "tryExportingAsMarkdown": "• Try exporting as Markdown instead",
+  "networkRelatedIssueDetected": "Network-related issue detected. Try:",
+  "tryAgainInFewMoments": "• Try again in a few moments",
+  "useDifferentExportFormat": "• Use a different export format",
+  "tryMarkdown": "Try Markdown",
+  
+  "@_NOTES_MANAGEMENT": {},
+  "editNote": "Edit Note",
+  "deleteNote": "Delete Note",
+  "delete": "Delete",
+  "edit": "Edit",
+  "untitled": "Untitled",
+  "noContent": "No content",
+  "justNow": "Just now",
+  "minutesAgo": "{count} minutes ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "{count} hours ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "daysAgo": "{count} days ago",
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "areYouSureDeleteNote": "Are you sure you want to delete \"{title}\"?",
+  "@areYouSureDeleteNote": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "noteDeleted": "Note deleted",
+  "errorDeletingNote": "Error deleting note",
+  
+  "@_USER_INTERFACE": {},
+  "welcomeBack": "Welcome back!",
+  "online": "Online",
+  "offline": "Offline",
+  "loading": "Loading…",
+  "retry": "Retry",
+  "errorLoadingNotes": "Error loading notes",
+  "searchFeatureTemporarilyDisabled": "Search feature temporarily disabled",
+  "exportFunctionalityComingSoon": "Export functionality coming soon",
+  "settingsScreenComingSoon": "Settings screen coming soon",
+  
+  "@_AUTHENTICATION": {},
+  "areYouSureSignOut": "Are you sure you want to sign out?",
+  
+  "@_IMPORT_FEATURES": {},
+  "productionGradeImportSystemReady": "Production-grade import system ready!",
+  "supportedFormats": "Supported formats:",
+  "singleMarkdownFiles": "• Single Markdown files (.md, .markdown)",
+  "evernoteFiles": "• Evernote export files (.enex)",
+  "obsidianVaultFolders": "• Obsidian vault folders",
+  "importFeatures": "Features:",
+  "securityValidation": "• Security validation",
+  "progressTracking": "• Progress tracking", 
+  "errorRecovery": "• Error recovery",
+  "contentSanitization": "• Content sanitization",
+  "featuresSecurityValidation": "Features: Security validation, progress tracking, error recovery",
+  
+  "@_EXPORT_FEATURES": {},
+  "exportAsMarkdownFiles": "• Export as Markdown files",
+  "exportAsPdfDocuments": "• Export as PDF documents",
+  "exportAsHtmlFiles": "• Export as HTML files",
+  "featuresRichFormatting": "Features: Rich formatting, metadata, attachments",
+  "exportCancelled": "Export cancelled",
+  "checkDownloadsFolderForFiles": "Check your Downloads folder for exported files",
+  "filesSavedInAppDocuments": "Files are saved in app Documents folder. Use \"Share Files\" to access them.",
+  
+  "@_PROGRESS_PHASES": {},
+  "statusPhase": "Status: {phase}",
+  "@statusPhase": {
+    "placeholders": {
+      "phase": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "@_HELP_SYSTEM": {},
+  "userGuide": "User Guide",
+  "helpAndSupport": "Help & Support",
+  "documentation": "Documentation",
+  "aboutApp": "About App",
+  
+  "@_SHARE_EXTENSION": {},
+  "sharedNote": "Shared Note",
+  "sharedText": "Shared Text", 
+  "sharedImage": "Shared Image",
+  "sharedLink": "Shared Link",
+  "sharedFile": "Shared File",
+  "sharedFrom": "Shared from {source} on {date}",
+  "@sharedFrom": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedImageCouldNotBeProcessed": "Shared image could not be processed.",
+  
+  "@_COMMON_ACTIONS": {},
+  "save": "Save",
+  "done": "Done",
+  "ok": "OK",
+  "yes": "Yes",
+  "no": "No",
+  "continueAction": "Continue",
+  "back": "Back",
+  "next": "Next",
+  "finish": "Finish",
+  "selectFiles": "Select Files",
+  
+  "@_FILE_OPERATIONS": {},
+  "selectingFiles": "Selecting files",
+  "scanningDirectory": "Scanning directory", 
+  "readingFile": "Reading file",
+  "parsingContent": "Parsing content",
+  "convertingToBlocks": "Converting to blocks",
+  "processingFiles": "Processing files",
+  "savingNotes": "Saving notes",
+  "completed": "Completed",
+  "preparing": "Preparing",
+  "rendering": "Rendering",
+  "finalizing": "Finalizing"
+}

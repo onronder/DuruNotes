@@ -20,8 +20,11 @@ dependencies:
   drift: ^2.28.1
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   flutter_dotenv: ^5.1.0
   flutter_markdown: ^0.7.7+1
+  intl: ^0.20.2
   file_picker: ^10.3.1   # dosya seçimi için
   crypto: ^3.0.6         # SHA-256 hesaplamak için
   image_picker: ^0.8.7+5
@@ -72,13 +75,28 @@ dev_dependencies:
   mockito: ^5.4.4
   very_good_analysis: ^9.0.0
   image: ^4.1.7
+  intl_utils: ^2.8.7
 
 flutter:
   uses-material-design: true
+  generate: true
   
   assets:
     - assets/env/
+    - assets/fonts/
     - docs/
+  
+  fonts:
+    - family: OpenSans
+      fonts:
+        - asset: assets/fonts/OpenSans-Regular.ttf
+        - asset: assets/fonts/OpenSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/OpenSans-Italic.ttf
+          style: italic
+    - family: RobotoMono
+      fonts:
+        - asset: assets/fonts/RobotoMono-Regular.ttf
 
 sentry:
   upload_debug_symbols: true
