@@ -139,19 +139,41 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
       ),
       body: Column(
         children: [
-          // User info banner
+          // Modern user info banner
           if (user != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: Colors.blue[50],
-              child: Row(
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primaryContainer,
+                      Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     child: Text(
                       user.email?.substring(0, 1).toUpperCase() ?? 'U',
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -166,28 +188,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                         Text(
                           user.email ?? 'User',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Theme.of(context).colorScheme.tertiary,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Online',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onTertiary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
+                ),
               ),
             ),
           
@@ -230,7 +252,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error, size: 64, color: Colors.red),
+                    Icon(
+                      Icons.error, 
+                      size: 64, 
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     const SizedBox(height: 16),
                     Text('Error loading notes: $error'),
                     const SizedBox(height: 16),
@@ -247,61 +273,74 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createNewNote(context),
-        tooltip: 'Create New Note',
-        child: const Icon(Icons.add),
+        tooltip: AppLocalizations.of(context).createNewNote,
+        icon: const Icon(Icons.add),
+        label: Text(AppLocalizations.of(context).createNewNote),
       ),
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.note_add,
-            size: 64,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            AppLocalizations.of(context).noNotesYet,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.note_add_outlined,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  AppLocalizations.of(context).noNotesYet,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  AppLocalizations.of(context).tapToCreateFirstNote,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: () => _createNewNote(context),
+                  icon: const Icon(Icons.add),
+                  label: Text(AppLocalizations.of(context).createFirstNote),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context).tapToCreateFirstNote,
-            style: const TextStyle(
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _createNewNote(context),
-            icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context).createFirstNote),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildNoteCard(LocalNote note) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      elevation: 1,
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(20),
         title: Text(
-          note.title.isNotEmpty ? note.title : 'Untitled',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+          note.title.isNotEmpty ? note.title : AppLocalizations.of(context).untitled,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Column(
@@ -312,17 +351,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
               _generatePreview(note.body),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.grey[600],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.4,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               _formatDate(note.updatedAt),
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
