@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,6 +6,11 @@ import 'core/crypto/crypto_box.dart';
 import 'core/crypto/key_manager.dart';
 import 'core/monitoring/app_logger.dart';
 import 'core/parser/note_indexer.dart';
+import 'core/settings/analytics_notifier.dart';
+import 'core/settings/locale_notifier.dart';
+import 'core/settings/sync_mode.dart';
+import 'core/settings/sync_mode_notifier.dart';
+import 'core/settings/theme_mode_notifier.dart';
 import 'data/local/app_db.dart';
 import 'repository/notes_repository.dart';
 import 'repository/sync_service.dart';
@@ -134,4 +140,28 @@ final shareExtensionServiceProvider = Provider<ShareExtensionService>((ref) {
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
   );
+});
+
+// Settings providers
+
+/// Sync mode provider
+final syncModeProvider = StateNotifierProvider<SyncModeNotifier, SyncMode>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return SyncModeNotifier(repo);
+});
+
+/// Theme mode provider
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  return ThemeModeNotifier();
+});
+
+/// Locale provider
+final localeProvider = StateNotifierProvider<LocaleNotifier, Locale?>((ref) {
+  return LocaleNotifier();
+});
+
+/// Analytics settings provider
+final analyticsSettingsProvider = StateNotifierProvider<AnalyticsNotifier, bool>((ref) {
+  final analytics = ref.watch(analyticsProvider);
+  return AnalyticsNotifier(analytics);
 });

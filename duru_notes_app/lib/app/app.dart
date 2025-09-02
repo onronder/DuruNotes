@@ -3,8 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/settings/locale_notifier.dart';
 import '../l10n/app_localizations.dart';
-
+import '../providers.dart';
 import '../ui/auth_screen.dart';
 import '../ui/notes_list_screen.dart';
 
@@ -19,6 +20,10 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch settings providers
+    final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
+    
     // Define cohesive Material 3 color schemes
     final lightScheme = ColorScheme.fromSeed(
       seedColor: const Color(0xFF1976D2), // Professional blue
@@ -33,16 +38,15 @@ class App extends ConsumerWidget {
     return MaterialApp(
       title: 'Duru Notes',
       navigatorKey: navigatorKey,
+      themeMode: themeMode,
+      locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'), // English
-        Locale('tr'), // Turkish (for future)
-      ],
+      supportedLocales: LocaleNotifier.supportedLocales,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: lightScheme,

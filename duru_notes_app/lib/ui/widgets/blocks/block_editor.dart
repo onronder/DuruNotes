@@ -206,7 +206,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
         color: Theme.of(context).cardColor,
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
         children: [
           // Add Block Button
           IconButton(
@@ -214,8 +215,6 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             onPressed: () => _showBlockSelectorAt(_blocks.length - 1),
             tooltip: 'Add Block',
           ),
-          
-          const SizedBox(width: 8),
           
           // Quick Format Buttons
           IconButton(

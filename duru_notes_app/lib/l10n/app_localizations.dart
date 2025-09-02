@@ -862,6 +862,276 @@ abstract class AppLocalizations {
   /// **'Status: {phase}'**
   String statusPhase(String phase);
 
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sync;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security & Privacy'**
+  String get security;
+
+  /// No description provided for @importExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import & Export'**
+  String get importExport;
+
+  /// No description provided for @helpAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'Help & About'**
+  String get helpAbout;
+
+  /// No description provided for @signedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as'**
+  String get signedInAs;
+
+  /// No description provided for @signOutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to sign out?'**
+  String get signOutConfirm;
+
+  /// No description provided for @manageAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Account'**
+  String get manageAccount;
+
+  /// No description provided for @syncMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Mode'**
+  String get syncMode;
+
+  /// No description provided for @automaticSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get automaticSync;
+
+  /// No description provided for @manualSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get manualSync;
+
+  /// No description provided for @automaticSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync changes automatically'**
+  String get automaticSyncDesc;
+
+  /// No description provided for @manualSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync only when requested'**
+  String get manualSyncDesc;
+
+  /// No description provided for @syncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Now'**
+  String get syncNow;
+
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncing;
+
+  /// No description provided for @syncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete'**
+  String get syncComplete;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed'**
+  String get syncFailed;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @lightTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get lightTheme;
+
+  /// No description provided for @darkTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get darkTheme;
+
+  /// No description provided for @systemTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get systemTheme;
+
+  /// No description provided for @accentColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent Color'**
+  String get accentColor;
+
+  /// No description provided for @selectLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Language'**
+  String get selectLanguage;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @turkish.
+  ///
+  /// In en, this message translates to:
+  /// **'Türkçe'**
+  String get turkish;
+
+  /// No description provided for @enableNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Notifications'**
+  String get enableNotifications;
+
+  /// No description provided for @openSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open System Settings'**
+  String get openSystemSettings;
+
+  /// No description provided for @notificationPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Permissions'**
+  String get notificationPermissions;
+
+  /// No description provided for @endToEndEncryption.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-End Encryption'**
+  String get endToEndEncryption;
+
+  /// No description provided for @encryptionEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Your notes are encrypted with industry-standard encryption'**
+  String get encryptionEnabled;
+
+  /// No description provided for @analyticsOptIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage Analytics'**
+  String get analyticsOptIn;
+
+  /// No description provided for @analyticsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Help improve the app by sharing anonymous usage data'**
+  String get analyticsDesc;
+
+  /// No description provided for @biometricLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Lock'**
+  String get biometricLock;
+
+  /// No description provided for @biometricDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Require biometric authentication to open the app'**
+  String get biometricDesc;
+
+  /// No description provided for @biometricNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric authentication not available'**
+  String get biometricNotAvailable;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
+
+  /// No description provided for @buildNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Build Number'**
+  String get buildNumber;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfService.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfService;
+
+  /// No description provided for @contactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Support'**
+  String get contactSupport;
+
+  /// No description provided for @rateApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate App'**
+  String get rateApp;
+
   /// No description provided for @userGuide.
   ///
   /// In en, this message translates to:
