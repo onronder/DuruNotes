@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,11 +14,12 @@ void unawaited(Future<void> future) {
 
 /// Notifier for managing sync mode settings
 class SyncModeNotifier extends StateNotifier<SyncMode> {
-  SyncModeNotifier(this._notesRepository) : super(SyncMode.automatic) {
+  SyncModeNotifier(this._notesRepository, [this._onSyncComplete]) : super(SyncMode.automatic) {
     _loadSyncMode();
   }
 
   final NotesRepository _notesRepository;
+  final VoidCallback? _onSyncComplete;
   static const String _syncModeKey = 'sync_mode';
   
   // Timer for periodic sync in automatic mode
@@ -91,9 +93,13 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   /// Start periodic sync timer for automatic mode
   void _startPeriodicSync() {
     _stopPeriodicSync(); // Cancel any existing timer
-    _autoSyncTimer = Timer.periodic(_autoSyncInterval, (_) {
+    _autoSyncTimer = Timer.periodic(_autoSyncInterval, (_) async {
       // Perform background sync without blocking UI
-      unawaited(manualSync());
+      final success = await manualSync();
+      if (success) {
+        // Trigger UI refresh if callback is provided
+        _onSyncComplete?.call();
+      }
     });
   }
   

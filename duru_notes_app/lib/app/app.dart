@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/settings/locale_notifier.dart';
+import '../core/settings/sync_mode.dart';
 import '../l10n/app_localizations.dart';
 import '../providers.dart';
 import '../ui/auth_screen.dart';
@@ -282,8 +283,18 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
     
     // Trigger sync when app resumes from background (if in automatic mode)
     if (state == AppLifecycleState.resumed) {
-      final syncModeNotifier = ref.read(syncModeProvider.notifier);
-      syncModeNotifier.performInitialSyncIfAuto();
+      _performAppResumeSync();
+    }
+  }
+
+  /// Perform sync when app resumes and refresh UI if needed
+  void _performAppResumeSync() async {
+    final syncModeNotifier = ref.read(syncModeProvider.notifier);
+    await syncModeNotifier.performInitialSyncIfAuto();
+    
+    // Refresh notes if auto-sync ran
+    if (ref.read(syncModeProvider) == SyncMode.automatic) {
+      await ref.read(notesPageProvider.notifier).refresh();
     }
   }
 
@@ -323,9 +334,14 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       _hasTriggeredInitialSync = true;
       
       // Use a post-frame callback to ensure providers are ready
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         final syncModeNotifier = ref.read(syncModeProvider.notifier);
-        syncModeNotifier.performInitialSyncIfAuto();
+        await syncModeNotifier.performInitialSyncIfAuto();
+        
+        // Refresh notes if auto-sync ran
+        if (ref.read(syncModeProvider) == SyncMode.automatic) {
+          await ref.read(notesPageProvider.notifier).refresh();
+        }
       });
     }
   }

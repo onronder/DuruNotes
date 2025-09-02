@@ -444,6 +444,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final success = await ref.read(syncModeProvider.notifier).manualSync();
       
+      if (success) {
+        // Reload the first page of notes to show synced data
+        await ref.read(notesPageProvider.notifier).refresh();
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
