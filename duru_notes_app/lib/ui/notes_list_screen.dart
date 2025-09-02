@@ -12,6 +12,7 @@ import '../services/export_service.dart';
 import '../services/import_service.dart';
 import 'edit_note_screen_simple.dart';
 import 'help_screen.dart';
+import 'settings_screen.dart';
 
 /// Main notes list screen showing user's notes
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -1307,10 +1308,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
   }
 
   void _showSettingsDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context).settingsScreenComingSoon),
-        backgroundColor: Colors.purple,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
       ),
     );
   }

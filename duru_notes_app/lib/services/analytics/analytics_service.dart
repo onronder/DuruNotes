@@ -89,6 +89,8 @@ class AnalyticsProperties {
 
 /// Analytics service interface and default implementation
 class AnalyticsService {
+  bool _enabled = true;
+  
   void startTiming(String eventName) {
     // Start timing an event (no-op default)
   }
@@ -104,6 +106,19 @@ class AnalyticsService {
   void event(String name, {Map<String, dynamic>? properties}) {
     // Track a generic event (no-op default)
   }
+  
+  /// Enable analytics tracking
+  void enable() {
+    _enabled = true;
+  }
+  
+  /// Disable analytics tracking
+  void disable() {
+    _enabled = false;
+  }
+  
+  /// Check if analytics is enabled
+  bool get isEnabled => _enabled;
 }
 
 /// Analytics factory to manage a singleton AnalyticsService

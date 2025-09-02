@@ -440,6 +440,144 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get sync => 'Sync';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get security => 'Security & Privacy';
+
+  @override
+  String get importExport => 'Import & Export';
+
+  @override
+  String get helpAbout => 'Help & About';
+
+  @override
+  String get signedInAs => 'Signed in as';
+
+  @override
+  String get signOutConfirm => 'Are you sure you want to sign out?';
+
+  @override
+  String get manageAccount => 'Manage Account';
+
+  @override
+  String get syncMode => 'Sync Mode';
+
+  @override
+  String get automaticSync => 'Automatic';
+
+  @override
+  String get manualSync => 'Manual';
+
+  @override
+  String get automaticSyncDesc => 'Sync changes automatically';
+
+  @override
+  String get manualSyncDesc => 'Sync only when requested';
+
+  @override
+  String get syncNow => 'Sync Now';
+
+  @override
+  String get syncing => 'Syncing...';
+
+  @override
+  String get syncComplete => 'Sync complete';
+
+  @override
+  String get syncFailed => 'Sync failed';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get lightTheme => 'Light';
+
+  @override
+  String get darkTheme => 'Dark';
+
+  @override
+  String get systemTheme => 'System Default';
+
+  @override
+  String get accentColor => 'Accent Color';
+
+  @override
+  String get selectLanguage => 'Select Language';
+
+  @override
+  String get english => 'English';
+
+  @override
+  String get turkish => 'Türkçe';
+
+  @override
+  String get enableNotifications => 'Enable Notifications';
+
+  @override
+  String get openSystemSettings => 'Open System Settings';
+
+  @override
+  String get notificationPermissions => 'Notification Permissions';
+
+  @override
+  String get endToEndEncryption => 'End-to-End Encryption';
+
+  @override
+  String get encryptionEnabled =>
+      'Your notes are encrypted with industry-standard encryption';
+
+  @override
+  String get analyticsOptIn => 'Usage Analytics';
+
+  @override
+  String get analyticsDesc =>
+      'Help improve the app by sharing anonymous usage data';
+
+  @override
+  String get biometricLock => 'Biometric Lock';
+
+  @override
+  String get biometricDesc =>
+      'Require biometric authentication to open the app';
+
+  @override
+  String get biometricNotAvailable => 'Biometric authentication not available';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get buildNumber => 'Build Number';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfService => 'Terms of Service';
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
+  String get rateApp => 'Rate App';
+
+  @override
   String get userGuide => 'User Guide';
 
   @override
