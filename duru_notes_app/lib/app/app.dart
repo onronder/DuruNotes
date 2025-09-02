@@ -254,11 +254,41 @@ class App extends ConsumerWidget {
 }
 
 /// Wrapper that handles authentication state
-class AuthWrapper extends ConsumerWidget {
+class AuthWrapper extends ConsumerStatefulWidget {
   const AuthWrapper({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
+  bool _hasTriggeredInitialSync = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Trigger sync when app resumes from background (if in automatic mode)
+    if (state == AppLifecycleState.resumed) {
+      final syncModeNotifier = ref.read(syncModeProvider.notifier);
+      syncModeNotifier.performInitialSyncIfAuto();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
@@ -276,12 +306,27 @@ class AuthWrapper extends ConsumerWidget {
         
         if (session != null) {
           // User is authenticated - show main app
+          _maybePerformInitialSync();
           return const NotesListScreen();
         } else {
           // User is not authenticated - show login screen
+          _hasTriggeredInitialSync = false; // Reset flag when logged out
           return const AuthScreen();
         }
       },
     );
+  }
+
+  /// Trigger initial sync if in automatic mode (only once per session)
+  void _maybePerformInitialSync() {
+    if (!_hasTriggeredInitialSync) {
+      _hasTriggeredInitialSync = true;
+      
+      // Use a post-frame callback to ensure providers are ready
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final syncModeNotifier = ref.read(syncModeProvider.notifier);
+        syncModeNotifier.performInitialSyncIfAuto();
+      });
+    }
   }
 }
