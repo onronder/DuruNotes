@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,9 +14,10 @@ import '../services/export_service.dart';
 import '../services/import_service.dart';
 import 'edit_note_screen_simple.dart';
 import 'help_screen.dart';
+import 'note_search_delegate.dart';
 import 'settings_screen.dart';
 
-/// Main notes list screen showing user's notes
+/// Main notes list screen showing user's notes with enhanced UX
 class NotesListScreen extends ConsumerStatefulWidget {
   const NotesListScreen({super.key});
 
@@ -22,19 +25,47 @@ class NotesListScreen extends ConsumerStatefulWidget {
   ConsumerState<NotesListScreen> createState() => _NotesListScreenState();
 }
 
-class _NotesListScreenState extends ConsumerState<NotesListScreen> {
+class _NotesListScreenState extends ConsumerState<NotesListScreen>
+    with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  late AnimationController _fabAnimationController;
+  late AnimationController _listAnimationController;
+  late Animation<double> _fabAnimation;
+  bool _isFabExpanded = false;
+  String _sortBy = 'date'; // date, title, modified
+  bool _isGridView = false;
+  final Set<String> _selectedNoteIds = {};
+  bool _isSelectionMode = false;
 
   @override
   void initState() {
     super.initState();
     // Listen for scroll to implement infinite loading
     _scrollController.addListener(_onScroll);
+    
+    // Initialize animations
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _listAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fabAnimation = CurvedAnimation(
+      parent: _fabAnimationController,
+      curve: Curves.easeInOut,
+    );
+    
+    // Start list animation
+    _listAnimationController.forward();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _fabAnimationController.dispose();
+    _listAnimationController.dispose();
     super.dispose();
   }
 
@@ -59,20 +90,109 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context).notesListTitle),
-        actions: [
-          // Search button
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(AppLocalizations.of(context).searchFeatureTemporarilyDisabled),
-                  backgroundColor: Colors.orange,
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _isSelectionMode
+              ? Text('${_selectedNoteIds.length} selected')
+              : Text(AppLocalizations.of(context).notesListTitle),
+        ),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              )
+            : null,
+        actions: _isSelectionMode
+            ? _buildSelectionActions()
+            : [
+                // View toggle
+                IconButton(
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      _isGridView ? Icons.view_list : Icons.grid_view,
+                      key: ValueKey(_isGridView),
+                    ),
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _isGridView = !_isGridView;
+                    });
+                  },
+                  tooltip: _isGridView ? 'List View' : 'Grid View',
                 ),
-              );
-            },
-          ),
+                // Sort button
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Sort Notes',
+                  onSelected: (value) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _sortBy = value;
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'date',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.calendar_today,
+                          color: _sortBy == 'date'
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                        title: const Text('Date Modified'),
+                        contentPadding: EdgeInsets.zero,
+                        selected: _sortBy == 'date',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'title',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.sort_by_alpha,
+                          color: _sortBy == 'title'
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                        title: const Text('Title'),
+                        contentPadding: EdgeInsets.zero,
+                        selected: _sortBy == 'title',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'created',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.access_time,
+                          color: _sortBy == 'created'
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                        title: const Text('Date Created'),
+                        contentPadding: EdgeInsets.zero,
+                        selected: _sortBy == 'created',
+                      ),
+                    ),
+                  ],
+                ),
+                // Search button
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () async {
+                    HapticFeedback.lightImpact();
+                    final notes = ref.read(currentNotesProvider);
+                    final result = await showSearch<LocalNote?>(
+                      context: context,
+                      delegate: NoteSearchDelegate(notes: notes),
+                    );
+                    if (result != null) {
+                      _editNote(result);
+                    }
+                  },
+                  tooltip: 'Search Notes',
+                ),
           // Menu with import and other options
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -140,76 +260,160 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
       ),
       body: Column(
         children: [
-          // Modern user info banner
+          // Enhanced user info banner with stats
           if (user != null)
-            Card(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
               margin: EdgeInsets.zero,
-              elevation: 0,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primaryContainer,
-                      Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+              child: Card(
+                margin: EdgeInsets.zero,
+                elevation: 0,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
                   ),
                 ),
-                child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: Text(
-                      user.email?.substring(0, 1).toUpperCase() ?? 'U',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome back!',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        Text(
-                          user.email ?? 'User',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primaryContainer,
+                        Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7),
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.tertiary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      'Online',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onTertiary,
-                        fontWeight: FontWeight.w600,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Hero(
+                            tag: 'user_avatar',
+                            child: CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              child: Text(
+                                user.email?.substring(0, 1).toUpperCase() ?? 'U',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getGreeting(),
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.email ?? 'User',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.tertiary,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.onTertiary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Synced',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onTertiary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      // Quick stats
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final notesAsync = ref.watch(notesPageProvider);
+                          return notesAsync.maybeWhen(
+                            data: (notesPage) {
+                              final totalNotes = notesPage.items.length;
+                              final todayNotes = notesPage.items.where((note) {
+                                final today = DateTime.now();
+                                return note.updatedAt.year == today.year &&
+                                    note.updatedAt.month == today.month &&
+                                    note.updatedAt.day == today.day;
+                              }).length;
+                              
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.note,
+                                      '$totalNotes',
+                                      'Total Notes',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.today,
+                                      '$todayNotes',
+                                      'Today',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.folder,
+                                      '0',
+                                      'Folders',
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                            orElse: () => const SizedBox.shrink(),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
                 ),
               ),
             ),
@@ -223,28 +427,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                   return _buildEmptyState();
                 }
                 
+                // Sort notes based on selection
+                final sortedNotes = _sortNotes(notes);
+                
                 return RefreshIndicator(
                   onRefresh: () async {
+                    HapticFeedback.mediumImpact();
                     await ref.read(notesPageProvider.notifier).refresh();
                   },
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: notes.length + (hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= notes.length) {
-                        // Loading indicator at the bottom
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-                      
-                      final note = notes[index];
-                      return _buildNoteCard(note);
-                    },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isGridView
+                        ? _buildGridView(sortedNotes, hasMore)
+                        : _buildListView(sortedNotes, hasMore),
                   ),
                 );
               },
@@ -274,12 +469,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createNewNote(context),
-        tooltip: AppLocalizations.of(context).createNewNote,
-        icon: const Icon(Icons.add),
-        label: Text(AppLocalizations.of(context).createNewNote),
-      ),
+      floatingActionButton: _buildExpandableFAB(context),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -331,70 +522,148 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     );
   }
 
-  Widget _buildNoteCard(LocalNote note) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 1,
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(20),
-        title: Text(
-          note.title.isNotEmpty ? note.title : AppLocalizations.of(context).untitled,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              _generatePreview(note.body),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _formatDate(note.updatedAt),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'edit':
-                _editNote(note);
-              case 'delete':
-                _deleteNote(note);
+  Widget _buildNoteCard(LocalNote note, {bool isGrid = false}) {
+    final isSelected = _selectedNoteIds.contains(note.id);
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: isGrid
+          ? const EdgeInsets.all(8)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (_isSelectionMode) {
+              _toggleNoteSelection(note.id);
+            } else {
+              _editNote(note);
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: ListTile(
-                leading: Icon(Icons.edit),
-                title: Text('Edit'),
-                contentPadding: EdgeInsets.zero,
-              ),
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            if (!_isSelectionMode) {
+              _enterSelectionMode(note.id);
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Card(
+            elevation: isSelected ? 4 : 1,
+            shadowColor: isSelected
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: isSelected
+                  ? BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : BorderSide.none,
             ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
-                title: Text('Delete', style: TextStyle(color: Colors.red)),
-                contentPadding: EdgeInsets.zero,
-              ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(isGrid ? 16 : 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title with icon
+                      Row(
+                        children: [
+                          if (isSelected)
+                            Icon(
+                              Icons.check_circle,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            )
+                          else if (_getNoteIcon(note) != null)
+                            Icon(
+                              _getNoteIcon(note),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                              size: 20,
+                            ),
+                          if (isSelected || _getNoteIcon(note) != null)
+                            const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              note.title.isNotEmpty
+                                  ? note.title
+                                  : AppLocalizations.of(context).untitled,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              maxLines: isGrid ? 2 : 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Preview
+                      Text(
+                        _generatePreview(note.body),
+                        maxLines: isGrid ? 3 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                      const Spacer(),
+                      const SizedBox(height: 8),
+                      // Footer with date and actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _formatDate(note.updatedAt),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          if (!_isSelectionMode && !isGrid)
+                            IconButton(
+                              icon: const Icon(Icons.more_vert, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _showNoteOptions(note),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Progress indicator for syncing (placeholder for future implementation)
+                if (false) // note.syncing ?? false - field not yet available
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
-        onTap: () => _editNote(note),
       ),
     );
   }
@@ -1258,6 +1527,509 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  // Enhanced UX Helper Methods
+  
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning!';
+    if (hour < 17) return 'Good afternoon!';
+    return 'Good evening!';
+  }
+
+  Widget _buildStatCard(
+    BuildContext context,
+    IconData icon,
+    String value,
+    String label,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildSelectionActions() {
+    return [
+      IconButton(
+        icon: const Icon(Icons.select_all),
+        onPressed: () {
+          final notes = ref.read(currentNotesProvider);
+          setState(() {
+            _selectedNoteIds.addAll(notes.map((n) => n.id));
+          });
+        },
+        tooltip: 'Select All',
+      ),
+      IconButton(
+        icon: const Icon(Icons.share),
+        onPressed: _selectedNoteIds.isNotEmpty ? _shareSelectedNotes : null,
+        tooltip: 'Share',
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete, color: Colors.red),
+        onPressed: _selectedNoteIds.isNotEmpty ? _deleteSelectedNotes : null,
+        tooltip: 'Delete',
+      ),
+    ];
+  }
+
+  List<LocalNote> _sortNotes(List<LocalNote> notes) {
+    final sorted = List<LocalNote>.from(notes);
+    switch (_sortBy) {
+      case 'title':
+        sorted.sort((a, b) => a.title.compareTo(b.title));
+      case 'created':
+        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt)); // Using updatedAt as createdAt is not available
+      default: // date
+        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    }
+    return sorted;
+  }
+
+  Widget _buildListView(List<LocalNote> notes, bool hasMore) {
+    return ListView.builder(
+      key: const ValueKey('list_view'),
+      controller: _scrollController,
+      padding: const EdgeInsets.only(top: 8, bottom: 80),
+      itemCount: notes.length + (hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= notes.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        
+        final note = notes[index];
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: _listAnimationController,
+            curve: Interval(
+              (index / notes.length).clamp(0.0, 1.0),
+              ((index + 1) / notes.length).clamp(0.0, 1.0),
+              curve: Curves.easeOut,
+            ),
+          )),
+          child: FadeTransition(
+            opacity: CurvedAnimation(
+              parent: _listAnimationController,
+              curve: Interval(
+                (index / notes.length).clamp(0.0, 1.0),
+                ((index + 1) / notes.length).clamp(0.0, 1.0),
+                curve: Curves.easeIn,
+              ),
+            ),
+            child: _buildNoteCard(note),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridView(List<LocalNote> notes, bool hasMore) {
+    return GridView.builder(
+      key: const ValueKey('grid_view'),
+      controller: _scrollController,
+      padding: const EdgeInsets.all(16),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: notes.length + (hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= notes.length) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        
+        final note = notes[index];
+        return ScaleTransition(
+          scale: CurvedAnimation(
+            parent: _listAnimationController,
+            curve: Interval(
+              (index / notes.length).clamp(0.0, 1.0),
+              ((index + 1) / notes.length).clamp(0.0, 1.0),
+              curve: Curves.elasticOut,
+            ),
+          ),
+          child: _buildNoteCard(note, isGrid: true),
+        );
+      },
+    );
+  }
+
+  Widget _buildExpandableFAB(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Quick actions
+        AnimatedSlide(
+          duration: const Duration(milliseconds: 200),
+          offset: _isFabExpanded ? Offset.zero : const Offset(0, 2),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _isFabExpanded ? 1.0 : 0.0,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _buildMiniFAB(
+                  icon: Icons.mic,
+                  label: 'Voice Note',
+                  color: Colors.purple,
+                  onPressed: () {
+                    _toggleFab();
+                    _createVoiceNote();
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildMiniFAB(
+                  icon: Icons.camera_alt,
+                  label: 'Photo Note',
+                  color: Colors.orange,
+                  onPressed: () {
+                    _toggleFab();
+                    _createPhotoNote();
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildMiniFAB(
+                  icon: Icons.checklist,
+                  label: 'Checklist',
+                  color: Colors.green,
+                  onPressed: () {
+                    _toggleFab();
+                    _createChecklist();
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildMiniFAB(
+                  icon: Icons.note_add,
+                  label: 'Text Note',
+                  color: Theme.of(context).colorScheme.primary,
+                  onPressed: () {
+                    _toggleFab();
+                    _createNewNote(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Main FAB
+        FloatingActionButton(
+          onPressed: _toggleFab,
+          tooltip: 'Create Note',
+          child: AnimatedBuilder(
+            animation: _fabAnimation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _fabAnimation.value * math.pi / 4,
+                child: Icon(
+                  _isFabExpanded ? Icons.close : Icons.add,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniFAB({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        FloatingActionButton.small(
+          heroTag: label,
+          backgroundColor: color,
+          onPressed: onPressed,
+          child: Icon(icon, color: Colors.white),
+        ),
+      ],
+    );
+  }
+
+  void _toggleFab() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isFabExpanded = !_isFabExpanded;
+      if (_isFabExpanded) {
+        _fabAnimationController.forward();
+      } else {
+        _fabAnimationController.reverse();
+      }
+    });
+  }
+
+  void _enterSelectionMode(String noteId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedNoteIds.add(noteId);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedNoteIds.clear();
+    });
+  }
+
+  void _toggleNoteSelection(String noteId) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedNoteIds.contains(noteId)) {
+        _selectedNoteIds.remove(noteId);
+        if (_selectedNoteIds.isEmpty) {
+          _exitSelectionMode();
+        }
+      } else {
+        _selectedNoteIds.add(noteId);
+      }
+    });
+  }
+
+  IconData? _getNoteIcon(LocalNote note) {
+    final body = note.body.toLowerCase();
+    if (body.contains('- [ ]') || body.contains('- [x]')) {
+      return Icons.checklist;
+    } else if (body.contains('```')) {
+      return Icons.code;
+    } else if (body.contains('http://') || body.contains('https://')) {
+      return Icons.link;
+    } else if (body.contains('![]')) {
+      return Icons.image;
+    }
+    return null;
+  }
+
+  void _showNoteOptions(LocalNote note) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(context);
+                _editNote(note);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share'),
+              onTap: () {
+                Navigator.pop(context);
+                _shareNote(note);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Duplicate'),
+              onTap: () {
+                Navigator.pop(context);
+                _duplicateNote(note);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.archive),
+              title: const Text('Archive'),
+              onTap: () {
+                Navigator.pop(context);
+                _archiveNote(note);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteNote(note);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _createVoiceNote() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Voice note feature coming soon!'),
+        backgroundColor: Colors.purple,
+      ),
+    );
+  }
+
+  void _createPhotoNote() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Photo note feature coming soon!'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  void _createChecklist() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => EditNoteScreen(
+          initialBody: '## Checklist\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3',
+        ),
+      ),
+    );
+  }
+
+  void _shareNote(LocalNote note) async {
+    final exportService = ref.read(exportServiceProvider);
+    final result = await exportService.exportToMarkdown(note);
+    if (result.success && result.file != null) {
+      await exportService.shareFile(result.file!, ExportFormat.markdown);
+    }
+  }
+
+  void _shareSelectedNotes() async {
+    // Implementation for sharing multiple notes
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sharing ${_selectedNoteIds.length} notes...'),
+      ),
+    );
+    _exitSelectionMode();
+  }
+
+  void _deleteSelectedNotes() async {
+    final count = _selectedNoteIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Notes'),
+        content: Text('Are you sure you want to delete $count notes?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final repo = ref.read(notesRepositoryProvider);
+      for (final id in _selectedNoteIds) {
+        await repo.delete(id);
+      }
+      await ref.read(notesPageProvider.notifier).refresh();
+      _exitSelectionMode();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted $count notes'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _duplicateNote(LocalNote note) async {
+    final repo = ref.read(notesRepositoryProvider);
+    await repo.createOrUpdate(
+      title: '${note.title} (Copy)',
+      body: note.body,
+    );
+    await ref.read(notesPageProvider.notifier).refresh();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Note duplicated'),
+        ),
+      );
+    }
+  }
+
+  void _archiveNote(LocalNote note) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Archive feature coming soon!'),
+        backgroundColor: Colors.blue,
+      ),
+    );
   }
 
   Future<void> _shareExportedFiles(List<ExportResult> results, ExportFormat format) async {

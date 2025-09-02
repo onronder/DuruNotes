@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../main.dart';
+import 'package:flutter/services.dart';
 import '../providers.dart';
-import '../services/analytics/analytics_service.dart';
 
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
-  NoteSearchDelegate({required this.db});
-
-  final AppDb db;
-  int _token = 0; // yarış durumlarını atlamak için
+  final List<LocalNote> notes;
+  
+  NoteSearchDelegate({required this.notes});
 
   @override
-  String? get searchFieldLabel => 'Search notes or #tags...';
+  String? get searchFieldLabel => 'Search notes...';
 
   @override
   ThemeData appBarTheme(BuildContext context) {
@@ -20,10 +17,13 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       appBarTheme: theme.appBarTheme.copyWith(
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,
+        elevation: 0,
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         border: InputBorder.none,
-        hintStyle: TextStyle(color: Colors.grey),
+        hintStyle: TextStyle(
+          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+        ),
       ),
     );
   }
@@ -37,14 +37,6 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           icon: const Icon(Icons.clear),
           onPressed: () => query = '',
         ),
-      IconButton(
-        icon: const Icon(Icons.tag),
-        tooltip: 'Browse tags',
-        onPressed: () {
-          // This could navigate to tags screen or show tag picker
-          close(context, null);
-        },
-      ),
     ];
   }
 
@@ -57,49 +49,14 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     );
   }
 
-  Future<List<LocalNote>> _doSearch(String q, int myToken) async {
-    // Track search attempt
-    analytics.startTiming('search_query');
-    analytics.event(AnalyticsEvents.searchPerformed, properties: {
-      AnalyticsProperties.searchQuery: q.length.toString() + ' characters',
-      AnalyticsProperties.searchQueryLength: q.length,
-      'is_tag_search': q.startsWith('#'),
-      'is_empty_query': q.trim().isEmpty,
-    });
+  List<LocalNote> _performSearch(String query) {
+    if (query.isEmpty) return [];
     
-    logger.info('Search performed', data: {
-      'query_length': q.length,
-      'is_tag_search': q.startsWith('#'),
-    });
-    
-    final res = await db.searchNotes(q);
-    
-    // Track search results
-    analytics.endTiming('search_query', properties: {
-      AnalyticsProperties.searchResultCount: res.length,
-      AnalyticsProperties.searchQueryLength: q.length,
-    });
-    
-    analytics.event(AnalyticsEvents.searchResults, properties: {
-      AnalyticsProperties.searchResultCount: res.length,
-      AnalyticsProperties.searchQueryLength: q.length,
-      'has_results': res.isNotEmpty,
-    });
-    
-    logger.breadcrumb('Search completed', data: {
-      'result_count': res.length,
-      'query_length': q.length,
-    });
-    
-    // Eski isteklerin sonuçlarını yut
-    if (myToken != _token) return const <LocalNote>[];
-    return res;
-  }
-
-  Future<List<String>> _getTagSuggestions(String q) async {
-    if (!q.startsWith('#') || q.length < 2) return [];
-    final tagPrefix = q.substring(1);
-    return await db.searchTags(tagPrefix);
+    final lowerQuery = query.toLowerCase();
+    return notes.where((note) {
+      return note.title.toLowerCase().contains(lowerQuery) ||
+             note.body.toLowerCase().contains(lowerQuery);
+    }).toList();
   }
 
   String _formatDate(DateTime date) {
@@ -158,292 +115,361 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    ++_token;
+    final suggestions = _performSearch(query);
     
-    // If query starts with #, show tag suggestions
-    if (query.startsWith('#')) {
-      return FutureBuilder<List<String>>(
-        future: _getTagSuggestions(query),
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(
-              child: SizedBox(
-                height: 24, 
-                width: 24, 
-                child: CircularProgressIndicator(strokeWidth: 2),
+    if (query.isEmpty) {
+      // Show recent notes when no query
+      final recentNotes = notes.take(5).toList();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Recent Notes',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-            );
-          }
-          
-          final tags = snap.data ?? <String>[];
-          if (tags.isEmpty && query.length > 1) {
-            return const Center(
-              child: Text('No matching tags'),
-            );
-          }
-          
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: tags.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
-            itemBuilder: (_, i) {
-              final tag = tags[i];
-              return ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.tag,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                title: Text('#$tag'),
-                subtitle: const Text('Tap to search this tag'),
-                onTap: () {
-                  query = '#$tag';
-                  showResults(context);
-                },
-              );
-            },
-          );
-        },
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: recentNotes.length,
+              itemBuilder: (context, index) {
+                final note = recentNotes[index];
+                return _buildNoteListTile(context, note, isRecent: true);
+              },
+            ),
+          ),
+        ],
       );
     }
     
-    // Regular note suggestions
-    return FutureBuilder<List<LocalNote>>(
-      future: db.suggestNotesByTitlePrefix(query, limit: 8),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(
-            child: SizedBox(
-              height: 24, 
-              width: 24, 
-              child: CircularProgressIndicator(strokeWidth: 2),
+    if (suggestions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
             ),
-          );
-        }
-        
-        final items = snap.data ?? <LocalNote>[];
-        if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.search_off,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No suggestions',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Try searching for #tags or note content',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16),
+            Text(
+              'No notes found',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
             ),
-          );
-        }
-        
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
-          itemBuilder: (_, i) {
-            final note = items[i];
-            final preview = _generatePreview(note.body);
-            
-            return ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Text(
-                note.title.isEmpty ? '(Untitled)' : note.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 8),
+            Text(
+              'Try different keywords',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
               ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (preview != '(No content)') ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      preview,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatDate(note.updatedAt),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
-              onTap: () {
-                // Track search result click
-                analytics.event(AnalyticsEvents.searchResultClicked, properties: {
-                  'note_id': note.id,
-                  'search_query_length': query.length,
-                  'result_position': items.indexOf(note) + 1,
-                  'total_results': items.length,
-                  'note_has_title': note.title.trim().isNotEmpty,
-                });
-                
-                logger.breadcrumb('Search result clicked', data: {
-                  'note_id': note.id,
-                  'result_position': items.indexOf(note) + 1,
-                  'total_results': items.length,
-                });
-                
-                close(context, note);
-              },
-            );
-          },
-        );
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final note = suggestions[index];
+        return _buildNoteListTile(context, note);
       },
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    final myToken = ++_token;
-    return FutureBuilder<List<LocalNote>>(
-      future: _doSearch(query, myToken),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        final items = snap.data ?? <LocalNote>[];
-        if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.search_off,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No results found',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Try different keywords or search for #tags',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+    final results = _performSearch(query);
+    
+    if (results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
             ),
-          );
-        }
-        
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final note = items[i];
-            final preview = _generatePreview(note.body);
-            
-            return Card(
-              elevation: 0,
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                title: Text(
-                  note.title.isEmpty ? '(Untitled)' : note.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (preview != '(No content)') ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        preview,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(note.updatedAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  // Track search result click
-                  analytics.event(AnalyticsEvents.searchResultClicked, properties: {
-                    'note_id': note.id,
-                    'search_query_length': query.length,
-                    'result_position': items.indexOf(note) + 1,
-                    'total_results': items.length,
-                    'note_has_title': note.title.trim().isNotEmpty,
-                    'context': 'results',
-                  });
-                  
-                  logger.breadcrumb('Search result clicked', data: {
-                    'note_id': note.id,
-                    'result_position': items.indexOf(note) + 1,
-                    'total_results': items.length,
-                  });
-                  
-                  close(context, note);
-                },
+            const SizedBox(height: 24),
+            Text(
+              'No results found',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               ),
-            );
-          },
-        );
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try different keywords',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${results.length} results for "$query"',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: results.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final note = results[index];
+              return _buildResultCard(context, note, index);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoteListTile(BuildContext context, LocalNote note, {bool isRecent = false}) {
+    final preview = _generatePreview(note.body);
+    
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isRecent 
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          _getNoteIcon(note),
+          size: 20,
+          color: isRecent
+              ? Theme.of(context).colorScheme.onPrimaryContainer
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      title: Text(
+        note.title.isEmpty ? '(Untitled)' : note.title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (preview.isNotEmpty && preview != '(No content)') ...[
+            const SizedBox(height: 4),
+            Text(
+              preview,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _formatDate(note.updatedAt),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        close(context, note);
       },
     );
+  }
+
+  Widget _buildResultCard(BuildContext context, LocalNote note, int index) {
+    final preview = _generatePreview(note.body);
+    // Highlight search terms in the preview
+    final highlightedPreview = _highlightSearchTerms(context, preview, query);
+    
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          close(context, note);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    _getNoteIcon(note),
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      note.title.isEmpty ? '(Untitled)' : note.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (preview.isNotEmpty && preview != '(No content)') ...[
+                const SizedBox(height: 12),
+                RichText(
+                  text: highlightedPreview,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatDate(note.updatedAt),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '#${index + 1}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  TextSpan _highlightSearchTerms(BuildContext context, String text, String searchQuery) {
+    if (searchQuery.isEmpty) {
+      return TextSpan(
+        text: text,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    final List<TextSpan> spans = [];
+    final lowerText = text.toLowerCase();
+    final lowerQuery = searchQuery.toLowerCase();
+    
+    int start = 0;
+    int index = lowerText.indexOf(lowerQuery, start);
+    
+    while (index != -1 && start < text.length) {
+      // Add non-highlighted text before match
+      if (index > start) {
+        spans.add(TextSpan(
+          text: text.substring(start, index),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ));
+      }
+      
+      // Add highlighted match
+      spans.add(TextSpan(
+        text: text.substring(index, index + searchQuery.length),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        ),
+      ));
+      
+      start = index + searchQuery.length;
+      index = lowerText.indexOf(lowerQuery, start);
+    }
+    
+    // Add remaining text
+    if (start < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(start),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ));
+    }
+    
+    return TextSpan(children: spans);
+  }
+
+  IconData _getNoteIcon(LocalNote note) {
+    final body = note.body.toLowerCase();
+    if (body.contains('- [ ]') || body.contains('- [x]')) {
+      return Icons.checklist;
+    } else if (body.contains('```')) {
+      return Icons.code;
+    } else if (body.contains('http://') || body.contains('https://')) {
+      return Icons.link;
+    } else if (body.contains('![')) {
+      return Icons.image;
+    }
+    return Icons.note;
   }
 }

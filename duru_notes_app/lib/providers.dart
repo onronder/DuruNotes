@@ -147,7 +147,13 @@ final shareExtensionServiceProvider = Provider<ShareExtensionService>((ref) {
 /// Sync mode provider
 final syncModeProvider = StateNotifierProvider<SyncModeNotifier, SyncMode>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
-  return SyncModeNotifier(repo);
+  
+  // Callback to refresh UI after successful sync
+  void onSyncComplete() {
+    ref.read(notesPageProvider.notifier).refresh();
+  }
+  
+  return SyncModeNotifier(repo, onSyncComplete);
 });
 
 /// Theme mode provider
