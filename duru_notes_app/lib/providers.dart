@@ -15,6 +15,7 @@ import 'data/local/app_db.dart';
 import 'repository/notes_repository.dart';
 import 'repository/sync_service.dart';
 import 'features/notes/pagination_notifier.dart';
+import 'features/folders/folder_notifiers.dart';
 import 'services/analytics/analytics_service.dart';
 import 'services/attachment_service.dart';
 import 'services/export_service.dart';
@@ -81,6 +82,25 @@ final currentNotesProvider = Provider<List<LocalNote>>((ref) {
     loading: () => <LocalNote>[],
     error: (_, __) => <LocalNote>[],
   );
+});
+
+/// Current folder filter provider
+final currentFolderProvider = StateNotifierProvider<CurrentFolderNotifier, LocalFolder?>((ref) {
+  return CurrentFolderNotifier();
+});
+
+/// Provider for folder-filtered notes
+final filteredNotesProvider = FutureProvider<List<LocalNote>>((ref) async {
+  final currentFolder = ref.watch(currentFolderProvider);
+  final repo = ref.watch(notesRepositoryProvider);
+  
+  if (currentFolder != null) {
+    // Show notes in the selected folder
+    return await repo.getNotesInFolder(currentFolder.id);
+  } else {
+    // Show all notes
+    return ref.watch(currentNotesProvider);
+  }
 });
 
 /// Provider to check if there are more notes to load
@@ -170,4 +190,48 @@ final localeProvider = StateNotifierProvider<LocaleNotifier, Locale?>((ref) {
 final analyticsSettingsProvider = StateNotifierProvider<AnalyticsNotifier, bool>((ref) {
   final analytics = ref.watch(analyticsProvider);
   return AnalyticsNotifier(analytics);
+});
+
+// Folder providers
+
+/// Folder state provider for CRUD operations
+final folderProvider = StateNotifierProvider<FolderNotifier, FolderOperationState>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return FolderNotifier(repo);
+});
+
+/// Folder hierarchy provider for tree structure management
+final folderHierarchyProvider = StateNotifierProvider<FolderHierarchyNotifier, FolderHierarchyState>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return FolderHierarchyNotifier(repo);
+});
+
+/// Note-folder relationship provider
+final noteFolderProvider = StateNotifierProvider<NoteFolderNotifier, NoteFolderState>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return NoteFolderNotifier(repo);
+});
+
+/// Folder list provider (derived from hierarchy state)
+final folderListProvider = Provider<List<LocalFolder>>((ref) {
+  return ref.watch(folderHierarchyProvider).folders;
+});
+
+/// Visible folder tree nodes provider (derived from hierarchy state)
+final visibleFolderNodesProvider = Provider<List<FolderTreeNode>>((ref) {
+  ref.watch(folderHierarchyProvider); // Watch the state, not just notifier
+  return ref.read(folderHierarchyProvider.notifier).getVisibleNodes();
+});
+
+/// Root folders provider for quick access
+final rootFoldersProvider = FutureProvider<List<LocalFolder>>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return repo.getRootFolders();
+});
+
+/// Unfiled notes count provider
+final unfiledNotesCountProvider = FutureProvider<int>((ref) async {
+  final repo = ref.watch(notesRepositoryProvider);
+  final unfiledNotes = await repo.getUnfiledNotes();
+  return unfiledNotes.length;
 });

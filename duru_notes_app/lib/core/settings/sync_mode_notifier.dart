@@ -78,14 +78,38 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   /// Perform manual sync operation
   Future<bool> manualSync() async {
     try {
+      print('🔄 Starting manual sync...');
+      
+      // Check authentication first
+      final currentUser = _notesRepository.client.auth.currentUser;
+      if (currentUser == null) {
+        print('❌ Sync failed: No authenticated user');
+        return false;
+      }
+      print('✅ Authenticated user: ${currentUser.id}');
+      
       // Push all pending changes first
+      print('📤 Pushing local changes...');
       await _notesRepository.pushAllPending();
+      print('✅ Local changes pushed');
       
       // Then pull latest changes
+      print('📥 Pulling remote changes...');
       await _notesRepository.pullSince(null);
+      print('✅ Remote changes pulled');
       
+      // Check local database after sync
+      final localNotes = await _notesRepository.listAfter(null, limit: 100);
+      print('📊 Local database now has ${localNotes.length} notes');
+      for (var note in localNotes.take(5)) {
+        print('  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})');
+      }
+      
+      print('🎉 Manual sync completed successfully');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Manual sync failed: $e');
+      print('Stack trace: $stackTrace');
       return false;
     }
   }

@@ -223,8 +223,6 @@ class ReminderService {
         tzDate,
         details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.wallClockTime,
         payload: reminder.noteId,
       );
 

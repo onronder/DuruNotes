@@ -1,190 +1,177 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../theme/material3_theme.dart';
+
+import '../data/local/app_db.dart';
 import '../providers.dart';
-import '../core/parser/note_block_parser.dart';
-import '../models/note_block.dart';
-import '../services/export_service.dart';
-import 'widgets/blocks/block_editor.dart';
 
-/// Enhanced note editor with improved UX
-class EditNoteScreen extends ConsumerStatefulWidget {
-  const EditNoteScreen({
+/// Modern Material 3 Note Editor with Enhanced UX
+class ModernEditNoteScreen extends ConsumerStatefulWidget {
+  const ModernEditNoteScreen({
     super.key,
     this.noteId,
     this.initialTitle,
     this.initialBody,
+    this.initialFolder,
   });
 
   final String? noteId;
   final String? initialTitle;
   final String? initialBody;
+  final LocalFolder? initialFolder;
 
   @override
-  ConsumerState<EditNoteScreen> createState() => _EditNoteScreenState();
+  ConsumerState<ModernEditNoteScreen> createState() => _ModernEditNoteScreenState();
 }
 
-class _EditNoteScreenState extends ConsumerState<EditNoteScreen>
+class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     with TickerProviderStateMixin {
+  // Controllers
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  
-  bool _isLoading = false;
-  bool _isPreviewMode = false;
-  bool _useBlockEditor = false;
-  bool _hasChanges = false;
-  bool _isAutoSaving = false;
-  List<NoteBlock> _blocks = [];
   final FocusNode _titleFocusNode = FocusNode();
   final FocusNode _bodyFocusNode = FocusNode();
-  DateTime? _lastAutoSave;
+  
+  // State
+  bool _isLoading = false;
+  bool _hasChanges = false;
+  bool _isPreviewMode = false;
+  bool _showFormattingToolbar = false;
 
+  // Theme helpers
+  ColorScheme get colorScheme => Theme.of(context).colorScheme;
+  bool _titleHasFocus = false;
+  bool _bodyHasFocus = false;
+  
+  // Animation Controllers
+  late AnimationController _saveButtonController;
+  late AnimationController _toolbarSlideController;
+  late Animation<Offset> _toolbarSlideAnimation;
+  late Animation<double> _saveButtonScale;
+  
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
     _bodyController = TextEditingController(text: widget.initialBody ?? '');
     
-    // Initialize animations
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+    // Setup animations
+    _saveButtonController = AnimationController(
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
+    _saveButtonScale = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _saveButtonController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _toolbarSlideController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
     );
-    _animationController.forward();
+    _toolbarSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _toolbarSlideController,
+      curve: Curves.easeOutCubic,
+    ));
     
-    // Initialize blocks if we have content
-    if (widget.initialBody?.isNotEmpty == true) {
-      _blocks = parseMarkdownToBlocks(widget.initialBody!);
-    } else {
-      _blocks = [createParagraphBlock('')];
-    }
-    
-    // Add listeners for auto-save
+    // Listen for changes
     _titleController.addListener(_onContentChanged);
     _bodyController.addListener(_onContentChanged);
     
-    // Auto-focus title for new notes
-    if (widget.noteId == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _titleFocusNode.requestFocus();
+    // Focus listeners
+    _titleFocusNode.addListener(() {
+      setState(() {
+        _titleHasFocus = _titleFocusNode.hasFocus;
       });
-    }
+    });
+    
+    _bodyFocusNode.addListener(() {
+      setState(() {
+        _bodyHasFocus = _bodyFocusNode.hasFocus;
+        _showFormattingToolbar = _bodyFocusNode.hasFocus;
+        if (_bodyFocusNode.hasFocus) {
+          _toolbarSlideController.forward();
+        } else {
+          _toolbarSlideController.reverse();
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
-    _titleController.removeListener(_onContentChanged);
-    _bodyController.removeListener(_onContentChanged);
     _titleController.dispose();
     _bodyController.dispose();
     _titleFocusNode.dispose();
     _bodyFocusNode.dispose();
-    _animationController.dispose();
+    _saveButtonController.dispose();
+    _toolbarSlideController.dispose();
     super.dispose();
   }
 
   void _onContentChanged() {
     if (!_hasChanges) {
-      setState(() {
-        _hasChanges = true;
-      });
-    }
-    _scheduleAutoSave();
-  }
-
-  void _scheduleAutoSave() {
-    // Auto-save after 2 seconds of inactivity
-    Future.delayed(const Duration(seconds: 2), () {
-      if (_hasChanges && mounted && !_isLoading) {
-        final now = DateTime.now();
-        if (_lastAutoSave == null || 
-            now.difference(_lastAutoSave!).inSeconds > 2) {
-          _autoSave();
-        }
-      }
-    });
-  }
-
-  Future<void> _autoSave() async {
-    if (!_hasChanges || _isLoading) return;
-    
-    setState(() {
-      _isAutoSaving = true;
-    });
-    
-    try {
-      final repo = ref.read(notesRepositoryProvider);
-      final String bodyContent = _useBlockEditor 
-          ? blocksToMarkdown(_blocks)
-          : _bodyController.text;
-      
-      await repo.createOrUpdate(
-        title: _titleController.text,
-        body: bodyContent,
-        id: widget.noteId,
-      );
-      
-      _lastAutoSave = DateTime.now();
-      _hasChanges = false;
-      
-      if (mounted) {
-        HapticFeedback.lightImpact();
-      }
-    } catch (e) {
-      // Silent fail for auto-save
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isAutoSaving = false;
-        });
-      }
+      setState(() => _hasChanges = true);
+      _saveButtonController.forward();
     }
   }
 
   Future<void> _saveNote() async {
     if (_isLoading) return;
+    
+    if (_titleController.text.trim().isEmpty && 
+        _bodyController.text.trim().isEmpty) {
+      _showCustomSnackBar(
+        'Add some content first',
+        icon: Icons.info_outline_rounded,
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
+    HapticFeedback.mediumImpact();
 
     try {
       final repo = ref.read(notesRepositoryProvider);
-      // Get body content based on current mode
-      final String bodyContent;
-      if (_useBlockEditor) {
-        bodyContent = blocksToMarkdown(_blocks);
-      } else {
-        bodyContent = _bodyController.text;
+      
+      String title = _titleController.text.trim();
+      if (title.isEmpty) {
+        final bodyLines = _bodyController.text.trim().split('\n');
+        final firstLine = bodyLines.first.replaceAll(RegExp(r'^#+\s*'), '');
+        title = firstLine.isEmpty ? 'Untitled Note' : firstLine;
+        if (title.length > 50) title = '${title.substring(0, 47)}...';
       }
       
       await repo.createOrUpdate(
-        title: _titleController.text,
-        body: bodyContent,
+        title: title,
+        body: _bodyController.text,
         id: widget.noteId,
       );
 
-      // Refresh the notes list
       ref.read(notesPageProvider.notifier).refresh();
-
+      
+      setState(() => _hasChanges = false);
+      _saveButtonController.reverse();
+      
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving note: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showCustomSnackBar(
+        'Error: ${e.toString()}',
+        icon: Icons.error_outline_rounded,
+        backgroundColor: Theme.of(context).colorScheme.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -192,474 +179,819 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen>
     }
   }
 
+  void _showCustomSnackBar(String message, {required IconData icon, required Color backgroundColor}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: colorScheme.onPrimary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (_hasChanges) {
-          final shouldPop = await _showUnsavedChangesDialog();
-          return shouldPop ?? false;
-        }
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Row(
-              key: ValueKey(_isAutoSaving),
-              children: [
-                Text(widget.noteId != null ? 'Edit Note' : 'New Note'),
-                if (_isAutoSaving) ...[
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Colors.green),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Saving...',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.green,
-                    ),
-                  ),
-                ] else if (_hasChanges) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Theme(
+      data: theme.copyWith(
+        // Apply Material 3 elevation tints
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            elevation: 2,
+            shadowColor: colorScheme.shadow,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          actions: [
-          // Block Editor toggle
-          IconButton(
-            icon: Icon(_useBlockEditor ? Icons.view_agenda : Icons.view_stream),
-            onPressed: () {
-              setState(() {
-                _useBlockEditor = !_useBlockEditor;
-                if (_useBlockEditor) {
-                  // Convert text to blocks
-                  _blocks = parseMarkdownToBlocks(_bodyController.text);
-                } else {
-                  // Convert blocks to text
-                  _bodyController.text = blocksToMarkdown(_blocks);
-                }
-              });
-            },
-            tooltip: _useBlockEditor ? 'Switch to Text Editor' : 'Switch to Block Editor',
-          ),
-          
-          // Preview toggle (only for text mode)
-          if (!_useBlockEditor)
-            IconButton(
-              icon: Icon(_isPreviewMode ? Icons.edit : Icons.preview),
-              onPressed: () {
-                setState(() {
-                  _isPreviewMode = !_isPreviewMode;
-                });
-              },
-              tooltip: _isPreviewMode ? 'Edit' : 'Preview',
-            ),
-            
-          // Export button
-          if (widget.noteId != null)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.share),
-              tooltip: 'Export Note',
-              onSelected: (format) => _exportNote(format),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'markdown',
-                  child: Row(
-                    children: [
-                      Icon(Icons.code, size: 16),
-                      SizedBox(width: 8),
-                      Text('Export as Markdown'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'pdf',
-                  child: Row(
-                    children: [
-                      Icon(Icons.picture_as_pdf, size: 16),
-                      SizedBox(width: 8),
-                      Text('Export as PDF'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'html',
-                  child: Row(
-                    children: [
-                      Icon(Icons.web, size: 16),
-                      SizedBox(width: 8),
-                      Text('Export as HTML'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-          // Save button
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveNote,
-            ),
-        ],
+        ),
       ),
-        body: FadeTransition(
-          opacity: _fadeAnimation,
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: SafeArea(
           child: Column(
             children: [
-              // Enhanced title field with better styling
+              // Modern Header with blur effect
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      width: 0.5,
+                  color: colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
+                  ],
                 ),
-                child: TextField(
-                  controller: _titleController,
-                  focusNode: _titleFocusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Note Title',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+                child: ClipRRect(
+                  child: BackdropFilter(
+                    filter: ColorFilter.mode(
+                      colorScheme.surface.withOpacity(0.95),
+                      BlendMode.srcOver,
                     ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: Row(
+                        children: [
+                          // Enhanced Back Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceVariant.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.arrow_back_rounded,
+                                color: colorScheme.onSurface,
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          
+                          // Animated Title
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.noteId != null ? 'Edit Note' : 'New Note',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                if (_hasChanges)
+                                  Text(
+                                    'Editing...',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Action Buttons Group
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceVariant.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Preview Toggle
+                                _buildHeaderAction(
+                                  icon: _isPreviewMode 
+                                      ? Icons.edit_note_rounded 
+                                      : Icons.preview_rounded,
+                                  onPressed: () {
+                                    setState(() => _isPreviewMode = !_isPreviewMode);
+                                    HapticFeedback.lightImpact();
+                                  },
+                                  isActive: _isPreviewMode,
+                                  colorScheme: colorScheme,
+                                ),
+                                
+                                // Save Button
+                                AnimatedBuilder(
+                                  animation: _saveButtonScale,
+                                  builder: (context, child) {
+                                    return Transform.scale(
+                                      scale: _saveButtonScale.value,
+                                      child: _buildSaveButton(colorScheme),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) {
-                    _bodyFocusNode.requestFocus();
-                  },
                 ),
               ),
               
-              // Formatting toolbar (when not in block editor mode)
-              if (!_useBlockEditor && !_isPreviewMode)
-                _buildFormattingToolbar(),
+              // Enhanced Formatting Toolbar with slide animation
+              if (_showFormattingToolbar && !_isPreviewMode)
+                SlideTransition(
+                  position: _toolbarSlideAnimation,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceVariant.withOpacity(0.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          _buildToolSection([
+                            _buildModernToolButton(Icons.format_bold_rounded, 'Bold', 
+                                () => _insertMarkdown('**', '**'), colorScheme),
+                            _buildModernToolButton(Icons.format_italic_rounded, 'Italic', 
+                                () => _insertMarkdown('*', '*'), colorScheme),
+                            _buildModernToolButton(Icons.format_size_rounded, 'Heading', 
+                                () => _insertMarkdown('## ', ''), colorScheme),
+                          ]),
+                          _buildToolDivider(colorScheme),
+                          _buildToolSection([
+                            _buildModernToolButton(Icons.format_list_bulleted_rounded, 'Bullets', 
+                                () => _insertList('bullet'), colorScheme),
+                            _buildModernToolButton(Icons.format_list_numbered_rounded, 'Numbers', 
+                                () => _insertList('numbered'), colorScheme),
+                            _buildModernToolButton(Icons.checklist_rounded, 'Tasks', 
+                                () => _insertList('checkbox'), colorScheme),
+                          ]),
+                          _buildToolDivider(colorScheme),
+                          _buildToolSection([
+                            _buildModernToolButton(Icons.code_rounded, 'Code', 
+                                () => _insertMarkdown('`', '`'), colorScheme),
+                            _buildModernToolButton(Icons.format_quote_rounded, 'Quote', 
+                                () => _insertMarkdown('\n> ', ''), colorScheme),
+                            _buildModernToolButton(Icons.link_rounded, 'Link', 
+                                () => _insertMarkdown('[', '](url)'), colorScheme),
+                            _buildModernToolButton(Icons.image_rounded, 'Image', 
+                                () => _insertMarkdown('![alt](', ')'), colorScheme),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               
-              // Body field, block editor, or preview
+              // Content Area with better styling
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  child: _useBlockEditor 
-                      ? _buildBlockEditor() 
-                      : (_isPreviewMode ? _buildPreview() : _buildEnhancedEditor()),
+                  child: _isPreviewMode 
+                      ? _buildModernPreview(theme, colorScheme)
+                      : _buildModernEditor(theme, colorScheme, isDark),
                 ),
               ),
               
-              // Bottom action bar
-              _buildBottomActionBar(),
+              // Modern Bottom Bar
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      // Stats with better design
+                      _buildStatChip(
+                        icon: Icons.abc_rounded,
+                        value: '${_wordCount}',
+                        label: 'words',
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatChip(
+                        icon: Icons.text_fields_rounded,
+                        value: '${_bodyController.text.length}',
+                        label: 'chars',
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatChip(
+                        icon: Icons.timer_outlined,
+                        value: '$_readingTime',
+                        label: 'min',
+                        colorScheme: colorScheme,
+                      ),
+                      
+                      const Spacer(),
+                      
+                      // Save status indicator
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _hasChanges 
+                              ? colorScheme.errorContainer.withOpacity(0.3)
+                              : colorScheme.primaryContainer.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _hasChanges 
+                                  ? Icons.edit_note_rounded
+                                  : Icons.cloud_done_rounded,
+                              size: 16,
+                              color: _hasChanges 
+                                  ? colorScheme.error
+                                  : colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _hasChanges ? 'Unsaved' : 'Saved',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: _hasChanges 
+                                    ? colorScheme.error
+                                    : colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        floatingActionButton: _buildFloatingActionButton(),
-      ),
-    );
-  }
-  
-  Widget _buildEnhancedEditor() {
-    return Container(
-      key: const ValueKey('text_editor'),
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _bodyController,
-        focusNode: _bodyFocusNode,
-        decoration: InputDecoration(
-          hintText: 'Start writing...',
-          hintStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
-          ),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          height: 1.6,
-        ),
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        keyboardType: TextInputType.multiline,
+        
+        // Floating Quick Actions
+        floatingActionButton: _buildFloatingActions(colorScheme),
       ),
     );
   }
 
-  Widget _buildFormattingToolbar() {
-    return Container(
-      height: 48,
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required bool isActive,
+    required ColorScheme colorScheme,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.5,
+        color: isActive 
+            ? colorScheme.primaryContainer
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 20),
+        onPressed: onPressed,
+        color: isActive 
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(ColorScheme colorScheme) {
+    if (_isLoading) {
+      return Container(
+        width: 40,
+        height: 40,
+        padding: const EdgeInsets.all(10),
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation(colorScheme.primary),
+        ),
+      );
+    }
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        gradient: _hasChanges ? LinearGradient(
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ) : null,
+        color: !_hasChanges ? colorScheme.primaryContainer : null,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _hasChanges ? _saveNote : null,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _hasChanges ? Icons.save_rounded : Icons.check_rounded,
+                  size: 18,
+                  color: _hasChanges 
+                      ? colorScheme.onPrimary
+                      : colorScheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _hasChanges ? 'Save' : 'Done',
+                  style: TextStyle(
+                    color: _hasChanges 
+                        ? colorScheme.onPrimary
+                        : colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolSection(List<Widget> tools) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: tools),
+    );
+  }
+
+  Widget _buildModernToolButton(
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed,
+    ColorScheme colorScheme,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      preferBelow: false,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            child: Icon(
+              icon,
+              size: 20,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolDivider(ColorScheme colorScheme) {
+    return Container(
+      height: 20,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.outlineVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(1),
+      ),
+    );
+  }
+
+  Widget _buildModernEditor(ThemeData theme, ColorScheme colorScheme, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.surface.withOpacity(0.95),
+          ],
         ),
       ),
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-            _buildFormatButton(Icons.format_bold, 'Bold', () => _insertMarkdown('**', '**')),
-            _buildFormatButton(Icons.format_italic, 'Italic', () => _insertMarkdown('*', '*')),
-            _buildFormatButton(Icons.title, 'Heading', () => _insertMarkdown('## ', '')),
-            _buildFormatButton(Icons.format_list_bulleted, 'List', () => _insertMarkdown('\n- ', '')),
-            _buildFormatButton(Icons.checklist, 'Checklist', () => _insertMarkdown('\n- [ ] ', '')),
-            _buildFormatButton(Icons.code, 'Code', () => _insertMarkdown('`', '`')),
-            _buildFormatButton(Icons.link, 'Link', () => _insertMarkdown('[', '](url)')),
-            _buildFormatButton(Icons.format_quote, 'Quote', () => _insertMarkdown('\n> ', '')),
-            const VerticalDivider(width: 16),
-            _buildFormatButton(Icons.undo, 'Undo', _undo),
-            _buildFormatButton(Icons.redo, 'Redo', _redo),
+            // Enhanced Title Field
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                color: _titleHasFocus
+                    ? colorScheme.primaryContainer.withOpacity(0.1)
+                    : colorScheme.surfaceVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _titleHasFocus
+                      ? colorScheme.primary.withOpacity(0.3)
+                      : Colors.transparent,
+                  width: 2,
+                ),
+                boxShadow: _titleHasFocus ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ] : [],
+              ),
+              child: TextField(
+                controller: _titleController,
+                focusNode: _titleFocusNode,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Note title',
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                    fontWeight: FontWeight.normal,
+                  ),
+                  contentPadding: const EdgeInsets.all(20),
+                  border: InputBorder.none,
+                ),
+                maxLines: null,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _bodyFocusNode.requestFocus(),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Enhanced Body Field
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              decoration: BoxDecoration(
+                color: _bodyHasFocus
+                    ? colorScheme.primaryContainer.withOpacity(0.05)
+                    : colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _bodyHasFocus
+                      ? colorScheme.primary.withOpacity(0.2)
+                      : Colors.transparent,
+                  width: 2,
+                ),
+                boxShadow: _bodyHasFocus ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withOpacity(0.05),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ] : [],
+              ),
+              child: TextField(
+                controller: _bodyController,
+                focusNode: _bodyFocusNode,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  height: 1.7,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Start writing your thoughts...\n\n'
+                      '💡 Tip: Use the toolbar for rich formatting\n'
+                      '⌘ + B for bold, ⌘ + I for italic',
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    fontSize: 15,
+                  ),
+                  contentPadding: const EdgeInsets.all(20),
+                  border: InputBorder.none,
+                ),
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                textAlignVertical: TextAlignVertical.top,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFormatButton(IconData icon, String tooltip, VoidCallback onPressed) {
-    return IconButton(
-      icon: Icon(icon, size: 20),
-      tooltip: tooltip,
-      onPressed: () {
-        HapticFeedback.lightImpact();
-        onPressed();
-      },
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      constraints: const BoxConstraints(minWidth: 40),
-    );
-  }
-
-  void _insertMarkdown(String prefix, String suffix) {
-    final text = _bodyController.text;
-    final selection = _bodyController.selection;
-    final newText = text.replaceRange(
-      selection.start,
-      selection.end,
-      '$prefix${text.substring(selection.start, selection.end)}$suffix',
-    );
-    _bodyController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(
-        offset: selection.start + prefix.length,
-      ),
-    );
-  }
-
-  void _undo() {
-    // Placeholder for undo functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Undo feature coming soon!'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  void _redo() {
-    // Placeholder for redo functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Redo feature coming soon!'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-  
-  Widget _buildPreview() {
-    final content = _bodyController.text.isEmpty ? '*No content to preview*' : _bodyController.text;
+  Widget _buildModernPreview(ThemeData theme, ColorScheme colorScheme) {
     return Container(
-      key: const ValueKey('preview'),
-      padding: const EdgeInsets.all(16),
-      child: Markdown(
-        data: content,
-        selectable: true,
-        shrinkWrap: false,
-        physics: const AlwaysScrollableScrollPhysics(),
-        styleSheet: MarkdownStyleSheet(
-          h1: Theme.of(context).textTheme.headlineLarge,
-          h2: Theme.of(context).textTheme.headlineMedium,
-          h3: Theme.of(context).textTheme.headlineSmall,
-          p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
-          code: TextStyle(
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            fontFamily: 'monospace',
-          ),
-          blockquote: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontStyle: FontStyle.italic,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildBlockEditor() {
-    return Container(
-      key: const ValueKey('block_editor'),
-      child: BlockEditor(
-        blocks: _blocks,
-        onBlocksChanged: (blocks) {
-          setState(() {
-            _blocks = blocks;
-            _hasChanges = true;
-          });
-          _scheduleAutoSave();
-        },
-        onBlockFocusChanged: (index) {
-          // Handle block focus if needed
-        },
-      ),
-    );
-  }
-
-  Widget _buildBottomActionBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.surface.withOpacity(0.95),
+          ],
         ),
       ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            // Word count
-            Expanded(
-              child: Text(
-                _getWordCount(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_titleController.text.isNotEmpty) ...[
+            Text(
+              _titleController.text,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              height: 2,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.primary.withOpacity(0.3),
+                    colorScheme.secondary.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Expanded(
+            child: Markdown(
+              data: _bodyController.text.isEmpty 
+                  ? '*No content to preview*' 
+                  : _bodyController.text,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                p: theme.textTheme.bodyLarge?.copyWith(
+                  height: 1.7,
+                  color: colorScheme.onSurface,
+                ),
+                code: TextStyle(
+                  backgroundColor: colorScheme.primaryContainer.withOpacity(0.3),
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+                blockquote: theme.textTheme.bodyLarge?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-            // Save status
-            if (_hasChanges && !_isAutoSaving)
-              TextButton.icon(
-                onPressed: _isLoading ? null : _saveNote,
-                icon: const Icon(Icons.save, size: 18),
-                label: const Text('Save'),
-              )
-            else if (!_hasChanges)
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatChip({
+    required IconData icon,
+    required String value,
+    required String label,
+    required ColorScheme colorScheme,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildFloatingActions(ColorScheme colorScheme) {
+    if (_isPreviewMode) return null;
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // AI Assistant
+        FloatingActionButton.small(
+          heroTag: 'ai',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            _showCustomSnackBar(
+              'AI Assistant coming soon!',
+              icon: Icons.auto_awesome_rounded,
+              backgroundColor: colorScheme.tertiary,
+            );
+          },
+          backgroundColor: colorScheme.tertiaryContainer,
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            color: colorScheme.onTertiaryContainer,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Voice Note
+        FloatingActionButton.small(
+          heroTag: 'voice',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            _showCustomSnackBar(
+              'Voice recording coming soon!',
+              icon: Icons.mic_rounded,
+              backgroundColor: colorScheme.secondary,
+            );
+          },
+          backgroundColor: colorScheme.secondaryContainer,
+          child: Icon(
+            Icons.mic_rounded,
+            color: colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Add attachment
+        FloatingActionButton(
+          heroTag: 'attach',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            _showAttachmentOptions(colorScheme);
+          },
+          backgroundColor: colorScheme.primaryContainer,
+          child: Icon(
+            Icons.add_rounded,
+            color: colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAttachmentOptions(ColorScheme colorScheme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Add to note',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 20),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Icon(
-                    Icons.check_circle,
-                    size: 16,
-                    color: Colors.green,
+                  _buildAttachmentOption(
+                    icon: Icons.photo_camera_rounded,
+                    label: 'Camera',
+                    color: colorScheme.primary,
+                    onTap: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Saved',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.green,
-                    ),
+                  _buildAttachmentOption(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Gallery',
+                    color: colorScheme.secondary,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _buildAttachmentOption(
+                    icon: Icons.draw_rounded,
+                    label: 'Draw',
+                    color: colorScheme.tertiary,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _buildAttachmentOption(
+                    icon: Icons.attach_file_rounded,
+                    label: 'File',
+                    color: colorScheme.error,
+                    onTap: () => Navigator.pop(context),
                   ),
                 ],
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget? _buildFloatingActionButton() {
-    if (_isPreviewMode || _useBlockEditor) return null;
-    
-    return FloatingActionButton.small(
-      onPressed: () {
-        HapticFeedback.lightImpact();
-        _showQuickActions();
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
       },
-      tooltip: 'Quick Actions',
-      child: const Icon(Icons.add),
     );
   }
 
-  void _showQuickActions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+  Widget _buildAttachmentOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('Add Image'),
-              onTap: () {
-                Navigator.pop(context);
-                _insertMarkdown('![Image](', ')');
-              },
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: color, size: 28),
             ),
-            ListTile(
-              leading: const Icon(Icons.table_chart),
-              title: const Text('Add Table'),
-              onTap: () {
-                Navigator.pop(context);
-                _insertMarkdown(
-                  '\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n',
-                  '',
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.horizontal_rule),
-              title: const Text('Add Divider'),
-              onTap: () {
-                Navigator.pop(context);
-                _insertMarkdown('\n---\n', '');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.code_off),
-              title: const Text('Add Code Block'),
-              onTap: () {
-                Navigator.pop(context);
-                _insertMarkdown('\n```\n', '\n```\n');
-              },
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ],
         ),
@@ -667,201 +999,74 @@ class _EditNoteScreenState extends ConsumerState<EditNoteScreen>
     );
   }
 
-  String _getWordCount() {
-    final text = _useBlockEditor 
-        ? blocksToMarkdown(_blocks)
-        : _bodyController.text;
-    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-    final chars = text.length;
-    return '$words words • $chars characters';
-  }
-
-  Future<bool?> _showUnsavedChangesDialog() {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved Changes'),
-        content: const Text('You have unsaved changes. Do you want to save them before leaving?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Discard'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await _saveNote();
-              if (mounted) Navigator.pop(context, true);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+  // Helper methods
+  void _insertMarkdown(String prefix, String suffix) {
+    final text = _bodyController.text;
+    final selection = _bodyController.selection;
+    final selectedText = selection.start != selection.end
+        ? text.substring(selection.start, selection.end)
+        : '';
+    
+    final newText = text.replaceRange(
+      selection.start,
+      selection.end,
+      '$prefix$selectedText$suffix',
+    );
+    
+    _bodyController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: selection.start + prefix.length + selectedText.length,
       ),
     );
+    
+    HapticFeedback.lightImpact();
+  }
+
+  void _insertList(String listType) {
+    final text = _bodyController.text;
+    final selection = _bodyController.selection;
+    
+    final beforeCursor = text.substring(0, selection.start);
+    final afterCursor = text.substring(selection.start);
+    
+    final lines = beforeCursor.split('\n');
+    final currentLine = lines.last;
+    
+    String prefix;
+    switch (listType) {
+      case 'bullet':
+        prefix = '\n• ';
+        break;
+      case 'numbered':
+        prefix = '\n1. ';
+        break;
+      case 'checkbox':
+        prefix = '\n- [ ] ';
+        break;
+      default:
+        prefix = '\n• ';
+    }
+    
+    final insertText = currentLine.isEmpty ? prefix.substring(1) : prefix;
+    final newText = beforeCursor + insertText + afterCursor;
+    final newPosition = beforeCursor.length + insertText.length;
+    
+    _bodyController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newPosition),
+    );
+    
+    HapticFeedback.lightImpact();
+  }
+
+  int get _wordCount {
+    final text = _bodyController.text.trim();
+    if (text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).length;
   }
   
-  void _onNoteSelected(LocalNote note) {
-    // Navigate to the selected note
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditNoteScreen(
-          noteId: note.id,
-          initialTitle: note.title,
-          initialBody: note.body,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportNote(String format) async {
-    if (widget.noteId == null) return;
-
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text('Exporting as ${format.toUpperCase()}...'),
-            ],
-          ),
-        ),
-      );
-
-      final exportService = ref.read(exportServiceProvider);
-      
-      // Create current note object
-      final currentNote = LocalNote(
-        id: widget.noteId!,
-        title: _titleController.text,
-        body: _useBlockEditor ? blocksToMarkdown(_blocks) : _bodyController.text,
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      ExportResult result;
-
-      switch (format) {
-        case 'markdown':
-          result = await exportService.exportToMarkdown(
-            currentNote,
-            onProgress: (progress) {
-              // Could update progress dialog here
-            },
-          );
-          break;
-        case 'pdf':
-          result = await exportService.exportToPdf(
-            currentNote,
-            onProgress: (progress) {
-              // Could update progress dialog here
-            },
-          );
-          break;
-        case 'html':
-          result = await exportService.exportToHtml(
-            currentNote,
-            onProgress: (progress) {
-              // Could update progress dialog here
-            },
-          );
-          break;
-        default:
-          throw UnsupportedError('Export format not supported: $format');
-      }
-
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      if (result.success && result.file != null) {
-        // Show success dialog with options
-        _showExportSuccessDialog(result);
-      } else {
-        // Show error dialog
-        _showExportErrorDialog(result.error ?? 'Unknown error occurred');
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-      
-      // Show error dialog
-      _showExportErrorDialog(e.toString());
-    }
-  }
-
-  void _showExportSuccessDialog(ExportResult result) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Successful'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Your note has been exported as ${result.format.displayName}.'),
-            const SizedBox(height: 8),
-            Text('File size: ${_formatFileSize(result.fileSize)}'),
-            Text('Processing time: ${result.processingTime.inMilliseconds}ms'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final exportService = ref.read(exportServiceProvider);
-              await exportService.openExportedFile(result.file!);
-            },
-            child: const Text('Open'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final exportService = ref.read(exportServiceProvider);
-              await exportService.shareExportedFile(result.file!, result.format);
-            },
-            child: const Text('Share'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showExportErrorDialog(String error) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Failed'),
-        content: Text('Failed to export note: $error'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    } else if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    } else {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
+  int get _readingTime {
+    return (_wordCount / 200).ceil();
   }
 }

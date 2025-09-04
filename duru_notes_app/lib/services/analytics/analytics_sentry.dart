@@ -7,7 +7,7 @@ import '../../core/monitoring/app_logger.dart';
 import 'analytics_service.dart';
 
 /// Sentry implementation of the analytics service
-class SentryAnalytics implements AnalyticsService {
+class SentryAnalytics extends AnalyticsService {
   final Map<String, DateTime> _timingEvents = {};
   String? _currentUserId;
   String? _sessionId;
@@ -246,7 +246,7 @@ class SentryAnalytics implements AnalyticsService {
 }
 
 /// No-op analytics implementation for when analytics is disabled
-class NoOpAnalytics implements AnalyticsService {
+class NoOpAnalytics extends AnalyticsService {
   @override
   void event(String name, {Map<String, dynamic>? properties}) {
     // No-op

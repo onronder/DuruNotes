@@ -131,15 +131,71 @@ class TagCount {
   final int count;
 }
 
+/// Folder system tables for hierarchical organization
+@DataClassName('LocalFolder')
+class LocalFolders extends Table {
+  /// Unique identifier for the folder
+  TextColumn get id => text()();
+  
+  /// Display name of the folder
+  TextColumn get name => text()();
+  
+  /// Parent folder ID for hierarchy (null for root folders)
+  TextColumn get parentId => text().nullable()();
+  
+  /// Full path from root (e.g., "/Work/Projects/2024")
+  TextColumn get path => text()();
+  
+  /// Display order within parent folder
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  
+  /// Optional color for folder display (hex format)
+  TextColumn get color => text().nullable()();
+  
+  /// Optional icon name for folder display
+  TextColumn get icon => text().nullable()();
+  
+  /// Folder description/notes
+  TextColumn get description => text().withDefault(const Constant(''))();
+  
+  /// Creation timestamp
+  DateTimeColumn get createdAt => dateTime()();
+  
+  /// Last modification timestamp
+  DateTimeColumn get updatedAt => dateTime()();
+  
+  /// Soft delete flag
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Note-Folder relationship table (one note can be in one folder)
+@DataClassName('NoteFolder')
+class NoteFolders extends Table {
+  /// Note ID (foreign key to local_notes)
+  TextColumn get noteId => text()();
+  
+  /// Folder ID (foreign key to local_folders)
+  TextColumn get folderId => text()();
+  
+  /// When the note was added to this folder
+  DateTimeColumn get addedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {noteId}; // One folder per note
+}
+
 /// ----------------------
 /// Database
 /// ----------------------
-@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders])
+@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, LocalFolders, NoteFolders])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -190,6 +246,20 @@ class AppDb extends _$AppDb {
             // Migration from simple reminders to advanced reminders
             await _migrateToAdvancedReminders(m);
             await _createAdvancedReminderIndexes();
+          }
+          if (from < 6) {
+            // Add folder system tables
+            await m.createTable(localFolders);
+            await m.createTable(noteFolders);
+            
+            // Create folder indexes for performance
+            await _createFolderIndexes();
+            
+            // Update FTS to include folder path
+            await _updateFtsForFolders();
+            
+            // Create default "Unfiled" folder for existing notes (optional)
+            await _createDefaultFolders();
           }
         },
       );
@@ -742,6 +812,312 @@ class AppDb extends _$AppDb {
       stats[type.name] = count;
     }
     return stats;
+  }
+
+  /// ----------------------
+  /// Folder Migration Methods (v5 → v6)
+  /// ----------------------
+  
+  /// Create indexes for folder performance
+  Future<void> _createFolderIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_local_folders_parent_id ON local_folders(parent_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_local_folders_path ON local_folders(path)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_local_folders_deleted ON local_folders(deleted)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_local_folders_sort_order ON local_folders(parent_id, sort_order)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_folders_folder_id ON note_folders(folder_id)',
+    );
+  }
+
+  /// Update FTS to include folder path information
+  Future<void> _updateFtsForFolders() async {
+    // Drop existing FTS table
+    await customStatement('DROP TABLE IF EXISTS fts_notes');
+    
+    // Create new FTS table with folder_path
+    await customStatement(
+      'CREATE VIRTUAL TABLE fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
+    );
+
+    // Recreate FTS triggers with folder support
+    await _createFtsTriggers();
+
+    // Repopulate FTS with existing data (no folders initially)
+    await customStatement('''
+      INSERT INTO fts_notes(id, title, body, folder_path)
+      SELECT id, title, body, '' 
+      FROM local_notes 
+      WHERE deleted = 0
+    ''');
+  }
+
+  /// Create default folder structure
+  Future<void> _createDefaultFolders() async {
+    final now = DateTime.now().toIso8601String();
+    
+    // Create system folders (optional - could be created on first use instead)
+    // For now, we'll leave existing notes unfiled
+    print('📁 Folder system initialized - existing notes remain unfiled');
+  }
+
+  /// ----------------------
+  /// Folder CRUD Operations  
+  /// ----------------------
+  
+  /// Get all root folders (parent_id is null)
+  Future<List<LocalFolder>> getRootFolders() {
+    return (select(localFolders)
+          ..where((f) => f.deleted.equals(false) & f.parentId.isNull())
+          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+        .get();
+  }
+
+  /// Get child folders of a parent
+  Future<List<LocalFolder>> getChildFolders(String parentId) {
+    return (select(localFolders)
+          ..where((f) => f.deleted.equals(false) & f.parentId.equals(parentId))
+          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+        .get();
+  }
+
+  /// Get folder by ID
+  Future<LocalFolder?> getFolderById(String id) {
+    return (select(localFolders)..where((f) => f.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Insert or update folder
+  Future<void> upsertFolder(LocalFolder folder) async {
+    await into(localFolders).insertOnConflictUpdate(folder);
+  }
+
+  /// Get notes in a specific folder
+  Future<List<LocalNote>> getNotesInFolder(String folderId, {int? limit, DateTime? cursor}) {
+    final query = select(localNotes).join([
+      leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
+    ])
+      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId));
+    
+    if (cursor != null) {
+      query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
+    }
+    
+    query.orderBy([OrderingTerm.desc(localNotes.updatedAt)]);
+    
+    if (limit != null) {
+      query.limit(limit);
+    }
+
+    return query.map((row) => row.readTable(localNotes)).get();
+  }
+
+  /// Get unfiled notes (not in any folder)
+  Future<List<LocalNote>> getUnfiledNotes({int? limit, DateTime? cursor}) {
+    final query = select(localNotes).join([
+      leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
+    ])
+      ..where(localNotes.deleted.equals(false) & noteFolders.noteId.isNull());
+    
+    if (cursor != null) {
+      query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
+    }
+    
+    query.orderBy([OrderingTerm.desc(localNotes.updatedAt)]);
+    
+    if (limit != null) {
+      query.limit(limit);
+    }
+
+    return query.map((row) => row.readTable(localNotes)).get();
+  }
+
+  /// Move note to folder
+  Future<void> moveNoteToFolder(String noteId, String? folderId) async {
+    if (folderId != null) {
+      // Add to folder
+      await into(noteFolders).insertOnConflictUpdate(
+        NoteFoldersCompanion.insert(
+          noteId: noteId,
+          folderId: folderId,
+          addedAt: DateTime.now(),
+        ),
+      );
+    } else {
+      // Remove from folder (move to unfiled)
+      await (delete(noteFolders)..where((nf) => nf.noteId.equals(noteId))).go();
+    }
+  }
+
+  /// Get folder for a specific note
+  Future<LocalFolder?> getNoteFolder(String noteId) async {
+    final query = select(localFolders).join([
+      innerJoin(noteFolders, noteFolders.folderId.equalsExp(localFolders.id)),
+    ])..where(noteFolders.noteId.equals(noteId));
+
+    final result = await query.getSingleOrNull();
+    return result?.readTable(localFolders);
+  }
+
+  /// Generate folder path string
+  Future<String> generateFolderPath(String folderId) async {
+    final pathParts = <String>[];
+    String? currentId = folderId;
+
+    while (currentId != null) {
+      final folder = await getFolderById(currentId);
+      if (folder == null) break;
+      
+      pathParts.insert(0, folder.name);
+      currentId = folder.parentId;
+    }
+
+    return '/${pathParts.join('/')}';
+  }
+
+  // ==========================================
+  // ADDITIONAL FOLDER METHODS FOR REPOSITORY
+  // ==========================================
+
+  /// Find folder by ID (alias for getFolderById for repository compatibility)
+  Future<LocalFolder?> findFolder(String id) => getFolderById(id);
+
+  /// Get all folders (active and deleted for sync purposes)
+  Future<List<LocalFolder>> allFolders() {
+    return (select(localFolders)
+          ..orderBy([(f) => OrderingTerm.asc(f.path)]))
+        .get();
+  }
+
+  /// Get all active folders
+  Future<List<LocalFolder>> getActiveFolders() {
+    return (select(localFolders)
+          ..where((f) => f.deleted.equals(false))
+          ..orderBy([(f) => OrderingTerm.asc(f.path)]))
+        .get();
+  }
+
+  /// Get note IDs in a specific folder
+  Future<List<String>> getNoteIdsInFolder(String folderId) async {
+    final query = select(noteFolders)
+      ..where((nf) => nf.folderId.equals(folderId));
+    
+    final results = await query.get();
+    return results.map((nf) => nf.noteId).toList();
+  }
+
+  /// Get folder for a specific note (alias for getNoteFolder)
+  Future<LocalFolder?> getFolderForNote(String noteId) => getNoteFolder(noteId);
+
+  /// Remove note from any folder
+  Future<void> removeNoteFromFolder(String noteId) async {
+    await (delete(noteFolders)..where((nf) => nf.noteId.equals(noteId))).go();
+  }
+
+  /// Upsert note-folder relationship
+  Future<void> upsertNoteFolder(NoteFolder relationship) async {
+    await into(noteFolders).insertOnConflictUpdate(relationship);
+  }
+
+  /// Get all note-folder relationships
+  Future<List<NoteFolder>> getAllNoteFolderRelationships() {
+    return select(noteFolders).get();
+  }
+
+  /// Get local active note IDs (for repository sync)
+  Future<Set<String>> getActiveNoteIds() async {
+    final notes = await (select(localNotes)
+          ..where((n) => n.deleted.equals(false)))
+        .get();
+    return notes.map((n) => n.id).toSet();
+  }
+
+  /// Get local active folder IDs
+  Future<Set<String>> getLocalActiveFolderIds() async {
+    final folders = await (select(localFolders)
+          ..where((f) => f.deleted.equals(false)))
+        .get();
+    return folders.map((f) => f.id).toSet();
+  }
+
+  /// Get recently updated folders
+  Future<List<LocalFolder>> getRecentlyUpdatedFolders({required DateTime since}) {
+    return (select(localFolders)
+          ..where((f) => f.updatedAt.isBiggerThanValue(since))
+          ..orderBy([(f) => OrderingTerm.desc(f.updatedAt)]))
+        .get();
+  }
+
+  /// Get folders by parent ID (including null for root folders)
+  Future<List<LocalFolder>> getFoldersByParent(String? parentId) {
+    if (parentId == null) {
+      return getRootFolders();
+    } else {
+      return getChildFolders(parentId);
+    }
+  }
+
+  /// Count notes in folder
+  Future<int> countNotesInFolder(String folderId) async {
+    final query = selectOnly(noteFolders)
+      ..addColumns([noteFolders.noteId.count()])
+      ..where(noteFolders.folderId.equals(folderId));
+    
+    final result = await query.getSingleOrNull();
+    return result?.read(noteFolders.noteId.count()) ?? 0;
+  }
+
+  /// Get folder hierarchy depth
+  Future<int> getFolderDepth(String folderId) async {
+    int depth = 0;
+    String? currentId = folderId;
+
+    while (currentId != null && depth < 100) { // Safety limit
+      final folder = await findFolder(currentId);
+      if (folder == null || folder.parentId == null) break;
+      
+      currentId = folder.parentId;
+      depth++;
+    }
+
+    return depth;
+  }
+
+  /// Check if folder has children
+  Future<bool> hasChildFolders(String folderId) async {
+    final children = await getChildFolders(folderId);
+    return children.isNotEmpty;
+  }
+
+  /// Get complete folder tree starting from a root
+  Future<List<LocalFolder>> getFolderSubtree(String rootId) async {
+    final List<LocalFolder> result = [];
+    final root = await findFolder(rootId);
+    if (root != null) {
+      result.add(root);
+      
+      final children = await getChildFolders(rootId);
+      for (final child in children) {
+        final subtree = await getFolderSubtree(child.id);
+        result.addAll(subtree);
+      }
+    }
+    return result;
+  }
+
+  /// Search folders by name
+  Future<List<LocalFolder>> searchFolders(String query) {
+    return (select(localFolders)
+          ..where((f) => f.deleted.equals(false) & 
+                         f.name.contains(query))
+          ..orderBy([(f) => OrderingTerm.asc(f.name)]))
+        .get();
   }
 }
 
