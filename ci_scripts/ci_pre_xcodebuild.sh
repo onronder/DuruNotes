@@ -1,85 +1,79 @@
 #!/bin/sh
 
-# Xcode Cloud Pre-Xcodebuild Script
+# Xcode Cloud Pre-Xcodebuild Script - FINAL VERIFICATION
 set -e
 
-echo "🔧 Pre-build verification..."
+echo "🔧 FINAL pre-build verification..."
 cd duru_notes_app/ios
 
-# Verify Podfile.lock exists
-if [ ! -f "Podfile.lock" ]; then
-    echo "❌ Podfile.lock missing! Running pod install..."
-    pod install --repo-update
-fi
-
-# Verify Pods directory exists
-if [ ! -d "Pods" ]; then
-    echo "❌ Pods directory missing! Running pod install..."
-    pod install --repo-update
-fi
-
-# Check if Pods are in sync
-echo "🔍 Checking Pod sync status..."
-pod install --deployment
-
-# Fix the xcfilelist paths if needed
-echo "📝 Checking Xcode project file..."
-
-# Create a Python script to verify and fix the project file
-cat > fix_project.py << 'EOF'
+# CRITICAL CHECK: Ensure no xcfilelist references exist
+echo "🔍 Checking for xcfilelist references..."
+if grep -q "Target Support Files.*xcfilelist" Runner.xcodeproj/project.pbxproj; then
+    echo "❌ EMERGENCY: Found xcfilelist references!"
+    echo "🚨 Applying emergency nuclear fix..."
+    
+    # Emergency fix - remove ALL lines with xcfilelist references
+    python3 << 'EOF'
 import re
 
-# Read the project file
 with open('Runner.xcodeproj/project.pbxproj', 'r') as f:
-    content = f.read()
+    lines = f.readlines()
 
-# Find the [CP] Copy Pods Resources script phase
-pattern = r'(13EE8994B2C84C0AD4C3F233 /\* \[CP\] Copy Pods Resources \*/.*?showEnvVarsInLog = 0;\s*};)'
-match = re.search(pattern, content, re.DOTALL)
+clean_lines = []
+removed_count = 0
 
-modified = False
-if match:
-    script_phase = match.group(1)
+i = 0
+while i < len(lines):
+    line = lines[i]
     
-    # Check if it still has problematic file list paths
-    if '"${PODS_ROOT}/Target Support Files/' in script_phase:
-        print("Found problematic xcfilelist paths, removing...")
-        
-        # Remove the input and output file list paths
-        new_phase = re.sub(
-            r'inputFileListPaths = \([^)]*\);',
-            'inputFileListPaths = (\n\t\t\t);',
-            script_phase
-        )
-        new_phase = re.sub(
-            r'outputFileListPaths = \([^)]*\);', 
-            'outputFileListPaths = (\n\t\t\t);',
-            new_phase
-        )
-        
-        content = content.replace(script_phase, new_phase)
-        modified = True
-        print("✅ Removed xcfilelist paths")
+    # If this line contains xcfilelist reference, replace with empty array
+    if 'Target Support Files' in line and 'xcfilelist' in line:
+        if 'inputFileListPaths' in line:
+            clean_lines.append('\t\t\tinputFileListPaths = (\n')
+            clean_lines.append('\t\t\t);\n')
+        elif 'outputFileListPaths' in line:
+            clean_lines.append('\t\t\toutputFileListPaths = (\n')
+            clean_lines.append('\t\t\t);\n')
+        removed_count += 1
+        print(f"REMOVED: {line.strip()}")
     else:
-        print("✅ Project file already fixed")
-else:
-    print("⚠️ [CP] Copy Pods Resources phase not found")
+        clean_lines.append(line)
+    
+    i += 1
 
-if modified:
-    # Write the fixed content back
+if removed_count > 0:
     with open('Runner.xcodeproj/project.pbxproj', 'w') as f:
-        f.write(content)
-    print("✅ Project file updated")
+        f.writelines(clean_lines)
+    print(f"✅ Emergency fix completed: removed {removed_count} xcfilelist references")
 EOF
+    
+else
+    echo "✅ No xcfilelist references found"
+fi
 
-# Run the Python script
-python3 fix_project.py
+# Verify Pods are in sync
+echo "🔍 Verifying Pods sync..."
+if [ ! -f "Podfile.lock" ]; then
+    echo "❌ Podfile.lock missing - this should not happen!"
+    exit 1
+fi
 
-# Clean up
-rm fix_project.py
+if [ ! -d "Pods" ]; then
+    echo "❌ Pods directory missing - this should not happen!"
+    exit 1
+fi
 
-echo "✅ Pre-build verification complete!"
-echo "📊 Final status:"
-echo "   - Podfile.lock: $([ -f Podfile.lock ] && echo '✅ Exists' || echo '❌ Missing')"
-echo "   - Pods directory: $([ -d Pods ] && echo '✅ Exists' || echo '❌ Missing')"
-echo "   - Generated.xcconfig: $([ -f Flutter/Generated.xcconfig ] && echo '✅ Exists' || echo '❌ Missing')"
+# Final verification
+echo "🎯 FINAL STATUS CHECK:"
+echo "   ✅ Podfile.lock exists"
+echo "   ✅ Pods directory exists"
+echo "   ✅ No xcfilelist references"
+
+# One last check
+if grep -q "Target Support Files.*xcfilelist" Runner.xcodeproj/project.pbxproj; then
+    echo "❌ FATAL: xcfilelist references STILL EXIST after emergency fix!"
+    grep -n "Target Support Files.*xcfilelist" Runner.xcodeproj/project.pbxproj
+    exit 1
+fi
+
+echo "🚀 PRE-BUILD VERIFICATION COMPLETE - READY TO BUILD!"
