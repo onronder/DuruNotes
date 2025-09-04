@@ -51,7 +51,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   late AnimationController _toolbarSlideController;
   late Animation<Offset> _toolbarSlideAnimation;
   late Animation<double> _saveButtonScale;
-  
+
   @override
   void initState() {
     super.initState();
@@ -89,7 +89,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     
     // Focus listeners
     _titleFocusNode.addListener(() {
-      setState(() {
+        setState(() {
         _titleHasFocus = _titleFocusNode.hasFocus;
       });
     });
@@ -162,7 +162,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       
       setState(() => _hasChanges = false);
       _saveButtonController.reverse();
-      
+
       if (mounted) {
         Navigator.pop(context);
       }
@@ -217,8 +217,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       child: Scaffold(
         backgroundColor: colorScheme.surface,
         body: SafeArea(
-          child: Column(
-            children: [
+              child: Column(
+                children: [
               // Modern Header with blur effect
               Container(
                 decoration: BoxDecoration(
@@ -258,10 +258,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           const SizedBox(width: 12),
                           
                           // Animated Title
-                          Expanded(
-                            child: Column(
+                  Expanded(
+                      child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                        children: [
                                 Text(
                                   widget.noteId != null ? 'Edit Note' : 'New Note',
                                   style: theme.textTheme.titleMedium?.copyWith(
@@ -276,9 +276,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                                       color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
-                              ],
-                            ),
-                          ),
+                        ],
+                      ),
+                    ),
                           
                           // Action Buttons Group
                           Container(
@@ -313,9 +313,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                                     );
                                   },
                                 ),
-                              ],
-                            ),
-                          ),
+          ],
+        ),
+      ),
                         ],
                       ),
                     ),
@@ -328,21 +328,21 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 SlideTransition(
                   position: _toolbarSlideAnimation,
                   child: Container(
-                    decoration: BoxDecoration(
+      decoration: BoxDecoration(
                       color: colorScheme.surfaceVariant.withOpacity(0.5),
-                      boxShadow: [
-                        BoxShadow(
+        boxShadow: [
+          BoxShadow(
                           color: colorScheme.shadow.withOpacity(0.05),
                           blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(
-                        children: [
+      child: Row(
+        children: [
                           _buildToolSection([
                             _buildModernToolButton(Icons.format_bold_rounded, 'Bold', 
                                 () => _insertMarkdown('**', '**'), colorScheme),
@@ -372,13 +372,13 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                                 () => _insertMarkdown('![alt](', ')'), colorScheme),
                           ]),
                         ],
-                      ),
-                    ),
-                  ),
                 ),
-              
+              ),
+            ),
+          ),
+          
               // Content Area with better styling
-              Expanded(
+          Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: _isPreviewMode 
@@ -431,7 +431,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                           color: _hasChanges 
                               ? colorScheme.errorContainer.withOpacity(0.3)
                               : colorScheme.primaryContainer.withOpacity(0.3),
@@ -450,7 +450,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                                   : colorScheme.primary,
                             ),
                             const SizedBox(width: 6),
-                            Text(
+                        Text(
                               _hasChanges ? 'Unsaved' : 'Saved',
                               style: theme.textTheme.labelMedium?.copyWith(
                                 color: _hasChanges 
@@ -462,9 +462,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
+              ],
+            ),
+          ),
               ),
             ],
           ),
@@ -483,11 +483,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     required ColorScheme colorScheme,
   }) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: isActive 
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: isActive 
             ? colorScheme.primaryContainer
-            : Colors.transparent,
+                  : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
       ),
       child: IconButton(
@@ -527,16 +527,16 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         color: !_hasChanges ? colorScheme.primaryContainer : null,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Material(
+          child: Material(
         color: Colors.transparent,
-        child: InkWell(
+            child: InkWell(
           onTap: _hasChanges ? _saveNote : null,
-          borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 Icon(
                   _hasChanges ? Icons.save_rounded : Icons.check_rounded,
                   size: 18,
@@ -544,22 +544,22 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                       ? colorScheme.onPrimary
                       : colorScheme.onPrimaryContainer,
                 ),
-                const SizedBox(width: 6),
-                Text(
+                      const SizedBox(width: 6),
+                      Text(
                   _hasChanges ? 'Save' : 'Done',
-                  style: TextStyle(
+                        style: TextStyle(
                     color: _hasChanges 
                         ? colorScheme.onPrimary
                         : colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                     fontSize: 14,
-                  ),
+                        ),
+                      ),
+                    ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
     );
   }
 
@@ -698,26 +698,26 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                   ),
                 ] : [],
               ),
-              child: TextField(
-                controller: _bodyController,
-                focusNode: _bodyFocusNode,
+      child: TextField(
+        controller: _bodyController,
+        focusNode: _bodyFocusNode,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   height: 1.7,
                   fontSize: 16,
                 ),
-                decoration: InputDecoration(
+        decoration: InputDecoration(
                   hintText: 'Start writing your thoughts...\n\n'
                       '💡 Tip: Use the toolbar for rich formatting\n'
                       '⌘ + B for bold, ⌘ + I for italic',
-                  hintStyle: TextStyle(
+          hintStyle: TextStyle(
                     color: colorScheme.onSurfaceVariant.withOpacity(0.4),
                     fontSize: 15,
-                  ),
+          ),
                   contentPadding: const EdgeInsets.all(20),
-                  border: InputBorder.none,
-                ),
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
+          border: InputBorder.none,
+        ),
+        maxLines: null,
+        keyboardType: TextInputType.multiline,
                 textAlignVertical: TextAlignVertical.top,
               ),
             ),
@@ -776,17 +776,17 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 p: theme.textTheme.bodyLarge?.copyWith(
                   height: 1.7,
                   color: colorScheme.onSurface,
-                ),
-                code: TextStyle(
+          ),
+          code: TextStyle(
                   backgroundColor: colorScheme.primaryContainer.withOpacity(0.3),
-                  fontFamily: 'monospace',
-                  fontSize: 14,
+            fontFamily: 'monospace',
+            fontSize: 14,
                   color: colorScheme.onPrimaryContainer,
-                ),
+          ),
                 blockquote: theme.textTheme.bodyLarge?.copyWith(
-                  fontStyle: FontStyle.italic,
+            fontStyle: FontStyle.italic,
                   color: colorScheme.onSurfaceVariant,
-                ),
+          ),
               ),
             ),
           ),
@@ -807,21 +807,21 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         color: colorScheme.surfaceVariant.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
             icon,
             size: 14,
             color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-          ),
-          const SizedBox(width: 4),
-          Text(
+                ),
+                const SizedBox(width: 4),
+                Text(
             value,
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 2),
@@ -842,7 +842,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
-      children: [
+              children: [
         // AI Assistant
         FloatingActionButton.small(
           heroTag: 'ai',
@@ -907,8 +907,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Container(
                 width: 40,
                 height: 4,
@@ -918,7 +918,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
+                Text(
                 'Add to note',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
@@ -927,7 +927,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
+              children: [
                   _buildAttachmentOption(
                     icon: Icons.photo_camera_rounded,
                     label: 'Camera',
@@ -951,9 +951,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                     label: 'File',
                     color: colorScheme.error,
                     onTap: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
               const SizedBox(height: 20),
             ],
           ),
@@ -971,11 +971,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
+            child: Container(
         padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+                mainAxisSize: MainAxisSize.min,
+                children: [
             Container(
               width: 56,
               height: 56,
@@ -986,15 +986,15 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 8),
-            Text(
+                  Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
+                    style: TextStyle(
+                      fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1056,7 +1056,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       text: newText,
       selection: TextSelection.collapsed(offset: newPosition),
     );
-    
+
     HapticFeedback.lightImpact();
   }
 
