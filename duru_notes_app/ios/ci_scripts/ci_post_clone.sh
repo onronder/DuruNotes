@@ -19,10 +19,18 @@ else
     echo "CocoaPods is already installed"
 fi
 
+# Install Flutter if not available
+if ! command -v flutter &> /dev/null; then
+    echo "Installing Flutter..."
+    git clone https://github.com/flutter/flutter.git -b stable ~/flutter
+    export PATH="$PATH:$HOME/flutter/bin"
+    flutter doctor
+fi
+
 # Navigate to Flutter project root to run flutter pub get
 cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app"
 echo "Running flutter pub get..."
-flutter pub get
+flutter pub get || $HOME/flutter/bin/flutter pub get
 
 # Navigate back to iOS directory
 cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app/ios"
