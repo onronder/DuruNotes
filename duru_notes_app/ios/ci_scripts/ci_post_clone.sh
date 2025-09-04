@@ -19,6 +19,14 @@ else
     echo "CocoaPods is already installed"
 fi
 
+# Navigate to Flutter project root to run flutter pub get
+cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app"
+echo "Running flutter pub get..."
+flutter pub get
+
+# Navigate back to iOS directory
+cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app/ios"
+
 # Clean any existing pods
 echo "Cleaning existing pods..."
 rm -rf Pods
