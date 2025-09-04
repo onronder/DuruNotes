@@ -1,11 +1,46 @@
 #!/bin/sh
 
-# Xcode Cloud Pre-Xcodebuild Script - FINAL VERIFICATION
+# Xcode Cloud Pre-Xcodebuild Script - PRODUCTION GRADE FIX
 set -e
 
-echo "🔧 FINAL pre-build verification..."
-# Script is already in duru_notes_app/ios/ci_scripts, so go up one level
+echo "🚀 PRODUCTION GRADE PRE-BUILD SETUP..."
+
+# Navigate to iOS directory
 cd ..
+
+# CRITICAL: Ensure Flutter framework is generated BEFORE building
+echo "🔧 Generating Flutter framework..."
+cd ../..
+
+# Generate Flutter framework with proper iOS configuration
+echo "📱 Building Flutter iOS framework..."
+/Users/local/flutter/bin/flutter build ios-framework --no-debug --no-profile --release
+
+# Return to iOS directory
+cd duru_notes_app/ios
+
+# CRITICAL: Ensure Flutter.framework exists in ephemeral directory
+echo "🔍 Verifying Flutter framework..."
+if [ ! -d "Flutter/ephemeral/Flutter.framework" ]; then
+    echo "❌ CRITICAL: Flutter.framework missing from ephemeral directory"
+    echo "🔧 Copying Flutter framework to ephemeral..."
+    
+    # Create ephemeral directory if it doesn't exist
+    mkdir -p Flutter/ephemeral
+    
+    # Copy Flutter framework from build location
+    if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" ]; then
+        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" Flutter/ephemeral/
+        echo "✅ Flutter framework copied to ephemeral"
+    else
+        echo "❌ FATAL: Cannot find Flutter.framework in cache"
+        echo "🔍 Searching for Flutter framework..."
+        find /Users/local/flutter -name "Flutter.framework" -type d 2>/dev/null | head -5
+        exit 1
+    fi
+else
+    echo "✅ Flutter.framework exists in ephemeral"
+fi
 
 # CRITICAL CHECK: Ensure no xcfilelist references exist
 echo "🔍 Checking for xcfilelist references..."
@@ -64,17 +99,39 @@ if [ ! -d "Pods" ]; then
     exit 1
 fi
 
+# PRODUCTION: Verify Flutter.framework is accessible to CocoaPods
+echo "🔍 Verifying Flutter.framework accessibility..."
+if [ -f "Flutter/ephemeral/Flutter.framework/Flutter" ]; then
+    echo "✅ Flutter binary found in framework"
+    echo "📋 Flutter framework info:"
+    file Flutter/ephemeral/Flutter.framework/Flutter | head -1
+else
+    echo "❌ CRITICAL: Flutter binary missing from framework!"
+    exit 1
+fi
+
+# PRODUCTION: Check if Flutter framework is properly linked
+echo "🔍 Checking Flutter framework in Xcode project..."
+if grep -q "Flutter.framework" Runner.xcodeproj/project.pbxproj; then
+    echo "✅ Flutter.framework referenced in Xcode project"
+else
+    echo "⚠️  Flutter.framework not found in Xcode project references"
+fi
+
 # Final verification
-echo "🎯 FINAL STATUS CHECK:"
+echo "🎯 PRODUCTION STATUS CHECK:"
+echo "   ✅ Flutter framework built"
+echo "   ✅ Flutter.framework exists in ephemeral"
 echo "   ✅ Podfile.lock exists"
 echo "   ✅ Pods directory exists"
 echo "   ✅ No xcfilelist references"
+echo "   ✅ Flutter binary accessible"
 
-# One last check
+# One last check for xcfilelist
 if grep -q "Target Support Files.*xcfilelist" Runner.xcodeproj/project.pbxproj; then
     echo "❌ FATAL: xcfilelist references STILL EXIST after emergency fix!"
     grep -n "Target Support Files.*xcfilelist" Runner.xcodeproj/project.pbxproj
     exit 1
 fi
 
-echo "🚀 PRE-BUILD VERIFICATION COMPLETE - READY TO BUILD!"
+echo "🚀 PRODUCTION PRE-BUILD COMPLETE - FLUTTER FRAMEWORK READY!"
