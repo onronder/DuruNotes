@@ -6,18 +6,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'widgets/stats_card.dart';
+import 'widgets/folder_chip.dart';
 
 import '../core/monitoring/app_logger.dart';
+import '../core/performance/performance_optimizations.dart';
+import '../data/local/app_db.dart';
 import '../l10n/app_localizations.dart';
 import '../providers.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
+import '../features/folders/folder_picker_component.dart';
+import '../features/folders/folder_hierarchy_widget.dart';
+import '../features/folders/drag_drop/note_drag_drop.dart';
 import 'edit_note_screen_simple.dart';
 import 'help_screen.dart';
 import 'note_search_delegate.dart';
 import 'settings_screen.dart';
 
-/// Main notes list screen showing user's notes with enhanced UX
+/// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
   const NotesListScreen({super.key});
 
@@ -28,19 +35,28 @@ class NotesListScreen extends ConsumerStatefulWidget {
 class _NotesListScreenState extends ConsumerState<NotesListScreen>
     with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  late final Debouncer _searchDebouncer = Debouncer(milliseconds: 300);
   late AnimationController _fabAnimationController;
   late AnimationController _listAnimationController;
+  late AnimationController _headerAnimationController;
   late Animation<double> _fabAnimation;
+  late Animation<double> _headerSlideAnimation;
+  late Animation<double> _headerFadeAnimation;
+  
   bool _isFabExpanded = false;
   String _sortBy = 'date'; // date, title, modified
   bool _isGridView = false;
   final Set<String> _selectedNoteIds = {};
   bool _isSelectionMode = false;
+  bool _isSearchActive = false;
+  bool _isHeaderCollapsed = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    // Listen for scroll to implement infinite loading
+    // Listen for scroll to implement infinite loading and header collapse
     _scrollController.addListener(_onScroll);
     
     // Initialize animations
@@ -52,10 +68,29 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
+    _headerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
     _fabAnimation = CurvedAnimation(
       parent: _fabAnimationController,
       curve: Curves.easeInOut,
     );
+    _headerSlideAnimation = Tween<double>(
+      begin: 0,
+      end: -1,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOut,
+    ));
+    _headerFadeAnimation = Tween<double>(
+      begin: 1,
+      end: 0,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOut,
+    ));
     
     // Start list animation
     _listAnimationController.forward();
@@ -64,15 +99,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
+    _searchDebouncer.dispose();
     _fabAnimationController.dispose();
     _listAnimationController.dispose();
+    _headerAnimationController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
+    // Handle infinite loading
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      // User is near the bottom, load more if available
       final hasMore = ref.read(hasMoreNotesProvider);
       final isLoading = ref.read(notesLoadingProvider);
       
@@ -80,458 +118,544 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ref.read(notesPageProvider.notifier).loadMore();
       }
     }
+    
+    // Handle header collapse/expand animation
+    const collapseThreshold = 120.0;
+    final shouldCollapse = _scrollController.offset > collapseThreshold;
+    
+    if (shouldCollapse != _isHeaderCollapsed && !_isSearchActive) {
+      setState(() {
+        _isHeaderCollapsed = shouldCollapse;
+      });
+      
+      if (shouldCollapse) {
+        _headerAnimationController.forward();
+      } else {
+        _headerAnimationController.reverse();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
-    final notesAsync = ref.watch(notesPageProvider);
+    final notesAsync = ref.watch(filteredNotesProvider);
     final hasMore = ref.watch(hasMoreNotesProvider);
+    final l10n = AppLocalizations.of(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: _isSelectionMode
-              ? Text('${_selectedNoteIds.length} selected')
-              : Text(AppLocalizations.of(context).notesListTitle),
-        ),
-        leading: _isSelectionMode
-            ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _exitSelectionMode,
-              )
-            : null,
-        actions: _isSelectionMode
-            ? _buildSelectionActions()
-            : [
-                // View toggle
-                IconButton(
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      _isGridView ? Icons.view_list : Icons.grid_view,
-                      key: ValueKey(_isGridView),
-                    ),
-                  ),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _isGridView = !_isGridView;
-                    });
-                  },
-                  tooltip: _isGridView ? 'List View' : 'Grid View',
-                ),
-                // Sort button
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.sort),
-                  tooltip: 'Sort Notes',
-                  onSelected: (value) {
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _sortBy = value;
-                    });
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'date',
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.calendar_today,
-                          color: _sortBy == 'date'
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                        title: const Text('Date Modified'),
-                        contentPadding: EdgeInsets.zero,
-                        selected: _sortBy == 'date',
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'title',
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.sort_by_alpha,
-                          color: _sortBy == 'title'
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                        title: const Text('Title'),
-                        contentPadding: EdgeInsets.zero,
-                        selected: _sortBy == 'title',
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'created',
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.access_time,
-                          color: _sortBy == 'created'
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                        ),
-                        title: const Text('Date Created'),
-                        contentPadding: EdgeInsets.zero,
-                        selected: _sortBy == 'created',
-                      ),
-                    ),
-                  ],
-                ),
-                // Search button
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () async {
-                    HapticFeedback.lightImpact();
-                    final notes = ref.read(currentNotesProvider);
-                    final result = await showSearch<LocalNote?>(
-                      context: context,
-                      delegate: NoteSearchDelegate(notes: notes),
-                    );
-                    if (result != null) {
-                      _editNote(result);
-                    }
-                  },
-                  tooltip: 'Search Notes',
-                ),
-          // Menu with import and other options
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'import':
-                  _showImportDialog(context);
-                case 'export':
-                  _showExportDialog(context);
-                case 'settings':
-                  _showSettingsDialog(context);
-                case 'help':
-                  _showHelpScreen(context);
-                case 'logout':
-                  _confirmLogout(context);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'import',
-                child: ListTile(
-                  leading: const Icon(Icons.upload_file),
-                  title: Text(AppLocalizations.of(context).importNotes),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'export',
-                child: ListTile(
-                  leading: const Icon(Icons.download),
-                  title: Text(AppLocalizations.of(context).exportNotes),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'settings',
-                child: ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: Text(AppLocalizations.of(context).settings),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'help',
-                child: ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: Text(AppLocalizations.of(context).help),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: Text(
-                    AppLocalizations.of(context).signOut, 
-                    style: const TextStyle(color: Colors.red)
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: _buildModernAppBar(context, l10n),
       body: Column(
         children: [
-          // Enhanced user info banner with stats
-          if (user != null)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              margin: EdgeInsets.zero,
-              child: Card(
-                margin: EdgeInsets.zero,
-                elevation: 0,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primaryContainer,
-                        Theme.of(context).colorScheme.primaryContainer.withOpacity(0.7),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Hero(
-                            tag: 'user_avatar',
-                            child: CircleAvatar(
-                              radius: 24,
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              child: Text(
-                                user.email?.substring(0, 1).toUpperCase() ?? 'U',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _getGreeting(),
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  user.email ?? 'User',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.tertiary,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.onTertiary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Synced',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onTertiary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Quick stats
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final notesAsync = ref.watch(notesPageProvider);
-                          return notesAsync.maybeWhen(
-                            data: (notesPage) {
-                              final totalNotes = notesPage.items.length;
-                              final todayNotes = notesPage.items.where((note) {
-                                final today = DateTime.now();
-                                return note.updatedAt.year == today.year &&
-                                    note.updatedAt.month == today.month &&
-                                    note.updatedAt.day == today.day;
-                              }).length;
-                              
-                              return Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildStatCard(
-                                      context,
-                                      Icons.note,
-                                      '$totalNotes',
-                                      'Total Notes',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildStatCard(
-                                      context,
-                                      Icons.today,
-                                      '$todayNotes',
-                                      'Today',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildStatCard(
-                                      context,
-                                      Icons.folder,
-                                      '0',
-                                      'Folders',
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                            orElse: () => const SizedBox.shrink(),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          // Search bar (when active)
+          if (_isSearchActive) _buildSearchSection(context),
+          
+          // User stats card with animation
+          if (user != null && !_isSearchActive) _buildUserStatsCard(context, user),
+          
+          // Folder navigation
+          if (!_isSearchActive) _buildFolderNavigation(context),
           
           // Notes list
           Expanded(
-            child: notesAsync.when(
-              data: (notesPage) {
-                final notes = notesPage.items;
-                if (notes.isEmpty) {
-                  return _buildEmptyState();
-                }
-                
-                // Sort notes based on selection
-                final sortedNotes = _sortNotes(notes);
-                
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    HapticFeedback.mediumImpact();
-                    await ref.read(notesPageProvider.notifier).refresh();
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _isGridView
-                        ? _buildGridView(sortedNotes, hasMore)
-                        : _buildListView(sortedNotes, hasMore),
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error, 
-                      size: 64, 
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Error loading notes: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        ref.read(notesPageProvider.notifier).refresh();
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: _buildNotesContent(context, notesAsync, hasMore),
           ),
         ],
       ),
-      floatingActionButton: _buildExpandableFAB(context),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const ModernEditNoteScreen(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+        tooltip: 'Create New Note',
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+  
+  PreferredSizeWidget _buildModernAppBar(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return AppBar(
+      backgroundColor: colorScheme.surface,
+      foregroundColor: colorScheme.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      title: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _isSelectionMode
+            ? Text(
+                '${_selectedNoteIds.length} selected',
+                key: const ValueKey('selection_title'),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            : _isSearchActive
+                ? Text(
+                    'Search Notes',
+                    key: const ValueKey('search_title'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : Text(
+                    l10n.notesListTitle,
+                    key: const ValueKey('main_title'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+      ),
+      leading: _isSelectionMode
+          ? IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: _exitSelectionMode,
+              tooltip: 'Exit selection',
+            )
+          : _isSearchActive
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: _exitSearch,
+                  tooltip: 'Exit search',
+                )
+              : null,
+      actions: _isSelectionMode
+          ? _buildSelectionActions()
+          : _isSearchActive
+              ? []
+              : [
+                  // Search toggle
+                  IconButton(
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: _enterSearch,
+                    tooltip: 'Search notes',
+                  ),
+                  // View toggle
+                  IconButton(
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+                        key: ValueKey(_isGridView),
+                      ),
+                    ),
+                    onPressed: _toggleViewMode,
+                    tooltip: _isGridView ? 'List View' : 'Grid View',
+                  ),
+                  // Sort and more options
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    tooltip: 'More options',
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: _handleMenuSelection,
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'sort',
+                        child: ListTile(
+                          leading: const Icon(Icons.sort_rounded),
+                          title: const Text('Sort'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'import',
+                        child: ListTile(
+                          leading: const Icon(Icons.upload_file_rounded),
+                          title: Text(l10n.importNotes),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'export',
+                        child: ListTile(
+                          leading: const Icon(Icons.download_rounded),
+                          title: Text(l10n.exportNotes),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'settings',
+                        child: ListTile(
+                          leading: const Icon(Icons.settings_rounded),
+                          title: Text(l10n.settings),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'help',
+                        child: ListTile(
+                          leading: const Icon(Icons.help_outline_rounded),
+                          title: Text(l10n.help),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'logout',
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.logout_rounded,
+                            color: colorScheme.error,
+                          ),
+                          title: Text(
+                            l10n.signOut,
+                            style: TextStyle(color: colorScheme.error),
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+      );
+  }
+  
+  Widget _buildSearchSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search your notes...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                    _clearSearch();
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+        ),
+        onChanged: (query) {
+          setState(() {
+            _searchQuery = query;
+          });
+          _searchDebouncer.run(() => _performSearch(query));
+        },
+      ),
+    );
+  }
+  
+  Widget _buildUserStatsCard(BuildContext context, User user) {
+    return AnimatedBuilder(
+      animation: _headerFadeAnimation,
+      child: Consumer(
+        builder: (context, ref, child) {
+          final notesAsync = ref.watch(notesPageProvider);
+          return notesAsync.maybeWhen(
+            data: (notesPage) {
+              final totalNotes = notesPage.items.length;
+              final todayNotes = notesPage.items.where((note) {
+                final today = DateTime.now();
+                return note.updatedAt.year == today.year &&
+                    note.updatedAt.month == today.month &&
+                    note.updatedAt.day == today.day;
+              }).length;
+              
+              final foldersAsync = ref.watch(rootFoldersProvider);
+              final folderCount = foldersAsync.maybeWhen(
+                data: (folders) => folders.length,
+                orElse: () => 0,
+              );
+              
+              return StatsCard(
+                greeting: _getGreeting(),
+                email: user.email ?? 'User',
+                stats: [
+                  StatItem(
+                    icon: Icons.note_rounded,
+                    value: '$totalNotes',
+                    label: 'Notes',
+                  ),
+                  StatItem(
+                    icon: Icons.today_rounded,
+                    value: '$todayNotes',
+                    label: 'Today',
+                  ),
+                  StatItem(
+                    icon: Icons.folder_rounded,
+                    value: '$folderCount',
+                    label: 'Folders',
+                  ),
+                ],
+                isCollapsed: _isHeaderCollapsed,
+                onToggleCollapse: () {
+                  setState(() {
+                    _isHeaderCollapsed = !_isHeaderCollapsed;
+                  });
+                  if (_isHeaderCollapsed) {
+                    _headerAnimationController.forward();
+                  } else {
+                    _headerAnimationController.reverse();
+                  }
+                },
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          );
+        },
+      ),
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _headerSlideAnimation.value * 100),
+          child: Opacity(
+            opacity: _headerFadeAnimation.value,
+            child: child,
+          ),
+        );
+      },
+          
+    );
+  }
+  
+  Widget _buildFolderNavigation(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final foldersAsync = ref.watch(rootFoldersProvider);
+        final currentFolder = ref.watch(currentFolderProvider);
+        
+        return Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
-                Icon(
-                  Icons.note_add_outlined,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary,
+                // All Notes chip
+                FolderChip(
+                  label: 'All Notes',
+                  icon: Icons.note_rounded,
+                  isSelected: currentFolder == null,
+                  onTap: () {
+                    ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+                  },
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  AppLocalizations.of(context).noNotesYet,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                
+                const SizedBox(width: 8),
+                
+                // Folder chips with drag-drop support
+                ...foldersAsync.maybeWhen(
+                  data: (folders) => folders.take(6).map((folder) => 
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FolderDropTarget(
+                        folder: folder,
+                        onNoteDropped: _handleNoteDrop,
+                        child: FolderChip(
+                          label: folder.name,
+                          icon: folder.icon != null
+                              ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
+                              : Icons.folder_rounded,
+                          color: folder.color != null
+                              ? Color(int.parse(folder.color!))
+                              : null,
+                          isSelected: currentFolder?.id == folder.id,
+                          onTap: () {
+                            ref.read(currentFolderProvider.notifier).setCurrentFolder(folder);
+                          },
+                        ),
+                      ),
+                    )
+                  ).toList(),
+                  orElse: () => <Widget>[],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  AppLocalizations.of(context).tapToCreateFirstNote,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                FilledButton.icon(
-                  onPressed: () => _createNewNote(context),
-                  icon: const Icon(Icons.add),
-                  label: Text(AppLocalizations.of(context).createFirstNote),
+                
+                // Create folder chip
+                FolderChip(
+                  label: 'New Folder',
+                  icon: Icons.add_rounded,
+                  onTap: () => _showFolderPicker(context),
                 ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildNotesContent(BuildContext context, AsyncValue<List<LocalNote>> notesAsync, bool hasMore) {
+    return notesAsync.when(
+      data: (notes) {
+        // Filter notes based on search query
+        final filteredNotes = _searchQuery.isEmpty 
+            ? notes 
+            : notes.where((note) => 
+                note.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                note.body.toLowerCase().contains(_searchQuery.toLowerCase())
+              ).toList();
+        
+        if (filteredNotes.isEmpty) {
+          return _buildEmptyState(context);
+        }
+        
+        final sortedNotes = _sortNotes(filteredNotes);
+        
+        return RefreshIndicator(
+          onRefresh: () async {
+            HapticFeedback.mediumImpact();
+            await ref.read(notesPageProvider.notifier).refresh();
+            ref.invalidate(filteredNotesProvider);
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _isGridView
+                ? _buildModernGridView(context, sortedNotes, hasMore)
+                : _buildModernListView(context, sortedNotes, hasMore),
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      error: (error, stack) => _buildErrorState(context, error.toString()),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    
+    if (_searchQuery.isNotEmpty) {
+      // Empty search state
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text('No notes found', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text('Try adjusting your search terms or create a new note with "$_searchQuery"', 
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _clearSearch,
+                  icon: const Icon(Icons.clear_rounded),
+                  label: const Text('Clear Search'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => _createNewNoteWithTitle(_searchQuery),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Create Note'),
+                ),
+              ],
+            ),
+          ],
         ),
+      );
+    }
+    
+    // Regular empty state
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.note_add_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => _createNewNote(context),
+            icon: const Icon(Icons.add_rounded),
+            label: Text(l10n.createFirstNote),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildErrorState(BuildContext context, String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline_rounded, size: 64, color: Theme.of(context).colorScheme.error),
+          const SizedBox(height: 16),
+          Text('Something went wrong', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text('Unable to load your notes. Please try again.', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () {
+              ref.read(notesPageProvider.notifier).refresh();
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNoteCard(LocalNote note, {bool isGrid = false}) {
+  // Removed _buildEmptyFolderState - handled by main empty state logic
+
+  Widget _buildModernNoteCard(BuildContext context, LocalNote note, {bool isGrid = false}) {
     final isSelected = _selectedNoteIds.contains(note.id);
     
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: isGrid
-          ? const EdgeInsets.all(8)
-          : const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Material(
-        color: Colors.transparent,
+    // Get folder information
+    final noteFolderState = ref.watch(noteFolderProvider);
+    final folderId = noteFolderState.noteFolders[note.id];
+    String? folderName;
+    Color? folderColor;
+    
+    if (folderId != null) {
+      final foldersAsync = ref.watch(rootFoldersProvider);
+      foldersAsync.whenData((folders) {
+        final folder = folders.where((f) => f.id == folderId).firstOrNull;
+        if (folder != null) {
+          folderName = folder.name;
+          folderColor = folder.color != null 
+              ? Color(int.parse(folder.color!))
+              : null;
+        }
+      });
+    }
+    
+    return DraggableNoteItem(
+      note: note,
+      enabled: !_isSelectionMode,
+      onDragStarted: () {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Drag to a folder above to move this note'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      },
+      child: Card(
+        elevation: isSelected ? 4 : 1,
         child: InkWell(
           onTap: () {
             if (_isSelectionMode) {
@@ -541,125 +665,67 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             }
           },
           onLongPress: () {
-            HapticFeedback.mediumImpact();
             if (!_isSelectionMode) {
               _enterSelectionMode(note.id);
             }
           },
-          borderRadius: BorderRadius.circular(16),
-          child: Card(
-            elevation: isSelected ? 4 : 1,
-            shadowColor: isSelected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                : null,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: isSelected
-                  ? BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    )
-                  : BorderSide.none,
-            ),
-            child: Stack(
+          onSecondaryTap: () => _showNoteOptions(note),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: EdgeInsets.all(isGrid ? 16 : 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title with icon
-                      Row(
-                        children: [
-                          if (isSelected)
-                            Icon(
-                              Icons.check_circle,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            )
-                          else if (_getNoteIcon(note) != null)
-                            Icon(
-                              _getNoteIcon(note),
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                              size: 20,
-                            ),
-                          if (isSelected || _getNoteIcon(note) != null)
-                            const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              note.title.isNotEmpty
-                                  ? note.title
-                                  : AppLocalizations.of(context).untitled,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              maxLines: isGrid ? 2 : 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Preview
-                      Text(
-                        _generatePreview(note.body),
-                        maxLines: isGrid ? 3 : 2,
+                Row(
+                  children: [
+                    Icon(_getNoteIcon(note), size: 20, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        note.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                      const Spacer(),
-                      const SizedBox(height: 8),
-                      // Footer with date and actions
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _formatDate(note.updatedAt),
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          if (!_isSelectionMode && !isGrid)
-                            IconButton(
-                              icon: const Icon(Icons.more_vert, size: 20),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () => _showNoteOptions(note),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Progress indicator for syncing (placeholder for future implementation)
-                if (false) // note.syncing ?? false - field not yet available
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
                       ),
                     ),
-                  ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle, color: Colors.blue, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _generatePreview(note.body),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (folderName != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: folderColor?.withOpacity(0.2) ?? Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          folderName ?? '',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      _formatDate(note.updatedAt),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -704,7 +770,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => const EditNoteScreen(),
+        builder: (context) => const ModernEditNoteScreen(),
+      ),
+    );
+  }
+
+  void _createNewNoteInFolder(BuildContext context, LocalFolder folder) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => ModernEditNoteScreen(
+          initialFolder: folder,
+        ),
       ),
     );
   }
@@ -713,7 +790,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => EditNoteScreen(
+        builder: (context) => ModernEditNoteScreen(
           noteId: note.id,
           initialTitle: note.title,
           initialBody: note.body,
@@ -1538,44 +1615,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     return 'Good evening!';
   }
 
-  Widget _buildStatCard(
-    BuildContext context,
-    IconData icon,
-    String value,
-    String label,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Removed _buildStatCard - now using DuruStatsCard component
 
   List<Widget> _buildSelectionActions() {
     return [
@@ -1615,16 +1655,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     return sorted;
   }
 
-  Widget _buildListView(List<LocalNote> notes, bool hasMore) {
+  Widget _buildModernListView(BuildContext context, List<LocalNote> notes, bool hasMore) {
     return ListView.builder(
-      key: const ValueKey('list_view'),
+      key: const ValueKey('modern_list_view'),
       controller: _scrollController,
-      padding: const EdgeInsets.only(top: 8, bottom: 80),
+      padding: EdgeInsets.only(
+        top: 8,
+        bottom: MediaQuery.of(context).padding.bottom + 100,
+      ),
       itemCount: notes.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= notes.length) {
           return const Padding(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(24),
             child: Center(
               child: CircularProgressIndicator(),
             ),
@@ -1634,40 +1677,48 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         final note = notes[index];
         return SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(1, 0),
+            begin: const Offset(0.3, 0),
             end: Offset.zero,
           ).animate(CurvedAnimation(
             parent: _listAnimationController,
             curve: Interval(
-              (index / notes.length).clamp(0.0, 1.0),
-              ((index + 1) / notes.length).clamp(0.0, 1.0),
-              curve: Curves.easeOut,
+              math.max(0.0, (index - 3) / notes.length),
+              math.min(1.0, (index + 1) / notes.length),
+              curve: Curves.easeOutCubic,
             ),
           )),
           child: FadeTransition(
             opacity: CurvedAnimation(
               parent: _listAnimationController,
               curve: Interval(
-                (index / notes.length).clamp(0.0, 1.0),
-                ((index + 1) / notes.length).clamp(0.0, 1.0),
+                math.max(0.0, (index - 3) / notes.length),
+                math.min(1.0, (index + 1) / notes.length),
                 curve: Curves.easeIn,
               ),
             ),
-            child: _buildNoteCard(note),
+            child: _buildModernNoteCard(context, note),
           ),
         );
       },
     );
   }
 
-  Widget _buildGridView(List<LocalNote> notes, bool hasMore) {
+  Widget _buildModernGridView(BuildContext context, List<LocalNote> notes, bool hasMore) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 600 ? 3 : 2;
+    
     return GridView.builder(
-      key: const ValueKey('grid_view'),
+      key: const ValueKey('modern_grid_view'),
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(
+        left: 8,
+        right: 8,
+        top: 8,
+        bottom: MediaQuery.of(context).padding.bottom + 100,
+      ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-        childAspectRatio: 1.0,
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: 0.8,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
@@ -1684,66 +1735,70 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           scale: CurvedAnimation(
             parent: _listAnimationController,
             curve: Interval(
-              (index / notes.length).clamp(0.0, 1.0),
-              ((index + 1) / notes.length).clamp(0.0, 1.0),
+              math.max(0.0, (index - 6) / notes.length),
+              math.min(1.0, (index + 1) / notes.length),
               curve: Curves.elasticOut,
             ),
           ),
-          child: _buildNoteCard(note, isGrid: true),
+          child: _buildModernNoteCard(context, note, isGrid: true),
         );
       },
     );
   }
 
-  Widget _buildExpandableFAB(BuildContext context) {
+  Widget _buildModernFAB(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    if (_isSelectionMode) {
+      // Show selection FAB
+      return FloatingActionButton.extended(
+        onPressed: _showAddToFolderDialog,
+        backgroundColor: colorScheme.tertiaryContainer,
+        foregroundColor: colorScheme.onTertiaryContainer,
+        icon: const Icon(Icons.folder_copy_rounded),
+        label: Text('Move ${_selectedNoteIds.length} note${_selectedNoteIds.length == 1 ? '' : 's'}'),
+      );
+    }
+    
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Quick actions
+        // Quick actions with improved animations
         AnimatedSlide(
-          duration: const Duration(milliseconds: 200),
-          offset: _isFabExpanded ? Offset.zero : const Offset(0, 2),
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutBack,
+          offset: _isFabExpanded ? Offset.zero : const Offset(0, 1),
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 200),
             opacity: _isFabExpanded ? 1.0 : 0.0,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildMiniFAB(
-                  icon: Icons.mic,
-                  label: 'Voice Note',
-                  color: Colors.purple,
-                  onPressed: () {
-                    _toggleFab();
-                    _createVoiceNote();
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildMiniFAB(
-                  icon: Icons.camera_alt,
-                  label: 'Photo Note',
-                  color: Colors.orange,
-                  onPressed: () {
-                    _toggleFab();
-                    _createPhotoNote();
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildMiniFAB(
-                  icon: Icons.checklist,
+                _buildModernMiniFAB(
+                  icon: Icons.checklist_rounded,
                   label: 'Checklist',
-                  color: Colors.green,
+                  color: colorScheme.tertiary,
                   onPressed: () {
                     _toggleFab();
                     _createChecklist();
                   },
                 ),
                 const SizedBox(height: 12),
-                _buildMiniFAB(
-                  icon: Icons.note_add,
+                _buildModernMiniFAB(
+                  icon: Icons.mic_rounded,
+                  label: 'Voice Note',
+                  color: colorScheme.secondary,
+                  onPressed: () {
+                    _toggleFab();
+                    _createVoiceNote();
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildModernMiniFAB(
+                  icon: Icons.note_add_rounded,
                   label: 'Text Note',
-                  color: Theme.of(context).colorScheme.primary,
+                  color: colorScheme.primary,
                   onPressed: () {
                     _toggleFab();
                     _createNewNote(context);
@@ -1754,9 +1809,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         ),
         const SizedBox(height: 16),
-        // Main FAB
+        // Main FAB with rotation animation
         FloatingActionButton(
           onPressed: _toggleFab,
+          backgroundColor: colorScheme.primaryContainer,
+          foregroundColor: colorScheme.onPrimaryContainer,
           tooltip: 'Create Note',
           child: AnimatedBuilder(
             animation: _fabAnimation,
@@ -1764,7 +1821,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               return Transform.rotate(
                 angle: _fabAnimation.value * math.pi / 4,
                 child: Icon(
-                  _isFabExpanded ? Icons.close : Icons.add,
+                  _isFabExpanded ? Icons.close_rounded : Icons.add_rounded,
+                  size: 28,
                 ),
               );
             },
@@ -1774,24 +1832,30 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Widget _buildMiniFAB({
+  Widget _buildModernMiniFAB({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onPressed,
   }) {
+    final theme = Theme.of(context);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Material(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
           elevation: 2,
+          shadowColor: theme.colorScheme.shadow.withOpacity(0.3),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelMedium,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
         ),
@@ -1799,8 +1863,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         FloatingActionButton.small(
           heroTag: label,
           backgroundColor: color,
+          foregroundColor: Colors.white,
+          elevation: 3,
           onPressed: onPressed,
-          child: Icon(icon, color: Colors.white),
+          child: Icon(icon, size: 20),
         ),
       ],
     );
@@ -1816,6 +1882,202 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _fabAnimationController.reverse();
       }
     });
+  }
+
+  
+  void _enterSearch() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isSearchActive = true;
+    });
+    // Focus search field after animation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // The search field will auto-focus when built
+    });
+  }
+  
+  void _exitSearch() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isSearchActive = false;
+      _searchQuery = '';
+    });
+    _searchController.clear();
+  }
+  
+  void _performSearch(String query) {
+    // Search is handled in the build method by filtering notes
+    // This method can be expanded for more complex search logic
+  }
+  
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+    });
+  }
+  
+  void _toggleViewMode() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isGridView = !_isGridView;
+    });
+  }
+  
+  void _handleMenuSelection(String value) {
+    HapticFeedback.selectionClick();
+    switch (value) {
+      case 'sort':
+        _showSortDialog(context);
+      case 'import':
+        _showImportDialog(context);
+      case 'export':
+        _showExportDialog(context);
+      case 'settings':
+        _showSettingsDialog(context);
+      case 'help':
+        _showHelpScreen(context);
+      case 'logout':
+        _confirmLogout(context);
+    }
+  }
+  
+  void _showSortDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Sort Notes',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSortOption('Date Modified', 'date', Icons.calendar_today_rounded),
+            _buildSortOption('Title', 'title', Icons.sort_by_alpha_rounded),
+            _buildSortOption('Date Created', 'created', Icons.access_time_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSortOption(String title, String value, IconData icon) {
+    final theme = Theme.of(context);
+    final isSelected = _sortBy == value;
+    
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected 
+            ? theme.colorScheme.primary 
+            : theme.colorScheme.onSurfaceVariant,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected 
+              ? theme.colorScheme.primary 
+              : theme.colorScheme.onSurface,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected 
+          ? Icon(
+              Icons.check_rounded,
+              color: theme.colorScheme.primary,
+            )
+          : null,
+      onTap: () {
+        Navigator.pop(context);
+        HapticFeedback.selectionClick();
+        setState(() {
+          _sortBy = value;
+        });
+      },
+    );
+  }
+  
+  void _createNewNoteWithTitle(String title) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => ModernEditNoteScreen(
+          initialTitle: title,
+        ),
+      ),
+    );
+  }
+  
+  void _handleNoteDrop(LocalNote note, LocalFolder? targetFolder) {
+    // Handle null case (drop to unfiled)
+    if (targetFolder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dropping to "Unfiled" not yet implemented'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Execute async operation without await since callback must be synchronous
+    _performNoteDrop(note, targetFolder);
+  }
+  
+  Future<void> _performNoteDrop(LocalNote note, LocalFolder targetFolder) async {
+    try {
+      final repo = ref.read(notesRepositoryProvider);
+      await repo.addNoteToFolder(note.id, targetFolder.id);
+      
+      // Refresh the filtered notes
+      ref.invalidate(filteredNotesProvider);
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Moved "${note.title}" to ${targetFolder.name}'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            action: SnackBarAction(
+              label: 'Undo',
+              onPressed: () {
+                // TODO: Implement undo functionality
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to move note: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _enterSelectionMode(String noteId) {
@@ -1882,6 +2144,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('Add to Folder'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddToFolderForSingleNote(note);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.share),
               title: const Text('Share'),
               onTap: () {
@@ -1942,7 +2212,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => EditNoteScreen(
+        builder: (context) => ModernEditNoteScreen(
           initialBody: '## Checklist\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3',
         ),
       ),
@@ -2004,6 +2274,132 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         );
       }
     }
+  }
+
+  Future<void> _showAddToFolderDialog() async {
+    if (_selectedNoteIds.isEmpty) return;
+    
+    // Show folder picker
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => FolderPicker(
+        title: 'Move to Folder',
+        showCreateOption: true,
+        showUnfiledOption: true,
+        onFolderSelected: (folderId) async {
+          var successCount = 0;
+          var errorCount = 0;
+          
+          for (final noteId in _selectedNoteIds) {
+            try {
+              if (folderId != null) {
+                await ref.read(noteFolderProvider.notifier).addNoteToFolder(noteId, folderId);
+              } else {
+                await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(noteId);
+              }
+              successCount++;
+            } catch (e) {
+              errorCount++;
+            }
+          }
+          
+          _exitSelectionMode();
+          
+          if (mounted) {
+            if (errorCount == 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(folderId != null 
+                      ? 'Moved $successCount notes to folder'
+                      : 'Moved $successCount notes to Unfiled'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$successCount notes moved, $errorCount failed'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+          
+          // Refresh the current view
+          await ref.read(notesPageProvider.notifier).refresh();
+        },
+      ),
+    );
+  }
+
+  // Remove the old _buildFilterChip method as we're using DuruFolderChip component
+
+  void _showFolderPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => FolderPicker(
+        title: 'Create Folder',
+        showCreateOption: true,
+        showUnfiledOption: false,
+        onFolderSelected: (folderId) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Folder functionality coming soon!'),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAddToFolderForSingleNote(LocalNote note) async {
+    // Show folder picker for single note
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => FolderPicker(
+        title: 'Move to Folder',
+        showCreateOption: true,
+        showUnfiledOption: true,
+        onFolderSelected: (folderId) async {
+          try {
+            if (folderId != null) {
+              await ref.read(noteFolderProvider.notifier).addNoteToFolder(note.id, folderId);
+            } else {
+              await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(note.id);
+            }
+            
+            // Refresh the filtered notes
+            ref.invalidate(filteredNotesProvider);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(folderId != null 
+                      ? 'Note moved to folder' 
+                      : 'Note moved to Unfiled'),
+                  behavior: SnackBarBehavior.fixed,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Failed to move note'),
+                  behavior: SnackBarBehavior.fixed,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
   void _duplicateNote(LocalNote note) async {

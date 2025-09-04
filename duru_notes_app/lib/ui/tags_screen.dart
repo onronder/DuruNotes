@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers.dart';
+
 import '../data/local/app_db.dart' show TagCount;
+import '../providers.dart';
 import 'tag_notes_screen.dart';
 import 'widgets/error_display.dart';
 
@@ -155,45 +156,42 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       itemCount: _filteredTags.length,
-      separatorBuilder: (context, index) => const Divider(height: 1, indent: 16),
-      itemBuilder: (context, i) {
-        final tagCount = _filteredTags[i];
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final tagCount = _filteredTags[index];
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.tag,
-              size: 20,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
           title: Text(
             '#${tagCount.tag}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${tagCount.count}',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          subtitle: Text(
-            '${tagCount.count} ${tagCount.count == 1 ? 'note' : 'notes'}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => TagNotesScreen(tag: tagCount.tag),
-            ),
-          ),
+          onTap: () => _openTagNotes(tagCount.tag),
         );
       },
+    );
+  }
+
+  /// Open notes for a specific tag
+  void _openTagNotes(String tag) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TagNotesScreen(tag: tag),
+      ),
     );
   }
 }

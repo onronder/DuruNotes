@@ -228,7 +228,7 @@ class RecurringReminderService {
           ),
         ),
         payload: payload,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.dateAndTime,
       );
       

@@ -2489,6 +2489,947 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
   }
 }
 
+class $LocalFoldersTable extends LocalFolders
+    with TableInfo<$LocalFoldersTable, LocalFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    parentId,
+    path,
+    sortOrder,
+    color,
+    icon,
+    description,
+    createdAt,
+    updatedAt,
+    deleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalFolder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color'],
+      ),
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalFoldersTable createAlias(String alias) {
+    return $LocalFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class LocalFolder extends DataClass implements Insertable<LocalFolder> {
+  /// Unique identifier for the folder
+  final String id;
+
+  /// Display name of the folder
+  final String name;
+
+  /// Parent folder ID for hierarchy (null for root folders)
+  final String? parentId;
+
+  /// Full path from root (e.g., "/Work/Projects/2024")
+  final String path;
+
+  /// Display order within parent folder
+  final int sortOrder;
+
+  /// Optional color for folder display (hex format)
+  final String? color;
+
+  /// Optional icon name for folder display
+  final String? icon;
+
+  /// Folder description/notes
+  final String description;
+
+  /// Creation timestamp
+  final DateTime createdAt;
+
+  /// Last modification timestamp
+  final DateTime updatedAt;
+
+  /// Soft delete flag
+  final bool deleted;
+  const LocalFolder({
+    required this.id,
+    required this.name,
+    this.parentId,
+    required this.path,
+    required this.sortOrder,
+    this.color,
+    this.icon,
+    required this.description,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.deleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
+    map['path'] = Variable<String>(path);
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<String>(color);
+    }
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
+    }
+    map['description'] = Variable<String>(description);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    return map;
+  }
+
+  LocalFoldersCompanion toCompanion(bool nullToAbsent) {
+    return LocalFoldersCompanion(
+      id: Value(id),
+      name: Value(name),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
+      path: Value(path),
+      sortOrder: Value(sortOrder),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      description: Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+    );
+  }
+
+  factory LocalFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalFolder(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
+      path: serializer.fromJson<String>(json['path']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      color: serializer.fromJson<String?>(json['color']),
+      icon: serializer.fromJson<String?>(json['icon']),
+      description: serializer.fromJson<String>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'parentId': serializer.toJson<String?>(parentId),
+      'path': serializer.toJson<String>(path),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'color': serializer.toJson<String?>(color),
+      'icon': serializer.toJson<String?>(icon),
+      'description': serializer.toJson<String>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+    };
+  }
+
+  LocalFolder copyWith({
+    String? id,
+    String? name,
+    Value<String?> parentId = const Value.absent(),
+    String? path,
+    int? sortOrder,
+    Value<String?> color = const Value.absent(),
+    Value<String?> icon = const Value.absent(),
+    String? description,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? deleted,
+  }) => LocalFolder(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    parentId: parentId.present ? parentId.value : this.parentId,
+    path: path ?? this.path,
+    sortOrder: sortOrder ?? this.sortOrder,
+    color: color.present ? color.value : this.color,
+    icon: icon.present ? icon.value : this.icon,
+    description: description ?? this.description,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+  );
+  LocalFolder copyWithCompanion(LocalFoldersCompanion data) {
+    return LocalFolder(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      path: data.path.present ? data.path.value : this.path,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      color: data.color.present ? data.color.value : this.color,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalFolder(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('parentId: $parentId, ')
+          ..write('path: $path, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
+          ..write('icon: $icon, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    parentId,
+    path,
+    sortOrder,
+    color,
+    icon,
+    description,
+    createdAt,
+    updatedAt,
+    deleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalFolder &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.parentId == this.parentId &&
+          other.path == this.path &&
+          other.sortOrder == this.sortOrder &&
+          other.color == this.color &&
+          other.icon == this.icon &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted);
+}
+
+class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> parentId;
+  final Value<String> path;
+  final Value<int> sortOrder;
+  final Value<String?> color;
+  final Value<String?> icon;
+  final Value<String> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<int> rowid;
+  const LocalFoldersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.path = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalFoldersCompanion.insert({
+    required String id,
+    required String name,
+    this.parentId = const Value.absent(),
+    required String path,
+    this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.description = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       path = Value(path),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LocalFolder> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? parentId,
+    Expression<String>? path,
+    Expression<int>? sortOrder,
+    Expression<String>? color,
+    Expression<String>? icon,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (parentId != null) 'parent_id': parentId,
+      if (path != null) 'path': path,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (color != null) 'color': color,
+      if (icon != null) 'icon': icon,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalFoldersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String?>? parentId,
+    Value<String>? path,
+    Value<int>? sortOrder,
+    Value<String?>? color,
+    Value<String?>? icon,
+    Value<String>? description,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<int>? rowid,
+  }) {
+    return LocalFoldersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      parentId: parentId ?? this.parentId,
+      path: path ?? this.path,
+      sortOrder: sortOrder ?? this.sortOrder,
+      color: color ?? this.color,
+      icon: icon ?? this.icon,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('parentId: $parentId, ')
+          ..write('path: $path, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
+          ..write('icon: $icon, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NoteFoldersTable extends NoteFolders
+    with TableInfo<$NoteFoldersTable, NoteFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
+  @override
+  late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
+    'folder_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [noteId, folderId, addedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('folder_id')) {
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_folderIdMeta);
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {noteId};
+  @override
+  NoteFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteFolder(
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folder_id'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}added_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteFoldersTable createAlias(String alias) {
+    return $NoteFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class NoteFolder extends DataClass implements Insertable<NoteFolder> {
+  /// Note ID (foreign key to local_notes)
+  final String noteId;
+
+  /// Folder ID (foreign key to local_folders)
+  final String folderId;
+
+  /// When the note was added to this folder
+  final DateTime addedAt;
+  const NoteFolder({
+    required this.noteId,
+    required this.folderId,
+    required this.addedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['note_id'] = Variable<String>(noteId);
+    map['folder_id'] = Variable<String>(folderId);
+    map['added_at'] = Variable<DateTime>(addedAt);
+    return map;
+  }
+
+  NoteFoldersCompanion toCompanion(bool nullToAbsent) {
+    return NoteFoldersCompanion(
+      noteId: Value(noteId),
+      folderId: Value(folderId),
+      addedAt: Value(addedAt),
+    );
+  }
+
+  factory NoteFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteFolder(
+      noteId: serializer.fromJson<String>(json['noteId']),
+      folderId: serializer.fromJson<String>(json['folderId']),
+      addedAt: serializer.fromJson<DateTime>(json['addedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'noteId': serializer.toJson<String>(noteId),
+      'folderId': serializer.toJson<String>(folderId),
+      'addedAt': serializer.toJson<DateTime>(addedAt),
+    };
+  }
+
+  NoteFolder copyWith({String? noteId, String? folderId, DateTime? addedAt}) =>
+      NoteFolder(
+        noteId: noteId ?? this.noteId,
+        folderId: folderId ?? this.folderId,
+        addedAt: addedAt ?? this.addedAt,
+      );
+  NoteFolder copyWithCompanion(NoteFoldersCompanion data) {
+    return NoteFolder(
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteFolder(')
+          ..write('noteId: $noteId, ')
+          ..write('folderId: $folderId, ')
+          ..write('addedAt: $addedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(noteId, folderId, addedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteFolder &&
+          other.noteId == this.noteId &&
+          other.folderId == this.folderId &&
+          other.addedAt == this.addedAt);
+}
+
+class NoteFoldersCompanion extends UpdateCompanion<NoteFolder> {
+  final Value<String> noteId;
+  final Value<String> folderId;
+  final Value<DateTime> addedAt;
+  final Value<int> rowid;
+  const NoteFoldersCompanion({
+    this.noteId = const Value.absent(),
+    this.folderId = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteFoldersCompanion.insert({
+    required String noteId,
+    required String folderId,
+    required DateTime addedAt,
+    this.rowid = const Value.absent(),
+  }) : noteId = Value(noteId),
+       folderId = Value(folderId),
+       addedAt = Value(addedAt);
+  static Insertable<NoteFolder> custom({
+    Expression<String>? noteId,
+    Expression<String>? folderId,
+    Expression<DateTime>? addedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (noteId != null) 'note_id': noteId,
+      if (folderId != null) 'folder_id': folderId,
+      if (addedAt != null) 'added_at': addedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteFoldersCompanion copyWith({
+    Value<String>? noteId,
+    Value<String>? folderId,
+    Value<DateTime>? addedAt,
+    Value<int>? rowid,
+  }) {
+    return NoteFoldersCompanion(
+      noteId: noteId ?? this.noteId,
+      folderId: folderId ?? this.folderId,
+      addedAt: addedAt ?? this.addedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (folderId.present) {
+      map['folder_id'] = Variable<String>(folderId.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<DateTime>(addedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteFoldersCompanion(')
+          ..write('noteId: $noteId, ')
+          ..write('folderId: $folderId, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -2497,6 +3438,8 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $NoteLinksTable noteLinks = $NoteLinksTable(this);
   late final $NoteRemindersTable noteReminders = $NoteRemindersTable(this);
+  late final $LocalFoldersTable localFolders = $LocalFoldersTable(this);
+  late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2507,6 +3450,8 @@ abstract class _$AppDb extends GeneratedDatabase {
     noteTags,
     noteLinks,
     noteReminders,
+    localFolders,
+    noteFolders,
   ];
 }
 
@@ -3745,6 +4690,475 @@ typedef $$NoteRemindersTableProcessedTableManager =
       NoteReminder,
       PrefetchHooks Function()
     >;
+typedef $$LocalFoldersTableCreateCompanionBuilder =
+    LocalFoldersCompanion Function({
+      required String id,
+      required String name,
+      Value<String?> parentId,
+      required String path,
+      Value<int> sortOrder,
+      Value<String?> color,
+      Value<String?> icon,
+      Value<String> description,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<bool> deleted,
+      Value<int> rowid,
+    });
+typedef $$LocalFoldersTableUpdateCompanionBuilder =
+    LocalFoldersCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String?> parentId,
+      Value<String> path,
+      Value<int> sortOrder,
+      Value<String?> color,
+      Value<String?> icon,
+      Value<String> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<int> rowid,
+    });
+
+class $$LocalFoldersTableFilterComposer
+    extends Composer<_$AppDb, $LocalFoldersTable> {
+  $$LocalFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalFoldersTableOrderingComposer
+    extends Composer<_$AppDb, $LocalFoldersTable> {
+  $$LocalFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalFoldersTableAnnotationComposer
+    extends Composer<_$AppDb, $LocalFoldersTable> {
+  $$LocalFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+}
+
+class $$LocalFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $LocalFoldersTable,
+          LocalFolder,
+          $$LocalFoldersTableFilterComposer,
+          $$LocalFoldersTableOrderingComposer,
+          $$LocalFoldersTableAnnotationComposer,
+          $$LocalFoldersTableCreateCompanionBuilder,
+          $$LocalFoldersTableUpdateCompanionBuilder,
+          (
+            LocalFolder,
+            BaseReferences<_$AppDb, $LocalFoldersTable, LocalFolder>,
+          ),
+          LocalFolder,
+          PrefetchHooks Function()
+        > {
+  $$LocalFoldersTableTableManager(_$AppDb db, $LocalFoldersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalFoldersCompanion(
+                id: id,
+                name: name,
+                parentId: parentId,
+                path: path,
+                sortOrder: sortOrder,
+                color: color,
+                icon: icon,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String?> parentId = const Value.absent(),
+                required String path,
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalFoldersCompanion.insert(
+                id: id,
+                name: name,
+                parentId: parentId,
+                path: path,
+                sortOrder: sortOrder,
+                color: color,
+                icon: icon,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $LocalFoldersTable,
+      LocalFolder,
+      $$LocalFoldersTableFilterComposer,
+      $$LocalFoldersTableOrderingComposer,
+      $$LocalFoldersTableAnnotationComposer,
+      $$LocalFoldersTableCreateCompanionBuilder,
+      $$LocalFoldersTableUpdateCompanionBuilder,
+      (LocalFolder, BaseReferences<_$AppDb, $LocalFoldersTable, LocalFolder>),
+      LocalFolder,
+      PrefetchHooks Function()
+    >;
+typedef $$NoteFoldersTableCreateCompanionBuilder =
+    NoteFoldersCompanion Function({
+      required String noteId,
+      required String folderId,
+      required DateTime addedAt,
+      Value<int> rowid,
+    });
+typedef $$NoteFoldersTableUpdateCompanionBuilder =
+    NoteFoldersCompanion Function({
+      Value<String> noteId,
+      Value<String> folderId,
+      Value<DateTime> addedAt,
+      Value<int> rowid,
+    });
+
+class $$NoteFoldersTableFilterComposer
+    extends Composer<_$AppDb, $NoteFoldersTable> {
+  $$NoteFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get folderId => $composableBuilder(
+    column: $table.folderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteFoldersTableOrderingComposer
+    extends Composer<_$AppDb, $NoteFoldersTable> {
+  $$NoteFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get folderId => $composableBuilder(
+    column: $table.folderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteFoldersTableAnnotationComposer
+    extends Composer<_$AppDb, $NoteFoldersTable> {
+  $$NoteFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<String> get folderId =>
+      $composableBuilder(column: $table.folderId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+}
+
+class $$NoteFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $NoteFoldersTable,
+          NoteFolder,
+          $$NoteFoldersTableFilterComposer,
+          $$NoteFoldersTableOrderingComposer,
+          $$NoteFoldersTableAnnotationComposer,
+          $$NoteFoldersTableCreateCompanionBuilder,
+          $$NoteFoldersTableUpdateCompanionBuilder,
+          (NoteFolder, BaseReferences<_$AppDb, $NoteFoldersTable, NoteFolder>),
+          NoteFolder,
+          PrefetchHooks Function()
+        > {
+  $$NoteFoldersTableTableManager(_$AppDb db, $NoteFoldersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> noteId = const Value.absent(),
+                Value<String> folderId = const Value.absent(),
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteFoldersCompanion(
+                noteId: noteId,
+                folderId: folderId,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String noteId,
+                required String folderId,
+                required DateTime addedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NoteFoldersCompanion.insert(
+                noteId: noteId,
+                folderId: folderId,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $NoteFoldersTable,
+      NoteFolder,
+      $$NoteFoldersTableFilterComposer,
+      $$NoteFoldersTableOrderingComposer,
+      $$NoteFoldersTableAnnotationComposer,
+      $$NoteFoldersTableCreateCompanionBuilder,
+      $$NoteFoldersTableUpdateCompanionBuilder,
+      (NoteFolder, BaseReferences<_$AppDb, $NoteFoldersTable, NoteFolder>),
+      NoteFolder,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -3759,4 +5173,8 @@ class $AppDbManager {
       $$NoteLinksTableTableManager(_db, _db.noteLinks);
   $$NoteRemindersTableTableManager get noteReminders =>
       $$NoteRemindersTableTableManager(_db, _db.noteReminders);
+  $$LocalFoldersTableTableManager get localFolders =>
+      $$LocalFoldersTableTableManager(_db, _db.localFolders);
+  $$NoteFoldersTableTableManager get noteFolders =>
+      $$NoteFoldersTableTableManager(_db, _db.noteFolders);
 }

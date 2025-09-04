@@ -87,7 +87,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importMarkdown(testFile);
 
         // Assert
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(result.successCount, 1);
 
         // Verify NotesRepository.createOrUpdate was called
@@ -127,7 +127,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importMarkdown(testFile);
 
         // Assert
-        expect(result.success, false);
+        expect(result.isSuccess, false);
         expect(result.successCount, 0);
         expect(result.errors, hasLength(1));
         expect(result.errors.first.message, contains('Database error'));
@@ -166,7 +166,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importMarkdown(testFile);
 
         // Assert - Import should still succeed even if indexing fails
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(result.successCount, 1);
 
         // Verify both repository and indexer were called
@@ -220,7 +220,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importEnex(testFile);
 
         // Assert
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(result.successCount, 2);
 
         // Verify repository was called for each note
@@ -268,7 +268,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importObsidian(vaultDir);
 
         // Assert
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(result.successCount, 3);
 
         // Verify repository was called for each file
@@ -331,7 +331,7 @@ Contains #tag1 and #tag2.
         final result = await importService.importMarkdown(testFile);
 
         // Assert
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(capturedNote, isNotNull);
         expect(capturedNote!.title, 'Encrypted Note');
 
@@ -423,7 +423,7 @@ Multiple words for search testing.
         final result = await importServiceWithRealIndexer.importMarkdown(testFile);
 
         // Assert
-        expect(result.success, true);
+        expect(result.isSuccess, true);
         expect(capturedNote, isNotNull);
 
         // Verify search functionality

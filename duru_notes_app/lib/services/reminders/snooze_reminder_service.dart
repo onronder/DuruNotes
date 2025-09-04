@@ -176,7 +176,7 @@ class SnoozeReminderService {
           ),
         ),
         payload: payload,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.dateAndTime,
       );
       

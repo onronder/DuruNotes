@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../lib/core/crypto/crypto_box.dart';
 import '../../lib/core/crypto/key_manager.dart';
@@ -10,6 +12,8 @@ import '../../lib/repository/notes_repository.dart';
 import '../../lib/services/import_service.dart';
 import '../../lib/services/analytics/analytics_service.dart';
 import '../../lib/core/monitoring/app_logger.dart';
+
+class MockSupabaseClient extends Mock implements SupabaseClient {}
 
 void main() {
   group('ImportService Integration - Encryption & Indexing Verification', () {
@@ -40,7 +44,7 @@ void main() {
       final testRepository = NotesRepository(
         db: testDb,
         crypto: testCrypto,
-        client: null as dynamic, // Not needed for this test
+        client: MockSupabaseClient(),
         userId: testUserId,
       );
       
@@ -159,7 +163,7 @@ It contains #integration and #test tags for verification.
       final testRepository = NotesRepository(
         db: testDb,
         crypto: testCrypto,
-        client: null as dynamic,
+        client: MockSupabaseClient(),
         userId: testUserId,
       );
       
@@ -289,7 +293,7 @@ It contains #integration and #test tags for verification.
       final testRepository = NotesRepository(
         db: testDb,
         crypto: testCrypto,
-        client: null as dynamic,
+        client: MockSupabaseClient(),
         userId: testUserId,
       );
       

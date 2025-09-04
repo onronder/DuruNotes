@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:battery_plus/battery_plus.dart';
 
 import '../monitoring/app_logger.dart';

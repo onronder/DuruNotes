@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 import '../../data/local/app_db.dart';
-import '../../models/note_block.dart';
 import '../monitoring/app_logger.dart';
 
 /// Manages indexing and cross-referencing of notes for search and linking

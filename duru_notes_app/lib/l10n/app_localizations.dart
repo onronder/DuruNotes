@@ -1198,6 +1198,264 @@ abstract class AppLocalizations {
   /// **'Shared image could not be processed.'**
   String get sharedImageCouldNotBeProcessed;
 
+  /// No description provided for @folders.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders'**
+  String get folders;
+
+  /// No description provided for @folderPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Folder'**
+  String get folderPickerTitle;
+
+  /// No description provided for @folderPickerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize your note'**
+  String get folderPickerSubtitle;
+
+  /// No description provided for @createNewFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Folder'**
+  String get createNewFolder;
+
+  /// No description provided for @createNewFolderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a new folder for organization'**
+  String get createNewFolderSubtitle;
+
+  /// No description provided for @folderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder Name'**
+  String get folderName;
+
+  /// No description provided for @folderNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Work, Personal, Ideas'**
+  String get folderNameHint;
+
+  /// No description provided for @folderNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name is required'**
+  String get folderNameRequired;
+
+  /// No description provided for @folderColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get folderColor;
+
+  /// No description provided for @folderIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get folderIcon;
+
+  /// No description provided for @parentFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent Folder'**
+  String get parentFolder;
+
+  /// No description provided for @rootLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Root Level'**
+  String get rootLevel;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
+  /// No description provided for @optional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get optional;
+
+  /// No description provided for @folderDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Brief description of this folder\'s purpose'**
+  String get folderDescriptionHint;
+
+  /// No description provided for @selectParentFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Parent Folder'**
+  String get selectParentFolder;
+
+  /// No description provided for @unfiledNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfiled Notes'**
+  String get unfiledNotes;
+
+  /// No description provided for @noteCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No notes} =1{1 note} other{{count} notes}}'**
+  String noteCount(int count);
+
+  /// No description provided for @searchFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Search folders...'**
+  String get searchFolders;
+
+  /// No description provided for @showSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Show search'**
+  String get showSearch;
+
+  /// No description provided for @hideSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide search'**
+  String get hideSearch;
+
+  /// No description provided for @clearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get clearSearch;
+
+  /// No description provided for @noFoldersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders found'**
+  String get noFoldersFound;
+
+  /// No description provided for @noFoldersFoundSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders match \'{query}\''**
+  String noFoldersFoundSubtitle(String query);
+
+  /// No description provided for @loadFoldersError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load folders'**
+  String get loadFoldersError;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @loadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Load error'**
+  String get loadError;
+
+  /// No description provided for @folderManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder Management'**
+  String get folderManagement;
+
+  /// No description provided for @editFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Folder'**
+  String get editFolder;
+
+  /// No description provided for @deleteFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Folder'**
+  String get deleteFolder;
+
+  /// No description provided for @moveFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Folder'**
+  String get moveFolder;
+
+  /// No description provided for @folderProperties.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder Properties'**
+  String get folderProperties;
+
+  /// No description provided for @confirmDeleteFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this folder?'**
+  String get confirmDeleteFolder;
+
+  /// No description provided for @confirmDeleteFolderMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will move all notes and subfolders to the parent level.'**
+  String get confirmDeleteFolderMessage;
+
+  /// No description provided for @confirmDeleteFolderAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Folder'**
+  String get confirmDeleteFolderAction;
+
+  /// No description provided for @addToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Folder'**
+  String get addToFolder;
+
+  /// No description provided for @removeFromFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Folder'**
+  String get removeFromFolder;
+
+  /// No description provided for @moveToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Folder'**
+  String get moveToFolder;
+
+  /// No description provided for @folderEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is empty'**
+  String get folderEmpty;
+
+  /// No description provided for @folderEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add notes to get started'**
+  String get folderEmptySubtitle;
+
+  /// No description provided for @allFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'All Folders'**
+  String get allFolders;
+
+  /// No description provided for @expandAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand All'**
+  String get expandAll;
+
+  /// No description provided for @collapseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse All'**
+  String get collapseAll;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:

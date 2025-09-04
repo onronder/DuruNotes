@@ -308,13 +308,13 @@ class SyncService {
     }
     if (uid == null) return;
 
-    final ch = client.channel('realtime:notes:$uid');
+    final ch = client.channel('realtime:notes_folders:$uid');
 
-    void register(PostgresChangeEvent ev) {
+    void registerTable(String tableName, PostgresChangeEvent ev) {
       ch.onPostgresChanges(
         event: ev,
         schema: 'public',
-        table: 'notes',
+        table: tableName,
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
           column: 'user_id',
@@ -329,15 +329,26 @@ class SyncService {
           });
 
           if (kDebugMode) {
-            debugPrint('Realtime ${ev.name} on notes');
+            debugPrint('Realtime ${ev.name} on $tableName');
           }
         },
       );
     }
 
-    register(PostgresChangeEvent.insert);
-    register(PostgresChangeEvent.update);
-    register(PostgresChangeEvent.delete);
+    // Register for notes table changes
+    registerTable('notes', PostgresChangeEvent.insert);
+    registerTable('notes', PostgresChangeEvent.update);
+    registerTable('notes', PostgresChangeEvent.delete);
+    
+    // Register for folders table changes
+    registerTable('folders', PostgresChangeEvent.insert);
+    registerTable('folders', PostgresChangeEvent.update);
+    registerTable('folders', PostgresChangeEvent.delete);
+    
+    // Register for note_folders relationship changes
+    registerTable('note_folders', PostgresChangeEvent.insert);
+    registerTable('note_folders', PostgresChangeEvent.update);
+    registerTable('note_folders', PostgresChangeEvent.delete);
 
     ch.subscribe((status, _) {
       if (kDebugMode) debugPrint('Realtime channel status: $status');

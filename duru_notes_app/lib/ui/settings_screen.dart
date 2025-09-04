@@ -9,7 +9,7 @@ import '../core/settings/locale_notifier.dart';
 import '../core/settings/sync_mode.dart';
 import '../l10n/app_localizations.dart';
 import '../providers.dart';
-
+import 'components/ios_style_toggle.dart';
 import 'help_screen.dart';
 
 /// Comprehensive settings screen for Duru Notes
@@ -41,32 +41,219 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: Text(l10n.settingsTitle),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: colorScheme.surfaceTint,
+        title: Text(
+          l10n.settingsTitle,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildAccountSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildSyncSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildAppearanceSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildLanguageSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildNotificationsSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildSecuritySection(context, l10n),
-          const SizedBox(height: 24),
-          _buildImportExportSection(context, l10n),
-          const SizedBox(height: 24),
-          _buildHelpAboutSection(context, l10n),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          children: [
+            // Header section with user info
+            _buildHeaderSection(context, l10n),
+            
+            // Settings sections with cards
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _buildAccountSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildSyncSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildAppearanceSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildLanguageSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildNotificationsSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildSecuritySectionWithIOSToggles(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildImportExportSection(context, l10n),
+                  const SizedBox(height: 16),
+                  _buildHelpAboutSection(context, l10n),
+                  const SizedBox(height: 32), // Bottom padding
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final user = Supabase.instance.client.auth.currentUser;
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.secondaryContainer,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.1),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+          ),
         ],
+      ),
+      child: Column(
+        children: [
+          // User avatar
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withOpacity(0.3),
+                  offset: const Offset(0, 4),
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+            child: user != null && user.userMetadata?['avatar_url'] != null
+                ? ClipOval(
+                    child: Image.network(
+                      user.userMetadata!['avatar_url'] as String,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.person_rounded,
+                    size: 40,
+                    color: colorScheme.onPrimary,
+                  ),
+          ),
+          const SizedBox(height: 16),
+          
+          // User info
+          if (user != null) ...[
+            Text(
+              user.email ?? 'Unknown User',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Signed in',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onPrimaryContainer.withOpacity(0.7),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Not signed in',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    Color? iconColor,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      color: colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (iconColor ?? colorScheme.primary).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: iconColor ?? colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Section content
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -442,18 +629,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isSyncing = true);
 
     try {
+      print('🔄 Manual sync triggered from settings screen');
       final success = await ref.read(syncModeProvider.notifier).manualSync();
       
       if (success) {
+        print('📱 Refreshing notes list in UI...');
         // Reload the first page of notes to show synced data
         await ref.read(notesPageProvider.notifier).refresh();
+        
+        // Add a small delay to ensure UI updates
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Get current notes count for feedback
+        final currentNotes = ref.read(currentNotesProvider);
+        print('📊 UI now showing ${currentNotes.length} notes');
       }
       
       if (mounted) {
+        final message = success 
+          ? "${l10n.syncComplete} (${ref.read(currentNotesProvider).length} notes)"
+          : l10n.syncFailed;
+          
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? l10n.syncComplete : l10n.syncFailed),
+            content: Text(message),
             backgroundColor: success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 4),
+            action: success ? null : SnackBarAction(
+              label: 'Debug',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Sync Debug Info'),
+                    content: const Text(
+                      'Check console logs for detailed sync information.\n\n'
+                      'Common issues:\n'
+                      '• Not authenticated\n'
+                      '• Network connectivity\n'
+                      '• Supabase configuration\n'
+                      '• Encryption key issues'
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Sync operation threw exception: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${l10n.syncFailed}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -684,6 +921,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  /// Build security section with iOS-style toggles
+  Widget _buildSecuritySectionWithIOSToggles(BuildContext context, AppLocalizations l10n) {
+    final analyticsEnabled = ref.watch(analyticsSettingsProvider);
+    
+    return SettingsSection(
+      title: l10n.security,
+      icon: Icons.security,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.security, color: Colors.green),
+          title: Text(l10n.endToEndEncryption),
+          subtitle: Text(l10n.encryptionEnabled),
+          trailing: const Icon(Icons.verified, color: Colors.green),
+        ),
+        SettingsToggleTile(
+          title: l10n.analyticsOptIn,
+          subtitle: l10n.analyticsDesc,
+          leading: const Icon(Icons.analytics),
+          value: analyticsEnabled,
+          onChanged: (value) {
+            ref.read(analyticsSettingsProvider.notifier).setAnalyticsEnabled(value);
+          },
+        ),
+      ],
+    );
+  }
+
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);

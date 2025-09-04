@@ -386,6 +386,67 @@
   },
   "sharedImageCouldNotBeProcessed": "Shared image could not be processed.",
   
+  "@_FOLDER_SYSTEM": {},
+  "folders": "Folders",
+  "folderPickerTitle": "Choose Folder",
+  "folderPickerSubtitle": "Organize your note",
+  "createNewFolder": "Create New Folder", 
+  "createNewFolderSubtitle": "Add a new folder for organization",
+  "folderName": "Folder Name",
+  "folderNameHint": "e.g., Work, Personal, Ideas",
+  "folderNameRequired": "Folder name is required",
+  "folderColor": "Color",
+  "folderIcon": "Icon",
+  "parentFolder": "Parent Folder",
+  "rootLevel": "Root Level",
+  "description": "Description",
+  "optional": "Optional",
+  "folderDescriptionHint": "Brief description of this folder's purpose",
+  "selectParentFolder": "Select Parent Folder",
+  "unfiledNotes": "Unfiled Notes",
+  "noteCount": "{count, plural, =0{No notes} =1{1 note} other{{count} notes}}",
+  "@noteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchFolders": "Search folders...",
+  "showSearch": "Show search",
+  "hideSearch": "Hide search",
+  "clearSearch": "Clear search",
+  "noFoldersFound": "No folders found",
+  "noFoldersFoundSubtitle": "No folders match '{query}'",
+  "@noFoldersFoundSubtitle": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "loadFoldersError": "Failed to load folders",
+  "retry": "Retry",
+  "close": "Close",
+  "create": "Create",
+  "loadError": "Load error",
+  "folderManagement": "Folder Management",
+  "editFolder": "Edit Folder",
+  "deleteFolder": "Delete Folder",
+  "moveFolder": "Move Folder",
+  "folderProperties": "Folder Properties",
+  "confirmDeleteFolder": "Delete this folder?",
+  "confirmDeleteFolderMessage": "This will move all notes and subfolders to the parent level.",
+  "confirmDeleteFolderAction": "Delete Folder",
+  "addToFolder": "Add to Folder",
+  "removeFromFolder": "Remove from Folder",
+  "moveToFolder": "Move to Folder",
+  "folderEmpty": "This folder is empty",
+  "folderEmptySubtitle": "Add notes to get started",
+  "allFolders": "All Folders",
+  "expandAll": "Expand All",
+  "collapseAll": "Collapse All",
+
   "@_COMMON_ACTIONS": {},
   "save": "Save",
   "done": "Done",

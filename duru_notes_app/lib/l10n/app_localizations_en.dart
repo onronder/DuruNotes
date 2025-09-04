@@ -614,6 +614,148 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shared image could not be processed.';
 
   @override
+  String get folders => 'Folders';
+
+  @override
+  String get folderPickerTitle => 'Choose Folder';
+
+  @override
+  String get folderPickerSubtitle => 'Organize your note';
+
+  @override
+  String get createNewFolder => 'Create New Folder';
+
+  @override
+  String get createNewFolderSubtitle => 'Add a new folder for organization';
+
+  @override
+  String get folderName => 'Folder Name';
+
+  @override
+  String get folderNameHint => 'e.g., Work, Personal, Ideas';
+
+  @override
+  String get folderNameRequired => 'Folder name is required';
+
+  @override
+  String get folderColor => 'Color';
+
+  @override
+  String get folderIcon => 'Icon';
+
+  @override
+  String get parentFolder => 'Parent Folder';
+
+  @override
+  String get rootLevel => 'Root Level';
+
+  @override
+  String get description => 'Description';
+
+  @override
+  String get optional => 'Optional';
+
+  @override
+  String get folderDescriptionHint =>
+      'Brief description of this folder\'s purpose';
+
+  @override
+  String get selectParentFolder => 'Select Parent Folder';
+
+  @override
+  String get unfiledNotes => 'Unfiled Notes';
+
+  @override
+  String noteCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes',
+      one: '1 note',
+      zero: 'No notes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get searchFolders => 'Search folders...';
+
+  @override
+  String get showSearch => 'Show search';
+
+  @override
+  String get hideSearch => 'Hide search';
+
+  @override
+  String get clearSearch => 'Clear search';
+
+  @override
+  String get noFoldersFound => 'No folders found';
+
+  @override
+  String noFoldersFoundSubtitle(String query) {
+    return 'No folders match \'$query\'';
+  }
+
+  @override
+  String get loadFoldersError => 'Failed to load folders';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get loadError => 'Load error';
+
+  @override
+  String get folderManagement => 'Folder Management';
+
+  @override
+  String get editFolder => 'Edit Folder';
+
+  @override
+  String get deleteFolder => 'Delete Folder';
+
+  @override
+  String get moveFolder => 'Move Folder';
+
+  @override
+  String get folderProperties => 'Folder Properties';
+
+  @override
+  String get confirmDeleteFolder => 'Delete this folder?';
+
+  @override
+  String get confirmDeleteFolderMessage =>
+      'This will move all notes and subfolders to the parent level.';
+
+  @override
+  String get confirmDeleteFolderAction => 'Delete Folder';
+
+  @override
+  String get addToFolder => 'Add to Folder';
+
+  @override
+  String get removeFromFolder => 'Remove from Folder';
+
+  @override
+  String get moveToFolder => 'Move to Folder';
+
+  @override
+  String get folderEmpty => 'This folder is empty';
+
+  @override
+  String get folderEmptySubtitle => 'Add notes to get started';
+
+  @override
+  String get allFolders => 'All Folders';
+
+  @override
+  String get expandAll => 'Expand All';
+
+  @override
+  String get collapseAll => 'Collapse All';
+
+  @override
   String get save => 'Save';
 
   @override
