@@ -4,7 +4,8 @@
 set -e
 
 echo "🔧 FINAL pre-build verification..."
-cd duru_notes_app/ios
+# Script is already in duru_notes_app/ios/ci_scripts, so go up one level
+cd ..
 
 # CRITICAL CHECK: Ensure no xcfilelist references exist
 echo "🔍 Checking for xcfilelist references..."
