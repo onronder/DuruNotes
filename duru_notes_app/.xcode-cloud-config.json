@@ -18,12 +18,22 @@
       "environment": {
         "FLUTTER_VERSION": "3.35.2",
         "COCOAPODS_PARALLEL_CODE_SIGN": "true",
-        "TREE_SHAKE_ICONS": "false"
+        "COCOAPODS_DISABLE_STATS": "true",
+        "TREE_SHAKE_ICONS": "false",
+        "FLUTTER_BUILD_MODE": "release",
+        "CI": "true",
+        "XCODE_CLOUD": "true"
       },
       "steps": [
         {
-          "name": "Install Flutter",
+          "name": "Install Flutter & Dependencies",
           "script": "ci_scripts/ci_pre_xcodebuild.sh"
+        }
+      ],
+      "post_actions": [
+        {
+          "name": "Post-build Verification",
+          "script": "ci_scripts/ci_post_xcodebuild.sh"
         }
       ]
     }
