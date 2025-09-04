@@ -36,6 +36,11 @@ target 'Runner' do
   end
 end
 
+# ShareExtension target for receive_sharing_intent
+target 'ShareExtension' do
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
 post_install do |installer|
   # Apply Flutter's extra settings and relax Swift 6 diagnostics for pods
   installer.pods_project.targets.each do |target|
@@ -61,6 +66,30 @@ post_install do |installer|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
         config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
+      end
+    end
+  end
+
+  # Fix for CocoaPods warning: "Run script build phase '[CP] Copy Pods Resources' will be run during every build"
+  # Add output file specifications to Copy Pods Resources build phases
+  installer.pods_project.targets.each do |target|
+    target.build_phases.each do |build_phase|
+      if build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
+        puts "Adding output files to #{target.name} Copy Pods Resources build phase"
+        
+        # Add the standard CocoaPods resource output files
+        resource_output_files = [
+          '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}',
+        ]
+        
+        # Only add output files if they don't already exist
+        existing_output_files = build_phase.output_file_list_paths || []
+        resource_output_files.each do |output_file|
+          unless existing_output_files.include?(output_file)
+            build_phase.output_file_list_paths ||= []
+            build_phase.output_file_list_paths << output_file
+          end
+        end
       end
     end
   end
