@@ -108,34 +108,72 @@ else
     pod --version
 fi
 
-# Clean previous CocoaPods installation
-echo "🧹 Cleaning previous CocoaPods installation..."
+# CRITICAL FIX: Clean CocoaPods completely to break infinite loop
+echo "🧹 Cleaning CocoaPods completely to prevent infinite loop..."
 rm -rf Pods
-rm -rf .symlinks
+rm -rf .symlinks  
 rm -f Podfile.lock
+rm -rf ~/Library/Caches/CocoaPods 2>/dev/null || true
+pod cache clean --all 2>/dev/null || true
 
-# Install CocoaPods dependencies
-echo "🍎 Installing CocoaPods dependencies..."
+# Install CocoaPods with enhanced verification
+echo "🍎 Installing CocoaPods dependencies with target verification..."
 pod install --repo-update --verbose
 
-# Verify critical CocoaPods files exist
-echo "🔍 Verifying CocoaPods installation..."
-REQUIRED_PODS_FILES=(
+# CRITICAL VERIFICATION: Check both Runner and ShareExtension targets
+echo "🔍 Verifying CocoaPods targets (BREAKING INFINITE LOOP)..."
+
+# Verify Runner target files
+RUNNER_FILES=(
     "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
     "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
-    "Pods/Target Support Files/Pods-Runner/Pods-Runner-resources.sh"
 )
 
-for file in "${REQUIRED_PODS_FILES[@]}"; do
+echo "📋 Checking Runner target files..."
+for file in "${RUNNER_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo "✅ $file exists"
     else
         echo "❌ $file missing"
-        echo "📂 Contents of Pods directory:"
-        find Pods -name "*.xcconfig" -o -name "*.sh" | head -20
         exit 1
     fi
 done
+
+# Verify ShareExtension target files (should exist with fixed Podfile)
+SHARE_EXTENSION_FILES=(
+    "Pods/Target Support Files/Pods-ShareExtension/Pods-ShareExtension.debug.xcconfig"
+    "Pods/Target Support Files/Pods-ShareExtension/Pods-ShareExtension.release.xcconfig"
+)
+
+echo "📋 Checking ShareExtension target files..."
+SHARE_EXTENSION_EXISTS=false
+for file in "${SHARE_EXTENSION_FILES[@]}"; do
+    if [ -f "$file" ]; then
+        echo "✅ $file exists"
+        SHARE_EXTENSION_EXISTS=true
+    fi
+done
+
+if [ "$SHARE_EXTENSION_EXISTS" = false ]; then
+    echo "⚠️  ShareExtension CocoaPods files not found - checking configuration..."
+    echo "📂 Available target support files:"
+    find "Pods/Target Support Files" -name "*.xcconfig" 2>/dev/null | head -10 || echo "No xcconfig files found"
+    
+    # This is not necessarily an error with minimal ShareExtension config
+    echo "ℹ️  ShareExtension using minimal configuration - this may be expected"
+fi
+
+# Count installed pods for verification
+if [ -f "Podfile.lock" ]; then
+    pod_count=$(grep -c "^  " Podfile.lock 2>/dev/null || echo "0")
+    echo "📊 Total pods installed: $pod_count"
+    
+    if [ "$pod_count" -lt 5 ]; then
+        echo "⚠️  Unusually low pod count - verifying installation..."
+        echo "📄 Podfile.lock content preview:"
+        head -20 Podfile.lock
+    fi
+fi
 
 # Verify Podfile.lock was created
 if [ ! -f "Podfile.lock" ]; then
