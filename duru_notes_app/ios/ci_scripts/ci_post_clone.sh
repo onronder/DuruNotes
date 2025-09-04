@@ -27,10 +27,17 @@ if ! command -v flutter &> /dev/null; then
     flutter doctor
 fi
 
+# Ensure Flutter is in PATH
+export PATH="$PATH:$HOME/flutter/bin"
+
+# Precache iOS artifacts
+echo "Precaching iOS artifacts..."
+flutter precache --ios
+
 # Navigate to Flutter project root to run flutter pub get
 cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app"
 echo "Running flutter pub get..."
-flutter pub get || $HOME/flutter/bin/flutter pub get
+flutter pub get
 
 # Navigate back to iOS directory
 cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app/ios"
