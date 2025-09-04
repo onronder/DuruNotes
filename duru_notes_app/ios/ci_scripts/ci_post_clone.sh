@@ -5,7 +5,7 @@ set -e
 echo "Starting ci_post_clone.sh script..."
 
 # Navigate to iOS directory
-cd "$CI_WORKSPACE/duru_notes_app/ios"
+cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
 
 echo "Current directory: $(pwd)"
 echo "Listing directory contents:"
