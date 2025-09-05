@@ -126,22 +126,42 @@ post_install do |installer|
     end
   end
 
-  # PRODUCTION-GRADE PLUGIN-SPECIFIC FIXES
+  # DEFINITIVE SQFLITE_DARWIN FIX FOR XCODE CLOUD
   installer.pods_project.targets.each do |target|
     # Fix sqflite_darwin Flutter.h not found issue
     if target.name == 'sqflite_darwin'
-      puts "🔧 Applying sqflite_darwin production fix..."
+      puts "🔧 Applying DEFINITIVE sqflite_darwin fix for Xcode Cloud..."
       target.build_configurations.each do |config|
-        # Add Flutter framework path specifically for sqflite
+        # Multiple Flutter framework search paths for maximum compatibility
         config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
           '$(inherited)',
           '$(PROJECT_DIR)/Flutter',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
+          '$(PROJECT_DIR)/Flutter/Flutter.framework',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
+          '$(BUILT_PRODUCTS_DIR)/Flutter'
         ]
+        
+        # Comprehensive header search paths
         config.build_settings['HEADER_SEARCH_PATHS'] = [
           '$(inherited)',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers'
+          '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
+          '$(PROJECT_DIR)/Flutter/Headers',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
+          '$(BUILT_PRODUCTS_DIR)/Flutter/Flutter.framework/Headers'
         ]
+        
+        # Force include Flutter framework
+        config.build_settings['OTHER_LDFLAGS'] = [
+          '$(inherited)',
+          '-framework', 'Flutter'
+        ]
+        
+        # Disable problematic warnings for sqflite
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
       end
     end
     
