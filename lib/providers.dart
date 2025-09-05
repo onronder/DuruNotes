@@ -21,6 +21,7 @@ import 'services/attachment_service.dart';
 import 'services/export_service.dart';
 import 'services/import_service.dart';
 import 'services/share_extension_service.dart';
+import 'services/subscription_service.dart';
 
 // Export important types for easier importing
 export 'data/local/app_db.dart' show LocalNote, AppDb;

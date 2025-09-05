@@ -81,16 +81,53 @@ Future<void> _initializeServices() async {
   AnalyticsFactory.initialize();
   analytics = AnalyticsFactory.instance;
 
-  // Initialize Adapty SDK
+  // Initialize Adapty SDK with full production configuration
   try {
+    // Set log level for development/production
+    await Adapty().setLogLevel(
+      EnvironmentConfig.current.debugMode 
+        ? AdaptyLogLevel.verbose 
+        : AdaptyLogLevel.error
+    );
+    
+    // Activate Adapty with comprehensive configuration
     await Adapty().activate(
       configuration: AdaptyConfiguration(
         apiKey: 'public_live_auSluPc0.Qso83VlJGyzNxUmeZn6j',
-      ),
+      )
+        // Activate AdaptyUI for Paywall Builder support
+        ..withActivateUI(true)
+        // Privacy-compliant configuration
+        ..withAppleIdfaCollectionDisabled(false) // Enable for analytics
+        ..withIpAddressCollectionDisabled(false) // Enable for fraud prevention
+        // Media cache configuration for paywalls
+        ..withMediaCacheConfiguration(
+          AdaptyUIMediaCacheConfiguration(
+            memoryStorageTotalCostLimit: 100 * 1024 * 1024, // 100 MB
+            memoryStorageCountLimit: 2147483647, // Max int value
+            diskStorageSizeLimit: 100 * 1024 * 1024, // 100 MB
+          ),
+        ),
     );
-    logger.info('Adapty SDK initialized successfully');
+    
+    logger.info('Adapty SDK initialized successfully with full configuration');
+    
+    // Track successful Adapty initialization
+    analytics.event(AnalyticsEvents.noteCreate, properties: {
+      'adapty_initialized': true,
+      'adapty_ui_enabled': true,
+      'environment': EnvironmentConfig.current.currentEnvironment.name,
+    });
+    
   } catch (e) {
     logger.error('Failed to initialize Adapty SDK: $e');
+    
+    // Track Adapty initialization failure
+    analytics.event(AnalyticsEvents.noteCreate, properties: {
+      'adapty_initialized': false,
+      'adapty_error': e.toString(),
+      'environment': EnvironmentConfig.current.currentEnvironment.name,
+    });
   }
 
   logger.info('Services initialized successfully');
