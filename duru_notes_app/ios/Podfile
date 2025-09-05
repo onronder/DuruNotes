@@ -52,7 +52,7 @@ target 'Runner' do
   pod 'GoogleToolboxForMac/NSDictionary+URLArguments', '~> 2.1'
   pod 'GoogleUtilities/UserDefaults', '~> 7.0'
   pod 'GoogleUtilitiesComponents', '~> 1.0'
-  pod 'GTMSessionFetcher/Core', '< 3.0, >= 1.1'
+ pod 'GTMSessionFetcher/Core', '< 3.0', '>= 1.1'
   
   # Location Services - Geofencing & GPS
   pod 'geofence_service', :path => '.symlinks/plugins/geofence_service/ios'
