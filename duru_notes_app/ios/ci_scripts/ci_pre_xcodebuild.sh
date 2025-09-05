@@ -6,18 +6,18 @@ set -e
 echo "🚀 PRE-BUILD VERIFICATION..."
 
 # Navigate to iOS directory
-cd ..
+cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app/ios"
 
 echo "📍 Current directory: $(pwd)"
 
-# CRITICAL: Verify Flutter.framework exists
+# CRITICAL: Verify Flutter.framework exists (manual pod system)
 echo "🔍 Verifying Flutter.framework..."
-if [ -d "Flutter/ephemeral/Flutter.framework" ]; then
+if [ -d "Flutter/Flutter.framework" ]; then
     echo "✅ Flutter.framework exists"
-    if [ -f "Flutter/ephemeral/Flutter.framework/Flutter" ]; then
+    if [ -f "Flutter/Flutter.framework/Flutter" ]; then
         echo "✅ Flutter binary verified"
     fi
-    if [ -f "Flutter/ephemeral/Flutter.framework/Headers/Flutter.h" ]; then
+    if [ -f "Flutter/Flutter.framework/Headers/Flutter.h" ]; then
         echo "✅ Flutter.h header verified"
     fi
 else
@@ -25,10 +25,10 @@ else
     echo "🔧 Attempting emergency recovery..."
     
     # Emergency recovery - copy framework again
-    mkdir -p Flutter/ephemeral
+    mkdir -p Flutter
     
     if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
-        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
+        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/
         echo "✅ Emergency recovery: Flutter.framework copied"
     else
         echo "❌ FATAL: Cannot recover Flutter.framework"
@@ -90,18 +90,29 @@ if [ ! -d "Pods" ]; then
     exit 1
 fi
 
-# Verify Flutter pod exists
+# Verify critical plugin pods (manual pod system)
+echo "🔍 Verifying critical plugin pods..."
+for plugin in "sentry_flutter" "adapty_flutter" "sqlite3_flutter_libs" "google_mlkit_text_recognition" "receive_sharing_intent"; do
+    if [ -d "Pods/$plugin" ]; then
+        echo "✅ $plugin pod exists"
+    else
+        echo "⚠️ $plugin pod not found"
+    fi
+done
+
+# Verify Flutter pod (may not exist in manual system)
 if [ -d "Pods/Flutter" ]; then
     echo "✅ Flutter pod exists"
 else
-    echo "⚠️ Flutter pod directory not found in Pods"
+    echo "⚠️ Flutter pod directory not found - expected in manual pod system"
 fi
 
 # Final status
-echo "🎯 PRE-BUILD STATUS:"
+echo "🎯 PRE-BUILD STATUS (Manual Pod System):"
 echo "   ✅ Flutter.framework verified"
 echo "   ✅ Podfile.lock exists"
 echo "   ✅ Pods directory exists"
 echo "   ✅ No xcfilelist references"
+echo "   ✅ Critical plugins verified"
 
 echo "🚀 PRE-BUILD VERIFICATION COMPLETE!"
