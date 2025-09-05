@@ -63,20 +63,31 @@ post_install do |installer|
       config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
       config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
       
-      # PRODUCTION FIX: Flutter framework search paths
+      # COMPREHENSIVE FLUTTER FRAMEWORK FIX FOR ALL PLUGINS
       config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
         '$(inherited)',
         '$(PROJECT_DIR)/Flutter',
+        '$(PROJECT_DIR)/Flutter/Flutter.framework',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator'
+        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
+        '$(BUILT_PRODUCTS_DIR)/Flutter'
       ]
       
-      # PRODUCTION FIX: Header search paths for plugins
+      # COMPREHENSIVE HEADER SEARCH PATHS FOR ALL PLUGINS
       config.build_settings['HEADER_SEARCH_PATHS'] = [
         '$(inherited)',
         '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers'
+        '$(PROJECT_DIR)/Flutter/Headers',
+        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
+        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
+        '$(BUILT_PRODUCTS_DIR)/Flutter/Flutter.framework/Headers'
+      ]
+      
+      # FORCE FLUTTER FRAMEWORK LINKING FOR ALL PLUGINS
+      config.build_settings['OTHER_LDFLAGS'] = [
+        '$(inherited)',
+        '-framework', 'Flutter'
       ]
       
       # CI/CD optimizations
@@ -126,42 +137,35 @@ post_install do |installer|
     end
   end
 
-  # DEFINITIVE SQFLITE_DARWIN FIX FOR XCODE CLOUD
+  # COMPREHENSIVE PLUGIN COMPATIBILITY FIXES
   installer.pods_project.targets.each do |target|
-    # Fix sqflite_darwin Flutter.h not found issue
-    if target.name == 'sqflite_darwin'
-      puts "🔧 Applying DEFINITIVE sqflite_darwin fix for Xcode Cloud..."
+    # Apply Flutter framework fixes to ALL Flutter plugin targets
+    if target.name.include?('flutter') || target.name.include?('sqflite') || 
+       target.name.include?('share_plus') || target.name.include?('sentry') ||
+       target.name.include?('adapty') || target.name.include?('google_mlkit') ||
+       target.name.include?('speech_to_text') || target.name.include?('image_picker') ||
+       target.name.include?('file_picker') || target.name.include?('geolocator') ||
+       target.name.include?('battery_plus') || target.name.include?('device_info') ||
+       target.name.include?('permission_handler') || target.name.include?('url_launcher') ||
+       target.name.include?('path_provider') || target.name.include?('shared_preferences') ||
+       target.name.include?('flutter_local_notifications') || target.name.include?('receive_sharing_intent') ||
+       target.name.include?('record_ios') || target.name.include?('open_file') ||
+       target.name.include?('package_info_plus') || target.name.include?('app_links') ||
+       target.name.include?('fl_location') || target.name.include?('geofence_service') ||
+       target.name.include?('flutter_activity_recognition') || target.name.include?('flutter_timezone') ||
+       target.name.include?('flutter_secure_storage') || target.name.include?('printing')
+      
+      puts "🔧 Applying comprehensive Flutter framework fix for #{target.name}..."
       target.build_configurations.each do |config|
-        # Multiple Flutter framework search paths for maximum compatibility
-        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
-          '$(inherited)',
-          '$(PROJECT_DIR)/Flutter',
-          '$(PROJECT_DIR)/Flutter/Flutter.framework',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
-          '$(BUILT_PRODUCTS_DIR)/Flutter'
-        ]
+        # Ensure Flutter framework is properly linked
+        existing_ldflags = config.build_settings['OTHER_LDFLAGS'] || []
+        unless existing_ldflags.include?('-framework Flutter')
+          config.build_settings['OTHER_LDFLAGS'] = existing_ldflags + ['-framework', 'Flutter']
+        end
         
-        # Comprehensive header search paths
-        config.build_settings['HEADER_SEARCH_PATHS'] = [
-          '$(inherited)',
-          '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
-          '$(PROJECT_DIR)/Flutter/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
-          '$(BUILT_PRODUCTS_DIR)/Flutter/Flutter.framework/Headers'
-        ]
-        
-        # Force include Flutter framework
-        config.build_settings['OTHER_LDFLAGS'] = [
-          '$(inherited)',
-          '-framework', 'Flutter'
-        ]
-        
-        # Disable problematic warnings for sqflite
-        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        # Disable problematic warnings for plugins
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
     end
     
