@@ -1,0 +1,108 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter gen-l10n
+
+## exception
+
+ProcessException: ProcessException: `dart format` failed with exit code 65
+
+stdout:
+Formatted no files in 0.16 seconds.
+
+
+stderr:
+Could not format because the source could not be parsed:
+
+line 484, column 14 of lib/l10n/app_localizations_en.dart: 'continue' can't be used as an identifier because it's a keyword.
+    ╷
+484 │   String get continue => 'Continue';
+    │              ^^^^^^^^
+    ╵
+Could not format because the source could not be parsed:
+
+line 964, column 14 of lib/l10n/app_localizations.dart: 'continue' can't be used as an identifier because it's a keyword.
+    ╷
+964 │   String get continue;
+    │              ^^^^^^^^
+    ╵
+
+  Command: /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart format /Users/onronder/duru-notes/duru_notes_app/lib/l10n/app_localizations_en.dart /Users/onronder/duru-notes/duru_notes_app/lib/l10n/app_localizations.dart
+
+```
+#0      generateLocalizations (package:flutter_tools/src/localizations/gen_l10n.dart:96:7)
+<asynchronous suspension>
+#1      GenerateLocalizationsCommand.runCommand (package:flutter_tools/src/commands/generate_localizations.dart:263:5)
+<asynchronous suspension>
+#2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1581:27)
+<asynchronous suspension>
+#3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#4      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:503:9)
+<asynchronous suspension>
+#6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:438:5)
+<asynchronous suspension>
+#8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:98:11)
+<asynchronous suspension>
+#9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#10     main (package:flutter_tools/executable.dart:101:3)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[32m[✓][39m Flutter (Channel stable, 3.35.1, on macOS 15.4.1 24E263 darwin-arm64, locale en-TR) [532ms]
+    [32m•[39m Flutter version 3.35.1 on channel stable at /opt/homebrew/share/flutter
+    [32m•[39m Upstream repository https://github.com/flutter/flutter.git
+    [32m•[39m Framework revision 20f8274939 (2 weeks ago), 2025-08-14 10:53:09 -0700
+    [32m•[39m Engine revision 1e9a811bf8
+    [32m•[39m Dart version 3.9.0
+    [32m•[39m DevTools version 2.48.0
+    [32m•[39m Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop,
+      enable-android, enable-ios, cli-animations, enable-lldb-debugging
+
+[31m[✗][39m Android toolchain - develop for Android devices [439ms]
+    [31m✗[39m Unable to locate Android SDK.
+      Install Android Studio from: https://developer.android.com/studio/index.html
+      On first launch it will assist you in installing the Android SDK components.
+      (or visit https://flutter.dev/to/macos-android-setup for detailed instructions).
+      If the Android SDK has been installed to a custom location, please use
+      `flutter config --android-sdk` to update to that location.
+
+
+[32m[✓][39m Xcode - develop for iOS and macOS (Xcode 16.4) [1,197ms]
+    [32m•[39m Xcode at /Applications/Xcode.app/Contents/Developer
+    [32m•[39m Build 16F6
+    [32m•[39m CocoaPods version 1.16.2
+
+[32m[✓][39m Chrome - develop for the web [5ms]
+    [32m•[39m Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+[33m[!][39m Android Studio (not installed) [5ms]
+    [32m•[39m Android Studio not found; download from https://developer.android.com/studio/index.html
+      (or visit https://flutter.dev/to/macos-android-setup for detailed instructions).
+
+[32m[✓][39m Connected device (3 available) [7.4s]
+    [32m•[39m iPhone 16 Pro (mobile) • 2E64B2C3-2B7B-45F2-9909-3D0A2CD83A67 • ios            •
+      com.apple.CoreSimulator.SimRuntime.iOS-18-6 (simulator)
+    [32m•[39m macOS (desktop)        • macos                                • darwin-arm64   • macOS 15.4.1 24E263
+      darwin-arm64
+    [32m•[39m Chrome (web)           • chrome                               • web-javascript • Google Chrome
+      139.0.7258.155
+    [33m![39m Error: Browsing on the local area network for O. Ensure the device is unlocked and attached with a
+      cable or associated with the same local area network as this Mac.
+      The device must be opted into Developer Mode to connect wirelessly. (code -27)
+
+[32m[✓][39m Network resources [1,160ms]
+    [32m•[39m All expected network resources are available.
+
+[33m![39m Doctor found issues in 2 categories.
+```

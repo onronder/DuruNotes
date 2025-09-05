@@ -1,170 +1,108 @@
-import 'package:duru_notes_app/core/config/environment_config.dart';
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
-/// Production-grade logging interface with multiple implementations
+/// Log levels for the application
+enum LogLevel { debug, info, warning, error }
+
+/// Application logger interface
 abstract class AppLogger {
-  /// Log informational messages
-  void info(String message, {Map<String, Object?>? data});
-  
-  /// Log warning messages
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data});
-  
-  /// Log error messages
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data});
-  
-  /// Add breadcrumb for debugging
-  void breadcrumb(String message, {Map<String, Object?>? data});
+  void debug(String message, {Map<String, dynamic>? data});
+  void info(String message, {Map<String, dynamic>? data});
+  void warning(String message, {Map<String, dynamic>? data});
+  void warn(String message, {Map<String, dynamic>? data});
+  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data});
+  void breadcrumb(String message, {Map<String, dynamic>? data});
+  Future<void> flush();
 }
 
-/// Sentry-based logger implementation
-class SentryLogger implements AppLogger {
-  final EnvironmentConfig _config;
-  
-  SentryLogger(this._config);
-  
-  @override
-  void info(String message, {Map<String, Object?>? data}) {
+/// Console logger implementation
+class ConsoleLogger implements AppLogger {
+  final LogLevel _minLevel;
+  const ConsoleLogger({LogLevel minLevel = LogLevel.debug}) : _minLevel = minLevel;
+
+  bool _shouldLog(LogLevel level) => level.index >= _minLevel.index;
+
+  void _log(String level, String message,
+      {Map<String, dynamic>? data, Object? error, StackTrace? stackTrace}) {
+    final timestamp = DateTime.now().toIso8601String();
+    final dataStr = (data != null && data.isNotEmpty)
+        ? ' | DATA: ${data.entries.map((e) => '${e.key}=${e.value}').join(', ')}'
+        : '';
+    final logMessage = '[$timestamp] $level: $message$dataStr';
     if (kDebugMode) {
-      print('[INFO] $message ${data != null ? data.toString() : ''}');
-    }
-    
-    breadcrumb(message, data: data);
-  }
-  
-  @override
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[WARN] $message ${error != null ? '- Error: $error' : ''} ${data != null ? data.toString() : ''}');
-    }
-    
-    if (_config.crashReportingEnabled) {
-      Sentry.captureMessage(
-        message,
-        level: SentryLevel.warning,
-        withScope: (scope) {
-          if (data != null) {
-            scope.setContexts('data', data);
-          }
-          if (error != null) {
-            scope.setTag('error_type', error.runtimeType.toString());
-          }
-        },
-      );
+      developer.log(logMessage, name: 'DuruNotes', error: error, stackTrace: stackTrace);
+    } else {
+      print(logMessage);
+      if (error != null) print('ERROR: $error');
+      if (stackTrace != null) print('STACK: $stackTrace');
     }
   }
-  
+
   @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[ERROR] $message ${error != null ? '- Error: $error' : ''} ${data != null ? data.toString() : ''}');
-      if (stackTrace != null) {
-        print('Stack trace: $stackTrace');
-      }
-    }
-    
-    if (_config.crashReportingEnabled) {
-      Sentry.captureException(
-        error ?? message,
-        stackTrace: stackTrace,
-        withScope: (scope) {
-          if (data != null) {
-            scope.setContexts('data', data);
-          }
-          scope.setTag('error_source', 'app_logger');
-        },
-      );
+  void debug(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.debug)) {
+      _log('DEBUG', message, data: data);
     }
   }
-  
+
   @override
-  void breadcrumb(String message, {Map<String, Object?>? data}) {
-    if (_config.crashReportingEnabled) {
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: message,
-        data: data,
-        timestamp: DateTime.now(),
-      ));
+  void info(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.info)) {
+      _log('INFO', message, data: data);
     }
+  }
+
+  @override
+  void warning(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.warning)) {
+      _log('WARNING', message, data: data);
+    }
+  }
+
+  @override
+  void warn(String message, {Map<String, dynamic>? data}) => warning(message, data: data);
+
+  @override
+  void error(String message,
+      {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.error)) {
+      _log('ERROR', message, data: data, error: error, stackTrace: stackTrace);
+    }
+  }
+
+  @override
+  void breadcrumb(String message, {Map<String, dynamic>? data}) {
+    if (_shouldLog(LogLevel.debug)) {
+      _log('BREADCRUMB', message, data: data);
+    }
+  }
+
+  @override
+  Future<void> flush() async {
+    // No buffering in console logger
   }
 }
 
-/// Debug logger for development
-class DebugLogger implements AppLogger {
-  @override
-  void info(String message, {Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[INFO] $message ${data != null ? data.toString() : ''}');
-    }
-  }
-  
-  @override
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[WARN] $message ${error != null ? '- Error: $error' : ''} ${data != null ? data.toString() : ''}');
-    }
-  }
-  
-  @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[ERROR] $message ${error != null ? '- Error: $error' : ''} ${data != null ? data.toString() : ''}');
-      if (stackTrace != null) {
-        print('Stack trace: $stackTrace');
-      }
-    }
-  }
-  
-  @override
-  void breadcrumb(String message, {Map<String, Object?>? data}) {
-    if (kDebugMode) {
-      print('[BREADCRUMB] $message ${data != null ? data.toString() : ''}');
-    }
-  }
-}
-
-/// No-op logger for testing
+/// No-op logger for production when logging is disabled
 class NoOpLogger implements AppLogger {
-  @override
-  void info(String message, {Map<String, Object?>? data}) {}
-  
-  @override
-  void warn(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {}
-  
-  @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, Object?>? data}) {}
-  
-  @override
-  void breadcrumb(String message, {Map<String, Object?>? data}) {}
+  const NoOpLogger();
+  @override void debug(String message, {Map<String, dynamic>? data}) {}
+  @override void info(String message, {Map<String, dynamic>? data}) {}
+  @override void warning(String message, {Map<String, dynamic>? data}) {}
+  @override void warn(String message, {Map<String, dynamic>? data}) {}
+  @override void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {}
+  @override void breadcrumb(String message, {Map<String, dynamic>? data}) {}
+  @override Future<void> flush() async {}
 }
 
-/// Factory for creating logger instances
+/// Logger factory to create a global logger instance
 class LoggerFactory {
   static AppLogger? _instance;
-  
-  static AppLogger get instance {
-    if (_instance == null) {
-      throw StateError('LoggerFactory not initialized. Call initialize() first.');
-    }
-    return _instance!;
+  static void initialize({LogLevel minLevel = LogLevel.debug, bool enabled = true}) {
+    _instance = enabled ? ConsoleLogger(minLevel: minLevel) : const NoOpLogger();
   }
-  
-  /// Initialize logger with environment config
-  static void initialize(EnvironmentConfig config) {
-    if (config.crashReportingEnabled) {
-      _instance = SentryLogger(config);
-    } else {
-      _instance = DebugLogger();
-    }
-  }
-  
-  /// Initialize with specific logger (for testing)
-  static void initializeWith(AppLogger logger) {
-    _instance = logger;
-  }
-  
-  /// Reset factory (for testing)
-  static void reset() {
-    _instance = null;
-  }
+  static AppLogger get instance => _instance ?? const ConsoleLogger();
 }
+
+/// Global logger instance for easy access
+final AppLogger logger = LoggerFactory.instance;

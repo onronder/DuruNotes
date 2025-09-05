@@ -31,7 +31,7 @@ class _HelpScreenState extends State<HelpScreen> {
           _isLoading = false;
         });
       }
-    } on Exception catch (e) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = 'Failed to load user guide: $e';
@@ -88,7 +88,7 @@ class _HelpScreenState extends State<HelpScreen> {
   Widget _buildErrorView() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -185,7 +185,11 @@ class _HelpScreenState extends State<HelpScreen> {
         Expanded(
           child: Markdown(
             data: _userGuideContent,
-            onTapLink: (text, href, title) => href != null ? _launchUrl(href) : null,
+            onTapLink: (text, href, title) {
+              if (href != null) {
+                _launchUrl(href);
+              }
+            },
             styleSheet: MarkdownStyleSheet(
               h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -272,7 +276,7 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showSearchDialog() {
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Search User Guide'),
@@ -290,10 +294,10 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showContactSupport() {
-    showModalBottomSheet<void>(
+    showModalBottomSheet(
       context: context,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -358,7 +362,7 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showAppInfo() {
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('App Information'),
@@ -392,7 +396,7 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showQuickHelp() {
-    showModalBottomSheet<void>(
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
@@ -400,7 +404,7 @@ class _HelpScreenState extends State<HelpScreen> {
         maxChildSize: 0.9,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -457,8 +461,8 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showFeedbackDialog() {
-    final feedbackController = TextEditingController();
-    var feedbackType = 'Bug Report';
+    final TextEditingController feedbackController = TextEditingController();
+    String feedbackType = 'Bug Report';
 
     showDialog(
       context: context,
@@ -477,7 +481,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: feedbackType,
+                  value: feedbackType,
                   decoration: const InputDecoration(
                     labelText: 'Feedback Type',
                     border: OutlineInputBorder(),
@@ -548,13 +552,13 @@ class _HelpScreenState extends State<HelpScreen> {
 }
 
 class _QuickHelpSection extends StatelessWidget {
+  final String title;
+  final List<String> items;
+
   const _QuickHelpSection({
     required this.title,
     required this.items,
   });
-
-  final String title;
-  final List<String> items;
 
   @override
   Widget build(BuildContext context) {
@@ -562,7 +566,7 @@ class _QuickHelpSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 12.0),
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -573,12 +577,12 @@ class _QuickHelpSection extends StatelessWidget {
         ),
         ...items.map(
           (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 16),
+            padding: const EdgeInsets.only(bottom: 8.0, left: 16.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  margin: const EdgeInsets.only(top: 8, right: 8),
+                  margin: const EdgeInsets.only(top: 8.0, right: 8.0),
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(

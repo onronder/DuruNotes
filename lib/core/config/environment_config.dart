@@ -41,8 +41,12 @@ class EnvironmentConfig {
   /// Initialize environment configuration
   static Future<void> initialize() async {
     try {
-      // Load environment variables
-      await dotenv.load(fileName: 'assets/env/.env');
+      // Try to load environment variables (optional)
+      try {
+        await dotenv.load(fileName: 'assets/env/.env');
+      } catch (e) {
+        // Ignore env file errors - use defaults
+      }
       
       _instance = EnvironmentConfig._(
         supabaseUrl: const String.fromEnvironment(
@@ -132,6 +136,9 @@ Supabase URL: ${config.supabaseUrl.substring(0, 20)}...
 
   /// Check if Sentry is properly configured
   bool get isSentryConfigured => sentryDsn != null && sentryDsn!.isNotEmpty;
+
+  /// Check if performance monitoring is enabled
+  bool get isPerformanceMonitoringEnabled => analyticsEnabled && debugMode;
 }
 
 /// Environment types

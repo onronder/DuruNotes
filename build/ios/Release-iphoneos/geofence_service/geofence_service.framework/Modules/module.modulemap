@@ -1,0 +1,11 @@
+framework module geofence_service {
+  umbrella header "geofence_service-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+module geofence_service.Swift {
+  header "geofence_service-Swift.h"
+  requires objc
+}
