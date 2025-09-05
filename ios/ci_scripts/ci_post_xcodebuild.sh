@@ -1,26 +1,27 @@
 #!/bin/sh
 
-# Xcode Cloud Post-Xcodebuild Script - Production Cleanup
+# Xcode Cloud Post-build Script - Production Grade
 set -e
 
-echo "🧹 POST-BUILD CLEANUP AND VERIFICATION..."
+echo "🏁 XCODE CLOUD POST-BUILD VERIFICATION"
+echo "======================================"
+echo "📅 $(date)"
 
-# Navigate to iOS directory  
-cd ..
-
-echo "📊 Build completion status check:"
-
-# Check if build products exist
-if [ -d "/Volumes/workspace/build.xcarchive" ]; then
-    echo "✅ Archive created successfully"
-    ls -la /Volumes/workspace/build.xcarchive/Products/Applications/ 2>/dev/null || echo "⚠️ No applications in archive"
+# Check build status
+if [ "$CI_XCODEBUILD_EXIT_CODE" = "0" ]; then
+    echo "✅ BUILD SUCCESSFUL!"
+    echo "🎉 Archive created successfully"
+    echo "📦 Ready for TestFlight deployment"
 else
-    echo "❌ Archive not found - build may have failed"
+    echo "❌ BUILD FAILED"
+    echo "Exit code: $CI_XCODEBUILD_EXIT_CODE"
+    echo "🔍 Check build logs for details"
 fi
 
-# Check for common build artifacts
-if [ -f "/Volumes/workspace/DerivedData/Logs/Build/*.xcactivitylog" ]; then
-    echo "📋 Build logs available for debugging"
-fi
+echo "📊 Build Summary:"
+echo "• Project: ${CI_XCODE_PROJECT_NAME:-Unknown}"
+echo "• Scheme: ${CI_XCODE_SCHEME:-Unknown}" 
+echo "• Configuration: ${CI_XCODE_CONFIGURATION:-Unknown}"
+echo "• Build Number: ${CI_BUILD_NUMBER:-Unknown}"
 
-echo "🎯 POST-BUILD COMPLETE"
+echo "⏱️ Post-build completed: $(date)"

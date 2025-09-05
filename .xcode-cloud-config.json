@@ -28,13 +28,13 @@
       "steps": [
         {
           "name": "Install Flutter & Dependencies",
-          "script": "ci_scripts/ci_pre_xcodebuild.sh"
+          "script": "ios/ci_scripts/ci_post_clone.sh"
         }
       ],
       "post_actions": [
         {
           "name": "Post-build Verification",
-          "script": "ci_scripts/ci_post_xcodebuild.sh"
+          "script": "ios/ci_scripts/ci_post_xcodebuild.sh"
         }
       ]
     }
