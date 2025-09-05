@@ -24,7 +24,7 @@ echo "✅ Found pubspec.yaml in $(pwd)"
 
 # Generate Flutter framework with proper iOS configuration  
 echo "📱 Building Flutter iOS framework..."
-if /Users/local/flutter/bin/flutter build ios-framework --no-debug --no-profile --release; then
+if /Users/local/flutter/bin/flutter build ios-framework --no-debug --no-profile --release --no-tree-shake-icons; then
     echo "✅ Flutter ios-framework build completed"
 else
     echo "⚠️ Flutter ios-framework build failed, trying alternative approach"
@@ -42,29 +42,46 @@ if [ ! -d "Flutter/ephemeral/Flutter.framework" ]; then
     # Create ephemeral directory if it doesn't exist
     mkdir -p Flutter/ephemeral
     
-    # Strategy 1: Copy from cache
-    if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" ]; then
-        echo "📁 Strategy 1: Copying from Flutter cache..."
+    # Strategy 1: Check xcframework build output
+    if [ -d "../build/ios/framework/Release/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+        echo "📁 Strategy 1: Copying from xcframework build output..."
+        cp -R "../build/ios/framework/Release/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
+        echo "✅ Flutter framework copied from xcframework"
+    # Strategy 2: Copy from iOS cache (xcframework)
+    elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+        echo "📁 Strategy 2: Copying from Flutter iOS cache xcframework..."
+        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
+        echo "✅ Flutter framework copied from iOS cache"
+    # Strategy 3: Copy from ios-release cache (xcframework)
+    elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+        echo "📁 Strategy 3: Copying from ios-release xcframework..."
+        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
+        echo "✅ Flutter framework copied from ios-release"
+    # Strategy 4: Try legacy framework location
+    elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" ]; then
+        echo "📁 Strategy 4: Copying from legacy Flutter cache..."
         cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" Flutter/ephemeral/
-        echo "✅ Flutter framework copied from cache"
-    # Strategy 2: Check build output
-    elif [ -d "../build/ios/framework/Release/Flutter.framework" ]; then
-        echo "📁 Strategy 2: Copying from build output..."
-        cp -R "../build/ios/framework/Release/Flutter.framework" Flutter/ephemeral/
-        echo "✅ Flutter framework copied from build"
-    # Strategy 3: Download artifacts directly
+        echo "✅ Flutter framework copied from legacy cache"
+    # Strategy 5: Download artifacts and retry
     else
-        echo "📁 Strategy 3: Downloading Flutter artifacts..."
+        echo "📁 Strategy 5: Downloading Flutter artifacts..."
         /Users/local/flutter/bin/flutter precache --ios
-        if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" ]; then
-            cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.framework" Flutter/ephemeral/
+        
+        # Try again after precache
+        if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+            cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
             echo "✅ Flutter framework downloaded and copied"
+        elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+            cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/ephemeral/
+            echo "✅ Flutter framework downloaded and copied from ios-release"
         else
             echo "❌ FATAL: All strategies failed to get Flutter.framework"
             echo "🔍 Available Flutter frameworks:"
-            find /Users/local/flutter -name "Flutter.framework" -type d 2>/dev/null | head -5
+            find /Users/local/flutter/bin/cache/artifacts/engine -name "Flutter.framework" -type d 2>/dev/null | head -10
             echo "🔍 Current directory structure:"
             find . -name "Flutter.framework" -type d 2>/dev/null
+            echo "🔍 Build output structure:"
+            ls -la ../build/ios/framework/Release/ 2>/dev/null || echo "No build output"
             exit 1
         fi
     fi
