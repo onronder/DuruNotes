@@ -5,8 +5,8 @@ set -e
 
 echo "🚀 PRE-BUILD VERIFICATION..."
 
-# Navigate to iOS directory
-cd "$CI_PRIMARY_REPOSITORY_PATH/duru_notes_app/ios"
+# Navigate to iOS directory (fixed for new project structure)
+cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
 
 echo "📍 Current directory: $(pwd)"
 
