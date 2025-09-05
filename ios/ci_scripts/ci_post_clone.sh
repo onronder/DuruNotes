@@ -27,23 +27,35 @@ fi
 
 echo "✅ Verified Flutter project root"
 
-# Install Flutter SDK (Xcode Cloud specific path)
+# Install Flutter SDK (Enhanced environment detection)
 echo "📦 Installing Flutter SDK..."
-if [ "$CI" = "true" ] || [ "$XCODE_CLOUD" = "true" ]; then
-    # Xcode Cloud environment
+
+# Enhanced Xcode Cloud environment detection
+if [ "$CI" = "true" ] || [ "$XCODE_CLOUD" = "true" ] || [ -d "/Volumes/workspace" ] || [ "$PWD" = "/Volumes/workspace/repository" ] || [[ "$PWD" == *"/Volumes/workspace/repository"* ]]; then
+    # Xcode Cloud environment detected
+    echo "🔍 Xcode Cloud environment detected"
     FLUTTER_INSTALL_PATH="/Users/local/flutter"
+    
     if [ ! -d "$FLUTTER_INSTALL_PATH" ]; then
+        echo "📦 Installing Flutter SDK for Xcode Cloud..."
         git clone https://github.com/flutter/flutter.git --depth 1 --branch stable "$FLUTTER_INSTALL_PATH"
         echo "✅ Flutter SDK installed for Xcode Cloud"
     else
         echo "✅ Flutter SDK already exists in Xcode Cloud"
     fi
+    
+    # Add Flutter to PATH for Xcode Cloud
     export PATH="$FLUTTER_INSTALL_PATH/bin:$PATH"
+    echo "📂 Flutter PATH: $FLUTTER_INSTALL_PATH/bin"
+    
 else
     # Local development environment
-    echo "✅ Using local Flutter installation"
-    if ! command -v flutter >/dev/null 2>&1; then
+    echo "🔍 Local development environment detected"
+    if command -v flutter >/dev/null 2>&1; then
+        echo "✅ Using local Flutter installation: $(which flutter)"
+    else
         echo "❌ Flutter not found in PATH. Please install Flutter locally."
+        echo "💡 Install Flutter: https://flutter.dev/docs/get-started/install"
         exit 1
     fi
 fi

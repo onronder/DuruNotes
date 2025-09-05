@@ -22,7 +22,8 @@
         "TREE_SHAKE_ICONS": "false",
         "FLUTTER_BUILD_MODE": "release",
         "CI": "true",
-        "XCODE_CLOUD": "true"
+        "XCODE_CLOUD": "true",
+        "FLUTTER_ROOT": "/Users/local/flutter"
       },
       "steps": [
         {
