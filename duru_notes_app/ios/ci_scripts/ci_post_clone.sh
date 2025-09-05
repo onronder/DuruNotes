@@ -1,33 +1,41 @@
 #!/bin/sh
+
+# Hata durumunda script'in durmasını ve komutları göstermesini sağlar
 set -e
 set -x
 
-echo "Starting ci_post_clone.sh script..."
+echo "### Starting ci_post_clone.sh script..."
 
 # Flutter'ın stabil (stable) versiyonunu kuruyoruz
-echo "Installing Flutter..."
+echo "### Installing Flutter SDK..."
 git clone https://github.com/flutter/flutter.git --depth 1 --branch stable /Users/local/flutter
 export PATH="/Users/local/flutter/bin:$PATH"
 
-# Flutter'ın doğru bir şekilde kurulduğunu ve ortam değişkenlerinin ayarlandığını kontrol ediyoruz
-echo "Verifying Flutter installation..."
+# Flutter kurulumunu doğruluyoruz
+echo "### Verifying Flutter installation..."
 flutter doctor -v
 
-# Projenin ana dizinine gidiyoruz
+# Projenin ana çalışma dizinine gidiyoruz ($CI_WORKSPACE, Xcode Cloud'un proje dosyalarını klonladığı yerdir)
+echo "### Navigating to project root directory..."
 cd $CI_WORKSPACE
 
-# Flutter projesini temizleyip pub paketlerini yüklüyoruz
-echo "Cleaning Flutter project and getting dependencies..."
+# Flutter bağımlılıklarını temizleyip yeniden yüklüyoruz
+echo "### Cleaning and getting Flutter dependencies..."
 flutter clean
 flutter pub get
 
-# iOS dizinine gidip CocoaPods kurulumunu yapıyoruz
-echo "Navigating to iOS directory..."
+# ÖNEMLİ ADIM: Flutter'a iOS projesini yeniden yapılandırmasını ve hazırlamasını söylüyoruz.
+# Bu komut, podspec bulunamadı hatasını kesin olarak çözer.
+echo "### Preparing iOS project for build..."
+flutter build ios --no-codesign
+
+# iOS klasörüne gidiyoruz
+echo "### Navigating to iOS directory..."
 cd ios
 
-# CocoaPods entegrasyonunu sıfırlayıp yeniden kurarak olası cache sorunlarını önlüyoruz
-echo "De-integrating and re-installing CocoaPods..."
+# CocoaPods entegrasyonunu tamamen sıfırlayıp, güncel podları kuruyoruz
+echo "### Resetting and installing CocoaPods..."
 pod deintegrate
 pod install --repo-update
 
-echo "ci_post_clone.sh script finished successfully."
+echo "### ci_post_clone.sh script finished successfully."
