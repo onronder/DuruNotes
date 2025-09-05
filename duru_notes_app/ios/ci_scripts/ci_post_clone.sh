@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Xcode Cloud Post-Clone Script - FLUTTER FRAMEWORK EARLY SETUP
+# Xcode Cloud Post-Clone Script - ULTIMATE FLUTTER FIX
 set -e
 
 echo "Starting ci_post_clone.sh script..."
@@ -37,93 +37,91 @@ export PATH="/Users/local/flutter/bin:$PATH"
 echo "Downloading Flutter dependencies..."
 /Users/local/flutter/bin/flutter doctor -v
 
-# CRITICAL: Download iOS artifacts BEFORE pod install
+# CRITICAL: Download iOS artifacts BEFORE anything else
 echo "Precaching iOS artifacts..."
 /Users/local/flutter/bin/flutter precache --ios
 
-# CRITICAL FIX: Setup Flutter.framework BEFORE pod install
-echo "🚨 CRITICAL: Setting up Flutter.framework BEFORE pod install..."
-mkdir -p Flutter/ephemeral
+# ULTIMATE FIX: Let Flutter generate its own framework setup
+echo "🚨 ULTIMATE FIX: Running Flutter build to generate proper framework structure..."
 
-# Find and copy the Flutter.framework
-FLUTTER_FRAMEWORK=""
-if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
-    FLUTTER_FRAMEWORK="/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework"
-    echo "Found Flutter.framework in ios xcframework"
-elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
-    FLUTTER_FRAMEWORK="/Users/local/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework"
-    echo "Found Flutter.framework in ios-release xcframework"
-elif [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios-profile/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then  
-    FLUTTER_FRAMEWORK="/Users/local/flutter/bin/cache/artifacts/engine/ios-profile/Flutter.xcframework/ios-arm64/Flutter.framework"
-    echo "Found Flutter.framework in ios-profile xcframework"
-fi
+# Navigate to Flutter project root for build
+cd ..
 
-if [ -n "$FLUTTER_FRAMEWORK" ]; then
-    echo "📋 Copying Flutter.framework from $FLUTTER_FRAMEWORK"
-    cp -R "$FLUTTER_FRAMEWORK" Flutter/ephemeral/
-    echo "✅ Flutter.framework copied successfully"
-    
-    # Verify the copy
-    if [ -f "Flutter/ephemeral/Flutter.framework/Flutter" ]; then
-        echo "✅ Flutter binary verified"
-    fi
-    if [ -f "Flutter/ephemeral/Flutter.framework/Headers/Flutter.h" ]; then
-        echo "✅ Flutter.h header verified"
-    fi
+# Clean any previous builds
+rm -rf ios/Flutter/ephemeral/* 2>/dev/null || true
+
+# Generate Flutter framework properly using Flutter's own tools
+echo "📱 Building Flutter framework using Flutter tools..."
+/Users/local/flutter/bin/flutter build ios --no-codesign --release
+
+# Navigate back to iOS directory
+cd ios
+
+# At this point Flutter should have generated its own framework structure
+echo "🔍 Checking Flutter framework structure..."
+if [ -d "Flutter/ephemeral/Flutter.framework" ]; then
+    echo "✅ Flutter framework exists"
+    ls -la Flutter/ephemeral/Flutter.framework/
 else
-    echo "❌ WARNING: Flutter.framework not found in expected locations"
-    echo "Available frameworks:"
-    find /Users/local/flutter/bin/cache/artifacts/engine -name "Flutter.framework" -type d | head -10
+    echo "⚠️ Flutter framework not in ephemeral, checking other locations..."
+    find Flutter -name "Flutter.framework" -type d 2>/dev/null || echo "No Flutter.framework found"
 fi
 
-# Create Flutter.podspec BEFORE pod install
-echo "📝 Creating Flutter.podspec..."
-cat > Flutter/Flutter.podspec << 'EOF'
-Pod::Spec.new do |s|
-  s.name             = 'Flutter'
-  s.version          = '1.0.0'
-  s.summary          = 'Flutter Engine Framework'
-  s.description      = 'Flutter Engine Framework for iOS'
-  s.homepage         = 'https://flutter.dev'
-  s.license          = { :type => 'BSD' }
-  s.author           = { 'Flutter Dev Team' => 'flutter-dev@googlegroups.com' }
-  s.source           = { :git => '', :tag => '1.0.0' }
-  s.ios.deployment_target = '14.0'
-  s.vendored_frameworks = 'ephemeral/Flutter.framework'
-  s.preserve_paths = 'ephemeral/Flutter.framework'
-  s.xcconfig = { 
-    'FRAMEWORK_SEARCH_PATHS' => '$(inherited) $(PROJECT_DIR)/Flutter/ephemeral',
-    'OTHER_LDFLAGS' => '$(inherited) -framework Flutter'
-  }
-end
-EOF
-echo "✅ Flutter.podspec created with framework search paths"
+# Check if Flutter generated its build products
+if [ -d "../build/ios" ]; then
+    echo "✅ Flutter build directory exists"
+    ls -la ../build/ios/
+else
+    echo "⚠️ No Flutter build directory found"
+fi
 
-# Run Flutter pub get BEFORE pod install
+# Now run Flutter pub get to ensure dependencies are resolved
 echo "Running flutter pub get..."
 cd ..
 /Users/local/flutter/bin/flutter pub get
 cd ios
 
-# Clean any existing pods to ensure fresh installation
+# Clean any existing pods to force fresh installation
 echo "Cleaning existing pods..."
-rm -rf Pods Podfile.lock || true
+rm -rf Pods Podfile.lock 2>/dev/null || true
 
-# Run pod install with proper Flutter framework
+# CRITICAL: Let Flutter set up the iOS integration properly
+echo "🔧 Setting up Flutter iOS integration..."
+cd ..
+/Users/local/flutter/bin/flutter build ios --config-only
+cd ios
+
+# Now run pod install - Flutter should have set everything up correctly
 echo "Running pod install..."
 pod install --repo-update
 
 echo "Pod installation completed"
 
-# Verify Flutter is properly integrated
-echo "🔍 Verifying Flutter integration in Pods..."
+# Verify Flutter pod exists now
 if [ -d "Pods/Flutter" ]; then
     echo "✅ Flutter pod directory exists"
-    ls -la Pods/Flutter/ || true
+    ls -la Pods/Flutter/ 2>/dev/null || echo "Flutter pod empty"
+else
+    echo "⚠️ Still no Flutter pod directory"
+    echo "Available pods:"
+    ls -la Pods/ | head -10
 fi
 
-# Verify Pods installation
-echo "Listing Pods directory:"
-ls -la Pods/ | head -20
+# Final verification of framework
+echo "🔍 Final Flutter framework verification..."
+if [ -d "Flutter/ephemeral/Flutter.framework" ]; then
+    echo "✅ Flutter.framework in ephemeral"
+    if [ -f "Flutter/ephemeral/Flutter.framework/Flutter" ]; then
+        echo "✅ Flutter binary exists"
+    fi
+    if [ -f "Flutter/ephemeral/Flutter.framework/Headers/Flutter.h" ]; then
+        echo "✅ Flutter.h header exists"
+    fi
+elif [ -f "Flutter/Flutter.framework/Flutter" ]; then
+    echo "✅ Flutter.framework in Flutter directory"
+else
+    echo "⚠️ Searching for Flutter framework..."
+    find . -name "Flutter.framework" -type d 2>/dev/null || echo "No Flutter framework found anywhere"
+fi
 
 echo "ci_post_clone.sh script completed successfully"
