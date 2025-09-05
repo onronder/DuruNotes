@@ -1,0 +1,11 @@
+framework module fl_location {
+  umbrella header "fl_location-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+module fl_location.Swift {
+  header "fl_location-Swift.h"
+  requires objc
+}

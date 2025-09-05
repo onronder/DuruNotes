@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:path/path.dart' as path;
 
 import '../core/monitoring/app_logger.dart';
 import '../core/parser/note_block_parser.dart';
@@ -13,6 +14,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
+
+/// Progress callback for import operations
+typedef ProgressCallback = void Function(ImportProgress progress);
 
 /// Production-grade import service with comprehensive error handling and validation
 class ImportService {
@@ -37,8 +41,7 @@ class ImportService {
         _logger = logger,
         _analytics = analytics;
 
-  /// Progress callback for real-time updates
-  typedef ProgressCallback = void Function(ImportProgress progress);
+  // No need to declare typedef inside class
 
   /// Import a single Markdown file with comprehensive validation
   Future<ImportResult> importMarkdown(
@@ -117,7 +120,7 @@ class ImportService {
         importedFiles: [file.path],
       );
 
-      _analytics.event('import.success', props: {
+      _analytics.event('import.success', properties: {
         'type': 'markdown',
         'count': 1,
         'duration_ms': stopwatch.elapsedMilliseconds,
@@ -264,7 +267,7 @@ class ImportService {
         importedFiles: importedFiles,
       );
 
-      _analytics.event('import.success', props: {
+      _analytics.event('import.success', properties: {
         'type': 'enex',
         'total': totalNotes,
         'success': successCount,
@@ -401,7 +404,7 @@ class ImportService {
         importedFiles: importedFiles,
       );
 
-      _analytics.event('import.success', props: {
+      _analytics.event('import.success', properties: {
         'type': 'obsidian',
         'total': totalFiles,
         'success': successCount,
@@ -468,7 +471,7 @@ class ImportService {
         error: e, 
         stackTrace: stackTrace,
       );
-      _analytics.event('import.error', props: {
+      _analytics.event('import.error', properties: {
         'phase': 'file_picking',
         'error': e.toString(),
       });
@@ -661,7 +664,7 @@ class ImportService {
       }
       
     } catch (e) {
-      _logger.warn('Error parsing ENEX note element', error: e);
+      _logger.error('Error parsing ENEX note element', error: e);
     }
     
     return ParsedNote(
@@ -726,7 +729,7 @@ class ImportService {
       return markdown;
       
     } catch (e) {
-      _logger.warn('Error converting ENML to Markdown', error: e);
+      _logger.error('Error converting ENML to Markdown', error: e);
       return enml; // Return original if conversion fails
     }
   }
@@ -764,7 +767,7 @@ class ImportService {
         }
       }
     } catch (e) {
-      _logger.warn('Failed to parse ENEX date', error: e, data: {'date': dateStr});
+      _logger.error('Failed to parse ENEX date', error: e, data: {'date': dateStr});
     }
     
     return null;
@@ -798,7 +801,7 @@ class ImportService {
             final fileSize = await entity.length();
             if (fileSize > _maxFileSize || fileSize == 0) continue;
           } catch (e) {
-            _logger.warn('Cannot check file size', error: e, data: {'file': entity.path});
+            _logger.error('Cannot check file size', error: e, data: {'file': entity.path});
             continue;
           }
           
@@ -864,18 +867,18 @@ class ImportService {
   Future<List<NoteBlock>> _parseMarkdownToBlocks(String content) async {
     try {
       if (content.trim().isEmpty) {
-        return [NoteBlock.paragraph(content: '')];
+        return [NoteBlock(type: NoteBlockType.paragraph, data: '')];
       }
       
-      final parser = NoteBlockParser();
+      // Use the parser from the helper function
       return await compute(_parseMarkdownInIsolate, {
         'content': content,
         'maxLength': _maxContentLength,
       });
     } catch (e) {
-      _logger.warn('Failed to parse markdown to blocks', error: e);
+      _logger.error('Failed to parse markdown to blocks', error: e);
       // Fallback: create a single paragraph block
-      return [NoteBlock.paragraph(content: content)];
+      return [NoteBlock(type: NoteBlockType.paragraph, data: content)];
     }
   }
 
@@ -909,7 +912,7 @@ class ImportService {
     // Validate each block
     for (int i = 0; i < blocks.length; i++) {
       final block = blocks[i];
-      if (!block.isValid) {
+      if (block.data.trim().isEmpty) {
         throw ImportException('Invalid block at position $i');
       }
     }
@@ -923,20 +926,22 @@ class ImportService {
 
     try {
       // Create the note with timeout
-      final noteId = await _notesRepository.create(
-        title: title.trim(),
-        blocks: blocks,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      ).timeout(_operationTimeout);
+      final noteId = await _notesRepository.createOrUpdate(
+        title: title.trim(), 
+        body: blocksToMarkdown(blocks),
+      );
 
-      // Index for search with timeout
-      await _noteIndexer.indexNote(
+      // Create note object for indexing
+      final note = LocalNote(
         id: noteId,
         title: title.trim(),
-        content: blocks.map((b) => b.content).join(' '),
-        tags: validTags,
-      ).timeout(_operationTimeout);
+        body: blocksToMarkdown(blocks),
+        updatedAt: updatedAt ?? DateTime.now(),
+        deleted: false,
+      );
+
+      // Index for search
+      await _noteIndexer.indexNote(note);
 
       _logger.info('Successfully imported note', data: {
         'noteId': noteId,
@@ -982,7 +987,7 @@ class ImportService {
       },
     );
 
-    _analytics.event('import.error', props: {
+    _analytics.event('import.error', properties: {
       'type': importType,
       'error': errorMessage,
       'duration_ms': elapsed.inMilliseconds,
@@ -1015,7 +1020,16 @@ class ImportService {
 
   String _extractTitleFromFrontmatter(String frontmatter) {
     final titleMatch = RegExp(r'^title:\s*(.+)$', multiLine: true).firstMatch(frontmatter);
-    return titleMatch?.group(1)?.trim().replaceAll(RegExp(r'^["\']|["\']$'), '') ?? '';
+    final title = titleMatch?.group(1)?.trim() ?? '';
+    // Remove quotes from beginning and end
+    String result = title;
+    if (result.startsWith('"') && result.endsWith('"')) {
+      result = result.substring(1, result.length - 1);
+    }
+    if (result.startsWith("'") && result.endsWith("'")) {
+      result = result.substring(1, result.length - 1);
+    }
+    return result;
   }
 
   String _generateTitleFromFilename(String filename) {
@@ -1160,6 +1174,5 @@ List<NoteBlock> _parseMarkdownInIsolate(Map<String, dynamic> params) {
     throw ImportException('Content too long: ${content.length} characters');
   }
   
-  final parser = NoteBlockParser();
-  return parser.parseMarkdownToBlocks(content);
+  return parseMarkdownToBlocks(content);
 }

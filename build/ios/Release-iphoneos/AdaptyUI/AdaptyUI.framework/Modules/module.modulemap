@@ -1,0 +1,11 @@
+framework module AdaptyUI {
+  umbrella header "AdaptyUI-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+module AdaptyUI.Swift {
+  header "AdaptyUI-Swift.h"
+  requires objc
+}
