@@ -32,6 +32,17 @@
         android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Adapty SDK Configuration -->
+        <meta-data
+            android:name="AdaptyPublicSdkKey"
+            android:value="public_live_auSluPc0.Qso83VlJGyzNxUmeZn6j" />
+        <meta-data
+            android:name="AdaptyObserverMode"
+            android:value="false" />
+        <meta-data
+            android:name="AdaptyGoogleAdvertisingIdCollectionDisabled"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

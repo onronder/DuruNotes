@@ -59,7 +59,7 @@ dependencies:
   printing: ^5.13.0  # PDF printing and sharing
   share_plus: ^11.1.0  # Cross-platform sharing
   open_file: ^3.5.3  # Open files with system apps
-  adapty_flutter: ^3.10.0  # Subscription management and monetization
+  adapty_flutter: ^3.11.0  # Subscription management and monetization
   package_info_plus: ^8.0.2  # App version and build info
 
 dev_dependencies:
