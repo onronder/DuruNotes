@@ -1,28 +1,26 @@
-2025-09-06T06:27:31.132618572Z	🚀 PRE-BUILD VERIFICATION...
-2025-09-06T06:27:31.132712517Z	📍 Current directory: /Volumes/workspace/repository/ios
-2025-09-06T06:27:31.132888284Z	🔍 Verifying Flutter.framework...
-2025-09-06T06:27:31.132909561Z	✅ Flutter.framework exists
-2025-09-06T06:27:31.132986747Z	✅ Flutter binary verified
-2025-09-06T06:27:31.133007480Z	✅ Flutter.h header verified
-2025-09-06T06:27:31.133118711Z	🔍 Checking for xcfilelist references...
-2025-09-06T06:27:31.133138714Z	❌ Found xcfilelist references, removing...
-2025-09-06T06:27:31.860266508Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
-2025-09-06T06:27:31.860360584Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
-2025-09-06T06:27:31.860803990Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources-${CONFIGURATION}-input-files.xcfilelist",
-2025-09-06T06:27:31.860843994Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources-${CONFIGURATION}-output-files.xcfilelist",
-2025-09-06T06:27:31.860982751Z	✅ Removed 4 xcfilelist references
-2025-09-06T06:27:31.861065374Z	🔍 Verifying Pods...
-2025-09-06T06:27:31.861226306Z	🔍 Verifying critical plugin pods...
-2025-09-06T06:27:31.861257381Z	⚠️ sentry_flutter pod not found
-2025-09-06T06:27:31.861393227Z	⚠️ adapty_flutter pod not found
-2025-09-06T06:27:31.861419210Z	⚠️ sqlite3_flutter_libs pod not found
-2025-09-06T06:27:31.861481963Z	⚠️ google_mlkit_text_recognition pod not found
-2025-09-06T06:27:31.861503832Z	⚠️ receive_sharing_intent pod not found
-2025-09-06T06:27:31.861669719Z	⚠️ Flutter pod directory not found - expected in manual pod system
-2025-09-06T06:27:31.861690928Z	🎯 PRE-BUILD STATUS (Manual Pod System):
-2025-09-06T06:27:31.861842581Z	   ✅ Flutter.framework verified
-2025-09-06T06:27:31.861869519Z	   ✅ Podfile.lock exists
-2025-09-06T06:27:31.861921352Z	   ✅ Pods directory exists
-2025-09-06T06:27:31.861933909Z	   ✅ No xcfilelist references
-2025-09-06T06:27:31.862146761Z	   ✅ Critical plugins verified
-2025-09-06T06:27:31.862179847Z	🚀 PRE-BUILD VERIFICATION COMPLETE!
+2025-09-06T14:42:42.582381589Z	🚀 PRE-BUILD VERIFICATION...
+2025-09-06T14:42:42.582583908Z	📍 Current directory: /Volumes/workspace/repository/ios
+2025-09-06T14:42:42.582796093Z	🔍 Verifying Flutter.framework...
+2025-09-06T14:42:42.582822625Z	✅ Flutter.framework exists
+2025-09-06T14:42:42.583044662Z	✅ Flutter binary verified
+2025-09-06T14:42:42.583074557Z	✅ Flutter.h header verified
+2025-09-06T14:42:42.583185741Z	🔍 Checking for xcfilelist references...
+2025-09-06T14:42:42.583211753Z	❌ Found xcfilelist references, removing...
+2025-09-06T14:42:43.335265894Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
+2025-09-06T14:42:43.335408202Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+2025-09-06T14:42:43.335790549Z	✅ Removed 2 xcfilelist references
+2025-09-06T14:42:43.335883120Z	🔍 Verifying Pods...
+2025-09-06T14:42:43.336069448Z	🔍 Verifying critical plugin pods...
+2025-09-06T14:42:43.336132460Z	⚠️ sentry_flutter pod not found
+2025-09-06T14:42:43.336153709Z	⚠️ adapty_flutter pod not found
+2025-09-06T14:42:43.336204845Z	⚠️ sqlite3_flutter_libs pod not found
+2025-09-06T14:42:43.336313194Z	⚠️ google_mlkit_text_recognition pod not found
+2025-09-06T14:42:43.336344897Z	⚠️ receive_sharing_intent pod not found
+2025-09-06T14:42:43.336432166Z	⚠️ Flutter pod directory not found - expected in manual pod system
+2025-09-06T14:42:43.336459467Z	🎯 PRE-BUILD STATUS (Manual Pod System):
+2025-09-06T14:42:43.336618330Z	   ✅ Flutter.framework verified
+2025-09-06T14:42:43.336642327Z	   ✅ Podfile.lock exists
+2025-09-06T14:42:43.336672909Z	   ✅ Pods directory exists
+2025-09-06T14:42:43.336686246Z	   ✅ No xcfilelist references
+2025-09-06T14:42:43.336761561Z	   ✅ Critical plugins verified
+2025-09-06T14:42:43.336891446Z	🚀 PRE-BUILD VERIFICATION COMPLETE!
