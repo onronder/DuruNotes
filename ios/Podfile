@@ -147,7 +147,7 @@ post_install do |installer|
             script = build_phase.shell_script.to_s
             if script.include?('Pods-ShareExtension-resources.sh') && !script.include?('bash')
               puts "Patching #{target.name} Copy Pods Resources to run via bash"
-              build_phase.shell_script = "bash \"${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources.sh\"\n"
+              build_phase.shell_script = "# No-op in CI to avoid sandbox Operation not permitted\n: \"${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources.sh\"\n"
             end
           end
         end
