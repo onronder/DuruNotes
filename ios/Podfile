@@ -38,13 +38,6 @@ target 'Runner' do
   end
 end
 
-# ShareExtension target - FIXED CONFIGURATION (minimal dependencies)
-target 'ShareExtension' do
-  platform :ios, '14.0'
-  
-  # Essential pods only for ShareExtension functionality
-  pod 'shared_preferences_foundation', :path => '.symlinks/plugins/shared_preferences_foundation/darwin'
-end
 
 post_install do |installer|
   # PRODUCTION-GRADE PLUGIN COMPATIBILITY FIXES
@@ -130,7 +123,7 @@ post_install do |installer|
     end
   end
 
-  # Also patch Copy Pods Resources warning for user project targets
+  # Also patch Copy Pods Resources warning for user project targets (Runner only)
   installer.aggregate_targets.each do |aggregate|
     aggregate.user_project.native_targets.each do |target|
       target.build_phases.each do |build_phase|
@@ -140,25 +133,6 @@ post_install do |installer|
           output_path = '$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)'
           unless build_phase.output_paths.include?(output_path)
             build_phase.output_paths << output_path
-          end
-
-          # Workaround Xcode Cloud sandbox 'Operation not permitted' by invoking via bash
-          if build_phase.respond_to?(:shell_script)
-            script = build_phase.shell_script.to_s
-            if script.include?('Pods-ShareExtension-resources.sh') && !script.include?('bash')
-              puts "Patching #{target.name} Copy Pods Resources to run via bash"
-              build_phase.shell_script = "# No-op in CI to avoid sandbox Operation not permitted\n: \"${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources.sh\"\n"
-            end
-          end
-        end
-      end
-
-      # Remove the problematic Copy Pods Resources phase from ShareExtension entirely in CI
-      if target.respond_to?(:name) && target.name == 'ShareExtension'
-        target.build_phases.dup.each do |bp|
-          if bp.respond_to?(:name) && bp.name == '[CP] Copy Pods Resources'
-            puts "Removing [CP] Copy Pods Resources from ShareExtension"
-            target.build_phases.delete(bp)
           end
         end
       end
@@ -231,40 +205,5 @@ post_install do |installer|
     flutter_post_install(installer)
   end
 
-  # Ensure ShareExtension does NOT link against non-extension-safe plugins
-  pods_project = installer.pods_project
-  share_agg = pods_project.targets.find { |t| t.respond_to?(:name) && t.name == 'Pods-ShareExtension' }
-  if share_agg
-    # Remove target dependencies to disallowed pods
-    disallowed_pods = ['receive_sharing_intent']
-    share_agg.dependencies.dup.each do |dep|
-      target_proxy = dep.respond_to?(:target_proxy) ? dep.target_proxy : nil
-      remote = target_proxy && target_proxy.respond_to?(:remote_info) ? target_proxy.remote_info : dep.display_name rescue nil
-      if remote && disallowed_pods.include?(remote)
-        puts "🚫 Removing dependency '#{remote}' from Pods-ShareExtension"
-        share_agg.dependencies.delete(dep)
-      end
-    end
-
-    # Clean up link flags that may still reference the disallowed pods
-    share_agg.build_configurations.each do |config|
-      ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
-      filtered = ldflags.reject { |f| disallowed_pods.any? { |p| f.to_s.include?(p) } }
-      config.build_settings['OTHER_LDFLAGS'] = filtered
-    end
-  end
-
-  # Also ensure the user project's ShareExtension target does not link against disallowed pods
-  user_proj = installer.aggregate_targets.first&.user_project
-  if user_proj
-    share_user = user_proj.targets.find { |t| t.respond_to?(:name) && t.name == 'ShareExtension' }
-    if share_user
-      disallowed_pods = ['receive_sharing_intent']
-      share_user.build_configurations.each do |config|
-        ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
-        filtered = ldflags.reject { |f| disallowed_pods.any? { |p| f.to_s.include?(p) } }
-        config.build_settings['OTHER_LDFLAGS'] = filtered
-      end
-    end
-  end
+  # ShareExtension removed: no extension-specific CocoaPods targets or dependencies
 end
