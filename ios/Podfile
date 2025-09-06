@@ -61,7 +61,6 @@ post_install do |installer|
       config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
         '$(inherited)',
         '$(PODS_ROOT)/../Flutter',
-        '$(PODS_ROOT)/../Flutter/Flutter.framework',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
@@ -72,11 +71,10 @@ post_install do |installer|
       header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
       header_paths += [
         '$(inherited)',
-        '$(PODS_ROOT)/../Flutter/Flutter.framework/Headers',
+        '$(PODS_ROOT)/../Flutter/Headers',
         '$(PODS_ROOT)/../Flutter/Headers',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
-        '$(BUILT_PRODUCTS_DIR)/Flutter/Flutter.framework/Headers'
+        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers'
       ]
       config.build_settings['HEADER_SEARCH_PATHS'] = header_paths.uniq
       

@@ -21,6 +21,14 @@ if [ ! -f "$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh" ]; then
   echo "🔧 Resolved FLUTTER_ROOT=$FLUTTER_ROOT"
 fi
 
+# Normalize FLUTTER_ROOT inside Flutter xcconfig files for CI so search paths resolve
+echo "🔧 Normalizing FLUTTER_ROOT in xcconfig files to $FLUTTER_ROOT"
+for f in Flutter/Generated.xcconfig Flutter/Flutter-Generated.xcconfig; do
+  if [ -f "$f" ]; then
+    /usr/bin/sed -i '' "s|^FLUTTER_ROOT=.*|FLUTTER_ROOT=$FLUTTER_ROOT|" "$f" || true
+  fi
+done
+
 # Verify Flutter.framework exists (manual pod system)
 echo "🔍 Verifying Flutter.framework..."
 if [ ! -d "Flutter/Flutter.framework" ]; then
