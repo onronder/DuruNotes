@@ -10,30 +10,28 @@ cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
 
 echo "📍 Current directory: $(pwd)"
 
-# CRITICAL: Verify Flutter.framework exists (manual pod system)
+echo "🔍 Ensuring Flutter tool scripts are available..."
+export FLUTTER_ROOT="${FLUTTER_ROOT:-/Users/local/flutter}"
+if [ ! -f "$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh" ]; then
+  echo "⚠️ xcode_backend.sh not found at $FLUTTER_ROOT. Bootstrapping Flutter SDK..."
+  # Attempt to locate flutter on PATH
+  if command -v flutter >/dev/null 2>&1; then
+    export FLUTTER_ROOT="$(dirname $(dirname $(dirname $(command -v flutter))))"
+  fi
+  echo "🔧 Resolved FLUTTER_ROOT=$FLUTTER_ROOT"
+fi
+
+# Verify Flutter.framework exists (manual pod system)
 echo "🔍 Verifying Flutter.framework..."
-if [ -d "Flutter/Flutter.framework" ]; then
-    echo "✅ Flutter.framework exists"
-    if [ -f "Flutter/Flutter.framework/Flutter" ]; then
-        echo "✅ Flutter binary verified"
-    fi
-    if [ -f "Flutter/Flutter.framework/Headers/Flutter.h" ]; then
-        echo "✅ Flutter.h header verified"
-    fi
-else
-    echo "❌ CRITICAL: Flutter.framework missing!"
-    echo "🔧 Attempting emergency recovery..."
-    
-    # Emergency recovery - copy framework again
-    mkdir -p Flutter
-    
-    if [ -d "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
-        cp -R "/Users/local/flutter/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/
-        echo "✅ Emergency recovery: Flutter.framework copied"
-    else
-        echo "❌ FATAL: Cannot recover Flutter.framework"
-        exit 1
-    fi
+if [ ! -d "Flutter/Flutter.framework" ]; then
+  mkdir -p Flutter
+  if [ -d "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" ]; then
+    cp -R "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework" Flutter/
+    echo "✅ Restored Flutter.framework from Flutter SDK cache"
+  else
+    echo "❌ FATAL: Flutter.framework missing and could not restore from $FLUTTER_ROOT"
+    exit 1
+  fi
 fi
 
 # CRITICAL CHECK: Ensure no xcfilelist references exist
