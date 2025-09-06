@@ -488,11 +488,30 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -512,9 +531,28 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.duruNotesApp.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -534,9 +572,28 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.duruNotesApp.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = minimal;
@@ -554,9 +611,28 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.duruNotesApp.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = minimal;
@@ -690,11 +766,30 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -718,11 +813,30 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Flutter/Flutter.framework/Headers",
+					"$(PROJECT_DIR)/Flutter/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers",
+					"$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Flutter,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";

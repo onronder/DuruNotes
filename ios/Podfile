@@ -104,6 +104,31 @@ post_install do |installer|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
         config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
+
+        # Ensure Runner target can find Flutter headers and framework
+        header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
+        header_paths += [
+          '$(inherited)',
+          '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
+          '$(PROJECT_DIR)/Flutter/Headers',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers'
+        ]
+        config.build_settings['HEADER_SEARCH_PATHS'] = header_paths.uniq
+
+        framework_paths = Array(config.build_settings['FRAMEWORK_SEARCH_PATHS'])
+        framework_paths += [
+          '$(inherited)',
+          '$(PROJECT_DIR)/Flutter',
+          '$(PROJECT_DIR)/Flutter/Flutter.framework',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
+          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
+        ]
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = framework_paths.uniq
+
+        ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
+        ldflags += ['$(inherited)', '-framework', 'Flutter']
+        config.build_settings['OTHER_LDFLAGS'] = ldflags.uniq
       end
     end
   end
