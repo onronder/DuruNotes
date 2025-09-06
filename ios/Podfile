@@ -152,6 +152,16 @@ post_install do |installer|
           end
         end
       end
+
+      # Remove the problematic Copy Pods Resources phase from ShareExtension entirely in CI
+      if target.respond_to?(:name) && target.name == 'ShareExtension'
+        target.build_phases.dup.each do |bp|
+          if bp.respond_to?(:name) && bp.name == '[CP] Copy Pods Resources'
+            puts "Removing [CP] Copy Pods Resources from ShareExtension"
+            target.build_phases.delete(bp)
+          end
+        end
+      end
     end
   end
 
