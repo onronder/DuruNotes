@@ -43,7 +43,6 @@ target 'ShareExtension' do
   platform :ios, '14.0'
   
   # Essential pods only for ShareExtension functionality
-  pod 'receive_sharing_intent', :path => '.symlinks/plugins/receive_sharing_intent/ios'
   pod 'shared_preferences_foundation', :path => '.symlinks/plugins/shared_preferences_foundation/darwin'
 end
 
@@ -121,19 +120,26 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_phases.each do |build_phase|
       if build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
-        puts "Adding output files to #{target.name} Copy Pods Resources build phase"
-        
-        # Add the standard CocoaPods resource output files
-        resource_output_files = [
-          '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}',
-        ]
-        
-        # Only add output files if they don't already exist
-        existing_output_files = build_phase.output_file_list_paths || []
-        resource_output_files.each do |output_file|
-          unless existing_output_files.include?(output_file)
-            build_phase.output_file_list_paths ||= []
-            build_phase.output_file_list_paths << output_file
+        puts "Adding output path to #{target.name} Copy Pods Resources build phase"
+        build_phase.output_paths ||= []
+        output_path = '$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)'
+        unless build_phase.output_paths.include?(output_path)
+          build_phase.output_paths << output_path
+        end
+      end
+    end
+  end
+
+  # Also patch Copy Pods Resources warning for user project targets
+  installer.aggregate_targets.each do |aggregate|
+    aggregate.user_project.native_targets.each do |target|
+      target.build_phases.each do |build_phase|
+        if build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
+          puts "Adding output path to user target #{target.name} Copy Pods Resources"
+          build_phase.output_paths ||= []
+          output_path = '$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)'
+          unless build_phase.output_paths.include?(output_path)
+            build_phase.output_paths << output_path
           end
         end
       end
@@ -204,5 +210,42 @@ post_install do |installer|
   # Call flutter_post_install if your Flutter version defines it
   if self.respond_to?(:flutter_post_install)
     flutter_post_install(installer)
+  end
+
+  # Ensure ShareExtension does NOT link against non-extension-safe plugins
+  pods_project = installer.pods_project
+  share_agg = pods_project.targets.find { |t| t.respond_to?(:name) && t.name == 'Pods-ShareExtension' }
+  if share_agg
+    # Remove target dependencies to disallowed pods
+    disallowed_pods = ['receive_sharing_intent']
+    share_agg.dependencies.dup.each do |dep|
+      target_proxy = dep.respond_to?(:target_proxy) ? dep.target_proxy : nil
+      remote = target_proxy && target_proxy.respond_to?(:remote_info) ? target_proxy.remote_info : dep.display_name rescue nil
+      if remote && disallowed_pods.include?(remote)
+        puts "🚫 Removing dependency '#{remote}' from Pods-ShareExtension"
+        share_agg.dependencies.delete(dep)
+      end
+    end
+
+    # Clean up link flags that may still reference the disallowed pods
+    share_agg.build_configurations.each do |config|
+      ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
+      filtered = ldflags.reject { |f| disallowed_pods.any? { |p| f.to_s.include?(p) } }
+      config.build_settings['OTHER_LDFLAGS'] = filtered
+    end
+  end
+
+  # Also ensure the user project's ShareExtension target does not link against disallowed pods
+  user_proj = installer.aggregate_targets.first&.user_project
+  if user_proj
+    share_user = user_proj.targets.find { |t| t.respond_to?(:name) && t.name == 'ShareExtension' }
+    if share_user
+      disallowed_pods = ['receive_sharing_intent']
+      share_user.build_configurations.each do |config|
+        ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
+        filtered = ldflags.reject { |f| disallowed_pods.any? { |p| f.to_s.include?(p) } }
+        config.build_settings['OTHER_LDFLAGS'] = filtered
+      end
+    end
   end
 end
