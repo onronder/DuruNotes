@@ -1,24 +1,24 @@
-2025-09-06T14:58:37.325962614Z	🚀 PRE-BUILD VERIFICATION...
-2025-09-06T14:58:37.326118825Z	📍 Current directory: /Volumes/workspace/repository/ios
-2025-09-06T14:58:37.326345542Z	🔍 Ensuring Flutter tool scripts are available...
-2025-09-06T14:58:37.326411366Z	🔍 Verifying Flutter.framework...
-2025-09-06T14:58:37.326571216Z	🔍 Checking for xcfilelist references...
-2025-09-06T14:58:37.326649432Z	❌ Found xcfilelist references, removing...
-2025-09-06T14:58:38.156325183Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
-2025-09-06T14:58:38.156414179Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
-2025-09-06T14:58:38.156703518Z	✅ Removed 2 xcfilelist references
-2025-09-06T14:58:38.156742807Z	🔍 Verifying Pods...
-2025-09-06T14:58:38.156923801Z	🔍 Verifying critical plugin pods...
-2025-09-06T14:58:38.156970973Z	⚠️ sentry_flutter pod not found
-2025-09-06T14:58:38.157003011Z	⚠️ adapty_flutter pod not found
-2025-09-06T14:58:38.157031553Z	⚠️ sqlite3_flutter_libs pod not found
-2025-09-06T14:58:38.157152326Z	⚠️ google_mlkit_text_recognition pod not found
-2025-09-06T14:58:38.157444585Z	⚠️ receive_sharing_intent pod not found
-2025-09-06T14:58:38.157513064Z	⚠️ Flutter pod directory not found - expected in manual pod system
-2025-09-06T14:58:38.157604692Z	🎯 PRE-BUILD STATUS (Manual Pod System):
-2025-09-06T14:58:38.157673016Z	   ✅ Flutter.framework verified
-2025-09-06T14:58:38.157775474Z	   ✅ Podfile.lock exists
-2025-09-06T14:58:38.157798929Z	   ✅ Pods directory exists
-2025-09-06T14:58:38.157893144Z	   ✅ No xcfilelist references
-2025-09-06T14:58:38.157915795Z	   ✅ Critical plugins verified
-2025-09-06T14:58:38.157971647Z	🚀 PRE-BUILD VERIFICATION COMPLETE!
+2025-09-06T15:48:34.877757905Z	🚀 PRE-BUILD VERIFICATION...
+2025-09-06T15:48:34.877860446Z	📍 Current directory: /Volumes/workspace/repository/ios
+2025-09-06T15:48:34.878092202Z	🔍 Ensuring Flutter tool scripts are available...
+2025-09-06T15:48:34.878148600Z	🔍 Verifying Flutter.framework...
+2025-09-06T15:48:34.878298557Z	🔍 Checking for xcfilelist references...
+2025-09-06T15:48:34.878314180Z	❌ Found xcfilelist references, removing...
+2025-09-06T15:48:35.769729296Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
+2025-09-06T15:48:35.769990438Z	REMOVED: "${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+2025-09-06T15:48:35.770112791Z	✅ Removed 2 xcfilelist references
+2025-09-06T15:48:35.770142459Z	🔍 Verifying Pods...
+2025-09-06T15:48:35.770316632Z	🔍 Verifying critical plugin pods...
+2025-09-06T15:48:35.770369253Z	⚠️ sentry_flutter pod not found
+2025-09-06T15:48:35.770541090Z	⚠️ adapty_flutter pod not found
+2025-09-06T15:48:35.770592667Z	⚠️ sqlite3_flutter_libs pod not found
+2025-09-06T15:48:35.770829570Z	⚠️ google_mlkit_text_recognition pod not found
+2025-09-06T15:48:35.770877482Z	⚠️ receive_sharing_intent pod not found
+2025-09-06T15:48:35.771039235Z	⚠️ Flutter pod directory not found - expected in manual pod system
+2025-09-06T15:48:35.771069373Z	🎯 PRE-BUILD STATUS (Manual Pod System):
+2025-09-06T15:48:35.771192346Z	   ✅ Flutter.framework verified
+2025-09-06T15:48:35.771220970Z	   ✅ Podfile.lock exists
+2025-09-06T15:48:35.771280418Z	   ✅ Pods directory exists
+2025-09-06T15:48:35.771294667Z	   ✅ No xcfilelist references
+2025-09-06T15:48:35.771369826Z	   ✅ Critical plugins verified
+2025-09-06T15:48:35.771387904Z	🚀 PRE-BUILD VERIFICATION COMPLETE!
