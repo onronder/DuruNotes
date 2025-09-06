@@ -141,6 +141,15 @@ post_install do |installer|
           unless build_phase.output_paths.include?(output_path)
             build_phase.output_paths << output_path
           end
+
+          # Workaround Xcode Cloud sandbox 'Operation not permitted' by invoking via bash
+          if build_phase.respond_to?(:shell_script)
+            script = build_phase.shell_script.to_s
+            if script.include?('Pods-ShareExtension-resources.sh') && !script.include?('bash')
+              puts "Patching #{target.name} Copy Pods Resources to run via bash"
+              build_phase.shell_script = "bash \"${PODS_ROOT}/Target Support Files/Pods-ShareExtension/Pods-ShareExtension-resources.sh\"\n"
+            end
+          end
         end
       end
     end
