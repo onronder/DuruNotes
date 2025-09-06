@@ -68,8 +68,8 @@ post_install do |installer|
       # COMPREHENSIVE FLUTTER FRAMEWORK FIX FOR ALL PLUGINS
       config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
         '$(inherited)',
-        '$(PROJECT_DIR)/Flutter',
-        '$(PROJECT_DIR)/Flutter/Flutter.framework',
+        '$(PODS_ROOT)/../Flutter',
+        '$(PODS_ROOT)/../Flutter/Flutter.framework',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
@@ -80,8 +80,8 @@ post_install do |installer|
       header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
       header_paths += [
         '$(inherited)',
-        '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
-        '$(PROJECT_DIR)/Flutter/Headers',
+        '$(PODS_ROOT)/../Flutter/Flutter.framework/Headers',
+        '$(PODS_ROOT)/../Flutter/Headers',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
         '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
         '$(BUILT_PRODUCTS_DIR)/Flutter/Flutter.framework/Headers'
@@ -167,8 +167,8 @@ post_install do |installer|
         # Harden header search paths further for plugin targets
         header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
         header_paths += [
-          '$(PROJECT_DIR)/Flutter/Headers',
-          '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
+          '$(PODS_ROOT)/../Flutter/Headers',
+          '$(PODS_ROOT)/../Flutter/Flutter.framework/Headers',
           '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
           '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers'
         ]
