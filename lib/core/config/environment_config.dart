@@ -42,18 +42,40 @@ class EnvironmentConfig {
   static Future<void> initialize() async {
     try {
       // Try to load environment variables (optional)
+      // Priority:
+      // 1) Load env file based on build flavor (dev/staging/prod) if provided via DART_DEFINES
+      // 2) Fallback to a generic .env if present
+      // 3) If none found, continue with sane defaults
       try {
-        await dotenv.load(fileName: 'assets/env/.env');
+        const String flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+        final String flavoredEnvPath = 'assets/env/' + flavor + '.env';
+
+        bool loaded = false;
+        try {
+          await dotenv.load(fileName: flavoredEnvPath);
+          loaded = true;
+        } catch (_) {
+          // Will try generic .env next
+        }
+
+        if (!loaded) {
+          try {
+            await dotenv.load(fileName: 'assets/env/.env');
+            loaded = true;
+          } catch (_) {
+            // No env files found - proceed with defaults
+          }
+        }
       } catch (e) {
         // Ignore env file errors - use defaults
       }
       
       _instance = EnvironmentConfig._(
-        supabaseUrl: const String.fromEnvironment(
+        supabaseUrl: dotenv.env['SUPABASE_URL'] ?? const String.fromEnvironment(
           'SUPABASE_URL',
           defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
         ),
-        supabaseAnonKey: const String.fromEnvironment(
+        supabaseAnonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? const String.fromEnvironment(
           'SUPABASE_ANON_KEY',
           defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
         ),
@@ -70,11 +92,11 @@ class EnvironmentConfig {
     } catch (e) {
       // Fallback configuration for development
       _instance = EnvironmentConfig._(
-        supabaseUrl: const String.fromEnvironment(
+        supabaseUrl: dotenv.env['SUPABASE_URL'] ?? const String.fromEnvironment(
           'SUPABASE_URL',
           defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
         ),
-        supabaseAnonKey: const String.fromEnvironment(
+        supabaseAnonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? const String.fromEnvironment(
           'SUPABASE_ANON_KEY', 
           defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
         ),
@@ -92,8 +114,23 @@ class EnvironmentConfig {
   }
 
   static Environment _detectEnvironment() {
+    // Prefer explicit build flavor if provided (via iOS xcconfig DART_DEFINES or CLI --dart-define)
+    const String flavor = String.fromEnvironment('FLAVOR', defaultValue: '');
+    if (flavor.isNotEmpty) {
+      switch (flavor.toLowerCase()) {
+        case 'production':
+        case 'prod':
+          return Environment.production;
+        case 'staging':
+        case 'stage':
+          return Environment.staging;
+        default:
+          return Environment.development;
+      }
+    }
+
     if (kDebugMode) return Environment.development;
-    
+
     const String env = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
     switch (env.toLowerCase()) {
       case 'production':

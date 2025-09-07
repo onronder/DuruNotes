@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'app_logger.dart';
 
@@ -41,11 +42,21 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   }
 
   void _handleError(Object error, StackTrace? stackTrace) {
-    setState(() {
-      _error = error;
-      _stackTrace = stackTrace;
-      _hasError = true;
-    });
+    // Defer UI state update to next frame to avoid setState during attach/build
+    if (mounted) {
+      // Ensure a frame is scheduled
+      if (!SchedulerBinding.instance.hasScheduledFrame) {
+        SchedulerBinding.instance.scheduleFrame();
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _error = error;
+          _stackTrace = stackTrace;
+          _hasError = true;
+        });
+      });
+    }
     
     // Log the error
     logger.error(
@@ -103,53 +114,63 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   }
 
   Widget _buildDefaultErrorWidget(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Something went wrong',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'We\'re sorry, but something unexpected happened. The error has been reported and we\'ll look into it.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  OutlinedButton(
-                    onPressed: _retry,
-                    child: const Text('Try Again'),
-                  ),
-                  if (kDebugMode)
-                    TextButton(
-                      onPressed: () => _showErrorDetails(context),
-                      child: const Text('Show Details'),
+    // Provide MaterialApp to ensure Directionality, Theme, and Localizations
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Builder(
+        builder: (ctx) {
+          final colorScheme = Theme.of(ctx).colorScheme;
+          final textTheme = Theme.of(ctx).textTheme;
+          return Scaffold(
+            backgroundColor: colorScheme.surface,
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: colorScheme.error,
                     ),
-                ],
+                    const SizedBox(height: 24),
+                    Text(
+                      'Something went wrong',
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'We\'re sorry, but something unexpected happened. The error has been reported and we\'ll look into it.',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _retry,
+                          child: const Text('Try Again'),
+                        ),
+                        if (kDebugMode)
+                          TextButton(
+                            onPressed: () => _showErrorDetails(ctx),
+                            child: const Text('Show Details'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

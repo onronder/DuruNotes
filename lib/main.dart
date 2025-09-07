@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/app.dart';
 import 'core/config/environment_config.dart';
 import 'core/monitoring/app_logger.dart';
+import 'core/monitoring/error_boundary.dart';
 import 'services/analytics/analytics_service.dart';
 import 'services/share_extension_service.dart';
 import 'providers.dart';
@@ -66,7 +67,9 @@ Future<void> main() async {
   // Run the app with share extension initialization
   runApp(
     ProviderScope(
-      child: _AppWithShareExtension(navigatorKey: navigatorKey),
+      child: ErrorBoundary(
+        child: _AppWithShareExtension(navigatorKey: navigatorKey),
+      ),
     ),
   );
 }

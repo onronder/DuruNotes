@@ -47,9 +47,20 @@ class StatsCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Icon(
-                    isCollapsed ? Icons.expand_more : Icons.expand_less,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Row(
+                    children: [
+                      Text(
+                        isCollapsed ? 'Expand' : 'Collapse',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        isCollapsed ? Icons.expand_more : Icons.expand_less,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ),
                 ],
               ),

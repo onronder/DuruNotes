@@ -1,0 +1,1 @@
+ /Users/onronder/duru-notes/lib/l10n/app_localizations_en.dart /Users/onronder/duru-notes/lib/l10n/app_localizations.dart:  /Users/onronder/duru-notes/l10n.yaml /Users/onronder/duru-notes/lib/l10n/app_en.arb

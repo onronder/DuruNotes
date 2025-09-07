@@ -10,6 +10,8 @@ import '../providers.dart';
 import '../theme/material3_theme.dart';
 import '../ui/auth_screen.dart';
 import '../ui/notes_list_screen.dart';
+import '../services/account_key_service.dart';
+import 'package:flutter/material.dart';
 
 /// Main application widget with authentication flow
 class App extends ConsumerWidget {
@@ -25,23 +27,86 @@ class App extends ConsumerWidget {
     // Watch settings providers
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
+    final generatedSupportedLocales = AppLocalizations.supportedLocales;
+    // If a saved locale isn't generated, fall back to system
+    final effectiveLocale = (locale != null &&
+            generatedSupportedLocales.any((l) => l.languageCode == locale.languageCode))
+        ? locale
+        : null;
 
     return MaterialApp(
       title: 'Duru Notes',
       navigatorKey: navigatorKey,
       themeMode: themeMode,
-      locale: locale,
+      locale: effectiveLocale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: LocaleNotifier.supportedLocales,
+      supportedLocales: generatedSupportedLocales,
       theme: DuruMaterial3Theme.lightTheme,
       darkTheme: DuruMaterial3Theme.darkTheme,
       home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class UnlockPassphraseView extends ConsumerWidget {
+  const UnlockPassphraseView({super.key, required this.onUnlocked});
+  final VoidCallback onUnlocked;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Unlock Encryption', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Encryption Passphrase',
+                    prefixIcon: Icon(Icons.vpn_key),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () async {
+                    final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(controller.text);
+                    if (ok) {
+                      onUnlocked();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Incorrect passphrase')),
+                      );
+                    }
+                  },
+                  child: const Text('Unlock'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+                  },
+                  child: const Text('Sign out'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -122,9 +187,26 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
         final session = snapshot.hasData ? snapshot.data!.session : null;
         
         if (session != null) {
+          // Ensure AMK is present locally; if not, block until unlocked
+          final amkFuture = ref.read(accountKeyServiceProvider).getLocalAmk();
+          return FutureBuilder(
+            future: amkFuture,
+            builder: (context, amkSnap) {
+              if (amkSnap.connectionState != ConnectionState.done) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              if (amkSnap.data == null) {
+                return UnlockPassphraseView(
+                  onUnlocked: () {
+                    if (mounted) setState(() {});
+                  },
+                );
+              }
           // User is authenticated - show main app
-          _maybePerformInitialSync();
-          return const NotesListScreen();
+              _maybePerformInitialSync();
+              return const NotesListScreen();
+            },
+          );
         } else {
           // User is not authenticated - show login screen
           _hasTriggeredInitialSync = false; // Reset flag when logged out

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers.dart';
 
 /// Authentication screen for user login/signup
 class AuthScreen extends ConsumerStatefulWidget {
@@ -13,6 +14,9 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
+  final _passphraseController = TextEditingController();
+  final _passphraseConfirmController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _isSignUp = false;
@@ -21,6 +25,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordConfirmController.dispose();
+    _passphraseController.dispose();
+    _passphraseConfirmController.dispose();
     super.dispose();
   }
 
@@ -38,6 +45,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           email: email,
           password: password,
         );
+        // Provision AMK with passphrase
+        final passphrase = _passphraseController.text;
+        await ref.read(accountKeyServiceProvider).provisionAmkForUser(passphrase: passphrase);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -52,6 +62,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           email: email,
           password: password,
         );
+        // If AMK not present locally, prompt for passphrase
+        final amk = await ref.read(accountKeyServiceProvider).getLocalAmk();
+        if (amk == null && mounted) {
+          final passphrase = await _promptPassphrase(context);
+          if (passphrase != null) {
+            final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(passphrase);
+            if (!ok && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Incorrect passphrase')),
+              );
+            }
+          }
+        }
       }
     } catch (error) {
       if (mounted) {
@@ -150,6 +173,62 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     return null;
                   },
                 ),
+                if (_isSignUp) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _passwordConfirmController,
+                    obscureText: true,
+                    enabled: !_isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    validator: (value) {
+                      if (!_isSignUp) return null;
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passphraseController,
+                    obscureText: true,
+                    enabled: !_isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'Encryption Passphrase',
+                      prefixIcon: Icon(Icons.vpn_key),
+                    ),
+                    validator: (value) {
+                      if (!_isSignUp) return null;
+                      if (value == null || value.isEmpty) {
+                        return 'Passphrase is required';
+                      }
+                      if (value.length < 8) {
+                        return 'Passphrase must be at least 8 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _passphraseConfirmController,
+                    obscureText: true,
+                    enabled: !_isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Passphrase',
+                      prefixIcon: Icon(Icons.vpn_key_outlined),
+                    ),
+                    validator: (value) {
+                      if (!_isSignUp) return null;
+                      if (value != _passphraseController.text) {
+                        return 'Passphrases do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Modern auth button
@@ -228,6 +307,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+extension on _AuthScreenState {
+  Future<String?> _promptPassphrase(BuildContext context) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Unlock Encryption'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Encryption Passphrase',
+            prefixIcon: Icon(Icons.vpn_key),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Unlock'),
+          ),
+        ],
       ),
     );
   }
