@@ -1,4 +1,0 @@
-2025-09-06T15:48:28.617682189Z	Command line invocation:
-2025-09-06T15:48:29.884417968Z	    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -resolvePackageDependencies -workspace /Volumes/workspace/repository/ios/Runner.xcworkspace -scheme Runner -derivedDataPath /Volumes/workspace/DerivedData -hideShellScriptEnvironment
-2025-09-06T15:48:29.884532514Z	
-2025-09-06T15:48:29.884611204Z	resolved source packages: 
