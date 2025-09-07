@@ -243,6 +243,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.max,
                         children: [
                           // Enhanced Back Button
                           Container(
@@ -404,8 +405,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       // Stats with better design
                       _buildStatChip(
                         icon: Icons.abc_rounded,
@@ -427,8 +431,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                         label: 'min',
                         colorScheme: colorScheme,
                       ),
-                      
-                      const Spacer(),
+
+                      const SizedBox(width: 12),
                       
                       // Save status indicator
                       AnimatedContainer(
@@ -465,9 +469,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           ],
                         ),
                       ),
-              ],
-            ),
-          ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

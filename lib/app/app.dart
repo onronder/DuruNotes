@@ -54,13 +54,61 @@ class App extends ConsumerWidget {
   }
 }
 
-class UnlockPassphraseView extends ConsumerWidget {
+class UnlockPassphraseView extends ConsumerStatefulWidget {
   const UnlockPassphraseView({super.key, required this.onUnlocked});
   final VoidCallback onUnlocked;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController();
+  ConsumerState<UnlockPassphraseView> createState() => _UnlockPassphraseViewState();
+}
+
+class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
+  final _controller = TextEditingController();
+  bool _isUnlocking = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleUnlock() async {
+    if (_isUnlocking || _controller.text.isEmpty) return;
+
+    setState(() => _isUnlocking = true);
+    
+    try {
+      final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(_controller.text);
+      if (ok) {
+        widget.onUnlocked();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Incorrect passphrase'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUnlocking = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: cs.surface,
@@ -74,30 +122,31 @@ class UnlockPassphraseView extends ConsumerWidget {
                 Text('Unlock Encryption', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: controller,
+                  controller: _controller,
                   obscureText: true,
+                  enabled: !_isUnlocking,
                   decoration: const InputDecoration(
                     labelText: 'Encryption Passphrase',
                     prefixIcon: Icon(Icons.vpn_key),
                   ),
+                  onSubmitted: (_) => _handleUnlock(),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () async {
-                    final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(controller.text);
-                    if (ok) {
-                      onUnlocked();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Incorrect passphrase')),
-                      );
-                    }
-                  },
-                  child: const Text('Unlock'),
+                  onPressed: _isUnlocking ? null : _handleUnlock,
+                  child: _isUnlocking 
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Unlock'),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () async {
+                  onPressed: _isUnlocking ? null : () async {
+                    // Clear the AMK before signing out
+                    await ref.read(accountKeyServiceProvider).clearLocalAmk();
                     await Supabase.instance.client.auth.signOut();
                   },
                   child: const Text('Sign out'),
@@ -146,10 +195,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
 
   /// Perform sync when app resumes and refresh UI if needed
   void _performAppResumeSync() async {
+    // Guard: skip if not authenticated yet
+    if (Supabase.instance.client.auth.currentUser == null) return;
+
     final syncModeNotifier = ref.read(syncModeProvider.notifier);
     await syncModeNotifier.performInitialSyncIfAuto();
     
-    // Refresh notes if auto-sync ran
     if (ref.read(syncModeProvider) == SyncMode.automatic) {
       await ref.read(notesPageProvider.notifier).refresh();
     }
@@ -187,22 +238,39 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
         final session = snapshot.hasData ? snapshot.data!.session : null;
         
         if (session != null) {
-          // Ensure AMK is present locally; if not, block until unlocked
-          final amkFuture = ref.read(accountKeyServiceProvider).getLocalAmk();
+          // Check if AMK is present locally
+          // For new signups, retry a few times as provisioning might still be in progress
           return FutureBuilder(
-            future: amkFuture,
+            future: _checkForAmkWithRetry(),
             builder: (context, amkSnap) {
               if (amkSnap.connectionState != ConnectionState.done) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return Scaffold(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  body: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Initializing encryption...')
+                      ],
+                    ),
+                  ),
+                );
               }
-              if (amkSnap.data == null) {
+              
+              // If no AMK found after retries, show unlock screen
+              if (amkSnap.data != true) {
+                // Show unlock screen for existing users on new devices
+                // or if AMK provisioning failed during signup
                 return UnlockPassphraseView(
                   onUnlocked: () {
                     if (mounted) setState(() {});
                   },
                 );
               }
-          // User is authenticated - show main app
+              
+              // User is authenticated and AMK is available - show main app
               _maybePerformInitialSync();
               return const NotesListScreen();
             },
@@ -230,7 +298,40 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
         if (ref.read(syncModeProvider) == SyncMode.automatic) {
           await ref.read(notesPageProvider.notifier).refresh();
         }
+
+        // Production-grade boot sync: if this device has no local notes yet, force a full pull once
+        try {
+          final db = ref.read(appDbProvider);
+          final existing = await db.allNotes();
+          if (existing.isEmpty) {
+            final syncService = ref.read(syncServiceProvider);
+            await syncService.syncWithRetry();
+            await ref.read(notesPageProvider.notifier).refresh();
+          }
+        } catch (_) {
+          // Ignore boot sync errors; user can trigger manual sync later
+        }
       });
     }
+  }
+  
+  /// Check for AMK with retries to handle timing issues after signup
+  Future<bool> _checkForAmkWithRetry() async {
+    const maxRetries = 3;
+    const retryDelay = Duration(milliseconds: 500);
+    
+    for (int i = 0; i < maxRetries; i++) {
+      final amk = await ref.read(accountKeyServiceProvider).getLocalAmk();
+      if (amk != null) {
+        return true;
+      }
+      
+      // Don't delay on the last attempt
+      if (i < maxRetries - 1) {
+        await Future.delayed(retryDelay);
+      }
+    }
+    
+    return false;
   }
 }

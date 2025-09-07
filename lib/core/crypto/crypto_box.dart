@@ -3,6 +3,14 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'key_manager.dart';
 
+/// Result wrapper for decrypt operations that may use a legacy key fallback
+/// [value] is the decrypted payload, [usedLegacyKey] indicates a legacy device key was used
+class DecryptResult<T> {
+  const DecryptResult({required this.value, required this.usedLegacyKey});
+  final T value;
+  final bool usedLegacyKey;
+}
+
 class CryptoBox {
   CryptoBox(this._keys);
 
@@ -78,6 +86,47 @@ class CryptoBox {
     return utf8.decode(bytes);
   }
 
+  /// Decrypt JSON trying AMK first, then legacy device key as fallback
+  Future<DecryptResult<Map<String, dynamic>>> decryptJsonForNoteWithFallback({
+    required String userId,
+    required String noteId,
+    required Uint8List data,
+  }) async {
+    final sb = _deserializeSecretBox(data);
+    try {
+      final bytes = await _decrypt(userId: userId, noteId: noteId, box: sb);
+      final decoded = jsonDecode(utf8.decode(bytes));
+      final map = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{'body': decoded.toString()};
+      return DecryptResult<Map<String, dynamic>>(value: map, usedLegacyKey: false);
+    } catch (_) {
+      // Try legacy key
+      final bytes = await _decryptWithLegacy(userId: userId, noteId: noteId, box: sb);
+      final decoded = jsonDecode(utf8.decode(bytes));
+      final map = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{'body': decoded.toString()};
+      return DecryptResult<Map<String, dynamic>>(value: map, usedLegacyKey: true);
+    }
+  }
+
+  /// Decrypt String trying AMK first, then legacy device key as fallback
+  Future<DecryptResult<String>> decryptStringForNoteWithFallback({
+    required String userId,
+    required String noteId,
+    required Uint8List data,
+  }) async {
+    final sb = _deserializeSecretBox(data);
+    try {
+      final bytes = await _decrypt(userId: userId, noteId: noteId, box: sb);
+      return DecryptResult<String>(value: utf8.decode(bytes), usedLegacyKey: false);
+    } catch (_) {
+      final bytes = await _decryptWithLegacy(userId: userId, noteId: noteId, box: sb);
+      return DecryptResult<String>(value: utf8.decode(bytes), usedLegacyKey: true);
+    }
+  }
+
   Future<SecretBox> _encrypt({
     required String userId,
     required String noteId,
@@ -97,6 +146,15 @@ class CryptoBox {
     return _cipher.decrypt(box, secretKey: key);
   }
 
+  Future<List<int>> _decryptWithLegacy({
+    required String userId,
+    required String noteId,
+    required SecretBox box,
+  }) async {
+    final key = await _deriveLegacyKey(userId: userId, noteId: noteId);
+    return _cipher.decrypt(box, secretKey: key);
+  }
+
   Future<SecretKey> _deriveKey({
     required String userId,
     required String noteId,
@@ -104,6 +162,15 @@ class CryptoBox {
     final master = await _keys.getOrCreateMasterKey(userId);
     final salt = utf8.encode('note:$noteId');
     return _hkdf.deriveKey(secretKey: master, nonce: salt);
+  }
+
+  Future<SecretKey> _deriveLegacyKey({
+    required String userId,
+    required String noteId,
+  }) async {
+    final legacy = await _keys.getLegacyMasterKey(userId);
+    final salt = utf8.encode('note:$noteId');
+    return _hkdf.deriveKey(secretKey: legacy, nonce: salt);
   }
 
   Uint8List _serializeSecretBox(SecretBox sb) {

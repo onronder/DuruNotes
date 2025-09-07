@@ -12,6 +12,7 @@ import '../providers.dart';
 import 'components/ios_style_toggle.dart';
 import 'help_screen.dart';
 import '../services/export_service.dart';
+import '../core/ui/responsive.dart';
 
 /// Comprehensive settings screen for Duru Notes
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -109,6 +110,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -118,6 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: colorScheme.surfaceTint,
+        actionsIconTheme: isCompact ? const IconThemeData(size: 22) : null,
         title: Text(
           l10n.settingsTitle,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -130,38 +133,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           tooltip: 'Back',
         ),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          children: [
-            // Header section with user info
-            _buildHeaderSection(context, l10n),
-            
-            // Settings sections with cards
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  _buildAccountSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildSyncSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildAppearanceSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildLanguageSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildNotificationsSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildSecuritySectionWithIOSToggles(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildImportExportSection(context, l10n),
-                  const SizedBox(height: 16),
-                  _buildHelpAboutSection(context, l10n),
-                  const SizedBox(height: 32), // Bottom padding
-                ],
+      body: AppBreakpoints.clampControlsTextScale(
+        context: context,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              // Header section with user info
+              _buildHeaderSection(context, l10n),
+              
+              // Settings sections with cards
+              Padding(
+                padding: AppBreakpoints.screenPadding(context),
+                child: Column(
+                  children: [
+                    _buildAccountSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildSyncSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildAppearanceSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildLanguageSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildNotificationsSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildSecuritySectionWithIOSToggles(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildImportExportSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildHelpAboutSection(context, l10n),
+                    const SizedBox(height: 32), // Bottom padding
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -171,11 +177,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final user = Supabase.instance.client.auth.currentUser;
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
+      margin: EdgeInsets.all(isCompact ? 12 : 16),
+      padding: EdgeInsets.all(isCompact ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -198,8 +205,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           // User avatar
           Container(
-            width: 80,
-            height: 80,
+            width: isCompact ? 64 : 80,
+            height: isCompact ? 64 : 80,
             decoration: BoxDecoration(
               color: colorScheme.primary,
               shape: BoxShape.circle,
@@ -215,23 +222,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ? ClipOval(
                     child: Image.network(
                       user.userMetadata!['avatar_url'] as String,
-                      width: 80,
-                      height: 80,
+                      width: isCompact ? 64 : 80,
+                      height: isCompact ? 64 : 80,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Icon(
                         Icons.person_rounded,
-                        size: 40,
+                        size: isCompact ? 32 : 40,
                         color: colorScheme.onPrimary,
                       ),
                     ),
                   )
                 : Icon(
                     Icons.person_rounded,
-                    size: 40,
+                    size: isCompact ? 32 : 40,
                     color: colorScheme.onPrimary,
                   ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 12 : 16),
           
           // User info
           if (user != null) ...[
@@ -241,8 +248,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 fontWeight: FontWeight.w600,
                 color: colorScheme.onPrimaryContainer,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: isCompact ? 2 : 4),
             Text(
               'Signed in',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -271,6 +280,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Card(
       elevation: 0,
@@ -283,7 +293,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       color: colorScheme.surfaceContainerLow,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isCompact ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -291,14 +301,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(isCompact ? 6 : 8),
                   decoration: BoxDecoration(
                     color: (iconColor ?? colorScheme.primary).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
-                    size: 20,
+                    size: isCompact ? 18 : 20,
                     color: iconColor ?? colorScheme.primary,
                   ),
                 ),
@@ -310,11 +320,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isCompact ? 12 : 16),
             // Section content
             ...children,
           ],
@@ -338,6 +350,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildAccountSection(BuildContext context, AppLocalizations l10n) {
     final user = Supabase.instance.client.auth.currentUser;
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,9 +371,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                   ),
-                  title: Text(l10n.signedInAs),
-                  subtitle: Text(user.email ?? 'Unknown'),
+                  title: Text(l10n.signedInAs, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(user.email ?? 'Unknown', maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
                   trailing: const Icon(Icons.verified_user, color: Colors.green),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                  visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                  minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
               ],
@@ -371,6 +387,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
                 onTap: () => _showSignOutDialog(context, l10n),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
             ],
           ),
@@ -381,6 +400,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildSyncSection(BuildContext context, AppLocalizations l10n) {
     final syncMode = ref.watch(syncModeProvider);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,13 +411,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.sync),
-                title: Text(l10n.syncMode),
-                subtitle: Text(syncMode.displayName),
+                title: Text(l10n.syncMode, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(syncMode.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               RadioListTile<SyncMode>(
-                title: Text(l10n.automaticSync),
-                subtitle: Text(l10n.automaticSyncDesc),
+                title: Text(l10n.automaticSync, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(l10n.automaticSyncDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
                 value: SyncMode.automatic,
                 groupValue: syncMode,
                 onChanged: (mode) {
@@ -405,10 +428,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(syncModeProvider.notifier).setMode(mode);
                   }
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
               RadioListTile<SyncMode>(
-                title: Text(l10n.manualSync),
-                subtitle: Text(l10n.manualSyncDesc),
+                title: Text(l10n.manualSync, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(l10n.manualSyncDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
                 value: SyncMode.manual,
                 groupValue: syncMode,
                 onChanged: (mode) {
@@ -416,6 +441,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(syncModeProvider.notifier).setMode(mode);
                   }
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
               if (syncMode == SyncMode.manual) ...[
                 const Divider(height: 1),
@@ -446,6 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildAppearanceSection(BuildContext context, AppLocalizations l10n) {
     final themeMode = ref.watch(themeModeProvider);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,7 +483,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             children: [
               RadioListTile<ThemeMode>(
-                title: Text(l10n.lightTheme),
+                title: Text(l10n.lightTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
                 value: ThemeMode.light,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.light_mode),
@@ -464,9 +492,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
-                title: Text(l10n.darkTheme),
+                title: Text(l10n.darkTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
                 value: ThemeMode.dark,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.dark_mode),
@@ -475,9 +505,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
-                title: Text(l10n.systemTheme),
+                title: Text(l10n.systemTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
                 value: ThemeMode.system,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.brightness_auto),
@@ -486,6 +518,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
             ],
           ),
@@ -496,6 +530,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildLanguageSection(BuildContext context, AppLocalizations l10n) {
     final currentLocale = ref.watch(localeProvider);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,10 +541,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.language),
-                title: Text(l10n.selectLanguage),
-                subtitle: Text(currentLocale?.displayName ?? 'System Default'),
+                title: Text(l10n.selectLanguage, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(currentLocale?.displayName ?? 'System Default', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showLanguageDialog(context, l10n),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
             ],
           ),
@@ -519,6 +557,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildNotificationsSection(BuildContext context, AppLocalizations l10n) {
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -528,10 +567,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.notifications),
-                title: Text(l10n.notificationPermissions),
-                subtitle: const Text('Manage notification settings'),
+                title: Text(l10n.notificationPermissions, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: const Text('Manage notification settings', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _openNotificationSettings(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
             ],
           ),
@@ -542,6 +584,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildSecuritySection(BuildContext context, AppLocalizations l10n) {
     final analyticsEnabled = ref.watch(analyticsSettingsProvider);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,19 +595,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.security, color: Colors.green),
-                title: Text(l10n.endToEndEncryption),
-                subtitle: Text(l10n.encryptionEnabled),
+                title: Text(l10n.endToEndEncryption, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(l10n.encryptionEnabled, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.verified, color: Colors.green),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: Text(l10n.analyticsOptIn),
-                subtitle: Text(l10n.analyticsDesc),
+                title: Text(l10n.analyticsOptIn, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(l10n.analyticsDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
                 secondary: const Icon(Icons.analytics),
                 value: analyticsEnabled,
                 onChanged: (value) {
                   ref.read(analyticsSettingsProvider.notifier).setAnalyticsEnabled(value);
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
               ),
             ],
           ),
@@ -574,6 +622,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildImportExportSection(BuildContext context, AppLocalizations l10n) {
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -583,18 +632,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.file_download),
-                title: Text(l10n.importNotes),
-                subtitle: const Text('Import from Markdown, Evernote, or Obsidian'),
+                title: Text(l10n.importNotes, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: const Text('Import from Markdown, Evernote, or Obsidian', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showImportDialog(context, l10n),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.file_upload),
-                title: Text(l10n.exportNotes),
-                subtitle: const Text('Export to Markdown, PDF, or HTML'),
+                title: Text(l10n.exportNotes, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: const Text('Export to Markdown, PDF, or HTML', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showExportDialog(context, l10n),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
             ],
           ),
@@ -604,6 +659,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildHelpAboutSection(BuildContext context, AppLocalizations l10n) {
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -613,7 +669,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.help),
-                title: Text(l10n.userGuide),
+                title: Text(l10n.userGuide, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: const Text('Learn how to use Duru Notes'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
@@ -621,35 +677,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     MaterialPageRoute(builder: (_) => const HelpScreen()),
                   );
                 },
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.info),
-                title: Text(l10n.version),
+                title: Text(l10n.version, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
                   _packageInfo != null
                       ? '${_packageInfo!.version} (${_packageInfo!.buildNumber})'
                       : 'Loading...',
                 ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.privacy_tip),
-                title: Text(l10n.privacyPolicy),
+                title: Text(l10n.privacyPolicy, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/privacy'),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               ListTile(
                 leading: const Icon(Icons.description),
-                title: Text(l10n.termsOfService),
+                title: Text(l10n.termsOfService, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/terms'),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent),
-                title: Text(l10n.contactSupport),
+                title: Text(l10n.contactSupport, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('mailto:support@durunotes.com'),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
+                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                minLeadingWidth: 0,
               ),
             ],
           ),
@@ -688,6 +759,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (uid != null && uid.isNotEmpty) {
           await ref.read(keyManagerProvider).deleteMasterKey(uid);
         }
+        // IMPORTANT: Also clear the AMK from AccountKeyService
+        await ref.read(accountKeyServiceProvider).clearLocalAmk();
         await Supabase.instance.client.auth.signOut();
       } catch (e) {
         if (mounted) {
@@ -1001,6 +1074,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(l10n.encryptionEnabled),
           trailing: const Icon(Icons.verified, color: Colors.green),
         ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.vpn_key),
+          title: const Text('Change encryption passphrase'),
+          subtitle: const Text('Re-wrap your Account Master Key (AMK)'),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: () => _showChangePassphraseDialog(context),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.upgrade),
+          title: const Text('Migrate legacy encryption'),
+          subtitle: const Text('Re-encrypt local data with AMK and push'),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: () async {
+            try {
+              final repo = ref.read(notesRepositoryProvider);
+              final queued = await ref.read(accountKeyServiceProvider).migrateLegacyContentAndEnqueue(
+                db: ref.read(appDbProvider),
+                repo: repo,
+              );
+              // Trigger a sync
+              await ref.read(syncModeProvider.notifier).manualSync();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Queued $queued items for rewrap and sync')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Migration failed: $e')),
+                );
+              }
+            }
+          },
+        ),
         SettingsToggleTile(
           title: l10n.analyticsOptIn,
           subtitle: l10n.analyticsDesc,
@@ -1011,6 +1121,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
         ),
       ],
+    );
+  }
+
+  void _showChangePassphraseDialog(BuildContext context) {
+    final oldCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change encryption passphrase'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: oldCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Current passphrase',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: newCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'New passphrase',
+                  prefixIcon: Icon(Icons.vpn_key),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  if (v.length < 8) return 'At least 8 characters';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: confirmCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm new passphrase',
+                  prefixIcon: Icon(Icons.vpn_key),
+                ),
+                validator: (v) => v == newCtrl.text ? null : 'Does not match',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                await ref.read(accountKeyServiceProvider).changePassphrase(
+                  oldPassphrase: oldCtrl.text,
+                  newPassphrase: newCtrl.text,
+                );
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Passphrase updated')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
     );
   }
 

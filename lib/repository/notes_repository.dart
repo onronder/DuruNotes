@@ -159,16 +159,18 @@ class NotesRepository {
         final titleEnc = SupabaseNoteApi.asBytes(r['title_enc']);
         final propsEnc = SupabaseNoteApi.asBytes(r['props_enc']);
 
-        var title = await crypto.decryptStringForNote(
+        final titleRes = await crypto.decryptStringForNoteWithFallback(
           userId: userId,
           noteId: id,
           data: titleEnc,
         );
-        final props = await crypto.decryptJsonForNote(
+        var title = titleRes.value;
+        final propsRes = await crypto.decryptJsonForNoteWithFallback(
           userId: userId,
           noteId: id,
           data: propsEnc,
         );
+        final props = propsRes.value;
 
         // BiDi temizliği
         title = _stripBidi(title);
@@ -191,8 +193,16 @@ class NotesRepository {
           print('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
         }
 
-        // Temporarily force sync to show all decryptable notes
-        if (local == null || local.updatedAt.isBefore(updatedAt) || local.updatedAt.isAtSameMomentAs(updatedAt)) {
+        // If legacy key was used, immediately re-encrypt with AMK on next push by flagging an upsert
+        final needsRewrap = titleRes.usedLegacyKey || propsRes.usedLegacyKey;
+
+        // Conflict resolution: prefer newest updatedAt. If equal, prefer local if there's a pending local op
+        final hasPendingLocal = (await db.getPendingOps())
+            .any((op) => op.kind == 'upsert_note' && op.entityId == id);
+        final shouldApplyRemote = local == null || local.updatedAt.isBefore(updatedAt) ||
+            (local.updatedAt.isAtSameMomentAs(updatedAt) && !hasPendingLocal) || needsRewrap;
+
+        if (shouldApplyRemote) {
           final n = LocalNote(
             id: id,
             title: title,
@@ -202,6 +212,9 @@ class NotesRepository {
           );
           await db.upsertNote(n);
           await _indexer.indexNote(n);
+          if (needsRewrap) {
+            await db.enqueue(id, 'upsert_note');
+          }
           
           if (deleted) {
             deletedCount++;
@@ -603,18 +616,20 @@ class NotesRepository {
         final nameEnc = SupabaseNoteApi.asBytes(r['name_enc']);
         final propsEnc = SupabaseNoteApi.asBytes(r['props_enc']);
 
-        // Decrypt folder data
-        final name = _stripBidi(await crypto.decryptStringForNote(
+        // Decrypt folder data with legacy fallback
+        final nameRes = await crypto.decryptStringForNoteWithFallback(
           userId: userId,
           noteId: id,
           data: nameEnc,
-        ));
+        );
+        final name = _stripBidi(nameRes.value);
 
-        final props = await crypto.decryptJsonForNote(
+        final propsRes = await crypto.decryptJsonForNoteWithFallback(
           userId: userId,
           noteId: id,
           data: propsEnc,
         );
+        final props = propsRes.value;
 
         final parentId = props['parentId'] as String?;
         final path = props['path'] as String? ?? '/$name';
@@ -638,8 +653,12 @@ class NotesRepository {
           print('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
         }
 
+        // If legacy key was used, enqueue for rewrap on push
+        final needsRewrap = nameRes.usedLegacyKey || propsRes.usedLegacyKey;
+
         // Update if remote is newer or if local doesn't exist
-        if (local == null || local.updatedAt.isBefore(updatedAt) || local.updatedAt.isAtSameMomentAs(updatedAt)) {
+        final shouldApplyRemote = local == null || local.updatedAt.isBefore(updatedAt) || local.updatedAt.isAtSameMomentAs(updatedAt) || needsRewrap;
+        if (shouldApplyRemote) {
           final folder = LocalFolder(
             id: id,
             name: name,
@@ -655,6 +674,10 @@ class NotesRepository {
           );
 
           await db.upsertFolder(folder);
+
+          if (needsRewrap) {
+            await db.enqueue(id, 'upsert_folder');
+          }
 
           if (deleted) {
             deletedCount++;
