@@ -2,18 +2,31 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/account_key_service.dart';
 
 class KeyManager {
-  KeyManager({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
-  KeyManager.inMemory() : _storage = null;
+  KeyManager({FlutterSecureStorage? storage, AccountKeyService? accountKeyService})
+    : _storage = storage ?? const FlutterSecureStorage(),
+      _accountKeyService = accountKeyService ?? AccountKeyService();
+  KeyManager.inMemory()
+      : _storage = null,
+        _accountKeyService = AccountKeyService();
 
   final FlutterSecureStorage? _storage;
   final Map<String, String> _mem = {};
+  final AccountKeyService _accountKeyService;
 
-  static const _prefix = 'mk:'; // master key prefix
+  static const _prefix = 'mk:'; // legacy device master key prefix
 
   Future<SecretKey> getOrCreateMasterKey(String userId) async {
+    // Prefer account-bound AMK
+    final amk = await _accountKeyService.getLocalAmk();
+    if (amk != null) {
+      return SecretKey(amk);
+    }
+
+    // Fallback to legacy device key to allow migration
     final keyName = '$_prefix$userId';
     String? b64;
     if (_storage == null) {

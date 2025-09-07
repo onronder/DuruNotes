@@ -22,10 +22,16 @@ import 'services/export_service.dart';
 import 'services/import_service.dart';
 import 'services/share_extension_service.dart';
 import 'services/subscription_service.dart';
+import 'services/account_key_service.dart';
 
 // Export important types for easier importing
 export 'data/local/app_db.dart' show LocalNote, AppDb;
 export 'features/notes/pagination_notifier.dart' show NotesPage;
+
+/// Auth state stream to trigger provider rebuilds on login/logout
+final authStateChangesProvider = StreamProvider<AuthState>((ref) {
+  return Supabase.instance.client.auth.onAuthStateChange;
+});
 
 /// Database provider
 final appDbProvider = Provider<AppDb>((ref) {
@@ -34,7 +40,7 @@ final appDbProvider = Provider<AppDb>((ref) {
 
 /// Key manager provider  
 final keyManagerProvider = Provider<KeyManager>((ref) {
-  return KeyManager();
+  return KeyManager(accountKeyService: ref.watch(accountKeyServiceProvider));
 });
 
 /// Crypto box provider
@@ -45,10 +51,15 @@ final cryptoBoxProvider = Provider<CryptoBox>((ref) {
 
 /// Notes repository provider
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
+  // Rebuild when auth state changes
+  ref.watch(authStateChangesProvider);
   final db = ref.watch(appDbProvider);
   final crypto = ref.watch(cryptoBoxProvider);
   final client = Supabase.instance.client;
-  final userId = client.auth.currentUser?.id ?? 'anonymous';
+  final userId = client.auth.currentUser?.id;
+  if (userId == null || userId.isEmpty) {
+    throw StateError('NotesRepository requested without an authenticated user');
+  }
   
   return NotesRepository(
     db: db,
@@ -60,6 +71,8 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 
 /// Sync service provider
 final syncServiceProvider = Provider<SyncService>((ref) {
+  // Rebuild SyncService when repo or auth changes
+  ref.watch(authStateChangesProvider);
   final repo = ref.watch(notesRepositoryProvider);
   return SyncService(repo);
 });
@@ -132,6 +145,13 @@ final exportServiceProvider = Provider<ExportService>((ref) {
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
     attachmentService: ref.watch(attachmentServiceProvider),
+  );
+});
+
+/// Account key service (AMK) provider
+final accountKeyServiceProvider = Provider<AccountKeyService>((ref) {
+  return AccountKeyService(
+    logger: ref.watch(loggerProvider),
   );
 });
 

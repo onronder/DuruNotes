@@ -11,6 +11,7 @@ import '../l10n/app_localizations.dart';
 import '../providers.dart';
 import 'components/ios_style_toggle.dart';
 import 'help_screen.dart';
+import '../services/export_service.dart';
 
 /// Comprehensive settings screen for Duru Notes
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -23,6 +24,70 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   PackageInfo? _packageInfo;
   bool _isSyncing = false;
+
+  Future<void> _exportAllFromSettings(ExportFormat format) async {
+    final svc = ref.read(exportServiceProvider);
+    final logger = ref.read(loggerProvider);
+    try {
+      // Reuse existing export flow from notes screen to maintain consistency
+      final notes = ref.read(currentNotesProvider);
+      if (notes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No notes to export')),
+          );
+        }
+        return;
+      }
+
+      // Export the latest note for quick share from settings to keep UX simple
+      final note = notes.first;
+      switch (format) {
+        case ExportFormat.markdown:
+          final res = await svc.exportToMarkdown(note);
+          if (res.success && res.file != null && mounted) {
+            await svc.shareFile(res.file!, format);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Exported as Markdown')),
+            );
+          }
+          break;
+        case ExportFormat.pdf:
+          final res = await svc.exportToPdf(note);
+          if (res.success && res.file != null && mounted) {
+            await svc.shareFile(res.file!, format);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Exported as PDF')),
+            );
+          }
+          break;
+        case ExportFormat.html:
+          final res = await svc.exportToHtml(note);
+          if (res.success && res.file != null && mounted) {
+            await svc.shareFile(res.file!, format);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Exported as HTML')),
+            );
+          }
+          break;
+        case ExportFormat.docx:
+        case ExportFormat.txt:
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Export format ${format.displayName} not supported yet')),
+            );
+          }
+          break;
+      }
+    } catch (e, st) {
+      logger.error('Settings export failed', error: e, stackTrace: st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -614,6 +679,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed == true && mounted) {
       try {
+        final client = Supabase.instance.client;
+        final uid = client.auth.currentUser?.id;
+        // Clear local database and per-user last pull key via SyncService
+        final sync = ref.read(syncServiceProvider);
+        await sync.reset();
+        // Delete per-user master key
+        if (uid != null && uid.isNotEmpty) {
+          await ref.read(keyManagerProvider).deleteMasterKey(uid);
+        }
         await Supabase.instance.client.auth.signOut();
       } catch (e) {
         if (mounted) {
@@ -833,12 +907,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.article,
               title: l10n.markdown,
               subtitle: 'Export as .md files with full formatting',
-              onTap: () {
+              onTap: () async {
                 Navigator.of(context).pop();
-                // TODO: Implement export functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Markdown export coming soon')),
-                );
+                await _exportAllFromSettings(ExportFormat.markdown);
               },
             ),
             const SizedBox(height: 8),
@@ -846,12 +917,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.picture_as_pdf,
               title: l10n.pdf,
               subtitle: 'Export as PDF documents for sharing',
-              onTap: () {
+              onTap: () async {
                 Navigator.of(context).pop();
-                // TODO: Implement export functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PDF export coming soon')),
-                );
+                await _exportAllFromSettings(ExportFormat.pdf);
               },
             ),
             const SizedBox(height: 8),
@@ -859,12 +927,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.web,
               title: l10n.html,
               subtitle: 'Export as web pages with styling',
-              onTap: () {
+              onTap: () async {
                 Navigator.of(context).pop();
-                // TODO: Implement export functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('HTML export coming soon')),
-                );
+                await _exportAllFromSettings(ExportFormat.html);
               },
             ),
           ],

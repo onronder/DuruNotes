@@ -58,15 +58,15 @@ class DuruMaterial3Theme {
       brightness: Brightness.dark,
       dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
     ).copyWith(
-      // Enhanced with glassmorphic colors
+      // Solid dark surfaces to avoid translucent overlays
       secondary: _accentPurple,
       tertiary: _secondaryPurple,
-      surface: const Color(0xFF0A0A0A), // Deep black surface
-      surfaceContainerLowest: _glassLight,
-      surfaceContainerLow: _glassMedium,
-      surfaceContainer: _glassHigh,
-      surfaceContainerHigh: const Color(0x28FFFFFF),
-      surfaceContainerHighest: const Color(0x33FFFFFF),
+      surface: const Color(0xFF0B0B0B),
+      surfaceContainerLowest: const Color(0xFF111111),
+      surfaceContainerLow: const Color(0xFF141414),
+      surfaceContainer: const Color(0xFF171717),
+      surfaceContainerHigh: const Color(0xFF1A1A1A),
+      surfaceContainerHighest: const Color(0xFF1E1E1E),
     );
 
     return _buildTheme(colorScheme, Brightness.dark);
@@ -114,20 +114,15 @@ class DuruMaterial3Theme {
       // Scaffold theme
       scaffoldBackgroundColor: colorScheme.surface,
 
-      // Enhanced card theme with glassmorphic design
+      // Card theme (solid in dark mode)
       cardTheme: CardThemeData(
-        color: isDark ? _glassMedium : colorScheme.surfaceContainerLow,
-        shadowColor: isDark ? Colors.transparent : colorScheme.shadow,
-        surfaceTintColor: isDark ? Colors.transparent : colorScheme.surfaceTint,
-        elevation: isDark ? 0 : 1,
+        color: colorScheme.surfaceContainerLow,
+        shadowColor: isDark ? Colors.black.withOpacity(0.4) : colorScheme.shadow,
+        surfaceTintColor: colorScheme.surfaceTint,
+        elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: isDark 
-              ? BorderSide(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 0.5,
-                )
-              : BorderSide.none,
+          side: BorderSide.none,
         ),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       ),
@@ -326,17 +321,17 @@ class DuruMaterial3Theme {
         side: BorderSide(color: colorScheme.outline),
       ),
 
-      // Bottom sheet theme
+      // Bottom sheet theme (solid in dark mode)
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: colorScheme.surfaceTint,
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         showDragHandle: true,
         dragHandleColor: colorScheme.onSurfaceVariant.withOpacity(0.4),
-        elevation: 1,
-        shadowColor: colorScheme.shadow,
+        elevation: 8,
+        shadowColor: isDark ? Colors.black : colorScheme.shadow,
       ),
 
       // Dialog theme
@@ -373,7 +368,7 @@ class DuruMaterial3Theme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.fixed,
         elevation: 3,
       ),
 

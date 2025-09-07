@@ -43,6 +43,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   late Animation<double> _fabAnimation;
   late Animation<double> _headerSlideAnimation;
   late Animation<double> _headerFadeAnimation;
+  Animation<double> _headerHeightAnimation = const AlwaysStoppedAnimation<double>(1.0);
   
   bool _isFabExpanded = false;
   String _sortBy = 'date'; // date, title, modified
@@ -91,6 +92,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       parent: _headerAnimationController,
       curve: Curves.easeInOut,
     ));
+    _headerHeightAnimation = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _headerAnimationController, curve: Curves.easeInOut),
+    );
     
     // Start list animation
     _listAnimationController.forward();
@@ -415,12 +419,49 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         },
       ),
       builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _headerSlideAnimation.value * 100),
-          child: Opacity(
-            opacity: _headerFadeAnimation.value,
-            child: child,
-          ),
+        return Column(
+          children: [
+            ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: _headerHeightAnimation.value,
+                child: Opacity(
+                  opacity: _headerFadeAnimation.value,
+                  child: child,
+                ),
+              ),
+            ),
+            if (_isHeaderCollapsed)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _isHeaderCollapsed = false);
+                    _headerAnimationController.reverse();
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.expand_more, size: 18),
+                            SizedBox(width: 6),
+                            Text('Show header'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         );
       },
           
@@ -572,21 +613,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     
     // Regular empty state
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.note_add_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
-          const SizedBox(height: 16),
-          Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => _createNewNote(context),
-            icon: const Icon(Icons.add_rounded),
-            label: Text(l10n.createFirstNote),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.note_add_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => _createNewNote(context),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(l10n.createFirstNote),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -689,6 +733,39 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _editNote(note);
+                            break;
+                          case 'move':
+                            _showAddToFolderForSingleNote(note);
+                            break;
+                          case 'duplicate':
+                            _duplicateNote(note);
+                            break;
+                          case 'delete':
+                            _deleteNote(note);
+                            break;
+                          case 'share':
+                            _shareNote(note);
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        const PopupMenuItem(value: 'move', child: Text('Move to folder')),
+                        const PopupMenuItem(value: 'share', child: Text('Share')),
+                        const PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                      ],
                     ),
                     if (isSelected)
                       const Icon(Icons.check_circle, color: Colors.blue, size: 20),
@@ -1610,9 +1687,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning!';
-    if (hour < 17) return 'Good afternoon!';
-    return 'Good evening!';
+    if (hour >= 5 && hour < 12) return 'Good morning!';
+    if (hour >= 12 && hour < 18) return 'Good afternoon!';
+    if (hour >= 18 && hour < 22) return 'Good evening!';
+    return 'Good night!';
   }
 
   // Removed _buildStatCard - now using DuruStatsCard component
@@ -2497,6 +2575,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
+              // Production-grade logout: clear local data and per-user keys before sign-out
+              try {
+                final client = Supabase.instance.client;
+                final uid = client.auth.currentUser?.id;
+                // Clear local database and per-user last pull key via SyncService
+                final sync = ref.read(syncServiceProvider);
+                await sync.reset();
+                // Delete per-user master key
+                if (uid != null && uid.isNotEmpty) {
+                  await ref.read(keyManagerProvider).deleteMasterKey(uid);
+                }
+              } catch (_) {}
+              // Finally sign out from Supabase
               await Supabase.instance.client.auth.signOut();
             },
             child: const Text('Sign Out', style: TextStyle(color: Colors.red)),

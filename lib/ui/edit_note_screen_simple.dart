@@ -158,6 +158,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         id: widget.noteId,
       );
 
+      // Immediately push to remote so it isn't lost on logout
+      await ref.read(syncModeProvider.notifier).manualSync();
+
       ref.read(notesPageProvider.notifier).refresh();
       
       setState(() => _hasChanges = false);
@@ -613,16 +616,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
   Widget _buildModernEditor(ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            colorScheme.surface,
-            colorScheme.surface.withOpacity(0.95),
-          ],
-        ),
-      ),
+      color: colorScheme.surface,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -631,19 +625,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               decoration: BoxDecoration(
-                color: _titleHasFocus
-                    ? colorScheme.primaryContainer.withOpacity(0.1)
-                    : colorScheme.surfaceVariant.withOpacity(0.5),
+                color: colorScheme.surfaceVariant.withOpacity(_titleHasFocus ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _titleHasFocus
-                      ? colorScheme.primary.withOpacity(0.3)
-                      : Colors.transparent,
-                  width: 2,
-                ),
+                // No border when focused or unfocused to avoid outlines
                 boxShadow: _titleHasFocus ? [
                   BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.1),
+                    color: colorScheme.primary.withOpacity(0.08),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -673,51 +660,45 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             
             const SizedBox(height: 16),
             
-            // Enhanced Body Field
+            // Enhanced Body Field (remove visible outer border when unfocused)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               constraints: BoxConstraints(
                 minHeight: MediaQuery.of(context).size.height * 0.5,
               ),
               decoration: BoxDecoration(
-                color: _bodyHasFocus
-                    ? colorScheme.primaryContainer.withOpacity(0.05)
-                    : colorScheme.surfaceVariant.withOpacity(0.3),
+                color: colorScheme.surfaceVariant.withOpacity(_bodyHasFocus ? 0.12 : 0.06),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _bodyHasFocus
-                      ? colorScheme.primary.withOpacity(0.2)
-                      : Colors.transparent,
-                  width: 2,
-                ),
+                // No border even when focused
                 boxShadow: _bodyHasFocus ? [
                   BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.05),
-                    blurRadius: 30,
+                    color: colorScheme.primary.withOpacity(0.06),
+                    blurRadius: 24,
                     offset: const Offset(0, 10),
                   ),
                 ] : [],
               ),
-      child: TextField(
-        controller: _bodyController,
-        focusNode: _bodyFocusNode,
+              clipBehavior: Clip.antiAlias,
+              child: TextField(
+                controller: _bodyController,
+                focusNode: _bodyFocusNode,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   height: 1.7,
                   fontSize: 16,
                 ),
-        decoration: InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Start writing your thoughts...\n\n'
                       '💡 Tip: Use the toolbar for rich formatting\n'
                       '⌘ + B for bold, ⌘ + I for italic',
-          hintStyle: TextStyle(
+                  hintStyle: TextStyle(
                     color: colorScheme.onSurfaceVariant.withOpacity(0.4),
                     fontSize: 15,
-          ),
+                  ),
                   contentPadding: const EdgeInsets.all(20),
-          border: InputBorder.none,
-        ),
-        maxLines: null,
-        keyboardType: TextInputType.multiline,
+                  border: InputBorder.none,
+                ),
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
                 textAlignVertical: TextAlignVertical.top,
               ),
             ),
