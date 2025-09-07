@@ -32,10 +32,7 @@ class SyncService {
   final NotesRepository repo;
 
   static const _kLastPullBase = 'last_pull_at';
-  String get _lastPullKey {
-    final uid = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
-    return '$_kLastPullBase:$uid';
-  }
+  String _lastPullKey(String userId) => '$_kLastPullBase:$userId';
 
   RealtimeChannel? _notesChannel;
   StreamSubscription<AuthState>? _authSub;
@@ -87,8 +84,16 @@ class SyncService {
       await repo.pushAllPending().timeout(const Duration(seconds: 30));
 
       final prefs = await SharedPreferences.getInstance();
-      final sinceIso = prefs.getString(_lastPullKey);
-      final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+      final uid = Supabase.instance.client.auth.currentUser!.id;
+      final sinceIso = prefs.getString(_lastPullKey(uid));
+      DateTime? since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+
+      // If local store is empty, force a full pull regardless of 'since'
+      final localCount = (await repo.db.allNotes()).length;
+      if (localCount == 0) {
+        if (kDebugMode) debugPrint('Forcing full pull: local notes = 0');
+        since = null;
+      }
 
       await repo.pullSince(since).timeout(const Duration(seconds: 30));
 
@@ -97,7 +102,7 @@ class SyncService {
       await repo.reconcileHardDeletes(remoteIds);
 
       await prefs.setString(
-        _lastPullKey,
+        _lastPullKey(uid),
         DateTime.now().toUtc().toIso8601String(),
       );
 
@@ -219,8 +224,16 @@ class SyncService {
     await repo.pushAllPending().timeout(const Duration(seconds: 10));
 
     final prefs = await SharedPreferences.getInstance();
-    final sinceIso = prefs.getString(_lastPullKey);
-    final since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+    final uid = Supabase.instance.client.auth.currentUser!.id;
+    final sinceIso = prefs.getString(_lastPullKey(uid));
+    DateTime? since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+
+    // If local is empty, force full pull
+    final localCount = (await repo.db.allNotes()).length;
+    if (localCount == 0) {
+      if (kDebugMode) debugPrint('Performing full pull (local notes = 0)');
+      since = null;
+    }
 
     await repo.pullSince(since).timeout(const Duration(seconds: 10));
 
@@ -229,7 +242,7 @@ class SyncService {
     await repo.reconcileHardDeletes(remoteIds);
 
     await prefs.setString(
-      _lastPullKey,
+      _lastPullKey(uid),
       DateTime.now().toUtc().toIso8601String(),
     );
   }
@@ -269,7 +282,10 @@ class SyncService {
   Future<void> reset() async {
     await repo.db.clearAll();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_lastPullKey);
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null) {
+      await prefs.remove(_lastPullKey(uid));
+    }
     _consecutiveFailures = 0;
     _nextAllowedSyncAt = null;
     _changes.add(null);

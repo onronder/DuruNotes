@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/ui/responsive.dart';
 
 class StatsCard extends StatelessWidget {
   final String greeting;
@@ -18,60 +19,72 @@ class StatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = AppBreakpoints.isCompact(context);
     return Card(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(compact ? 12 : 16),
       child: InkWell(
         onTap: onToggleCollapse,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        greeting,
-                        style: Theme.of(context).textTheme.headlineSmall,
+          padding: EdgeInsets.all(compact ? 12 : 16),
+          child: AppBreakpoints.clampControlsTextScale(
+            context: context,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            greeting,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        email,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isCollapsed ? 'Expand' : 'Collapse',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          isCollapsed ? Icons.expand_more : Icons.expand_less,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (!isCollapsed) ...[
+                  SizedBox(height: compact ? 12 : 16),
                   Row(
-                    children: [
-                      Text(
-                        isCollapsed ? 'Expand' : 'Collapse',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isCollapsed ? Icons.expand_more : Icons.expand_less,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ],
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: stats,
                   ),
                 ],
-              ),
-              if (!isCollapsed) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: stats,
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

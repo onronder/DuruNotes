@@ -75,7 +75,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
     }
   }
 
-  /// Perform manual sync operation
+  /// Perform manual sync operation (production path)
   Future<bool> manualSync() async {
     try {
       print('🔄 Starting manual sync...');
@@ -88,13 +88,17 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       }
       print('✅ Authenticated user: ${currentUser.id}');
       
-      // Push all pending changes first
+      // Always push locals first
       print('📤 Pushing local changes...');
       await _notesRepository.pushAllPending();
       print('✅ Local changes pushed');
-      
+
+      // Determine since: if no local notes, force full pull
+      final localCount = (await _notesRepository.db.allNotes()).length;
+      final since = localCount == 0 ? null : DateTime.fromMillisecondsSinceEpoch(0);
+
       // Then pull latest changes
-      print('📥 Pulling remote changes...');
+      print('📥 Pulling remote changes... (since: ${since == null ? 'beginning' : since.toIso8601String()})');
       await _notesRepository.pullSince(null);
       print('✅ Remote changes pulled');
       

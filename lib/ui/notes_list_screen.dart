@@ -185,6 +185,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   PreferredSizeWidget _buildModernAppBar(BuildContext context, AppLocalizations l10n) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     return AppBar(
       backgroundColor: colorScheme.surface,
@@ -230,6 +231,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   tooltip: 'Exit search',
                 )
               : null,
+      actionsIconTheme: isCompact ? const IconThemeData(size: 22) : null,
       actions: _isSelectionMode
           ? _buildSelectionActions()
           : _isSearchActive
@@ -496,7 +498,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 
                 // Folder chips with drag-drop support
                 ...foldersAsync.maybeWhen(
-                  data: (folders) => folders.take(6).map((folder) => 
+                  data: (folders) => folders.map((folder) => 
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FolderDropTarget(
@@ -575,6 +577,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildEmptyState(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
     
     if (_searchQuery.isNotEmpty) {
       // Empty search state
@@ -582,27 +585,30 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text('No notes found', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
+            Icon(Icons.search_off_rounded, size: isCompact ? 48 : 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            SizedBox(height: isCompact ? 12 : 16),
+            Text('No notes found', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) - 2 : null)),
+            SizedBox(height: isCompact ? 6 : 8),
             Text('Try adjusting your search terms or create a new note with "$_searchQuery"', 
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) - 1 : null),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 24),
+            SizedBox(height: isCompact ? 16 : 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 OutlinedButton.icon(
                   onPressed: _clearSearch,
                   icon: const Icon(Icons.clear_rounded),
-                  label: const Text('Clear Search'),
+                  label: Text('Clear Search', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isCompact ? 6 : 8),
                 FilledButton.icon(
                   onPressed: () => _createNewNoteWithTitle(_searchQuery),
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('Create Note'),
+                  label: Text('Create Note', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
+                  style: FilledButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 14 : 20, vertical: isCompact ? 10 : 12),
+                  ),
                 ),
               ],
             ),
@@ -614,20 +620,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     // Regular empty state
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+        padding: EdgeInsets.only(top: isCompact ? 16 : 24, bottom: MediaQuery.of(context).padding.bottom + (isCompact ? 16 : 24)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.note_add_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
+            Icon(Icons.note_add_rounded, size: isCompact ? 48 : 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            SizedBox(height: isCompact ? 12 : 16),
+            Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) - 2 : null), textAlign: TextAlign.center),
+            SizedBox(height: isCompact ? 6 : 8),
+            Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) - 1 : null), textAlign: TextAlign.center),
+            SizedBox(height: isCompact ? 16 : 24),
             FilledButton.icon(
               onPressed: () => _createNewNote(context),
               icon: const Icon(Icons.add_rounded),
-              label: Text(l10n.createFirstNote),
+              label: Text(l10n.createFirstNote, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 16 : 22, vertical: isCompact ? 12 : 14),
+                minimumSize: const Size(0, 0),
+              ),
             ),
           ],
         ),
@@ -2586,6 +2596,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 if (uid != null && uid.isNotEmpty) {
                   await ref.read(keyManagerProvider).deleteMasterKey(uid);
                 }
+                // IMPORTANT: Also clear the AMK from AccountKeyService
+                await ref.read(accountKeyServiceProvider).clearLocalAmk();
               } catch (_) {}
               // Finally sign out from Supabase
               await Supabase.instance.client.auth.signOut();

@@ -55,6 +55,37 @@ class KeyManager {
     return SecretKey(base64Decode(b64));
   }
 
+  /// Explicitly fetch legacy device-bound key (for migration/decrypt fallback)
+  Future<SecretKey> getLegacyMasterKey(String userId) async {
+    final keyName = '$_prefix$userId';
+    String? b64;
+    if (_storage == null) {
+      b64 = _mem[keyName];
+    } else {
+      b64 = await _storage.read(
+        key: keyName,
+        aOptions: _aOptions,
+        iOptions: _iOptions,
+      );
+    }
+    if (b64 == null) {
+      // If missing, generate to avoid crashes but this indicates no legacy data
+      final bytes = _randomBytes(32);
+      b64 = base64Encode(bytes);
+      if (_storage == null) {
+        _mem[keyName] = b64;
+      } else {
+        await _storage.write(
+          key: keyName,
+          value: b64,
+          aOptions: _aOptions,
+          iOptions: _iOptions,
+        );
+      }
+    }
+    return SecretKey(base64Decode(b64));
+  }
+
   Future<void> deleteMasterKey(String userId) async {
     final keyName = '$_prefix$userId';
     if (_storage == null) {

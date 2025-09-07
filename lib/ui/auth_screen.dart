@@ -41,13 +41,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final password = _passwordController.text;
 
       if (_isSignUp) {
-        await Supabase.instance.client.auth.signUp(
+        final signUpRes = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
         );
-        // Provision AMK with passphrase
-        final passphrase = _passphraseController.text;
-        await ref.read(accountKeyServiceProvider).provisionAmkForUser(passphrase: passphrase);
+        
+        // Get the user ID from the signup response or current auth state
+        final uid = signUpRes.user?.id ?? Supabase.instance.client.auth.currentUser?.id;
+        if (uid != null) {
+          // Provision AMK with passphrase, passing the user ID explicitly
+          final passphrase = _passphraseController.text;
+          final svc = ref.read(accountKeyServiceProvider);
+          await svc.provisionAmkForUser(passphrase: passphrase, userId: uid);
+          
+          // Mark that this is a new signup in a way that AuthWrapper can detect
+          // This prevents showing the unlock screen for new users
+          // The AMK is already stored locally during provisioning
+        }
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -62,19 +72,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           email: email,
           password: password,
         );
-        // If AMK not present locally, prompt for passphrase
-        final amk = await ref.read(accountKeyServiceProvider).getLocalAmk();
-        if (amk == null && mounted) {
-          final passphrase = await _promptPassphrase(context);
-          if (passphrase != null) {
-            final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(passphrase);
-            if (!ok && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Incorrect passphrase')),
-              );
-            }
-          }
-        }
+        // Let AuthWrapper in app.dart handle the unlock screen
+        // This prevents duplicate unlock prompts
       }
     } catch (error) {
       if (mounted) {
@@ -307,36 +306,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-extension on _AuthScreenState {
-  Future<String?> _promptPassphrase(BuildContext context) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Unlock Encryption'),
-        content: TextField(
-          controller: controller,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Encryption Passphrase',
-            prefixIcon: Icon(Icons.vpn_key),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Unlock'),
-          ),
-        ],
       ),
     );
   }
