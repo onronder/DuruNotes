@@ -1,16 +1,12 @@
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/local/app_db.dart';
-import '../../../providers.dart';
-
 /// A draggable note item that can be dropped on folders
 class DraggableNoteItem extends ConsumerStatefulWidget {
   const DraggableNoteItem({
-    super.key,
-    required this.note,
-    required this.child,
+    required this.note, required this.child, super.key,
     this.onDragStarted,
     this.onDragEnd,
     this.onDroppedOnFolder,
@@ -43,7 +39,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
     );
     
     _scaleAnimation = Tween<double>(
-      begin: 1.0,
+      begin: 1,
       end: 1.05,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -178,9 +174,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
 /// A folder drop target that accepts note drops
 class FolderDropTarget extends ConsumerStatefulWidget {
   const FolderDropTarget({
-    super.key,
-    required this.folder,
-    required this.child,
+    required this.folder, required this.child, super.key,
     this.onNoteDropped,
     this.enabled = true,
   });
@@ -209,8 +203,8 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
     );
     
     _highlightAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOut,
@@ -230,10 +224,10 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
     final theme = Theme.of(context);
 
     return DragTarget<LocalNote>(
-      onWillAccept: (note) => note != null,
-      onAccept: (note) {
+      onWillAcceptWithDetails: (note) => note != null,
+      onAcceptWithDetails: (details) {
         HapticFeedback.lightImpact();
-        widget.onNoteDropped?.call(note, widget.folder);
+        widget.onNoteDropped?.call(details.data, widget.folder);
         _animationController.reverse();
       },
       onMove: (_) {
@@ -332,9 +326,7 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
 /// A batch drag and drop component for multiple notes
 class BatchNoteDragDrop extends ConsumerStatefulWidget {
   const BatchNoteDragDrop({
-    super.key,
-    required this.selectedNotes,
-    required this.child,
+    required this.selectedNotes, required this.child, super.key,
     this.onNotesDropped,
     this.enabled = true,
   });
@@ -362,7 +354,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
     );
     
     _scaleAnimation = Tween<double>(
-      begin: 1.0,
+      begin: 1,
       end: 1.03,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -446,7 +438,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                     color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.library_books,
                     color: Colors.white,
                     size: 24,
@@ -478,7 +470,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
             const SizedBox(height: 16),
             
             // Note previews
-            Container(
+            SizedBox(
               height: 80,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
@@ -490,7 +482,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -570,9 +562,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
 /// Enhanced folder drop target for batch operations
 class BatchFolderDropTarget extends FolderDropTarget {
   const BatchFolderDropTarget({
-    super.key,
-    required super.folder,
-    required super.child,
+    required super.folder, required super.child, super.key,
     this.onBatchNotesDropped,
     super.enabled = true,
   }) : super(onNoteDropped: null);
@@ -588,8 +578,6 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
 
-    final theme = Theme.of(context);
-
     return Stack(
       children: [
         // Single note drop target
@@ -597,10 +585,10 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
         
         // Batch notes drop target
         DragTarget<List<LocalNote>>(
-          onWillAccept: (notes) => notes != null && notes.isNotEmpty,
-          onAccept: (notes) {
+          onWillAcceptWithDetails: (details) => details.data.isNotEmpty,
+          onAcceptWithDetails: (details) {
             HapticFeedback.lightImpact();
-            (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(notes, widget.folder);
+            (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(details.data, widget.folder);
             _animationController.reverse();
           },
           onMove: (_) {

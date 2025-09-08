@@ -1,10 +1,9 @@
 import 'dart:async';
 
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../repository/notes_repository.dart';
 
 /// Helper class for representing folder tree nodes with nesting
 class FolderTreeNode {
@@ -124,7 +123,6 @@ class FolderHierarchyState {
         level: 0,
         isExpanded: isExpanded(folder.id),
         hasChildren: hasChildren,
-        noteCount: 0, // TODO: Get actual note count
         children: hasChildren && isExpanded(folder.id) 
             ? _buildChildNodes(folder.id, 1) 
             : [],
@@ -142,7 +140,6 @@ class FolderHierarchyState {
         level: level,
         isExpanded: isExpanded(folder.id),
         hasChildren: hasChildren,
-        noteCount: 0, // TODO: Get actual note count
         children: hasChildren && isExpanded(folder.id)
             ? _buildChildNodes(folder.id, level + 1)
             : [],
@@ -168,7 +165,7 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
   /// Load all folders from repository
   Future<void> loadFolders() async {
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      state = state.copyWith(isLoading: true);
       final folders = await _repository.listFolders();
       state = state.copyWith(
         folders: folders,
@@ -255,7 +252,6 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
           level: level,
           isExpanded: isExpanded,
           hasChildren: hasChildren,
-          noteCount: 0, // TODO: Get actual note count
         ));
         
         // Add child nodes if expanded
@@ -302,7 +298,7 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
 
   /// Alias for loadFolders - for backward compatibility
   Future<void> refresh() async {
-    return await loadFolders();
+    return loadFolders();
   }
 
   @override
@@ -359,7 +355,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     int? sortOrder,
   }) async {
     try {
-      state = state.copyWith(isCreating: true, error: null);
+      state = state.copyWith(isCreating: true);
       
       final folderId = await _repository.createOrUpdateFolder(
         name: name,
@@ -393,7 +389,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     int? sortOrder,
   }) async {
     try {
-      state = state.copyWith(isUpdating: true, error: null);
+      state = state.copyWith(isUpdating: true);
       
       await _repository.createOrUpdateFolder(
         id: id,
@@ -420,7 +416,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
   /// Delete a folder
   Future<bool> deleteFolder(String folderId) async {
     try {
-      state = state.copyWith(isDeleting: true, error: null);
+      state = state.copyWith(isDeleting: true);
       
       await _repository.deleteFolder(folderId);
       
@@ -439,7 +435,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
   /// Move folder to new parent
   Future<bool> moveFolder(String folderId, String? newParentId) async {
     try {
-      state = state.copyWith(isUpdating: true, error: null);
+      state = state.copyWith(isUpdating: true);
       
       await _repository.moveFolder(folderId, newParentId);
       
@@ -464,7 +460,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
 
   /// Clear error state
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 
@@ -515,7 +511,7 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 
   Future<void> _loadRelationships() async {
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      state = state.copyWith(isLoading: true);
       
       // This would need to be implemented in the repository
       // For now, we'll manage relationships on-demand
@@ -540,7 +536,6 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
       
       state = state.copyWith(
         noteFolders: updatedRelationships,
-        error: null,
       );
       return true;
     } catch (e) {
@@ -560,7 +555,6 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
       
       state = state.copyWith(
         noteFolders: updatedRelationships,
-        error: null,
       );
       return true;
     } catch (e) {
@@ -572,7 +566,7 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 
   /// Move note to different folder
   Future<bool> moveNoteToFolder(String noteId, String folderId) async {
-    return await addNoteToFolder(noteId, folderId);
+    return addNoteToFolder(noteId, folderId);
   }
 
   /// Get folder for note (async version that checks repository)
@@ -598,7 +592,7 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 
   /// Clear error state
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
   }
 }
 

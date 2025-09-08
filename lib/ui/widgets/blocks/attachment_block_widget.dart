@@ -1,9 +1,6 @@
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/ui/widgets/attachment_image.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../../models/note_block.dart';
-import '../../../services/attachment_service.dart';
-import '../attachment_image.dart';
 
 /// Widget for rendering and editing attachment blocks.
 /// 
@@ -15,10 +12,7 @@ import '../attachment_image.dart';
 /// - Block deletion functionality
 class AttachmentBlockWidget extends StatelessWidget {
   const AttachmentBlockWidget({
-    super.key,
-    required this.block,
-    required this.onChanged,
-    required this.onDelete,
+    required this.block, required this.onChanged, required this.onDelete, super.key,
   });
 
   /// The attachment block being edited
@@ -89,7 +83,7 @@ class AttachmentBlockWidget extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (_attachmentData['path']?.isNotEmpty == true)
+                if (_attachmentData['path']?.isNotEmpty ?? false)
                   Text(
                     _getFileTypeAndSize(_attachmentData['filename']!),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -111,7 +105,7 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   Widget _buildImagePreview(BuildContext context) {
-    if (_attachmentData['path']?.isEmpty != false) {
+    if (_attachmentData['path']?.isEmpty ?? true) {
       return const SizedBox.shrink();
     }
 
@@ -123,7 +117,6 @@ class AttachmentBlockWidget extends StatelessWidget {
           url: _attachmentData['path'] ?? '',
           width: double.infinity,
           height: 200,
-          fit: BoxFit.cover,
         ),
       ),
     );
@@ -177,7 +170,7 @@ class AttachmentBlockWidget extends StatelessWidget {
           const SizedBox(width: 8),
           
           // View/Download button
-          if (_attachmentData['path']?.isNotEmpty == true)
+          if (_attachmentData['path']?.isNotEmpty ?? false)
             TextButton.icon(
               onPressed: () => _viewAttachment(context),
               icon: const Icon(Icons.open_in_new, size: 16),
@@ -197,8 +190,8 @@ class AttachmentBlockWidget extends StatelessWidget {
     );
   }
 
-  void _editAttachment(BuildContext context) async {
-    final filenameController = TextEditingController(text: _attachmentData['filename']!);
+  Future<void> _editAttachment(BuildContext context) async {
+    final filenameController = TextEditingController(text: _attachmentData['filename']);
     final urlController = TextEditingController(text: _attachmentData['path'] ?? '');
     
     final result = await showDialog<bool>(
@@ -239,7 +232,7 @@ class AttachmentBlockWidget extends StatelessWidget {
       ),
     );
     
-    if (result == true) {
+    if (result ?? false) {
       // Update the attachment data
       final updatedData = '${_attachmentData['filename']}|${urlController.text}|${_attachmentData['size']}|${_attachmentData['mimeType']}';
       final updated = block.copyWith(data: updatedData);
@@ -253,7 +246,7 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   void _viewAttachment(BuildContext context) {
-    if (_attachmentData['path']?.isEmpty == true) return;
+    if (_attachmentData['path']?.isEmpty ?? false) return;
     
     if (_isImageFile(_attachmentData['filename']!)) {
       // Show image in full screen
@@ -278,8 +271,8 @@ class AttachmentBlockWidget extends StatelessWidget {
     }
   }
 
-  void _replaceAttachment(BuildContext context) async {
-    final service = AttachmentService();
+  Future<void> _replaceAttachment(BuildContext context) async {
+    // final service = AttachmentService();
     
     // Show loading dialog
     showDialog<void>(
@@ -386,8 +379,7 @@ class AttachmentBlockWidget extends StatelessWidget {
 /// Widget for compact attachment display in previews.
 class AttachmentBlockPreview extends StatelessWidget {
   const AttachmentBlockPreview({
-    super.key,
-    required this.attachmentData,
+    required this.attachmentData, super.key,
     this.showPreview = true,
   });
 
@@ -412,7 +404,7 @@ class AttachmentBlockPreview extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                attachmentData['filename']?.isNotEmpty == true 
+                attachmentData['filename']?.isNotEmpty ?? false 
                     ? attachmentData['filename']! 
                     : 'Attachment',
                 style: Theme.of(context).textTheme.bodySmall,

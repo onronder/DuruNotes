@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:record/record.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 /// Audio recording service for recording voice notes
 class AudioRecordingService {
@@ -57,9 +58,7 @@ class AudioRecordingService {
       // Start recording
       await _recorder.start(
         const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 128000,
-          sampleRate: 44100,
+          
         ),
         path: _currentRecordingPath!,
       );

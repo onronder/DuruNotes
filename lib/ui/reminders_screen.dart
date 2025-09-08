@@ -1,19 +1,16 @@
+import 'package:drift/drift.dart' show Value;
+import 'package:duru_notes/data/local/app_db.dart' show NoteRemindersCompanion, RecurrencePattern, ReminderType;
+import 'package:duru_notes/main.dart';  // for global `logger`
+import 'package:duru_notes/models/note_reminder.dart';
+import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import '../services/reminders/reminder_coordinator.dart';
-import 'package:drift/drift.dart' show Value;
-import '../data/local/app_db.dart' show ReminderType, RecurrencePattern, NoteRemindersCompanion;
-import '../main.dart';  // for global `logger`
-import '../models/note_reminder.dart';
 
 /// Screen for managing all reminders for a specific note
 class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({
-    super.key,
-    required this.noteId,
-    required this.noteTitle,
-    required this.noteBody,
+    required this.noteId, required this.noteTitle, required this.noteBody, super.key,
   });
 
   final String noteId;
@@ -92,16 +89,16 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_none, size: 64, color: Colors.grey[400]),
+            Icon(Icons.notifications_none, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
             const SizedBox(height: 16),
             Text(
               'No reminders set',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               'Add time-based or location-based reminders for this note',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -172,7 +169,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           ]),
           if (reminder.snoozedUntil != null)
             Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+              padding: const EdgeInsets.only(top: 8),
               child: Text('Snoozed until ${reminder.snoozedUntil}', style: Theme.of(context).textTheme.bodySmall),
             ),
         ]),
@@ -216,19 +213,14 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
     switch (action) {
       case 'edit':
         _showEditReminderSheet(reminder);
-        break;
       case 'unsnooze':
         _unsnoozeReminder(reminder);
-        break;
       case 'deactivate':
         _deactivateReminder(reminder);
-        break;
       case 'activate':
         _activateReminder(reminder);
-        break;
       case 'delete':
         _deleteReminder(reminder);
-        break;
     }
   }
 
@@ -267,7 +259,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
       // Mark isActive = true in database
       await ref.read(appDbProvider).updateReminder(
         reminder.id,
-        NoteRemindersCompanion(isActive: Value(true)),
+        const NoteRemindersCompanion(isActive: Value(true)),
       );
       await _loadReminders();
       if (mounted) {
@@ -293,7 +285,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       try {
         await ref.read(appDbProvider).deleteReminderById(reminder.id);
         await _loadReminders();
@@ -339,11 +331,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 /// Bottom sheet for adding new reminders (time-based or location-based)
 class AddReminderSheet extends ConsumerStatefulWidget {
   const AddReminderSheet({
-    super.key,
-    required this.noteId,
-    required this.noteTitle,
-    required this.noteBody,
-    required this.onReminderAdded,
+    required this.noteId, required this.noteTitle, required this.noteBody, required this.onReminderAdded, super.key,
   });
 
   final String noteId;
@@ -377,7 +365,7 @@ class _AddReminderSheetState extends ConsumerState<AddReminderSheet> {
                 width: 40,
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(2)),
               ),
               // Header
               Padding(
@@ -445,11 +433,7 @@ class _AddReminderSheetState extends ConsumerState<AddReminderSheet> {
 /// Form for creating time-based reminders
 class TimeReminderForm extends ConsumerStatefulWidget {
   const TimeReminderForm({
-    super.key,
-    required this.noteId,
-    required this.noteTitle,
-    required this.noteBody,
-    required this.onReminderAdded,
+    required this.noteId, required this.noteTitle, required this.noteBody, required this.onReminderAdded, super.key,
   });
 
   final String noteId;
@@ -499,7 +483,6 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
       TextField(
         controller: _titleController,
         decoration: const InputDecoration(labelText: 'Reminder Title', border: OutlineInputBorder()),
-        maxLines: 1,
       ),
       const SizedBox(height: 16),
       TextField(
@@ -524,7 +507,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
       const Text('Repeat', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       const SizedBox(height: 8),
       DropdownButtonFormField<String>(
-        value: _recurrence,
+        initialValue: _recurrence,
         decoration: const InputDecoration(border: OutlineInputBorder()),
         items: _recurrenceOptions.map((pattern) {
           final display = pattern[0].toUpperCase() + pattern.substring(1);
@@ -651,7 +634,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
     });
     try {
       // Determine recurrence pattern enum from string
-      final RecurrencePattern recPattern = RecurrencePattern.values.firstWhere(
+      final recPattern = RecurrencePattern.values.firstWhere(
         (p) => p.name == _recurrence,
         orElse: () => RecurrencePattern.none,
       );
@@ -699,11 +682,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
 /// Form for creating location-based reminders
 class LocationReminderForm extends ConsumerStatefulWidget {
   const LocationReminderForm({
-    super.key,
-    required this.noteId,
-    required this.noteTitle,
-    required this.noteBody,
-    required this.onReminderAdded,
+    required this.noteId, required this.noteTitle, required this.noteBody, required this.onReminderAdded, super.key,
   });
 
   final String noteId;
@@ -722,9 +701,9 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
   final _notificationTitleController = TextEditingController();
   final _notificationBodyController = TextEditingController();
 
-  double _latitude = 0.0;
-  double _longitude = 0.0;
-  double _radius = 100.0; // default radius in meters
+  double _latitude = 0;
+  double _longitude = 0;
+  double _radius = 100; // default radius in meters
   bool _hasLocation = false;
   bool _loading = false;
 
@@ -752,7 +731,6 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       TextField(
         controller: _titleController,
         decoration: const InputDecoration(labelText: 'Reminder Title', border: OutlineInputBorder()),
-        maxLines: 1,
       ),
       const SizedBox(height: 16),
       TextField(
@@ -859,7 +837,7 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       });
       final coord = ref.read(reminderCoordinatorProvider);
       // Ensure permissions for location
-      bool havePerms = await coord.hasRequiredPermissions(includeLocation: true);
+      var havePerms = await coord.hasRequiredPermissions(includeLocation: true);
       if (!havePerms) {
         await coord.requestNotificationPermissions();
         await coord.requestLocationPermissions();
@@ -991,11 +969,7 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
 /// Bottom sheet for editing an existing reminder (simplified placeholder)
 class EditReminderSheet extends ConsumerWidget {
   const EditReminderSheet({
-    super.key,
-    required this.reminder,
-    required this.noteTitle,
-    required this.noteBody,
-    required this.onReminderUpdated,
+    required this.reminder, required this.noteTitle, required this.noteBody, required this.onReminderUpdated, super.key,
   });
 
   final NoteReminder reminder;

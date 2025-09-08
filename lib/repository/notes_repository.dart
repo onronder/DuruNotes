@@ -1,10 +1,10 @@
-import '../core/crypto/crypto_box.dart';
-import '../core/parser/note_indexer.dart';
-import '../data/local/app_db.dart';
-import '../data/remote/supabase_note_api.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/parser/note_indexer.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import 'package:drift/drift.dart' show Value;
 
 class NotesRepository {
   NotesRepository({
@@ -56,7 +56,7 @@ class NotesRepository {
 
   /// Get a single note by ID
   Future<LocalNote?> getNote(String id) async {
-    return await db.findNote(id);
+    return db.findNote(id);
   }
 
   Future<void> delete(String id) async {
@@ -75,7 +75,7 @@ class NotesRepository {
 
   Future<void> pushAllPending() async {
     final ops = await db.getPendingOps();
-    final List<int> processedIds = [];
+    final processedIds = <int>[];
 
     print('📤 Processing ${ops.length} pending operations...');
 
@@ -147,9 +147,9 @@ class NotesRepository {
     final rows = await api.fetchEncryptedNotes(since: since);
     print('📦 Received ${rows.length} notes from remote');
 
-    int updatedCount = 0;
-    int deletedCount = 0;
-    int skippedCount = 0;
+    var updatedCount = 0;
+    var deletedCount = 0;
+    var skippedCount = 0;
 
     for (final r in rows) {
       try {
@@ -244,7 +244,7 @@ class NotesRepository {
   Future<Set<String>> fetchRemoteActiveIds() async {
     final ids = await api.fetchAllActiveIds();
     print('🔍 Remote active IDs: ${ids.length} notes');
-    for (var id in ids.take(5)) {
+    for (final id in ids.take(5)) {
       print('  - $id');
     }
     return ids;
@@ -262,7 +262,7 @@ class NotesRepository {
         .toSet();
     print('⏳ Pending note operations: ${pendingIds.length} notes');
     
-    int deletedCount = 0;
+    var deletedCount = 0;
 
     for (final id in localIds) {
       if (!remoteActiveIds.contains(id) && !pendingIds.contains(id)) {
@@ -367,22 +367,22 @@ class NotesRepository {
 
   /// Get a single folder by ID
   Future<LocalFolder?> getFolder(String id) async {
-    return await db.findFolder(id);
+    return db.findFolder(id);
   }
 
   /// Get all folders in hierarchical order
   Future<List<LocalFolder>> listFolders() async {
-    return await db.allFolders();
+    return db.allFolders();
   }
 
   /// Get root level folders (no parent)
   Future<List<LocalFolder>> getRootFolders() async {
-    return await db.getRootFolders();
+    return db.getRootFolders();
   }
 
   /// Get child folders of a specific parent folder
   Future<List<LocalFolder>> getChildFolders(String parentId) async {
-    return await db.getChildFolders(parentId);
+    return db.getChildFolders(parentId);
   }
 
   /// Get the full folder hierarchy as a tree structure
@@ -509,7 +509,7 @@ class NotesRepository {
         op.kind == 'remove_note_folder'
     ).toList();
     
-    final List<int> processedIds = [];
+    final processedIds = <int>[];
 
     print('📤 Pushing ${folderOps.length} pending folder operations...');
 
@@ -604,9 +604,9 @@ class NotesRepository {
     final rows = await api.fetchEncryptedFolders(since: since);
     print('📦 Received ${rows.length} folders from remote');
 
-    int updatedCount = 0;
-    int deletedCount = 0;
-    int skippedCount = 0;
+    var updatedCount = 0;
+    var deletedCount = 0;
+    var skippedCount = 0;
 
     for (final r in rows) {
       try {
@@ -704,7 +704,7 @@ class NotesRepository {
     final rows = await api.fetchNoteFolderRelations(since: since);
     print('📦 Received ${rows.length} note-folder relationships from remote');
 
-    int updatedCount = 0;
+    var updatedCount = 0;
 
     for (final r in rows) {
       try {
@@ -757,7 +757,7 @@ class NotesRepository {
         .toSet();
     print('⏳ Pending folder operations: ${pendingFolderIds.length} folders');
 
-    int deletedCount = 0;
+    var deletedCount = 0;
 
     for (final id in localIds) {
       if (!remoteActiveIds.contains(id) && !pendingFolderIds.contains(id)) {
@@ -842,7 +842,7 @@ class NotesRepository {
   /// Get all notes in a specific folder
   Future<List<LocalNote>> getNotesInFolder(String folderId) async {
     final noteIds = await db.getNoteIdsInFolder(folderId);
-    final List<LocalNote> notes = [];
+    final notes = <LocalNote>[];
     
     for (final noteId in noteIds) {
       final note = await db.findNote(noteId);
@@ -858,12 +858,12 @@ class NotesRepository {
 
   /// Get unfiled notes (notes not in any folder)
   Future<List<LocalNote>> getUnfiledNotes() async {
-    return await db.getUnfiledNotes();
+    return db.getUnfiledNotes();
   }
 
   /// Get the folder containing a specific note
   Future<LocalFolder?> getFolderForNote(String noteId) async {
-    return await db.getFolderForNote(noteId);
+    return db.getFolderForNote(noteId);
   }
 
   // ==========================================
@@ -875,13 +875,13 @@ class NotesRepository {
     print('🔧 Starting folder structure validation and repair...');
 
     final allFolders = await db.allFolders();
-    final List<LocalFolder> foldersToUpdate = [];
-    int repairedCount = 0;
+    final foldersToUpdate = <LocalFolder>[];
+    var repairedCount = 0;
 
     for (final folder in allFolders) {
       if (folder.deleted) continue; // Skip deleted folders
 
-      bool needsUpdate = false;
+      var needsUpdate = false;
       var updatedFolder = folder;
 
       // Check for orphaned folders (parent doesn't exist)
@@ -932,12 +932,12 @@ class NotesRepository {
       since: DateTime.now().subtract(const Duration(hours: 24)),
     );
 
-    int resolvedCount = 0;
+    var resolvedCount = 0;
 
     for (final folder in recentFolders) {
       try {
         // Check if folder still exists remotely
-        final remoteFolders = await api.fetchEncryptedFolders(since: null);
+        final remoteFolders = await api.fetchEncryptedFolders();
         final remoteFolder = remoteFolders.firstWhere(
           (r) => r['id'] == folder.id,
           orElse: () => <String, dynamic>{},
@@ -969,7 +969,7 @@ class NotesRepository {
     print('🧹 Cleaning up orphaned note-folder relationships...');
 
     final allRelationships = await db.getAllNoteFolderRelationships();
-    int cleanedCount = 0;
+    var cleanedCount = 0;
 
     for (final relationship in allRelationships) {
       // Check if note exists and is not deleted
@@ -1017,10 +1017,10 @@ class NotesRepository {
     stats['total_folders'] = allFolders.length;
     stats['total_relationships'] = allRelationships.length;
 
-    int activeCount = 0;
-    int deletedCount = 0;
-    int rootCount = 0;
-    int orphanedCount = 0;
+    var activeCount = 0;
+    var deletedCount = 0;
+    var rootCount = 0;
+    var orphanedCount = 0;
 
     // Analyze folders
     for (final folder in allFolders) {
@@ -1055,7 +1055,7 @@ class NotesRepository {
     stats['orphaned_folders'] = orphanedCount;
 
     // Analyze relationships
-    int orphanedRelationships = 0;
+    var orphanedRelationships = 0;
     final notesWithFolders = <String>{};
 
     for (final rel in allRelationships) {
@@ -1095,7 +1095,7 @@ class NotesRepository {
 
   /// Calculate folder depth in hierarchy
   Future<int> _calculateFolderDepth(String folderId) async {
-    int depth = 0;
+    var depth = 0;
     String? currentId = folderId;
 
     while (currentId != null && depth < 100) { // Safety limit

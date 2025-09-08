@@ -1,9 +1,7 @@
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../providers.dart';
-import 'folder_notifiers.dart';
 
 class FolderPicker extends ConsumerStatefulWidget {
   const FolderPicker({
@@ -220,7 +218,7 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
   }
 
   int _getItemCount(List<FolderTreeNode> visibleNodes, AsyncValue<int> unfiledCount) {
-    int count = visibleNodes.length;
+    var count = visibleNodes.length;
     if (widget.showUnfiledOption) count++;
     if (widget.showCreateOption) count++;
     if (visibleNodes.isNotEmpty && (widget.showUnfiledOption || widget.showCreateOption)) {
@@ -252,7 +250,7 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
         data: (count) => count > 0 
             ? Chip(
                 label: Text(count.toString()),
-                backgroundColor: theme.colorScheme.surfaceVariant,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 labelStyle: theme.textTheme.labelSmall,
               )
             : null,
@@ -349,7 +347,7 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
       trailing: node.noteCount > 0
           ? Chip(
               label: Text(node.noteCount.toString()),
-              backgroundColor: theme.colorScheme.surfaceVariant,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
               labelStyle: theme.textTheme.labelSmall,
             )
           : null,
@@ -390,8 +388,6 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return AlertDialog(
       title: const Text('Create New Folder'),
       content: Form(

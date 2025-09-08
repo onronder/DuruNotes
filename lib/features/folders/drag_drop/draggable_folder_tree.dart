@@ -1,10 +1,9 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/local/app_db.dart';
-import '../../../providers.dart';
-import '../folder_notifiers.dart';
 
 /// A draggable and droppable folder tree widget
 class DraggableFolderTree extends ConsumerStatefulWidget {
@@ -74,9 +73,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
           child: Stack(
             children: [
               // Main folder tree
-              hierarchyState.isLoading && visibleNodes.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : hierarchyState.error != null
+              if (hierarchyState.isLoading && visibleNodes.isEmpty) const Center(child: CircularProgressIndicator()) else hierarchyState.error != null
                       ? _buildErrorState(hierarchyState.error!)
                       : visibleNodes.isEmpty
                           ? _buildEmptyState()
@@ -212,13 +209,12 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
             ref.read(folderHierarchyProvider.notifier)
                 .toggleExpansion(node.folder.id);
           },
-          onDragStarted: (folderId) => _onDragStarted(folderId),
-          onDragUpdate: (details) => _onDragUpdate(details),
-          onDragEnd: () => _onDragEnd(),
-          onAcceptDrop: (draggedFolderId, targetFolderId) =>
-              _onAcceptDrop(draggedFolderId, targetFolderId),
-          onHover: (folderId) => _onHover(folderId),
-          onHoverEnd: () => _onHoverEnd(),
+          onDragStarted: _onDragStarted,
+          onDragUpdate: _onDragUpdate,
+          onDragEnd: _onDragEnd,
+          onAcceptDrop: _onAcceptDrop,
+          onHover: _onHover,
+          onHoverEnd: _onHoverEnd,
         );
       },
     );
@@ -366,14 +362,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
 
 class _DraggableFolderItem extends StatefulWidget {
   const _DraggableFolderItem({
-    super.key,
-    required this.node,
-    required this.index,
-    required this.isSelected,
-    required this.isDragTarget,
-    required this.isDragging,
-    required this.showNoteCount,
-    required this.allowReordering,
+    required this.node, required this.index, required this.isSelected, required this.isDragTarget, required this.isDragging, required this.showNoteCount, required this.allowReordering, super.key,
     this.onTap,
     this.onExpansionToggle,
     this.onDragStarted,
@@ -419,7 +408,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
     );
     
     _scaleAnimation = Tween<double>(
-      begin: 1.0,
+      begin: 1,
       end: 1.05,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -427,8 +416,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
     ));
     
     _elevationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 8.0,
+      begin: 0,
+      end: 8,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOut,
@@ -552,7 +541,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceVariant,
+                            color: theme.colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -635,8 +624,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
       );
 
       child = DragTarget<String>(
-        onWillAccept: (data) => data != null && data != folder.id,
-        onAccept: (draggedFolderId) {
+        onWillAcceptWithDetails: (data) => data != folder.id,
+        onAcceptWithDetails: (draggedFolderId) {
           widget.onAcceptDrop?.call(draggedFolderId, folder.id);
         },
         onMove: (_) => widget.onHover?.call(folder.id),

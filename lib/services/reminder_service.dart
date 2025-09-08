@@ -2,23 +2,28 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+// If your enum lives in your DB layer, import it here.
+import 'package:duru_notes/data/local/app_db.dart' show ReminderType;
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 // Timezone handling
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter_timezone/flutter_timezone.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../services/analytics/analytics_service.dart';
-
-// If your enum lives in your DB layer, import it here.
-import '../data/local/app_db.dart' show ReminderType;
 
 /// Domain model (kept as-is, with minor nits cleaned)
 class Reminder {
+
+  const Reminder({
+    required this.id,
+    required this.noteId,
+    required this.title,
+    required this.scheduledTime, required this.type, required this.createdAt, this.body,
+    this.isActive = true,
+    this.completedAt,
+  });
   final String id;
   final String noteId;
   final String title;
@@ -28,18 +33,6 @@ class Reminder {
   final bool isActive;
   final DateTime createdAt;
   final DateTime? completedAt;
-
-  const Reminder({
-    required this.id,
-    required this.noteId,
-    required this.title,
-    this.body,
-    required this.scheduledTime,
-    required this.type,
-    this.isActive = true,
-    required this.createdAt,
-    this.completedAt,
-  });
 
   Reminder copyWith({
     String? id,
@@ -139,9 +132,7 @@ class ReminderService {
       // 4) Platform initialization
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosInit = DarwinInitializationSettings(
-        requestSoundPermission: true,
-        requestBadgePermission: true,
-        requestAlertPermission: true,
+        
       );
       const initSettings = InitializationSettings(
         android: androidInit,
@@ -194,7 +185,7 @@ class ReminderService {
 
       final id = _stableNotificationId(reminder.id);
 
-      final androidDetails = AndroidNotificationDetails(
+      const androidDetails = AndroidNotificationDetails(
         'reminders',
         'Note Reminders',
         channelDescription: 'Reminders for your notes',
@@ -208,7 +199,7 @@ class ReminderService {
         presentBadge: true,
         presentSound: true,
       );
-      final details = NotificationDetails(
+      const details = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -363,7 +354,7 @@ class ReminderService {
     if (_tzReady) return;
     try {
       tzdata.initializeTimeZones();
-      final String name = await FlutterTimezone.getLocalTimezone();
+      final name = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(name));
       _tzReady = true;
       _logger.debug('Timezone initialized', data: {'tz': name});
@@ -420,14 +411,14 @@ class ReminderService {
 
   /// Stable 31-bit hash for String IDs (don’t use String.hashCode)
   int _stableNotificationId(String s) {
-    int hash = 0;
+    var hash = 0;
     for (final c in s.codeUnits) {
       hash = (hash + c) & 0x1fffffff;
       hash = (hash + (hash << 10)) & 0x1fffffff;
-      hash ^= (hash >> 6);
+      hash ^= hash >> 6;
     }
     hash = (hash + (hash << 3)) & 0x1fffffff;
-    hash ^= (hash >> 11);
+    hash ^= hash >> 11;
     hash = (hash + (hash << 15)) & 0x1fffffff;
     return hash == 0 ? 1 : hash;
   }

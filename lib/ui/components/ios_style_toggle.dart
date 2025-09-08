@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,9 +5,7 @@ import 'package:flutter/services.dart';
 /// Optimized for both iOS and Android with proper accessibility
 class IOSStyleToggle extends StatefulWidget {
   const IOSStyleToggle({
-    super.key,
-    required this.value,
-    required this.onChanged,
+    required this.value, required this.onChanged, super.key,
     this.activeColor,
     this.inactiveColor,
     this.thumbColor,
@@ -45,15 +42,15 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
     );
     
     _positionAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
     ));
     
     _scaleAnimation = Tween<double>(
-      begin: 1.0,
+      begin: 1,
       end: 1.1,
     ).animate(CurvedAnimation(
       parent: _controller,
@@ -175,10 +172,7 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
 /// Enhanced settings list tile with iOS-style toggle
 class SettingsToggleTile extends StatelessWidget {
   const SettingsToggleTile({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.onChanged,
+    required this.title, required this.value, required this.onChanged, super.key,
     this.subtitle,
     this.leading,
     this.activeColor,
@@ -242,9 +236,7 @@ class SettingsToggleTile extends StatelessWidget {
 /// Settings section with glassmorphic design
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
-    super.key,
-    required this.title,
-    required this.children,
+    required this.title, required this.children, super.key,
     this.icon,
   });
 

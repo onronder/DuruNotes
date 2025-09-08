@@ -1,12 +1,11 @@
 import 'dart:convert';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-
-import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart';
-import '../analytics/analytics_service.dart';
 
 /// Service responsible for managing snooze functionality for reminders.
 /// 
@@ -28,8 +27,8 @@ class SnoozeReminderService {
   /// Maximum number of times a reminder can be snoozed
   static const int maxSnoozeCount = 5;
 
-  final logger = LoggerFactory.instance;
-  final analytics = AnalyticsFactory.instance;
+  final AppLogger logger = LoggerFactory.instance;
+  final AnalyticsService analytics = AnalyticsFactory.instance;
 
   /// Snooze a reminder for the specified duration
   Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
@@ -119,7 +118,7 @@ class SnoozeReminderService {
     
     // Smart scheduling: if it's late at night, schedule for 9 AM
     // If it's early morning, schedule for later in the morning
-    int hour = 9; // Default 9 AM
+    var hour = 9; // Default 9 AM
     
     if (now.hour >= 22 || now.hour <= 6) {
       // Late night or very early morning - schedule for 9 AM
@@ -132,7 +131,7 @@ class SnoozeReminderService {
       hour = 9;
     }
     
-    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, hour, 0);
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, hour);
   }
 
   /// Schedule a notification for when snooze period expires
@@ -275,13 +274,10 @@ class SnoozeReminderService {
       switch (action) {
         case 'snooze_5':
           duration = SnoozeDuration.fiveMinutes;
-          break;
         case 'snooze_15':
           duration = SnoozeDuration.fifteenMinutes;
-          break;
         case 'snooze_1h':
           duration = SnoozeDuration.oneHour;
-          break;
         case 'complete':
           await _db.deactivateReminder(reminderId);
           analytics.event('reminder.completed_from_notification');

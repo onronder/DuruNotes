@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 /// across the application with retry functionality.
 class ErrorDisplay extends StatelessWidget {
   const ErrorDisplay({
-    super.key,
-    required this.error,
+    required this.error, super.key,
     this.message,
     this.onRetry,
   });
@@ -20,7 +19,7 @@ class ErrorDisplay extends StatelessWidget {
     
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -114,9 +113,7 @@ class LoadingDisplay extends StatelessWidget {
 /// Empty state widget for when there's no content to display
 class EmptyDisplay extends StatelessWidget {
   const EmptyDisplay({
-    super.key,
-    required this.icon,
-    required this.title,
+    required this.icon, required this.title, super.key,
     this.subtitle,
     this.action,
   });
@@ -132,7 +129,7 @@ class EmptyDisplay extends StatelessWidget {
     
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

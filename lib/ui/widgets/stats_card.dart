@@ -1,21 +1,16 @@
+import 'package:duru_notes/core/ui/responsive.dart';
 import 'package:flutter/material.dart';
-import '../../core/ui/responsive.dart';
 
 class StatsCard extends StatelessWidget {
+
+  const StatsCard({
+    required this.greeting, required this.email, required this.stats, required this.isCollapsed, required this.onToggleCollapse, super.key,
+  });
   final String greeting;
   final String email;
   final List<StatItem> stats;
   final bool isCollapsed;
   final VoidCallback onToggleCollapse;
-
-  const StatsCard({
-    super.key,
-    required this.greeting,
-    required this.email,
-    required this.stats,
-    required this.isCollapsed,
-    required this.onToggleCollapse,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -93,16 +88,13 @@ class StatsCard extends StatelessWidget {
 }
 
 class StatItem extends StatelessWidget {
+
+  const StatItem({
+    required this.icon, required this.value, required this.label, super.key,
+  });
   final IconData icon;
   final String value;
   final String label;
-
-  const StatItem({
-    super.key,
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
 
   @override
   Widget build(BuildContext context) {

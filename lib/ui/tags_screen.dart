@@ -1,10 +1,9 @@
+import 'package:duru_notes/data/local/app_db.dart' show TagCount;
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/ui/tag_notes_screen.dart';
+import 'package:duru_notes/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../data/local/app_db.dart' show TagCount;
-import '../providers.dart';
-import 'tag_notes_screen.dart';
-import 'widgets/error_display.dart';
 
 class TagsScreen extends ConsumerStatefulWidget {
   const TagsScreen({super.key});
@@ -103,9 +102,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
+                        onPressed: _searchController.clear,
                       )
                     : null,
                 border: OutlineInputBorder(

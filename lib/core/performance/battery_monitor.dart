@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
-
-import '../monitoring/app_logger.dart';
-import '../config/environment_config.dart';
+import 'package:duru_notes/core/config/environment_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 
 /// Comprehensive battery monitoring service for tracking power consumption
 /// 
@@ -18,10 +17,10 @@ import '../config/environment_config.dart';
 /// - Battery drain alerts and reporting
 /// - Long-term battery usage analysis
 class BatteryMonitor {
-  static BatteryMonitor? _instance;
-  static BatteryMonitor get instance => _instance ??= BatteryMonitor._();
   
   BatteryMonitor._();
+  static BatteryMonitor? _instance;
+  static BatteryMonitor get instance => _instance ??= BatteryMonitor._();
 
   final AppLogger _logger = LoggerFactory.instance;
   final Battery _battery = Battery();
@@ -387,11 +386,6 @@ class BatteryMonitor {
 
 /// Individual battery reading
 class BatteryReading {
-  final int batteryLevel;
-  final BatteryState batteryState;
-  final bool isInBatterySaveMode;
-  final DateTime timestamp;
-  final String? testSessionName;
 
   const BatteryReading({
     required this.batteryLevel,
@@ -400,6 +394,11 @@ class BatteryReading {
     required this.timestamp,
     this.testSessionName,
   });
+  final int batteryLevel;
+  final BatteryState batteryState;
+  final bool isInBatterySaveMode;
+  final DateTime timestamp;
+  final String? testSessionName;
 
   @override
   String toString() {
@@ -410,10 +409,6 @@ class BatteryReading {
 
 /// Current battery information
 class BatteryInfo {
-  final int level;
-  final BatteryState state;
-  final bool isInBatterySaveMode;
-  final DateTime timestamp;
 
   const BatteryInfo({
     required this.level,
@@ -428,6 +423,10 @@ class BatteryInfo {
         isInBatterySaveMode: false,
         timestamp: DateTime.now(),
       );
+  final int level;
+  final BatteryState state;
+  final bool isInBatterySaveMode;
+  final DateTime timestamp;
 
   @override
   String toString() {
@@ -438,13 +437,6 @@ class BatteryInfo {
 
 /// Battery usage report for a specific time period
 class BatteryUsageReport {
-  final DateTime startTime;
-  final DateTime endTime;
-  final int startLevel;
-  final int endLevel;
-  final int totalDrain;
-  final double drainRate; // Percentage per hour
-  final List<BatteryReading> readings;
 
   const BatteryUsageReport({
     required this.startTime,
@@ -456,8 +448,6 @@ class BatteryUsageReport {
     required this.readings,
   });
 
-  Duration get duration => endTime.difference(startTime);
-
   factory BatteryUsageReport.empty(DateTime start, DateTime end) =>
       BatteryUsageReport(
         startTime: start,
@@ -465,9 +455,18 @@ class BatteryUsageReport {
         startLevel: 0,
         endLevel: 0,
         totalDrain: 0,
-        drainRate: 0.0,
+        drainRate: 0,
         readings: [],
       );
+  final DateTime startTime;
+  final DateTime endTime;
+  final int startLevel;
+  final int endLevel;
+  final int totalDrain;
+  final double drainRate; // Percentage per hour
+  final List<BatteryReading> readings;
+
+  Duration get duration => endTime.difference(startTime);
 
   @override
   String toString() {
@@ -478,18 +477,6 @@ class BatteryUsageReport {
 
 /// Comprehensive battery monitoring report
 class BatteryMonitoringReport {
-  final DateTime startTime;
-  final DateTime endTime;
-  final Duration totalDuration;
-  final int startBatteryLevel;
-  final int endBatteryLevel;
-  final int totalBatteryDrain;
-  final double averageDrainRate;
-  final int minBatteryLevel;
-  final int maxBatteryLevel;
-  final int totalReadings;
-  final Map<BatteryState, int> stateChanges;
-  final List<BatteryReading> readings;
 
   const BatteryMonitoringReport({
     required this.startTime,
@@ -515,7 +502,7 @@ class BatteryMonitoringReport {
       startBatteryLevel: 0,
       endBatteryLevel: 0,
       totalBatteryDrain: 0,
-      averageDrainRate: 0.0,
+      averageDrainRate: 0,
       minBatteryLevel: 0,
       maxBatteryLevel: 0,
       totalReadings: 0,
@@ -523,6 +510,18 @@ class BatteryMonitoringReport {
       readings: [],
     );
   }
+  final DateTime startTime;
+  final DateTime endTime;
+  final Duration totalDuration;
+  final int startBatteryLevel;
+  final int endBatteryLevel;
+  final int totalBatteryDrain;
+  final double averageDrainRate;
+  final int minBatteryLevel;
+  final int maxBatteryLevel;
+  final int totalReadings;
+  final Map<BatteryState, int> stateChanges;
+  final List<BatteryReading> readings;
 
   /// Get formatted summary string
   String getSummary() {
@@ -547,12 +546,6 @@ Total Readings: $totalReadings
 
 /// Battery alert
 class BatteryAlert {
-  final BatteryAlertType type;
-  final String message;
-  final BatteryAlertSeverity severity;
-  final DateTime timestamp;
-  final int? batteryLevel;
-  final double? drainRate;
 
   BatteryAlert({
     required this.type,
@@ -561,6 +554,12 @@ class BatteryAlert {
     this.batteryLevel,
     this.drainRate,
   }) : timestamp = DateTime.now();
+  final BatteryAlertType type;
+  final String message;
+  final BatteryAlertSeverity severity;
+  final DateTime timestamp;
+  final int? batteryLevel;
+  final double? drainRate;
 
   @override
   String toString() {

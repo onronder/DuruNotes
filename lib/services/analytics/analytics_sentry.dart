@@ -1,10 +1,9 @@
 
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:duru_notes/core/config/environment_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
-import '../../core/config/environment_config.dart';
-import '../../core/monitoring/app_logger.dart';
-import 'analytics_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Sentry implementation of the analytics service
 class SentryAnalytics extends AnalyticsService {
@@ -54,7 +53,6 @@ class SentryAnalytics extends AnalyticsService {
       
       Sentry.captureMessage(
         '[analytics] $name',
-        level: SentryLevel.info,
         withScope: (scope) {
           scope.setContexts('analytics_event', {
             'name': name,

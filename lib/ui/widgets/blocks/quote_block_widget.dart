@@ -1,6 +1,5 @@
+import 'package:duru_notes/models/note_block.dart';
 import 'package:flutter/material.dart';
-
-import '../../../models/note_block.dart';
 
 /// Widget for rendering and editing quote blocks.
 /// 
@@ -11,11 +10,7 @@ import '../../../models/note_block.dart';
 /// - Block deletion functionality
 class QuoteBlockWidget extends StatelessWidget {
   const QuoteBlockWidget({
-    super.key,
-    required this.block,
-    required this.controller,
-    required this.onChanged,
-    required this.onDelete,
+    required this.block, required this.controller, required this.onChanged, required this.onDelete, super.key,
     this.hintText = 'Quote',
   });
 
@@ -82,7 +77,7 @@ class QuoteBlockWidget extends StatelessWidget {
                   fontStyle: FontStyle.italic,
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
               onChanged: (value) {
                 final updatedBlock = block.copyWith(data: value);
@@ -106,8 +101,7 @@ class QuoteBlockWidget extends StatelessWidget {
 /// Widget for displaying quote blocks in read-only mode.
 class QuoteBlockPreview extends StatelessWidget {
   const QuoteBlockPreview({
-    super.key,
-    required this.text,
+    required this.text, super.key,
     this.attribution,
     this.maxLines,
   });
@@ -173,7 +167,7 @@ class QuoteBlockPreview extends StatelessWidget {
           ),
           
           // Attribution
-          if (attribution?.isNotEmpty == true) ...[
+          if (attribution?.isNotEmpty ?? false) ...[
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -195,9 +189,7 @@ class QuoteBlockPreview extends StatelessWidget {
 /// Widget for famous quotes or inspirational content.
 class InspirationalQuoteWidget extends StatelessWidget {
   const InspirationalQuoteWidget({
-    super.key,
-    required this.quote,
-    required this.author,
+    required this.quote, required this.author, super.key,
     this.onTap,
   });
 

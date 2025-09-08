@@ -1,18 +1,18 @@
 import 'dart:async';
 
-import '../../data/local/app_db.dart';
-import '../monitoring/app_logger.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 
 /// Manages indexing and cross-referencing of notes for search and linking
 class NoteIndexer {
-  final AppLogger _logger;
-  final Map<String, Set<String>> _tagIndex = {};
-  final Map<String, Set<String>> _linkIndex = {};
-  final Map<String, Set<String>> _wordIndex = {};
 
   NoteIndexer({
     AppLogger? logger,
   }) : _logger = logger ?? LoggerFactory.instance;
+  final AppLogger _logger;
+  final Map<String, Set<String>> _tagIndex = {};
+  final Map<String, Set<String>> _linkIndex = {};
+  final Map<String, Set<String>> _wordIndex = {};
 
   /// Index a note for search and cross-referencing
   Future<void> indexNote(LocalNote note) async {
@@ -48,15 +48,21 @@ class NoteIndexer {
   Future<void> removeNoteFromIndex(String noteId) async {
     try {
       // Remove from tag index
-      _tagIndex.values.forEach((noteIds) => noteIds.remove(noteId));
+      for (final noteIds in _tagIndex.values) {
+        noteIds.remove(noteId);
+      }
       _tagIndex.removeWhere((tag, noteIds) => noteIds.isEmpty);
 
       // Remove from link index
-      _linkIndex.values.forEach((noteIds) => noteIds.remove(noteId));
+      for (final noteIds in _linkIndex.values) {
+        noteIds.remove(noteId);
+      }
       _linkIndex.removeWhere((link, noteIds) => noteIds.isEmpty);
 
       // Remove from word index
-      _wordIndex.values.forEach((noteIds) => noteIds.remove(noteId));
+      for (final noteIds in _wordIndex.values) {
+        noteIds.remove(noteId);
+      }
       _wordIndex.removeWhere((word, noteIds) => noteIds.isEmpty);
 
       _logger.debug('Note removed from index', data: {
@@ -234,7 +240,7 @@ class NoteIndexer {
     
     // Remove markdown formatting and special characters
     final cleanContent = content
-        .replaceAll(RegExp(r'[#*`>]'), ' ')
+        .replaceAll(RegExp('[#*`>]'), ' ')
         .replaceAll(RegExp(r'\[[^\]]*\]'), ' ')
         .replaceAll(RegExp(r'\([^)]*\)'), ' ');
     

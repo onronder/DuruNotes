@@ -1,11 +1,10 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_creator.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_engine.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_provider.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/local/app_db.dart';
-import 'smart_folder_creator.dart';
-import 'smart_folder_engine.dart';
-import 'smart_folder_provider.dart';
-import 'smart_folder_types.dart';
 
 class SmartFoldersWidget extends ConsumerWidget {
   const SmartFoldersWidget({
@@ -287,7 +286,7 @@ class SmartFoldersWidget extends ConsumerWidget {
           _showDuplicateDialog(context, ref, folder);
         },
         onExport: () {
-          final exported = ref.read(smartFoldersProvider.notifier).exportSmartFolder(folder.id);
+          // final exported = ref.read(smartFoldersProvider.notifier).exportSmartFolder(folder.id);
           // TODO: Show share sheet or copy to clipboard
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Export feature coming soon!')),
@@ -576,7 +575,7 @@ class _SmartFolderTile extends StatelessWidget {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
                 
                 if (notes.length > 3) ...[
                   const SizedBox(height: 4),

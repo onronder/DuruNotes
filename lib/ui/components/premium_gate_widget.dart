@@ -1,23 +1,19 @@
+import 'package:duru_notes/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/subscription_service.dart';
-import '../../theme/material3_theme.dart';
-
 /// Widget that gates premium features behind subscription
 class PremiumGateWidget extends ConsumerWidget {
+  
+  const PremiumGateWidget({
+    required this.child, required this.featureName, super.key,
+    this.placementId = 'premium_features',
+    this.fallbackWidget,
+  });
   final Widget child;
   final String featureName;
   final String placementId;
   final Widget? fallbackWidget;
-  
-  const PremiumGateWidget({
-    super.key,
-    required this.child,
-    required this.featureName,
-    this.placementId = 'premium_features',
-    this.fallbackWidget,
-  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -186,19 +182,18 @@ class PremiumGateWidget extends ConsumerWidget {
 
 /// Simple premium feature checker
 class PremiumFeatureChecker extends ConsumerWidget {
-  final Widget Function(bool hasPremium) builder;
   
   const PremiumFeatureChecker({
-    super.key,
-    required this.builder,
+    required this.builder, super.key,
   });
+  final Widget Function(bool hasPremium) builder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final premiumAccess = ref.watch(premiumAccessProvider);
     
     return premiumAccess.when(
-      data: (hasPremium) => builder(hasPremium),
+      data: builder,
       loading: () => builder(false), // Default to free during loading
       error: (_, __) => builder(false), // Default to free on error
     );

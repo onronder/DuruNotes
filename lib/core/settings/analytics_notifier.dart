@@ -1,7 +1,6 @@
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../services/analytics/analytics_service.dart';
 
 /// Notifier for managing analytics settings
 class AnalyticsNotifier extends StateNotifier<bool> {

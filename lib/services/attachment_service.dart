@@ -1,12 +1,11 @@
 import 'dart:typed_data';
-import 'dart:io';
-import 'package:flutter/material.dart';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/note_block.dart';
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
 
 /// Attachment size limits
 class AttachmentLimits {
@@ -37,10 +36,10 @@ class AttachmentLimits {
 
 /// Exception thrown when attachment operations fail
 class AttachmentException implements Exception {
-  final String message;
-  final String? code;
   
   const AttachmentException(this.message, {this.code});
+  final String message;
+  final String? code;
   
   @override
   String toString() => 'AttachmentException: $message';
@@ -48,14 +47,14 @@ class AttachmentException implements Exception {
 
 /// Exception for file size violations
 class AttachmentSizeException extends AttachmentException {
-  final int actualSize;
-  final int maxSize;
   
   const AttachmentSizeException(
     super.message,
     this.actualSize,
     this.maxSize,
   ) : super(code: 'FILE_TOO_LARGE');
+  final int actualSize;
+  final int maxSize;
 }
 
 /// Attachment service for handling file uploads and downloads
@@ -78,9 +77,7 @@ class AttachmentService {
       _analytics.startTiming('attachment_pick_upload');
       
       final result = await FilePicker.platform.pickFiles(
-        allowMultiple: false,
         withData: true,
-        allowedExtensions: null, // Allow all file types
       );
 
       if (result == null || result.files.isEmpty) {
@@ -128,7 +125,6 @@ class AttachmentService {
 
       // Generate unique filename
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final extension = filename.split('.').last;
       final uniqueFilename = '${timestamp}_$filename';
       final storagePath = '$userId/attachments/$uniqueFilename';
 

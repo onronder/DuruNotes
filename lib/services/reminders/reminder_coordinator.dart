@@ -1,14 +1,15 @@
 import 'dart:io';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart' hide NoteReminder;
+import 'package:duru_notes/models/note_reminder.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
+import 'package:duru_notes/services/reminders/recurring_reminder_service.dart';
+import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart' hide NoteReminder;
-import '../../models/note_reminder.dart';
-import '../analytics/analytics_service.dart';
-import 'geofence_reminder_service.dart';
-import 'recurring_reminder_service.dart';
-import 'snooze_reminder_service.dart';
 
 /// Coordinator service that manages all reminder functionalities.
 /// 
@@ -20,14 +21,14 @@ class ReminderCoordinator {
   ReminderCoordinator(this._plugin, this._db) {
     _geofenceService = GeofenceReminderService(_plugin, _db);
     _recurringService = RecurringReminderService(_plugin, _db);
-    _snoozeService = SnoozeReminderService(_plugin, _db);
+    // _snoozeService = SnoozeReminderService(_plugin, _db);  // Reserved for snooze functionality
   }
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
   late final GeofenceReminderService _geofenceService;
   late final RecurringReminderService _recurringService;
-  late final SnoozeReminderService _snoozeService;
+  // late final SnoozeReminderService _snoozeService;  // Reserved for snooze functionality
 
   static const String _channelId = 'notes_reminders';
   static const String _channelName = 'Notes Reminders';
@@ -45,8 +46,6 @@ class ReminderCoordinator {
       _channelId, _channelName,
       description: _channelDescription,
       importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
     );
     await _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -91,11 +90,11 @@ class ReminderCoordinator {
   }
 
   Future<bool> requestLocationPermissions() async {
-    return await _geofenceService.requestLocationPermissions();
+    return _geofenceService.requestLocationPermissions();
   }
 
   Future<bool> hasLocationPermissions() async {
-    return await _geofenceService.hasLocationPermissions();
+    return _geofenceService.hasLocationPermissions();
   }
 
   /// Check if all required permissions are granted (optionally include location)
@@ -183,7 +182,6 @@ class ReminderCoordinator {
           type: r.type,
           scheduledTime: r.remindAt ?? DateTime.now(),
           remindAt: r.remindAt,
-          isCompleted: false,
           isSnoozed: r.snoozedUntil != null && r.snoozedUntil!.isAfter(DateTime.now()),
           snoozedUntil: r.snoozedUntil,
           isActive: r.isActive ?? true,

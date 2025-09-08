@@ -1,14 +1,12 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:geolocator/geolocator.dart' as geo;
 import 'package:geofence_service/geofence_service.dart';
-
-import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart';
-import '../analytics/analytics_service.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 
 /// Service responsible for managing location-based (geofence) reminders.
 /// 
@@ -30,8 +28,8 @@ class GeofenceReminderService {
   GeofenceService? _geofenceService;
   bool _initialized = false;
 
-  final logger = LoggerFactory.instance;
-  final analytics = AnalyticsFactory.instance;
+  final AppLogger logger = LoggerFactory.instance;
+  final AnalyticsService analytics = AnalyticsFactory.instance;
 
   /// Initialize the geofence service and set up notification channels
   Future<void> initialize() async {
@@ -57,8 +55,6 @@ class GeofenceReminderService {
       _locationChannelName,
       description: _locationChannelDescription,
       importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
     );
     
     await _plugin
@@ -95,7 +91,7 @@ class GeofenceReminderService {
   /// Request location permissions for geofencing
   Future<bool> requestLocationPermissions() async {
     try {
-      geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+      var permission = await geo.Geolocator.checkPermission();
       
       if (permission == geo.LocationPermission.denied) {
         permission = await geo.Geolocator.requestPermission();
@@ -215,25 +211,26 @@ class GeofenceReminderService {
   }
 
   /// Handle geofence status changes
-  void _onGeofenceStatusChanged(
-    Geofence geofence,
-    GeofenceRadius geofenceRadius,
-    GeofenceStatus geofenceStatus,
-    Location location,
-  ) async {
-    if (geofenceStatus == GeofenceStatus.ENTER) {
-      // Extract reminder ID from geofence ID
-      final geofenceId = geofence.id;
-      if (geofenceId.startsWith('reminder_')) {
-        final reminderIdStr = geofenceId.substring('reminder_'.length);
-        final reminderId = int.tryParse(reminderIdStr);
-        
-        if (reminderId != null) {
-          await triggerLocationReminder(reminderId);
-        }
-      }
-    }
-  }
+  // Reserved for geofence implementation
+  // void _onGeofenceStatusChanged(
+  //   Geofence geofence,
+  //   GeofenceRadius geofenceRadius,
+  //   GeofenceStatus geofenceStatus,
+  //   Location location,
+  // ) async {
+  //   if (geofenceStatus == GeofenceStatus.ENTER) {
+  //     // Extract reminder ID from geofence ID
+  //     final geofenceId = geofence.id;
+  //     if (geofenceId.startsWith('reminder_')) {
+  //       final reminderIdStr = geofenceId.substring('reminder_'.length);
+  //       final reminderId = int.tryParse(reminderIdStr);
+  //       
+  //       if (reminderId != null) {
+  //         await triggerLocationReminder(reminderId);
+  //       }
+  //     }
+  //   }
+  // }
 
   /// Trigger a location-based reminder
   Future<void> triggerLocationReminder(int reminderId) async {
@@ -270,7 +267,7 @@ class GeofenceReminderService {
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
       final body = reminder.notificationBody ?? 
-          'You\'re near $locationText - ${reminder.title}';
+          "You're near $locationText - ${reminder.title}";
       
       await _plugin.show(
         notificationId,

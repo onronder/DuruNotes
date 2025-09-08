@@ -1,22 +1,21 @@
 import 'dart:async';
 
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/foundation.dart';
-
-import '../../../data/local/app_db.dart';
-import '../../../repository/notes_repository.dart';
-import 'smart_folder_types.dart';
 
 /// Engine for evaluating smart folder rules and filtering notes
 class SmartFolderEngine {
+
+  SmartFolderEngine(this._repository);
   final NotesRepository _repository;
   final Map<String, StreamController<List<LocalNote>>> _controllers = {};
   final Map<String, Timer> _refreshTimers = {};
 
-  SmartFolderEngine(this._repository);
-
   /// Get all notes from the repository
   Future<List<LocalNote>> getAllNotes() async {
-    return await _repository.list();
+    return _repository.list();
   }
 
   /// Get notes matching a smart folder configuration
@@ -229,7 +228,7 @@ class SmartFolderEngine {
         
       case RuleField.hasLinks:
         return note.body.contains(RegExp(r'\[.*?\]\(.*?\)')) ||
-               note.body.contains(RegExp(r'https?://'));
+               note.body.contains(RegExp('https?://'));
         
       case RuleField.hasCode:
         return note.body.contains('```');
@@ -267,13 +266,6 @@ class SmartFolderEngine {
 
 /// Statistics for a smart folder
 class SmartFolderStats {
-  final int totalNotes;
-  final int matchingNotes;
-  final DateTime? lastRefresh;
-  final Duration? averageAge;
-  final int totalWords;
-  final int totalAttachments;
-  final Map<String, int> tagCounts;
 
   const SmartFolderStats({
     required this.totalNotes,
@@ -284,9 +276,6 @@ class SmartFolderStats {
     this.totalAttachments = 0,
     this.tagCounts = const {},
   });
-
-  double get matchPercentage => 
-      totalNotes > 0 ? (matchingNotes / totalNotes) * 100 : 0;
 
   factory SmartFolderStats.fromNotes(List<LocalNote> notes, int totalNotes) {
     if (notes.isEmpty) {
@@ -338,4 +327,14 @@ class SmartFolderStats {
       tagCounts: tagCounts,
     );
   }
+  final int totalNotes;
+  final int matchingNotes;
+  final DateTime? lastRefresh;
+  final Duration? averageAge;
+  final int totalWords;
+  final int totalAttachments;
+  final Map<String, int> tagCounts;
+
+  double get matchPercentage => 
+      totalNotes > 0 ? (matchingNotes / totalNotes) * 100 : 0;
 }

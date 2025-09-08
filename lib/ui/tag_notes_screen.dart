@@ -1,8 +1,8 @@
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
+import 'package:duru_notes/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers.dart';
-import 'edit_note_screen_simple.dart';
-import 'widgets/error_display.dart';
 
 class TagNotesScreen extends ConsumerStatefulWidget {
   const TagNotesScreen({required this.tag, super.key});
@@ -84,11 +84,11 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     final limitedBody = body.length > 300 ? body.substring(0, 300) : body;
     
     // Strip markdown formatting for cleaner preview (optimized)
-    String preview = limitedBody
+    final preview = limitedBody
         .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
         .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
         .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
-        .replaceAll(RegExp(r'`([^`]*)`'), r'$1') // Remove code (non-greedy)
+        .replaceAll(RegExp('`([^`]*)`'), r'$1') // Remove code (non-greedy)
         .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // Remove links (non-greedy)
         .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
         .trim();
@@ -123,14 +123,14 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
         onPressed: () async {
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => const EditNoteScreen(),
+              builder: (_) => const ModernEditNoteScreen(),
             ),
           );
           // Refresh notes after returning from editor
           _loadNotes();
         },
-        child: const Icon(Icons.add),
         tooltip: 'Create note with #${widget.tag}',
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -216,7 +216,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
               onTap: () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => EditNoteScreen(
+                    builder: (_) => ModernEditNoteScreen(
                       noteId: note.id,
                     ),
                   ),

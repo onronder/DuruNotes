@@ -1,20 +1,15 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart';
-import '../../repository/notes_repository.dart';
-import '../../services/analytics/analytics_service.dart';
-
 // Global instances
-final logger = LoggerFactory.instance;
-final analytics = AnalyticsFactory.instance;
+final AppLogger logger = LoggerFactory.instance;
+final AnalyticsService analytics = AnalyticsFactory.instance;
 
 /// Represents a page of notes with pagination state
 class NotesPage {
-  final List<LocalNote> items;
-  final bool hasMore;
-  final DateTime? nextCursor;
-  final bool isLoading;
   
   const NotesPage({
     required this.items,
@@ -22,6 +17,10 @@ class NotesPage {
     required this.nextCursor,
     this.isLoading = false,
   });
+  final List<LocalNote> items;
+  final bool hasMore;
+  final DateTime? nextCursor;
+  final bool isLoading;
 
   NotesPage copyWith({
     List<LocalNote>? items,
@@ -93,7 +92,6 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
       // Fetch next page
       final newNotes = await _repo.listAfter(
         currentState.nextCursor,
-        limit: _pageSize,
       );
 
       // Merge with existing items
@@ -106,7 +104,6 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
         items: mergedItems,
         hasMore: hasMore,
         nextCursor: nextCursor,
-        isLoading: false,
       ));
 
       // Analytics

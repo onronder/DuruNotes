@@ -1,25 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../data/local/app_db.dart';
-import '../repository/notes_repository.dart';
-import '../services/analytics/analytics_service.dart';
-import '../services/attachment_service.dart';
 
 /// Service for handling shared content from iOS Share Extension and Android intents
 class ShareExtensionService {
-  final NotesRepository _notesRepository;
-  final AttachmentService _attachmentService;
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
-
-  static const MethodChannel _channel = MethodChannel('com.fittechs.durunotes/share_extension');
-  static const String _appGroupId = 'group.com.fittechs.durunotes';
+  // static const String _appGroupId = 'group.com.fittechs.durunotes';  // Reserved for iOS app group sharing
 
   ShareExtensionService({
     required NotesRepository notesRepository,
@@ -30,6 +21,12 @@ class ShareExtensionService {
         _attachmentService = attachmentService,
         _logger = logger,
         _analytics = analytics;
+  final NotesRepository _notesRepository;
+  final AttachmentService _attachmentService;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+
+  static const MethodChannel _channel = MethodChannel('com.fittechs.durunotes/share_extension');
 
   /// Initialize share extension handling
   Future<void> initialize() async {
@@ -53,9 +50,9 @@ class ShareExtensionService {
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'getSharedItems':
-        return await _getSharedItemsFromAppGroup();
+        return _getSharedItemsFromAppGroup();
       case 'clearSharedItems':
-        return await _clearSharedItemsFromAppGroup();
+        return _clearSharedItemsFromAppGroup();
       default:
         throw PlatformException(
           code: 'UNIMPLEMENTED',
@@ -169,7 +166,7 @@ class ShareExtensionService {
 
 **Link**: $sharedUrl
 
-*Shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
+*Shared from ${_getSourceAppName()} on ${DateTime.now()}*
 ''';
 
       await _createNoteFromSharedContent(
@@ -201,17 +198,14 @@ class ShareExtensionService {
           case SharedMediaType.text:
             // For text content, the text is stored in the path field
             await _handleSharedText(mediaFile.path);
-            break;
           case SharedMediaType.url:
             // For URL content, the URL is stored in the path field
             await _handleSharedUrl(mediaFile.path);
-            break;
           case SharedMediaType.image:
           case SharedMediaType.video:
           case SharedMediaType.file:
             // For actual files, process as media file
             await _processSharedMediaFile(mediaFile);
-            break;
         }
       }
 
@@ -232,13 +226,10 @@ class ShareExtensionService {
         switch (type) {
           case 'text':
             await _processSharedTextItem(item);
-            break;
           case 'url':
             await _processSharedUrlItem(item);
-            break;
           case 'image':
             await _processSharedImageItem(item);
-            break;
           default:
             _logger.warning('Unknown shared item type', data: {'type': type});
         }
@@ -275,7 +266,7 @@ class ShareExtensionService {
 
 ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
-*Shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
+*Shared from ${_getSourceAppName()} on ${DateTime.now()}*
 ''';
 
       await _createNoteFromSharedContent(
@@ -309,7 +300,7 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
 ![Shared Image]($url)
 
-*Image shared on ${DateTime.now().toString()}*
+*Image shared on ${DateTime.now()}*
 *Size: ${_formatFileSize(imageSize)}*
 ''';
 
@@ -356,7 +347,7 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
 ![$fileName]($url)
 
-*Shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
+*Shared from ${_getSourceAppName()} on ${DateTime.now()}*
 ''';
 
         await _createNoteFromSharedContent(
@@ -376,7 +367,7 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
 [Download $fileName]($url)
 
-*File shared from ${_getSourceAppName()} on ${DateTime.now().toString()}*
+*File shared from ${_getSourceAppName()} on ${DateTime.now()}*
 *Size: ${_formatFileSize(fileBytes.length)}*
 ''';
 
@@ -452,21 +443,13 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
 /// Shared item data structure
 class SharedItem {
-  final String type;
-  final String title;
-  final String content;
-  final String? imagePath;
-  final String? url;
-  final DateTime timestamp;
-  final int? fileSize;
 
   const SharedItem({
     required this.type,
     required this.title,
     required this.content,
-    this.imagePath,
+    required this.timestamp, this.imagePath,
     this.url,
-    required this.timestamp,
     this.fileSize,
   });
 
@@ -481,6 +464,13 @@ class SharedItem {
       fileSize: json['imageSize'] as int? ?? json['fileSize'] as int?,
     );
   }
+  final String type;
+  final String title;
+  final String content;
+  final String? imagePath;
+  final String? url;
+  final DateTime timestamp;
+  final int? fileSize;
 
   Map<String, dynamic> toJson() {
     return {

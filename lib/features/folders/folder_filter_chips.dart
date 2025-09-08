@@ -1,10 +1,9 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_picker_sheet.dart';
 
 /// Material 3 filter chips for folder navigation
 class FolderFilterChips extends ConsumerStatefulWidget {
@@ -48,7 +47,6 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     
     return SlideTransition(
@@ -135,7 +133,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                   label: l10n.allFolders,
                   icon: Icons.folder_outlined,
                   isSelected: false,
-                  onSelected: () => _showFolderPicker(),
+                  onSelected: _showFolderPicker,
                 ),
                 
                 // Create folder chip (optional)
@@ -159,8 +157,6 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
     final selectedFolder = await showFolderPicker(
       context,
       selectedFolderId: ref.read(currentFolderProvider)?.id,
-      showCreateOption: true,
-      showUnfiledOption: true,
     );
     
     if (selectedFolder != null && mounted) {
@@ -210,7 +206,7 @@ class _FilterChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isSelected 
                     ? colorScheme.onSecondaryContainer.withOpacity(0.2)
-                    : colorScheme.surfaceVariant,
+                    : colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -290,7 +286,7 @@ class _FolderChip extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: isSelected 
                         ? colorScheme.onSecondaryContainer.withOpacity(0.2)
-                        : colorScheme.surfaceVariant,
+                        : colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -404,7 +400,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -454,7 +450,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: isLast 
                                 ? colorScheme.primaryContainer.withOpacity(0.5)
-                                : colorScheme.surfaceVariant.withOpacity(0.3),
+                                : colorScheme.surfaceContainerHighest.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -504,7 +500,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                       ],
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           );

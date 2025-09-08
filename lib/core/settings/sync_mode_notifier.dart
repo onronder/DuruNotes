@@ -1,11 +1,10 @@
 import 'dart:async';
 
+import 'package:duru_notes/core/settings/sync_mode.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../repository/notes_repository.dart';
-import 'sync_mode.dart';
 
 /// Helper function to fire and forget async operations
 void unawaited(Future<void> future) {
@@ -105,7 +104,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       // Check local database after sync
       final localNotes = await _notesRepository.listAfter(null, limit: 100);
       print('📊 Local database now has ${localNotes.length} notes');
-      for (var note in localNotes.take(5)) {
+      for (final note in localNotes.take(5)) {
         print('  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})');
       }
       

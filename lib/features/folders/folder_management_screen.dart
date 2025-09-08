@@ -1,12 +1,11 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_hierarchy_view.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_hierarchy_view.dart';
-import 'create_folder_dialog.dart';
-import 'edit_folder_dialog.dart';
 
 /// Comprehensive folder management screen with full CRUD operations
 class FolderManagementScreen extends ConsumerStatefulWidget {
@@ -64,19 +63,14 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   switch (value) {
                     case 'create_root_folder':
                       await _showCreateFolderDialog();
-                      break;
                     case 'expand_all':
                       ref.read(folderHierarchyProvider.notifier).expandAll();
-                      break;
                     case 'collapse_all':
                       ref.read(folderHierarchyProvider.notifier).collapseAll();
-                      break;
                     case 'health_check':
                       await _performHealthCheck();
-                      break;
                     case 'validate_structure':
                       await _validateFolderStructure();
-                      break;
                   }
                 },
                 itemBuilder: (context) => [
@@ -106,21 +100,21 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     ),
                   ),
                   const PopupMenuDivider(),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'health_check',
                     child: ListTile(
-                      leading: const Icon(Icons.health_and_safety),
-                      title: const Text('Health Check'),
-                      subtitle: const Text('Validate folder system integrity'),
+                      leading: Icon(Icons.health_and_safety),
+                      title: Text('Health Check'),
+                      subtitle: Text('Validate folder system integrity'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'validate_structure',
                     child: ListTile(
-                      leading: const Icon(Icons.account_tree),
-                      title: const Text('Repair Structure'),
-                      subtitle: const Text('Fix orphaned folders and paths'),
+                      leading: Icon(Icons.account_tree),
+                      title: Text('Repair Structure'),
+                      subtitle: Text('Fix orphaned folders and paths'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -160,16 +154,13 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                 // Switch to details tab
                 _tabController.animateTo(1);
               },
-              onFolderLongPress: (folder) => _showFolderActions(folder),
+              onFolderLongPress: _showFolderActions,
               selectedFolderId: _selectedFolder?.id,
-              showActions: true,
-              showSearch: true,
             ),
           ),
           
           // Folder details tab
-          _selectedFolder != null
-              ? _FolderDetailsView(
+          if (_selectedFolder != null) _FolderDetailsView(
                   folder: _selectedFolder!,
                   onFolderUpdated: () {
                     ref.read(folderProvider.notifier).refresh();
@@ -181,14 +172,13 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     });
                     _tabController.animateTo(0);
                   },
-                )
-              : _EmptyDetailsView(
-                  onCreateFolder: () => _showCreateFolderDialog(),
+                ) else _EmptyDetailsView(
+                  onCreateFolder: _showCreateFolderDialog,
                 ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateFolderDialog(),
+        onPressed: _showCreateFolderDialog,
         icon: const Icon(Icons.create_new_folder),
         label: Text(l10n.createNewFolder),
       ),
@@ -220,22 +210,17 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     switch (result) {
       case 'edit':
         await _editFolder(folder);
-        break;
       case 'create_subfolder':
         await _showCreateFolderDialog(folder);
-        break;
       case 'move':
         await _moveFolder(folder);
-        break;
       case 'delete':
         await _confirmDeleteFolder(folder);
-        break;
       case 'properties':
         setState(() {
           _selectedFolder = folder;
         });
         _tabController.animateTo(1);
-        break;
     }
   }
 
@@ -245,7 +230,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       builder: (context) => EditFolderDialog(folder: folder),
     );
     
-    if (result == true && mounted) {
+    if (result ?? false && mounted) {
       ref.read(folderProvider.notifier).refresh();
       ref.read(folderHierarchyProvider.notifier).refresh();
       // Update selected folder if it was the one being edited
@@ -366,7 +351,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       ),
     );
     
-    if (confirmed == true && mounted) {
+    if (confirmed ?? false && mounted) {
       final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
       
       if (success) {
@@ -443,7 +428,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                           Expanded(child: Text(issue.toString())),
                         ],
                       ),
-                    )).toList(),
+                    )),
                   ],
                 ],
               ),
@@ -719,17 +704,17 @@ class _FolderDetailsView extends ConsumerWidget {
                     ],
                   ),
                   
-                  if (folder.description?.isNotEmpty ?? false) ...[
+                  if (folder.description.isNotEmpty ?? false) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        folder.description!,
+                        folder.description,
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
@@ -932,7 +917,7 @@ class _FolderDetailsView extends ConsumerWidget {
       builder: (context) => EditFolderDialog(folder: folder),
     );
     
-    if (result == true) {
+    if (result ?? false) {
       onFolderUpdated();
     }
   }
@@ -961,7 +946,7 @@ class _FolderDetailsView extends ConsumerWidget {
       ),
     );
     
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
       
       if (success) {

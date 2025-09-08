@@ -1,12 +1,11 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-
-import '../../core/monitoring/app_logger.dart';
-import '../../data/local/app_db.dart';
-import '../analytics/analytics_service.dart';
 
 /// Service responsible for managing recurring time-based reminders.
 /// 
@@ -25,8 +24,8 @@ class RecurringReminderService {
   static const String _channelName = 'Notes Reminders';
   static const String _channelDescription = 'Reminders for your notes';
 
-  final logger = LoggerFactory.instance;
-  final analytics = AnalyticsFactory.instance;
+  final AppLogger logger = LoggerFactory.instance;
+  final AnalyticsService analytics = AnalyticsFactory.instance;
 
   /// Create a time-based reminder with optional recurrence
   Future<int?> createTimeReminder({
@@ -381,9 +380,9 @@ class RecurringReminderService {
     DateTime? endDate,
   }) {
     final occurrences = <DateTime>[];
-    DateTime current = startTime;
+    var current = startTime;
     
-    for (int i = 0; i < count; i++) {
+    for (var i = 0; i < count; i++) {
       final next = calculateNextOccurrence(current, pattern, interval);
       if (next == null) break;
       

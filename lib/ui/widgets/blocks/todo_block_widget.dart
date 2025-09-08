@@ -1,15 +1,10 @@
+import 'package:duru_notes/models/note_block.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../models/note_block.dart';
 
 class TodoBlockWidget extends StatefulWidget {
   const TodoBlockWidget({
-    super.key,
-    required this.block,
-    required this.isFocused,
-    required this.onChanged,
-    required this.onFocusChanged,
-    required this.onNewLine,
+    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNewLine, super.key,
   });
 
   final NoteBlock block;

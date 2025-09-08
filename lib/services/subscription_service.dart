@@ -1,21 +1,19 @@
 import 'package:adapty_flutter/adapty_flutter.dart';
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
-
 /// Comprehensive subscription management service using Adapty
 class SubscriptionService {
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
   
   SubscriptionService({
     required AppLogger logger,
     required AnalyticsService analytics,
   }) : _logger = logger,
        _analytics = analytics;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
 
   /// Check if user has premium subscription
   Future<bool> hasPremiumAccess() async {
@@ -74,10 +72,6 @@ class SubscriptionService {
         placementId: placementId,
         locale: 'en',
       );
-      if (paywall == null) {
-        _logger.warning('No paywall found for placement: $placementId');
-        return false;
-      }
       _logger.info('Paywall fetched for placement: $placementId');
       return false;
     } catch (e) {
@@ -91,43 +85,44 @@ class SubscriptionService {
   }
 
   /// Handle purchase transaction
-  Future<bool> _handlePurchase(AdaptyPaywallProduct product) async {
-    try {
-      _logger.info('Processing purchase for product: ${product.vendorProductId}');
-      
-      // Make purchase
-      final result = await Adapty().makePurchase(product: product);
-      // In v3, purchase result may not include profile; fetch profile to confirm
-      final profile = await Adapty().getProfile();
-      if (profile.accessLevels['premium']?.isActive == true) {
-        _logger.info('Purchase successful - premium access granted');
-        
-        // Track successful purchase
-        _analytics.event(AnalyticsEvents.noteCreate, properties: {
-          'purchase_successful': true,
-          'product_id': product.vendorProductId,
-          'premium_granted': true,
-        });
-        
-        return true;
-      } else {
-        _logger.warning('Purchase completed but premium access not granted');
-        return false;
-      }
-      
-    } catch (e) {
-      _logger.error('Purchase failed: $e');
-      
-      // Track purchase failure
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'purchase_failed': true,
-        'product_id': product.vendorProductId,
-        'error': e.toString(),
-      });
-      
-      return false;
-    }
-  }
+  // Reserved for purchase flow implementation
+  // Future<bool> _handlePurchase(AdaptyPaywallProduct product) async {
+  //   try {
+  //     _logger.info('Processing purchase for product: ${product.vendorProductId}');
+  //     
+  //     // Make purchase
+  //     await Adapty().makePurchase(product: product);
+  //     // In v3, purchase result may not include profile; fetch profile to confirm
+  //     final profile = await Adapty().getProfile();
+  //     if (profile.accessLevels['premium']?.isActive == true) {
+  //       _logger.info('Purchase successful - premium access granted');
+  //       
+  //       // Track successful purchase
+  //       _analytics.event(AnalyticsEvents.noteCreate, properties: {
+  //         'purchase_successful': true,
+  //         'product_id': product.vendorProductId,
+  //         'premium_granted': true,
+  //       });
+  //       
+  //       return true;
+  //     } else {
+  //       _logger.warning('Purchase completed but premium access not granted');
+  //       return false;
+  //     }
+  //     
+  //   } catch (e) {
+  //     _logger.error('Purchase failed: $e');
+  //     
+  //     // Track purchase failure
+  //     _analytics.event(AnalyticsEvents.noteCreate, properties: {
+  //       'purchase_failed': true,
+  //       'product_id': product.vendorProductId,
+  //       'error': e.toString(),
+  //     });
+  //     
+  //     return false;
+  //   }
+  // }
 
   /// Restore purchases
   Future<bool> restorePurchases() async {
@@ -168,11 +163,6 @@ class SubscriptionService {
         placementId: placementId,
         locale: 'en',
       );
-      
-      if (paywall == null) {
-        _logger.warning('No paywall found for placement: $placementId');
-        return [];
-      }
       // Fetch products for the paywall using current API
       final products = await Adapty().getPaywallProducts(paywall: paywall);
       
@@ -259,11 +249,11 @@ final subscriptionServiceProvider = Provider<SubscriptionService>((ref) {
 /// Provider for premium access status
 final premiumAccessProvider = FutureProvider<bool>((ref) async {
   final subscriptionService = ref.read(subscriptionServiceProvider);
-  return await subscriptionService.hasPremiumAccess();
+  return subscriptionService.hasPremiumAccess();
 });
 
 /// Provider for user subscription profile
 final userProfileProvider = FutureProvider<AdaptyProfile?>((ref) async {
   final subscriptionService = ref.read(subscriptionServiceProvider);
-  return await subscriptionService.getUserProfile();
+  return subscriptionService.getUserProfile();
 });

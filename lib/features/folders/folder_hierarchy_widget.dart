@@ -1,10 +1,8 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../providers.dart';
-import 'folder_notifiers.dart';
-import 'folder_picker_component.dart';
 
 class FolderHierarchyWidget extends ConsumerStatefulWidget {
   const FolderHierarchyWidget({
@@ -129,9 +127,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
             ),
           ),
           IconButton(
-            onPressed: () {
-              _showCreateFolderDialog();
-            },
+            onPressed: _showCreateFolderDialog,
             icon: const Icon(Icons.create_new_folder),
             tooltip: 'Create Folder',
             style: IconButton.styleFrom(
@@ -212,7 +208,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => _showCreateFolderDialog(),
+              onPressed: _showCreateFolderDialog,
               icon: const Icon(Icons.create_new_folder),
               label: const Text('Create Folder'),
             ),
@@ -313,7 +309,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -341,9 +337,9 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
   }
 
   Widget _buildLoadingIndicator(ThemeData theme) {
-    return Container(
+    return const SizedBox(
       height: 4,
-      child: const LinearProgressIndicator(),
+      child: LinearProgressIndicator(),
     );
   }
 
@@ -363,7 +359,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
 }
 
 class FolderContextMenu extends ConsumerWidget {
-  const FolderContextMenu({super.key, required this.folder});
+  const FolderContextMenu({required this.folder, super.key});
 
   final LocalFolder folder;
 

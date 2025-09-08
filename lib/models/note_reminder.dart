@@ -1,7 +1,29 @@
-import '../data/local/app_db.dart' show ReminderType, RecurrencePattern;
+import 'package:duru_notes/data/local/app_db.dart' show RecurrencePattern, ReminderType;
 
 /// Domain model representing a note reminder with all its properties.
 class NoteReminder {
+
+  const NoteReminder({
+    required this.id,
+    required this.noteId,
+    required this.title,
+    required this.type, required this.scheduledTime, required this.createdAt, required this.updatedAt, this.body,
+    this.remindAt,
+    this.isCompleted = false,
+    this.isSnoozed = false,
+    this.snoozedUntil,
+    this.isActive = true,
+    this.recurrencePattern = RecurrencePattern.none,
+    this.recurrenceInterval = 1,
+    this.recurrenceEndDate,
+    this.latitude,
+    this.longitude,
+    this.radius,
+    this.locationName,
+    this.notificationTitle,
+    this.notificationBody,
+    this.timeZone,
+  });
   final int id;
   final String noteId;
   final String title;
@@ -25,32 +47,6 @@ class NoteReminder {
   final String? timeZone;
   final DateTime createdAt;
   final DateTime updatedAt;
-
-  const NoteReminder({
-    required this.id,
-    required this.noteId,
-    required this.title,
-    this.body,
-    required this.type,
-    required this.scheduledTime,
-    this.remindAt,
-    this.isCompleted = false,
-    this.isSnoozed = false,
-    this.snoozedUntil,
-    this.isActive = true,
-    this.recurrencePattern = RecurrencePattern.none,
-    this.recurrenceInterval = 1,
-    this.recurrenceEndDate,
-    this.latitude,
-    this.longitude,
-    this.radius,
-    this.locationName,
-    this.notificationTitle,
-    this.notificationBody,
-    this.timeZone,
-    required this.createdAt,
-    required this.updatedAt,
-  });
 
   NoteReminder copyWith({
     int? id,

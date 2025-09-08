@@ -1,72 +1,95 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Production-grade Material 3 theme system for Duru Notes
 /// 
 /// This theme system implements the complete Material Design 3 specification
 /// with dynamic color support, proper elevation, and semantic color usage.
+/// Updated with modern teal palette and Inter typography.
 class DuruMaterial3Theme {
   DuruMaterial3Theme._();
 
-  // Core color seeds for dynamic color generation - Duru Purple Theme
-  static const Color _primarySeed = Color(0xFF1976D2); // Professional blue
-  static const Color _accentPurple = Color(0xFF667eea); // Glassmorphic purple
-  static const Color _secondaryPurple = Color(0xFF764ba2); // Deep purple
-  static const Color _errorSeed = Color(0xFFDC2626); // Modern Red
+  // Core color palette - Modern Teal Theme
+  static const Color _lightTeal = Color(0xFF048ABF);  // Primary gradient start
+  static const Color _deepTeal = Color(0xFF036693);   // Primary gradient end
+  static const Color _softAqua = Color(0xFF5FD0CB);   // Flat accent color
   
-  // Glassmorphic surface colors
-  static const Color _glassLight = Color(0x0AFFFFFF);
-  static const Color _glassMedium = Color(0x14FFFFFF);
-  static const Color _glassHigh = Color(0x1FFFFFFF);
-
-  // Gradient definitions for glassmorphic design
+  // Surface colors
+  static const Color _lightSurface = Color(0xFFF2F2F2);  // Light mode surface
+  static const Color _darkSurface = Color(0xFF0F1E2E);   // Dark mode surface
+  
+  // Gradient definitions for modern design
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [_accentPurple, _secondaryPurple], // Purple gradient
+    colors: [_lightTeal, _deepTeal],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient surfaceGradient = LinearGradient(
-    colors: [Color(0xFFF8FAFC), Color(0xFFF1F5F9)], // Subtle light gradient
+    colors: [Color(0xFFF8FAFC), Color(0xFFF2F2F2)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient darkSurfaceGradient = LinearGradient(
-    colors: [Color(0xFF0A0A0A), Color(0xFF1A1A1A)], // Deep dark gradient
+    colors: [Color(0xFF0F1E2E), Color(0xFF0A1828)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   /// Light theme configuration
   static ThemeData get lightTheme {
+    // Generate base scheme from light teal seed
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _primarySeed,
+      seedColor: _lightTeal,
       brightness: Brightness.light,
-      dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
+    ).copyWith(
+      // Override with exact brand colors
+      primary: _lightTeal,
+      secondary: _deepTeal,
+      tertiary: _softAqua,
+      surface: _lightSurface,
+      // Subtle surface variations
+      surfaceContainerLowest: const Color(0xFFFAFAFA),
+      surfaceContainerLow: const Color(0xFFF7F7F7),
+      surfaceContainer: const Color(0xFFF5F5F5),
+      surfaceContainerHigh: const Color(0xFFF2F2F2),
+      surfaceContainerHighest: const Color(0xFFEFEFEF),
+      // Ensure good contrast for text
+      onSurface: const Color(0xFF1D1D1D),
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onTertiary: const Color(0xFF1D1D1D),
     );
 
     return _buildTheme(colorScheme, Brightness.light);
   }
 
-  /// Dark theme configuration with glassmorphic elements
+  /// Dark theme configuration with modern dark surfaces
   static ThemeData get darkTheme {
+    // Generate base scheme from teal seed
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _primarySeed,
+      seedColor: _lightTeal,
       brightness: Brightness.dark,
-      dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
     ).copyWith(
-      // Solid dark surfaces to avoid translucent overlays
-      secondary: _accentPurple,
-      tertiary: _secondaryPurple,
-      surface: const Color(0xFF0B0B0B),
-      surfaceContainerLowest: const Color(0xFF111111),
-      surfaceContainerLow: const Color(0xFF141414),
-      surfaceContainer: const Color(0xFF171717),
-      surfaceContainerHigh: const Color(0xFF1A1A1A),
-      surfaceContainerHighest: const Color(0xFF1E1E1E),
+      // Keep brand colors consistent in dark mode
+      primary: _lightTeal,
+      secondary: _deepTeal,
+      tertiary: _softAqua,
+      surface: _darkSurface,
+      // Rich dark surface variations
+      surfaceContainerLowest: const Color(0xFF0A1420),
+      surfaceContainerLow: const Color(0xFF0C1724),
+      surfaceContainer: const Color(0xFF0F1E2E),
+      surfaceContainerHigh: const Color(0xFF122438),
+      surfaceContainerHighest: const Color(0xFF152A42),
+      // Ensure white text on dark backgrounds
+      onSurface: Colors.white,
+      onSurfaceVariant: const Color(0xFFE0E0E0),
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onTertiary: const Color(0xFF1D1D1D),
     );
 
     return _buildTheme(colorScheme, Brightness.dark);
@@ -74,91 +97,95 @@ class DuruMaterial3Theme {
 
   /// Build complete theme from color scheme
   static ThemeData _buildTheme(ColorScheme colorScheme, Brightness brightness) {
-    final bool isDark = brightness == Brightness.dark;
+    final isDark = brightness == Brightness.dark;
+    
+    // Get Inter text theme
+    final baseTextTheme = GoogleFonts.interTextTheme(
+      isDark ? Typography.material2021().white : Typography.material2021().black,
+    );
 
     return ThemeData(
       colorScheme: colorScheme,
       brightness: brightness,
       useMaterial3: true,
       
-      // Typography using Material 3 type scale
-      textTheme: _buildTextTheme(colorScheme, isDark),
+      // Typography using Inter font
+      textTheme: _buildTextTheme(baseTextTheme, colorScheme),
       
-      // App Bar theme with enhanced gradient-inspired styling
+      // App Bar theme with teal gradient colors
       appBarTheme: AppBarTheme(
-        backgroundColor: isDark ? const Color(0xFF1E40AF) : const Color(0xFF2563EB), // Direct gradient colors
+        backgroundColor: _deepTeal,  // Use deep teal for app bars
         foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 4,
         shadowColor: colorScheme.shadow.withOpacity(0.3),
-        surfaceTintColor: Colors.transparent, // Remove tint for cleaner gradient effect
+        surfaceTintColor: Colors.transparent,
         systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarBrightness: Brightness.dark, // Always dark for blue gradient
+          statusBarBrightness: Brightness.dark,
           statusBarIconBrightness: Brightness.light,
           systemNavigationBarColor: colorScheme.surface,
           systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         ),
-        titleTextStyle: const TextStyle(
+        titleTextStyle: GoogleFonts.inter(
           color: Colors.white,
           fontSize: 22,
-          fontWeight: FontWeight.w700, // Stronger weight for gradient design
-          letterSpacing: 0.5,
+          fontWeight: FontWeight.w600,  // SemiBold
+          letterSpacing: 0,
         ),
-        toolbarTextStyle: TextStyle(
-          color: Colors.white.withOpacity(0.9),
+        toolbarTextStyle: GoogleFonts.inter(
+          color: Colors.white.withOpacity(0.95),
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
       ),
 
       // Scaffold theme
       scaffoldBackgroundColor: colorScheme.surface,
 
-      // Card theme (solid in dark mode)
+      // Card theme
       cardTheme: CardThemeData(
         color: colorScheme.surfaceContainerLow,
-        shadowColor: isDark ? Colors.black.withOpacity(0.4) : colorScheme.shadow,
-        surfaceTintColor: colorScheme.surfaceTint,
-        elevation: 1,
+        shadowColor: isDark ? Colors.black.withOpacity(0.4) : colorScheme.shadow.withOpacity(0.1),
+        surfaceTintColor: Colors.transparent,
+        elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide.none,
+          borderRadius: BorderRadius.circular(16),  // Slightly less rounded for modern look
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
 
-      // Button themes with gradient-inspired colors
+      // Button themes with teal colors
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: isDark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB), // Vibrant gradient blue
+          backgroundColor: _lightTeal,  // Use primary teal
           foregroundColor: Colors.white,
           disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
           disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
           ),
-          elevation: 2, // Add subtle elevation for modern look
+          elevation: 0,
         ),
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.surfaceContainerLow,
+          backgroundColor: colorScheme.surfaceContainerHigh,
           foregroundColor: colorScheme.primary,
           shadowColor: colorScheme.shadow,
-          surfaceTintColor: colorScheme.surfaceTint,
+          surfaceTintColor: Colors.transparent,
           elevation: 1,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
@@ -170,11 +197,11 @@ class DuruMaterial3Theme {
         style: OutlinedButton.styleFrom(
           foregroundColor: colorScheme.primary,
           side: BorderSide(color: colorScheme.outline),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
@@ -187,9 +214,9 @@ class DuruMaterial3Theme {
           foregroundColor: colorScheme.primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
@@ -210,42 +237,54 @@ class DuruMaterial3Theme {
         ),
       ),
 
-      // FAB theme with vibrant gradient colors
+      // FAB theme with primary teal
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: isDark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB), // Vibrant blue from gradient
+        backgroundColor: _lightTeal,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18), // Slightly more rounded for modern feel
+          borderRadius: BorderRadius.circular(16),
         ),
-        elevation: 8, // More prominent shadow
-        focusElevation: 10,
-        hoverElevation: 10,
-        highlightElevation: 14,
+        elevation: 6,
+        focusElevation: 8,
+        hoverElevation: 8,
+        highlightElevation: 12,
       ),
 
       // Input decoration theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest,
+        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colorScheme.error),
         ),
-        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.6)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
+        ),
+        labelStyle: GoogleFonts.inter(
+          color: colorScheme.onSurfaceVariant,
+          fontSize: 14,
+        ),
+        hintStyle: GoogleFonts.inter(
+          color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+          fontSize: 14,
+          fontWeight: FontWeight.w300,  // Light weight for hints
+          fontStyle: FontStyle.italic,  // Italic for hints
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
 
       // List tile theme
@@ -254,31 +293,32 @@ class DuruMaterial3Theme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        titleTextStyle: TextStyle(
+        titleTextStyle: GoogleFonts.inter(
           color: colorScheme.onSurface,
           fontSize: 16,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
         ),
-        subtitleTextStyle: TextStyle(
+        subtitleTextStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant,
           fontSize: 14,
+          fontWeight: FontWeight.w400,
           letterSpacing: 0.1,
         ),
-        leadingAndTrailingTextStyle: TextStyle(
+        leadingAndTrailingTextStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant,
           fontSize: 14,
         ),
       ),
 
-      // Switch theme
+      // Switch theme with teal colors
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
             return colorScheme.onSurface.withOpacity(0.38);
           }
           if (states.contains(WidgetState.selected)) {
-            return colorScheme.onPrimary;
+            return Colors.white;
           }
           return colorScheme.outline;
         }),
@@ -291,26 +331,39 @@ class DuruMaterial3Theme {
           }
           return colorScheme.surfaceContainerHighest;
         }),
-        trackOutlineColor: WidgetStateProperty.resolveWith<Color>((states) {
+        trackOutlineColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return colorScheme.outline.withOpacity(0.5);
+        }),
+      ),
+
+      // Radio theme with teal selection
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.onSurface.withOpacity(0.38);
+          }
           if (states.contains(WidgetState.selected)) {
             return colorScheme.primary;
           }
-          return colorScheme.outline;
+          return colorScheme.onSurfaceVariant;
         }),
       ),
 
       // Chip theme
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
-        selectedColor: colorScheme.secondaryContainer,
+        selectedColor: colorScheme.primaryContainer,
         disabledColor: colorScheme.onSurface.withOpacity(0.12),
-        labelStyle: TextStyle(
+        labelStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
-        secondaryLabelStyle: TextStyle(
-          color: colorScheme.onSecondaryContainer,
+        secondaryLabelStyle: GoogleFonts.inter(
+          color: colorScheme.onPrimaryContainer,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -318,15 +371,15 @@ class DuruMaterial3Theme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        side: BorderSide(color: colorScheme.outline),
+        side: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
       ),
 
-      // Bottom sheet theme (solid in dark mode)
+      // Bottom sheet theme
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         showDragHandle: true,
         dragHandleColor: colorScheme.onSurfaceVariant.withOpacity(0.4),
@@ -337,19 +390,19 @@ class DuruMaterial3Theme {
       // Dialog theme
       dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surfaceContainerHigh,
-        surfaceTintColor: colorScheme.surfaceTint,
+        surfaceTintColor: Colors.transparent,
         elevation: 6,
         shadowColor: colorScheme.shadow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(20),
         ),
-        titleTextStyle: TextStyle(
+        titleTextStyle: GoogleFonts.inter(
           color: colorScheme.onSurface,
           fontSize: 24,
           fontWeight: FontWeight.w600,
           letterSpacing: 0,
         ),
-        contentTextStyle: TextStyle(
+        contentTextStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant,
           fontSize: 16,
           letterSpacing: 0.1,
@@ -359,7 +412,7 @@ class DuruMaterial3Theme {
       // Snackbar theme
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: TextStyle(
+        contentTextStyle: GoogleFonts.inter(
           color: colorScheme.onInverseSurface,
           fontSize: 14,
           fontWeight: FontWeight.w500,
@@ -375,10 +428,10 @@ class DuruMaterial3Theme {
       // Navigation bar theme
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colorScheme.surface,
-        surfaceTintColor: colorScheme.surfaceTint,
-        indicatorColor: colorScheme.secondaryContainer,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: colorScheme.primaryContainer,
         labelTextStyle: WidgetStateProperty.all(
-          TextStyle(
+          GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: colorScheme.onSurfaceVariant,
@@ -387,19 +440,18 @@ class DuruMaterial3Theme {
         iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
           return IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? colorScheme.onSecondaryContainer
+                ? colorScheme.onPrimaryContainer
                 : colorScheme.onSurfaceVariant,
             size: 24,
           );
         }),
-        elevation: 3,
-        shadowColor: colorScheme.shadow,
+        elevation: 0,
         height: 80,
       ),
 
       // Divider theme
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant,
+        color: colorScheme.outlineVariant.withOpacity(0.5),
         thickness: 1,
         space: 1,
       ),
@@ -408,8 +460,8 @@ class DuruMaterial3Theme {
       extensions: [
         _CustomColors(
           noteCardBackground: colorScheme.surfaceContainerLow,
-          folderChipBackground: colorScheme.secondaryContainer.withOpacity(0.3),
-          selectedNoteBackground: colorScheme.primaryContainer.withOpacity(0.3),
+          folderChipBackground: colorScheme.primaryContainer.withOpacity(0.3),
+          selectedNoteBackground: colorScheme.primaryContainer.withOpacity(0.4),
           warningContainer: isDark ? const Color(0xFF4A4215) : const Color(0xFFFFF8E1),
           onWarningContainer: isDark ? const Color(0xFFF9D71C) : const Color(0xFF7C6F00),
         ),
@@ -417,86 +469,106 @@ class DuruMaterial3Theme {
     );
   }
 
-  /// Build Material 3 text theme
-  static TextTheme _buildTextTheme(ColorScheme colorScheme, bool isDark) {
-    final baseTextTheme = isDark 
-        ? Typography.material2021().white 
-        : Typography.material2021().black;
-
+  /// Build Material 3 text theme with Inter font
+  static TextTheme _buildTextTheme(TextTheme baseTextTheme, ColorScheme colorScheme) {
     return baseTextTheme.copyWith(
-      displayLarge: baseTextTheme.displayLarge?.copyWith(
+      // Display styles
+      displayLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
+        fontSize: 57,
         fontWeight: FontWeight.w400,
         letterSpacing: -0.25,
       ),
-      displayMedium: baseTextTheme.displayMedium?.copyWith(
+      displayMedium: GoogleFonts.inter(
         color: colorScheme.onSurface,
+        fontSize: 45,
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
       ),
-      displaySmall: baseTextTheme.displaySmall?.copyWith(
+      displaySmall: GoogleFonts.inter(
         color: colorScheme.onSurface,
+        fontSize: 36,
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
       ),
-      headlineLarge: baseTextTheme.headlineLarge?.copyWith(
+      
+      // Headline styles - SemiBold for headers
+      headlineLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w400,
+        fontSize: 32,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0,
       ),
-      headlineMedium: baseTextTheme.headlineMedium?.copyWith(
+      headlineMedium: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w400,
+        fontSize: 28,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0,
       ),
-      headlineSmall: baseTextTheme.headlineSmall?.copyWith(
+      headlineSmall: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w400,
+        fontSize: 24,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0,
       ),
-      titleLarge: baseTextTheme.titleLarge?.copyWith(
+      
+      // Title styles - SemiBold for important text
+      titleLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w600,
+        fontSize: 22,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0,
       ),
-      titleMedium: baseTextTheme.titleMedium?.copyWith(
+      titleMedium: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w600,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0.15,
       ),
-      titleSmall: baseTextTheme.titleSmall?.copyWith(
+      titleSmall: GoogleFonts.inter(
         color: colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0.1,
       ),
-      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+      
+      // Body styles - Regular weight
+      bodyLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w400,
+        fontSize: 16,
+        fontWeight: FontWeight.w400,  // Regular
         letterSpacing: 0.15,
       ),
-      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+      bodyMedium: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w400,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,  // Regular
         letterSpacing: 0.25,
       ),
-      bodySmall: baseTextTheme.bodySmall?.copyWith(
+      bodySmall: GoogleFonts.inter(
         color: colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w400,
+        fontSize: 12,
+        fontWeight: FontWeight.w300,  // Light for subtext
         letterSpacing: 0.4,
       ),
-      labelLarge: baseTextTheme.labelLarge?.copyWith(
+      
+      // Label styles - Medium weight for buttons/actions
+      labelLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
-        fontWeight: FontWeight.w600,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,  // SemiBold for button text
         letterSpacing: 0.1,
       ),
-      labelMedium: baseTextTheme.labelMedium?.copyWith(
+      labelMedium: GoogleFonts.inter(
         color: colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,  // Medium
         letterSpacing: 0.5,
       ),
-      labelSmall: baseTextTheme.labelSmall?.copyWith(
+      labelSmall: GoogleFonts.inter(
         color: colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
+        fontSize: 11,
+        fontWeight: FontWeight.w300,  // Light for small labels
         letterSpacing: 0.5,
       ),
     );
@@ -553,9 +625,8 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
 }
 
 /// Getter extension for custom colors
-extension CustomColorsExtension on ColorScheme {
-  _CustomColors get customColors => 
-      ThemeData.from(colorScheme: this).extension<_CustomColors>()!;
+extension CustomColorsExtension on ThemeData {
+  _CustomColors get customColors => extension<_CustomColors>()!;
 }
 
 /// Theme gradient helpers for consistent gradient usage across the app
@@ -563,31 +634,23 @@ class DuruGradients {
   DuruGradients._();
 
   // Public color constants for gradients
-  static const Color accentPurple = Color(0xFF667eea);
-  static const Color secondaryPurple = Color(0xFF764ba2);
-  static const Color glassMedium = Color(0x14FFFFFF);
-  static const Color glassHigh = Color(0x1FFFFFFF);
-
-  /// Primary gradient using theme colors (Blue to Purple)
+  static const Color lightTeal = Color(0xFF048ABF);
+  static const Color deepTeal = Color(0xFF036693);
+  static const Color softAqua = Color(0xFF5FD0CB);
+  
+  /// Primary gradient using teal colors
   static LinearGradient getPrimaryGradient(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return LinearGradient(
-      colors: [
-        colorScheme.primary,      // #1976D2 in light mode
-        accentPurple,            // #667eea
-      ],
+    return const LinearGradient(
+      colors: [lightTeal, deepTeal],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
   }
 
-  /// Secondary gradient (Purple to Deep Purple)
-  static LinearGradient getSecondaryGradient(BuildContext context) {
-    return LinearGradient(
-      colors: [
-        accentPurple,           // #667eea
-        secondaryPurple,        // #764ba2
-      ],
+  /// Accent gradient (teal to aqua)
+  static LinearGradient getAccentGradient(BuildContext context) {
+    return const LinearGradient(
+      colors: [deepTeal, softAqua],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
@@ -614,23 +677,23 @@ class DuruGradients {
     );
   }
 
-  /// Glassmorphic overlay gradient for dark mode
-  static LinearGradient getGlassmorphicOverlay(BuildContext context) {
+  /// Surface gradient for cards and containers
+  static LinearGradient getSurfaceGradient(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     if (isDark) {
-      return LinearGradient(
+      return const LinearGradient(
         colors: [
-          glassMedium,
-          glassHigh,
+          Color(0xFF122438),  // Slightly lighter than base
+          Color(0xFF0F1E2E),  // Base dark surface
         ],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       );
     }
-    return LinearGradient(
+    return const LinearGradient(
       colors: [
-        Colors.white.withOpacity(0.1),
-        Colors.white.withOpacity(0.05),
+        Colors.white,
+        Color(0xFFF2F2F2),
       ],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -639,14 +702,36 @@ class DuruGradients {
 
   /// Focus border gradient
   static LinearGradient getFocusBorderGradient(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return LinearGradient(
+    return const LinearGradient(
       colors: [
-        colorScheme.primary.withOpacity(0.3),
-        colorScheme.secondary.withOpacity(0.3),
+        lightTeal,
+        softAqua,
       ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
+    );
+  }
+
+  /// Glassmorphic overlay gradient (for special effects)
+  static LinearGradient getGlassmorphicOverlay(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) {
+      return LinearGradient(
+        colors: [
+          Colors.white.withOpacity(0.05),
+          Colors.white.withOpacity(0.02),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+    }
+    return LinearGradient(
+      colors: [
+        Colors.white.withOpacity(0.7),
+        Colors.white.withOpacity(0.5),
+      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
     );
   }
 }

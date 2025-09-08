@@ -20,7 +20,7 @@ class AppBreakpoints {
     final maxScale = isCompact(context) ? 1.2 : 1.3;
     final current = mq.textScaleFactor;
     final clamped = current > maxScale ? maxScale : current;
-    return MediaQuery(data: mq.copyWith(textScaleFactor: clamped), child: child);
+    return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(clamped)), child: child);
   }
 }
 
