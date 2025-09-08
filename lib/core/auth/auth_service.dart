@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:duru_notes/core/auth/login_attempts_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'login_attempts_service.dart';
 
 /// Result of an authentication attempt
 class AuthResult {
@@ -296,7 +295,7 @@ class AuthService {
   /// Get current backoff status for email (useful for UI)
   Duration? getBackoffTimeRemaining(String email) {
     final state = _backoffStates[email.trim().toLowerCase()];
-    return state?.isInBackoff == true ? state?.remainingBackoffTime : null;
+    return state?.isInBackoff ?? false ? state?.remainingBackoffTime : null;
   }
 }
 

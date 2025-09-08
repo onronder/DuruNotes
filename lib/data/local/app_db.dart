@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import '../../core/parser/note_indexer.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -861,8 +860,6 @@ class AppDb extends _$AppDb {
 
   /// Create default folder structure
   Future<void> _createDefaultFolders() async {
-    final now = DateTime.now().toIso8601String();
-    
     // Create system folders (optional - could be created on first use instead)
     // For now, we'll leave existing notes unfiled
     print('📁 Folder system initialized - existing notes remain unfiled');
@@ -1075,7 +1072,7 @@ class AppDb extends _$AppDb {
 
   /// Get folder hierarchy depth
   Future<int> getFolderDepth(String folderId) async {
-    int depth = 0;
+    var depth = 0;
     String? currentId = folderId;
 
     while (currentId != null && depth < 100) { // Safety limit
@@ -1097,7 +1094,7 @@ class AppDb extends _$AppDb {
 
   /// Get complete folder tree starting from a root
   Future<List<LocalFolder>> getFolderSubtree(String rootId) async {
-    final List<LocalFolder> result = [];
+    final result = <LocalFolder>[];
     final root = await findFolder(rootId);
     if (root != null) {
       result.add(root);

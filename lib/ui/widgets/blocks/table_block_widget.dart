@@ -1,13 +1,9 @@
+import 'package:duru_notes/models/note_block.dart';
 import 'package:flutter/material.dart';
-import '../../../models/note_block.dart';
 
 class TableBlockWidget extends StatefulWidget {
   const TableBlockWidget({
-    super.key,
-    required this.block,
-    required this.isFocused,
-    required this.onChanged,
-    required this.onFocusChanged,
+    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, super.key,
   });
 
   final NoteBlock block;
@@ -104,13 +100,13 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
   void _addColumn() {
     setState(() {
       _headers.add('New Header');
-      for (int i = 0; i < _rows.length; i++) {
+      for (var i = 0; i < _rows.length; i++) {
         _rows[i].add('New Cell');
       }
       
       // Add controllers
       _controllers[0].add(TextEditingController(text: 'New Header'));
-      for (int i = 1; i < _controllers.length; i++) {
+      for (var i = 1; i < _controllers.length; i++) {
         _controllers[i].add(TextEditingController(text: 'New Cell'));
       }
     });
@@ -134,7 +130,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     if (_headers.length > 1) {
       setState(() {
         _headers.removeAt(columnIndex);
-        for (int i = 0; i < _rows.length; i++) {
+        for (var i = 0; i < _rows.length; i++) {
           if (_rows[i].length > columnIndex) {
             _rows[i].removeAt(columnIndex);
           }
@@ -143,7 +139,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
         // Remove controllers
         _controllers[0][columnIndex].dispose();
         _controllers[0].removeAt(columnIndex);
-        for (int i = 1; i < _controllers.length; i++) {
+        for (var i = 1; i < _controllers.length; i++) {
           if (_controllers[i].length > columnIndex) {
             _controllers[i][columnIndex].dispose();
             _controllers[i].removeAt(columnIndex);

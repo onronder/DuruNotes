@@ -1,26 +1,25 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../main.dart';
+import 'package:duru_notes/main.dart';
+import 'package:flutter/material.dart';
 
 /// Cached image widget for attachment display
 /// Provides automatic caching, error handling, and analytics
 class AttachmentImage extends StatelessWidget {
-  final String url;
-  final double? width;
-  final double? height;
-  final BoxFit fit;
-  final BorderRadius? borderRadius;
-  final bool showLoadingIndicator;
 
   const AttachmentImage({
-    super.key,
-    required this.url,
+    required this.url, super.key,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
     this.borderRadius,
     this.showLoadingIndicator = true,
   });
+  final String url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+  final bool showLoadingIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +49,7 @@ class AttachmentImage extends StatelessWidget {
     return Container(
       width: width,
       height: height ?? 160,
-      color: Colors.grey[200],
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: const Center(
         child: CircularProgressIndicator(
           strokeWidth: 2,
@@ -74,20 +73,20 @@ class AttachmentImage extends StatelessWidget {
     return Container(
       width: width,
       height: height ?? 160,
-      color: Colors.grey[100],
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.broken_image_outlined,
             size: 48,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 8),
           Text(
             'Image unavailable',
             style: TextStyle(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
             ),
           ),
@@ -99,14 +98,13 @@ class AttachmentImage extends StatelessWidget {
 
 /// Thumbnail variant optimized for list views
 class AttachmentThumbnail extends StatelessWidget {
-  final String url;
-  final double size;
 
   const AttachmentThumbnail({
-    super.key,
-    required this.url,
+    required this.url, super.key,
     this.size = 60,
   });
+  final String url;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +112,6 @@ class AttachmentThumbnail extends StatelessWidget {
       url: url,
       width: size,
       height: size,
-      fit: BoxFit.cover,
       borderRadius: BorderRadius.circular(6),
       showLoadingIndicator: false, // Don't show loading in thumbnails
     );
@@ -123,28 +120,27 @@ class AttachmentThumbnail extends StatelessWidget {
 
 /// Full-size attachment viewer with caching
 class AttachmentViewer extends StatelessWidget {
-  final String url;
-  final String? title;
 
   const AttachmentViewer({
-    super.key,
-    required this.url,
+    required this.url, super.key,
     this.title,
   });
+  final String url;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(title ?? 'Attachment'),
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : const Color(0xFF0F1E2E),
         foregroundColor: Colors.white,
       ),
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : const Color(0xFF0F1E2E),
       body: Center(
         child: InteractiveViewer(
           minScale: 0.5,
-          maxScale: 3.0,
+          maxScale: 3,
           child: AttachmentImage(
             url: url,
             fit: BoxFit.contain,

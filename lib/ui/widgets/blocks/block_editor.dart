@@ -1,22 +1,18 @@
+import 'package:duru_notes/core/parser/note_block_parser.dart';
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/ui/widgets/blocks/code_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/heading_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/list_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/paragraph_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/table_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/todo_block_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/note_block.dart';
-import '../../../core/parser/note_block_parser.dart';
-import 'paragraph_block_widget.dart';
-import 'heading_block_widget.dart';
-import 'list_block_widget.dart';
-import 'todo_block_widget.dart';
-import 'code_block_widget.dart';
-import 'table_block_widget.dart';
-import 'link_block_widget.dart';
-import 'note_link_block_widget.dart';
 
 /// Advanced block-based note editor
 class BlockEditor extends ConsumerStatefulWidget {
   const BlockEditor({
-    super.key,
-    required this.blocks,
-    required this.onBlocksChanged,
+    required this.blocks, required this.onBlocksChanged, super.key,
     this.focusedBlockIndex,
     this.onBlockFocusChanged,
   });
@@ -133,37 +129,26 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     switch (type) {
       case NoteBlockType.paragraph:
         newBlock = createParagraphBlock('');
-        break;
       case NoteBlockType.heading1:
         newBlock = createHeadingBlock(1, '');
-        break;
       case NoteBlockType.heading2:
         newBlock = createHeadingBlock(2, '');
-        break;
       case NoteBlockType.heading3:
         newBlock = createHeadingBlock(3, '');
-        break;
       case NoteBlockType.bulletList:
         newBlock = const NoteBlock(type: NoteBlockType.bulletList, data: '');
-        break;
       case NoteBlockType.numberedList:
         newBlock = const NoteBlock(type: NoteBlockType.numberedList, data: '');
-        break;
       case NoteBlockType.todo:
         newBlock = createTodoBlock('');
-        break;
       case NoteBlockType.code:
         newBlock = createCodeBlock('');
-        break;
       case NoteBlockType.table:
         newBlock = const NoteBlock(type: NoteBlockType.table, data: 'Header 1|Header 2\nCell 1|Cell 2');
-        break;
       case NoteBlockType.quote:
         newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
-        break;
       case NoteBlockType.attachment:
         newBlock = const NoteBlock(type: NoteBlockType.attachment, data: '');
-        break;
     }
     
     _insertBlock(index, newBlock);
@@ -249,7 +234,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           
           IconButton(
             icon: const Icon(Icons.link),
-            onPressed: () => _showLinkDialog(),
+            onPressed: _showLinkDialog,
             tooltip: 'Add Link',
           ),
         ],
@@ -307,20 +292,20 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             icon: Icon(Icons.more_vert, size: 16, color: Colors.grey.shade400),
             onSelected: (value) => _handleBlockMenuAction(value, index),
             itemBuilder: (context) => [
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'duplicate',
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.copy, size: 16),
                     SizedBox(width: 8),
                     Text('Duplicate'),
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'delete',
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.delete, size: 16, color: Colors.red),
                     SizedBox(width: 8),
                     Text('Delete', style: TextStyle(color: Colors.red)),
@@ -331,8 +316,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
               PopupMenuItem(
                 value: 'move_up',
                 enabled: index > 0,
-                child: Row(
-                  children: const [
+                child: const Row(
+                  children: [
                     Icon(Icons.keyboard_arrow_up, size: 16),
                     SizedBox(width: 8),
                     Text('Move Up'),
@@ -342,8 +327,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
               PopupMenuItem(
                 value: 'move_down',
                 enabled: index < _blocks.length - 1,
-                child: Row(
-                  children: const [
+                child: const Row(
+                  children: [
                     Icon(Icons.keyboard_arrow_down, size: 16),
                     SizedBox(width: 8),
                     Text('Move Down'),
@@ -439,16 +424,12 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     switch (action) {
       case 'duplicate':
         _insertBlock(index + 1, _blocks[index]);
-        break;
       case 'delete':
         _deleteBlock(index);
-        break;
       case 'move_up':
         if (index > 0) _moveBlock(index, index - 1);
-        break;
       case 'move_down':
         if (index < _blocks.length - 1) _moveBlock(index, index + 1);
-        break;
     }
   }
 
@@ -456,8 +437,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     return Positioned.fill(
       child: GestureDetector(
         onTap: _hideBlockSelector,
-        child: Container(
-          color: Colors.black54,
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.scrim.withOpacity(0.54),
           child: Center(
             child: Container(
               width: 300,
@@ -512,7 +493,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       itemBuilder: (context, index) {
         final blockType = blockTypes[index];
         return InkWell(
-          onTap: () => _addBlockOfType(blockType['type'] as NoteBlockType),
+          onTap: () => _addBlockOfType(blockType['type']! as NoteBlockType),
           borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: const EdgeInsets.all(8),
@@ -522,11 +503,11 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             ),
             child: Row(
               children: [
-                Icon(blockType['icon'] as IconData, size: 20),
+                Icon(blockType['icon']! as IconData, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    blockType['label'] as String,
+                    blockType['label']! as String,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),

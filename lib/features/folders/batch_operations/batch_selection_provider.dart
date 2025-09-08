@@ -1,20 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../data/local/app_db.dart';
-import '../../../providers.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
 
 /// State for batch selection operations
 class BatchSelectionState {
-  final Set<String> selectedNoteIds;
-  final bool isSelectionMode;
-  final DateTime? selectionStartTime;
 
   const BatchSelectionState({
     this.selectedNoteIds = const {},
     this.isSelectionMode = false,
     this.selectionStartTime,
   });
+  final Set<String> selectedNoteIds;
+  final bool isSelectionMode;
+  final DateTime? selectionStartTime;
 
   BatchSelectionState copyWith({
     Set<String>? selectedNoteIds,
@@ -101,7 +101,7 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
     final rangeEnd = startIndex < endIndex ? endIndex : startIndex;
     
     final selectedIds = Set<String>.from(state.selectedNoteIds);
-    for (int i = rangeStart; i <= rangeEnd; i++) {
+    for (var i = rangeStart; i <= rangeEnd; i++) {
       selectedIds.add(noteIds[i]);
     }
     
@@ -180,17 +180,6 @@ final batchOperationCapabilitiesProvider = Provider<BatchOperationCapabilities>(
 
 /// Capabilities for batch operations based on selected notes
 class BatchOperationCapabilities {
-  final bool canMove;
-  final bool canDelete;
-  final bool canArchive;
-  final bool canUnarchive;
-  final bool canFavorite;
-  final bool canUnfavorite;
-  final bool canEncrypt;
-  final bool canDecrypt;
-  final bool canExport;
-  final bool canShare;
-  final int noteCount;
 
   const BatchOperationCapabilities({
     required this.canMove,
@@ -224,11 +213,11 @@ class BatchOperationCapabilities {
     }
 
     // Count different states
-    int encryptedCount = 0;
-    int archivedCount = 0;
-    int favoriteCount = 0;
+    const encryptedCount = 0;
+    const archivedCount = 0;
+    const favoriteCount = 0;
     
-    for (final note in notes) {
+    for (final _ in notes) {
       // TODO: Add encryption support when available
       // if (note.encryptedDataKey != null) encryptedCount++;
       // TODO: Add archived and favorite fields to LocalNote
@@ -248,6 +237,17 @@ class BatchOperationCapabilities {
       noteCount: notes.length,
     );
   }
+  final bool canMove;
+  final bool canDelete;
+  final bool canArchive;
+  final bool canUnarchive;
+  final bool canFavorite;
+  final bool canUnfavorite;
+  final bool canEncrypt;
+  final bool canDecrypt;
+  final bool canExport;
+  final bool canShare;
+  final int noteCount;
 }
 
 /// Batch operations notifier
@@ -321,9 +321,9 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     
     try {
-      final repository = _ref.read(notesRepositoryProvider);
+      // final repository = _ref.read(notesRepositoryProvider);
       
-      for (final note in selectedNotes) {
+      for (final _ in selectedNotes) {
         // TODO: Implement archive functionality in repository
         // await repository.setArchived(note.id, archive);
       }
@@ -350,9 +350,9 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     
     try {
-      final repository = _ref.read(notesRepositoryProvider);
+      // final repository = _ref.read(notesRepositoryProvider);
       
-      for (final note in selectedNotes) {
+      for (final _ in selectedNotes) {
         // TODO: Implement favorite functionality in repository
         // await repository.setFavorite(note.id, favorite);
       }
@@ -379,7 +379,7 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     
     try {
-      final exportService = _ref.read(exportServiceProvider);
+      // final exportService = _ref.read(exportServiceProvider);
       
       // TODO: Implement batch export in export service
       // await exportService.exportNotes(selectedNotes, format);
@@ -474,14 +474,6 @@ extension BatchSelectionExtensions on BatchSelectionNotifier {
 
 /// Statistics for current selection
 class BatchSelectionStats {
-  final int totalNotes;
-  final int totalWords;
-  final int totalAttachments;
-  final int encryptedNotes;
-  final Duration selectionTime;
-  final DateTime? oldestNote;
-  final DateTime? newestNote;
-  final List<String> commonTags;
 
   const BatchSelectionStats({
     required this.totalNotes,
@@ -496,7 +488,7 @@ class BatchSelectionStats {
 
   factory BatchSelectionStats.fromNotes(List<LocalNote> notes) {
     if (notes.isEmpty) {
-      return BatchSelectionStats(
+      return const BatchSelectionStats(
         totalNotes: 0,
         totalWords: 0,
         totalAttachments: 0,
@@ -506,7 +498,7 @@ class BatchSelectionStats {
     }
 
     var totalWords = 0;
-    var encryptedCount = 0;
+    const encryptedCount = 0;
     DateTime? oldest;
     DateTime? newest;
 
@@ -538,4 +530,12 @@ class BatchSelectionStats {
       newestNote: newest,
     );
   }
+  final int totalNotes;
+  final int totalWords;
+  final int totalAttachments;
+  final int encryptedNotes;
+  final Duration selectionTime;
+  final DateTime? oldestNote;
+  final DateTime? newestNote;
+  final List<String> commonTags;
 }

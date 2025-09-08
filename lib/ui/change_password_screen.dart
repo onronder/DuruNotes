@@ -1,10 +1,9 @@
+import 'package:duru_notes/core/security/password_history_service.dart';
+import 'package:duru_notes/core/security/password_validator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../core/security/password_validator.dart';
-import '../core/security/password_history_service.dart';
 // import '../ui/widgets/password_strength_meter.dart'; // Widget not available
 
 /// Secure password change screen with comprehensive validation
@@ -150,7 +149,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(

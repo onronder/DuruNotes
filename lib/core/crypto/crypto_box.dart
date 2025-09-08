@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
-import 'key_manager.dart';
+import 'package:duru_notes/core/crypto/key_manager.dart';
 
 /// Result wrapper for decrypt operations that may use a legacy key fallback
 /// [value] is the decrypted payload, [usedLegacyKey] indicates a legacy device key was used

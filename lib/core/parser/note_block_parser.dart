@@ -1,4 +1,4 @@
-import '../../models/note_block.dart';
+import 'package:duru_notes/models/note_block.dart';
 
 /// Parses markdown text into a list of note blocks
 List<NoteBlock> parseMarkdownToBlocks(String markdown) {
@@ -9,7 +9,7 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
   final lines = markdown.split('\n');
   final blocks = <NoteBlock>[];
   
-  for (int i = 0; i < lines.length; i++) {
+  for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
     
     // Skip empty lines
@@ -97,23 +97,18 @@ String blocksToMarkdown(List<NoteBlock> blocks) {
     switch (block.type) {
       case NoteBlockType.paragraph:
         buffer.writeln(block.data);
-        break;
         
       case NoteBlockType.heading1:
         buffer.writeln('# ${block.data}');
-        break;
         
       case NoteBlockType.heading2:
         buffer.writeln('## ${block.data}');
-        break;
         
       case NoteBlockType.heading3:
         buffer.writeln('### ${block.data}');
-        break;
         
       case NoteBlockType.quote:
         buffer.writeln('> ${block.data}');
-        break;
         
       case NoteBlockType.code:
         // Parse language from data if it exists
@@ -129,7 +124,6 @@ String blocksToMarkdown(List<NoteBlock> blocks) {
           buffer.writeln(block.data);
         }
         buffer.writeln('```');
-        break;
         
       case NoteBlockType.todo:
         // Parse todo from "completed:text" or "incomplete:text" format
@@ -142,25 +136,20 @@ String blocksToMarkdown(List<NoteBlock> blocks) {
         } else {
           buffer.writeln('- [ ] ${block.data}');
         }
-        break;
         
       case NoteBlockType.bulletList:
         buffer.writeln('- ${block.data}');
-        break;
         
       case NoteBlockType.numberedList:
         buffer.writeln('1. ${block.data}');
-        break;
         
       case NoteBlockType.table:
         // For simplified table, just output the data as is
         buffer.writeln(block.data);
-        break;
         
       case NoteBlockType.attachment:
         // For simplified attachment, just output the data as is
         buffer.writeln('[Attachment: ${block.data}]');
-        break;
     }
     
     // Add spacing between blocks

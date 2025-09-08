@@ -1,10 +1,9 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_picker_sheet.dart';
 
 /// Material 3 dialog for creating new folders with customization options
 class CreateFolderDialog extends ConsumerStatefulWidget {
@@ -164,7 +163,6 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
       selectedFolderId: _selectedParent?.id,
       title: AppLocalizations.of(context).selectParentFolder,
       showCreateOption: false,
-      showUnfiledOption: true,
     );
     
     if (mounted) {
@@ -347,7 +345,6 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                         crossAxisCount: 8,
                         mainAxisSpacing: 8,
                         crossAxisSpacing: 8,
-                        childAspectRatio: 1,
                       ),
                       itemCount: _folderIcons.length,
                       itemBuilder: (context, index) {
@@ -361,7 +358,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? _selectedColor.withOpacity(0.2)
-                                  : colorScheme.surfaceVariant,
+                                  : colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                               border: isSelected
                                   ? Border.all(

@@ -1,11 +1,9 @@
+import 'package:duru_notes/features/folders/batch_operations/batch_selection_provider.dart';
+import 'package:duru_notes/features/folders/folder_picker_component.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/local/app_db.dart';
-import '../../../providers.dart';
-import '../folder_picker_component.dart';
-import 'batch_selection_provider.dart';
 
 /// A floating action bar that appears during batch selection mode
 class BatchOperationsBar extends ConsumerStatefulWidget {
@@ -44,7 +42,7 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
     );
     
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 1.0),
+      begin: const Offset(0, 1),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _slideController,
@@ -52,8 +50,8 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
     ));
     
     _expandAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(
       parent: _expandController,
       curve: Curves.easeInOut,
@@ -109,7 +107,6 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
           ],
           border: Border.all(
             color: theme.colorScheme.outline.withOpacity(0.2),
-            width: 1,
           ),
         ),
         child: Column(
@@ -207,7 +204,6 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                     icon: Icons.close,
                     tooltip: 'Exit selection',
                     onPressed: _closeSelection,
-                    isLoading: false,
                   ),
                 ],
               ),
@@ -514,7 +510,7 @@ class _BatchActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isDestructive 
               ? theme.colorScheme.errorContainer.withOpacity(0.3)
-              : theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Material(
@@ -564,7 +560,7 @@ class _SelectionChip extends StatelessWidget {
       avatar: Icon(icon, size: 16),
       label: Text(label),
       onPressed: onPressed,
-      backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       side: BorderSide.none,
       labelStyle: theme.textTheme.labelSmall,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -591,8 +587,8 @@ class _BatchActionTile extends StatelessWidget {
     
     return Material(
       color: enabled 
-          ? theme.colorScheme.surfaceVariant.withOpacity(0.3)
-          : theme.colorScheme.surfaceVariant.withOpacity(0.1),
+          ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
+          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: enabled ? onPressed : null,

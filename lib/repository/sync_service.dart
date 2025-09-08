@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/foundation.dart';
-import 'package:realtime_client/realtime_client.dart'
-    show PostgresChangeEvent, PostgresChangeFilter, PostgresChangeFilterType;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'notes_repository.dart';
 
 /// Sync operation result with detailed status
 class SyncResult {
@@ -86,7 +83,7 @@ class SyncService {
       final prefs = await SharedPreferences.getInstance();
       final uid = Supabase.instance.client.auth.currentUser!.id;
       final sinceIso = prefs.getString(_lastPullKey(uid));
-      DateTime? since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+      var since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
 
       // If local store is empty, force a full pull regardless of 'since'
       final localCount = (await repo.db.allNotes()).length;
@@ -153,7 +150,7 @@ class SyncService {
 
     Exception? lastException;
     
-    for (int attempt = 0; attempt < _maxRetries; attempt++) {
+    for (var attempt = 0; attempt < _maxRetries; attempt++) {
       try {
         if (attempt > 0) {
           final delay = _calculateRetryDelay(attempt - 1);
@@ -226,7 +223,7 @@ class SyncService {
     final prefs = await SharedPreferences.getInstance();
     final uid = Supabase.instance.client.auth.currentUser!.id;
     final sinceIso = prefs.getString(_lastPullKey(uid));
-    DateTime? since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
+    var since = sinceIso != null ? DateTime.tryParse(sinceIso) : null;
 
     // If local is empty, force full pull
     final localCount = (await repo.db.allNotes()).length;

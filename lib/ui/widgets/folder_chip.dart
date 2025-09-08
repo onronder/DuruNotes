@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 
 class FolderChip extends StatelessWidget {
-  final String label;
-  final Color? color;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback? onTap;
-  final bool showAddIcon;
 
   const FolderChip({
-    super.key,
-    required this.label,
+    required this.label, super.key,
     this.color,
     this.icon = Icons.folder,
     this.isSelected = false,
     this.onTap,
     this.showAddIcon = false,
   });
+  final String label;
+  final Color? color;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback? onTap;
+  final bool showAddIcon;
 
   @override
   Widget build(BuildContext context) {

@@ -1,21 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:drift/drift.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/analytics/analytics_sentry.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geofence_service/geofence_service.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:geolocator/geolocator.dart' as geo;
-import 'package:geofence_service/geofence_service.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../data/local/app_db.dart';
-import '../providers.dart';
-import 'analytics/analytics_service.dart';
-import 'analytics/analytics_sentry.dart';
 
 /// Enhanced reminder service supporting multiple reminder types:
 /// - Time-based reminders with recurring patterns
@@ -73,8 +71,6 @@ class AdvancedReminderService {
       _channelName,
       description: _channelDescription,
       importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
     );
     
     // Location reminders channel
@@ -83,8 +79,6 @@ class AdvancedReminderService {
       _locationChannelName,
       description: _locationChannelDescription,
       importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
     );
     
     await _plugin
@@ -121,7 +115,7 @@ class AdvancedReminderService {
   /// Request notification permissions
   Future<bool> requestNotificationPermissions() async {
     try {
-      bool granted = false;
+      var granted = false;
       
       if (Platform.isIOS) {
         final result = await _plugin
@@ -152,7 +146,7 @@ class AdvancedReminderService {
   /// Request location permissions for geofencing
   Future<bool> requestLocationPermissions() async {
     try {
-      geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+      var permission = await geo.Geolocator.checkPermission();
       
       if (permission == geo.LocationPermission.denied) {
         permission = await geo.Geolocator.requestPermission();
@@ -294,10 +288,8 @@ class AdvancedReminderService {
     switch (pattern) {
       case RecurrencePattern.daily:
         nextTime = currentTime.add(Duration(days: interval));
-        break;
       case RecurrencePattern.weekly:
         nextTime = currentTime.add(Duration(days: 7 * interval));
-        break;
       case RecurrencePattern.monthly:
         nextTime = DateTime(
           currentTime.year,
@@ -306,7 +298,6 @@ class AdvancedReminderService {
           currentTime.hour,
           currentTime.minute,
         );
-        break;
       case RecurrencePattern.yearly:
         nextTime = DateTime(
           currentTime.year + interval,
@@ -315,31 +306,28 @@ class AdvancedReminderService {
           currentTime.hour,
           currentTime.minute,
         );
-        break;
       case RecurrencePattern.none:
         return;
     }
     
-    if (nextTime != null) {
-      // Update the reminder with next occurrence time
-      await _db.updateReminder(reminderId, NoteRemindersCompanion(
-        remindAt: Value(nextTime.toUtc()),
-      ));
-      
-      // Schedule the next notification
-      final reminder = await _db.getReminderById(reminderId);
-      if (reminder != null) {
-        await _scheduleNotification(
-          reminderId, 
-          nextTime.toUtc(), 
-          reminder.title, 
-          reminder.body,
-          customTitle: reminder.notificationTitle,
-          customBody: reminder.notificationBody,
-        );
-      }
+    // Update the reminder with next occurrence time
+    await _db.updateReminder(reminderId, NoteRemindersCompanion(
+      remindAt: Value(nextTime.toUtc()),
+    ));
+    
+    // Schedule the next notification
+    final reminder = await _db.getReminderById(reminderId);
+    if (reminder != null) {
+      await _scheduleNotification(
+        reminderId, 
+        nextTime.toUtc(), 
+        reminder.title, 
+        reminder.body,
+        customTitle: reminder.notificationTitle,
+        customBody: reminder.notificationBody,
+      );
     }
-  }
+    }
   
   // ========================
   // Location-based Reminders
@@ -437,25 +425,26 @@ class AdvancedReminderService {
   }
   
   /// Handle geofence status changes
-  void _onGeofenceStatusChanged(
-    Geofence geofence,
-    GeofenceRadius geofenceRadius,
-    GeofenceStatus geofenceStatus,
-    Location location,
-  ) async {
-    if (geofenceStatus == GeofenceStatus.ENTER) {
-      // Extract reminder ID from geofence ID
-      final geofenceId = geofence.id;
-      if (geofenceId.startsWith('reminder_')) {
-        final reminderIdStr = geofenceId.substring('reminder_'.length);
-        final reminderId = int.tryParse(reminderIdStr);
-        
-        if (reminderId != null) {
-          await _triggerLocationReminder(reminderId);
-        }
-      }
-    }
-  }
+  // Reserved for geofence implementation
+  // void _onGeofenceStatusChanged(
+  //   Geofence geofence,
+  //   GeofenceRadius geofenceRadius,
+  //   GeofenceStatus geofenceStatus,
+  //   Location location,
+  // ) async {
+  //   if (geofenceStatus == GeofenceStatus.ENTER) {
+  //     // Extract reminder ID from geofence ID
+  //     final geofenceId = geofence.id;
+  //     if (geofenceId.startsWith('reminder_')) {
+  //       final reminderIdStr = geofenceId.substring('reminder_'.length);
+  //       final reminderId = int.tryParse(reminderIdStr);
+  //       
+  //       if (reminderId != null) {
+  //         await _triggerLocationReminder(reminderId);
+  //       }
+  //     }
+  //   }
+  // }
   
   /// Trigger a location-based reminder
   Future<void> _triggerLocationReminder(int reminderId) async {
@@ -544,7 +533,7 @@ class AdvancedReminderService {
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
       final body = reminder.notificationBody ?? 
-          'You\'re near $locationText - ${reminder.title}';
+          "You're near $locationText - ${reminder.title}";
       
       await _plugin.show(
         notificationId,
@@ -654,7 +643,7 @@ class AdvancedReminderService {
         return now.add(const Duration(hours: 2));
       case SnoozeDuration.tomorrow:
         final tomorrow = now.add(const Duration(days: 1));
-        return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0); // 9 AM tomorrow
+        return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9); // 9 AM tomorrow
     }
   }
   
@@ -664,7 +653,7 @@ class AdvancedReminderService {
   
   /// Get all reminders for a note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
-    return await _db.getRemindersForNote(noteId);
+    return _db.getRemindersForNote(noteId);
   }
   
   /// Update a reminder
@@ -731,14 +720,11 @@ class AdvancedReminderService {
       switch (action) {
         case 'snooze_5':
           await snoozeReminder(reminderId, SnoozeDuration.fiveMinutes);
-          break;
         case 'snooze_15':
           await snoozeReminder(reminderId, SnoozeDuration.fifteenMinutes);
-          break;
         case 'complete':
           await _db.deactivateReminder(reminderId);
           analytics.event('reminder.completed_from_notification');
-          break;
       }
       
     } catch (e, stack) {
@@ -822,7 +808,7 @@ class AdvancedReminderService {
   
   /// Get reminder statistics
   Future<Map<String, int>> getReminderStats() async {
-    return await _db.getReminderStats();
+    return _db.getReminderStats();
   }
   
   /// Cleanup and dispose

@@ -1,18 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-import 'package:path/path.dart' as path;
 
-import '../../lib/core/crypto/crypto_box.dart';
-import '../../lib/core/crypto/key_manager.dart';
-import '../../lib/core/parser/note_indexer.dart';
-import '../../lib/data/local/app_db.dart';
-import '../../lib/repository/notes_repository.dart';
-import '../../lib/services/import_service.dart';
-import '../../lib/services/analytics/analytics_service.dart';
-import '../../lib/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/crypto/key_manager.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/parser/note_indexer.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/import_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:path/path.dart' as path;
 
 import 'import_encryption_indexing_test.mocks.dart';
 
@@ -29,7 +28,7 @@ void main() {
     late MockNoteIndexer mockIndexer;
     late MockAppLogger mockLogger;
     late MockAnalyticsService mockAnalytics;
-    late MockCryptoBox mockCrypto;
+    // late MockCryptoBox mockCrypto;  // Not used in current tests
     late ImportService importService;
     late Directory tempDir;
 
@@ -38,7 +37,7 @@ void main() {
       mockIndexer = MockNoteIndexer();
       mockLogger = MockAppLogger();
       mockAnalytics = MockAnalyticsService();
-      mockCrypto = MockCryptoBox();
+      // mockCrypto = MockCryptoBox();  // Not used in current tests
 
       importService = ImportService(
         notesRepository: mockRepository,
@@ -68,7 +67,8 @@ void main() {
     group('Markdown Import Integration', () {
       test('importMarkdown calls NotesRepository.createOrUpdate and NoteIndexer.indexNote', () async {
         // Arrange
-        final testContent = '''# Test Note
+        const testContent = '''
+# Test Note
 This is a test note with content.
 Contains #tag1 and #tag2.
 ''';
@@ -185,7 +185,8 @@ Contains #tag1 and #tag2.
     group('ENEX Import Integration', () {
       test('importEnex calls repository and indexer for each note', () async {
         // Arrange
-        final enexContent = '''<?xml version="1.0" encoding="UTF-8"?>
+        const enexContent = '''
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export3.dtd">
 <en-export export-date="20240101T000000Z" application="Evernote" version="10.0">
   <note>
@@ -383,7 +384,8 @@ Contains #tag1 and #tag2.
         final realIndexer = NoteIndexer();
         
         final testFile = File(path.join(tempDir.path, 'test.md'));
-        await testFile.writeAsString('''# Searchable Note
+        await testFile.writeAsString('''
+# Searchable Note
 This note contains #important tag and searchable content.
 It also links to [[other-note]] and has @mentions.
 Multiple words for search testing.

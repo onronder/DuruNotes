@@ -58,24 +58,24 @@ class PasswordValidator {
     PasswordCriterion(
       id: 'uppercase',
       description: 'At least one uppercase letter (A-Z)',
-      validator: (password) => RegExp(r'[A-Z]').hasMatch(password),
+      validator: (password) => RegExp('[A-Z]').hasMatch(password),
       weight: 15,
     ),
     PasswordCriterion(
       id: 'lowercase',
       description: 'At least one lowercase letter (a-z)',
-      validator: (password) => RegExp(r'[a-z]').hasMatch(password),
+      validator: (password) => RegExp('[a-z]').hasMatch(password),
       weight: 15,
     ),
     PasswordCriterion(
       id: 'number',
       description: 'At least one number (0-9)',
-      validator: (password) => RegExp(r'[0-9]').hasMatch(password),
+      validator: (password) => RegExp('[0-9]').hasMatch(password),
       weight: 15,
     ),
     PasswordCriterion(
       id: 'special_char',
-      description: 'At least one special character (!@#\$%^&*)',
+      description: r'At least one special character (!@#$%^&*)',
       validator: (password) => RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password),
       weight: 20,
     ),
@@ -91,7 +91,7 @@ class PasswordValidator {
   PasswordValidationResult validatePassword(String password) {
     final failedCriteria = <String>[];
     final suggestions = <String>[];
-    int totalScore = 0;
+    var totalScore = 0;
 
     // Check each criterion
     for (final criterion in _criteria) {
@@ -149,7 +149,7 @@ class PasswordValidator {
       case 'number':
         return 'Add at least one number (0-9)';
       case 'special_char':
-        return 'Add at least one special character (!@#\$%^&*)';
+        return r'Add at least one special character (!@#$%^&*)';
       case 'no_common_patterns':
         return 'Avoid common patterns like 123, abc, or repeated characters';
       default:
@@ -177,7 +177,7 @@ class PasswordValidator {
     }
 
     // Check for repeated characters (more than 3 in a row)
-    for (int i = 0; i < password.length - 2; i++) {
+    for (var i = 0; i < password.length - 2; i++) {
       if (password[i] == password[i + 1] && password[i] == password[i + 2]) {
         return true;
       }
@@ -198,8 +198,8 @@ class PasswordValidator {
     final salt = providedSalt ?? _generateSalt();
     
     // Use PBKDF2 with SHA-256, 100,000 iterations for security
-    final iterations = 100000;
-    final keyLength = 32; // 256 bits
+    const iterations = 100000;
+    const keyLength = 32; // 256 bits
     
     final passwordBytes = utf8.encode(password);
     final saltBytes = utf8.encode(salt);
@@ -216,7 +216,7 @@ class PasswordValidator {
   static String _generateSalt({int length = 32}) {
     final random = Random.secure();
     final saltBytes = Uint8List(length);
-    for (int i = 0; i < length; i++) {
+    for (var i = 0; i < length; i++) {
       saltBytes[i] = random.nextInt(256);
     }
     return _bytesToHex(saltBytes);
@@ -232,11 +232,11 @@ class PasswordValidator {
     while (pos < keyLength) {
       final blockData = Uint8List.fromList([...salt, ...(_intToBytes(currentBlock))]);
       var u = hmac.convert(blockData).bytes;
-      var result = List<int>.from(u);
+      final result = List<int>.from(u);
       
-      for (int i = 1; i < iterations; i++) {
+      for (var i = 1; i < iterations; i++) {
         u = hmac.convert(u).bytes;
-        for (int j = 0; j < result.length; j++) {
+        for (var j = 0; j < result.length; j++) {
           result[j] ^= u[j];
         }
       }
@@ -288,7 +288,7 @@ class PasswordValidator {
     if (a.length != b.length) return false;
     
     var result = 0;
-    for (int i = 0; i < a.length; i++) {
+    for (var i = 0; i < a.length; i++) {
       result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
     }
     return result == 0;

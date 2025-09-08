@@ -1,7 +1,7 @@
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers.dart';
 
 /// Authentication screen for user login/signup
 class AuthScreen extends ConsumerStatefulWidget {
@@ -61,9 +61,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Check your email to confirm your account!'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: const Text('Check your email to confirm your account!'),
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
             ),
           );
         }
@@ -78,10 +78,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString()),
-            backgroundColor: Colors.red,
-          ),
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
         );
       }
     } finally {
@@ -99,17 +99,37 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // App Logo and Title
-                Icon(
-                  Icons.note_alt,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary,
+                Center(
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.asset(
+                        'design/app_icon.png',
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -259,7 +279,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   child: Text(
                     _isSignUp
                         ? 'Already have an account? Sign In'
-                        : 'Don\'t have an account? Sign Up',
+                        : "Don't have an account? Sign Up",
                   ),
                 ),
 
@@ -269,9 +289,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[200]!),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,6 +302,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         'Features:',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -312,13 +335,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _FeatureItem extends StatelessWidget {
-  final IconData icon;
-  final String text;
 
   const _FeatureItem({
     required this.icon,
     required this.text,
   });
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -326,12 +349,18 @@ class _FeatureItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.blue),
+          Icon(
+            icon, 
+            size: 16, 
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
         ],

@@ -237,12 +237,7 @@ enum RuleField {
 }
 
 /// A single rule condition for a smart folder
-class SmartFolderRule {
-  final String id;
-  final RuleField field;
-  final RuleOperator operator;
-  final dynamic value;
-  final dynamic secondValue; // For 'between' operator
+class SmartFolderRule { // For 'between' operator
 
   const SmartFolderRule({
     required this.id,
@@ -251,14 +246,6 @@ class SmartFolderRule {
     this.value,
     this.secondValue,
   });
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'field': field.name,
-    'operator': operator.name,
-    'value': value,
-    'secondValue': secondValue,
-  };
 
   factory SmartFolderRule.fromJson(Map<String, dynamic> json) {
     return SmartFolderRule(
@@ -269,6 +256,19 @@ class SmartFolderRule {
       secondValue: json['secondValue'],
     );
   }
+  final String id;
+  final RuleField field;
+  final RuleOperator operator;
+  final dynamic value;
+  final dynamic secondValue;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'field': field.name,
+    'operator': operator.name,
+    'value': value,
+    'secondValue': secondValue,
+  };
 
   SmartFolderRule copyWith({
     String? id,
@@ -289,16 +289,6 @@ class SmartFolderRule {
 
 /// Smart folder configuration
 class SmartFolderConfig {
-  final String id;
-  final String name;
-  final SmartFolderType type;
-  final List<SmartFolderRule> rules;
-  final bool combineWithAnd; // true = AND, false = OR
-  final IconData? customIcon;
-  final Color? customColor;
-  final int maxResults;
-  final bool autoRefresh;
-  final Duration? refreshInterval;
 
   const SmartFolderConfig({
     required this.id,
@@ -312,19 +302,6 @@ class SmartFolderConfig {
     this.autoRefresh = true,
     this.refreshInterval,
   });
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'type': type.name,
-    'rules': rules.map((r) => r.toJson()).toList(),
-    'combineWithAnd': combineWithAnd,
-    'customIcon': customIcon?.codePoint,
-    'customColor': customColor?.value,
-    'maxResults': maxResults,
-    'autoRefresh': autoRefresh,
-    'refreshInterval': refreshInterval?.inSeconds,
-  };
 
   factory SmartFolderConfig.fromJson(Map<String, dynamic> json) {
     return SmartFolderConfig(
@@ -348,6 +325,29 @@ class SmartFolderConfig {
           : null,
     );
   }
+  final String id;
+  final String name;
+  final SmartFolderType type;
+  final List<SmartFolderRule> rules;
+  final bool combineWithAnd; // true = AND, false = OR
+  final IconData? customIcon;
+  final Color? customColor;
+  final int maxResults;
+  final bool autoRefresh;
+  final Duration? refreshInterval;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'type': type.name,
+    'rules': rules.map((r) => r.toJson()).toList(),
+    'combineWithAnd': combineWithAnd,
+    'customIcon': customIcon?.codePoint,
+    'customColor': customColor?.value,
+    'maxResults': maxResults,
+    'autoRefresh': autoRefresh,
+    'refreshInterval': refreshInterval?.inSeconds,
+  };
 
   SmartFolderConfig copyWith({
     String? id,
@@ -392,7 +392,7 @@ class SmartFolderTemplates {
     ],
   );
 
-  static final favorites = SmartFolderConfig(
+  static const favorites = SmartFolderConfig(
     id: 'template_favorites',
     name: 'Favorites',
     type: SmartFolderType.favorites,
@@ -406,7 +406,7 @@ class SmartFolderTemplates {
     ],
   );
 
-  static final withImages = SmartFolderConfig(
+  static const withImages = SmartFolderConfig(
     id: 'template_images',
     name: 'Notes with Images',
     type: SmartFolderType.contentType,
@@ -420,7 +420,7 @@ class SmartFolderTemplates {
     ],
   );
 
-  static final withTasks = SmartFolderConfig(
+  static const withTasks = SmartFolderConfig(
     id: 'template_tasks',
     name: 'Task Lists',
     type: SmartFolderType.contentType,
@@ -434,7 +434,7 @@ class SmartFolderTemplates {
     ],
   );
 
-  static final longNotes = SmartFolderConfig(
+  static const longNotes = SmartFolderConfig(
     id: 'template_long',
     name: 'Long Notes',
     type: SmartFolderType.contentType,

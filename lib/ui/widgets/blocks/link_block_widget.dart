@@ -1,14 +1,10 @@
+import 'package:duru_notes/models/note_block.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../models/note_block.dart';
 
 class LinkBlockWidget extends StatefulWidget {
   const LinkBlockWidget({
-    super.key,
-    required this.block,
-    required this.isFocused,
-    required this.onChanged,
-    required this.onFocusChanged,
+    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, super.key,
   });
 
   final NoteBlock block;

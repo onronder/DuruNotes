@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_recognition_error.dart';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 /// Service for converting speech to text using the microphone.
 class VoiceTranscriptionService {
@@ -78,10 +79,7 @@ class VoiceTranscriptionService {
         onResult: _handleResult,
         listenFor: const Duration(minutes: 5),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true,
         localeId: 'en_US',
-        cancelOnError: false,
-        listenMode: ListenMode.confirmation,
       );
       _isListening = true;
       _lastWords = '';
@@ -90,7 +88,7 @@ class VoiceTranscriptionService {
       return true;
     } catch (e) {
       _logger.error('Failed to start voice transcription', error: e);
-      _onError?.call('Failed to start recording: ${e.toString()}');
+      _onError?.call('Failed to start recording: $e');
       return false;
     }
   }

@@ -1,11 +1,9 @@
+import 'package:duru_notes/features/folders/batch_operations/batch_selection_provider.dart';
+import 'package:duru_notes/features/folders/folder_picker_component.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/local/app_db.dart';
-import '../../../providers.dart';
-import '../batch_operations/batch_selection_provider.dart';
-import '../folder_picker_component.dart';
 
 /// Keyboard shortcuts configuration
 class KeyboardShortcuts {
@@ -45,8 +43,7 @@ class KeyboardShortcuts {
 /// Widget that handles keyboard shortcuts for folder operations
 class KeyboardShortcutsHandler extends ConsumerStatefulWidget {
   const KeyboardShortcutsHandler({
-    super.key,
-    required this.child,
+    required this.child, super.key,
     this.focusNode,
   });
 
@@ -108,7 +105,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
     _shortcuts[KeyboardShortcuts.exportSelected] = const _ExportSelectedIntent();
     
     // Quick folder access shortcuts (1-9)
-    for (int i = 0; i < KeyboardShortcuts.quickFolderShortcuts.length; i++) {
+    for (var i = 0; i < KeyboardShortcuts.quickFolderShortcuts.length; i++) {
       _shortcuts[KeyboardShortcuts.quickFolderShortcuts[i]] = _QuickFolderAccessIntent(i);
     }
   }
@@ -399,10 +396,10 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 }
 
 // Helper intent classes for shortcuts
-class _ShortcutIntent extends Intent {
-  const _ShortcutIntent(this.action);
-  final String action;
-}
+// class _ShortcutIntent extends Intent {  // Generic intent - using specific intents instead
+//   const _ShortcutIntent(this.action);
+//   final String action;
+// }
 
 // Specific intent types for better action handling
 class _SelectAllIntent extends Intent { const _SelectAllIntent(); }
@@ -446,9 +443,9 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               _buildShortcutSection(
                 'Selection',
                 [
-                  _ShortcutItem('Select All', '⌘A'),
-                  _ShortcutItem('Clear Selection', '⌘D'),
-                  _ShortcutItem('Invert Selection', '⌘I'),
+                  const _ShortcutItem('Select All', '⌘A'),
+                  const _ShortcutItem('Clear Selection', '⌘D'),
+                  const _ShortcutItem('Invert Selection', '⌘I'),
                 ],
                 theme,
               ),
@@ -458,11 +455,11 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               _buildShortcutSection(
                 'Navigation',
                 [
-                  _ShortcutItem('Expand All Folders', '⌘E'),
-                  _ShortcutItem('Collapse All Folders', '⌘W'),
-                  _ShortcutItem('Next Folder', '↓'),
-                  _ShortcutItem('Previous Folder', '↑'),
-                  _ShortcutItem('Quick Folder Access', '⌘1-9'),
+                  const _ShortcutItem('Expand All Folders', '⌘E'),
+                  const _ShortcutItem('Collapse All Folders', '⌘W'),
+                  const _ShortcutItem('Next Folder', '↓'),
+                  const _ShortcutItem('Previous Folder', '↑'),
+                  const _ShortcutItem('Quick Folder Access', '⌘1-9'),
                 ],
                 theme,
               ),
@@ -472,12 +469,12 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               _buildShortcutSection(
                 'Actions',
                 [
-                  _ShortcutItem('Delete Selected', 'Delete'),
-                  _ShortcutItem('Move to Folder', '⌘M'),
-                  _ShortcutItem('Create Folder', '⌘⇧N'),
-                  _ShortcutItem('Refresh Folders', '⌘R'),
-                  _ShortcutItem('Search Folders', '⌘F'),
-                  _ShortcutItem('Clear Search', 'Esc'),
+                  const _ShortcutItem('Delete Selected', 'Delete'),
+                  const _ShortcutItem('Move to Folder', '⌘M'),
+                  const _ShortcutItem('Create Folder', '⌘⇧N'),
+                  const _ShortcutItem('Refresh Folders', '⌘R'),
+                  const _ShortcutItem('Search Folders', '⌘F'),
+                  const _ShortcutItem('Clear Search', 'Esc'),
                 ],
                 theme,
               ),
@@ -487,10 +484,10 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               _buildShortcutSection(
                 'Batch Operations',
                 [
-                  _ShortcutItem('Archive Selected', '⌘⇧A'),
-                  _ShortcutItem('Favorite Selected', '⌘S'),
-                  _ShortcutItem('Share Selected', '⌘⇧S'),
-                  _ShortcutItem('Export Selected', '⌘⇧E'),
+                  const _ShortcutItem('Archive Selected', '⌘⇧A'),
+                  const _ShortcutItem('Favorite Selected', '⌘S'),
+                  const _ShortcutItem('Share Selected', '⌘⇧S'),
+                  const _ShortcutItem('Export Selected', '⌘⇧E'),
                 ],
                 theme,
               ),
@@ -536,7 +533,7 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -549,17 +546,17 @@ class KeyboardShortcutsHelp extends StatelessWidget {
               ),
             ],
           ),
-        )).toList(),
+        )),
       ],
     );
   }
 }
 
 class _ShortcutItem {
-  final String description;
-  final String shortcut;
 
   const _ShortcutItem(this.description, this.shortcut);
+  final String description;
+  final String shortcut;
 }
 
 /// Provider for keyboard shortcuts enabled state

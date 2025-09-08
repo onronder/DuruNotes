@@ -1,0 +1,1003 @@
+import 'dart:async';
+
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Modern Material 3 Note Editor with Unified Field (E2.9)
+/// Single text field design where first line becomes the title
+class ModernEditNoteScreen extends ConsumerStatefulWidget {
+  const ModernEditNoteScreen({
+    super.key,
+    this.noteId,
+    this.initialTitle,
+    this.initialBody,
+    this.initialFolder,
+  });
+
+  final String? noteId;
+  final String? initialTitle;
+  final String? initialBody;
+  final LocalFolder? initialFolder;
+
+  @override
+  ConsumerState<ModernEditNoteScreen> createState() => _ModernEditNoteScreenState();
+}
+
+class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
+    with TickerProviderStateMixin {
+  // EDITOR_V2: unified controller
+  late final TextEditingController _noteController;
+  final FocusNode _contentFocusNode = FocusNode();
+  
+  // Animation Controllers
+  late AnimationController _toolbarSlideController;
+  late Animation<Offset> _toolbarSlideAnimation;
+  late AnimationController _saveButtonController;
+  late Animation<double> _saveButtonScale;
+  
+  // State
+  bool _hasChanges = false;
+  bool _isLoading = false;
+  bool _contentHasFocus = false;
+  bool _showFormattingToolbar = false;
+  bool _isPreviewMode = false;
+  LocalFolder? _selectedFolder;
+  String? _initialText;
+
+  // Material-3 Design Constants
+  static const double kHeaderHeight = 64;
+  static const double kToolbarIconSize = 22;
+  static const double kMinTapTarget = 44;
+  static const double kScreenPadding = 20;
+  static const double kContentPadding = 20;
+  static const double kVerticalSpacingLarge = 16;
+  static const double kVerticalSpacingMedium = 12;
+  // static const double kVerticalSpacingSmall = 8; // Currently unused
+
+  @override
+  void initState() {
+    super.initState();
+
+    final initialTitle = widget.initialTitle?.trimRight() ?? '';
+    final initialBody  = widget.initialBody  ?? '';
+    final initialText  = initialTitle.isNotEmpty
+        ? '$initialTitle\n$initialBody'
+        : initialBody;
+
+    _noteController = TextEditingController(text: initialText);
+    _initialText = initialText;
+
+    _noteController.addListener(() {
+      // mark dirty only on first mutation, still rebuild for stats
+      final wasPristine = !_hasChanges;
+      final becameDirty = _noteController.text != _initialText;
+      if (wasPristine && becameDirty) {
+        setState(() => _hasChanges = true);
+      } else if (!becameDirty && _hasChanges) {
+        setState(() => _hasChanges = false);
+      } else {
+        setState(() {}); // keep toolbar/stats reactive
+      }
+    });
+    
+    // Animation setup for toolbar slide with Material-3 timing
+    _toolbarSlideController = AnimationController(
+      duration: const Duration(milliseconds: 250),
+      vsync: this,
+    );
+    _toolbarSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _toolbarSlideController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    ));
+    
+    // Animation for save button with Material-3 timing
+    _saveButtonController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _saveButtonScale = Tween<double>(
+      begin: 1,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _saveButtonController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Focus listener for animation triggers
+    _contentFocusNode.addListener(() {
+      setState(() {
+        _contentHasFocus = _contentFocusNode.hasFocus;
+        _showFormattingToolbar = _contentFocusNode.hasFocus;
+        if (_contentFocusNode.hasFocus) {
+          _toolbarSlideController.forward();
+        } else {
+          _toolbarSlideController.reverse();
+        }
+      });
+    });
+    
+    // Initialize folder selection
+    _initializeFolder();
+  }
+  
+  Future<void> _initializeFolder() async {
+    // If initialFolder is provided, use it
+    if (widget.initialFolder != null) {
+      setState(() {
+        _selectedFolder = widget.initialFolder;
+      });
+    } 
+    // For existing notes, fetch the folder
+    else if (widget.noteId != null) {
+      try {
+        final folder = await ref.read(noteFolderProvider.notifier).getFolderForNote(widget.noteId!);
+        if (mounted) {
+          setState(() {
+            _selectedFolder = folder;
+          });
+        }
+      } on Exception catch (e) {
+        // If error fetching folder, treat as unfiled
+        debugPrint('Error fetching folder for note: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    _contentFocusNode.dispose();
+    _toolbarSlideController.dispose();
+    _saveButtonController.dispose();
+    super.dispose();
+  }
+
+  ({String title, String body}) _splitTitleBody(String raw) {
+    // do not trim leading spaces in body; trim only trailing for clean save
+    final text = raw.trimRight();
+    if (text.isEmpty) return (title: '', body: '');
+    final nl = text.indexOf('\n');
+    if (nl == -1) return (title: text, body: '');
+    final title = text.substring(0, nl);
+    final body  = text.substring(nl + 1);
+    return (title: title, body: body);
+  }
+
+  // keep your existing title sanitizer; if missing, provide a light one:
+  String _stripMarkdownHeading(String input) {
+    // remove leading markdown heading markers like "#", "##", "-" spaces
+    return input.replaceFirst(RegExp(r'^\s{0,3}(#{1,6}\s+|-{1,}\s+)'), '');
+  }
+
+  // Get display title for preview mode
+  String _getDisplayTitle() {
+    final parts = _splitTitleBody(_noteController.text);
+    final cleanTitle = _stripMarkdownHeading(parts.title).trim();
+    return cleanTitle.isEmpty ? 'Untitled Note' : cleanTitle;
+  }
+
+  // Get body content for preview mode
+  String _getBodyContent() {
+    final parts = _splitTitleBody(_noteController.text);
+    return parts.body;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return PopScope(
+      canPop: !_hasChanges && !_isLoading,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop && _hasChanges && !_isLoading) {
+          final shouldPop = await _showDiscardDialog();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Custom header
+              _buildHeader(theme, colorScheme),
+              
+              // Animated formatting toolbar
+              AnimatedBuilder(
+                animation: _toolbarSlideAnimation,
+                builder: (context, child) {
+                  return SlideTransition(
+                    position: _toolbarSlideAnimation,
+                    child: _buildFormattingToolbar(colorScheme),
+                  );
+                },
+              ),
+              
+              // Main content area with animation
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.02, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _isPreviewMode
+                      ? _buildPreview(theme, colorScheme)
+                      : _buildEditor(theme, colorScheme),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      height: kHeaderHeight,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: NavigationToolbar(
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: colorScheme.onSurface,
+              ),
+              onPressed: () async {
+                if (_hasChanges) {
+                  final shouldLeave = await _showDiscardDialog();
+                  if (shouldLeave && mounted) {
+                    Navigator.of(context).pop();
+                  }
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+              tooltip: 'Back',
+            ),
+            middle: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.edit_note_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.noteId == null ? 'New Note' : 'Edit Note',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      if (_hasChanges)
+                        Text(
+                          'Editing...',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                
+                // Action buttons container
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Preview toggle button
+                      _buildHeaderAction(
+                        icon: _isPreviewMode 
+                            ? Icons.edit_note_rounded 
+                            : Icons.preview_rounded,
+                        tooltip: _isPreviewMode ? 'Edit' : 'Preview',
+                        isActive: _isPreviewMode,
+                        onPressed: () {
+                          setState(() => _isPreviewMode = !_isPreviewMode);
+                          HapticFeedback.lightImpact();
+                        },
+                        colorScheme: colorScheme,
+                      ),
+                      
+                      const SizedBox(width: 4),
+                      
+                      // Save button
+                      AnimatedBuilder(
+                        animation: _saveButtonScale,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _saveButtonScale.value,
+                            child: _buildSaveButton(theme, colorScheme),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required String tooltip,
+    required bool isActive,
+    required VoidCallback onPressed,
+    required ColorScheme colorScheme,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isActive 
+            ? colorScheme.primaryContainer 
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: IconButton(
+        icon: Icon(
+          icon,
+          size: 20,
+          color: isActive 
+              ? colorScheme.onPrimaryContainer 
+              : colorScheme.onSurfaceVariant,
+        ),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        constraints: const BoxConstraints(
+          minWidth: kMinTapTarget,
+          minHeight: kMinTapTarget,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(ThemeData theme, ColorScheme colorScheme) {
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+          ),
+        ),
+      );
+    }
+
+    final isEnabled = _hasChanges;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isEnabled ? _saveNote : null,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: isEnabled
+                ? LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isEnabled ? null : colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isEnabled ? Icons.save_rounded : Icons.check_rounded,
+                size: 18,
+                color: isEnabled 
+                    ? colorScheme.onPrimary 
+                    : colorScheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isEnabled ? 'Save' : 'Done',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: isEnabled 
+                      ? colorScheme.onPrimary 
+                      : colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditor(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      key: const Key('editor'),
+      padding: const EdgeInsets.symmetric(horizontal: kScreenPadding),
+      child: Column(
+        children: [
+          const SizedBox(height: kVerticalSpacingMedium),
+          
+          // Folder indicator chip
+          _buildFolderIndicator(colorScheme),
+          
+          const SizedBox(height: kVerticalSpacingMedium),
+          
+          // Unified text field
+          Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              decoration: BoxDecoration(
+                color: _contentHasFocus
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.08)
+                    : colorScheme.surfaceContainerHighest.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _contentHasFocus
+                      ? colorScheme.primary.withValues(alpha: 0.2)
+                      : Colors.transparent,
+                  width: 1.5,
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 100),
+                child: TextField(
+                  controller: _noteController,
+                  focusNode: _contentFocusNode,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    height: 1.7,
+                    color: colorScheme.onSurface,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Note title\n\nStart writing your thoughts...\n\n'
+                        '💡 Tip: First line becomes the title',
+                    hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                      height: 1.7,
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.light ? 0.4 : 0.5
+                      ),
+                      fontSize: 16,
+                    ),
+                    contentPadding: const EdgeInsets.all(kContentPadding),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                  maxLines: null,
+                  textAlignVertical: TextAlignVertical.top,
+                  keyboardType: TextInputType.multiline,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreview(ThemeData theme, ColorScheme colorScheme) {
+    final displayTitle = _getDisplayTitle();
+    final bodyContent = _getBodyContent();
+    
+    return Container(
+      key: const Key('preview'),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.surface.withValues(alpha: 0.95),
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(kScreenPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title display in preview
+            Text(
+              displayTitle,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: kVerticalSpacingLarge),
+            
+            // Gradient separator
+            Container(
+              height: 2,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.primary.withValues(alpha: 0.3),
+                    colorScheme.secondary.withValues(alpha: 0.3),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            const SizedBox(height: kVerticalSpacingLarge),
+            
+            // Body content rendered as Markdown
+            if (bodyContent.isNotEmpty)
+              MarkdownBody(
+                data: bodyContent,
+                selectable: true,
+                styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                  p: theme.textTheme.bodyLarge?.copyWith(
+                    height: 1.7,
+                    color: colorScheme.onSurface,
+                  ),
+                  code: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                    backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                  blockquote: theme.textTheme.bodyLarge?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              Text(
+                'No content',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              
+            const SizedBox(height: 100),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormattingToolbar(ColorScheme colorScheme) {
+    if (!_showFormattingToolbar || _isPreviewMode) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.95),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: kScreenPadding),
+        child: Row(
+          children: [
+            // Text formatting group
+            _buildToolButton(
+              icon: Icons.format_bold_rounded,
+              tooltip: 'Bold',
+              onPressed: () => _insertMarkdown('**', '**'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.format_italic_rounded,
+              tooltip: 'Italic',
+              onPressed: () => _insertMarkdown('*', '*'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.format_size_rounded,
+              tooltip: 'Heading',
+              onPressed: () => _insertMarkdown('## ', ''),
+              colorScheme: colorScheme,
+            ),
+            
+            _buildToolDivider(colorScheme),
+            
+            // List formatting group
+            _buildToolButton(
+              icon: Icons.format_list_bulleted_rounded,
+              tooltip: 'Bullet List',
+              onPressed: () => _insertList('bullet'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.format_list_numbered_rounded,
+              tooltip: 'Numbered List',
+              onPressed: () => _insertList('numbered'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.checklist_rounded,
+              tooltip: 'Checkbox',
+              onPressed: () => _insertList('checkbox'),
+              colorScheme: colorScheme,
+            ),
+            
+            _buildToolDivider(colorScheme),
+            
+            // Advanced formatting group
+            _buildToolButton(
+              icon: Icons.code_rounded,
+              tooltip: 'Code',
+              onPressed: () => _insertMarkdown('`', '`'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.format_quote_rounded,
+              tooltip: 'Quote',
+              onPressed: () => _insertMarkdown('> ', ''),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.link_rounded,
+              tooltip: 'Link',
+              onPressed: () => _insertMarkdown('[', '](url)'),
+              colorScheme: colorScheme,
+            ),
+            _buildToolButton(
+              icon: Icons.image_rounded,
+              tooltip: 'Image',
+              onPressed: () => _insertMarkdown('![', '](url)'),
+              colorScheme: colorScheme,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required ColorScheme colorScheme,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            constraints: const BoxConstraints(
+              minWidth: kMinTapTarget,
+              minHeight: kMinTapTarget,
+            ),
+            padding: const EdgeInsets.all(10),
+            child: Icon(
+              icon,
+              size: kToolbarIconSize,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolDivider(ColorScheme colorScheme) {
+    return Container(
+      width: 1,
+      height: 20,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: colorScheme.outlineVariant,
+    );
+  }
+
+  void _insertMarkdown(String prefix, String suffix) {
+    final text = _noteController.text;
+    final selection = _noteController.selection;
+    final start = selection.start;
+    final end = selection.end;
+    
+    if (start >= 0 && end >= 0) {
+      final selectedText = text.substring(start, end);
+      final newText = text.replaceRange(start, end, '$prefix$selectedText$suffix');
+      
+      _noteController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(
+          offset: start + prefix.length + selectedText.length,
+        ),
+      );
+      
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  void _insertList(String listType) {
+    final text = _noteController.text;
+    final selection = _noteController.selection;
+    final position = selection.start;
+    
+    String prefix;
+    switch (listType) {
+      case 'bullet':
+        prefix = '• ';
+      case 'numbered':
+        prefix = '1. ';
+      case 'checkbox':
+        prefix = '- [ ] ';
+      default:
+        prefix = '• ';
+    }
+    
+    // Find line start
+    int lineStart = position;
+    while (lineStart > 0 && text[lineStart - 1] != '\n') {
+      lineStart--;
+    }
+    
+    final newText = text.replaceRange(lineStart, lineStart, prefix);
+    
+    _noteController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: position + prefix.length,
+      ),
+    );
+    
+    HapticFeedback.lightImpact();
+  }
+
+  Widget _buildFolderIndicator(ColorScheme colorScheme) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _selectFolder,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: colorScheme.primary.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _selectedFolder != null ? Icons.folder : Icons.folder_outlined,
+                size: 16,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _selectedFolder?.name ?? 'Select folder',
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_drop_down_rounded,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectFolder() async {
+    HapticFeedback.lightImpact();
+    
+    final folder = await showModalBottomSheet<LocalFolder?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FolderPickerSheet(
+        selectedFolderId: _selectedFolder?.id,
+      ),
+    );
+    
+    if (folder != null && mounted) {
+      setState(() {
+        _selectedFolder = folder;
+        _hasChanges = true;
+      });
+    }
+  }
+
+  Future<void> _saveNote() async {
+    if (_isLoading) return;
+
+    final raw = _noteController.text;
+    final parts = _splitTitleBody(raw);
+
+    final cleanTitle = _stripMarkdownHeading(parts.title).trim();
+    final cleanBody  = parts.body;
+
+    final isCompletelyEmpty = cleanTitle.isEmpty && cleanBody.trim().isEmpty;
+    if (isCompletelyEmpty) {
+      _showInfoSnack('Add some content first');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    HapticFeedback.mediumImpact();
+
+    try {
+      final repo = ref.read(notesRepositoryProvider);
+
+      final savedId = await repo.createOrUpdate(
+        id: widget.noteId,
+        title: cleanTitle.isEmpty ? 'Untitled Note' : cleanTitle,
+        body:  cleanBody,
+      );
+
+      // handle folder assignment
+      final noteIdToUse = savedId ?? widget.noteId;
+      if (noteIdToUse != null) {
+        if (_selectedFolder != null) {
+          await ref.read(noteFolderProvider.notifier)
+                   .addNoteToFolder(noteIdToUse, _selectedFolder!.id);
+        } else if (widget.noteId == null) {
+          // ensure brand-new notes are not left with stale mapping
+          await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(noteIdToUse);
+        }
+      }
+
+      // refresh list & try sync; failures here must not block navigation
+      await ref.read(notesPageProvider.notifier).refresh();
+      try {
+        await ref.read(syncModeProvider.notifier).manualSync();
+      } catch (_) {
+        // sync failures are non-critical
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _hasChanges = false;
+        _initialText = _noteController.text;
+      });
+      Navigator.of(context).pop(); // go back to list
+    } catch (e) {
+      _showErrorSnack('Save failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showInfoSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Theme.of(context).colorScheme.onTertiaryContainer),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showErrorSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: Theme.of(context).colorScheme.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.errorContainer,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  Future<bool> _showDiscardDialog() async {
+    HapticFeedback.lightImpact();
+    
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text('You have unsaved changes. Are you sure you want to leave?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Discard',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+}

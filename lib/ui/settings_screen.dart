@@ -1,18 +1,17 @@
+import 'package:duru_notes/core/settings/locale_notifier.dart';
+import 'package:duru_notes/core/settings/sync_mode.dart';
+import 'package:duru_notes/core/ui/responsive.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/export_service.dart';
+import 'package:duru_notes/ui/components/ios_style_toggle.dart';
+import 'package:duru_notes/ui/help_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import '../core/settings/locale_notifier.dart';
-import '../core/settings/sync_mode.dart';
-import '../l10n/app_localizations.dart';
-import '../providers.dart';
-import 'components/ios_style_toggle.dart';
-import 'help_screen.dart';
-import '../services/export_service.dart';
-import '../core/ui/responsive.dart';
 
 /// Comprehensive settings screen for Duru Notes
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -52,7 +51,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SnackBar(content: Text('Exported as Markdown')),
             );
           }
-          break;
         case ExportFormat.pdf:
           final res = await svc.exportToPdf(note);
           if (res.success && res.file != null && mounted) {
@@ -61,7 +59,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SnackBar(content: Text('Exported as PDF')),
             );
           }
-          break;
         case ExportFormat.html:
           final res = await svc.exportToHtml(note);
           if (res.success && res.file != null && mounted) {
@@ -70,7 +67,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SnackBar(content: Text('Exported as HTML')),
             );
           }
-          break;
         case ExportFormat.docx:
         case ExportFormat.txt:
           if (mounted) {
@@ -78,7 +74,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               SnackBar(content: Text('Export format ${format.displayName} not supported yet')),
             );
           }
-          break;
       }
     } catch (e, st) {
       logger.error('Settings export failed', error: e, stackTrace: st);
@@ -288,7 +283,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: colorScheme.outline.withOpacity(0.2),
-          width: 1,
         ),
       ),
       color: colorScheme.surfaceContainerLow,
@@ -373,22 +367,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   title: Text(l10n.signedInAs, maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(user.email ?? 'Unknown', maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
-                  trailing: const Icon(Icons.verified_user, color: Colors.green),
+                  trailing: Icon(Icons.verified_user, color: Theme.of(context).colorScheme.tertiary),
                   contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                  visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                  visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                   minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
               ],
               ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
+                leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
                 title: Text(
                   l10n.signOut,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
                 onTap: () => _showSignOutDialog(context, l10n),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -414,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: Text(l10n.syncMode, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(syncMode.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -429,7 +423,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<SyncMode>(
                 title: Text(l10n.manualSync, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -442,7 +436,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               if (syncMode == SyncMode.manual) ...[
                 const Divider(height: 1),
@@ -493,7 +487,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(l10n.darkTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -506,7 +500,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(l10n.systemTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -519,7 +513,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
             ],
           ),
@@ -546,7 +540,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showLanguageDialog(context, l10n),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -570,9 +564,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: Text(l10n.notificationPermissions, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: const Text('Manage notification settings', maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _openNotificationSettings(),
+                onTap: _openNotificationSettings,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -594,12 +588,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.security, color: Colors.green),
+                leading: Icon(Icons.security, color: Theme.of(context).colorScheme.tertiary),
                 title: Text(l10n.endToEndEncryption, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(l10n.encryptionEnabled, maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: const Icon(Icons.verified, color: Colors.green),
+                trailing: Icon(Icons.verified, color: Theme.of(context).colorScheme.tertiary),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -612,7 +606,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ref.read(analyticsSettingsProvider.notifier).setAnalyticsEnabled(value);
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -3) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
               ),
             ],
           ),
@@ -637,7 +631,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showImportDialog(context, l10n),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -648,7 +642,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showExportDialog(context, l10n),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -678,7 +672,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -691,7 +685,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       : 'Loading...',
                 ),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -701,7 +695,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/privacy'),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -710,7 +704,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/terms'),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -719,7 +713,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('mailto:support@durunotes.com'),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(horizontal: 0, vertical: -2) : null,
+                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -748,7 +742,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed ?? false && mounted) {
       try {
         final client = Supabase.instance.client;
         final uid = client.auth.currentUser?.id;
@@ -794,14 +788,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       
       if (mounted) {
         final message = success 
-          ? "${l10n.syncComplete} (${ref.read(currentNotesProvider).length} notes)"
+          ? '${l10n.syncComplete} (${ref.read(currentNotesProvider).length} notes)'
           : l10n.syncFailed;
           
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: success ? Colors.green : Colors.red,
-            duration: const Duration(seconds: 4),
+            backgroundColor: success ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
             action: success ? null : SnackBarAction(
               label: 'Debug',
               onPressed: () {
@@ -836,7 +829,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${l10n.syncFailed}: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 5),
           ),
         );

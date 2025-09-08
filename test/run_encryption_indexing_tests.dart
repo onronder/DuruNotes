@@ -44,14 +44,14 @@ void main(List<String> args) async {
   print('\n📊 Test Results Summary');
   print('=' * 60);
   
-  bool allPassed = true;
+  var allPassed = true;
   for (final entry in testResults.entries) {
     final status = entry.value ? '✅ PASSED' : '❌ FAILED';
     print('${entry.key}: $status');
     if (!entry.value) allPassed = false;
   }
   
-  print('\n' + '=' * 60);
+  print('\n${'=' * 60}');
   if (allPassed) {
     print('🎉 All encryption and indexing tests PASSED!');
     print('✅ ImportService properly integrates with NotesRepository and NoteIndexer');

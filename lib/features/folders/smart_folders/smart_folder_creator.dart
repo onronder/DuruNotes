@@ -1,9 +1,8 @@
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-
-import 'smart_folder_types.dart';
 
 class SmartFolderCreator extends ConsumerStatefulWidget {
   const SmartFolderCreator({
@@ -197,7 +196,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
             
             // Folder type
             DropdownButtonFormField<SmartFolderType>(
-              value: _selectedType,
+              initialValue: _selectedType,
               decoration: const InputDecoration(
                 labelText: 'Folder Type',
                 border: OutlineInputBorder(),
@@ -342,7 +341,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                       color: _customColor ?? _selectedType.color,
                     ),
                   ),
-                  onTap: () => _selectIcon(),
+                  onTap: _selectIcon,
                 ),
                 
                 ListTile(
@@ -356,7 +355,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onTap: () => _selectColor(),
+                  onTap: _selectColor,
                 ),
               ],
             ),
@@ -510,9 +509,7 @@ class _TemplateCard extends StatelessWidget {
 
 class _RuleBuilder extends StatelessWidget {
   const _RuleBuilder({
-    super.key,
-    required this.rule,
-    required this.onChanged,
+    required this.rule, required this.onChanged, super.key,
     this.onRemove,
   });
 
@@ -534,7 +531,7 @@ class _RuleBuilder extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<RuleField>(
-                    value: rule.field,
+                    initialValue: rule.field,
                     decoration: const InputDecoration(
                       labelText: 'Field',
                       border: OutlineInputBorder(),
@@ -556,8 +553,6 @@ class _RuleBuilder extends StatelessWidget {
                         onChanged(rule.copyWith(
                           field: field,
                           operator: newOp,
-                          value: null,
-                          secondValue: null,
                         ));
                       }
                     },
@@ -570,7 +565,7 @@ class _RuleBuilder extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<RuleOperator>(
-                    value: rule.operator,
+                    initialValue: rule.operator,
                     decoration: const InputDecoration(
                       labelText: 'Condition',
                       border: OutlineInputBorder(),
@@ -652,7 +647,7 @@ class _RuleBuilder extends StatelessWidget {
   ) {
     if (fieldType == bool) {
       return DropdownButtonFormField<bool>(
-        value: currentValue as bool?,
+        initialValue: currentValue as bool?,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

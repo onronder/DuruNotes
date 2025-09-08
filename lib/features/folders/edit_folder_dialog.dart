@@ -1,16 +1,14 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_picker_sheet.dart';
 
 /// Material 3 dialog for editing folder properties
 class EditFolderDialog extends ConsumerStatefulWidget {
   const EditFolderDialog({
-    super.key,
-    required this.folder,
+    required this.folder, super.key,
   });
 
   final LocalFolder folder;
@@ -183,7 +181,6 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       selectedFolderId: _selectedParent?.id,
       title: AppLocalizations.of(context).selectParentFolder,
       showCreateOption: false,
-      showUnfiledOption: true,
     );
     
     if (mounted) {
@@ -191,7 +188,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       if (selectedFolder?.id == widget.folder.id) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot move folder into itself'),
+            content: const Text('Cannot move folder into itself'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -204,7 +201,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
         if (isDescendant) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Cannot move folder into its own subfolder'),
+              content: const Text('Cannot move folder into its own subfolder'),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -406,7 +403,6 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                         crossAxisCount: 8,
                         mainAxisSpacing: 8,
                         crossAxisSpacing: 8,
-                        childAspectRatio: 1,
                       ),
                       itemCount: _folderIcons.length,
                       itemBuilder: (context, index) {
@@ -420,7 +416,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? _selectedColor.withOpacity(0.2)
-                                  : colorScheme.surfaceVariant,
+                                  : colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                               border: isSelected
                                   ? Border.all(
@@ -464,7 +460,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(

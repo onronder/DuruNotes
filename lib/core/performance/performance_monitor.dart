@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-
-import '../monitoring/app_logger.dart';
-import '../config/environment_config.dart';
+import 'package:duru_notes/core/config/environment_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:flutter/services.dart';
 
 /// Performance monitoring service for tracking app performance metrics
 /// 
@@ -20,10 +18,10 @@ import '../config/environment_config.dart';
 /// Used for validating the 3-second capture principle and monitoring
 /// long-running operations like geofencing and reminder services.
 class PerformanceMonitor {
-  static PerformanceMonitor? _instance;
-  static PerformanceMonitor get instance => _instance ??= PerformanceMonitor._();
   
   PerformanceMonitor._();
+  static PerformanceMonitor? _instance;
+  static PerformanceMonitor get instance => _instance ??= PerformanceMonitor._();
 
   final AppLogger _logger = LoggerFactory.instance;
   final Map<String, Stopwatch> _activeOperations = {};
@@ -399,10 +397,6 @@ class PerformanceMonitor {
 
 /// Performance metric data class
 class PerformanceMetric {
-  final String operationName;
-  final Duration duration;
-  final DateTime timestamp;
-  final Map<String, dynamic> metadata;
 
   const PerformanceMetric({
     required this.operationName,
@@ -410,6 +404,10 @@ class PerformanceMetric {
     required this.timestamp,
     required this.metadata,
   });
+  final String operationName;
+  final Duration duration;
+  final DateTime timestamp;
+  final Map<String, dynamic> metadata;
 
   @override
   String toString() {
@@ -421,9 +419,6 @@ class PerformanceMetric {
 
 /// Memory usage information
 class MemoryUsage {
-  final double usedMemoryMB;
-  final double availableMemoryMB;
-  final double totalMemoryMB;
 
   const MemoryUsage({
     required this.usedMemoryMB,
@@ -431,14 +426,17 @@ class MemoryUsage {
     required this.totalMemoryMB,
   });
 
-  double get usagePercentage => 
-      totalMemoryMB > 0 ? (usedMemoryMB / totalMemoryMB) * 100 : 0;
-
   factory MemoryUsage.unknown() => const MemoryUsage(
         usedMemoryMB: 0,
         availableMemoryMB: 0,
         totalMemoryMB: 0,
       );
+  final double usedMemoryMB;
+  final double availableMemoryMB;
+  final double totalMemoryMB;
+
+  double get usagePercentage => 
+      totalMemoryMB > 0 ? (usedMemoryMB / totalMemoryMB) * 100 : 0;
 
   @override
   String toString() {
@@ -451,12 +449,6 @@ class MemoryUsage {
 
 /// Device performance information
 class DevicePerformanceInfo {
-  final String platform;
-  final String model;
-  final String version;
-  final int cpuCores;
-  final int ramSizeGB;
-  final PerformanceClass performanceClass;
 
   const DevicePerformanceInfo({
     required this.platform,
@@ -475,6 +467,12 @@ class DevicePerformanceInfo {
         ramSizeGB: 4,
         performanceClass: PerformanceClass.medium,
       );
+  final String platform;
+  final String model;
+  final String version;
+  final int cpuCores;
+  final int ramSizeGB;
+  final PerformanceClass performanceClass;
 
   @override
   String toString() {
@@ -486,12 +484,6 @@ class DevicePerformanceInfo {
 
 /// Performance summary for an operation
 class PerformanceSummary {
-  final String operationName;
-  final int totalOperations;
-  final Duration averageDuration;
-  final Duration minDuration;
-  final Duration maxDuration;
-  final double successRate;
 
   const PerformanceSummary({
     required this.operationName,
@@ -510,6 +502,12 @@ class PerformanceSummary {
         maxDuration: Duration.zero,
         successRate: 0,
       );
+  final String operationName;
+  final int totalOperations;
+  final Duration averageDuration;
+  final Duration minDuration;
+  final Duration maxDuration;
+  final double successRate;
 
   @override
   String toString() {
@@ -524,11 +522,6 @@ class PerformanceSummary {
 
 /// Performance alert
 class PerformanceAlert {
-  final AlertType type;
-  final String message;
-  final AlertSeverity severity;
-  final Map<String, dynamic> data;
-  final DateTime timestamp;
 
   PerformanceAlert({
     required this.type,
@@ -536,6 +529,11 @@ class PerformanceAlert {
     required this.severity,
     required this.data,
   }) : timestamp = DateTime.now();
+  final AlertType type;
+  final String message;
+  final AlertSeverity severity;
+  final Map<String, dynamic> data;
+  final DateTime timestamp;
 
   @override
   String toString() {

@@ -3,6 +3,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Production-grade environment configuration management
 class EnvironmentConfig {
+
+  const EnvironmentConfig._({
+    required this.supabaseUrl,
+    required this.supabaseAnonKey,
+    required this.crashReportingEnabled, required this.analyticsEnabled, required this.analyticsSamplingRate, required this.sentryTracesSampleRate, required this.enableAutoSessionTracking, required this.sendDefaultPii, required this.debugMode, required this.currentEnvironment, this.sentryDsn,
+  });
   static EnvironmentConfig? _instance;
   
   final String supabaseUrl;
@@ -16,20 +22,6 @@ class EnvironmentConfig {
   final bool sendDefaultPii;
   final bool debugMode;
   final Environment currentEnvironment;
-
-  const EnvironmentConfig._({
-    required this.supabaseUrl,
-    required this.supabaseAnonKey,
-    this.sentryDsn,
-    required this.crashReportingEnabled,
-    required this.analyticsEnabled,
-    required this.analyticsSamplingRate,
-    required this.sentryTracesSampleRate,
-    required this.enableAutoSessionTracking,
-    required this.sendDefaultPii,
-    required this.debugMode,
-    required this.currentEnvironment,
-  });
 
   static EnvironmentConfig get current {
     if (_instance == null) {
@@ -47,10 +39,10 @@ class EnvironmentConfig {
       // 2) Fallback to a generic .env if present
       // 3) If none found, continue with sane defaults
       try {
-        const String flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
-        final String flavoredEnvPath = 'assets/env/' + flavor + '.env';
+        const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+        const flavoredEnvPath = 'assets/env/$flavor.env';
 
-        bool loaded = false;
+        var loaded = false;
         try {
           await dotenv.load(fileName: flavoredEnvPath);
           loaded = true;
@@ -100,10 +92,9 @@ class EnvironmentConfig {
           'SUPABASE_ANON_KEY', 
           defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
         ),
-        sentryDsn: null,
         crashReportingEnabled: false,
         analyticsEnabled: false,
-        analyticsSamplingRate: 1.0,
+        analyticsSamplingRate: 1,
         sentryTracesSampleRate: 0.1,
         enableAutoSessionTracking: true,
         sendDefaultPii: false,
@@ -115,7 +106,7 @@ class EnvironmentConfig {
 
   static Environment _detectEnvironment() {
     // Prefer explicit build flavor if provided (via iOS xcconfig DART_DEFINES or CLI --dart-define)
-    const String flavor = String.fromEnvironment('FLAVOR', defaultValue: '');
+    const flavor = String.fromEnvironment('FLAVOR');
     if (flavor.isNotEmpty) {
       switch (flavor.toLowerCase()) {
         case 'production':
@@ -131,7 +122,7 @@ class EnvironmentConfig {
 
     if (kDebugMode) return Environment.development;
 
-    const String env = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
+    const env = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
     switch (env.toLowerCase()) {
       case 'production':
       case 'prod':

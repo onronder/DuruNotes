@@ -1,11 +1,10 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_notifiers.dart';
-import 'create_folder_dialog.dart';
 
 /// Material 3 bottom sheet for folder selection with hierarchical tree view
 class FolderPickerSheet extends ConsumerStatefulWidget {
@@ -267,7 +266,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                             if (widget.showUnfiledOption)
                               _UnfiledOption(
                                 isSelected: widget.selectedFolderId == null,
-                                onTap: () => Navigator.of(context).pop(null),
+                                onTap: () => Navigator.of(context).pop(),
                               ),
                             
                             // Create new folder option
@@ -281,7 +280,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                               const Divider(height: 1),
                             
                             // Folder tree
-                            ...filteredNodes.map((node) => _buildFolderTreeItem(node)),
+                            ...filteredNodes.map(_buildFolderTreeItem),
                             
                             // Empty state
                             if (filteredNodes.isEmpty && _searchQuery.isNotEmpty)
@@ -354,7 +353,7 @@ class _UnfiledOption extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

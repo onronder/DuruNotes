@@ -1,31 +1,29 @@
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/crypto/key_manager.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/parser/note_indexer.dart';
+import 'package:duru_notes/core/settings/analytics_notifier.dart';
+import 'package:duru_notes/core/settings/locale_notifier.dart';
+import 'package:duru_notes/core/settings/sync_mode.dart';
+import 'package:duru_notes/core/settings/sync_mode_notifier.dart';
+import 'package:duru_notes/core/settings/theme_mode_notifier.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/features/notes/pagination_notifier.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/repository/sync_service.dart';
+import 'package:duru_notes/services/account_key_service.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/services/export_service.dart';
+import 'package:duru_notes/services/import_service.dart';
+import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/crypto/crypto_box.dart';
-import 'core/crypto/key_manager.dart';
-import 'core/monitoring/app_logger.dart';
-import 'core/parser/note_indexer.dart';
-import 'core/settings/analytics_notifier.dart';
-import 'core/settings/locale_notifier.dart';
-import 'core/settings/sync_mode.dart';
-import 'core/settings/sync_mode_notifier.dart';
-import 'core/settings/theme_mode_notifier.dart';
-import 'data/local/app_db.dart';
-import 'repository/notes_repository.dart';
-import 'repository/sync_service.dart';
-import 'features/notes/pagination_notifier.dart';
-import 'features/folders/folder_notifiers.dart';
-import 'services/analytics/analytics_service.dart';
-import 'services/attachment_service.dart';
-import 'services/export_service.dart';
-import 'services/import_service.dart';
-import 'services/share_extension_service.dart';
-import 'services/subscription_service.dart';
-import 'services/account_key_service.dart';
-
 // Export important types for easier importing
-export 'data/local/app_db.dart' show LocalNote, AppDb;
+export 'data/local/app_db.dart' show AppDb, LocalNote;
 export 'features/notes/pagination_notifier.dart' show NotesPage;
 
 /// Auth state stream to trigger provider rebuilds on login/logout
@@ -110,7 +108,7 @@ final filteredNotesProvider = FutureProvider<List<LocalNote>>((ref) async {
   
   if (currentFolder != null) {
     // Show notes in the selected folder
-    return await repo.getNotesInFolder(currentFolder.id);
+    return repo.getNotesInFolder(currentFolder.id);
   } else {
     // Show all notes
     return ref.watch(currentNotesProvider);
@@ -137,14 +135,14 @@ final analyticsProvider = Provider<AnalyticsService>((ref) {
 });
 
 /// Database provider alias for compatibility
-final dbProvider = appDbProvider;
+final Provider<AppDb> dbProvider = appDbProvider;
 
 /// Export service provider
 final exportServiceProvider = Provider<ExportService>((ref) {
   return ExportService(
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
-    attachmentService: ref.watch(attachmentServiceProvider),
+    // attachmentService: ref.watch(attachmentServiceProvider),  // Reserved for attachment export
   );
 });
 

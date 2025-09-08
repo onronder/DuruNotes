@@ -1,7 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/parser/note_block_parser.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
@@ -10,13 +13,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../core/parser/note_block_parser.dart';
-import '../data/local/app_db.dart';
-import '../models/note_block.dart';
-import '../services/analytics/analytics_service.dart';
-import '../services/attachment_service.dart';
 
 /// Export formats supported by the service
 enum ExportFormat {
@@ -35,17 +31,6 @@ enum ExportFormat {
 
 /// Export options for customizing output
 class ExportOptions {
-  final bool includeMetadata;
-  final bool includeTimestamps;
-  final bool includeAttachments;
-  final bool includeTags;
-  final bool includeBacklinks;
-  final String? customTitle;
-  final String? authorName;
-  final PdfPageFormat? pageSize;
-  final bool embedImages;
-  final int? maxImageWidth;
-  final String? watermarkText;
 
   const ExportOptions({
     this.includeMetadata = true,
@@ -60,6 +45,17 @@ class ExportOptions {
     this.maxImageWidth = 400,
     this.watermarkText,
   });
+  final bool includeMetadata;
+  final bool includeTimestamps;
+  final bool includeAttachments;
+  final bool includeTags;
+  final bool includeBacklinks;
+  final String? customTitle;
+  final String? authorName;
+  final PdfPageFormat? pageSize;
+  final bool embedImages;
+  final int? maxImageWidth;
+  final String? watermarkText;
 }
 
 /// Progress callback for export operations
@@ -67,12 +63,6 @@ typedef ExportProgressCallback = void Function(ExportProgress progress);
 
 /// Export progress information
 class ExportProgress {
-  final ExportPhase phase;
-  final int current;
-  final int total;
-  final double percentage;
-  final String? currentOperation;
-  final String? estimatedTimeRemaining;
 
   const ExportProgress({
     required this.phase,
@@ -81,6 +71,12 @@ class ExportProgress {
     this.currentOperation,
     this.estimatedTimeRemaining,
   }) : percentage = total > 0 ? (current / total) * 100 : 0;
+  final ExportPhase phase;
+  final int current;
+  final int total;
+  final double percentage;
+  final String? currentOperation;
+  final String? estimatedTimeRemaining;
 }
 
 /// Export phases
@@ -100,23 +96,13 @@ enum ExportPhase {
 
 /// Export result with comprehensive information
 class ExportResult {
-  final bool success;
-  final File? file;
-  final String? error;
-  final String? errorCode;
-  final Duration processingTime;
-  final int fileSize;
-  final ExportFormat format;
-  final Map<String, dynamic> metadata;
 
   const ExportResult({
     required this.success,
-    this.file,
+    required this.processingTime, required this.format, this.file,
     this.error,
     this.errorCode,
-    required this.processingTime,
     this.fileSize = 0,
-    required this.format,
     this.metadata = const {},
   });
 
@@ -138,9 +124,7 @@ class ExportResult {
 
   factory ExportResult.failure({
     required String error,
-    String? errorCode,
-    required Duration processingTime,
-    required ExportFormat format,
+    required Duration processingTime, required ExportFormat format, String? errorCode,
   }) {
     return ExportResult(
       success: false,
@@ -150,29 +134,37 @@ class ExportResult {
       format: format,
     );
   }
+  final bool success;
+  final File? file;
+  final String? error;
+  final String? errorCode;
+  final Duration processingTime;
+  final int fileSize;
+  final ExportFormat format;
+  final Map<String, dynamic> metadata;
 }
 
 /// World-class export service with comprehensive format support
 class ExportService {
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
-  final AttachmentService _attachmentService;
-
-  // Configuration constants
-  static const int _maxFileSize = 500 * 1024 * 1024; // 500MB limit
-  static const Duration _operationTimeout = Duration(minutes: 15);
-  static const int _maxImageSize = 10 * 1024 * 1024; // 10MB per image
-  static const double _defaultFontSize = 12;
-  static const double _titleFontSize = 24;
-  static const double _headingFontSize = 18;
 
   ExportService({
     AppLogger? logger,
     AnalyticsService? analytics,
-    AttachmentService? attachmentService,
+    // AttachmentService? attachmentService,  // Reserved for future attachment export
   })  : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance,
-        _attachmentService = attachmentService ?? AttachmentService();
+        _analytics = analytics ?? AnalyticsFactory.instance;
+  final AppLogger _logger;
+  final AnalyticsService _analytics;
+  // final AttachmentService _attachmentService;  // Reserved for future attachment export
+
+  // Configuration constants (reserved for future implementation)
+  // static const int _maxFileSize = 500 * 1024 * 1024; // 500MB limit
+  // static const Duration _operationTimeout = Duration(minutes: 15);
+  // static const int _maxImageSize = 10 * 1024 * 1024; // 10MB per image
+  static const double _defaultFontSize = 12;
+  static const double _titleFontSize = 24;
+  static const double _headingFontSize = 18;
+        // _attachmentService = attachmentService ?? AttachmentService();
 
   /// Export a note to Markdown format
   Future<ExportResult> exportToMarkdown(
@@ -272,7 +264,7 @@ class ExportService {
       });
 
       return ExportResult.failure(
-        error: 'Failed to export to Markdown: ${e.toString()}',
+        error: 'Failed to export to Markdown: $e',
         errorCode: 'MARKDOWN_EXPORT_FAILED',
         processingTime: stopwatch.elapsed,
         format: ExportFormat.markdown,
@@ -362,7 +354,7 @@ class ExportService {
           margin: const pw.EdgeInsets.all(40),
           build: (context) => pdfWidgets,
           header: options.includeMetadata ? (context) => _buildPdfHeader(note, options) : null,
-          footer: options.includeMetadata ? (context) => _buildPdfFooter(context) : null,
+          footer: options.includeMetadata ? _buildPdfFooter : null,
         ),
       );
 
@@ -423,7 +415,7 @@ class ExportService {
       });
 
       return ExportResult.failure(
-        error: 'Failed to export to PDF: ${e.toString()}',
+        error: 'Failed to export to PDF: $e',
         errorCode: 'PDF_EXPORT_FAILED',
         processingTime: stopwatch.elapsed,
         format: ExportFormat.pdf,
@@ -492,7 +484,7 @@ class ExportService {
       });
 
       return ExportResult.failure(
-        error: 'Failed to export to HTML: ${e.toString()}',
+        error: 'Failed to export to HTML: $e',
         errorCode: 'HTML_EXPORT_FAILED',
         processingTime: stopwatch.elapsed,
         format: ExportFormat.html,
@@ -543,22 +535,18 @@ class ExportService {
     final blocks = parseMarkdownToBlocks(note.body);
     
     // Base time calculations
-    int baseSeconds = 1;
+    var baseSeconds = 1;
     
     switch (format) {
       case ExportFormat.markdown:
       case ExportFormat.txt:
         baseSeconds = 1;
-        break;
       case ExportFormat.html:
         baseSeconds = 2;
-        break;
       case ExportFormat.pdf:
         baseSeconds = 5;
-        break;
       case ExportFormat.docx:
         baseSeconds = 8;
-        break;
     }
     
     // Add time based on content size
@@ -649,7 +637,7 @@ class ExportService {
     }
     
     // Process blocks
-    for (int i = 0; i < blocks.length; i++) {
+    for (var i = 0; i < blocks.length; i++) {
       final block = blocks[i];
       onProgress?.call(i / blocks.length);
       
@@ -821,7 +809,7 @@ class ExportService {
                   ? pw.Center(
                       child: pw.Text(
                         '✓',
-                        style: pw.TextStyle(fontSize: 8, color: PdfColors.white),
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.white),
                       ),
                     )
                   : null,
@@ -980,14 +968,14 @@ class ExportService {
     final tempDir = await getTemporaryDirectory();
     final file = File(path.join(tempDir.path, filename));
     
-    await file.writeAsString(content, encoding: utf8);
+    await file.writeAsString(content);
     
     // Also save to app documents for file sharing (iOS)
     try {
       final documentsDir = await getApplicationDocumentsDirectory();
       final documentsFile = File(path.join(documentsDir.path, 'exports', filename));
       await documentsFile.parent.create(recursive: true);
-      await documentsFile.writeAsString(content, encoding: utf8);
+      await documentsFile.writeAsString(content);
     } catch (e) {
       _logger.error('Failed to save to documents directory', error: e);
     }

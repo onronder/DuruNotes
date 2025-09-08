@@ -3,15 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Result of account lockout check
 class AccountLockoutStatus {
-  final bool isLocked;
-  final Duration? remainingLockoutTime;
-  final int attemptsRemaining;
 
   const AccountLockoutStatus({
     required this.isLocked,
-    this.remainingLockoutTime,
-    required this.attemptsRemaining,
+    required this.attemptsRemaining, this.remainingLockoutTime,
   });
+  final bool isLocked;
+  final Duration? remainingLockoutTime;
+  final int attemptsRemaining;
 }
 
 /// Service for tracking and limiting login attempts to prevent brute force attacks

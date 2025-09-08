@@ -3,12 +3,11 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../data/local/app_db.dart';
-import '../repository/notes_repository.dart';
 
 /// AccountKeyService manages the Account Master Key (AMK) lifecycle:
 /// - generate a random AMK (32 bytes)
@@ -264,11 +263,11 @@ class AccountKeyService {
     if (uid == null) throw StateError('Not authenticated');
 
     // Try to obtain current AMK
-    Uint8List? amk = await getLocalAmk();
+    var amk = await getLocalAmk();
 
     // If not present locally, attempt to fetch+unwrap with old passphrase
     if (amk == null) {
-      dynamic res = await _client
+      final dynamic res = await _client
           .from('user_keys')
           .select('wrapped_key, kdf_params')
           .eq('user_id', uid)
@@ -286,7 +285,9 @@ class AccountKeyService {
           ? wrapped
           : wrapped is List<int>
               ? Uint8List.fromList(wrapped)
-              : Uint8List.fromList(wrapped.cast<int>());
+              : wrapped is List<dynamic>
+                  ? Uint8List.fromList(wrapped.cast<int>())
+                  : _bytesFromDb(wrapped);
       amk = await _unwrapAmk(wrappedBytes, wrappingOld);
     }
 
@@ -320,7 +321,7 @@ class AccountKeyService {
   /// Scan local notes/folders encrypted with legacy device key and enqueue rewrap by scheduling upserts
   /// Returns number of entities queued for rewrap
   Future<int> migrateLegacyContentAndEnqueue({required AppDb db, required NotesRepository repo}) async {
-    int queued = 0;
+    var queued = 0;
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return 0;
 

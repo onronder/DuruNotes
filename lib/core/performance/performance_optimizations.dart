@@ -2,10 +2,10 @@
 /// 
 /// This file contains various performance optimization techniques
 /// to ensure smooth and efficient app operation.
+library;
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,10 +13,10 @@ import 'package:flutter/scheduler.dart';
 
 /// Debouncer for search and other frequent operations
 class Debouncer {
-  final int milliseconds;
-  Timer? _timer;
 
   Debouncer({required this.milliseconds});
+  final int milliseconds;
+  Timer? _timer;
 
   void run(VoidCallback action) {
     _timer?.cancel();
@@ -30,11 +30,11 @@ class Debouncer {
 
 /// Throttler for scroll and gesture events
 class Throttler {
+
+  Throttler({required this.milliseconds});
   final int milliseconds;
   Timer? _timer;
   bool _canRun = true;
-
-  Throttler({required this.milliseconds});
 
   void run(VoidCallback action) {
     if (!_canRun) return;
@@ -55,11 +55,11 @@ class Throttler {
 
 /// Memory cache with size limit and LRU eviction
 class LRUCache<K, V> {
+
+  LRUCache({required this.maxSize});
   final int maxSize;
   final Map<K, V> _cache = {};
   final List<K> _keys = [];
-
-  LRUCache({required this.maxSize});
 
   V? get(K key) {
     final value = _cache[key];
@@ -91,9 +91,9 @@ class LRUCache<K, V> {
 
 /// Image cache manager for attachments
 class ImageCacheManager {
-  static final ImageCacheManager _instance = ImageCacheManager._internal();
   factory ImageCacheManager() => _instance;
   ImageCacheManager._internal();
+  static final ImageCacheManager _instance = ImageCacheManager._internal();
 
   final LRUCache<String, Uint8List> _memoryCache = LRUCache(maxSize: 50);
 
@@ -115,16 +115,15 @@ class ImageCacheManager {
 
 /// Lazy loading widget for heavy content
 class LazyLoadWidget extends StatefulWidget {
-  final Widget Function() builder;
-  final Widget placeholder;
-  final Duration delay;
 
   const LazyLoadWidget({
-    super.key,
-    required this.builder,
+    required this.builder, super.key,
     this.placeholder = const CircularProgressIndicator(),
     this.delay = const Duration(milliseconds: 100),
   });
+  final Widget Function() builder;
+  final Widget placeholder;
+  final Duration delay;
 
   @override
   State<LazyLoadWidget> createState() => _LazyLoadWidgetState();
@@ -155,18 +154,16 @@ class _LazyLoadWidgetState extends State<LazyLoadWidget> {
 
 /// Optimized list view with viewport caching
 class OptimizedListView extends StatelessWidget {
+
+  const OptimizedListView({
+    required this.itemCount, required this.itemBuilder, super.key,
+    this.controller,
+    this.padding,
+  });
   final int itemCount;
   final Widget Function(BuildContext, int) itemBuilder;
   final ScrollController? controller;
   final EdgeInsets? padding;
-
-  const OptimizedListView({
-    super.key,
-    required this.itemCount,
-    required this.itemBuilder,
-    this.controller,
-    this.padding,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -177,8 +174,7 @@ class OptimizedListView extends StatelessWidget {
       itemBuilder: itemBuilder,
       // Performance optimizations
       addAutomaticKeepAlives: false,
-      addRepaintBoundaries: true,
-      cacheExtent: 200.0, // Cache 200 pixels outside viewport
+      cacheExtent: 200, // Cache 200 pixels outside viewport
       physics: const BouncingScrollPhysics(),
     );
   }
@@ -186,19 +182,18 @@ class OptimizedListView extends StatelessWidget {
 
 /// Frame rate monitor for development
 class FrameRateMonitor extends StatefulWidget {
-  final Widget child;
 
   const FrameRateMonitor({
-    super.key,
-    required this.child,
+    required this.child, super.key,
   });
+  final Widget child;
 
   @override
   State<FrameRateMonitor> createState() => _FrameRateMonitorState();
 }
 
 class _FrameRateMonitorState extends State<FrameRateMonitor> {
-  double _fps = 60.0;
+  double _fps = 60;
   int _frameCount = 0;
   DateTime _lastTime = DateTime.now();
 
@@ -262,18 +257,18 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
 
 /// Batch operation executor for database operations
 class BatchOperationExecutor<T> {
-  final Future<void> Function(List<T>) executor;
-  final Duration batchDelay;
-  final int maxBatchSize;
-  
-  final List<T> _queue = [];
-  Timer? _timer;
 
   BatchOperationExecutor({
     required this.executor,
     this.batchDelay = const Duration(milliseconds: 500),
     this.maxBatchSize = 50,
   });
+  final Future<void> Function(List<T>) executor;
+  final Duration batchDelay;
+  final int maxBatchSize;
+  
+  final List<T> _queue = [];
+  Timer? _timer;
 
   void add(T item) {
     _queue.add(item);

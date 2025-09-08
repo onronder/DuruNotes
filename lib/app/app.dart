@@ -1,33 +1,29 @@
+import 'package:duru_notes/core/settings/sync_mode.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/theme/material3_theme.dart';
+import 'package:duru_notes/ui/auth_screen.dart';
+import 'package:duru_notes/ui/notes_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/settings/locale_notifier.dart';
-import '../core/settings/sync_mode.dart';
-import '../l10n/app_localizations.dart';
-import '../providers.dart';
-import '../theme/material3_theme.dart';
-import '../ui/auth_screen.dart';
-import '../ui/notes_list_screen.dart';
-import '../services/account_key_service.dart';
-import 'package:flutter/material.dart';
-
 /// Main application widget with authentication flow
 class App extends ConsumerWidget {
-  final GlobalKey<NavigatorState>? navigatorKey;
 
   const App({
     super.key,
     this.navigatorKey,
   });
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch settings providers
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
-    final generatedSupportedLocales = AppLocalizations.supportedLocales;
+    const generatedSupportedLocales = AppLocalizations.supportedLocales;
     // If a saved locale isn't generated, fall back to system
     final effectiveLocale = (locale != null &&
             generatedSupportedLocales.any((l) => l.languageCode == locale.languageCode))
@@ -55,7 +51,7 @@ class App extends ConsumerWidget {
 }
 
 class UnlockPassphraseView extends ConsumerStatefulWidget {
-  const UnlockPassphraseView({super.key, required this.onUnlocked});
+  const UnlockPassphraseView({required this.onUnlocked, super.key});
   final VoidCallback onUnlocked;
 
   @override
@@ -95,7 +91,7 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -115,7 +111,7 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -194,7 +190,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   }
 
   /// Perform sync when app resumes and refresh UI if needed
-  void _performAppResumeSync() async {
+  Future<void> _performAppResumeSync() async {
     // Guard: skip if not authenticated yet
     if (Supabase.instance.client.auth.currentUser == null) return;
 
@@ -320,7 +316,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
     const maxRetries = 3;
     const retryDelay = Duration(milliseconds: 500);
     
-    for (int i = 0; i < maxRetries; i++) {
+    for (var i = 0; i < maxRetries; i++) {
       final amk = await ref.read(accountKeyServiceProvider).getLocalAmk();
       if (amk != null) {
         return true;
@@ -328,7 +324,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       
       // Don't delay on the last attempt
       if (i < maxRetries - 1) {
-        await Future.delayed(retryDelay);
+        await Future<void>.delayed(retryDelay);
       }
     }
     

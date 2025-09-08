@@ -1,28 +1,25 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:duru_notes/core/performance/performance_optimizations.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
+import 'package:duru_notes/features/folders/folder_picker_component.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/theme/material3_theme.dart';
+import 'package:duru_notes/services/export_service.dart';
+import 'package:duru_notes/services/import_service.dart';
+import 'package:duru_notes/ui/help_screen.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
+import 'package:duru_notes/ui/settings_screen.dart';
+import 'package:duru_notes/ui/widgets/folder_chip.dart';
+import 'package:duru_notes/ui/widgets/stats_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'widgets/stats_card.dart';
-import 'widgets/folder_chip.dart';
-
-import '../core/monitoring/app_logger.dart';
-import '../core/performance/performance_optimizations.dart';
-import '../data/local/app_db.dart';
-import '../l10n/app_localizations.dart';
-import '../providers.dart';
-import '../services/export_service.dart';
-import '../services/import_service.dart';
-import '../features/folders/folder_picker_component.dart';
-import '../features/folders/folder_hierarchy_widget.dart';
-import '../features/folders/drag_drop/note_drag_drop.dart';
-import 'edit_note_screen_simple.dart';
-import 'help_screen.dart';
-import 'note_search_delegate.dart';
-import 'settings_screen.dart';
 
 /// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -41,9 +38,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   late AnimationController _listAnimationController;
   late AnimationController _headerAnimationController;
   late Animation<double> _fabAnimation;
-  late Animation<double> _headerSlideAnimation;
+  // late Animation<double> _headerSlideAnimation;  // Reserved for header slide animation
   late Animation<double> _headerFadeAnimation;
-  Animation<double> _headerHeightAnimation = const AlwaysStoppedAnimation<double>(1.0);
+  Animation<double> _headerHeightAnimation = const AlwaysStoppedAnimation<double>(1);
   
   bool _isFabExpanded = false;
   String _sortBy = 'date'; // date, title, modified
@@ -78,13 +75,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       parent: _fabAnimationController,
       curve: Curves.easeInOut,
     );
-    _headerSlideAnimation = Tween<double>(
-      begin: 0,
-      end: -1,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    // _headerSlideAnimation = Tween<double>(
+    //   begin: 0,
+    //   end: -1,
+    // ).animate(CurvedAnimation(
+    //   parent: _headerAnimationController,
+    //   curve: Curves.easeInOut,
+    // ));
     _headerFadeAnimation = Tween<double>(
       begin: 1,
       end: 0,
@@ -175,8 +172,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
           );
         },
-        child: const Icon(Icons.add),
         tooltip: 'Create New Note',
+        child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
@@ -264,11 +261,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     ),
                     onSelected: _handleMenuSelection,
                     itemBuilder: (context) => [
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'sort',
                         child: ListTile(
-                          leading: const Icon(Icons.sort_rounded),
-                          title: const Text('Sort'),
+                          leading: Icon(Icons.sort_rounded),
+                          title: Text('Sort'),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -447,12 +444,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(Icons.expand_more, size: 18),
                             SizedBox(width: 6),
                             Text('Show header'),
@@ -672,6 +669,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildModernNoteCard(BuildContext context, LocalNote note, {bool isGrid = false}) {
     final isSelected = _selectedNoteIds.contains(note.id);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     // Get folder information
     final noteFolderState = ref.watch(noteFolderProvider);
@@ -709,7 +708,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         );
       },
       child: Card(
-        elevation: isSelected ? 4 : 1,
+        elevation: isSelected ? 6 : 2,
+        shadowColor: colorScheme.shadow.withOpacity(0.15),
+        color: isSelected 
+            ? theme.customColors.selectedNoteBackground
+            : theme.customColors.noteCardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isSelected 
+              ? BorderSide(color: colorScheme.primary.withOpacity(0.3), width: 1.5)
+              : BorderSide.none,
+        ),
         child: InkWell(
           onTap: () {
             if (_isSelectionMode) {
@@ -724,7 +733,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             }
           },
           onSecondaryTap: () => _showNoteOptions(note),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -732,13 +741,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               children: [
                 Row(
                   children: [
-                    Icon(_getNoteIcon(note), size: 20, color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      _getNoteIcon(note), 
+                      size: 20, 
+                      color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.8),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         note.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: isSelected ? colorScheme.onPrimaryContainer : null,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -750,19 +764,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         switch (value) {
                           case 'edit':
                             _editNote(note);
-                            break;
                           case 'move':
                             _showAddToFolderForSingleNote(note);
-                            break;
                           case 'duplicate':
                             _duplicateNote(note);
-                            break;
                           case 'delete':
                             _deleteNote(note);
-                            break;
                           case 'share':
                             _shareNote(note);
-                            break;
                         }
                       },
                       itemBuilder: (context) => [
@@ -778,13 +787,26 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       ],
                     ),
                     if (isSelected)
-                      const Icon(Icons.check_circle, color: Colors.blue, size: 20),
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check, 
+                          color: colorScheme.onPrimary, 
+                          size: 16,
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _generatePreview(note.body),
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isSelected ? colorScheme.onPrimaryContainer.withOpacity(0.8) : null,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -793,22 +815,29 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   children: [
                     if (folderName != null) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: folderColor?.withOpacity(0.2) ?? Theme.of(context).colorScheme.primaryContainer,
+                          color: folderColor?.withOpacity(0.2) ?? colorScheme.primaryContainer.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: folderColor?.withOpacity(0.3) ?? colorScheme.primary.withOpacity(0.2),
+                            width: 0.5,
+                          ),
                         ),
                         child: Text(
                           folderName ?? '',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: folderColor ?? colorScheme.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                     ],
                     Text(
                       _formatDate(note.updatedAt),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isSelected ? colorScheme.onPrimaryContainer.withOpacity(0.7) : colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -826,10 +855,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     
     // Remove markdown formatting for preview
     final preview = body
-        .replaceAll(RegExp(r'#+ '), '') // Remove headers
+        .replaceAll(RegExp('#+ '), '') // Remove headers
         .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1') // Remove bold
         .replaceAll(RegExp(r'\*(.*?)\*'), r'$1') // Remove italic
-        .replaceAll(RegExp(r'`(.*?)`'), r'$1') // Remove code
+        .replaceAll(RegExp('`(.*?)`'), r'$1') // Remove code
         .replaceAll(RegExp(r'\n+'), ' ') // Replace newlines with spaces
         .trim();
     
@@ -910,9 +939,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Note deleted'),
-                      backgroundColor: Colors.red,
+                    SnackBar(
+                      content: const Text('Note deleted'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
                     ),
                   );
                 }
@@ -921,13 +950,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error deleting note: $e'),
-                      backgroundColor: Colors.red,
+                      backgroundColor: Theme.of(context).colorScheme.error,
                     ),
                   );
                 }
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -978,7 +1007,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.description, color: Colors.blue),
+              leading: Icon(Icons.description, color: Theme.of(context).colorScheme.primary),
               title: const Text('Markdown Files'),
               subtitle: const Text('Import single .md or .markdown files'),
               onTap: () {
@@ -988,7 +1017,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.file_copy, color: Colors.green),
+              leading: Icon(Icons.file_copy, color: Theme.of(context).colorScheme.tertiary),
               title: const Text('Evernote Export'),
               subtitle: const Text('Import .enex files from Evernote'),
               onTap: () {
@@ -998,7 +1027,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.folder, color: Colors.purple),
+              leading: Icon(Icons.folder, color: Theme.of(context).colorScheme.secondary),
               title: const Text('Obsidian Vault'),
               subtitle: const Text('Import entire Obsidian vault folder'),
               onTap: () {
@@ -1192,7 +1221,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           children: [
             Icon(
               totalErrors == 0 ? Icons.check_circle : Icons.warning,
-              color: totalErrors == 0 ? Colors.green : Colors.orange,
+              color: totalErrors == 0 ? Theme.of(context).colorScheme.tertiary : Theme.of(context).customColors.onWarningContainer,
             ),
             const SizedBox(width: 8),
             const Text('Import Complete'),
@@ -1254,7 +1283,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.error, color: Colors.red),
+            Icon(Icons.error, color: Theme.of(context).colorScheme.error),
             const SizedBox(width: 8),
             Text(isExportError ? 'Export Error' : 'Import Error'),
           ],
@@ -1314,9 +1343,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     
     if (currentNotes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No notes to export'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('No notes to export'),
+          backgroundColor: Theme.of(context).customColors.warningContainer,
         ),
       );
       return;
@@ -1330,7 +1359,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Export your notes to various formats:'),
+            const Text('Export your notes to various formats:'),
             const SizedBox(height: 16),
             Text('Available notes: ${currentNotes.length}'),
             const SizedBox(height: 8),
@@ -1367,7 +1396,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.description, color: Colors.blue),
+              leading: Icon(Icons.description, color: Theme.of(context).colorScheme.primary),
               title: const Text('Markdown'),
               subtitle: const Text('Export as .md files with full formatting'),
               onTap: () {
@@ -1377,7 +1406,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              leading: Icon(Icons.picture_as_pdf, color: Theme.of(context).colorScheme.error),
               title: const Text('PDF'),
               subtitle: const Text('Export as PDF documents for sharing'),
               onTap: () {
@@ -1387,7 +1416,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.web, color: Colors.green),
+              leading: Icon(Icons.web, color: Theme.of(context).colorScheme.tertiary),
               title: const Text('HTML'),
               subtitle: const Text('Export as web pages with styling'),
               onTap: () {
@@ -1418,7 +1447,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.note, color: Colors.blue),
+              leading: Icon(Icons.note, color: Theme.of(context).colorScheme.primary),
               title: const Text('Export All Notes'),
               subtitle: Text('Export all ${currentNotes.length} notes'),
               onTap: () {
@@ -1428,7 +1457,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.star, color: Colors.amber),
+              leading: Icon(Icons.star, color: Theme.of(context).customColors.onWarningContainer),
               title: const Text('Export Recent Notes'),
               subtitle: const Text('Export notes from the last 30 days'),
               onTap: () {
@@ -1440,7 +1469,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             if (currentNotes.length > 10) ...[
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.filter_list, color: Colors.purple),
+                leading: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.secondary),
                 title: const Text('Export Latest 10'),
                 subtitle: const Text('Export the 10 most recent notes'),
                 onTap: () {
@@ -1482,7 +1511,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     
     // Show progress dialog with cancel functionality
     final progressKey = GlobalKey<_ExportProgressDialogState>();
-    bool isCancelled = false;
+    var isCancelled = false;
     
     showDialog<void>(
       context: context,
@@ -1495,9 +1524,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           isCancelled = true;
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Export cancelled'),
-              backgroundColor: Colors.orange,
+            SnackBar(
+              content: const Text('Export cancelled'),
+              backgroundColor: Theme.of(context).customColors.warningContainer,
             ),
           );
         },
@@ -1506,13 +1535,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     try {
       final results = <ExportResult>[];
-      final exportOptions = const ExportOptions(
-        includeMetadata: true,
-        includeTimestamps: true,
-        includeAttachments: true,
+      const exportOptions = ExportOptions(
+        
       );
 
-      for (int i = 0; i < notes.length; i++) {
+      for (var i = 0; i < notes.length; i++) {
         // Check if export was cancelled
         if (isCancelled) {
           final logger = ref.read(loggerProvider);
@@ -1534,13 +1561,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             case ExportFormat.markdown:
               result = await exportService.exportToMarkdown(
                 note,
-                options: exportOptions,
                 onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
               );
             case ExportFormat.pdf:
               result = await exportService.exportToPdf(
                 note,
-                options: exportOptions,
                 onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
               ).timeout(
                 const Duration(minutes: 2),
@@ -1554,7 +1579,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             case ExportFormat.html:
               result = await exportService.exportToHtml(
                 note,
-                options: exportOptions,
                 onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
               );
             case ExportFormat.txt:
@@ -1610,7 +1634,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           children: [
             Icon(
               failedResults.isEmpty ? Icons.check_circle : Icons.warning,
-              color: failedResults.isEmpty ? Colors.green : Colors.orange,
+              color: failedResults.isEmpty ? Theme.of(context).colorScheme.tertiary : Theme.of(context).customColors.onWarningContainer,
             ),
             const SizedBox(width: 8),
             const Text('Export Complete'),
@@ -1723,7 +1747,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         tooltip: 'Share',
       ),
       IconButton(
-        icon: const Icon(Icons.delete, color: Colors.red),
+        icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
         onPressed: _selectedNoteIds.isNotEmpty ? _deleteSelectedNotes : null,
         tooltip: 'Delete',
       ),
@@ -1770,8 +1794,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ).animate(CurvedAnimation(
             parent: _listAnimationController,
             curve: Interval(
-              math.max(0.0, (index - 3) / notes.length),
-              math.min(1.0, (index + 1) / notes.length),
+              math.max(0, (index - 3) / notes.length),
+              math.min(1, (index + 1) / notes.length),
               curve: Curves.easeOutCubic,
             ),
           )),
@@ -1779,8 +1803,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             opacity: CurvedAnimation(
               parent: _listAnimationController,
               curve: Interval(
-                math.max(0.0, (index - 3) / notes.length),
-                math.min(1.0, (index + 1) / notes.length),
+                math.max(0, (index - 3) / notes.length),
+                math.min(1, (index + 1) / notes.length),
                 curve: Curves.easeIn,
               ),
             ),
@@ -1823,8 +1847,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           scale: CurvedAnimation(
             parent: _listAnimationController,
             curve: Interval(
-              math.max(0.0, (index - 6) / notes.length),
-              math.min(1.0, (index + 1) / notes.length),
+              math.max(0, (index - 6) / notes.length),
+              math.min(1, (index + 1) / notes.length),
               curve: Curves.elasticOut,
             ),
           ),
@@ -1951,7 +1975,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         FloatingActionButton.small(
           heroTag: label,
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 3,
           onPressed: onPressed,
           child: Icon(icon, size: 20),
@@ -2156,7 +2180,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to move note: ${e.toString()}'),
+            content: Text('Failed to move note: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -2265,8 +2289,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+              title: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               onTap: () {
                 Navigator.pop(context);
                 _deleteNote(note);
@@ -2280,18 +2304,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   void _createVoiceNote() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Voice note feature coming soon!'),
-        backgroundColor: Colors.purple,
+      SnackBar(
+        content: const Text('Voice note feature coming soon!'),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
       ),
     );
   }
 
   void _createPhotoNote() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Photo note feature coming soon!'),
-        backgroundColor: Colors.orange,
+      SnackBar(
+        content: const Text('Photo note feature coming soon!'),
+        backgroundColor: Theme.of(context).customColors.warningContainer,
       ),
     );
   }
@@ -2300,14 +2324,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => ModernEditNoteScreen(
+        builder: (context) => const ModernEditNoteScreen(
           initialBody: '## Checklist\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3',
         ),
       ),
     );
   }
 
-  void _shareNote(LocalNote note) async {
+  Future<void> _shareNote(LocalNote note) async {
     final exportService = ref.read(exportServiceProvider);
     final result = await exportService.exportToMarkdown(note);
     if (result.success && result.file != null) {
@@ -2315,7 +2339,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     }
   }
 
-  void _shareSelectedNotes() async {
+  Future<void> _shareSelectedNotes() async {
     // Implementation for sharing multiple notes
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -2325,7 +2349,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     _exitSelectionMode();
   }
 
-  void _deleteSelectedNotes() async {
+  Future<void> _deleteSelectedNotes() async {
     final count = _selectedNoteIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -2339,13 +2363,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       final repo = ref.read(notesRepositoryProvider);
       for (final id in _selectedNoteIds) {
         await repo.delete(id);
@@ -2357,7 +2381,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Deleted $count notes'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -2373,8 +2397,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       isScrollControlled: true,
       builder: (context) => FolderPicker(
         title: 'Move to Folder',
-        showCreateOption: true,
-        showUnfiledOption: true,
         onFolderSelected: (folderId) async {
           var successCount = 0;
           var errorCount = 0;
@@ -2401,14 +2423,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   content: Text(folderId != null 
                       ? 'Moved $successCount notes to folder'
                       : 'Moved $successCount notes to Unfiled'),
-                  backgroundColor: Colors.green,
+                  backgroundColor: Theme.of(context).colorScheme.tertiary,
                 ),
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('$successCount notes moved, $errorCount failed'),
-                  backgroundColor: Colors.orange,
+                  backgroundColor: Theme.of(context).customColors.warningContainer,
                 ),
               );
             }
@@ -2429,14 +2451,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       isScrollControlled: true,
       builder: (context) => FolderPicker(
         title: 'Create Folder',
-        showCreateOption: true,
         showUnfiledOption: false,
         onFolderSelected: (folderId) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Folder functionality coming soon!'),
-                backgroundColor: Colors.blue,
+              SnackBar(
+                content: const Text('Folder functionality coming soon!'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
               ),
             );
           }
@@ -2452,8 +2473,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       isScrollControlled: true,
       builder: (context) => FolderPicker(
         title: 'Move to Folder',
-        showCreateOption: true,
-        showUnfiledOption: true,
         onFolderSelected: (folderId) async {
           try {
             if (folderId != null) {
@@ -2490,7 +2509,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  void _duplicateNote(LocalNote note) async {
+  Future<void> _duplicateNote(LocalNote note) async {
     final repo = ref.read(notesRepositoryProvider);
     await repo.createOrUpdate(
       title: '${note.title} (Copy)',
@@ -2509,9 +2528,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   void _archiveNote(LocalNote note) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Archive feature coming soon!'),
-        backgroundColor: Colors.blue,
+      SnackBar(
+        content: const Text('Archive feature coming soon!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -2543,10 +2562,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Future<void> _openExportsFolder() async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Files are saved in app Documents folder. Use "Share Files" to access them.'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: const Text('Files are saved in app Documents folder. Use "Share Files" to access them.'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     } catch (e) {
@@ -2602,7 +2620,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               // Finally sign out from Supabase
               await Supabase.instance.client.auth.signOut();
             },
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            child: Text('Sign Out', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -2675,7 +2693,7 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: progress.progress,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
           ] else ...[
             const Text('Initializing import...'),
@@ -2690,16 +2708,14 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
 
 /// Progress dialog widget for export operations
 class _ExportProgressDialog extends StatefulWidget {
+
+  const _ExportProgressDialog({
+    required this.totalNotes, required this.format, super.key,
+    this.onCancel,
+  });
   final int totalNotes;
   final ExportFormat format;
   final VoidCallback? onCancel;
-
-  const _ExportProgressDialog({
-    super.key,
-    required this.totalNotes,
-    required this.format,
-    this.onCancel,
-  });
 
   @override
   State<_ExportProgressDialog> createState() => _ExportProgressDialogState();
@@ -2773,13 +2789,13 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             Text(
               'Estimated time remaining: $estimatedTimeRemaining',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
               ),
             ),
           ],
           const SizedBox(height: 16),
-          Text('Overall Progress:'),
+          const Text('Overall Progress:'),
           const SizedBox(height: 8),
           LinearProgressIndicator(
             value: overallProgress,
@@ -2794,7 +2810,7 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: progress.percentage / 100,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
           ] else ...[
             const Text('Initializing export...'),

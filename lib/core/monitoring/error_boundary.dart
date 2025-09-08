@@ -1,23 +1,22 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'app_logger.dart';
 
 /// A widget that catches and handles errors in its child widget tree
 class ErrorBoundary extends StatefulWidget {
-  final Widget child;
-  final Widget? fallback;
-  final void Function(Object error, StackTrace stackTrace)? onError;
-  final bool captureErrors;
   
   const ErrorBoundary({
-    super.key,
-    required this.child,
+    required this.child, super.key,
     this.fallback,
     this.onError,
     this.captureErrors = true,
   });
+  final Widget child;
+  final Widget? fallback;
+  final void Function(Object error, StackTrace stackTrace)? onError;
+  final bool captureErrors;
 
   @override
   State<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -125,7 +124,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
             backgroundColor: colorScheme.surface,
             body: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -144,7 +143,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'We\'re sorry, but something unexpected happened. The error has been reported and we\'ll look into it.',
+                      "We're sorry, but something unexpected happened. The error has been reported and we'll look into it.",
                       style: textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
@@ -226,16 +225,14 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
 
 /// A specialized error boundary for specific features
 class FeatureErrorBoundary extends StatelessWidget {
+  
+  const FeatureErrorBoundary({
+    required this.child, required this.featureName, super.key,
+    this.fallback,
+  });
   final Widget child;
   final String featureName;
   final Widget? fallback;
-  
-  const FeatureErrorBoundary({
-    super.key,
-    required this.child,
-    required this.featureName,
-    this.fallback,
-  });
 
   @override
   Widget build(BuildContext context) {

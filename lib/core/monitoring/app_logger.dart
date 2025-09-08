@@ -17,8 +17,8 @@ abstract class AppLogger {
 
 /// Console logger implementation
 class ConsoleLogger implements AppLogger {
-  final LogLevel _minLevel;
   const ConsoleLogger({LogLevel minLevel = LogLevel.debug}) : _minLevel = minLevel;
+  final LogLevel _minLevel;
 
   bool _shouldLog(LogLevel level) => level.index >= _minLevel.index;
 

@@ -1,11 +1,11 @@
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../providers.dart';
 
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
-  final List<LocalNote> notes;
   
   NoteSearchDelegate({required this.notes});
+  final List<LocalNote> notes;
 
   @override
   String? get searchFieldLabel => 'Search notes...';
@@ -92,11 +92,11 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     final limitedBody = body.length > 300 ? body.substring(0, 300) : body;
     
     // Strip markdown formatting for cleaner preview (optimized)
-    String preview = limitedBody
+    final preview = limitedBody
         .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
         .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
         .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
-        .replaceAll(RegExp(r'`([^`]*)`'), r'$1') // Remove code (non-greedy)
+        .replaceAll(RegExp('`([^`]*)`'), r'$1') // Remove code (non-greedy)
         .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // Remove links (non-greedy)
         .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
         .trim();
@@ -414,12 +414,12 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       );
     }
 
-    final List<TextSpan> spans = [];
+    final spans = <TextSpan>[];
     final lowerText = text.toLowerCase();
     final lowerQuery = searchQuery.toLowerCase();
     
-    int start = 0;
-    int index = lowerText.indexOf(lowerQuery, start);
+    var start = 0;
+    var index = lowerText.indexOf(lowerQuery, start);
     
     while (index != -1 && start < text.length) {
       // Add non-highlighted text before match

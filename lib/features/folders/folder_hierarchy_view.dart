@@ -1,12 +1,11 @@
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/local/app_db.dart';
-import '../../l10n/app_localizations.dart';
-import '../../providers.dart';
-import 'folder_notifiers.dart';
-import 'create_folder_dialog.dart';
-import 'edit_folder_dialog.dart';
 
 /// Material 3 expandable folder hierarchy with drag & drop support
 class FolderHierarchyView extends ConsumerStatefulWidget {
@@ -97,7 +96,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     if (_searchQuery.isEmpty) return true;
     return folder.name.toLowerCase().contains(_searchQuery) ||
            folder.path.toLowerCase().contains(_searchQuery) ||
-           (folder.description?.toLowerCase().contains(_searchQuery) ?? false);
+           (folder.description.toLowerCase().contains(_searchQuery) ?? false);
   }
 
   List<FolderTreeNode> _filterNodes(List<FolderTreeNode> nodes) {
@@ -136,7 +135,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       builder: (context) => EditFolderDialog(folder: folder),
     );
     
-    if (result == true && mounted) {
+    if (result ?? false && mounted) {
       ref.read(folderHierarchyProvider.notifier).refresh();
       ref.read(folderProvider.notifier).refresh();
     }
@@ -151,13 +150,10 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     switch (result) {
       case 'edit':
         await _showEditFolderDialog(folder);
-        break;
       case 'create_subfolder':
         await _showCreateFolderDialog(folder);
-        break;
       case 'delete':
         await _confirmDeleteFolder(folder);
-        break;
     }
   }
 
@@ -198,7 +194,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       ),
     );
     
-    if (confirmed == true && mounted) {
+    if (confirmed ?? false && mounted) {
       final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
@@ -282,7 +278,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                   
                   // Create folder
                   IconButton.filled(
-                    onPressed: () => _showCreateFolderDialog(),
+                    onPressed: _showCreateFolderDialog,
                     icon: const Icon(Icons.create_new_folder),
                     tooltip: l10n.createNewFolder,
                   ),
@@ -344,7 +340,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                 if (filteredNodes.isEmpty) {
                   return _EmptyState(
                     searchQuery: _searchQuery,
-                    onCreateFolder: widget.showActions ? () => _showCreateFolderDialog() : null,
+                    onCreateFolder: widget.showActions ? _showCreateFolderDialog : null,
                   );
                 }
                 
@@ -398,7 +394,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       },
       onDragStarted: (folderId) => setState(() => _draggedFolderId = folderId),
       onDragCompleted: () => setState(() => _draggedFolderId = null),
-      onAcceptDrop: (draggedId, targetId) => _moveFolderToFolder(draggedId, targetId),
+      onAcceptDrop: _moveFolderToFolder,
       isDragging: _draggedFolderId == node.folder.id,
       children: node.children.map(_buildFolderTreeItem).toList(),
     );
@@ -425,16 +421,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
 class _FolderTreeTile extends StatefulWidget {
   const _FolderTreeTile({
-    super.key,
-    required this.node,
-    required this.isSelected,
-    required this.onTap,
-    required this.onLongPress,
-    required this.onExpandToggle,
-    required this.onDragStarted,
-    required this.onDragCompleted,
-    required this.onAcceptDrop,
-    required this.isDragging,
+    required this.node, required this.isSelected, required this.onTap, required this.onLongPress, required this.onExpandToggle, required this.onDragStarted, required this.onDragCompleted, required this.onAcceptDrop, required this.isDragging, super.key,
     this.children = const [],
   });
 
@@ -465,7 +452,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
-      value: 1.0,
+      value: 1,
     );
     _rotationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -493,7 +480,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
       if (widget.isDragging) {
         _scaleController.animateTo(1.1);
       } else {
-        _scaleController.animateTo(1.0);
+        _scaleController.animateTo(1);
       }
     }
   }
@@ -600,7 +587,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
         color: widget.isSelected
             ? colorScheme.primaryContainer.withOpacity(0.5)
             : _isDragOver
-                ? colorScheme.surfaceVariant
+                ? colorScheme.surfaceContainerHighest
                 : null,
         borderRadius: BorderRadius.circular(12),
         border: _isDragOver
@@ -664,17 +651,17 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
         ),
         subtitle: Row(
           children: [
-            if (folder.description?.isNotEmpty ?? false)
+            if (folder.description.isNotEmpty ?? false)
               Flexible(
                 child: Text(
-                  folder.description!,
+                  folder.description,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            if (folder.description?.isNotEmpty ?? false) const SizedBox(width: 8),
+            if (folder.description.isNotEmpty ?? false) const SizedBox(width: 8),
             
             // Note count badge
             if (widget.node.noteCount > 0)

@@ -117,7 +117,7 @@ class TableBlockData {
   bool _listEquals<T>(List<T>? a, List<T>? b) {
     if (a == null) return b == null;
     if (b == null || a.length != b.length) return false;
-    for (int index = 0; index < a.length; index += 1) {
+    for (var index = 0; index < a.length; index += 1) {
       if (a[index] != b[index]) return false;
     }
     return true;
@@ -126,7 +126,7 @@ class TableBlockData {
   bool _listOfListsEquals(List<List<String>>? a, List<List<String>>? b) {
     if (a == null) return b == null;
     if (b == null || a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
+    for (var i = 0; i < a.length; i++) {
       if (!_listEquals(a[i], b[i])) return false;
     }
     return true;

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:cryptography/cryptography.dart';
+import 'package:duru_notes/services/account_key_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/account_key_service.dart';
 
 class KeyManager {
   KeyManager({FlutterSecureStorage? storage, AccountKeyService? accountKeyService})

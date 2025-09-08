@@ -63,7 +63,7 @@ class _HelpScreenState extends State<HelpScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.feedback_outlined),
-            onPressed: () => _showFeedbackDialog(),
+            onPressed: _showFeedbackDialog,
             tooltip: 'Send Feedback',
           ),
         ],
@@ -88,14 +88,14 @@ class _HelpScreenState extends State<HelpScreen> {
   Widget _buildErrorView() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.red,
+              color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 16),
             Text(
@@ -143,13 +143,12 @@ class _HelpScreenState extends State<HelpScreen> {
       children: [
         // Quick actions bar
         Container(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             border: Border(
               bottom: BorderSide(
                 color: Theme.of(context).dividerColor,
-                width: 1,
               ),
             ),
           ),
@@ -281,7 +280,7 @@ class _HelpScreenState extends State<HelpScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Search User Guide'),
         content: const Text(
-          'Use your browser\'s search function (Ctrl+F or Cmd+F) to search through the guide, or scroll to find the section you need.\n\nMain sections:\n• Getting Started\n• Advanced Reminders\n• Voice & OCR Capture\n• Share Sheet Integration\n• Search & Organization\n• Security & Privacy\n• Troubleshooting',
+          "Use your browser's search function (Ctrl+F or Cmd+F) to search through the guide, or scroll to find the section you need.\n\nMain sections:\n• Getting Started\n• Advanced Reminders\n• Voice & OCR Capture\n• Share Sheet Integration\n• Search & Organization\n• Security & Privacy\n• Troubleshooting",
         ),
         actions: [
           TextButton(
@@ -297,7 +296,7 @@ class _HelpScreenState extends State<HelpScreen> {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -404,7 +403,7 @@ class _HelpScreenState extends State<HelpScreen> {
         maxChildSize: 0.9,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -461,8 +460,8 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showFeedbackDialog() {
-    final TextEditingController feedbackController = TextEditingController();
-    String feedbackType = 'Bug Report';
+    final feedbackController = TextEditingController();
+    var feedbackType = 'Bug Report';
 
     showDialog(
       context: context,
@@ -481,7 +480,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: feedbackType,
+                  initialValue: feedbackType,
                   decoration: const InputDecoration(
                     labelText: 'Feedback Type',
                     border: OutlineInputBorder(),
@@ -552,13 +551,13 @@ class _HelpScreenState extends State<HelpScreen> {
 }
 
 class _QuickHelpSection extends StatelessWidget {
-  final String title;
-  final List<String> items;
 
   const _QuickHelpSection({
     required this.title,
     required this.items,
   });
+  final String title;
+  final List<String> items;
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +565,7 @@ class _QuickHelpSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
+          padding: const EdgeInsets.only(bottom: 12),
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -577,12 +576,12 @@ class _QuickHelpSection extends StatelessWidget {
         ),
         ...items.map(
           (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8.0, left: 16.0),
+            padding: const EdgeInsets.only(bottom: 8, left: 16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  margin: const EdgeInsets.only(top: 8.0, right: 8.0),
+                  margin: const EdgeInsets.only(top: 8, right: 8),
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(

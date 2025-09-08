@@ -1,16 +1,14 @@
 import 'package:adapty_flutter/adapty_flutter.dart';
+import 'package:duru_notes/app/app.dart';
+import 'package:duru_notes/core/config/environment_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/monitoring/error_boundary.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'app/app.dart';
-import 'core/config/environment_config.dart';
-import 'core/monitoring/app_logger.dart';
-import 'core/monitoring/error_boundary.dart';
-import 'services/analytics/analytics_service.dart';
-import 'services/share_extension_service.dart';
-import 'providers.dart';
 
 // Global navigation key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -105,7 +103,7 @@ Future<void> _initializeServices() async {
         ..withIpAddressCollectionDisabled(false) // Enable for fraud prevention
         // Media cache configuration for paywalls
         ..withMediaCacheConfiguration(
-          AdaptyUIMediaCacheConfiguration(
+          const AdaptyUIMediaCacheConfiguration(
             memoryStorageTotalCostLimit: 100 * 1024 * 1024, // 100 MB
             memoryStorageCountLimit: 2147483647, // Max int value
             diskStorageSizeLimit: 100 * 1024 * 1024, // 100 MB
@@ -138,9 +136,9 @@ Future<void> _initializeServices() async {
 
 /// App wrapper that initializes share extension service
 class _AppWithShareExtension extends ConsumerStatefulWidget {
-  final GlobalKey<NavigatorState> navigatorKey;
   
   const _AppWithShareExtension({required this.navigatorKey});
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   ConsumerState<_AppWithShareExtension> createState() => _AppWithShareExtensionState();

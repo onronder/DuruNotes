@@ -1,17 +1,17 @@
 import 'dart:io';
+
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/crypto/key_manager.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/parser/note_indexer.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/import_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../lib/core/crypto/crypto_box.dart';
-import '../../lib/core/crypto/key_manager.dart';
-import '../../lib/core/parser/note_indexer.dart';
-import '../../lib/data/local/app_db.dart';
-import '../../lib/repository/notes_repository.dart';
-import '../../lib/services/import_service.dart';
-import '../../lib/services/analytics/analytics_service.dart';
-import '../../lib/core/monitoring/app_logger.dart';
 
 class MockSupabaseClient extends Mock implements SupabaseClient {}
 
@@ -60,7 +60,8 @@ void main() {
       
       // Create a simple test file
       final testFile = File(path.join(tempDir.path, 'test.md'));
-      await testFile.writeAsString('''# Integration Test Note
+      await testFile.writeAsString('''
+# Integration Test Note
 This note tests the integration between ImportService, NotesRepository, and NoteIndexer.
 It contains #integration and #test tags for verification.
 ''');
@@ -306,7 +307,8 @@ It contains #integration and #test tags for verification.
 
       // Create test file that will trigger _createNoteWithValidation
       final testFile = File(path.join(tempDir.path, 'validation_test.md'));
-      await testFile.writeAsString('''# Validation Test
+      await testFile.writeAsString('''
+# Validation Test
 This note tests that _createNoteWithValidation properly calls:
 1. NotesRepository.createOrUpdate (for encryption and storage)
 2. NoteIndexer.indexNote (for search indexing)

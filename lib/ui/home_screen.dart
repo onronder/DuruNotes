@@ -1,9 +1,9 @@
 // Legacy home screen - redirects to proper notes list screen
-export 'notes_list_screen.dart';
-
+import 'package:duru_notes/ui/notes_list_screen.dart';
 // For backwards compatibility, create an alias
 import 'package:flutter/material.dart';
-import 'notes_list_screen.dart';
+
+export 'notes_list_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});

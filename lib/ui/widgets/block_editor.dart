@@ -1,7 +1,7 @@
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/services/attachment_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/note_block.dart';
-import '../../services/attachment_service.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
@@ -11,10 +11,8 @@ import '../../services/attachment_service.dart';
 /// code blocks and tables.
 class BlockEditor extends StatefulWidget {
   const BlockEditor({
-    Key? key,
-    required this.blocks,
-    required this.onChanged,
-  }) : super(key: key);
+    required this.blocks, required this.onChanged, super.key,
+  });
 
   /// The initial blocks to edit. The list is copied internally; mutations
   /// inside the editor will not modify the provided list directly.
@@ -89,11 +87,11 @@ class _BlockEditorState extends State<BlockEditor> {
       }).toList();
     } else {
       // Update existing controllers with new text
-      for (int i = 0; i < _blocks.length; i++) {
+      for (var i = 0; i < _blocks.length; i++) {
         final block = _blocks[i];
         final controller = _controllers[i];
         if (controller != null) {
-          String newText = '';
+          var newText = '';
           switch (block.type) {
             case NoteBlockType.paragraph:
             case NoteBlockType.heading1:
@@ -105,7 +103,6 @@ class _BlockEditorState extends State<BlockEditor> {
             case NoteBlockType.code:
             case NoteBlockType.todo:
               newText = block.data ?? '';
-              break;
             default:
               break;
           }
@@ -460,7 +457,6 @@ class _BlockEditorState extends State<BlockEditor> {
     final cleanText = todoText.replaceFirst(RegExp(r'^\[[x\s]\]\s?'), '');
     
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Checkbox(
           value: isCompleted,
@@ -668,7 +664,7 @@ class _BlockEditorState extends State<BlockEditor> {
     final fileNameController = TextEditingController(text: data.fileName);
     final urlController = TextEditingController(text: data.url);
     
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Attachment'),
@@ -769,11 +765,11 @@ class _BlockEditorState extends State<BlockEditor> {
                 child: Text('Attachment'),
               ),
             ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(Icons.add_circle_outline, size: 20),
                   SizedBox(width: 4),
                   Text('Add block'),

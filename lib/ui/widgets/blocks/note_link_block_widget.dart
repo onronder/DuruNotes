@@ -1,17 +1,11 @@
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/note_block.dart';
-import '../../../providers.dart';
-import '../../../data/local/app_db.dart';
 
 class NoteLinkBlockWidget extends ConsumerStatefulWidget {
   const NoteLinkBlockWidget({
-    super.key,
-    required this.block,
-    required this.isFocused,
-    required this.onChanged,
-    required this.onFocusChanged,
-    required this.onNoteSelected,
+    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNoteSelected, super.key,
   });
 
   final NoteBlock block;
@@ -207,7 +201,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+            border: Border.all(color: Colors.grey.shade300),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -275,50 +269,44 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
           ),
           
                       // Notes List - Simple placeholder for now
-            Container(
+            SizedBox(
               height: 200,
               child: Consumer(
                 builder: (context, ref, child) {
                   final notesAsync = ref.watch(currentNotesProvider);
                   
                   // Simple list handling without .when method
-                  if (notesAsync is List) {
-                    final notes = notesAsync;
-                    if (notes.isEmpty) {
-                      return const Center(
-                        child: Text('No notes available'),
-                      );
-                    }
-                    
-                    return ListView.builder(
-                      itemCount: notes.length,
-                      itemBuilder: (context, index) {
-                        final note = notes[index];
-                        return ListTile(
-                          leading: const Icon(Icons.note, size: 16),
-                          title: Text(
-                            note.title?.isNotEmpty == true ? note.title : 'Untitled',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: note.body?.isNotEmpty == true
-                              ? Text(
-                                  note.body,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )
-                              : null,
-                          onTap: () => _selectNote(note as LocalNote),
-                          dense: true,
-                        );
-                      },
-                    );
-                  } else {
+                  final notes = notesAsync;
+                  if (notes.isEmpty) {
                     return const Center(
-                      child: CircularProgressIndicator(),
+                      child: Text('No notes available'),
                     );
                   }
-                },
+                  
+                  return ListView.builder(
+                    itemCount: notes.length,
+                    itemBuilder: (context, index) {
+                      final note = notes[index];
+                      return ListTile(
+                        leading: const Icon(Icons.note, size: 16),
+                        title: Text(
+                          note.title.isNotEmpty ?? false ? note.title : 'Untitled',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: note.body.isNotEmpty ?? false
+                            ? Text(
+                                note.body,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                        onTap: () => _selectNote(note),
+                        dense: true,
+                      );
+                    },
+                  );
+                                },
               ),
             ),
         ],

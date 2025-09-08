@@ -1,23 +1,18 @@
 // lib/services/share_service.dart
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 
-import '../data/local/app_db.dart';
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:flutter/services.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 /// Share formats supported by the app
 enum ShareFormat { plainText, markdown, html, json }
 
 /// Share options for customizing the sharing experience
 class ShareOptions {
-  final ShareFormat format;
-  final bool includeTitle;
-  final bool includeMetadata;
-  final String? customSubject;
 
   const ShareOptions({
     this.format = ShareFormat.markdown,
@@ -25,6 +20,10 @@ class ShareOptions {
     this.includeMetadata = false,
     this.customSubject,
   });
+  final ShareFormat format;
+  final bool includeTitle;
+  final bool includeMetadata;
+  final String? customSubject;
 }
 
 /// Service for sharing notes via various methods
@@ -294,10 +293,8 @@ class ShareService {
       switch (options.format) {
         case ShareFormat.markdown:
           buffer.writeln('# $collectionTitle\n');
-          break;
         case ShareFormat.html:
           buffer.writeln('<h1>${_escapeHtml(collectionTitle)}</h1>');
-          break;
         default:
           buffer
             ..writeln(collectionTitle)
@@ -305,7 +302,7 @@ class ShareService {
             ..writeln();
       }
     }
-    for (int i = 0; i < notes.length; i++) {
+    for (var i = 0; i < notes.length; i++) {
       final note = notes[i];
       if (i > 0) {
         buffer.writeln();
@@ -363,11 +360,11 @@ class ShareService {
       .replaceAll('"', '&quot;');
 
   String _escapeJson(String text) => text
-      .replaceAll('\\', '\\\\')
-      .replaceAll('"', '\\"')
-      .replaceAll('\n', '\\n')
-      .replaceAll('\r', '\\r')
-      .replaceAll('\t', '\\t');
+      .replaceAll(r'\', r'\\')
+      .replaceAll('"', r'\"')
+      .replaceAll('\n', r'\n')
+      .replaceAll('\r', r'\r')
+      .replaceAll('\t', r'\t');
 
   String _simpleMarkdownToHtml(String markdown) {
     var html = _escapeHtml(markdown);
@@ -381,7 +378,7 @@ class ShareService {
         (m) => '<strong>${m.group(1)}</strong>');
     html = html.replaceAllMapped(RegExp(r'\*(.+?)\*'),
         (m) => '<em>${m.group(1)}</em>');
-    html = html.replaceAllMapped(RegExp(r'`(.+?)`'),
+    html = html.replaceAllMapped(RegExp('`(.+?)`'),
         (m) => '<code>${m.group(1)}</code>');
     html = html.replaceAll('\n', '<br>\n');
     return html;

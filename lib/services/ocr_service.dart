@@ -1,9 +1,8 @@
-import 'dart:io';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import '../core/monitoring/app_logger.dart';
-import 'analytics/analytics_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// OCR (Optical Character Recognition) service for extracting text from images
 class OCRService {
@@ -20,7 +19,7 @@ class OCRService {
 
   /// Initialize the OCR service
   void _initializeRecognizer() {
-    _textRecognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
+    _textRecognizer ??= TextRecognizer();
   }
 
   /// Pick image from camera and extract text
@@ -30,7 +29,7 @@ class OCRService {
       _initializeRecognizer();
       
       // Pick image
-      final XFile? image = await _imagePicker.pickImage(
+      final image = await _imagePicker.pickImage(
         source: source,
         imageQuality: 80, // Reduce quality for faster processing
         maxWidth: 1920,
@@ -145,7 +144,7 @@ class OCRService {
         
         blocks.add(OCRTextBlock(
           text: textBlock.text,
-          confidence: 1.0, // Default confidence since ML Kit doesn't provide it
+          confidence: 1, // Default confidence since ML Kit doesn't provide it
           boundingBox: textBlock.boundingBox,
           lines: lines,
         ));
@@ -172,12 +171,12 @@ class OCRService {
 
   /// Scan image from camera
   Future<String?> scanFromCamera() async {
-    return await pickAndScanImage(source: ImageSource.camera);
+    return pickAndScanImage();
   }
 
   /// Scan image from gallery
   Future<String?> scanFromGallery() async {
-    return await pickAndScanImage(source: ImageSource.gallery);
+    return pickAndScanImage(source: ImageSource.gallery);
   }
 
   /// Check if OCR is available on this device
@@ -218,54 +217,49 @@ class OCRService {
 
 /// OCR result containing structured text data
 class OCRResult {
-  final String fullText;
-  final List<OCRTextBlock> blocks;
   
   const OCRResult({
     required this.fullText,
     required this.blocks,
   });
+  final String fullText;
+  final List<OCRTextBlock> blocks;
 }
 
 /// OCR text block
 class OCRTextBlock {
+  
+  const OCRTextBlock({
+    required this.text,
+    required this.boundingBox, required this.lines, this.confidence,
+  });
   final String text;
   final double? confidence;
   final Rect boundingBox;
   final List<OCRTextLine> lines;
-  
-  const OCRTextBlock({
-    required this.text,
-    this.confidence,
-    required this.boundingBox,
-    required this.lines,
-  });
 }
 
 /// OCR text line
 class OCRTextLine {
+  
+  const OCRTextLine({
+    required this.text,
+    required this.boundingBox, required this.elements, this.confidence,
+  });
   final String text;
   final double? confidence;
   final Rect boundingBox;
   final List<OCRTextElement> elements;
-  
-  const OCRTextLine({
-    required this.text,
-    this.confidence,
-    required this.boundingBox,
-    required this.elements,
-  });
 }
 
 /// OCR text element (word)
 class OCRTextElement {
-  final String text;
-  final double? confidence;
-  final Rect boundingBox;
   
   const OCRTextElement({
     required this.text,
-    this.confidence,
-    required this.boundingBox,
+    required this.boundingBox, this.confidence,
   });
+  final String text;
+  final double? confidence;
+  final Rect boundingBox;
 }
