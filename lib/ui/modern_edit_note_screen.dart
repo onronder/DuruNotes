@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/email_metadata_cache.dart';
+import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -497,32 +499,42 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 100),
-                child: TextField(
-                  controller: _noteController,
-                  focusNode: _contentFocusNode,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    height: 1.7,
-                    color: colorScheme.onSurface,
-                    fontSize: 16,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Note title\n\nStart writing your thoughts...\n\n'
-                        '💡 Tip: First line becomes the title',
-                    hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                      height: 1.7,
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.light ? 0.4 : 0.5
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _noteController,
+                      focusNode: _contentFocusNode,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        height: 1.7,
+                        color: colorScheme.onSurface,
+                        fontSize: 16,
                       ),
-                      fontSize: 16,
+                      decoration: InputDecoration(
+                        hintText: 'Note title\n\nStart writing your thoughts...\n\n'
+                            '💡 Tip: First line becomes the title',
+                        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                          height: 1.7,
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: Theme.of(context).brightness == Brightness.light ? 0.4 : 0.5
+                          ),
+                          fontSize: 16,
+                        ),
+                        contentPadding: const EdgeInsets.all(kContentPadding),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                      ),
+                      maxLines: null,
+                      textAlignVertical: TextAlignVertical.top,
+                      keyboardType: TextInputType.multiline,
                     ),
-                    contentPadding: const EdgeInsets.all(kContentPadding),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                  ),
-                  maxLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
+                    // Add attachments section if available
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: kContentPadding),
+                      child: _buildAttachmentsIfAny(),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -530,6 +542,42 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildAttachmentsIfAny() {
+    // Check if this note has cached email metadata
+    if (widget.noteId == null) {
+      return const SizedBox.shrink();
+    }
+    
+    // Get metadata from cache (only available before sync)
+    final meta = EmailMetadataCache.get(widget.noteId!);
+    if (meta == null) {
+      return const SizedBox.shrink();
+    }
+    
+    final raw = (meta['attachments']?['files'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    
+    final files = raw.map((m) => EmailAttachmentRef(
+      path: (m['path'] as String?) ?? '',
+      filename: (m['filename'] as String?) ?? _inferFilename((m['path'] as String?) ?? ''),
+      mimeType: (m['type'] as String?) ?? 'application/octet-stream',
+      sizeBytes: (m['size'] as num?)?.toInt() ?? 0,
+    )).where((f) => f.path.isNotEmpty).toList(growable: false);
+    
+    if (files.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return EmailAttachmentsSection(files: files);
+  }
+  
+  String _inferFilename(String path) {
+    final i = path.lastIndexOf('/');
+    if (i >= 0 && i < path.length - 1) {
+      return path.substring(i + 1);
+    }
+    return path;
   }
 
   Widget _buildPreview(ThemeData theme, ColorScheme colorScheme) {

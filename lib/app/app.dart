@@ -1,6 +1,7 @@
 import 'package:duru_notes/core/settings/sync_mode.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/notes_list_screen.dart';
@@ -166,6 +167,7 @@ class AuthWrapper extends ConsumerStatefulWidget {
 
 class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
   bool _hasTriggeredInitialSync = false;
+  ClipperInboxService? _clipperService;
 
   @override
   void initState() {
@@ -175,6 +177,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
 
   @override
   void dispose() {
+    _clipperService?.stop();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -274,6 +277,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
         } else {
           // User is not authenticated - show login screen
           _hasTriggeredInitialSync = false; // Reset flag when logged out
+          _clipperService?.stop(); // Stop the clipper service when logged out
+          _clipperService = null;
           return const AuthScreen();
         }
       },
@@ -287,6 +292,15 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       
       // Use a post-frame callback to ensure providers are ready
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Start the clipper inbox service after authentication
+        try {
+          _clipperService = ref.read(clipperInboxServiceProvider);
+          _clipperService?.start();
+        } catch (e) {
+          // Log but don't fail - clipper service is optional
+          debugPrint('Failed to start clipper inbox service: $e');
+        }
+        
         final syncModeNotifier = ref.read(syncModeProvider.notifier);
         await syncModeNotifier.performInitialSyncIfAuto();
         
