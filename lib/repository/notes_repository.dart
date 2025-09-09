@@ -3,6 +3,7 @@ import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
+import 'package:duru_notes/services/email_metadata_cache.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -97,14 +98,22 @@ class NotesRepository {
             text: n.title,
           );
 
+          // Include cached email metadata if available
+          final cachedMetadata = EmailMetadataCache.get(n.id);
+          final propsJson = {
+            'body': n.body,
+            'updatedAt': n.updatedAt.toIso8601String(),
+            'deleted': n.deleted,
+            // Include email metadata if this note came from email
+            if (cachedMetadata != null) ...{
+              'metadata': cachedMetadata,
+            },
+          };
+          
           final propsEnc = await crypto.encryptJsonForNote(
             userId: userId,
             noteId: n.id,
-            json: {
-              'body': n.body,
-              'updatedAt': n.updatedAt.toIso8601String(),
-              'deleted': n.deleted,
-            },
+            json: propsJson,
           );
 
           await api.upsertEncryptedNote(
@@ -113,6 +122,11 @@ class NotesRepository {
             propsEnc: propsEnc,
             deleted: n.deleted,
           );
+
+          // Clear cached metadata after successful sync
+          if (cachedMetadata != null) {
+            EmailMetadataCache.remove(n.id);
+          }
 
           processedIds.add(op.id);
           print('✅ Pushed note: "${n.title.isEmpty ? "Untitled" : n.title}" (${n.deleted ? "deleted" : "active"})');

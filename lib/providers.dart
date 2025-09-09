@@ -18,6 +18,8 @@ import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
+import 'package:duru_notes/services/clipper_inbox_service.dart';
+import 'package:duru_notes/services/clipper_inbox_notes_adapter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -178,6 +180,25 @@ final shareExtensionServiceProvider = Provider<ShareExtensionService>((ref) {
     attachmentService: ref.watch(attachmentServiceProvider),
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
+  );
+});
+
+/// Clipper inbox service provider
+final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
+  // Only create if authenticated
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  if (client.auth.currentUser == null) {
+    throw StateError('ClipperInboxService requested without authentication');
+  }
+  
+  final repo = ref.watch(notesRepositoryProvider);
+  final db = ref.watch(appDbProvider);
+  final adapter = CaptureNotesAdapter(repository: repo, db: db);
+  
+  return ClipperInboxService(
+    supabase: client,
+    notesPort: adapter,
   );
 });
 
