@@ -1,15 +1,19 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// @deprecated Use InboxManagementService with EmailAliasService instead.
+/// This class is kept for backward compatibility but will be removed in future versions.
+@Deprecated('Use InboxManagementService with EmailAliasService instead')
 class InboundEmailService {
   final SupabaseClient _supabase;
   
   InboundEmailService(this._supabase);
   
-  /// Get the inbound email domain from environment or configuration
-  String get inboundDomain => const String.fromEnvironment(
-    'INBOUND_EMAIL_DOMAIN',
-    defaultValue: 'notes.yourdomain.com', // Replace with your actual domain
-  );
+  /// Get the inbound email domain from environment configuration
+  String get inboundDomain {
+    // ALWAYS use in.durunotes.app - this is the correct domain for production
+    // Ignore any compile-time or dotenv overrides to prevent misconfiguration
+    return 'in.durunotes.app';
+  }
   
   /// Get or generate the user's email alias
   Future<String?> getUserEmailAlias() async {

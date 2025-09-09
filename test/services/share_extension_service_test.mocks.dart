@@ -113,12 +113,14 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
     required String? title,
     required String? body,
     String? id,
+    Map<String, dynamic>? metadataJson,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdate, [], {
               #title: title,
               #body: body,
               #id: id,
+              #metadataJson: metadataJson,
             }),
             returnValue: _i8.Future<String>.value(
               _i7.dummyValue<String>(
@@ -127,6 +129,7 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
                   #title: title,
                   #body: body,
                   #id: id,
+                  #metadataJson: metadataJson,
                 }),
               ),
             ),

@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
-import 'package:duru_notes/services/email_metadata_cache.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -33,6 +35,7 @@ class NotesRepository {
     required String title,
     required String body,
     String? id,
+    Map<String, dynamic>? metadataJson,
   }) async {
     final noteId = id ?? _uuid.v4();
     final now = DateTime.now();
@@ -41,12 +44,16 @@ class NotesRepository {
     final cleanTitle = _stripBidi(title.trim());
     final cleanBody = _stripBidi(body);
 
+    // Convert metadata to JSON string if provided
+    final metaString = metadataJson != null ? jsonEncode(metadataJson) : null;
+
     final n = LocalNote(
       id: noteId,
       title: cleanTitle,
       body: cleanBody,
       updatedAt: now,
       deleted: false,
+      encryptedMetadata: metaString,
     );
 
     await db.upsertNote(n);
@@ -78,7 +85,7 @@ class NotesRepository {
     final ops = await db.getPendingOps();
     final processedIds = <int>[];
 
-    print('📤 Processing ${ops.length} pending operations...');
+    debugPrint('📤 Processing ${ops.length} pending operations...');
 
     for (final op in ops) {
       try {
@@ -98,15 +105,23 @@ class NotesRepository {
             text: n.title,
           );
 
-          // Include cached email metadata if available
-          final cachedMetadata = EmailMetadataCache.get(n.id);
+          // Include persistent metadata if available
+          Map<String, dynamic>? metadata;
+          if (n.encryptedMetadata != null) {
+            try {
+              metadata = jsonDecode(n.encryptedMetadata!) as Map<String, dynamic>;
+            } catch (e) {
+              debugPrint('Error decoding metadata: $e');
+            }
+          }
+          
           final propsJson = {
             'body': n.body,
             'updatedAt': n.updatedAt.toIso8601String(),
             'deleted': n.deleted,
-            // Include email metadata if this note came from email
-            if (cachedMetadata != null) ...{
-              'metadata': cachedMetadata,
+            // Include metadata if available
+            if (metadata != null) ...{
+              'metadata': metadata,
             },
           };
           
@@ -123,13 +138,8 @@ class NotesRepository {
             deleted: n.deleted,
           );
 
-          // Clear cached metadata after successful sync
-          if (cachedMetadata != null) {
-            EmailMetadataCache.remove(n.id);
-          }
-
           processedIds.add(op.id);
-          print('✅ Pushed note: "${n.title.isEmpty ? "Untitled" : n.title}" (${n.deleted ? "deleted" : "active"})');
+          debugPrint('✅ Pushed note: "${n.title.isEmpty ? "Untitled" : n.title}" (${n.deleted ? "deleted" : "active"})');
 
         } else if (op.kind == 'upsert_folder') {
           await _pushFolder(op.entityId);
@@ -144,22 +154,22 @@ class NotesRepository {
           processedIds.add(op.id);
         }
       } on Object catch (e) {
-        print('❌ Failed to push ${op.kind} for ${op.entityId}: $e');
+        debugPrint('❌ Failed to push ${op.kind} for ${op.entityId}: $e');
         // Continue with other operations
       }
     }
 
     if (processedIds.isNotEmpty) {
       await db.deletePendingByIds(processedIds);
-      print('✅ Successfully pushed ${processedIds.length} operations');
+      debugPrint('✅ Successfully pushed ${processedIds.length} operations');
     }
   }
 
   Future<void> pullSince(DateTime? since) async {
     // Pull notes first
-    print('📥 Pulling notes from remote since: ${since?.toIso8601String() ?? "beginning"}');
+    debugPrint('📥 Pulling notes from remote since: ${since?.toIso8601String() ?? "beginning"}');
     final rows = await api.fetchEncryptedNotes(since: since);
-    print('📦 Received ${rows.length} notes from remote');
+    debugPrint('📦 Received ${rows.length} notes from remote');
 
     var updatedCount = 0;
     var deletedCount = 0;
@@ -194,17 +204,21 @@ class NotesRepository {
             DateTime.tryParse((props['updatedAt'] as String?) ?? '') ??
                 DateTime.now();
 
+        // Extract metadata if present
+        final metadata = props['metadata'];
+        final metaString = metadata != null ? jsonEncode(metadata) : null;
+
         final local = await (db.select(
           db.localNotes,
         )..where((t) => t.id.equals(id))).getSingleOrNull();
 
-        print('🔍 Note ID: $id');
-        print('   Title: "${title.isEmpty ? "Untitled" : title}"');
-        print('   Remote updated: $updatedAt');
-        print('   Local exists: ${local != null}');
+        debugPrint('🔍 Note ID: $id');
+        debugPrint('   Title: "${title.isEmpty ? "Untitled" : title}"');
+        debugPrint('   Remote updated: $updatedAt');
+        debugPrint('   Local exists: ${local != null}');
         if (local != null) {
-          print('   Local updated: ${local.updatedAt}');
-          print('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
+          debugPrint('   Local updated: ${local.updatedAt}');
+          debugPrint('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
         }
 
         // If legacy key was used, immediately re-encrypt with AMK on next push by flagging an upsert
@@ -223,6 +237,7 @@ class NotesRepository {
             body: body,
             updatedAt: updatedAt,
             deleted: deleted,
+            encryptedMetadata: metaString,
           );
           await db.upsertNote(n);
           await _indexer.indexNote(n);
@@ -232,21 +247,21 @@ class NotesRepository {
           
           if (deleted) {
             deletedCount++;
-            print('🗑️ Synced deleted note: "${title.isEmpty ? "Untitled" : title}"');
+            debugPrint('🗑️ Synced deleted note: "${title.isEmpty ? "Untitled" : title}"');
           } else {
             updatedCount++;
-            print('✅ Synced active note: "${title.isEmpty ? "Untitled" : title}"');
+            debugPrint('✅ Synced active note: "${title.isEmpty ? "Untitled" : title}"');
           }
         } else {
           skippedCount++;
         }
       } on Object catch (e) {
         final noteId = r['id'] as String? ?? 'unknown';
-        print('❌ Failed to process remote note $noteId: $e');
+        debugPrint('❌ Failed to process remote note $noteId: $e');
       }
     }
     
-    print('📊 Note pull complete: $updatedCount active, $deletedCount deleted, $skippedCount skipped');
+    debugPrint('📊 Note pull complete: $updatedCount active, $deletedCount deleted, $skippedCount skipped');
 
     // Pull folders
     await pullFoldersSince(since);
@@ -257,36 +272,36 @@ class NotesRepository {
 
   Future<Set<String>> fetchRemoteActiveIds() async {
     final ids = await api.fetchAllActiveIds();
-    print('🔍 Remote active IDs: ${ids.length} notes');
+    debugPrint('🔍 Remote active IDs: ${ids.length} notes');
     for (final id in ids.take(5)) {
-      print('  - $id');
+      debugPrint('  - $id');
     }
     return ids;
   }
 
   Future<void> reconcileHardDeletes(Set<String> remoteActiveIds) async {
-    print('🧹 Starting note reconcileHardDeletes...');
+    debugPrint('🧹 Starting note reconcileHardDeletes...');
     final localIds = await db.getActiveNoteIds();
-    print('📱 Local active note IDs: ${localIds.length} notes');
+    debugPrint('📱 Local active note IDs: ${localIds.length} notes');
     
     final pending = await db.getPendingOps();
     final pendingIds = pending
         .where((p) => p.kind == 'upsert_note')
         .map((p) => p.entityId)
         .toSet();
-    print('⏳ Pending note operations: ${pendingIds.length} notes');
+    debugPrint('⏳ Pending note operations: ${pendingIds.length} notes');
     
     var deletedCount = 0;
 
     for (final id in localIds) {
       if (!remoteActiveIds.contains(id) && !pendingIds.contains(id)) {
-        print('❌ Marking note as deleted locally: $id (not in remote active set)');
+        debugPrint('❌ Marking note as deleted locally: $id (not in remote active set)');
         final n = await (db.select(
           db.localNotes,
         )..where((t) => t.id.equals(id))).getSingleOrNull();
 
         if (n != null) {
-          print('  - Note title: "${n.title.isEmpty ? "Untitled" : n.title}"');
+          debugPrint('  - Note title: "${n.title.isEmpty ? "Untitled" : n.title}"');
           final deletedNote =
               n.copyWith(deleted: true, updatedAt: DateTime.now());
           await db.upsertNote(deletedNote);
@@ -296,7 +311,7 @@ class NotesRepository {
       }
     }
     
-    print('🧹 Note reconciliation complete: marked $deletedCount notes as deleted');
+    debugPrint('🧹 Note reconciliation complete: marked $deletedCount notes as deleted');
 
     // Also reconcile folders
     final remoteFolderIds = await fetchRemoteActiveFolderIds();
@@ -525,7 +540,7 @@ class NotesRepository {
     
     final processedIds = <int>[];
 
-    print('📤 Pushing ${folderOps.length} pending folder operations...');
+    debugPrint('📤 Pushing ${folderOps.length} pending folder operations...');
 
     for (final op in folderOps) {
       try {
@@ -540,14 +555,14 @@ class NotesRepository {
           processedIds.add(op.id);
         }
       } on Object catch (e) {
-        print('❌ Failed to push folder operation ${op.kind} for ${op.entityId}: $e');
+        debugPrint('❌ Failed to push folder operation ${op.kind} for ${op.entityId}: $e');
         // Continue with other operations
       }
     }
 
     if (processedIds.isNotEmpty) {
       await db.deletePendingByIds(processedIds);
-      print('✅ Successfully pushed ${processedIds.length} folder operations');
+      debugPrint('✅ Successfully pushed ${processedIds.length} folder operations');
     }
   }
 
@@ -586,7 +601,7 @@ class NotesRepository {
       deleted: folder.deleted,
     );
 
-    print('✅ Pushed folder: "${folder.name}" (${folder.deleted ? "deleted" : "active"})');
+    debugPrint('✅ Pushed folder: "${folder.name}" (${folder.deleted ? "deleted" : "active"})');
   }
 
   /// Push note-folder relationship to remote
@@ -602,21 +617,21 @@ class NotesRepository {
           noteId: noteId,
           folderId: folderId,
         );
-        print('✅ Added note $noteId to folder $folderId');
+        debugPrint('✅ Added note $noteId to folder $folderId');
       }
     } else {
       // Parse entityId as "noteId_remove"
       final noteId = entityId.replaceAll('_remove', '');
       await api.removeNoteFolderRelation(noteId: noteId);
-      print('✅ Removed note $noteId from folder');
+      debugPrint('✅ Removed note $noteId from folder');
     }
   }
 
   /// Pull folders from remote since a given timestamp
   Future<void> pullFoldersSince(DateTime? since) async {
-    print('📥 Pulling folders from remote since: ${since?.toIso8601String() ?? "beginning"}');
+    debugPrint('📥 Pulling folders from remote since: ${since?.toIso8601String() ?? "beginning"}');
     final rows = await api.fetchEncryptedFolders(since: since);
-    print('📦 Received ${rows.length} folders from remote');
+    debugPrint('📦 Received ${rows.length} folders from remote');
 
     var updatedCount = 0;
     var deletedCount = 0;
@@ -657,14 +672,14 @@ class NotesRepository {
 
         final local = await db.findFolder(id);
 
-        print('🔍 Folder ID: $id');
-        print('   Name: "$name"');
-        print('   Path: "$path"');
-        print('   Remote updated: $updatedAt');
-        print('   Local exists: ${local != null}');
+        debugPrint('🔍 Folder ID: $id');
+        debugPrint('   Name: "$name"');
+        debugPrint('   Path: "$path"');
+        debugPrint('   Remote updated: $updatedAt');
+        debugPrint('   Local exists: ${local != null}');
         if (local != null) {
-          print('   Local updated: ${local.updatedAt}');
-          print('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
+          debugPrint('   Local updated: ${local.updatedAt}');
+          debugPrint('   Should update: ${local.updatedAt.isBefore(updatedAt)}');
         }
 
         // If legacy key was used, enqueue for rewrap on push
@@ -695,28 +710,28 @@ class NotesRepository {
 
           if (deleted) {
             deletedCount++;
-            print('🗑️ Synced deleted folder: "$name"');
+            debugPrint('🗑️ Synced deleted folder: "$name"');
           } else {
             updatedCount++;
-            print('✅ Synced active folder: "$name"');
+            debugPrint('✅ Synced active folder: "$name"');
           }
         } else {
           skippedCount++;
         }
       } on Object catch (e) {
         final folderId = r['id'] as String? ?? 'unknown';
-        print('❌ Failed to process remote folder $folderId: $e');
+        debugPrint('❌ Failed to process remote folder $folderId: $e');
       }
     }
 
-    print('📊 Folder pull complete: $updatedCount active, $deletedCount deleted, $skippedCount skipped');
+    debugPrint('📊 Folder pull complete: $updatedCount active, $deletedCount deleted, $skippedCount skipped');
   }
 
   /// Pull note-folder relationships from remote
   Future<void> pullNoteFolderRelationsSince(DateTime? since) async {
-    print('📥 Pulling note-folder relationships from remote since: ${since?.toIso8601String() ?? "beginning"}');
+    debugPrint('📥 Pulling note-folder relationships from remote since: ${since?.toIso8601String() ?? "beginning"}');
     final rows = await api.fetchNoteFolderRelations(since: since);
-    print('📦 Received ${rows.length} note-folder relationships from remote');
+    debugPrint('📦 Received ${rows.length} note-folder relationships from remote');
 
     var updatedCount = 0;
 
@@ -739,47 +754,47 @@ class NotesRepository {
 
           await db.upsertNoteFolder(relationship);
           updatedCount++;
-          print('✅ Synced note $noteId to folder ${folder.name}');
+          debugPrint('✅ Synced note $noteId to folder ${folder.name}');
         } else {
-          print('⚠️ Skipped relationship: note or folder not found locally');
+          debugPrint('⚠️ Skipped relationship: note or folder not found locally');
         }
       } on Object catch (e) {
-        print('❌ Failed to process note-folder relationship: $e');
+        debugPrint('❌ Failed to process note-folder relationship: $e');
       }
     }
 
-    print('📊 Note-folder relationship pull complete: $updatedCount relationships synced');
+    debugPrint('📊 Note-folder relationship pull complete: $updatedCount relationships synced');
   }
 
   /// Fetch remote active folder IDs for reconciliation
   Future<Set<String>> fetchRemoteActiveFolderIds() async {
     final ids = await api.fetchAllActiveFolderIds();
-    print('🔍 Remote active folder IDs: ${ids.length} folders');
+    debugPrint('🔍 Remote active folder IDs: ${ids.length} folders');
     return ids;
   }
 
   /// Reconcile hard deletes for folders
   Future<void> reconcileFolderHardDeletes(Set<String> remoteActiveIds) async {
-    print('🧹 Starting folder reconcileHardDeletes...');
+    debugPrint('🧹 Starting folder reconcileHardDeletes...');
     final localIds = await db.getLocalActiveFolderIds();
-    print('📱 Local active folder IDs: ${localIds.length} folders');
+    debugPrint('📱 Local active folder IDs: ${localIds.length} folders');
 
     final pending = await db.getPendingOps();
     final pendingFolderIds = pending
         .where((p) => p.kind == 'upsert_folder')
         .map((p) => p.entityId)
         .toSet();
-    print('⏳ Pending folder operations: ${pendingFolderIds.length} folders');
+    debugPrint('⏳ Pending folder operations: ${pendingFolderIds.length} folders');
 
     var deletedCount = 0;
 
     for (final id in localIds) {
       if (!remoteActiveIds.contains(id) && !pendingFolderIds.contains(id)) {
-        print('❌ Marking folder as deleted locally: $id (not in remote active set)');
+        debugPrint('❌ Marking folder as deleted locally: $id (not in remote active set)');
         final folder = await db.findFolder(id);
 
         if (folder != null) {
-          print('  - Folder name: "${folder.name}"');
+          debugPrint('  - Folder name: "${folder.name}"');
           
           // Move child folders to parent level before deleting
           final children = await db.getChildFolders(id);
@@ -808,7 +823,7 @@ class NotesRepository {
       }
     }
 
-    print('🧹 Folder reconciliation complete: marked $deletedCount folders as deleted');
+    debugPrint('🧹 Folder reconciliation complete: marked $deletedCount folders as deleted');
   }
 
   // ==========================================
@@ -886,7 +901,7 @@ class NotesRepository {
 
   /// Comprehensive folder validation and repair
   Future<void> validateAndRepairFolderStructure() async {
-    print('🔧 Starting folder structure validation and repair...');
+    debugPrint('🔧 Starting folder structure validation and repair...');
 
     final allFolders = await db.allFolders();
     final foldersToUpdate = <LocalFolder>[];
@@ -902,7 +917,7 @@ class NotesRepository {
       if (folder.parentId != null) {
         final parent = await db.findFolder(folder.parentId!);
         if (parent == null || parent.deleted) {
-          print('🔧 Repairing orphaned folder: "${folder.name}" -> moved to root');
+          debugPrint('🔧 Repairing orphaned folder: "${folder.name}" -> moved to root');
           updatedFolder = updatedFolder.copyWith(
             parentId: const Value(null),
             updatedAt: DateTime.now(),
@@ -914,7 +929,7 @@ class NotesRepository {
       // Recalculate and fix path if incorrect
       final correctPath = await _calculateFolderPath(updatedFolder.parentId, updatedFolder.name);
       if (updatedFolder.path != correctPath) {
-        print('🔧 Fixing folder path: "${updatedFolder.name}" -> "$correctPath"');
+        debugPrint('🔧 Fixing folder path: "${updatedFolder.name}" -> "$correctPath"');
         updatedFolder = updatedFolder.copyWith(
           path: correctPath,
           updatedAt: DateTime.now(),
@@ -934,12 +949,12 @@ class NotesRepository {
       await db.enqueue(folder.id, 'upsert_folder');
     }
 
-    print('🔧 Folder validation complete: repaired $repairedCount folders');
+    debugPrint('🔧 Folder validation complete: repaired $repairedCount folders');
   }
 
   /// Handle folder sync conflicts with intelligent resolution
   Future<void> resolveFolderConflicts() async {
-    print('🔄 Checking for folder sync conflicts...');
+    debugPrint('🔄 Checking for folder sync conflicts...');
     
     // Get folders that might have conflicts (recent updates)
     final recentFolders = await db.getRecentlyUpdatedFolders(
@@ -965,22 +980,22 @@ class NotesRepository {
           // If remote is significantly newer, pull it
           if (remoteUpdated != null &&
               remoteUpdated.isAfter(folder.updatedAt.add(const Duration(seconds: 30)))) {
-            print('🔄 Resolving conflict: pulling newer version of "${folder.name}"');
+            debugPrint('🔄 Resolving conflict: pulling newer version of "${folder.name}"');
             await pullFoldersSince(folder.updatedAt.subtract(const Duration(minutes: 1)));
             resolvedCount++;
           }
         }
       } on Object catch (e) {
-        print('❌ Failed to resolve conflict for folder ${folder.id}: $e');
+        debugPrint('❌ Failed to resolve conflict for folder ${folder.id}: $e');
       }
     }
 
-    print('🔄 Conflict resolution complete: resolved $resolvedCount conflicts');
+    debugPrint('🔄 Conflict resolution complete: resolved $resolvedCount conflicts');
   }
 
   /// Clean up orphaned note-folder relationships
   Future<void> cleanupOrphanedRelationships() async {
-    print('🧹 Cleaning up orphaned note-folder relationships...');
+    debugPrint('🧹 Cleaning up orphaned note-folder relationships...');
 
     final allRelationships = await db.getAllNoteFolderRelationships();
     var cleanedCount = 0;
@@ -1003,12 +1018,12 @@ class NotesRepository {
       }
     }
 
-    print('🧹 Cleanup complete: removed $cleanedCount orphaned relationships');
+    debugPrint('🧹 Cleanup complete: removed $cleanedCount orphaned relationships');
   }
 
   /// Comprehensive folder system health check
   Future<Map<String, dynamic>> performFolderHealthCheck() async {
-    print('🏥 Performing folder system health check...');
+    debugPrint('🏥 Performing folder system health check...');
 
     final stats = <String, dynamic>{
       'total_folders': 0,
@@ -1088,19 +1103,19 @@ class NotesRepository {
     stats['notes_with_folders'] = notesWithFolders.length;
     stats['unfiled_notes'] = allNotes.where((n) => !n.deleted).length - notesWithFolders.length;
 
-    print('🏥 Health check complete:');
-    print('   Total folders: ${stats['total_folders']} (${stats['active_folders']} active, ${stats['deleted_folders']} deleted)');
-    print('   Root folders: ${stats['root_folders']}');
-    print('   Max folder depth: ${stats['max_depth']}');
-    print('   Notes with folders: ${stats['notes_with_folders']}');
-    print('   Unfiled notes: ${stats['unfiled_notes']}');
+    debugPrint('🏥 Health check complete:');
+    debugPrint('   Total folders: ${stats['total_folders']} (${stats['active_folders']} active, ${stats['deleted_folders']} deleted)');
+    debugPrint('   Root folders: ${stats['root_folders']}');
+    debugPrint('   Max folder depth: ${stats['max_depth']}');
+    debugPrint('   Notes with folders: ${stats['notes_with_folders']}');
+    debugPrint('   Unfiled notes: ${stats['unfiled_notes']}');
     final issuesList = stats['issues_found'] as List<String>;
-    print('   Issues found: ${issuesList.length}');
+    debugPrint('   Issues found: ${issuesList.length}');
 
     if (issuesList.isNotEmpty) {
-      print('⚠️  Issues detected:');
+      debugPrint('⚠️  Issues detected:');
       for (final issue in issuesList) {
-        print('   - $issue');
+        debugPrint('   - $issue');
       }
     }
 

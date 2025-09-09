@@ -1,4 +1,3 @@
-
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
@@ -8,11 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-@GenerateMocks([
-  NotesRepository,
-  AttachmentService,
-  AppLogger,
-  AnalyticsService,
+// Import the generated mocks
+import 'share_extension_service_test.mocks.dart';
+
+// Use customMocks to avoid naming conflicts
+@GenerateMocks([], customMocks: [
+  MockSpec<NotesRepository>(as: #MockNotesRepository),
+  MockSpec<AttachmentService>(as: #MockAttachmentService),
+  MockSpec<AppLogger>(as: #MockAppLogger),
+  MockSpec<AnalyticsService>(as: #MockAnalyticsService),
 ])
 void main() {
   group('ShareExtensionService', () {
@@ -114,9 +117,3 @@ void main() {
     */
   });
 }
-
-// Mock classes for testing
-class MockNotesRepository extends Mock implements NotesRepository {}
-class MockAttachmentService extends Mock implements AttachmentService {}
-class MockAppLogger extends Mock implements AppLogger {}
-class MockAnalyticsService extends Mock implements AnalyticsService {}

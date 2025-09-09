@@ -53,6 +53,12 @@ class _FakeSupabaseNoteApi_3 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
+class _FakeDecryptResult_4<T> extends _i1.SmartFake
+    implements _i3.DecryptResult<T> {
+  _FakeDecryptResult_4(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [NotesRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -112,12 +118,14 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
     required String? title,
     required String? body,
     String? id,
+    Map<String, dynamic>? metadataJson,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdate, [], {
               #title: title,
               #body: body,
               #id: id,
+              #metadataJson: metadataJson,
             }),
             returnValue: _i8.Future<String>.value(
               _i7.dummyValue<String>(
@@ -126,6 +134,7 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
                   #title: title,
                   #body: body,
                   #id: id,
+                  #metadataJson: metadataJson,
                 }),
               ),
             ),
@@ -777,4 +786,56 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
             ),
           )
           as _i8.Future<String>);
+
+  @override
+  _i8.Future<_i3.DecryptResult<Map<String, dynamic>>>
+  decryptJsonForNoteWithFallback({
+    required String? userId,
+    required String? noteId,
+    required _i12.Uint8List? data,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#decryptJsonForNoteWithFallback, [], {
+              #userId: userId,
+              #noteId: noteId,
+              #data: data,
+            }),
+            returnValue:
+                _i8.Future<_i3.DecryptResult<Map<String, dynamic>>>.value(
+                  _FakeDecryptResult_4<Map<String, dynamic>>(
+                    this,
+                    Invocation.method(#decryptJsonForNoteWithFallback, [], {
+                      #userId: userId,
+                      #noteId: noteId,
+                      #data: data,
+                    }),
+                  ),
+                ),
+          )
+          as _i8.Future<_i3.DecryptResult<Map<String, dynamic>>>);
+
+  @override
+  _i8.Future<_i3.DecryptResult<String>> decryptStringForNoteWithFallback({
+    required String? userId,
+    required String? noteId,
+    required _i12.Uint8List? data,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#decryptStringForNoteWithFallback, [], {
+              #userId: userId,
+              #noteId: noteId,
+              #data: data,
+            }),
+            returnValue: _i8.Future<_i3.DecryptResult<String>>.value(
+              _FakeDecryptResult_4<String>(
+                this,
+                Invocation.method(#decryptStringForNoteWithFallback, [], {
+                  #userId: userId,
+                  #noteId: noteId,
+                  #data: data,
+                }),
+              ),
+            ),
+          )
+          as _i8.Future<_i3.DecryptResult<String>>);
 }

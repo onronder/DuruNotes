@@ -17,6 +17,7 @@ class LocalNotes extends Table {
   TextColumn get body => text().withDefault(const Constant(''))();
   DateTimeColumn get updatedAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  TextColumn get encryptedMetadata => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -194,7 +195,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -259,6 +260,10 @@ class AppDb extends _$AppDb {
             
             // Create default "Unfiled" folder for existing notes (optional)
             await _createDefaultFolders();
+          }
+          if (from < 7) {
+            // Add metadata column for attachment and email information persistence
+            await m.addColumn(localNotes, localNotes.encryptedMetadata);
           }
         },
       );
