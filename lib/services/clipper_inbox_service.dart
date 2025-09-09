@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 
 abstract class NotesCapturePort {
   Future<String> createEncryptedNote({
@@ -12,12 +14,20 @@ abstract class NotesCapturePort {
 }
 
 class ClipperInboxService {
-  ClipperInboxService({required SupabaseClient supabase, required NotesCapturePort notesPort})
-      : _supabase = supabase,
-        _notesPort = notesPort;
+  ClipperInboxService({
+    required SupabaseClient supabase, 
+    required NotesCapturePort notesPort,
+    required IncomingMailFolderManager folderManager,
+    required NotesRepository repository,
+  }) : _supabase = supabase,
+       _notesPort = notesPort,
+       _folderManager = folderManager,
+       _repository = repository;
 
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
+  final IncomingMailFolderManager _folderManager;
+  final NotesRepository _repository;
   Timer? _timer;
 
   void start() {
@@ -79,22 +89,40 @@ class ClipperInboxService {
         if (payload['attachments'] != null) 'attachments': payload['attachments'],
       };
 
+      // Check if the email has attachments
+      final hasAttachments = (payload['attachments']?['count'] ?? 0) > 0;
+      
+      // Build tags list - always include 'Email', add 'Attachment' if needed
+      final tags = <String>['Email'];
+      if (hasAttachments) {
+        tags.add('Attachment');
+      }
+      
       // Logging before processing
       debugPrint('[email_in] processing row=$id subject="$subject" from="$from"');
       debugPrint('[email_in] metadata keys: ${metadata.keys.join(', ')}');
+      debugPrint('[email_in] attachments: $hasAttachments, tags: ${tags.join(', ')}');
 
       // Delegate to the same encryption + save path used by Editor V2
       final noteId = await _notesPort.createEncryptedNote(
         title: subject.isEmpty ? 'Email Note' : subject,
         body: body.toString().trimRight(),
         metadataJson: metadata,
-        tags: const ['Email'],
+        tags: tags,
       );
+
+      // Add note to Incoming Mail folder
+      try {
+        await _folderManager.addNoteToIncomingMail(noteId);
+      } catch (e) {
+        debugPrint('[email_in] Failed to add note to folder: $e');
+        // Continue even if folder assignment fails
+      }
 
       // Logging after success
       debugPrint('[email_in] processed row=$id -> note=$noteId');
 
-      // Only delete after successful save
+      // Only delete after successful save and folder assignment
       await _supabase.from('clipper_inbox').delete().eq('id', id);
     } catch (e, st) {
       debugPrint('[email_in] failed to process row $id: $e');

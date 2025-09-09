@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/email_metadata_cache.dart';
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -545,31 +545,42 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   }
 
   Widget _buildAttachmentsIfAny() {
-    // Check if this note has cached email metadata
+    // Check if this note has persistent metadata with attachments
     if (widget.noteId == null) {
       return const SizedBox.shrink();
     }
     
-    // Get metadata from cache (only available before sync)
-    final meta = EmailMetadataCache.get(widget.noteId!);
-    if (meta == null) {
-      return const SizedBox.shrink();
-    }
-    
-    final raw = (meta['attachments']?['files'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-    
-    final files = raw.map((m) => EmailAttachmentRef(
-      path: (m['path'] as String?) ?? '',
-      filename: (m['filename'] as String?) ?? _inferFilename((m['path'] as String?) ?? ''),
-      mimeType: (m['type'] as String?) ?? 'application/octet-stream',
-      sizeBytes: (m['size'] as num?)?.toInt() ?? 0,
-    )).where((f) => f.path.isNotEmpty).toList(growable: false);
-    
-    if (files.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    
-    return EmailAttachmentsSection(files: files);
+    // Get note from repository to access persistent metadata
+    return FutureBuilder<LocalNote?>(
+      future: ref.read(notesRepositoryProvider).getNote(widget.noteId!),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data?.encryptedMetadata == null) {
+          return const SizedBox.shrink();
+        }
+        
+        try {
+          final meta = jsonDecode(snapshot.data!.encryptedMetadata!);
+          
+          final raw = (meta['attachments']?['files'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+          
+          final files = raw.map((m) => EmailAttachmentRef(
+            path: (m['path'] as String?) ?? '',
+            filename: (m['filename'] as String?) ?? _inferFilename((m['path'] as String?) ?? ''),
+            mimeType: (m['type'] as String?) ?? 'application/octet-stream',
+            sizeBytes: (m['size'] as num?)?.toInt() ?? 0,
+          )).where((f) => f.path.isNotEmpty).toList(growable: false);
+          
+          if (files.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          
+          return EmailAttachmentsSection(files: files);
+        } catch (e) {
+          // Error parsing metadata
+          return const SizedBox.shrink();
+        }
+      },
+    );
   }
   
   String _inferFilename(String path) {

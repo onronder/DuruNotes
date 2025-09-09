@@ -1,4 +1,6 @@
-import 'package:duru_notes/providers.dart';
+import 'dart:convert';
+
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,11 +54,166 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   List<LocalNote> _performSearch(String query) {
     if (query.isEmpty) return [];
     
-    final lowerQuery = query.toLowerCase();
+    // Parse search tokens
+    final filters = _parseSearchQuery(query);
+    final keywords = filters['keywords'] as String;
+    final hasAttachment = filters['hasAttachment'] as bool;
+    final typeFilter = filters['type'] as String?;
+    final filenameFilter = filters['filename'] as String?;
+    
     return notes.where((note) {
-      return note.title.toLowerCase().contains(lowerQuery) ||
-             note.body.toLowerCase().contains(lowerQuery);
+      // Check attachment filters
+      if (hasAttachment || typeFilter != null || filenameFilter != null) {
+        final attachments = _getAttachments(note);
+        
+        // Must have attachments if has:attachment is specified
+        if (hasAttachment && attachments.isEmpty) return false;
+        
+        // Check type filter
+        if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+          return false;
+        }
+        
+        // Check filename filter
+        if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
+          return false;
+        }
+      }
+      
+      // Check keywords in title and body (if any keywords remain after filtering)
+      if (keywords.isNotEmpty) {
+        final lowerKeywords = keywords.toLowerCase();
+        return note.title.toLowerCase().contains(lowerKeywords) ||
+               note.body.toLowerCase().contains(lowerKeywords);
+      }
+      
+      // If no keywords but filters matched, include the note
+      return true;
     }).toList();
+  }
+  
+  Map<String, dynamic> _parseSearchQuery(String query) {
+    String keywords = query;
+    bool hasAttachment = false;
+    String? typeFilter;
+    String? filenameFilter;
+    
+    // Extract has:attachment
+    if (query.contains('has:attachment')) {
+      hasAttachment = true;
+      keywords = keywords.replaceAll('has:attachment', '').trim();
+    }
+    
+    // Extract type:xxx
+    final typeMatch = RegExp(r'type:([^\s]+)').firstMatch(query);
+    if (typeMatch != null) {
+      typeFilter = typeMatch.group(1)?.toLowerCase();
+      keywords = keywords.replaceAll(typeMatch.group(0)!, '').trim();
+    }
+    
+    // Extract filename:xxx
+    final filenameMatch = RegExp(r'filename:([^\s]+)').firstMatch(query);
+    if (filenameMatch != null) {
+      filenameFilter = filenameMatch.group(1)?.toLowerCase();
+      keywords = keywords.replaceAll(filenameMatch.group(0)!, '').trim();
+    }
+    
+    return {
+      'keywords': keywords,
+      'hasAttachment': hasAttachment,
+      'type': typeFilter,
+      'filename': filenameFilter,
+    };
+  }
+  
+  List<Map<String, dynamic>> _getAttachments(LocalNote note) {
+    if (note.encryptedMetadata == null) return [];
+    
+    try {
+      final meta = jsonDecode(note.encryptedMetadata!);
+      final files = (meta['attachments']?['files'] as List?) ?? [];
+      return files.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  bool _matchesType(List<Map<String, dynamic>> attachments, String typeFilter) {
+    if (attachments.isEmpty) return false;
+    
+    for (final attachment in attachments) {
+      final mimeType = (attachment['type'] as String?) ?? '';
+      final filename = (attachment['filename'] as String?) ?? '';
+      
+      // Check common type mappings
+      switch (typeFilter) {
+        case 'pdf':
+          if (mimeType.contains('pdf') || filename.toLowerCase().endsWith('.pdf')) {
+            return true;
+          }
+          break;
+        case 'image':
+          if (mimeType.startsWith('image/') || 
+              RegExp(r'\.(png|jpg|jpeg|gif|bmp|webp|svg)$', caseSensitive: false)
+                  .hasMatch(filename)) {
+            return true;
+          }
+          break;
+        case 'video':
+          if (mimeType.startsWith('video/') || 
+              RegExp(r'\.(mp4|avi|mov|wmv|flv|mkv|webm)$', caseSensitive: false)
+                  .hasMatch(filename)) {
+            return true;
+          }
+          break;
+        case 'audio':
+          if (mimeType.startsWith('audio/') || 
+              RegExp(r'\.(mp3|wav|flac|aac|ogg|wma|m4a)$', caseSensitive: false)
+                  .hasMatch(filename)) {
+            return true;
+          }
+          break;
+        case 'excel':
+          if (mimeType.contains('excel') || mimeType.contains('spreadsheet') ||
+              RegExp(r'\.(xls|xlsx|csv)$', caseSensitive: false).hasMatch(filename)) {
+            return true;
+          }
+          break;
+        case 'word':
+          if (mimeType.contains('word') || mimeType.contains('document') ||
+              RegExp(r'\.(doc|docx)$', caseSensitive: false).hasMatch(filename)) {
+            return true;
+          }
+          break;
+        case 'zip':
+          if (mimeType.contains('zip') || mimeType.contains('compressed') ||
+              RegExp(r'\.(zip|rar|7z|tar|gz)$', caseSensitive: false).hasMatch(filename)) {
+            return true;
+          }
+          break;
+        default:
+          // Generic type matching
+          if (mimeType.toLowerCase().contains(typeFilter) || 
+              filename.toLowerCase().contains(typeFilter)) {
+            return true;
+          }
+      }
+    }
+    
+    return false;
+  }
+  
+  bool _matchesFilename(List<Map<String, dynamic>> attachments, String filenameFilter) {
+    if (attachments.isEmpty) return false;
+    
+    for (final attachment in attachments) {
+      final filename = (attachment['filename'] as String?) ?? '';
+      if (filename.toLowerCase().contains(filenameFilter)) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   String _formatDate(DateTime date) {

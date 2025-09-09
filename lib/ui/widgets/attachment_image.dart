@@ -1,19 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:duru_notes/main.dart';
 import 'package:flutter/material.dart';
 
-/// Cached image widget for attachment display
-/// Provides automatic caching, error handling, and analytics
+/// Displays an attachment image from a signed URL.
+/// Shows a graceful placeholder and a SnackBar on load error.
 class AttachmentImage extends StatelessWidget {
-
   const AttachmentImage({
-    required this.url, super.key,
+    super.key,
+    required this.url,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
     this.borderRadius,
     this.showLoadingIndicator = true,
   });
+
   final String url;
   final double? width;
   final double? height;
@@ -31,9 +31,9 @@ class AttachmentImage extends StatelessWidget {
         height: height,
         fit: fit,
         placeholder: showLoadingIndicator
-            ? (context, url) => _buildPlaceholder()
+            ? (context, url) => _buildPlaceholder(context)
             : null,
-        errorWidget: (context, url, error) => _buildErrorWidget(error),
+        errorWidget: (context, url, error) => _buildErrorWidget(context, error),
         fadeInDuration: const Duration(milliseconds: 200),
         fadeOutDuration: const Duration(milliseconds: 100),
         // Cache configuration
@@ -45,7 +45,7 @@ class AttachmentImage extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
       width: width,
       height: height ?? 160,
@@ -58,16 +58,16 @@ class AttachmentImage extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorWidget(dynamic error) {
-    // Log cache miss / error for analytics
-    logger.warn('Attachment image failed to load', data: {
-      'url': url,
-      'error': error.toString(),
-    });
-    
-    analytics.event('attachment.cache_miss', properties: {
-      'url_provided': url.isNotEmpty,
-      'error_type': error.runtimeType.toString(),
+  Widget _buildErrorWidget(BuildContext context, dynamic error) {
+    // Show error message in a post-frame callback to avoid build conflicts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to load attachment image'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     });
 
     return Container(
@@ -98,11 +98,12 @@ class AttachmentImage extends StatelessWidget {
 
 /// Thumbnail variant optimized for list views
 class AttachmentThumbnail extends StatelessWidget {
-
   const AttachmentThumbnail({
-    required this.url, super.key,
+    super.key,
+    required this.url,
     this.size = 60,
   });
+
   final String url;
   final double size;
 
@@ -120,11 +121,12 @@ class AttachmentThumbnail extends StatelessWidget {
 
 /// Full-size attachment viewer with caching
 class AttachmentViewer extends StatelessWidget {
-
   const AttachmentViewer({
-    required this.url, super.key,
+    super.key,
+    required this.url,
     this.title,
   });
+
   final String url;
   final String? title;
 
@@ -133,10 +135,14 @@ class AttachmentViewer extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(title ?? 'Attachment'),
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : const Color(0xFF0F1E2E),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Theme.of(context).colorScheme.surface 
+            : const Color(0xFF0F1E2E),
         foregroundColor: Colors.white,
       ),
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : const Color(0xFF0F1E2E),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark 
+          ? Theme.of(context).colorScheme.surface 
+          : const Color(0xFF0F1E2E),
       body: Center(
         child: InteractiveViewer(
           minScale: 0.5,
@@ -174,8 +180,7 @@ class AttachmentUtils {
   /// Clear image cache (useful for settings/debugging)
   static Future<void> clearImageCache() async {
     await CachedNetworkImage.evictFromCache('');
-    logger.info('Attachment image cache cleared');
-    analytics.event('attachment.cache_cleared');
+    debugPrint('[AttachmentUtils] Image cache cleared');
   }
 
   /// Get cache size information

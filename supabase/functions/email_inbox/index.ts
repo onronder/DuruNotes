@@ -127,6 +127,8 @@ serve(async (req) => {
       }
 
       const emailFolder = `${userId}/${Date.now()}-${(messageId ?? "nomid").slice(0, 12)}`;
+      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+      const blocked = new Set(['application/x-dosexec', 'application/x-msdownload', 'application/x-msdos-program']);
 
       for (let i = 1; i <= attachCount; i++) {
         const file = formData.get(`attachment${i}`);
@@ -135,6 +137,18 @@ serve(async (req) => {
           const filename = info.filename || file.name || `attachment${i}`;
           const type     = info.type || file.type || "application/octet-stream";
           const size     = file.size;
+
+          // Skip oversized attachments
+          if (size > MAX_SIZE) {
+            console.warn('Skipping oversized attachment', { name: filename, size: size });
+            continue;
+          }
+
+          // Skip blocked MIME types
+          if (blocked.has(type.toLowerCase())) {
+            console.warn('Skipping blocked MIME type', { name: filename, type: type });
+            continue;
+          }
 
           const filePath = `${emailFolder}/${filename}`;
           const { error: upErr } = await supabase.storage

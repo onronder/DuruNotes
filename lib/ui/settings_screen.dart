@@ -7,6 +7,8 @@ import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/ui/components/ios_style_toggle.dart';
 import 'package:duru_notes/ui/help_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -22,6 +24,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String? _emailInAddress;
+  bool _isLoadingEmail = false;
   PackageInfo? _packageInfo;
   bool _isSyncing = false;
 
@@ -89,6 +93,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadPackageInfo();
+    _loadEmailAddress();
+  }
+  
+  Future<void> _loadEmailAddress() async {
+    setState(() => _isLoadingEmail = true);
+    try {
+      // Use the provider to get the EmailAliasService
+      final aliasService = ref.read(emailAliasServiceProvider);
+      
+      // Debug: Check if dotenv is loaded
+      debugPrint('[Settings] Checking dotenv status...');
+      debugPrint('[Settings] INBOUND_EMAIL_DOMAIN from env: ${dotenv.env['INBOUND_EMAIL_DOMAIN']}');
+      
+      final address = await aliasService.getFullEmailAddress();
+      debugPrint('[Settings] Loaded email address: $address');
+      
+      // Validate the domain is correct
+      if (address != null && !address.endsWith('@in.durunotes.app')) {
+        debugPrint('[Settings] WARNING: Email address has wrong domain!');
+        debugPrint('[Settings] Expected: @in.durunotes.app');
+        debugPrint('[Settings] Got: $address');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _emailInAddress = address;
+          _isLoadingEmail = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Settings] Error loading email address: $e');
+      if (mounted) {
+        setState(() => _isLoadingEmail = false);
+      }
+    }
   }
 
   Future<void> _loadPackageInfo() async {
@@ -143,6 +182,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildAccountSection(context, l10n),
+                    const SizedBox(height: 16),
+                    _buildEmailInSection(context, l10n),
                     const SizedBox(height: 16),
                     _buildSyncSection(context, l10n),
                     const SizedBox(height: 16),
@@ -342,6 +383,199 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildEmailInSection(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.email_outlined,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Email-In Address',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            if (_isLoadingEmail)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_emailInAddress != null) ...[
+              // Email address display
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        _emailInAddress!,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontFamily: 'monospace',
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 20),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _emailInAddress!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Copied to clipboard'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      tooltip: 'Copy to clipboard',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final uri = Uri(
+                          scheme: 'mailto',
+                          path: _emailInAddress,
+                          query: 'subject=Test Note from DuruNotes',
+                        );
+                        
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Could not open email client'),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.send, size: 18),
+                      label: const Text('Send Test Email'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorScheme.primary,
+                        side: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: _loadEmailAddress,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Info text
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Send any email to this address to create a note. '
+                        'Attachments are preserved and notes are filed into Incoming Mail. '
+                        'Your address is unique—treat it like a secret.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Error or not available
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 20,
+                      color: colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Email-in address not available. Please try again later.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _loadEmailAddress,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
   Widget _buildAccountSection(BuildContext context, AppLocalizations l10n) {
     final user = Supabase.instance.client.auth.currentUser;
     final isCompact = MediaQuery.sizeOf(context).width < 380;

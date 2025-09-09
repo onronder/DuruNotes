@@ -20,6 +20,9 @@ import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/clipper_inbox_notes_adapter.dart';
+import 'package:duru_notes/services/email_alias_service.dart';
+import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
+import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -183,6 +186,49 @@ final shareExtensionServiceProvider = Provider<ShareExtensionService>((ref) {
   );
 });
 
+/// Email alias service provider
+final emailAliasServiceProvider = Provider<EmailAliasService>((ref) {
+  final client = Supabase.instance.client;
+  return EmailAliasService(client);
+});
+
+/// Incoming mail folder manager provider
+final incomingMailFolderManagerProvider = Provider<IncomingMailFolderManager>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) {
+    throw StateError('IncomingMailFolderManager requested without authentication');
+  }
+  
+  final repo = ref.watch(notesRepositoryProvider);
+  return IncomingMailFolderManager(
+    repository: repo,
+    userId: userId,
+  );
+});
+
+/// Inbox management service provider
+final inboxManagementServiceProvider = Provider<InboxManagementService>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('InboxManagementService requested without authentication');
+  }
+  
+  final aliasService = ref.watch(emailAliasServiceProvider);
+  final repository = ref.watch(notesRepositoryProvider);
+  final folderManager = ref.watch(incomingMailFolderManagerProvider);
+  
+  return InboxManagementService(
+    supabase: client,
+    aliasService: aliasService,
+    notesRepository: repository,
+    folderManager: folderManager,
+  );
+});
+
 /// Clipper inbox service provider
 final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   // Only create if authenticated
@@ -195,10 +241,13 @@ final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
   final db = ref.watch(appDbProvider);
   final adapter = CaptureNotesAdapter(repository: repo, db: db);
+  final folderManager = ref.watch(incomingMailFolderManagerProvider);
   
   return ClipperInboxService(
     supabase: client,
     notesPort: adapter,
+    folderManager: folderManager,
+    repository: repo,
   );
 });
 

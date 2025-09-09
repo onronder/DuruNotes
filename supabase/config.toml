@@ -50,7 +50,7 @@ enable_confirmations = false
 # Configure email template
 [auth.email.template.invite]
 subject = "You have been invited"
-content_path = "./supabase/templates/invite.html"
+# content_path = "./supabase/templates/invite.html"  # Commented out - template file not needed
 
 [functions.email_inbox]
 # Disable JWT verification for webhook endpoints

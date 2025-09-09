@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/inbound_email_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/services/inbox_management_service.dart';
+import 'package:duru_notes/providers.dart';
 
-class InboundEmailInboxWidget extends StatefulWidget {
+class InboundEmailInboxWidget extends ConsumerStatefulWidget {
   const InboundEmailInboxWidget({Key? key}) : super(key: key);
 
   @override
-  State<InboundEmailInboxWidget> createState() => _InboundEmailInboxWidgetState();
+  ConsumerState<InboundEmailInboxWidget> createState() => _InboundEmailInboxWidgetState();
 }
 
-class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
-  late final InboundEmailService _emailService;
+class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidget> {
+  late final InboxManagementService _inboxService;
   List<InboundEmail> _emails = [];
   bool _isLoading = true;
   String? _userEmailAddress;
@@ -19,7 +20,7 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
   @override
   void initState() {
     super.initState();
-    _emailService = InboundEmailService(Supabase.instance.client);
+    _inboxService = ref.read(inboxManagementServiceProvider);
     _loadData();
   }
   
@@ -29,8 +30,8 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
     try {
       // Load both email address and inbox items in parallel
       final results = await Future.wait([
-        _emailService.getUserInboundEmail(),
-        _emailService.getInboundEmails(),
+        _inboxService.getUserInboundEmail(),
+        _inboxService.getInboundEmails(),
       ]);
       
       setState(() {
@@ -75,7 +76,7 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
     
     if (confirm != true) return;
     
-    final noteId = await _emailService.convertEmailToNote(email);
+    final noteId = await _inboxService.convertEmailToNote(email);
     if (noteId != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -113,7 +114,7 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
     
     if (confirm != true) return;
     
-    final success = await _emailService.deleteInboundEmail(email.id);
+    final success = await _inboxService.deleteInboundEmail(email.id);
     if (success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,7 +131,7 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
       isScrollControlled: true,
       builder: (context) => EmailDetailSheet(
         email: email,
-        emailService: _emailService,
+        inboxService: _inboxService,
         onConvert: () {
           Navigator.of(context).pop();
           _convertToNote(email);
@@ -333,21 +334,21 @@ class _InboundEmailInboxWidgetState extends State<InboundEmailInboxWidget> {
 
 class EmailDetailSheet extends StatelessWidget {
   final InboundEmail email;
-  final InboundEmailService emailService;
+  final InboxManagementService inboxService;
   final VoidCallback onConvert;
   final VoidCallback onDelete;
   
   const EmailDetailSheet({
     Key? key,
     required this.email,
-    required this.emailService,
+    required this.inboxService,
     required this.onConvert,
     required this.onDelete,
   }) : super(key: key);
   
   @override
   Widget build(BuildContext context) {
-    final attachments = emailService.getAttachments(email);
+    final attachments = inboxService.getAttachments(email);
     
     return DraggableScrollableSheet(
       initialChildSize: 0.7,

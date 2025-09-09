@@ -64,8 +64,27 @@ class $LocalNotesTable extends LocalNotes
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _encryptedMetadataMeta = const VerificationMeta(
+    'encryptedMetadata',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, title, body, updatedAt, deleted];
+  late final GeneratedColumn<String> encryptedMetadata =
+      GeneratedColumn<String>(
+        'encrypted_metadata',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    body,
+    updatedAt,
+    deleted,
+    encryptedMetadata,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -109,6 +128,15 @@ class $LocalNotesTable extends LocalNotes
         deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
       );
     }
+    if (data.containsKey('encrypted_metadata')) {
+      context.handle(
+        _encryptedMetadataMeta,
+        encryptedMetadata.isAcceptableOrUnknown(
+          data['encrypted_metadata']!,
+          _encryptedMetadataMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -138,6 +166,10 @@ class $LocalNotesTable extends LocalNotes
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
       )!,
+      encryptedMetadata: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}encrypted_metadata'],
+      ),
     );
   }
 
@@ -153,12 +185,14 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
   final String body;
   final DateTime updatedAt;
   final bool deleted;
+  final String? encryptedMetadata;
   const LocalNote({
     required this.id,
     required this.title,
     required this.body,
     required this.updatedAt,
     required this.deleted,
+    this.encryptedMetadata,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -168,6 +202,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     map['body'] = Variable<String>(body);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || encryptedMetadata != null) {
+      map['encrypted_metadata'] = Variable<String>(encryptedMetadata);
+    }
     return map;
   }
 
@@ -178,6 +215,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       body: Value(body),
       updatedAt: Value(updatedAt),
       deleted: Value(deleted),
+      encryptedMetadata: encryptedMetadata == null && nullToAbsent
+          ? const Value.absent()
+          : Value(encryptedMetadata),
     );
   }
 
@@ -192,6 +232,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       body: serializer.fromJson<String>(json['body']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
+      encryptedMetadata: serializer.fromJson<String?>(
+        json['encryptedMetadata'],
+      ),
     );
   }
   @override
@@ -203,6 +246,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       'body': serializer.toJson<String>(body),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deleted': serializer.toJson<bool>(deleted),
+      'encryptedMetadata': serializer.toJson<String?>(encryptedMetadata),
     };
   }
 
@@ -212,12 +256,16 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     String? body,
     DateTime? updatedAt,
     bool? deleted,
+    Value<String?> encryptedMetadata = const Value.absent(),
   }) => LocalNote(
     id: id ?? this.id,
     title: title ?? this.title,
     body: body ?? this.body,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    encryptedMetadata: encryptedMetadata.present
+        ? encryptedMetadata.value
+        : this.encryptedMetadata,
   );
   LocalNote copyWithCompanion(LocalNotesCompanion data) {
     return LocalNote(
@@ -226,6 +274,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       body: data.body.present ? data.body.value : this.body,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      encryptedMetadata: data.encryptedMetadata.present
+          ? data.encryptedMetadata.value
+          : this.encryptedMetadata,
     );
   }
 
@@ -236,13 +287,15 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deleted: $deleted')
+          ..write('deleted: $deleted, ')
+          ..write('encryptedMetadata: $encryptedMetadata')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, body, updatedAt, deleted);
+  int get hashCode =>
+      Object.hash(id, title, body, updatedAt, deleted, encryptedMetadata);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -251,7 +304,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           other.title == this.title &&
           other.body == this.body &&
           other.updatedAt == this.updatedAt &&
-          other.deleted == this.deleted);
+          other.deleted == this.deleted &&
+          other.encryptedMetadata == this.encryptedMetadata);
 }
 
 class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
@@ -260,6 +314,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
   final Value<String> body;
   final Value<DateTime> updatedAt;
   final Value<bool> deleted;
+  final Value<String?> encryptedMetadata;
   final Value<int> rowid;
   const LocalNotesCompanion({
     this.id = const Value.absent(),
@@ -267,6 +322,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.body = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.encryptedMetadata = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalNotesCompanion.insert({
@@ -275,6 +331,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.body = const Value.absent(),
     required DateTime updatedAt,
     this.deleted = const Value.absent(),
+    this.encryptedMetadata = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        updatedAt = Value(updatedAt);
@@ -284,6 +341,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Expression<String>? body,
     Expression<DateTime>? updatedAt,
     Expression<bool>? deleted,
+    Expression<String>? encryptedMetadata,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -292,6 +350,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       if (body != null) 'body': body,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deleted != null) 'deleted': deleted,
+      if (encryptedMetadata != null) 'encrypted_metadata': encryptedMetadata,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -302,6 +361,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Value<String>? body,
     Value<DateTime>? updatedAt,
     Value<bool>? deleted,
+    Value<String?>? encryptedMetadata,
     Value<int>? rowid,
   }) {
     return LocalNotesCompanion(
@@ -310,6 +370,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       body: body ?? this.body,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
+      encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -332,6 +393,9 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
     }
+    if (encryptedMetadata.present) {
+      map['encrypted_metadata'] = Variable<String>(encryptedMetadata.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -346,6 +410,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
           ..write('body: $body, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
+          ..write('encryptedMetadata: $encryptedMetadata, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3462,6 +3527,7 @@ typedef $$LocalNotesTableCreateCompanionBuilder =
       Value<String> body,
       required DateTime updatedAt,
       Value<bool> deleted,
+      Value<String?> encryptedMetadata,
       Value<int> rowid,
     });
 typedef $$LocalNotesTableUpdateCompanionBuilder =
@@ -3471,6 +3537,7 @@ typedef $$LocalNotesTableUpdateCompanionBuilder =
       Value<String> body,
       Value<DateTime> updatedAt,
       Value<bool> deleted,
+      Value<String?> encryptedMetadata,
       Value<int> rowid,
     });
 
@@ -3505,6 +3572,11 @@ class $$LocalNotesTableFilterComposer
 
   ColumnFilters<bool> get deleted => $composableBuilder(
     column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get encryptedMetadata => $composableBuilder(
+    column: $table.encryptedMetadata,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3542,6 +3614,11 @@ class $$LocalNotesTableOrderingComposer
     column: $table.deleted,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get encryptedMetadata => $composableBuilder(
+    column: $table.encryptedMetadata,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalNotesTableAnnotationComposer
@@ -3567,6 +3644,11 @@ class $$LocalNotesTableAnnotationComposer
 
   GeneratedColumn<bool> get deleted =>
       $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get encryptedMetadata => $composableBuilder(
+    column: $table.encryptedMetadata,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalNotesTableTableManager
@@ -3602,6 +3684,7 @@ class $$LocalNotesTableTableManager
                 Value<String> body = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<String?> encryptedMetadata = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion(
                 id: id,
@@ -3609,6 +3692,7 @@ class $$LocalNotesTableTableManager
                 body: body,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                encryptedMetadata: encryptedMetadata,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3618,6 +3702,7 @@ class $$LocalNotesTableTableManager
                 Value<String> body = const Value.absent(),
                 required DateTime updatedAt,
                 Value<bool> deleted = const Value.absent(),
+                Value<String?> encryptedMetadata = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion.insert(
                 id: id,
@@ -3625,6 +3710,7 @@ class $$LocalNotesTableTableManager
                 body: body,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                encryptedMetadata: encryptedMetadata,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
