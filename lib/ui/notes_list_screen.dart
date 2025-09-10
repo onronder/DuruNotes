@@ -15,6 +15,11 @@ import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/ui/settings_screen.dart';
 import 'package:duru_notes/ui/widgets/folder_chip.dart';
 import 'package:duru_notes/ui/widgets/stats_card.dart';
+import 'package:duru_notes/search/saved_search_registry.dart';
+import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
+import 'package:duru_notes/ui/tag_notes_screen.dart';
+import 'package:duru_notes/ui/note_search_delegate.dart';
+import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,8 +37,6 @@ class NotesListScreen extends ConsumerStatefulWidget {
 class _NotesListScreenState extends ConsumerState<NotesListScreen>
     with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
-  late final Debouncer _searchDebouncer = Debouncer(milliseconds: 300);
   late AnimationController _fabAnimationController;
   late AnimationController _listAnimationController;
   late AnimationController _headerAnimationController;
@@ -47,9 +50,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   bool _isGridView = false;
   final Set<String> _selectedNoteIds = {};
   bool _isSelectionMode = false;
-  bool _isSearchActive = false;
   bool _isHeaderCollapsed = false;
-  String _searchQuery = '';
 
   @override
   void initState() {
@@ -100,8 +101,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   @override
   void dispose() {
     _scrollController.dispose();
-    _searchController.dispose();
-    _searchDebouncer.dispose();
     _fabAnimationController.dispose();
     _listAnimationController.dispose();
     _headerAnimationController.dispose();
@@ -124,7 +123,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     const collapseThreshold = 120.0;
     final shouldCollapse = _scrollController.offset > collapseThreshold;
     
-    if (shouldCollapse != _isHeaderCollapsed && !_isSearchActive) {
+    if (shouldCollapse != _isHeaderCollapsed) {
       setState(() {
         _isHeaderCollapsed = shouldCollapse;
       });
@@ -149,14 +148,33 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       appBar: _buildModernAppBar(context, l10n),
       body: Column(
         children: [
-          // Search bar (when active)
-          if (_isSearchActive) _buildSearchSection(context),
+          // Saved search chips with counts
+          SavedSearchChips(
+            onTap: (preset) => _handleSavedSearchTap(context, preset),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            getTagCounts: () async {
+              final db = ref.read(appDbProvider);
+              final tags = await db.getTagsWithCounts();
+              return Map.fromEntries(
+                tags.map((t) => MapEntry(t.tag, t.count)),
+              );
+            },
+            getFolderCount: (folderName) async {
+              if (folderName == 'Incoming Mail') {
+                final folderId = await ref.read(incomingMailFolderManagerProvider)
+                    .ensureIncomingMailFolderId();
+                final db = ref.read(appDbProvider);
+                return await db.getNotesCountInFolder(folderId);
+              }
+              return 0;
+            },
+          ),
           
           // User stats card with animation
-          if (user != null && !_isSearchActive) _buildUserStatsCard(context, user),
+          if (user != null) _buildUserStatsCard(context, user),
           
           // Folder navigation
-          if (!_isSearchActive) _buildFolderNavigation(context),
+          _buildFolderNavigation(context),
           
           // Notes list
           Expanded(
@@ -199,21 +217,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   fontWeight: FontWeight.w600,
                 ),
               )
-            : _isSearchActive
-                ? Text(
-                    'Search Notes',
-                    key: const ValueKey('search_title'),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : Text(
-                    l10n.notesListTitle,
-                    key: const ValueKey('main_title'),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+            : Text(
+                l10n.notesListTitle,
+                key: const ValueKey('main_title'),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
       leading: _isSelectionMode
           ? IconButton(
@@ -221,19 +231,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               onPressed: _exitSelectionMode,
               tooltip: 'Exit selection',
             )
-          : _isSearchActive
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: _exitSearch,
-                  tooltip: 'Exit search',
-                )
-              : null,
+          : null,
       actionsIconTheme: isCompact ? const IconThemeData(size: 22) : null,
       actions: _isSelectionMode
           ? _buildSelectionActions()
-          : _isSearchActive
-              ? []
-              : [
+          : [
                   // Search toggle
                   IconButton(
                     icon: const Icon(Icons.search_rounded),
@@ -322,40 +324,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   ),
                 ],
       );
-  }
-  
-  Widget _buildSearchSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search your notes...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    setState(() {
-                      _searchQuery = '';
-                    });
-                    _clearSearch();
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-        ),
-        onChanged: (query) {
-          setState(() {
-            _searchQuery = query;
-          });
-          _searchDebouncer.run(() => _performSearch(query));
-        },
-      ),
-    );
   }
   
   Widget _buildUserStatsCard(BuildContext context, User user) {
@@ -537,13 +505,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Widget _buildNotesContent(BuildContext context, AsyncValue<List<LocalNote>> notesAsync, bool hasMore) {
     return notesAsync.when(
       data: (notes) {
-        // Filter notes based on search query
-        final filteredNotes = _searchQuery.isEmpty 
-            ? notes 
-            : notes.where((note) => 
-                note.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                note.body.toLowerCase().contains(_searchQuery.toLowerCase())
-              ).toList();
+        final filteredNotes = notes;
         
         if (filteredNotes.isEmpty) {
           return _buildEmptyState(context);
@@ -575,44 +537,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Widget _buildEmptyState(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
-    if (_searchQuery.isNotEmpty) {
-      // Empty search state
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off_rounded, size: isCompact ? 48 : 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
-            SizedBox(height: isCompact ? 12 : 16),
-            Text('No notes found', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) - 2 : null)),
-            SizedBox(height: isCompact ? 6 : 8),
-            Text('Try adjusting your search terms or create a new note with "$_searchQuery"', 
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) - 1 : null),
-                textAlign: TextAlign.center),
-            SizedBox(height: isCompact ? 16 : 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _clearSearch,
-                  icon: const Icon(Icons.clear_rounded),
-                  label: Text('Clear Search', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
-                ),
-                SizedBox(width: isCompact ? 6 : 8),
-                FilledButton.icon(
-                  onPressed: () => _createNewNoteWithTitle(_searchQuery),
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text('Create Note', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 14 : 20, vertical: isCompact ? 10 : 12),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
     
     // Regular empty state
     return Center(
@@ -1997,36 +1921,50 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   
-  void _enterSearch() {
+  void _enterSearch() async {
     HapticFeedback.lightImpact();
-    setState(() {
-      _isSearchActive = true;
-    });
-    // Focus search field after animation
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // The search field will auto-focus when built
-    });
-  }
-  
-  void _exitSearch() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      _isSearchActive = false;
-      _searchQuery = '';
-    });
-    _searchController.clear();
-  }
-  
-  void _performSearch(String query) {
-    // Search is handled in the build method by filtering notes
-    // This method can be expanded for more complex search logic
-  }
-  
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-    });
+    
+    // Get current notes for search
+    final notesAsync = ref.read(filteredNotesProvider);
+    final notes = notesAsync.maybeWhen(
+      data: (notes) => notes,
+      orElse: () => <LocalNote>[],
+    );
+    
+    // Create and show search delegate
+    final delegate = NoteSearchDelegate(
+      notes: notes,
+      resolveFolderIdByName: (name) async {
+        if (name == 'Incoming Mail') {
+          return await ref.read(incomingMailFolderManagerProvider)
+              .ensureIncomingMailFolderId();
+        }
+        final db = ref.read(appDbProvider);
+        final folder = await db.findFolderByName(name);
+        return folder?.id;
+      },
+      getFolderNoteIdSet: (folderId) async {
+        final db = ref.read(appDbProvider);
+        final noteIds = await db.getNoteIdsInFolder(folderId);
+        return noteIds.toSet();
+      },
+    );
+    
+    final result = await showSearch(
+      context: context,
+      delegate: delegate,
+    );
+    
+    // Handle search result if needed
+    if (result != null && result is LocalNote) {
+      // Note was selected from search results
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ModernEditNoteScreen(noteId: result.id),
+        ),
+      );
+    }
   }
   
   void _toggleViewMode() {
@@ -2120,17 +2058,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           _sortBy = value;
         });
       },
-    );
-  }
-  
-  void _createNewNoteWithTitle(String title) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => ModernEditNoteScreen(
-          initialTitle: title,
-        ),
-      ),
     );
   }
   
@@ -2625,6 +2552,107 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ],
       ),
     );
+  }
+  
+  void _handleSavedSearchTap(BuildContext context, SavedSearchPreset preset) async {
+    HapticFeedback.selectionClick();
+    
+    // If preset has a query token, open search with it prefilled
+    if (preset.queryToken != null) {
+      final notesAsync = ref.read(filteredNotesProvider);
+      final notes = notesAsync.maybeWhen(
+        data: (notes) => notes,
+        orElse: () => <LocalNote>[],
+      );
+      
+      final delegate = NoteSearchDelegate(
+        notes: notes,
+        initialQuery: preset.queryToken,
+        resolveFolderIdByName: (folderName) async {
+          // Map "Inbox" to "Incoming Mail"
+          final actualName = folderName.toLowerCase() == 'inbox' ? 'Incoming Mail' : folderName;
+          
+          // Special handling for "Incoming Mail"
+          if (actualName == 'Incoming Mail') {
+            final user = Supabase.instance.client.auth.currentUser;
+            if (user == null) return null;
+            
+            final repository = ref.read(notesRepositoryProvider);
+            final folderManager = IncomingMailFolderManager(
+              repository: repository,
+              userId: user.id,
+            );
+            return folderManager.ensureIncomingMailFolderId();
+          }
+          
+          // For other folders, find by name
+          final db = ref.read(appDbProvider);
+          final folder = await db.findFolderByName(actualName);
+          return folder?.id;
+        },
+        getFolderNoteIdSet: (folderId) async {
+          final db = ref.read(appDbProvider);
+          final noteIds = await db.getNoteIdsInFolder(folderId);
+          return noteIds.toSet();
+        },
+      );
+      
+      // Show search and immediately show results
+      await showSearch(
+        context: context,
+        delegate: delegate,
+      );
+    }
+    // If preset has a tag, navigate to TagNotesScreen
+    else if (preset.tag != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => TagNotesScreen(tag: preset.tag!),
+        ),
+      );
+    }
+    // If preset has a folder name (e.g., Inbox -> Incoming Mail)
+    else if (preset.folderName != null) {
+      try {
+        // Get the user ID
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user == null) return;
+        
+        // Create the folder manager to resolve the folder ID
+        final repository = ref.read(notesRepositoryProvider);
+        final folderManager = IncomingMailFolderManager(
+          repository: repository,
+          userId: user.id,
+        );
+        
+        // Ensure the folder exists and get its ID
+        final folderId = await folderManager.ensureIncomingMailFolderId();
+        
+        // Get all folders from repository to find the folder object
+        final allFolders = await repository.listFolders();
+        final targetFolder = allFolders.firstWhere(
+          (folder) => folder.id == folderId,
+          orElse: () => LocalFolder(
+            id: folderId,
+            name: preset.folderName!,
+            parentId: null,
+            path: '/${preset.folderName}',
+            color: '#2196F3',
+            icon: '📧',
+            description: '',
+            sortOrder: 0,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            deleted: false,
+          ),
+        );
+        
+        // Use the same method as folder chips to select the folder
+        ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
+      } catch (e) {
+        debugPrint('Error resolving folder for saved search: $e');
+      }
+    }
   }
 }
 

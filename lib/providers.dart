@@ -247,7 +247,6 @@ final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
     supabase: client,
     notesPort: adapter,
     folderManager: folderManager,
-    repository: repo,
   );
 });
 

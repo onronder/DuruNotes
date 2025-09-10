@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_saved_search_presets.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/foundation.dart';
 
@@ -86,6 +87,11 @@ class SmartFolderEngine {
 
   /// Filter notes based on smart folder rules
   List<LocalNote> _filterNotes(List<LocalNote> notes, SmartFolderConfig config) {
+    // Check if this is a saved search preset
+    if (config.id.startsWith('saved_search_')) {
+      return notes.filterForSavedSearch(config.id);
+    }
+    
     if (config.rules.isEmpty) return notes;
     
     return notes.where((note) {

@@ -4,10 +4,25 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+typedef FolderResolver = Future<String?> Function(String folderName);
+typedef FolderNoteIdsResolver = Future<Set<String>> Function(String folderId);
+
 class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   
-  NoteSearchDelegate({required this.notes});
+  NoteSearchDelegate({
+    required this.notes, 
+    this.initialQuery,
+    this.resolveFolderIdByName,
+    this.getFolderNoteIdSet,
+  }) {
+    if (initialQuery != null) {
+      query = initialQuery!;
+    }
+  }
   final List<LocalNote> notes;
+  final String? initialQuery;
+  final FolderResolver? resolveFolderIdByName;
+  final FolderNoteIdsResolver? getFolderNoteIdSet;
 
   @override
   String? get searchFieldLabel => 'Search notes...';
@@ -51,6 +66,105 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     );
   }
 
+  Future<List<LocalNote>> _performSearchAsync(String query) async {
+    if (query.isEmpty) return [];
+    
+    // Parse search tokens
+    final filters = _parseSearchQuery(query);
+    final keywords = filters['keywords'] as String;
+    final hasAttachment = filters['hasAttachment'] as bool;
+    final typeFilter = filters['type'] as String?;
+    final filenameFilter = filters['filename'] as String?;
+    final fromEmail = filters['fromEmail'] as bool;
+    final fromWeb = filters['fromWeb'] as bool;
+    final folderName = filters['folderName'] as String?;
+    
+    // Handle folder filtering if needed
+    Set<String>? folderNoteIds;
+    if (folderName != null && resolveFolderIdByName != null && getFolderNoteIdSet != null) {
+      final folderId = await resolveFolderIdByName!(folderName);
+      if (folderId != null) {
+        folderNoteIds = await getFolderNoteIdSet!(folderId);
+      }
+    }
+    
+    return notes.where((note) {
+      // Check folder filter first
+      if (folderNoteIds != null && !folderNoteIds.contains(note.id)) {
+        return false;
+      }
+      
+      // Check from:email filter
+      if (fromEmail) {
+        // First choice: check encrypted metadata source
+        if (note.encryptedMetadata != null) {
+          try {
+            final meta = jsonDecode(note.encryptedMetadata!);
+            if (meta['source'] != 'email_in') {
+              // Fallback: check for #Email tag in body
+              if (!note.body.contains('#Email')) return false;
+            }
+          } catch (e) {
+            // Fallback: check for #Email tag in body
+            if (!note.body.contains('#Email')) return false;
+          }
+        } else {
+          // Fallback: check for #Email tag in body
+          if (!note.body.contains('#Email')) return false;
+        }
+      }
+      
+      // Check from:web filter
+      if (fromWeb) {
+        // First choice: check encrypted metadata source
+        if (note.encryptedMetadata != null) {
+          try {
+            final meta = jsonDecode(note.encryptedMetadata!);
+            if (meta['source'] != 'web') {
+              // Fallback: check for #Web tag in body
+              if (!note.body.contains('#Web')) return false;
+            }
+          } catch (e) {
+            // Fallback: check for #Web tag in body
+            if (!note.body.contains('#Web')) return false;
+          }
+        } else {
+          // Fallback: check for #Web tag in body
+          if (!note.body.contains('#Web')) return false;
+        }
+      }
+      
+      // Check attachment filters
+      if (hasAttachment || typeFilter != null || filenameFilter != null) {
+        final attachments = _getAttachments(note);
+        
+        // Must have attachments if has:attachment is specified
+        if (hasAttachment && attachments.isEmpty) return false;
+        
+        // Check type filter
+        if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+          return false;
+        }
+        
+        // Check filename filter
+        if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
+          return false;
+        }
+      }
+      
+      // Check keywords in title and body (if any keywords remain after filtering)
+      if (keywords.isNotEmpty) {
+        final lowerKeywords = keywords.toLowerCase();
+        return note.title.toLowerCase().contains(lowerKeywords) ||
+               note.body.toLowerCase().contains(lowerKeywords);
+      }
+      
+      // If no keywords but filters matched, include the note
+      return true;
+    }).toList();
+  }
+  
+  // Keep synchronous version for backward compatibility (without folder filtering)
   List<LocalNote> _performSearch(String query) {
     if (query.isEmpty) return [];
     
@@ -60,8 +174,50 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     final hasAttachment = filters['hasAttachment'] as bool;
     final typeFilter = filters['type'] as String?;
     final filenameFilter = filters['filename'] as String?;
+    final fromEmail = filters['fromEmail'] as bool;
+    final fromWeb = filters['fromWeb'] as bool;
     
     return notes.where((note) {
+      // Check from:email filter
+      if (fromEmail) {
+        // First choice: check encrypted metadata source
+        if (note.encryptedMetadata != null) {
+          try {
+            final meta = jsonDecode(note.encryptedMetadata!);
+            if (meta['source'] != 'email_in') {
+              // Fallback: check for #Email tag in body
+              if (!note.body.contains('#Email')) return false;
+            }
+          } catch (e) {
+            // Fallback: check for #Email tag in body
+            if (!note.body.contains('#Email')) return false;
+          }
+        } else {
+          // Fallback: check for #Email tag in body
+          if (!note.body.contains('#Email')) return false;
+        }
+      }
+      
+      // Check from:web filter
+      if (fromWeb) {
+        // First choice: check encrypted metadata source
+        if (note.encryptedMetadata != null) {
+          try {
+            final meta = jsonDecode(note.encryptedMetadata!);
+            if (meta['source'] != 'web') {
+              // Fallback: check for #Web tag in body
+              if (!note.body.contains('#Web')) return false;
+            }
+          } catch (e) {
+            // Fallback: check for #Web tag in body
+            if (!note.body.contains('#Web')) return false;
+          }
+        } else {
+          // Fallback: check for #Web tag in body
+          if (!note.body.contains('#Web')) return false;
+        }
+      }
+      
       // Check attachment filters
       if (hasAttachment || typeFilter != null || filenameFilter != null) {
         final attachments = _getAttachments(note);
@@ -97,22 +253,57 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     bool hasAttachment = false;
     String? typeFilter;
     String? filenameFilter;
+    bool fromEmail = false;
+    bool fromWeb = false;
+    String? folderName;
     
-    // Extract has:attachment
-    if (query.contains('has:attachment')) {
+    // Extract has:attachment (case-insensitive)
+    final hasAttachmentRegex = RegExp(r'has:attachment', caseSensitive: false);
+    if (hasAttachmentRegex.hasMatch(query)) {
       hasAttachment = true;
-      keywords = keywords.replaceAll('has:attachment', '').trim();
+      keywords = keywords.replaceAll(hasAttachmentRegex, '').trim();
+    }
+    
+    // Extract from:email (case-insensitive)
+    final fromEmailRegex = RegExp(r'from:email', caseSensitive: false);
+    if (fromEmailRegex.hasMatch(query)) {
+      fromEmail = true;
+      keywords = keywords.replaceAll(fromEmailRegex, '').trim();
+    }
+    
+    // Extract from:web (case-insensitive)
+    final fromWebRegex = RegExp(r'from:web', caseSensitive: false);
+    if (fromWebRegex.hasMatch(query)) {
+      fromWeb = true;
+      keywords = keywords.replaceAll(fromWebRegex, '').trim();
+    }
+    
+    // Extract folder:"name" or folder:name (case-insensitive)
+    final folderQuotedMatch = RegExp(r'folder:"([^"]+)"', caseSensitive: false).firstMatch(query);
+    final folderUnquotedMatch = RegExp(r'folder:([^\s]+)', caseSensitive: false).firstMatch(query);
+    
+    if (folderQuotedMatch != null) {
+      folderName = folderQuotedMatch.group(1);
+      keywords = keywords.replaceAll(folderQuotedMatch.group(0)!, '').trim();
+    } else if (folderUnquotedMatch != null) {
+      folderName = folderUnquotedMatch.group(1);
+      keywords = keywords.replaceAll(folderUnquotedMatch.group(0)!, '').trim();
+    }
+    
+    // Map "Inbox" to "Incoming Mail" for convenience
+    if (folderName?.toLowerCase() == 'inbox') {
+      folderName = 'Incoming Mail';
     }
     
     // Extract type:xxx
-    final typeMatch = RegExp(r'type:([^\s]+)').firstMatch(query);
+    final typeMatch = RegExp(r'type:([^\s]+)', caseSensitive: false).firstMatch(query);
     if (typeMatch != null) {
       typeFilter = typeMatch.group(1)?.toLowerCase();
       keywords = keywords.replaceAll(typeMatch.group(0)!, '').trim();
     }
     
     // Extract filename:xxx
-    final filenameMatch = RegExp(r'filename:([^\s]+)').firstMatch(query);
+    final filenameMatch = RegExp(r'filename:([^\s]+)', caseSensitive: false).firstMatch(query);
     if (filenameMatch != null) {
       filenameFilter = filenameMatch.group(1)?.toLowerCase();
       keywords = keywords.replaceAll(filenameMatch.group(0)!, '').trim();
@@ -123,6 +314,9 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       'hasAttachment': hasAttachment,
       'type': typeFilter,
       'filename': filenameFilter,
+      'fromEmail': fromEmail,
+      'fromWeb': fromWeb,
+      'folderName': folderName,
     };
   }
   
@@ -343,8 +537,33 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
   @override
   Widget buildResults(BuildContext context) {
-    final results = _performSearch(query);
+    // Check if we need async search (has folder filter)
+    final filters = _parseSearchQuery(query);
+    final needsAsync = filters['folderName'] != null && 
+                       resolveFolderIdByName != null && 
+                       getFolderNoteIdSet != null;
     
+    if (needsAsync) {
+      // Use async search with FutureBuilder
+      return FutureBuilder<List<LocalNote>>(
+        future: _performSearchAsync(query),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final results = snapshot.data ?? [];
+          return _buildResultsList(context, results);
+        },
+      );
+    } else {
+      // Use synchronous search for backward compatibility
+      final results = _performSearch(query);
+      return _buildResultsList(context, results);
+    }
+  }
+  
+  Widget _buildResultsList(BuildContext context, List<LocalNote> results) {
     if (results.isEmpty) {
       return Center(
         child: Column(
