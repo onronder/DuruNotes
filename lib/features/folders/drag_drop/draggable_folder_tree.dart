@@ -625,8 +625,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
 
       child = DragTarget<String>(
         onWillAcceptWithDetails: (data) => data != folder.id,
-        onAcceptWithDetails: (draggedFolderId) {
-          widget.onAcceptDrop?.call(draggedFolderId, folder.id);
+        onAcceptWithDetails: (details) {
+          widget.onAcceptDrop?.call(details.data, folder.id);
         },
         onMove: (_) => widget.onHover?.call(folder.id),
         onLeave: (_) => widget.onHoverEnd?.call(),

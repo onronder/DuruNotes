@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/providers.dart';
 
+/// Widget for displaying the unified inbox (email and web clips)
 class InboundEmailInboxWidget extends ConsumerStatefulWidget {
   const InboundEmailInboxWidget({Key? key}) : super(key: key);
 
@@ -13,7 +14,7 @@ class InboundEmailInboxWidget extends ConsumerStatefulWidget {
 
 class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidget> {
   late final InboxManagementService _inboxService;
-  List<InboundEmail> _emails = [];
+  List<InboxItem> _items = [];
   bool _isLoading = true;
   String? _userEmailAddress;
   
@@ -31,12 +32,12 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       // Load both email address and inbox items in parallel
       final results = await Future.wait([
         _inboxService.getUserInboundEmail(),
-        _inboxService.getInboundEmails(),
+        _inboxService.getClipperInboxItems(),
       ]);
       
       setState(() {
         _userEmailAddress = results[0] as String?;
-        _emails = results[1] as List<InboundEmail>;
+        _items = results[1] as List<InboxItem>;
         _isLoading = false;
       });
     } catch (e) {
@@ -44,7 +45,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading emails: $e'),
+            content: Text('Error loading inbox items: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -52,14 +53,15 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     }
   }
   
-  Future<void> _convertToNote(InboundEmail email) async {
+  Future<void> _convertToNote(InboxItem item) async {
+    final itemType = item.isEmail ? 'email' : 'web clip';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Convert to Note'),
         content: Text(
-          'Convert "${email.subject ?? "Untitled"}" to a note?\n\n'
-          'This will create a new note and remove the email from your inbox.',
+          'Convert "${item.displayTitle}" to a note?\n\n'
+          'This will create a new note and remove the $itemType from your inbox.',
         ),
         actions: [
           TextButton(
@@ -76,12 +78,12 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     
     if (confirm != true) return;
     
-    final noteId = await _inboxService.convertEmailToNote(email);
+    final noteId = await _inboxService.convertInboxItemToNote(item);
     if (noteId != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email converted to note successfully'),
+          SnackBar(
+            content: Text('${item.isEmail ? "Email" : "Web clip"} converted to note successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -90,12 +92,13 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     }
   }
   
-  Future<void> _deleteEmail(InboundEmail email) async {
+  Future<void> _deleteItem(InboxItem item) async {
+    final itemType = item.isEmail ? 'Email' : 'Web Clip';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Email'),
-        content: Text('Delete "${email.subject ?? "Untitled"}"?'),
+        title: Text('Delete $itemType'),
+        content: Text('Delete "${item.displayTitle}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -114,31 +117,31 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     
     if (confirm != true) return;
     
-    final success = await _inboxService.deleteInboundEmail(email.id);
+    final success = await _inboxService.deleteInboxItem(item.id);
     if (success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email deleted')),
+          SnackBar(content: Text('$itemType deleted')),
         );
       }
       _loadData(); // Refresh the list
     }
   }
   
-  void _showEmailDetails(InboundEmail email) {
+  void _showItemDetails(InboxItem item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => EmailDetailSheet(
-        email: email,
+      builder: (context) => InboxItemDetailSheet(
+        item: item,
         inboxService: _inboxService,
         onConvert: () {
           Navigator.of(context).pop();
-          _convertToNote(email);
+          _convertToNote(item);
         },
         onDelete: () {
           Navigator.of(context).pop();
-          _deleteEmail(email);
+          _deleteItem(item);
         },
       ),
     );
@@ -157,7 +160,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Email Inbox'),
+        title: const Text('Inbox'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -177,7 +180,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Forward emails to:',
+                      'Forward emails or use with Web Clipper:',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
@@ -207,7 +210,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _emails.isEmpty
+                : _items.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -215,13 +218,13 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                             const Icon(Icons.inbox, size: 64, color: Colors.grey),
                             const SizedBox(height: 16),
                             const Text(
-                              'No emails yet',
+                              'No items yet',
                               style: TextStyle(fontSize: 18, color: Colors.grey),
                             ),
                             const SizedBox(height: 8),
                             if (_userEmailAddress != null)
                               Text(
-                                'Send an email to\n$_userEmailAddress',
+                                'Send emails to:\n$_userEmailAddress\n\nOr use the Web Clipper extension',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(color: Colors.grey),
                               ),
@@ -231,11 +234,11 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                     : RefreshIndicator(
                         onRefresh: _loadData,
                         child: ListView.builder(
-                          itemCount: _emails.length,
+                          itemCount: _items.length,
                           itemBuilder: (context, index) {
-                            final email = _emails[index];
+                            final item = _items[index];
                             return Dismissible(
-                              key: Key(email.id),
+                              key: Key(item.id),
                               background: Container(
                                 color: Colors.green,
                                 alignment: Alignment.centerLeft,
@@ -250,21 +253,24 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                               ),
                               confirmDismiss: (direction) async {
                                 if (direction == DismissDirection.startToEnd) {
-                                  await _convertToNote(email);
+                                  await _convertToNote(item);
                                   return false; // Don't dismiss, we'll refresh
                                 } else {
-                                  await _deleteEmail(email);
+                                  await _deleteItem(item);
                                   return false; // Don't dismiss, we'll refresh
                                 }
                               },
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  child: Text(
-                                    (email.from?.substring(0, 1) ?? '?').toUpperCase(),
-                                  ),
+                                  backgroundColor: item.isWebClip ? Colors.blue : null,
+                                  child: item.isWebClip
+                                      ? const Icon(Icons.language, color: Colors.white)
+                                      : Text(
+                                          (item.from?.substring(0, 1) ?? '?').toUpperCase(),
+                                        ),
                                 ),
                                 title: Text(
-                                  email.subject ?? '(no subject)',
+                                  item.displayTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -272,13 +278,13 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      email.from ?? 'Unknown sender',
+                                      item.displaySubtitle,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    if (email.text != null)
+                                    if (item.displayText != null)
                                       Text(
-                                        email.text!,
+                                        item.displayText!,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontSize: 12),
@@ -288,15 +294,21 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (email.hasAttachments)
+                                    if (item.hasAttachments)
                                       Icon(
                                         Icons.attach_file,
                                         size: 20,
                                         color: Colors.grey[600],
                                       ),
+                                    if (item.isWebClip)
+                                      Icon(
+                                        Icons.link,
+                                        size: 20,
+                                        color: Colors.grey[600],
+                                      ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      _formatDate(email.createdAt),
+                                      _formatDate(item.createdAt),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey[600],
@@ -304,7 +316,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                                     ),
                                   ],
                                 ),
-                                onTap: () => _showEmailDetails(email),
+                                onTap: () => _showItemDetails(item),
                               ),
                             );
                           },
@@ -332,15 +344,15 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
   }
 }
 
-class EmailDetailSheet extends StatelessWidget {
-  final InboundEmail email;
+class InboxItemDetailSheet extends StatelessWidget {
+  final InboxItem item;
   final InboxManagementService inboxService;
   final VoidCallback onConvert;
   final VoidCallback onDelete;
   
-  const EmailDetailSheet({
+  const InboxItemDetailSheet({
     Key? key,
-    required this.email,
+    required this.item,
     required this.inboxService,
     required this.onConvert,
     required this.onDelete,
@@ -348,7 +360,7 @@ class EmailDetailSheet extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final attachments = inboxService.getAttachments(email);
+    final attachments = item.isEmail ? inboxService.getAttachments(item) : <EmailAttachment>[];
     
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -374,9 +386,9 @@ class EmailDetailSheet extends StatelessWidget {
                 ),
               ),
               
-              // Subject
+              // Title
               Text(
-                email.subject ?? '(no subject)',
+                item.displayTitle,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -384,39 +396,62 @@ class EmailDetailSheet extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               
-              // From
-              Row(
-                children: [
-                  const Text('From: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Expanded(
-                    child: Text(
-                      email.from ?? 'Unknown',
-                      overflow: TextOverflow.ellipsis,
+              // Source-specific details
+              if (item.isEmail) ...[
+                // From
+                Row(
+                  children: [
+                    const Text('From: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Text(
+                        item.from ?? 'Unknown',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                // To
+                Row(
+                  children: [
+                    const Text('To: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Text(
+                        item.to ?? 'Unknown',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               
-              // To
-              Row(
-                children: [
-                  const Text('To: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Expanded(
-                    child: Text(
-                      email.to ?? 'Unknown',
-                      overflow: TextOverflow.ellipsis,
+              if (item.isWebClip) ...[
+                // URL
+                Row(
+                  children: [
+                    const Text('Source: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Text(
+                        item.webUrl ?? 'Unknown',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.blue),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               
               // Date
               Row(
                 children: [
-                  const Text('Date: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(email.createdAt.toLocal().toString()),
+                  Text(
+                    item.isWebClip ? 'Clipped: ' : 'Date: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(item.createdAt.toLocal().toString()),
                 ],
               ),
               const SizedBox(height: 16),
@@ -464,7 +499,7 @@ class EmailDetailSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      email.text ?? email.html ?? '(no content)',
+                      item.displayText ?? item.html ?? '(no content)',
                       style: const TextStyle(fontSize: 14),
                     ),
                   ),

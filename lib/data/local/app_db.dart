@@ -900,6 +900,20 @@ class AppDb extends _$AppDb {
     await into(localFolders).insertOnConflictUpdate(folder);
   }
 
+  /// Get count of notes in a specific folder
+  Future<int> getNotesCountInFolder(String folderId) async {
+    final countExp = localNotes.id.count();
+    final query = selectOnly(localNotes)
+      ..join([
+        leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
+      ])
+      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId))
+      ..addColumns([countExp]);
+    
+    final result = await query.getSingle();
+    return result.read(countExp) ?? 0;
+  }
+
   /// Get notes in a specific folder
   Future<List<LocalNote>> getNotesInFolder(String folderId, {int? limit, DateTime? cursor}) {
     final query = select(localNotes).join([
@@ -957,6 +971,15 @@ class AppDb extends _$AppDb {
     }
   }
 
+  /// Get note IDs in a specific folder
+  Future<List<String>> getNoteIdsInFolder(String folderId) async {
+    final query = select(noteFolders)
+      ..where((nf) => nf.folderId.equals(folderId));
+    
+    final results = await query.get();
+    return results.map((nf) => nf.noteId).toList();
+  }
+
   /// Get folder for a specific note
   Future<LocalFolder?> getNoteFolder(String noteId) async {
     final query = select(localFolders).join([
@@ -1003,15 +1026,6 @@ class AppDb extends _$AppDb {
           ..where((f) => f.deleted.equals(false))
           ..orderBy([(f) => OrderingTerm.asc(f.path)]))
         .get();
-  }
-
-  /// Get note IDs in a specific folder
-  Future<List<String>> getNoteIdsInFolder(String folderId) async {
-    final query = select(noteFolders)
-      ..where((nf) => nf.folderId.equals(folderId));
-    
-    final results = await query.get();
-    return results.map((nf) => nf.noteId).toList();
   }
 
   /// Get folder for a specific note (alias for getNoteFolder)
@@ -1120,6 +1134,14 @@ class AppDb extends _$AppDb {
                          f.name.contains(query))
           ..orderBy([(f) => OrderingTerm.asc(f.name)]))
         .get();
+  }
+  
+  /// Find folder by exact name
+  Future<LocalFolder?> findFolderByName(String name) async {
+    return (select(localFolders)
+          ..where((f) => f.deleted.equals(false) & 
+                         f.name.equals(name)))
+        .getSingleOrNull();
   }
 }
 

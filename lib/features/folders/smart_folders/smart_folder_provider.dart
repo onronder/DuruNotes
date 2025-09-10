@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_engine.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_saved_search_presets.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,6 +70,8 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
       // Add default templates if no folders exist
       if (folders.isEmpty) {
         folders.addAll(SmartFolderTemplates.all);
+        // Add saved search presets
+        folders.addAll(SmartFolderSavedSearchPresets.getSavedSearchPresets());
         await _saveSmartFolders(folders);
       }
       
