@@ -38,13 +38,26 @@ class IncomingMailFolderManager {
         await _clearCachedFolderId();
       }
       
-      // Search for existing folder
+      // Search for existing folder - be more thorough
       final folders = await _repository.listFolders();
+      
+      // First pass: exact name match (case-insensitive)
       for (final folder in folders) {
-        if (folder.name.toLowerCase() == _folderName.toLowerCase() && 
+        if (folder.name.trim().toLowerCase() == _folderName.trim().toLowerCase() && 
             !folder.deleted) {
           await _cacheFolderId(folder.id);
-          debugPrint('[IncomingMailFolder] Found existing folder: ${folder.id}');
+          debugPrint('[IncomingMailFolder] Found existing folder (exact match): ${folder.id} - ${folder.name}');
+          return folder.id;
+        }
+      }
+      
+      // Second pass: check for variations (in case of trimming issues)
+      for (final folder in folders) {
+        final normalizedFolderName = folder.name.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+        final normalizedTargetName = _folderName.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+        if (normalizedFolderName == normalizedTargetName && !folder.deleted) {
+          await _cacheFolderId(folder.id);
+          debugPrint('[IncomingMailFolder] Found existing folder (normalized): ${folder.id} - ${folder.name}');
           return folder.id;
         }
       }

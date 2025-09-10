@@ -23,6 +23,7 @@ import 'package:duru_notes/services/clipper_inbox_notes_adapter.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
+import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -229,6 +230,28 @@ final inboxManagementServiceProvider = Provider<InboxManagementService>((ref) {
   );
 });
 
+/// Inbox unread tracking service provider
+final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('InboxUnreadService requested without authentication');
+  }
+  
+  final service = InboxUnreadService(supabase: client);
+  
+  // Update count periodically
+  service.updateUnreadCount();
+  
+  // Clean up on logout
+  ref.onDispose(() {
+    service.clear();
+  });
+  
+  return service;
+});
+
 /// Clipper inbox service provider
 final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   // Only create if authenticated
@@ -243,10 +266,20 @@ final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   final adapter = CaptureNotesAdapter(repository: repo, db: db);
   final folderManager = ref.watch(incomingMailFolderManagerProvider);
   
+  // Get unread service but don't throw if it fails
+  InboxUnreadService? unreadService;
+  try {
+    unreadService = ref.watch(inboxUnreadServiceProvider);
+  } catch (e) {
+    // Continue without unread tracking
+    debugPrint('Could not get unread service: $e');
+  }
+  
   return ClipperInboxService(
     supabase: client,
     notesPort: adapter,
     folderManager: folderManager,
+    unreadService: unreadService,
   );
 });
 

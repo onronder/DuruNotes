@@ -1,7 +1,7 @@
 // lib/search/saved_search_registry.dart
 import 'package:flutter/material.dart';
 
-enum SavedSearchKey { attachments, emailNotes, inbox, webNotes }
+enum SavedSearchKey { attachments, emailNotes, webNotes }
 
 class SavedSearchPreset {
   final SavedSearchKey key;
@@ -46,13 +46,6 @@ class SavedSearchRegistry {
       icon: Icons.email,
       queryToken: 'from:email',
       tag: 'Email',
-    ),
-    SavedSearchPreset(
-      key: SavedSearchKey.inbox,
-      label: 'Inbox',
-      icon: Icons.inbox,
-      // We will resolve to Incoming Mail folder id when tapped
-      folderName: kIncomingMailFolderName,
     ),
     SavedSearchPreset(
       key: SavedSearchKey.webNotes,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
+import 'package:duru_notes/services/inbox_unread_service.dart';
 
 abstract class NotesCapturePort {
   Future<String> createEncryptedNote({
@@ -17,13 +18,16 @@ class ClipperInboxService {
     required SupabaseClient supabase, 
     required NotesCapturePort notesPort,
     required IncomingMailFolderManager folderManager,
+    InboxUnreadService? unreadService,
   }) : _supabase = supabase,
        _notesPort = notesPort,
-       _folderManager = folderManager;
-
+       _folderManager = folderManager,
+       _unreadService = unreadService;
+  
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
   final IncomingMailFolderManager _folderManager;
+  final InboxUnreadService? _unreadService;
   
   Timer? _timer;
   RealtimeChannel? _realtimeChannel;
@@ -179,6 +183,11 @@ class ClipperInboxService {
 
       for (final row in rows) {
         await _handleRow(row);
+      }
+      
+      // Update unread count after processing new items
+      if (rows.isNotEmpty && _unreadService != null) {
+        await _unreadService!.updateUnreadCount();
       }
     } catch (e, st) {
       debugPrint('clipper inbox processing error: $e');

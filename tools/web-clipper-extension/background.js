@@ -44,7 +44,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       // Show notification prompting user to configure settings
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'icons/icon-128.png',
+        iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
         title: 'DuruNotes Web Clipper',
         message: 'Please configure your settings first. Click the extension icon to set up.',
         priority: 2
@@ -81,7 +81,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // Show error notification
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icons/icon-128.png',
+      iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
       title: 'Clipping Failed',
       message: error.message || 'An error occurred while clipping',
       priority: 2
@@ -159,7 +159,7 @@ async function sendToDuruNotes({ alias, secret, fnBase, title, text, url }) {
       // Show success notification
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'icons/icon-128.png',
+        iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
         title: 'Clipped Successfully',
         message: `Saved from ${domain} to DuruNotes`,
         priority: 1

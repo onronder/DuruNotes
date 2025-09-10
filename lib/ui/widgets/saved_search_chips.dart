@@ -1,12 +1,14 @@
 // lib/ui/widgets/saved_search_chips.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/search/saved_search_registry.dart';
+import 'package:duru_notes/providers.dart';
 
 typedef SavedSearchTap = void Function(SavedSearchPreset preset);
 typedef TagCountProvider = Future<Map<String, int>> Function();
 typedef FolderCountProvider = Future<int> Function(String folderName);
 
-class SavedSearchChips extends StatefulWidget {
+class SavedSearchChips extends ConsumerStatefulWidget {
   final SavedSearchTap onTap;
   final EdgeInsets padding;
   final bool hideZeroCount;
@@ -23,10 +25,10 @@ class SavedSearchChips extends StatefulWidget {
   });
 
   @override
-  State<SavedSearchChips> createState() => _SavedSearchChipsState();
+  ConsumerState<SavedSearchChips> createState() => _SavedSearchChipsState();
 }
 
-class _SavedSearchChipsState extends State<SavedSearchChips> {
+class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
   Map<String, int> _counts = {};
   bool _loading = false;
 
