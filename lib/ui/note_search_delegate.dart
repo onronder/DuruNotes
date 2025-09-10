@@ -14,6 +14,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     this.initialQuery,
     this.resolveFolderIdByName,
     this.getFolderNoteIdSet,
+    this.autoSearch = false,
   }) {
     if (initialQuery != null) {
       query = initialQuery!;
@@ -23,6 +24,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   final String? initialQuery;
   final FolderResolver? resolveFolderIdByName;
   final FolderNoteIdsResolver? getFolderNoteIdSet;
+  final bool autoSearch;
 
   @override
   String? get searchFieldLabel => 'Search notes...';
@@ -100,7 +102,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
         if (note.encryptedMetadata != null) {
           try {
             final meta = jsonDecode(note.encryptedMetadata!);
-            if (meta['source'] != 'email_in') {
+            // Check for both 'email_inbox' (new format) and 'email_in' (old format)
+            if (meta['source'] != 'email_inbox' && meta['source'] != 'email_in') {
               // Fallback: check for #Email tag in body
               if (!note.body.contains('#Email')) return false;
             }
@@ -184,7 +187,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
         if (note.encryptedMetadata != null) {
           try {
             final meta = jsonDecode(note.encryptedMetadata!);
-            if (meta['source'] != 'email_in') {
+            // Check for both 'email_inbox' (new format) and 'email_in' (old format)
+            if (meta['source'] != 'email_inbox' && meta['source'] != 'email_in') {
               // Fallback: check for #Email tag in body
               if (!note.body.contains('#Email')) return false;
             }
@@ -321,15 +325,27 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
   
   List<Map<String, dynamic>> _getAttachments(LocalNote note) {
-    if (note.encryptedMetadata == null) return [];
-    
-    try {
-      final meta = jsonDecode(note.encryptedMetadata!);
-      final files = (meta['attachments']?['files'] as List?) ?? [];
-      return files.cast<Map<String, dynamic>>();
-    } catch (e) {
-      return [];
+    // First check metadata for attachments
+    if (note.encryptedMetadata != null) {
+      try {
+        final meta = jsonDecode(note.encryptedMetadata!);
+        final files = (meta['attachments']?['files'] as List?) ?? 
+                     (meta['attachments'] as List?) ?? [];
+        if (files.isNotEmpty) {
+          return files.cast<Map<String, dynamic>>();
+        }
+      } catch (e) {
+        // Continue to fallback
+      }
     }
+    
+    // Fallback: check if note has #Attachment tag
+    if (note.body.contains('#Attachment')) {
+      // Return a dummy attachment to indicate presence
+      return [{'type': 'unknown', 'filename': 'attachment'}];
+    }
+    
+    return [];
   }
   
   bool _matchesType(List<Map<String, dynamic>> attachments, String typeFilter) {
@@ -466,21 +482,30 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final suggestions = _performSearch(query);
+    // If autoSearch is enabled and we have an initial query, show results immediately
+    // This should trigger for has:attachment, from:email, from:web
+    if (autoSearch && query.isNotEmpty) {
+      // Always show results when autoSearch is enabled
+      return buildResults(context);
+    }
     
-    if (query.isEmpty) {
-      // Show recent notes when no query
-      final recentNotes = notes.take(5).toList();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Recent Notes',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+    // If we have a query but it's not auto-search, still show results
+    if (query.isNotEmpty) {
+      return buildResults(context);
+    }
+    
+    // Show recent notes when no query
+    final recentNotes = notes.take(5).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Recent Notes',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
             ),
           ),
           Expanded(
@@ -494,45 +519,6 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           ),
         ],
       );
-    }
-    
-    if (suggestions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No notes found',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try different keywords',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: suggestions.length,
-      itemBuilder: (context, index) {
-        final note = suggestions[index];
-        return _buildNoteListTile(context, note);
-      },
-    );
   }
 
   @override
@@ -564,6 +550,18 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
   
   Widget _buildResultsList(BuildContext context, List<LocalNote> results) {
+    // Parse the query to show what filter is active
+    String filterDescription = '';
+    if (query.contains('has:attachment')) {
+      filterDescription = 'Notes with Attachments';
+    } else if (query.contains('from:email')) {
+      filterDescription = 'Email Notes';
+    } else if (query.contains('from:web')) {
+      filterDescription = 'Web Clips';
+    } else if (query.isNotEmpty) {
+      filterDescription = 'Search Results';
+    }
+    
     if (results.isEmpty) {
       return Center(
         child: Column(
@@ -583,7 +581,9 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Try different keywords',
+              filterDescription.isNotEmpty 
+                  ? 'No $filterDescription found'
+                  : 'Try different keywords',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
               ),
@@ -597,26 +597,38 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Row(
-            children: [
-              Icon(
-                Icons.search,
-                size: 20,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${results.length} results for "$query"',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+        if (filterDescription.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+            child: Row(
+              children: [
+                Icon(
+                  query.contains('has:attachment') ? Icons.attach_file :
+                  query.contains('from:email') ? Icons.email :
+                  query.contains('from:web') ? Icons.language :
+                  Icons.search,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Text(
+                  filterDescription,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${results.length} ${results.length == 1 ? 'note' : 'notes'}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.all(16),

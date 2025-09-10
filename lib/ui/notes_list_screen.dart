@@ -26,6 +26,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
+import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
+import 'package:duru_notes/ui/widgets/note_source_icon.dart';
 
 /// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -242,6 +244,64 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     icon: const Icon(Icons.search_rounded),
                     onPressed: _enterSearch,
                     tooltip: 'Search notes',
+                  ),
+                  // Inbox with badge
+                  Consumer(
+                    builder: (context, ref, child) {
+                      int unreadCount = 0;
+                      try {
+                        final unreadService = ref.watch(inboxUnreadServiceProvider);
+                        unreadCount = unreadService.unreadCount;
+                      } catch (e) {
+                        // Service might not be available
+                      }
+                      
+                      return Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.inbox_rounded),
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const InboundEmailInboxWidget(),
+                                ),
+                              );
+                              // Update unread count after returning
+                              try {
+                                final unreadService = ref.read(inboxUnreadServiceProvider);
+                                await unreadService.updateUnreadCount();
+                              } catch (_) {}
+                            },
+                            tooltip: 'Inbox',
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.error,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : '$unreadCount',
+                                  style: TextStyle(
+                                    color: colorScheme.onError,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                   // View toggle
                   IconButton(
@@ -589,6 +649,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   // Removed _buildEmptyFolderState - handled by main empty state logic
 
   Widget _buildModernNoteCard(BuildContext context, LocalNote note, {bool isGrid = false}) {
+    // Use separate optimized design for grid view
+    if (isGrid) {
+      return _buildCompactGridCard(context, note);
+    }
+    
+    // List view card
     final isSelected = _selectedNoteIds.contains(note.id);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -627,16 +693,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         );
       },
       child: Card(
-        elevation: isSelected ? 6 : 2,
-        shadowColor: colorScheme.shadow.withOpacity(0.15),
+        elevation: isSelected ? 3 : 0.5,
+        shadowColor: colorScheme.shadow.withOpacity(0.08),
         color: isSelected 
-            ? theme.customColors.selectedNoteBackground
+            ? colorScheme.primaryContainer.withOpacity(0.15)
             : theme.customColors.noteCardBackground,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: isSelected 
-              ? BorderSide(color: colorScheme.primary.withOpacity(0.3), width: 1.5)
-              : BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isSelected 
+                ? colorScheme.primary.withOpacity(0.4)
+                : colorScheme.outlineVariant.withOpacity(0.2),
+            width: isSelected ? 1.5 : 0.5,
+          ),
         ),
         child: InkWell(
           onTap: () {
@@ -652,7 +721,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             }
           },
           onSecondaryTap: () => _showNoteOptions(note),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -677,8 +746,20 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // Source icon positioned to the left of menu
+                    NoteSourceIcon(
+                      note: note,
+                      size: 18,
+                      color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 4),
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert),
+                      icon: Icon(
+                        Icons.more_vert,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       onSelected: (value) {
                         switch (value) {
                           case 'edit':
@@ -724,45 +805,152 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 Text(
                   _generatePreview(note.body),
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isSelected ? colorScheme.onPrimaryContainer.withOpacity(0.8) : null,
+                    color: isSelected 
+                        ? colorScheme.onPrimaryContainer.withOpacity(0.8) 
+                        : colorScheme.onSurfaceVariant,
+                    height: 1.4,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    if (folderName != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: folderColor?.withOpacity(0.2) ?? colorScheme.primaryContainer.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: folderColor?.withOpacity(0.3) ?? colorScheme.primary.withOpacity(0.2),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Text(
-                          folderName ?? '',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: folderColor ?? colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
+                    // Date with icon
+                    Icon(
+                      Icons.schedule_outlined,
+                      size: 12,
+                      color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                    ),
+                    const SizedBox(width: 4),
                     Text(
                       _formatDate(note.updatedAt),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isSelected ? colorScheme.onPrimaryContainer.withOpacity(0.7) : colorScheme.onSurfaceVariant,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
                       ),
                     ),
+                    if (folderName != null) ...[
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.folder_outlined,
+                        size: 12,
+                        color: folderColor?.withOpacity(0.7) ?? colorScheme.primary.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          folderName ?? '',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: folderColor?.withOpacity(0.8) ?? colorScheme.primary.withOpacity(0.7),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    // Add additional indicators here if needed
                   ],
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // New efficient grid card design
+  Widget _buildCompactGridCard(BuildContext context, LocalNote note) {
+    final isSelected = _selectedNoteIds.contains(note.id);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Card(
+      elevation: isSelected ? 4 : 1,
+      shadowColor: colorScheme.shadow.withOpacity(0.1),
+      color: isSelected 
+          ? colorScheme.primaryContainer.withOpacity(0.3)
+          : theme.customColors.noteCardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected 
+            ? BorderSide(color: colorScheme.primary.withOpacity(0.5), width: 1)
+            : BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3), width: 0.5),
+      ),
+      child: InkWell(
+        onTap: () {
+          if (_isSelectionMode) {
+            _toggleNoteSelection(note.id);
+          } else {
+            _editNote(note);
+          }
+        },
+        onLongPress: () {
+          if (!_isSelectionMode) {
+            _enterSelectionMode(note.id);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Compact header with title and source icon
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      note.title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? colorScheme.primary : null,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  NoteSourceIcon(
+                    note: note,
+                    size: 14,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  ),
+                  if (isSelected)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // More content preview
+              Expanded(
+                child: Text(
+                  _generatePreview(note.body),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.3,
+                  ),
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Minimal footer with just date
+              Text(
+                _formatDate(note.updatedAt),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1736,22 +1924,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildModernGridView(BuildContext context, List<LocalNote> notes, bool hasMore) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final crossAxisCount = screenWidth > 600 ? 3 : 2;
+    // More responsive grid: 2-4 columns based on screen width
+    final crossAxisCount = screenWidth > 800 ? 4 : (screenWidth > 600 ? 3 : 2);
     
     return GridView.builder(
       key: const ValueKey('modern_grid_view'),
       controller: _scrollController,
       padding: EdgeInsets.only(
-        left: 8,
-        right: 8,
+        left: 12,
+        right: 12,
         top: 8,
         bottom: MediaQuery.of(context).padding.bottom + 100,
       ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 0.8,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        childAspectRatio: 1.35, // Wider cards to show more content horizontally
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemCount: notes.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -2563,6 +2752,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       final delegate = NoteSearchDelegate(
         notes: notes,
         initialQuery: preset.queryToken,
+        autoSearch: true,
         resolveFolderIdByName: (folderName) async {
           // Map "Inbox" to "Incoming Mail"
           final actualName = folderName.toLowerCase() == 'inbox' ? 'Incoming Mail' : folderName;
@@ -2572,12 +2762,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             final user = Supabase.instance.client.auth.currentUser;
             if (user == null) return null;
             
-            final repository = ref.read(notesRepositoryProvider);
-            final folderManager = IncomingMailFolderManager(
-              repository: repository,
-              userId: user.id,
-            );
-            return folderManager.ensureIncomingMailFolderId();
+            // Use the singleton provider instead of creating a new instance
+            try {
+              final folderManager = ref.read(incomingMailFolderManagerProvider);
+              return folderManager.ensureIncomingMailFolderId();
+            } catch (e) {
+              debugPrint('Error getting Incoming Mail folder: $e');
+              return null;
+            }
           }
           
           // For other folders, find by name

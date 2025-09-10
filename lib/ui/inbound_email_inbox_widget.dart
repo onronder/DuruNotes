@@ -23,6 +23,17 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     super.initState();
     _inboxService = ref.read(inboxManagementServiceProvider);
     _loadData();
+    
+    // Mark inbox as viewed to reset unread counter
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final unreadService = ref.read(inboxUnreadServiceProvider);
+        unreadService.markAsViewed();
+      } catch (e) {
+        // Unread service might not be available
+        debugPrint('Could not mark inbox as viewed: $e');
+      }
+    });
   }
   
   Future<void> _loadData() async {
