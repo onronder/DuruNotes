@@ -6,6 +6,7 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Material 3 expandable folder hierarchy with drag & drop support
 class FolderHierarchyView extends ConsumerStatefulWidget {
@@ -529,16 +530,12 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: folder.color != null
-                                ? Color(int.parse(folder.color!, radix: 16))
-                                : colorScheme.primaryContainer,
+                            color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            folder.icon != null
-                                ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                                : Icons.folder,
-                            color: folder.color != null
+                            FolderIconHelpers.getFolderIcon(folder.icon),
+                            color: FolderIconHelpers.getFolderColor(folder.color) != null
                                 ? Colors.white
                                 : colorScheme.onPrimaryContainer,
                             size: 16,
@@ -626,16 +623,12 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: folder.color != null
-                    ? Color(int.parse(folder.color!, radix: 16))
-                    : colorScheme.primaryContainer,
+                color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                folder.icon != null
-                    ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                    : Icons.folder,
-                color: folder.color != null
+                FolderIconHelpers.getFolderIcon(folder.icon),
+                color: FolderIconHelpers.getFolderColor(folder.color) != null
                     ? Colors.white
                     : colorScheme.onPrimaryContainer,
                 size: 20,
@@ -725,16 +718,12 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: folder.color != null
-                      ? Color(int.parse(folder.color!, radix: 16))
-                      : colorScheme.primaryContainer,
+                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  folder.icon != null
-                      ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                      : Icons.folder,
-                  color: folder.color != null
+                  FolderIconHelpers.getFolderIcon(folder.icon),
+                  color: FolderIconHelpers.getFolderColor(folder.color) != null
                       ? Colors.white
                       : colorScheme.onPrimaryContainer,
                 ),

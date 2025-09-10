@@ -4,6 +4,7 @@ import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// A draggable and droppable folder tree widget
 class DraggableFolderTree extends ConsumerStatefulWidget {
@@ -247,12 +248,8 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                draggedFolder.icon != null
-                    ? IconData(int.parse(draggedFolder.icon!), fontFamily: 'MaterialIcons')
-                    : Icons.folder,
-                color: draggedFolder.color != null
-                    ? Color(int.parse(draggedFolder.color!))
-                    : Theme.of(context).colorScheme.primary,
+                FolderIconHelpers.getFolderIcon(draggedFolder.icon),
+                color: FolderIconHelpers.getFolderColor(draggedFolder.color) ?? Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -504,12 +501,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
 
                       // Folder icon
                       Icon(
-                        folder.icon != null
-                            ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                            : Icons.folder,
-                        color: folder.color != null
-                            ? Color(int.parse(folder.color!))
-                            : (widget.isSelected
+                        FolderIconHelpers.getFolderIcon(folder.icon),
+                        color: FolderIconHelpers.getFolderColor(folder.color) ?? (widget.isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.onSurfaceVariant),
                         size: 20,
@@ -591,12 +584,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  folder.icon != null
-                      ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                      : Icons.folder,
-                  color: folder.color != null
-                      ? Color(int.parse(folder.color!))
-                      : theme.colorScheme.primary,
+                  FolderIconHelpers.getFolderIcon(folder.icon),
+                  color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),

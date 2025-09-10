@@ -30,10 +30,11 @@ class IncomingMailFolderManager {
         // Verify the folder still exists and is not deleted
         final folder = await _repository.getFolder(cachedId);
         if (folder != null && !folder.deleted) {
-          debugPrint('[IncomingMailFolder] Using cached folder: $cachedId');
+          // Don't log every cache hit - this is normal operation
           return cachedId;
         }
         // Cached folder is invalid, clear cache
+        debugPrint('[IncomingMailFolder] Cached folder invalid, clearing cache');
         await _clearCachedFolderId();
       }
       

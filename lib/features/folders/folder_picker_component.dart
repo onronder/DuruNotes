@@ -2,6 +2,7 @@ import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 class FolderPicker extends ConsumerStatefulWidget {
   const FolderPicker({
@@ -320,15 +321,8 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
           else
             const SizedBox(width: 24),
           Icon(
-            node.folder.icon != null 
-                ? IconData(
-                    int.parse(node.folder.icon!),
-                    fontFamily: 'MaterialIcons',
-                  )
-                : Icons.folder,
-            color: node.folder.color != null
-                ? Color(int.parse(node.folder.color!))
-                : (isSelected 
+            FolderIconHelpers.getFolderIcon(node.folder.icon),
+            color: FolderIconHelpers.getFolderColor(node.folder.color) ?? (isSelected 
                     ? theme.colorScheme.primary 
                     : theme.colorScheme.onSurfaceVariant),
             size: 20,

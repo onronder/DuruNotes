@@ -4,6 +4,7 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Material 3 filter chips for folder navigation
 class FolderFilterChips extends ConsumerStatefulWidget {
@@ -264,15 +265,11 @@ class _FolderChip extends ConsumerWidget {
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: folder.color != null
-                      ? Color(int.parse(folder.color!, radix: 16))
-                      : colorScheme.primary,
+                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primary,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
-                  folder.icon != null
-                      ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                      : Icons.folder,
+                  FolderIconHelpers.getFolderIcon(folder.icon),
                   size: 12,
                   color: Colors.white,
                 ),
@@ -460,15 +457,11 @@ class FolderBreadcrumb extends ConsumerWidget {
                                 width: 14,
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: folder.color != null
-                                      ? Color(int.parse(folder.color!, radix: 16))
-                                      : colorScheme.primary,
+                                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primary,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                                 child: Icon(
-                                  folder.icon != null
-                                      ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                                      : Icons.folder,
+                                  FolderIconHelpers.getFolderIcon(folder.icon),
                                   size: 10,
                                   color: Colors.white,
                                 ),

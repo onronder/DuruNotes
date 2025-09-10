@@ -196,9 +196,15 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   Future<void> _performAppResumeSync() async {
     // Guard: skip if not authenticated yet
     if (Supabase.instance.client.auth.currentUser == null) return;
+    
+    // Check if widget is still mounted
+    if (!mounted) return;
 
     final syncModeNotifier = ref.read(syncModeProvider.notifier);
     await syncModeNotifier.performInitialSyncIfAuto();
+    
+    // Check mounted after async operation
+    if (!mounted) return;
     
     if (ref.read(syncModeProvider) == SyncMode.automatic) {
       await ref.read(notesPageProvider.notifier).refresh();
@@ -292,6 +298,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       
       // Use a post-frame callback to ensure providers are ready
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Check if widget is still mounted before using ref
+        if (!mounted) return;
+        
         // Start the clipper inbox service after authentication
         try {
           _clipperService = ref.read(clipperInboxServiceProvider);
@@ -301,21 +310,36 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           debugPrint('Failed to start clipper inbox service: $e');
         }
         
+        // Check mounted again after async operation
+        if (!mounted) return;
+        
         final syncModeNotifier = ref.read(syncModeProvider.notifier);
         await syncModeNotifier.performInitialSyncIfAuto();
+        
+        // Check mounted before continuing
+        if (!mounted) return;
         
         // Refresh notes if auto-sync ran
         if (ref.read(syncModeProvider) == SyncMode.automatic) {
           await ref.read(notesPageProvider.notifier).refresh();
         }
 
+        // Check mounted before final operations
+        if (!mounted) return;
+        
         // Production-grade boot sync: if this device has no local notes yet, force a full pull once
         try {
           final db = ref.read(appDbProvider);
           final existing = await db.allNotes();
           if (existing.isEmpty) {
+            // Check mounted before long-running operations
+            if (!mounted) return;
+            
             final syncService = ref.read(syncServiceProvider);
             await syncService.syncWithRetry();
+            
+            // Final mounted check
+            if (!mounted) return;
             await ref.read(notesPageProvider.notifier).refresh();
           }
         } catch (_) {

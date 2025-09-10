@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -471,12 +472,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         onNoteDropped: _handleNoteDrop,
                         child: FolderChip(
                           label: folder.name,
-                          icon: folder.icon != null
-                              ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                              : Icons.folder_rounded,
-                          color: folder.color != null
-                              ? Color(int.parse(folder.color!))
-                              : null,
+                          icon: FolderIconHelpers.getFolderIcon(folder.icon, fallback: Icons.folder_rounded),
+                          color: FolderIconHelpers.getFolderColor(folder.color),
                           isSelected: currentFolder?.id == folder.id,
                           onTap: () {
                             ref.read(currentFolderProvider.notifier).setCurrentFolder(folder);
@@ -608,9 +605,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         final folder = folders.where((f) => f.id == folderId).firstOrNull;
         if (folder != null) {
           folderName = folder.name;
-          folderColor = folder.color != null 
-              ? Color(int.parse(folder.color!))
-              : null;
+          folderColor = FolderIconHelpers.getFolderColor(folder.color);
         }
       });
     }

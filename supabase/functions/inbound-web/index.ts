@@ -139,14 +139,18 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    // Strip domain if user included it (handle both @in.durunotes.app and other variations)
+    const cleanAlias = alias.split('@')[0].trim();
+    console.log(`Received alias: "${alias}", cleaned to: "${cleanAlias}"`);
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Map alias to user
+    // Map alias to user (use cleaned alias)
     const { data: aliasRow, error: aliasErr } = await supabase
       .from("inbound_aliases")
       .select("user_id")
-      .eq("alias", alias)
+      .eq("alias", cleanAlias)
       .maybeSingle();
 
     if (aliasErr) {
@@ -158,10 +162,10 @@ serve(async (req) => {
     }
 
     if (!aliasRow?.user_id) {
-      console.log("Unknown alias:", alias);
+      console.log("Unknown alias:", cleanAlias, "(original:", alias, ")");
       // Return success to avoid revealing whether alias exists
       return new Response(
-        JSON.stringify({ status: "ok" }), 
+        JSON.stringify({ status: "ok", message: "Request processed" }), 
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -189,6 +193,7 @@ serve(async (req) => {
 
     if (insErr) {
       console.error("DB insert failed:", insErr);
+      console.error("Insert payload:", { user_id: userId, source_type: "web", payload });
       return new Response(
         JSON.stringify({ error: "Failed to save clip" }), 
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

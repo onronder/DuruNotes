@@ -3,6 +3,7 @@ import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 class FolderHierarchyWidget extends ConsumerStatefulWidget {
   const FolderHierarchyWidget({
@@ -274,15 +275,8 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
             Container(
               margin: const EdgeInsets.only(right: 12),
               child: Icon(
-                node.folder.icon != null
-                    ? IconData(
-                        int.parse(node.folder.icon!),
-                        fontFamily: 'MaterialIcons',
-                      )
-                    : Icons.folder,
-                color: node.folder.color != null
-                    ? Color(int.parse(node.folder.color!))
-                    : (isSelected
+                FolderIconHelpers.getFolderIcon(node.folder.icon),
+                color: FolderIconHelpers.getFolderColor(node.folder.color) ?? (isSelected
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant),
                 size: 20,
@@ -378,15 +372,8 @@ class FolderContextMenu extends ConsumerWidget {
             child: Row(
               children: [
                 Icon(
-                  folder.icon != null
-                      ? IconData(
-                          int.parse(folder.icon!),
-                          fontFamily: 'MaterialIcons',
-                        )
-                      : Icons.folder,
-                  color: folder.color != null
-                      ? Color(int.parse(folder.color!))
-                      : theme.colorScheme.primary,
+                  FolderIconHelpers.getFolderIcon(folder.icon),
+                  color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -560,16 +547,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog> {
             Row(
               children: [
                 Icon(
-                  parentFolder.icon != null
-                      ? IconData(
-                          int.parse(parentFolder.icon!),
-                          fontFamily: 'MaterialIcons',
-                        )
-                      : Icons.folder,
+                  FolderIconHelpers.getFolderIcon(parentFolder.icon),
                   size: 16,
-                  color: parentFolder.color != null
-                      ? Color(int.parse(parentFolder.color!))
-                      : theme.colorScheme.onSurfaceVariant,
+                  color: FolderIconHelpers.getFolderColor(parentFolder.color) ?? theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Expanded(

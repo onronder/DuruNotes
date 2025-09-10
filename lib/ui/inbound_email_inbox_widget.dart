@@ -463,23 +463,37 @@ class InboxItemDetailSheet extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                ...attachments.map((attachment) => ListTile(
-                  leading: const Icon(Icons.attachment),
-                  title: Text(attachment.filename),
-                  subtitle: Text(attachment.sizeFormatted),
-                  dense: true,
-                  onTap: () async {
-                    // Get signed URL and open attachment
-                    if (attachment.url != null) {
-                      // TODO: Implement attachment viewing
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Attachment viewing not yet implemented'),
-                        ),
+                // Limit height of attachments list to prevent overflow
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: attachments.length > 3 ? 200 : attachments.length * 70.0,
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: attachments.length > 3 ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+                    itemCount: attachments.length,
+                    itemBuilder: (context, index) {
+                      final attachment = attachments[index];
+                      return ListTile(
+                        leading: const Icon(Icons.attachment),
+                        title: Text(attachment.filename),
+                        subtitle: Text(attachment.sizeFormatted),
+                        dense: true,
+                        onTap: () async {
+                          // Get signed URL and open attachment
+                          if (attachment.url != null) {
+                            // TODO: Implement attachment viewing
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Attachment viewing not yet implemented'),
+                              ),
+                            );
+                          }
+                        },
                       );
-                    }
-                  },
-                )),
+                    },
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
               
