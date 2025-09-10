@@ -6,6 +6,7 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Comprehensive folder management screen with full CRUD operations
 class FolderManagementScreen extends ConsumerStatefulWidget {
@@ -308,15 +309,11 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: folder.color != null
-                          ? Color(int.parse(folder.color!, radix: 16))
-                          : Theme.of(context).colorScheme.primary,
+                      color: FolderIconHelpers.getFolderColor(folder.color) ?? Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
-                      folder.icon != null
-                          ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                          : Icons.folder,
+                      FolderIconHelpers.getFolderIcon(folder.icon),
                       size: 16,
                       color: Colors.white,
                     ),
@@ -555,16 +552,12 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: folder.color != null
-                      ? Color(int.parse(folder.color!, radix: 16))
-                      : colorScheme.primaryContainer,
+                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  folder.icon != null
-                      ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                      : Icons.folder,
-                  color: folder.color != null
+                  FolderIconHelpers.getFolderIcon(folder.icon),
+                  color: FolderIconHelpers.getFolderColor(folder.color) != null
                       ? Colors.white
                       : colorScheme.onPrimaryContainer,
                 ),
@@ -665,16 +658,12 @@ class _FolderDetailsView extends ConsumerWidget {
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: folder.color != null
-                              ? Color(int.parse(folder.color!, radix: 16))
-                              : colorScheme.primaryContainer,
+                          color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          folder.icon != null
-                              ? IconData(int.parse(folder.icon!), fontFamily: 'MaterialIcons')
-                              : Icons.folder,
-                          color: folder.color != null
+                          FolderIconHelpers.getFolderIcon(folder.icon),
+                          color: FolderIconHelpers.getFolderColor(folder.color) != null
                               ? Colors.white
                               : colorScheme.onPrimaryContainer,
                           size: 32,

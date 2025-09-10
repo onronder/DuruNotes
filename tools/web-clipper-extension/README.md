@@ -32,8 +32,10 @@ This version includes HMAC-SHA256 request signing for improved security and repl
 Before using the clipper, you need to configure three settings:
 
 1. **Alias**: Your personal inbound alias from DuruNotes
-   - Example: `note_abc123`
-   - Find this in your DuruNotes app settings
+   - Example: `note_abc123` (just the code, NOT the full email)
+   - ⚠️ Do NOT include `@in.durunotes.app`
+   - Find this in your DuruNotes app: Open Email Inbox to see your alias
+   - The app will create an alias automatically when you first open the inbox
 
 2. **Inbound Secret**: The `INBOUND_PARSE_SECRET` from your deployment
    - This is the same secret used for your edge functions
@@ -109,6 +111,37 @@ Use the same secret value in the extension configuration.
 - The secret is never logged or exposed in console
 - All requests use HTTPS
 - Invalid aliases fail silently (security feature)
+
+## Troubleshooting Guide
+
+### Web clips not appearing in DuruNotes?
+
+1. **Check your alias configuration**:
+   - Open DuruNotes app → Email Inbox
+   - Copy ONLY the alias code (e.g., `note_abc123`)
+   - Do NOT include the `@in.durunotes.app` part
+   - Re-enter the alias in the extension settings
+
+2. **Verify your inbox is set up**:
+   - You must open the Email Inbox in DuruNotes at least once
+   - This creates your alias in the system
+   - Without this, clips won't be associated with your account
+
+3. **Wait for processing**:
+   - The app polls for new clips every 30 seconds
+   - Manual refresh: Open Email Inbox and tap the refresh icon
+
+4. **Check extension notifications**:
+   - ✅ Success: "Saved from [domain] to DuruNotes"
+   - ❌ Error: Check your settings match exactly
+
+5. **Verify Functions URL**:
+   - Should be: `https://YOUR-PROJECT-REF.functions.supabase.co`
+   - No trailing slash, no `/inbound-web` at the end
+
+6. **Secret must match**:
+   - The secret in the extension must match `INBOUND_PARSE_SECRET` on server
+   - If unsure, redeploy the edge function with a new secret
 
 ## Technical Details
 

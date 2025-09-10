@@ -36,7 +36,7 @@ signature = HMAC-SHA256(secret, message)
 
 ```json
 {
-  "alias": "note_abc123",  // User's inbound alias
+  "alias": "note_abc123",  // User's inbound alias (without @domain)
   "title": "Page Title",   // Title of the web page
   "text": "Selected text", // Clipped text content
   "url": "https://example.com/page", // Source URL
@@ -44,6 +44,11 @@ signature = HMAC-SHA256(secret, message)
   "clipped_at": "2025-01-09T10:30:00Z" // Optional: When clipped
 }
 ```
+
+**Note about alias field:**
+- Use only the alias code (e.g., `note_abc123`)
+- Do NOT include the domain (e.g., NOT `note_abc123@in.durunotes.app`)
+- The function will automatically strip any domain if included
 
 ## Security
 
@@ -158,6 +163,31 @@ Error responses:
 ## Processing
 
 Web clips are stored with `source_type: "web"` in the `clipper_inbox` table. The Flutter app's `ClipperInboxService` polls this table every 30 seconds and converts web clips to encrypted notes, similar to how it processes inbound emails.
+
+## Troubleshooting
+
+### Web clips not appearing in inbox
+
+1. **Verify alias exists**: Check that the user has an alias in the `inbound_aliases` table
+   ```sql
+   SELECT * FROM inbound_aliases WHERE user_id = 'USER_ID';
+   ```
+
+2. **Check function logs**: Look for "Unknown alias" messages
+   ```bash
+   supabase functions logs inbound-web
+   ```
+
+3. **Verify secret configuration**: Ensure `INBOUND_PARSE_SECRET` is set
+   ```bash
+   supabase secrets list
+   ```
+
+4. **Common issues**:
+   - User entered full email instead of just alias
+   - Alias doesn't exist (user needs to open Email Inbox in app first)
+   - Secret mismatch between extension and function
+   - Function not deployed or not running
 
 ## Migration Guide
 

@@ -1,19 +1,37 @@
 #!/bin/bash
-# Deploy the inbound-web edge function to Supabase
 
-echo "Deploying inbound-web edge function..."
+# Deploy the inbound-web edge function with improved alias handling
+# This script deploys the function that receives web clips from the Chrome extension
+
+echo "🚀 Deploying inbound-web edge function..."
+
+# Check if supabase CLI is installed
+if ! command -v supabase &> /dev/null; then
+    echo "❌ Supabase CLI is not installed"
+    echo "Install it from: https://supabase.com/docs/guides/cli"
+    exit 1
+fi
 
 # Deploy the function
-supabase functions deploy inbound-web
+echo "📦 Deploying function..."
+supabase functions deploy inbound-web --no-verify-jwt
 
-# Note: After deployment, ensure the INBOUND_PARSE_SECRET environment variable is set
-# You can set it using:
-# supabase secrets set INBOUND_PARSE_SECRET=<your-secret-value>
+if [ $? -ne 0 ]; then
+    echo "❌ Deployment failed"
+    exit 1
+fi
 
-echo "Deployment complete!"
+echo "✅ Function deployed successfully!"
 echo ""
-echo "⚠️  Important: Make sure to set the INBOUND_PARSE_SECRET environment variable:"
-echo "   supabase secrets set INBOUND_PARSE_SECRET=<your-secret-value>"
+echo "⚠️  IMPORTANT: Make sure you have set the INBOUND_PARSE_SECRET:"
+echo "   supabase secrets set INBOUND_PARSE_SECRET=your-secret-value"
 echo ""
-echo "The web clipper extension should use this URL format:"
-echo "   https://<project-id>.supabase.co/functions/v1/inbound-web?secret=<your-secret>"
+echo "📝 Notes:"
+echo "   - The function now handles aliases with or without domain"
+echo "   - Users can enter 'note_abc123' or 'note_abc123@in.durunotes.app'"
+echo "   - Check logs with: supabase functions logs inbound-web"
+echo ""
+echo "🔧 Chrome Extension Configuration:"
+echo "   1. Alias: User's alias code (e.g., note_abc123)"
+echo "   2. Secret: Same as INBOUND_PARSE_SECRET"
+echo "   3. Functions URL: https://YOUR-PROJECT.functions.supabase.co"
