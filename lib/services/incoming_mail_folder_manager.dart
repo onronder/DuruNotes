@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 
 /// Manager for ensuring an "Incoming Mail" folder exists and routing notes to it
