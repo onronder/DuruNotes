@@ -149,10 +149,37 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     }
 
     if (_notes.isEmpty) {
+      // Provide friendly empty state messages based on the tag
+      String title;
+      String subtitle;
+      IconData icon;
+      
+      switch (widget.tag.toLowerCase()) {
+        case 'attachment':
+          title = 'No notes with #Attachment yet';
+          subtitle = 'Notes with file attachments will appear here';
+          icon = Icons.attach_file;
+          break;
+        case 'web':
+          title = 'No notes created via Web Clipper yet';
+          subtitle = 'Use the Web Clipper extension to save content from the web';
+          icon = Icons.language;
+          break;
+        case 'email':
+          title = 'No notes created via Email-in yet';
+          subtitle = 'Send emails to your Duru Notes inbox to create notes';
+          icon = Icons.email;
+          break;
+        default:
+          title = 'No notes with #${widget.tag}';
+          subtitle = 'Create a note and add #${widget.tag} to see it here';
+          icon = Icons.tag;
+      }
+      
       return EmptyDisplay(
-        title: 'No notes with #${widget.tag}',
-        subtitle: 'Create a note and add #${widget.tag} to see it here',
-        icon: Icons.tag,
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
       );
     }
 
