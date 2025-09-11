@@ -24,6 +24,12 @@ class InboxRealtimeService extends ChangeNotifier {
   final _listRefreshController = StreamController<InboxRealtimeEvent>.broadcast();
   Stream<InboxRealtimeEvent> get listRefreshStream => _listRefreshController.stream;
   
+  // Exponential backoff for reconnection
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectDelay = 30; // Max 30 seconds
+  static const List<int> _backoffDelays = [1, 2, 4, 8, 16, 30]; // Exponential backoff
+  
   InboxRealtimeService({required SupabaseClient supabase}) : _supabase = supabase;
   
   bool get isSubscribed => _isSubscribed;
@@ -71,6 +77,8 @@ class InboxRealtimeService extends ChangeNotifier {
       _channel!.subscribe((status, error) {
         if (status == RealtimeSubscribeStatus.subscribed) {
           _isSubscribed = true;
+          _reconnectAttempts = 0; // Reset on successful connection
+          _cancelReconnectTimer();
           notifyListeners();
           debugPrint('[InboxRealtime] Subscription active');
         } else if (status == RealtimeSubscribeStatus.closed || 
@@ -79,13 +87,8 @@ class InboxRealtimeService extends ChangeNotifier {
           notifyListeners();
           debugPrint('[InboxRealtime] Subscription lost: $status, error: $error');
           
-          // Attempt to reconnect after a delay
-          Future.delayed(const Duration(seconds: 5), () {
-            if (!_isSubscribed && _supabase.auth.currentUser != null) {
-              debugPrint('[InboxRealtime] Attempting to reconnect...');
-              start();
-            }
-          });
+          // Schedule reconnect with exponential backoff
+          _scheduleReconnect();
         }
       });
     } catch (e) {
@@ -97,14 +100,44 @@ class InboxRealtimeService extends ChangeNotifier {
   
   /// Stop realtime subscription
   Future<void> stop() async {
+    _cancelReconnectTimer();
     if (_channel != null) {
       await _channel!.unsubscribe();
       _channel = null;
     }
     _isSubscribed = false;
     _processedEventIds.clear();
+    _reconnectAttempts = 0;
     notifyListeners();
     debugPrint('[InboxRealtime] Subscription stopped');
+  }
+  
+  /// Schedule reconnection with exponential backoff
+  void _scheduleReconnect() {
+    if (_reconnectTimer?.isActive ?? false) {
+      return; // Already scheduled
+    }
+    
+    final delayIndex = _reconnectAttempts < _backoffDelays.length 
+        ? _reconnectAttempts 
+        : _backoffDelays.length - 1;
+    final delaySeconds = _backoffDelays[delayIndex];
+    
+    debugPrint('[InboxRealtime] Scheduling reconnect in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
+    
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      if (!_isSubscribed && _supabase.auth.currentUser != null) {
+        _reconnectAttempts++;
+        debugPrint('[InboxRealtime] Attempting to reconnect...');
+        start();
+      }
+    });
+  }
+  
+  /// Cancel any pending reconnect timer
+  void _cancelReconnectTimer() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
   }
   
   /// Handle INSERT events
@@ -189,6 +222,7 @@ class InboxRealtimeService extends ChangeNotifier {
   @override
   void dispose() {
     stop();
+    _cancelReconnectTimer();
     _listRefreshController.close();
     super.dispose();
   }
