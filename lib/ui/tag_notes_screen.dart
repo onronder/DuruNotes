@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/ui/note_editor_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 /// Screen that displays notes filtered by a specific tag
 class TagNotesScreen extends ConsumerStatefulWidget {
@@ -60,7 +58,6 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -164,13 +161,9 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
               ],
             ),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => NoteEditorScreen(
-                    noteId: note.id,
-                  ),
-                ),
-              );
+              // Navigate to note editor
+              // TODO: Replace with actual navigation when NoteEditorScreen is available
+              Navigator.of(context).pop(note);
             },
           ),
         );
