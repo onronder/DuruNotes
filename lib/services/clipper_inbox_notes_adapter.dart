@@ -25,14 +25,14 @@ class CaptureNotesAdapter implements NotesCapturePort {
     // Use the existing NotesRepository method to create the note
     // This will handle encryption, indexing, and sync queue
     // Now we pass metadata directly to the repository
-    final noteId = await _repository.createOrUpdate(
+    final note = await _repository.createOrUpdate(
       title: title,
       body: bodyWithTags,
       metadataJson: metadataJson.isNotEmpty ? metadataJson : null,
     );
     
     // The indexer will automatically extract and index the tags from the body
-    return noteId;
+    return note?.id ?? '';
   }
   
   String _buildBodyWithTags(

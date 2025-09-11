@@ -257,12 +257,18 @@ class InboxManagementService {
       }
       
       // Create the note locally (should be fast)
-      final noteId = await _notesRepository.createOrUpdate(
+      final note = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
       );
       
+      if (note == null) {
+        debugPrint('[InboxManagementService] Failed to create note from email');
+        return null;
+      }
+      
+      final noteId = note.id;
       debugPrint('[InboxManagementService] Phase A completed in ${phaseStopwatch.elapsedMilliseconds}ms');
       
       // Phase B: Background operations (non-blocking)
@@ -326,12 +332,18 @@ class InboxManagementService {
       }
       
       // Create the note locally (should be fast)
-      final noteId = await _notesRepository.createOrUpdate(
+      final note = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
       );
       
+      if (note == null) {
+        debugPrint('[InboxManagementService] Failed to create note from web clip');
+        return null;
+      }
+      
+      final noteId = note.id;
       debugPrint('[InboxManagementService] Phase A completed in ${phaseStopwatch.elapsedMilliseconds}ms');
       
       // Complete remaining tasks in background

@@ -921,14 +921,19 @@ class ImportService { // 1MB per note content
 
     try {
       // Create the note with timeout
-      final noteId = await _notesRepository.createOrUpdate(
+      final createdNote = await _notesRepository.createOrUpdate(
         title: title.trim(), 
         body: blocksToMarkdown(blocks),
       );
 
+      if (createdNote == null) {
+        debugPrint('[ImportService] Failed to create note');
+        return;
+      }
+
       // Create note object for indexing
       final note = LocalNote(
-        id: noteId,
+        id: createdNote.id,
         title: title.trim(),
         body: blocksToMarkdown(blocks),
         updatedAt: updatedAt ?? DateTime.now(),
@@ -940,7 +945,7 @@ class ImportService { // 1MB per note content
       await _noteIndexer.indexNote(note);
 
       _logger.info('Successfully imported note', data: {
-        'noteId': noteId,
+        'noteId': createdNote.id,
         'title': title,
         'originalPath': originalPath,
         'blockCount': blocks.length,

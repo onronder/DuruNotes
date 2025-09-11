@@ -953,14 +953,14 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     try {
       final repo = ref.read(notesRepositoryProvider);
 
-      final savedId = await repo.createOrUpdate(
+      final savedNote = await repo.createOrUpdate(
         id: widget.noteId,
         title: cleanTitle.isEmpty ? 'Untitled Note' : cleanTitle,
         body:  cleanBody,
       );
 
       // handle folder assignment
-      final noteIdToUse = savedId ?? widget.noteId;
+      final noteIdToUse = savedNote?.id ?? widget.noteId;
       if (noteIdToUse != null) {
         if (_selectedFolder != null) {
           await ref.read(noteFolderProvider.notifier)

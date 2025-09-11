@@ -8,6 +8,7 @@ import 'package:duru_notes/core/settings/sync_mode.dart';
 import 'package:duru_notes/core/settings/sync_mode_notifier.dart';
 import 'package:duru_notes/core/settings/theme_mode_notifier.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
@@ -68,11 +69,13 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
     throw StateError('NotesRepository requested without an authenticated user');
   }
   
+  final api = SupabaseNoteApi(client);
+  
   return NotesRepository(
     db: db,
     crypto: crypto,
+    api: api,
     client: client,
-    userId: userId,
   );
 });
 
