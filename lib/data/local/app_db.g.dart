@@ -76,6 +76,21 @@ class $LocalNotesTable extends LocalNotes
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -84,6 +99,7 @@ class $LocalNotesTable extends LocalNotes
     updatedAt,
     deleted,
     encryptedMetadata,
+    isPinned,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -137,6 +153,12 @@ class $LocalNotesTable extends LocalNotes
         ),
       );
     }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
     return context;
   }
 
@@ -170,6 +192,10 @@ class $LocalNotesTable extends LocalNotes
         DriftSqlType.string,
         data['${effectivePrefix}encrypted_metadata'],
       ),
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
     );
   }
 
@@ -186,6 +212,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
   final DateTime updatedAt;
   final bool deleted;
   final String? encryptedMetadata;
+  final bool isPinned;
   const LocalNote({
     required this.id,
     required this.title,
@@ -193,6 +220,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     required this.updatedAt,
     required this.deleted,
     this.encryptedMetadata,
+    required this.isPinned,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -205,6 +233,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     if (!nullToAbsent || encryptedMetadata != null) {
       map['encrypted_metadata'] = Variable<String>(encryptedMetadata);
     }
+    map['is_pinned'] = Variable<bool>(isPinned);
     return map;
   }
 
@@ -218,6 +247,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       encryptedMetadata: encryptedMetadata == null && nullToAbsent
           ? const Value.absent()
           : Value(encryptedMetadata),
+      isPinned: Value(isPinned),
     );
   }
 
@@ -235,6 +265,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       encryptedMetadata: serializer.fromJson<String?>(
         json['encryptedMetadata'],
       ),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
     );
   }
   @override
@@ -247,6 +278,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deleted': serializer.toJson<bool>(deleted),
       'encryptedMetadata': serializer.toJson<String?>(encryptedMetadata),
+      'isPinned': serializer.toJson<bool>(isPinned),
     };
   }
 
@@ -257,6 +289,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     DateTime? updatedAt,
     bool? deleted,
     Value<String?> encryptedMetadata = const Value.absent(),
+    bool? isPinned,
   }) => LocalNote(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -266,6 +299,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     encryptedMetadata: encryptedMetadata.present
         ? encryptedMetadata.value
         : this.encryptedMetadata,
+    isPinned: isPinned ?? this.isPinned,
   );
   LocalNote copyWithCompanion(LocalNotesCompanion data) {
     return LocalNote(
@@ -277,6 +311,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       encryptedMetadata: data.encryptedMetadata.present
           ? data.encryptedMetadata.value
           : this.encryptedMetadata,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
     );
   }
 
@@ -288,14 +323,22 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ..write('body: $body, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
-          ..write('encryptedMetadata: $encryptedMetadata')
+          ..write('encryptedMetadata: $encryptedMetadata, ')
+          ..write('isPinned: $isPinned')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, title, body, updatedAt, deleted, encryptedMetadata);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    body,
+    updatedAt,
+    deleted,
+    encryptedMetadata,
+    isPinned,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -305,7 +348,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           other.body == this.body &&
           other.updatedAt == this.updatedAt &&
           other.deleted == this.deleted &&
-          other.encryptedMetadata == this.encryptedMetadata);
+          other.encryptedMetadata == this.encryptedMetadata &&
+          other.isPinned == this.isPinned);
 }
 
 class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
@@ -315,6 +359,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
   final Value<DateTime> updatedAt;
   final Value<bool> deleted;
   final Value<String?> encryptedMetadata;
+  final Value<bool> isPinned;
   final Value<int> rowid;
   const LocalNotesCompanion({
     this.id = const Value.absent(),
@@ -323,6 +368,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalNotesCompanion.insert({
@@ -332,6 +378,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     required DateTime updatedAt,
     this.deleted = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        updatedAt = Value(updatedAt);
@@ -342,6 +389,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? deleted,
     Expression<String>? encryptedMetadata,
+    Expression<bool>? isPinned,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -351,6 +399,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deleted != null) 'deleted': deleted,
       if (encryptedMetadata != null) 'encrypted_metadata': encryptedMetadata,
+      if (isPinned != null) 'is_pinned': isPinned,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -362,6 +411,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Value<DateTime>? updatedAt,
     Value<bool>? deleted,
     Value<String?>? encryptedMetadata,
+    Value<bool>? isPinned,
     Value<int>? rowid,
   }) {
     return LocalNotesCompanion(
@@ -371,6 +421,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
       encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
+      isPinned: isPinned ?? this.isPinned,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -396,6 +447,9 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     if (encryptedMetadata.present) {
       map['encrypted_metadata'] = Variable<String>(encryptedMetadata.value);
     }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -411,6 +465,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
           ..write('encryptedMetadata: $encryptedMetadata, ')
+          ..write('isPinned: $isPinned, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3495,6 +3550,733 @@ class NoteFoldersCompanion extends UpdateCompanion<NoteFolder> {
   }
 }
 
+class $SavedSearchesTable extends SavedSearches
+    with TableInfo<$SavedSearchesTable, SavedSearch> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavedSearchesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _queryMeta = const VerificationMeta('query');
+  @override
+  late final GeneratedColumn<String> query = GeneratedColumn<String>(
+    'query',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _searchTypeMeta = const VerificationMeta(
+    'searchType',
+  );
+  @override
+  late final GeneratedColumn<String> searchType = GeneratedColumn<String>(
+    'search_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('text'),
+  );
+  static const VerificationMeta _parametersMeta = const VerificationMeta(
+    'parameters',
+  );
+  @override
+  late final GeneratedColumn<String> parameters = GeneratedColumn<String>(
+    'parameters',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usageCountMeta = const VerificationMeta(
+    'usageCount',
+  );
+  @override
+  late final GeneratedColumn<int> usageCount = GeneratedColumn<int>(
+    'usage_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    query,
+    searchType,
+    parameters,
+    sortOrder,
+    color,
+    icon,
+    isPinned,
+    createdAt,
+    lastUsedAt,
+    usageCount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'saved_searches';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SavedSearch> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('query')) {
+      context.handle(
+        _queryMeta,
+        query.isAcceptableOrUnknown(data['query']!, _queryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_queryMeta);
+    }
+    if (data.containsKey('search_type')) {
+      context.handle(
+        _searchTypeMeta,
+        searchType.isAcceptableOrUnknown(data['search_type']!, _searchTypeMeta),
+      );
+    }
+    if (data.containsKey('parameters')) {
+      context.handle(
+        _parametersMeta,
+        parameters.isAcceptableOrUnknown(data['parameters']!, _parametersMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('usage_count')) {
+      context.handle(
+        _usageCountMeta,
+        usageCount.isAcceptableOrUnknown(data['usage_count']!, _usageCountMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavedSearch map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavedSearch(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      query: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}query'],
+      )!,
+      searchType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}search_type'],
+      )!,
+      parameters: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parameters'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color'],
+      ),
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      ),
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      ),
+      usageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}usage_count'],
+      )!,
+    );
+  }
+
+  @override
+  $SavedSearchesTable createAlias(String alias) {
+    return $SavedSearchesTable(attachedDatabase, alias);
+  }
+}
+
+class SavedSearch extends DataClass implements Insertable<SavedSearch> {
+  /// Unique identifier for the saved search
+  final String id;
+
+  /// Display name for the search
+  final String name;
+
+  /// The search query/pattern
+  final String query;
+
+  /// Search type: 'text', 'tag', 'folder', 'date_range', 'compound'
+  final String searchType;
+
+  /// Optional parameters as JSON (e.g., date ranges, folder IDs, etc.)
+  final String? parameters;
+
+  /// Display order for the saved searches
+  final int sortOrder;
+
+  /// Optional color for display (hex format)
+  final String? color;
+
+  /// Optional icon name for display
+  final String? icon;
+
+  /// Whether this search is pinned/favorited
+  final bool isPinned;
+
+  /// Creation timestamp
+  final DateTime createdAt;
+
+  /// Last used timestamp
+  final DateTime? lastUsedAt;
+
+  /// Usage count for sorting by frequency
+  final int usageCount;
+  const SavedSearch({
+    required this.id,
+    required this.name,
+    required this.query,
+    required this.searchType,
+    this.parameters,
+    required this.sortOrder,
+    this.color,
+    this.icon,
+    required this.isPinned,
+    required this.createdAt,
+    this.lastUsedAt,
+    required this.usageCount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['query'] = Variable<String>(query);
+    map['search_type'] = Variable<String>(searchType);
+    if (!nullToAbsent || parameters != null) {
+      map['parameters'] = Variable<String>(parameters);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<String>(color);
+    }
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
+    }
+    map['is_pinned'] = Variable<bool>(isPinned);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || lastUsedAt != null) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    }
+    map['usage_count'] = Variable<int>(usageCount);
+    return map;
+  }
+
+  SavedSearchesCompanion toCompanion(bool nullToAbsent) {
+    return SavedSearchesCompanion(
+      id: Value(id),
+      name: Value(name),
+      query: Value(query),
+      searchType: Value(searchType),
+      parameters: parameters == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parameters),
+      sortOrder: Value(sortOrder),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      isPinned: Value(isPinned),
+      createdAt: Value(createdAt),
+      lastUsedAt: lastUsedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUsedAt),
+      usageCount: Value(usageCount),
+    );
+  }
+
+  factory SavedSearch.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavedSearch(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      query: serializer.fromJson<String>(json['query']),
+      searchType: serializer.fromJson<String>(json['searchType']),
+      parameters: serializer.fromJson<String?>(json['parameters']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      color: serializer.fromJson<String?>(json['color']),
+      icon: serializer.fromJson<String?>(json['icon']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastUsedAt: serializer.fromJson<DateTime?>(json['lastUsedAt']),
+      usageCount: serializer.fromJson<int>(json['usageCount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'query': serializer.toJson<String>(query),
+      'searchType': serializer.toJson<String>(searchType),
+      'parameters': serializer.toJson<String?>(parameters),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'color': serializer.toJson<String?>(color),
+      'icon': serializer.toJson<String?>(icon),
+      'isPinned': serializer.toJson<bool>(isPinned),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastUsedAt': serializer.toJson<DateTime?>(lastUsedAt),
+      'usageCount': serializer.toJson<int>(usageCount),
+    };
+  }
+
+  SavedSearch copyWith({
+    String? id,
+    String? name,
+    String? query,
+    String? searchType,
+    Value<String?> parameters = const Value.absent(),
+    int? sortOrder,
+    Value<String?> color = const Value.absent(),
+    Value<String?> icon = const Value.absent(),
+    bool? isPinned,
+    DateTime? createdAt,
+    Value<DateTime?> lastUsedAt = const Value.absent(),
+    int? usageCount,
+  }) => SavedSearch(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    query: query ?? this.query,
+    searchType: searchType ?? this.searchType,
+    parameters: parameters.present ? parameters.value : this.parameters,
+    sortOrder: sortOrder ?? this.sortOrder,
+    color: color.present ? color.value : this.color,
+    icon: icon.present ? icon.value : this.icon,
+    isPinned: isPinned ?? this.isPinned,
+    createdAt: createdAt ?? this.createdAt,
+    lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
+    usageCount: usageCount ?? this.usageCount,
+  );
+  SavedSearch copyWithCompanion(SavedSearchesCompanion data) {
+    return SavedSearch(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      query: data.query.present ? data.query.value : this.query,
+      searchType: data.searchType.present
+          ? data.searchType.value
+          : this.searchType,
+      parameters: data.parameters.present
+          ? data.parameters.value
+          : this.parameters,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      color: data.color.present ? data.color.value : this.color,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+      usageCount: data.usageCount.present
+          ? data.usageCount.value
+          : this.usageCount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedSearch(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('query: $query, ')
+          ..write('searchType: $searchType, ')
+          ..write('parameters: $parameters, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
+          ..write('icon: $icon, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('usageCount: $usageCount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    query,
+    searchType,
+    parameters,
+    sortOrder,
+    color,
+    icon,
+    isPinned,
+    createdAt,
+    lastUsedAt,
+    usageCount,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavedSearch &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.query == this.query &&
+          other.searchType == this.searchType &&
+          other.parameters == this.parameters &&
+          other.sortOrder == this.sortOrder &&
+          other.color == this.color &&
+          other.icon == this.icon &&
+          other.isPinned == this.isPinned &&
+          other.createdAt == this.createdAt &&
+          other.lastUsedAt == this.lastUsedAt &&
+          other.usageCount == this.usageCount);
+}
+
+class SavedSearchesCompanion extends UpdateCompanion<SavedSearch> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> query;
+  final Value<String> searchType;
+  final Value<String?> parameters;
+  final Value<int> sortOrder;
+  final Value<String?> color;
+  final Value<String?> icon;
+  final Value<bool> isPinned;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> lastUsedAt;
+  final Value<int> usageCount;
+  final Value<int> rowid;
+  const SavedSearchesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.query = const Value.absent(),
+    this.searchType = const Value.absent(),
+    this.parameters = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.isPinned = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.usageCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavedSearchesCompanion.insert({
+    required String id,
+    required String name,
+    required String query,
+    this.searchType = const Value.absent(),
+    this.parameters = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.color = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.isPinned = const Value.absent(),
+    required DateTime createdAt,
+    this.lastUsedAt = const Value.absent(),
+    this.usageCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       query = Value(query),
+       createdAt = Value(createdAt);
+  static Insertable<SavedSearch> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? query,
+    Expression<String>? searchType,
+    Expression<String>? parameters,
+    Expression<int>? sortOrder,
+    Expression<String>? color,
+    Expression<String>? icon,
+    Expression<bool>? isPinned,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastUsedAt,
+    Expression<int>? usageCount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (query != null) 'query': query,
+      if (searchType != null) 'search_type': searchType,
+      if (parameters != null) 'parameters': parameters,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (color != null) 'color': color,
+      if (icon != null) 'icon': icon,
+      if (isPinned != null) 'is_pinned': isPinned,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+      if (usageCount != null) 'usage_count': usageCount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavedSearchesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? query,
+    Value<String>? searchType,
+    Value<String?>? parameters,
+    Value<int>? sortOrder,
+    Value<String?>? color,
+    Value<String?>? icon,
+    Value<bool>? isPinned,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? lastUsedAt,
+    Value<int>? usageCount,
+    Value<int>? rowid,
+  }) {
+    return SavedSearchesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      query: query ?? this.query,
+      searchType: searchType ?? this.searchType,
+      parameters: parameters ?? this.parameters,
+      sortOrder: sortOrder ?? this.sortOrder,
+      color: color ?? this.color,
+      icon: icon ?? this.icon,
+      isPinned: isPinned ?? this.isPinned,
+      createdAt: createdAt ?? this.createdAt,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+      usageCount: usageCount ?? this.usageCount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (query.present) {
+      map['query'] = Variable<String>(query.value);
+    }
+    if (searchType.present) {
+      map['search_type'] = Variable<String>(searchType.value);
+    }
+    if (parameters.present) {
+      map['parameters'] = Variable<String>(parameters.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    if (usageCount.present) {
+      map['usage_count'] = Variable<int>(usageCount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedSearchesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('query: $query, ')
+          ..write('searchType: $searchType, ')
+          ..write('parameters: $parameters, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('color: $color, ')
+          ..write('icon: $icon, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('usageCount: $usageCount, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -3505,6 +4287,7 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $NoteRemindersTable noteReminders = $NoteRemindersTable(this);
   late final $LocalFoldersTable localFolders = $LocalFoldersTable(this);
   late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
+  late final $SavedSearchesTable savedSearches = $SavedSearchesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3517,6 +4300,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     noteReminders,
     localFolders,
     noteFolders,
+    savedSearches,
   ];
 }
 
@@ -3528,6 +4312,7 @@ typedef $$LocalNotesTableCreateCompanionBuilder =
       required DateTime updatedAt,
       Value<bool> deleted,
       Value<String?> encryptedMetadata,
+      Value<bool> isPinned,
       Value<int> rowid,
     });
 typedef $$LocalNotesTableUpdateCompanionBuilder =
@@ -3538,6 +4323,7 @@ typedef $$LocalNotesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> deleted,
       Value<String?> encryptedMetadata,
+      Value<bool> isPinned,
       Value<int> rowid,
     });
 
@@ -3577,6 +4363,11 @@ class $$LocalNotesTableFilterComposer
 
   ColumnFilters<String> get encryptedMetadata => $composableBuilder(
     column: $table.encryptedMetadata,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3619,6 +4410,11 @@ class $$LocalNotesTableOrderingComposer
     column: $table.encryptedMetadata,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalNotesTableAnnotationComposer
@@ -3649,6 +4445,9 @@ class $$LocalNotesTableAnnotationComposer
     column: $table.encryptedMetadata,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
 }
 
 class $$LocalNotesTableTableManager
@@ -3685,6 +4484,7 @@ class $$LocalNotesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion(
                 id: id,
@@ -3693,6 +4493,7 @@ class $$LocalNotesTableTableManager
                 updatedAt: updatedAt,
                 deleted: deleted,
                 encryptedMetadata: encryptedMetadata,
+                isPinned: isPinned,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3703,6 +4504,7 @@ class $$LocalNotesTableTableManager
                 required DateTime updatedAt,
                 Value<bool> deleted = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion.insert(
                 id: id,
@@ -3711,6 +4513,7 @@ class $$LocalNotesTableTableManager
                 updatedAt: updatedAt,
                 deleted: deleted,
                 encryptedMetadata: encryptedMetadata,
+                isPinned: isPinned,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -5245,6 +6048,344 @@ typedef $$NoteFoldersTableProcessedTableManager =
       NoteFolder,
       PrefetchHooks Function()
     >;
+typedef $$SavedSearchesTableCreateCompanionBuilder =
+    SavedSearchesCompanion Function({
+      required String id,
+      required String name,
+      required String query,
+      Value<String> searchType,
+      Value<String?> parameters,
+      Value<int> sortOrder,
+      Value<String?> color,
+      Value<String?> icon,
+      Value<bool> isPinned,
+      required DateTime createdAt,
+      Value<DateTime?> lastUsedAt,
+      Value<int> usageCount,
+      Value<int> rowid,
+    });
+typedef $$SavedSearchesTableUpdateCompanionBuilder =
+    SavedSearchesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> query,
+      Value<String> searchType,
+      Value<String?> parameters,
+      Value<int> sortOrder,
+      Value<String?> color,
+      Value<String?> icon,
+      Value<bool> isPinned,
+      Value<DateTime> createdAt,
+      Value<DateTime?> lastUsedAt,
+      Value<int> usageCount,
+      Value<int> rowid,
+    });
+
+class $$SavedSearchesTableFilterComposer
+    extends Composer<_$AppDb, $SavedSearchesTable> {
+  $$SavedSearchesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get query => $composableBuilder(
+    column: $table.query,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchType => $composableBuilder(
+    column: $table.searchType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parameters => $composableBuilder(
+    column: $table.parameters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get usageCount => $composableBuilder(
+    column: $table.usageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SavedSearchesTableOrderingComposer
+    extends Composer<_$AppDb, $SavedSearchesTable> {
+  $$SavedSearchesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get query => $composableBuilder(
+    column: $table.query,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get searchType => $composableBuilder(
+    column: $table.searchType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parameters => $composableBuilder(
+    column: $table.parameters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get usageCount => $composableBuilder(
+    column: $table.usageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavedSearchesTableAnnotationComposer
+    extends Composer<_$AppDb, $SavedSearchesTable> {
+  $$SavedSearchesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get query =>
+      $composableBuilder(column: $table.query, builder: (column) => column);
+
+  GeneratedColumn<String> get searchType => $composableBuilder(
+    column: $table.searchType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get parameters => $composableBuilder(
+    column: $table.parameters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get usageCount => $composableBuilder(
+    column: $table.usageCount,
+    builder: (column) => column,
+  );
+}
+
+class $$SavedSearchesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $SavedSearchesTable,
+          SavedSearch,
+          $$SavedSearchesTableFilterComposer,
+          $$SavedSearchesTableOrderingComposer,
+          $$SavedSearchesTableAnnotationComposer,
+          $$SavedSearchesTableCreateCompanionBuilder,
+          $$SavedSearchesTableUpdateCompanionBuilder,
+          (
+            SavedSearch,
+            BaseReferences<_$AppDb, $SavedSearchesTable, SavedSearch>,
+          ),
+          SavedSearch,
+          PrefetchHooks Function()
+        > {
+  $$SavedSearchesTableTableManager(_$AppDb db, $SavedSearchesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavedSearchesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavedSearchesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavedSearchesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> query = const Value.absent(),
+                Value<String> searchType = const Value.absent(),
+                Value<String?> parameters = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<int> usageCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedSearchesCompanion(
+                id: id,
+                name: name,
+                query: query,
+                searchType: searchType,
+                parameters: parameters,
+                sortOrder: sortOrder,
+                color: color,
+                icon: icon,
+                isPinned: isPinned,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+                usageCount: usageCount,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String query,
+                Value<String> searchType = const Value.absent(),
+                Value<String?> parameters = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<String?> icon = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<int> usageCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedSearchesCompanion.insert(
+                id: id,
+                name: name,
+                query: query,
+                searchType: searchType,
+                parameters: parameters,
+                sortOrder: sortOrder,
+                color: color,
+                icon: icon,
+                isPinned: isPinned,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+                usageCount: usageCount,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SavedSearchesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $SavedSearchesTable,
+      SavedSearch,
+      $$SavedSearchesTableFilterComposer,
+      $$SavedSearchesTableOrderingComposer,
+      $$SavedSearchesTableAnnotationComposer,
+      $$SavedSearchesTableCreateCompanionBuilder,
+      $$SavedSearchesTableUpdateCompanionBuilder,
+      (SavedSearch, BaseReferences<_$AppDb, $SavedSearchesTable, SavedSearch>),
+      SavedSearch,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -5263,4 +6404,6 @@ class $AppDbManager {
       $$LocalFoldersTableTableManager(_db, _db.localFolders);
   $$NoteFoldersTableTableManager get noteFolders =>
       $$NoteFoldersTableTableManager(_db, _db.noteFolders);
+  $$SavedSearchesTableTableManager get savedSearches =>
+      $$SavedSearchesTableTableManager(_db, _db.savedSearches);
 }

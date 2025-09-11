@@ -1,3 +1,4 @@
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/ui/widgets/error_display.dart';
@@ -39,12 +40,16 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     });
 
     try {
-      final db = ref.read(appDbProvider);
+      final repo = ref.read(notesRepositoryProvider);
       
       // Use authoritative search if savedSearchKey is provided
       final notes = widget.savedSearchKey != null
-          ? await db.notesForSavedSearch(savedSearchKey: widget.savedSearchKey!)
-          : await db.notesWithTag(widget.tag);
+          ? await ref.read(appDbProvider).notesForSavedSearch(savedSearchKey: widget.savedSearchKey!)
+          : await repo.queryNotesByTags(
+              anyTags: [widget.tag],
+              noneTags: const [],
+              sort: const SortSpec(), // Default sort with pinned first
+            );
       
       if (mounted) {
         setState(() {

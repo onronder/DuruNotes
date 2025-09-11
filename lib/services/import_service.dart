@@ -933,6 +933,7 @@ class ImportService { // 1MB per note content
         body: blocksToMarkdown(blocks),
         updatedAt: updatedAt ?? DateTime.now(),
         deleted: false,
+        isPinned: false,
       );
 
       // Index for search
