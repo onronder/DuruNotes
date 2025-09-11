@@ -2823,12 +2823,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       }
       
       // Push TagNotesScreen with authoritative search key
-      await Navigator.push(
-        context, 
+      await       Navigator.push(
+        context,
         MaterialPageRoute(
           builder: (_) => TagNotesScreen(
             tag: preset.tag!,
-            savedSearchKey: savedSearchKey,
           ),
         ),
       );

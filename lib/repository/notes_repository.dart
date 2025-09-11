@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value, OrderingTerm, OrderingMode;
+import 'package:drift/drift.dart' show Value, OrderingTerm, OrderingMode, leftOuterJoin;
 import 'package:flutter/foundation.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide SortBy;
 import 'package:uuid/uuid.dart';
 
 class NotesRepository {
@@ -14,14 +14,18 @@ class NotesRepository {
     required this.db,
     required this.crypto,
     required this.api,
-    required SupabaseClient supabase,
-  }) : _supabase = supabase;
+    required SupabaseClient client,
+  }) : _supabase = client;
 
   final AppDb db;
   final CryptoBox crypto;
   final SupabaseNoteApi api;
   final SupabaseClient _supabase;
   final _uuid = const Uuid();
+  final _indexer = NoteIndexer();
+  
+  // Expose client for compatibility
+  SupabaseClient get client => _supabase;
 
   // ----------------------
   // Saved Searches Management
@@ -62,34 +66,37 @@ class NotesRepository {
     // Parse the saved search query
     final query = savedSearch.query;
     final searchType = savedSearch.searchType;
-    final parameters = savedSearch.parameters;
+    
+    // Parse parameters JSON if present
+    Map<String, dynamic>? params;
+    if (savedSearch.parameters != null) {
+      try {
+        params = jsonDecode(savedSearch.parameters!);
+      } catch (e) {
+        debugPrint('Failed to parse saved search parameters: $e');
+      }
+    }
     
     // Execute based on search type
     switch (searchType) {
       case 'text':
         return await db.searchNotes(query);
       case 'tags':
-        final tags = (parameters?['tags'] as List?)?.cast<String>() ?? [];
+        final tags = (params?['tags'] as List?)?.cast<String>() ?? [];
         return await db.notesByTags(
           anyTags: tags,
           noneTags: [],
           sort: const SortSpec(),
         );
       case 'folder':
-        final folderId = parameters?['folderId'] as String?;
+        final folderId = params?['folderId'] as String?;
         if (folderId != null) {
-          return await db.notesForSavedSearch(
-            savedSearchKey: null,
-            folderId: folderId,
-          );
+          return await getNotesInFolder(folderId);
         }
         return [];
       case 'compound':
         // Complex search with multiple filters
-        return await db.notesForSavedSearch(
-          savedSearchKey: query,
-          folderId: parameters?['folderId'] as String?,
-        );
+        return await db.searchNotes(query);
       default:
         return [];
     }
@@ -158,10 +165,17 @@ class NotesRepository {
     return tags.map((t) => t.tag).toList();
   }
 
+  // ----------------------
+  // Note Management
+  // ----------------------
+
   Future<LocalNote?> getLocalNoteById(String id) async {
     return (db.select(db.localNotes)..where((note) => note.id.equals(id)))
         .getSingleOrNull();
   }
+  
+  /// Get a note by ID (compatibility method)
+  Future<LocalNote?> getNote(String id) => getLocalNoteById(id);
 
   Future<LocalNote?> createOrUpdate({
     String? id,
@@ -171,10 +185,20 @@ class NotesRepository {
     Set<String> tags = const {},
     List<Map<String, String?>> links = const [],
     Map<String, dynamic>? attachmentMeta,
+    Map<String, dynamic>? metadataJson,
     bool? isPinned,
   }) async {
     id ??= _uuid.v4();
     updatedAt ??= DateTime.now();
+
+    // Merge attachmentMeta and metadataJson
+    final metadata = <String, dynamic>{};
+    if (attachmentMeta != null) {
+      metadata.addAll(attachmentMeta);
+    }
+    if (metadataJson != null) {
+      metadata.addAll(metadataJson);
+    }
 
     final note = LocalNote(
       id: id,
@@ -182,16 +206,16 @@ class NotesRepository {
       body: body,
       updatedAt: updatedAt,
       deleted: false,
-      encryptedMetadata: attachmentMeta != null ? jsonEncode(attachmentMeta) : null,
+      encryptedMetadata: metadata.isNotEmpty ? jsonEncode(metadata) : null,
       isPinned: isPinned ?? false,
     );
 
-    await db.upsertLocalNote(note);
+    await db.upsertNote(note);
     await db.replaceTagsForNote(id, tags);
     await db.replaceLinksForNote(id, links);
 
     // Reindex for search
-    await NoteIndexer.updateIndex(db, note, tags);
+    await _indexer.indexNote(note);
 
     // Enqueue the pending operation for sync
     await db.enqueue(id, 'upsert_note');
@@ -212,6 +236,22 @@ class NotesRepository {
           ..where((note) => note.deleted.equals(false))
           ..orderBy([(note) => OrderingTerm.desc(note.updatedAt)]))
         .get();
+  }
+
+  /// List notes with pagination (compatibility method)
+  Future<List<LocalNote>> listAfter(DateTime? cursor, {int limit = 20}) async {
+    final query = db.select(db.localNotes)
+      ..where((n) => n.deleted.equals(false));
+    
+    if (cursor != null) {
+      query.where((n) => n.updatedAt.isSmallerThanValue(cursor));
+    }
+    
+    query
+      ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)])
+      ..limit(limit);
+    
+    return query.get();
   }
 
   Future<void> updateLocalNote(
@@ -244,7 +284,7 @@ class NotesRepository {
       isPinned: isPinned ?? existing.isPinned,
     );
 
-    await db.upsertLocalNote(updated);
+    await db.upsertNote(updated);
 
     // Update tags if provided
     if (tags != null) {
@@ -257,7 +297,7 @@ class NotesRepository {
     }
 
     // Reindex for search
-    await NoteIndexer.updateIndex(db, updated, tags ?? {});
+    await _indexer.indexNote(updated);
 
     // Enqueue the pending operation for sync
     await db.enqueue(id, deleted == true ? 'delete_note' : 'upsert_note');
@@ -266,6 +306,282 @@ class NotesRepository {
   Future<void> deleteNote(String id) async {
     await updateLocalNote(id, deleted: true);
   }
+
+  /// Delete method (compatibility)
+  Future<void> delete(String id) => deleteNote(id);
+
+  // ----------------------
+  // Folder Management (Delegating to FolderRepository patterns)
+  // ----------------------
+
+  /// Get folder by ID
+  Future<LocalFolder?> getFolder(String id) async {
+    return await (db.select(db.localFolders)
+          ..where((f) => f.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  /// List all folders
+  Future<List<LocalFolder>> listFolders() async {
+    return await (db.select(db.localFolders)
+          ..where((f) => f.deleted.equals(false))
+          ..orderBy([(f) => OrderingTerm.asc(f.path)]))
+        .get();
+  }
+
+  /// Get root folders
+  Future<List<LocalFolder>> getRootFolders() async {
+    return await (db.select(db.localFolders)
+          ..where((f) => f.deleted.equals(false))
+          ..where((f) => f.parentId.isNull())
+          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+        .get();
+  }
+
+  /// Create or update folder
+  Future<String> createOrUpdateFolder({
+    String? id,
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+    int? sortOrder,
+  }) async {
+    id ??= _uuid.v4();
+    
+    final folder = LocalFolder(
+      id: id,
+      name: name,
+      parentId: parentId,
+      path: '', // Will be computed by triggers
+      sortOrder: sortOrder ?? 0,
+      color: color,
+      icon: icon,
+      description: description ?? '',
+      deleted: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await db.upsertFolder(folder);
+    await db.enqueue(id, 'upsert_folder');
+    
+    return id;
+  }
+
+  /// Create folder (compatibility)
+  Future<LocalFolder> createFolder({
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+  }) async {
+    final id = await createOrUpdateFolder(
+      name: name,
+      parentId: parentId,
+      color: color,
+      icon: icon,
+      description: description,
+    );
+    
+    return (await getFolder(id))!;
+  }
+
+  /// Rename folder
+  Future<void> renameFolder(String folderId, String newName) async {
+    final folder = await getFolder(folderId);
+    if (folder == null) return;
+    
+    await db.upsertFolder(folder.copyWith(
+      name: newName,
+      updatedAt: DateTime.now(),
+    ));
+    
+    await db.enqueue(folderId, 'upsert_folder');
+  }
+
+  /// Move folder
+  Future<void> moveFolder(String folderId, String? newParentId) async {
+    final folder = await getFolder(folderId);
+    if (folder == null) return;
+    
+    await db.upsertFolder(folder.copyWith(
+      parentId: Value(newParentId),
+      updatedAt: DateTime.now(),
+    ));
+    
+    await db.enqueue(folderId, 'upsert_folder');
+  }
+
+  /// Delete folder (soft delete)
+  Future<void> deleteFolder(String folderId) async {
+    final folder = await getFolder(folderId);
+    if (folder == null) return;
+
+    // Mark folder as deleted
+    await db.upsertFolder(folder.copyWith(
+      deleted: true,
+      updatedAt: DateTime.now(),
+    ));
+    
+    // Move notes to inbox (null folder)
+    final notesInFolder = await getNotesInFolder(folderId);
+    for (final note in notesInFolder) {
+      await moveNoteToFolder(note.id, null);
+    }
+    
+    await db.enqueue(folderId, 'delete_folder');
+  }
+
+  /// Get notes in folder
+  Future<List<LocalNote>> getNotesInFolder(String folderId) async {
+    return await db.getNotesInFolder(folderId);
+  }
+
+  /// Get unfiled notes
+  Future<List<LocalNote>> getUnfiledNotes() async {
+    final query = db.select(db.localNotes).join([
+      leftOuterJoin(db.noteFolders, db.noteFolders.noteId.equalsExp(db.localNotes.id)),
+    ])
+      ..where(db.localNotes.deleted.equals(false))
+      ..where(db.noteFolders.noteId.isNull());
+    
+    return query.map((row) => row.readTable(db.localNotes)).get();
+  }
+
+  /// Add note to folder
+  Future<void> addNoteToFolder(String noteId, String folderId) async {
+    await db.moveNoteToFolder(noteId, folderId);
+    
+    // Update note's updatedAt to trigger sync
+    final note = await getNote(noteId);
+    if (note != null) {
+      await db.upsertNote(note.copyWith(updatedAt: DateTime.now()));
+      await db.enqueue(noteId, 'upsert_note');
+    }
+  }
+
+  /// Move note to folder
+  Future<void> moveNoteToFolder(String noteId, String? folderId) async {
+    await db.moveNoteToFolder(noteId, folderId);
+    
+    // Update note's updatedAt to trigger sync
+    final note = await getNote(noteId);
+    if (note != null) {
+      await db.upsertNote(note.copyWith(updatedAt: DateTime.now()));
+      await db.enqueue(noteId, 'upsert_note');
+    }
+  }
+
+  /// Remove note from folder
+  Future<void> removeNoteFromFolder(String noteId) async {
+    await moveNoteToFolder(noteId, null);
+  }
+
+  /// Get folder for note
+  Future<LocalFolder?> getFolderForNote(String noteId) async {
+    final relation = await (db.select(db.noteFolders)
+          ..where((nf) => nf.noteId.equals(noteId)))
+        .getSingleOrNull();
+    
+    if (relation == null) return null;
+    
+    return getFolder(relation.folderId);
+  }
+
+  // ----------------------
+  // Folder Health Check (Compatibility)
+  // ----------------------
+
+  Future<Map<String, dynamic>> performFolderHealthCheck() async {
+    final issues = <String, List<String>>{};
+    
+    // Check for orphaned folders
+    final folders = await listFolders();
+    for (final folder in folders) {
+      if (folder.parentId != null) {
+        final parent = await getFolder(folder.parentId!);
+        if (parent == null) {
+          issues.putIfAbsent('orphaned_folders', () => []).add(folder.id);
+        }
+      }
+    }
+    
+    // Check for orphaned note-folder relations
+    final relations = await (db.select(db.noteFolders)).get();
+    for (final rel in relations) {
+      final note = await getNote(rel.noteId);
+      final folder = await getFolder(rel.folderId);
+      if (note == null) {
+        issues.putIfAbsent('orphaned_note_relations', () => []).add(rel.noteId);
+      }
+      if (folder == null) {
+        issues.putIfAbsent('orphaned_folder_relations', () => []).add(rel.folderId);
+      }
+    }
+    
+    return {
+      'healthy': issues.isEmpty,
+      'issues': issues,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+  }
+
+  Future<void> validateAndRepairFolderStructure() async {
+    // Implementation placeholder - could fix orphaned folders
+    debugPrint('Validating folder structure...');
+  }
+
+  Future<void> cleanupOrphanedRelationships() async {
+    // Remove orphaned note-folder relationships
+    final relations = await (db.select(db.noteFolders)).get();
+    for (final rel in relations) {
+      final note = await getNote(rel.noteId);
+      final folder = await getFolder(rel.folderId);
+      
+      if (note == null || folder == null) {
+        await (db.delete(db.noteFolders)
+              ..where((nf) => nf.noteId.equals(rel.noteId))
+              ..where((nf) => nf.folderId.equals(rel.folderId)))
+            .go();
+        debugPrint('Removed orphaned relation: ${rel.noteId} -> ${rel.folderId}');
+      }
+    }
+  }
+
+  /// Resolve folder conflicts (compatibility)
+  Future<void> resolveFolderConflicts() async {
+    debugPrint('Resolving folder conflicts...');
+    // Implementation placeholder
+  }
+
+  /// Get child folders
+  Future<List<LocalFolder>> getChildFolders(String parentId) async {
+    return await (db.select(db.localFolders)
+          ..where((f) => f.deleted.equals(false))
+          ..where((f) => f.parentId.equals(parentId))
+          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+        .get();
+  }
+
+  /// List all notes (compatibility)
+  Future<List<LocalNote>> list({int? limit}) async {
+    final query = db.select(db.localNotes)
+      ..where((n) => n.deleted.equals(false))
+      ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)]);
+    
+    if (limit != null) {
+      query.limit(limit);
+    }
+    
+    return query.get();
+  }
+
+  // ----------------------
+  // Sync Methods
+  // ----------------------
 
   /// Watch notes with filters and sorting
   Stream<List<LocalNote>> watchNotes({
@@ -361,49 +677,54 @@ class NotesRepository {
           final tagsSet = await _getNoteTags(n.id);
           final linksList = await _getNoteLinks(n.id);
 
-          // Get the encrypted note data
-          final encNote = await crypto.encryptNote(
-            id: n.id,
-            title: n.title,
-            body: n.body,
-            tags: tagsSet.toList(),
-            links: linksList.map((l) => {'title': l.targetTitle, 'id': l.targetId}).toList(),
+          // Encrypt using JSON methods
+          final encryptedTitle = await crypto.encryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: n.id,
+            json: {'title': n.title},
           );
-
-          // Include attachment metadata and pinned status
+          
           final propsJson = <String, dynamic>{
+            'body': n.body,
+            'tags': tagsSet.toList(),
+            'links': linksList.map((l) => {'title': l.targetTitle, 'id': l.targetId}).toList(),
             'isPinned': n.isPinned,
+            'updatedAt': n.updatedAt.toIso8601String(),
           };
           
           if (n.encryptedMetadata != null) {
             try {
               final meta = jsonDecode(n.encryptedMetadata!);
-              propsJson['attachments'] = meta['attachments'];
-              propsJson['source'] = meta['source'];
-              propsJson['originalUrl'] = meta['originalUrl'];
-              propsJson['originalId'] = meta['originalId'];
+              propsJson.addAll(meta);
             } catch (e) {
               // Ignore parsing errors
             }
           }
 
+          final encryptedProps = await crypto.encryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: n.id,
+            json: propsJson,
+          );
+
           // Call the push API
-          await api.pushEncryptedNote(
+          await api.upsertEncryptedNote(
             id: n.id,
-            eTitleNonce: encNote.encryptedTitleNonce,
-            eTitle: encNote.encryptedTitle,
-            eBodyNonce: encNote.encryptedBodyNonce,
-            eBody: encNote.encryptedBody,
-            updatedAt: n.updatedAt,
-            eTags: encNote.encryptedTags,
-            eLinks: encNote.encryptedLinks,
-            propsJson: propsJson.isNotEmpty ? propsJson : null,
+            titleEnc: encryptedTitle,
+            propsEnc: encryptedProps,
+            deleted: n.deleted,
           );
 
           processedIds.add(op.id);
           debugPrint('✅ Pushed note: ${n.id}');
         } else if (op.kind == 'delete_note') {
-          await api.deleteNote(op.entityId);
+          // Soft delete via upsert
+          await api.upsertEncryptedNote(
+            id: op.entityId,
+            titleEnc: Uint8List(0),
+            propsEnc: Uint8List(0),
+            deleted: true,
+          );
           processedIds.add(op.id);
           debugPrint('🗑️ Deleted note: ${op.entityId}');
         } else if (op.kind == 'upsert_saved_search') {
@@ -418,40 +739,16 @@ class NotesRepository {
           debugPrint('🗑️ Saved search deletion queued (client-only for now): ${op.entityId}');
         } else if (op.kind == 'upsert_note_tag') {
           // Handle tag sync
-          try {
-            final payload = op.payload != null ? jsonDecode(op.payload!) : null;
-            if (payload != null) {
-              // TODO: Implement server-side tag sync if needed
-              processedIds.add(op.id);
-              debugPrint('🏷️ Tag sync queued: ${op.entityId}');
-            }
-          } catch (e) {
-            debugPrint('❌ Failed to process tag operation: $e');
-          }
+          processedIds.add(op.id);
+          debugPrint('🏷️ Tag sync queued: ${op.entityId}');
         } else if (op.kind == 'delete_note_tag') {
           // Handle tag removal sync
-          try {
-            final payload = op.payload != null ? jsonDecode(op.payload!) : null;
-            if (payload != null) {
-              // TODO: Implement server-side tag sync if needed
-              processedIds.add(op.id);
-              debugPrint('🏷️ Tag removal sync queued: ${op.entityId}');
-            }
-          } catch (e) {
-            debugPrint('❌ Failed to process tag removal: $e');
-          }
+          processedIds.add(op.id);
+          debugPrint('🏷️ Tag removal sync queued: ${op.entityId}');
         } else if (op.kind == 'rename_tag') {
           // Handle global tag rename
-          try {
-            final payload = op.payload != null ? jsonDecode(op.payload!) : null;
-            if (payload != null) {
-              // TODO: Implement server-side tag rename if needed
-              processedIds.add(op.id);
-              debugPrint('🏷️ Tag rename sync queued: ${op.entityId}');
-            }
-          } catch (e) {
-            debugPrint('❌ Failed to process tag rename: $e');
-          }
+          processedIds.add(op.id);
+          debugPrint('🏷️ Tag rename sync queued: ${op.entityId}');
         }
       } on Object catch (e) {
         debugPrint('❌ Failed to push ${op.kind} for ${op.entityId}: $e');
@@ -482,7 +779,7 @@ class NotesRepository {
 
         if (deleted) {
           // Mark as deleted locally
-          await db.upsertLocalNote(LocalNote(
+          await db.upsertNote(LocalNote(
             id: id,
             title: '',
             body: '',
@@ -497,15 +794,26 @@ class NotesRepository {
         }
 
         // Decrypt the note
-        final decrypted = await crypto.decryptNote(
-          eTitleNonce: r['e_title_nonce'] as String,
-          eTitle: r['e_title'] as String,
-          eBodyNonce: r['e_body_nonce'] as String,
-          eBody: r['e_body'] as String,
-          eTags: r['e_tags'],
-          eLinks: r['e_links'],
+        final titleEnc = r['title_enc'] as Uint8List;
+        final propsEnc = r['props_enc'] as Uint8List;
+        
+        final titleJson = await crypto.decryptJsonForNote(
+          userId: _supabase.auth.currentUser!.id,
+          noteId: id,
+          data: titleEnc,
+        );
+        
+        final propsJson = await crypto.decryptJsonForNote(
+          userId: _supabase.auth.currentUser!.id,
+          noteId: id,
+          data: propsEnc,
         );
 
+        final title = titleJson['title'] as String? ?? '';
+        final body = propsJson['body'] as String? ?? '';
+        final tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
+        final links = (propsJson['links'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final isPinned = propsJson['isPinned'] as bool? ?? false;
         final updatedAt = DateTime.parse(r['updated_at'] as String);
 
         // Check if we need to update
@@ -519,65 +827,44 @@ class NotesRepository {
           continue;
         }
 
-        // Extract metadata from props_json
-        final propsJson = r['props_json'] as Map<String, dynamic>?;
-        Map<String, dynamic>? attachmentMeta;
-        bool isPinned = false;
-        
-        if (propsJson != null) {
-          isPinned = propsJson['isPinned'] as bool? ?? false;
-          
-          if (propsJson['attachments'] != null || 
-              propsJson['source'] != null || 
-              propsJson['originalUrl'] != null || 
-              propsJson['originalId'] != null) {
-            attachmentMeta = {};
-            if (propsJson['attachments'] != null) {
-              attachmentMeta['attachments'] = propsJson['attachments'];
-            }
-            if (propsJson['source'] != null) {
-              attachmentMeta['source'] = propsJson['source'];
-            }
-            if (propsJson['originalUrl'] != null) {
-              attachmentMeta['originalUrl'] = propsJson['originalUrl'];
-            }
-            if (propsJson['originalId'] != null) {
-              attachmentMeta['originalId'] = propsJson['originalId'];
-            }
-          }
-        }
+        // Extract metadata
+        final metadata = Map<String, dynamic>.from(propsJson);
+        metadata.remove('body');
+        metadata.remove('tags');
+        metadata.remove('links');
+        metadata.remove('isPinned');
+        metadata.remove('updatedAt');
 
         // Upsert the note
-        await db.upsertLocalNote(LocalNote(
+        await db.upsertNote(LocalNote(
           id: id,
-          title: decrypted.title,
-          body: decrypted.body,
+          title: title,
+          body: body,
           updatedAt: updatedAt,
           deleted: false,
-          encryptedMetadata: attachmentMeta != null ? jsonEncode(attachmentMeta) : null,
+          encryptedMetadata: metadata.isNotEmpty ? jsonEncode(metadata) : null,
           isPinned: isPinned,
         ));
 
         // Update tags
-        await db.replaceTagsForNote(id, decrypted.tags.toSet());
+        await db.replaceTagsForNote(id, tags.toSet());
 
         // Update links
-        await db.replaceLinksForNote(id, decrypted.links);
+        await db.replaceLinksForNote(id, links.map((l) => {
+          'title': l['title'] as String?,
+          'id': l['id'] as String?,
+        }).toList());
 
         // Reindex for search
-        await NoteIndexer.updateIndex(
-          db,
-          LocalNote(
-            id: id,
-            title: decrypted.title,
-            body: decrypted.body,
-            updatedAt: updatedAt,
-            deleted: false,
-            encryptedMetadata: attachmentMeta != null ? jsonEncode(attachmentMeta) : null,
-            isPinned: isPinned,
-          ),
-          decrypted.tags.toSet(),
-        );
+        await _indexer.indexNote(LocalNote(
+          id: id,
+          title: title,
+          body: body,
+          updatedAt: updatedAt,
+          deleted: false,
+          encryptedMetadata: metadata.isNotEmpty ? jsonEncode(metadata) : null,
+          isPinned: isPinned,
+        ));
 
         updatedCount++;
         debugPrint('✅ Updated note: $id');
@@ -596,39 +883,56 @@ class NotesRepository {
     debugPrint('📥 Pulling folders from remote since: ${since?.toIso8601String() ?? "beginning"}');
     
     try {
-      final response = await _supabase
-          .from('folders')
-          .select()
-          .order('created_at', ascending: true);
-      
-      final folders = (response as List).cast<Map<String, dynamic>>();
+      final folders = await api.fetchEncryptedFolders(since: since);
       debugPrint('📦 Received ${folders.length} folders from remote');
       
       for (final folder in folders) {
         final id = folder['id'] as String;
-        final name = folder['name'] as String;
-        final parentId = folder['parent_id'] as String?;
-        final position = folder['position'] as int? ?? 0;
-        final color = folder['color'] as String?;
-        final icon = folder['icon'] as String?;
-        final isDeleted = folder['deleted'] as bool? ?? false;
-        final createdAt = DateTime.parse(folder['created_at'] as String);
-        final updatedAt = DateTime.parse(folder['updated_at'] as String);
+        final deleted = folder['deleted'] as bool? ?? false;
         
-        if (isDeleted) {
+        if (deleted) {
           // Delete folder locally
-          await db.deleteFolder(id);
-          debugPrint('🗑️ Deleted folder: $name');
+          final existing = await getFolder(id);
+          if (existing != null) {
+            await db.upsertFolder(existing.copyWith(deleted: true));
+            debugPrint('🗑️ Deleted folder: ${existing.name}');
+          }
         } else {
+          // Decrypt folder
+          final nameEnc = folder['name_enc'] as Uint8List;
+          final propsEnc = folder['props_enc'] as Uint8List;
+          
+          final nameJson = await crypto.decryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: id,
+            data: nameEnc,
+          );
+          
+          final propsJson = await crypto.decryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: id,
+            data: propsEnc,
+          );
+          
+          final name = nameJson['name'] as String? ?? '';
+          final parentId = propsJson['parentId'] as String?;
+          final sortOrder = propsJson['sortOrder'] as int? ?? 0;
+          final color = propsJson['color'] as String?;
+          final icon = propsJson['icon'] as String?;
+          final createdAt = DateTime.parse(folder['created_at'] as String);
+          final updatedAt = DateTime.parse(folder['updated_at'] as String);
+          
           // Upsert folder
           await db.upsertFolder(LocalFolder(
             id: id,
             name: name,
             parentId: parentId,
             path: '', // Will be computed by trigger
-            position: position,
+            sortOrder: sortOrder,
             color: color,
             icon: icon,
+            description: (propsJson['description'] as String?) ?? '',
+            deleted: false,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ));
@@ -637,17 +941,12 @@ class NotesRepository {
       }
       
       // Pull note-folder associations
-      final noteFoldersResponse = await _supabase
-          .from('note_folders')
-          .select()
-          .order('created_at', ascending: true);
+      final relations = await api.fetchNoteFolderRelations(since: since);
+      debugPrint('📦 Received ${relations.length} note-folder associations');
       
-      final noteFolders = (noteFoldersResponse as List).cast<Map<String, dynamic>>();
-      debugPrint('📦 Received ${noteFolders.length} note-folder associations');
-      
-      for (final nf in noteFolders) {
-        final noteId = nf['note_id'] as String;
-        final folderId = nf['folder_id'] as String;
+      for (final rel in relations) {
+        final noteId = rel['note_id'] as String;
+        final folderId = rel['folder_id'] as String;
         
         // Check if note exists locally
         final noteExists = await (db.select(db.localNotes)
@@ -677,12 +976,28 @@ class NotesRepository {
         .get();
   }
 
+  /// Fetch remote active IDs (compatibility)
+  Future<Set<String>> fetchRemoteActiveIds() async {
+    return await api.fetchAllActiveIds();
+  }
+
+  /// Reconcile hard deletes (compatibility)
+  Future<void> reconcileHardDeletes(Set<String> remoteIds) async {
+    final localIds = await db.getLocalActiveNoteIds();
+    final toDelete = localIds.difference(remoteIds);
+    
+    for (final id in toDelete) {
+      await deleteNote(id);
+      debugPrint('🗑️ Hard deleted local note not on server: $id');
+    }
+  }
+
   Future<void> reconcile() async {
     // Get local active note IDs
     final localIds = await db.getLocalActiveNoteIds();
 
     // Get remote active note IDs
-    final remoteIds = await api.getRemoteActiveNoteIds();
+    final remoteIds = await api.fetchAllActiveIds();
 
     // Find notes that exist locally but not remotely
     final localOnly = localIds.difference(remoteIds);

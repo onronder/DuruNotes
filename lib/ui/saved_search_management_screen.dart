@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // TODO: Generate localization files
 
 class SavedSearchManagementScreen extends ConsumerStatefulWidget {
   const SavedSearchManagementScreen({super.key});
@@ -53,13 +54,21 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
 
     if (result != null) {
       final repo = ref.read(notesRepositoryProvider);
-      await repo.createOrUpdateSavedSearch(
+      final savedSearch = SavedSearch(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: result['name'] as String,
         query: result['query'] as String,
         searchType: result['type'] as String,
-        icon: result['icon'] as String?,
+        parameters: null,
+        sortOrder: 0,
         color: result['color'] as String?,
+        icon: result['icon'] as String?,
+        isPinned: false,
+        createdAt: DateTime.now(),
+        lastUsedAt: null,
+        usageCount: 0,
       );
+      await repo.createOrUpdateSavedSearch(savedSearch);
       await _loadSavedSearches();
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -80,15 +89,14 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
 
     if (result != null) {
       final repo = ref.read(notesRepositoryProvider);
-      await repo.createOrUpdateSavedSearch(
-        id: search.id,
+      final updatedSearch = search.copyWith(
         name: result['name'] as String,
         query: result['query'] as String,
         searchType: result['type'] as String,
-        icon: result['icon'] as String?,
-        color: result['color'] as String?,
-        isPinned: search.isPinned,
+        icon: Value(result['icon'] as String?),
+        color: Value(result['color'] as String?),
       );
+      await repo.createOrUpdateSavedSearch(updatedSearch);
       await _loadSavedSearches();
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -156,7 +164,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
+    // final l10n = AppLocalizations.of(context); // TODO: Enable when localization is generated
 
     return Scaffold(
       appBar: AppBar(
