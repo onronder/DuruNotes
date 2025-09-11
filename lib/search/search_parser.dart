@@ -1,105 +1,337 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:flutter/foundation.dart';
 
-/// Search query result with parsed components
+/// Result of parsing a search query
+@immutable
 class SearchQuery {
-  final List<String> keywords;
-  final List<String> anyTags;
-  final List<String> noneTags;
-  final String? folderPath;
-  final SortSpec sort;
+  final String keywords;
+  final List<String> includeTags;
+  final List<String> excludeTags;
+  final String? folderName;
+  final bool hasAttachment;
+  final String? attachmentType;
+  final String? attachmentFilename;
+  final bool fromEmail;
+  final bool fromWeb;
+  final bool isPinned;
+  final Map<String, dynamic> rawFilters;
 
   const SearchQuery({
-    this.keywords = const [],
-    this.anyTags = const [],
-    this.noneTags = const [],
-    this.folderPath,
-    this.sort = const SortSpec(),
+    this.keywords = '',
+    this.includeTags = const [],
+    this.excludeTags = const [],
+    this.folderName,
+    this.hasAttachment = false,
+    this.attachmentType,
+    this.attachmentFilename,
+    this.fromEmail = false,
+    this.fromWeb = false,
+    this.isPinned = false,
+    this.rawFilters = const {},
   });
 
-  /// Convert to JSON for saved searches
-  Map<String, dynamic> toJson() => {
-    'keywords': keywords,
-    'anyTags': anyTags,
-    'noneTags': noneTags,
-    'folderPath': folderPath,
-    'sortBy': sort.sortBy.name,
-    'ascending': sort.ascending,
-    'pinnedFirst': sort.pinnedFirst,
-  };
+  bool get hasFilters => 
+      includeTags.isNotEmpty ||
+      excludeTags.isNotEmpty ||
+      folderName != null ||
+      hasAttachment ||
+      attachmentType != null ||
+      attachmentFilename != null ||
+      fromEmail ||
+      fromWeb ||
+      isPinned;
 
-  /// Create from JSON (for saved searches)
-  factory SearchQuery.fromJson(Map<String, dynamic> json) => SearchQuery(
-    keywords: List<String>.from((json['keywords'] as List<dynamic>?) ?? []),
-    anyTags: List<String>.from((json['anyTags'] as List<dynamic>?) ?? []),
-    noneTags: List<String>.from((json['noneTags'] as List<dynamic>?) ?? []),
-    folderPath: json['folderPath'] as String?,
-    sort: SortSpec(
-      sortBy: SortBy.values.firstWhere(
-        (e) => e.name == json['sortBy'],
-        orElse: () => SortBy.updatedAt,
-      ),
-      ascending: (json['ascending'] as bool?) ?? false,
-      pinnedFirst: (json['pinnedFirst'] as bool?) ?? true,
-    ),
-  );
-}
-
-/// Parser for search queries with tag support
-class SearchParser {
-  /// Parse search input into structured query
-  SearchQuery parse(String input) {
-    final tokens = input.split(' ').where((t) => t.isNotEmpty).toList();
-    final anyTags = <String>[];
-    final noneTags = <String>[];
-    final keywords = <String>[];
-    String? folderPath;
-    
-    for (final token in tokens) {
-      if (token.startsWith('-#') && token.length > 2) {
-        // Exclude tag
-        noneTags.add(token.substring(2).toLowerCase());
-      } else if (token.startsWith('#') && token.length > 1) {
-        // Include tag
-        anyTags.add(token.substring(1).toLowerCase());
-      } else if (token.startsWith('folder:') && token.length > 7) {
-        // Folder filter
-        folderPath = token.substring(7);
-      } else {
-        // Regular keyword
-        keywords.add(token);
-      }
-    }
-    
+  SearchQuery copyWith({
+    String? keywords,
+    List<String>? includeTags,
+    List<String>? excludeTags,
+    String? folderName,
+    bool? hasAttachment,
+    String? attachmentType,
+    String? attachmentFilename,
+    bool? fromEmail,
+    bool? fromWeb,
+    bool? isPinned,
+    Map<String, dynamic>? rawFilters,
+  }) {
     return SearchQuery(
-      keywords: keywords,
-      anyTags: anyTags,
-      noneTags: noneTags,
-      folderPath: folderPath,
+      keywords: keywords ?? this.keywords,
+      includeTags: includeTags ?? this.includeTags,
+      excludeTags: excludeTags ?? this.excludeTags,
+      folderName: folderName ?? this.folderName,
+      hasAttachment: hasAttachment ?? this.hasAttachment,
+      attachmentType: attachmentType ?? this.attachmentType,
+      attachmentFilename: attachmentFilename ?? this.attachmentFilename,
+      fromEmail: fromEmail ?? this.fromEmail,
+      fromWeb: fromWeb ?? this.fromWeb,
+      isPinned: isPinned ?? this.isPinned,
+      rawFilters: rawFilters ?? this.rawFilters,
     );
   }
 
-  /// Build display string from query (for saved searches)
-  String buildQueryString(SearchQuery query) {
+  Map<String, dynamic> toJson() {
+    return {
+      'keywords': keywords,
+      'includeTags': includeTags,
+      'excludeTags': excludeTags,
+      'folderName': folderName,
+      'hasAttachment': hasAttachment,
+      'attachmentType': attachmentType,
+      'attachmentFilename': attachmentFilename,
+      'fromEmail': fromEmail,
+      'fromWeb': fromWeb,
+      'isPinned': isPinned,
+      'rawFilters': rawFilters,
+    };
+  }
+
+  factory SearchQuery.fromJson(Map<String, dynamic> json) {
+    return SearchQuery(
+      keywords: json['keywords'] as String? ?? '',
+      includeTags: (json['includeTags'] as List<dynamic>?)?.cast<String>() ?? [],
+      excludeTags: (json['excludeTags'] as List<dynamic>?)?.cast<String>() ?? [],
+      folderName: json['folderName'] as String?,
+      hasAttachment: json['hasAttachment'] as bool? ?? false,
+      attachmentType: json['attachmentType'] as String?,
+      attachmentFilename: json['attachmentFilename'] as String?,
+      fromEmail: json['fromEmail'] as bool? ?? false,
+      fromWeb: json['fromWeb'] as bool? ?? false,
+      isPinned: json['isPinned'] as bool? ?? false,
+      rawFilters: json['rawFilters'] as Map<String, dynamic>? ?? {},
+    );
+  }
+}
+
+/// Parser for search queries with special tokens
+class SearchParser {
+  /// Parse a search query string into structured components
+  static SearchQuery parse(String query) {
+    if (query.trim().isEmpty) {
+      return const SearchQuery();
+    }
+
+    final tokens = <String>[];
+    final includeTags = <String>[];
+    final excludeTags = <String>[];
+    final keywords = <String>[];
+    String? folderName;
+    bool hasAttachment = false;
+    String? attachmentType;
+    String? attachmentFilename;
+    bool fromEmail = false;
+    bool fromWeb = false;
+    bool isPinned = false;
+
+    // Split query into tokens, preserving quoted strings
+    final parts = _tokenize(query);
+    
+    for (final part in parts) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+
+      // Check for tag tokens
+      if (trimmed.startsWith('#')) {
+        final tag = trimmed.substring(1).trim();
+        if (tag.isNotEmpty) {
+          includeTags.add(tag.toLowerCase());
+        }
+      } 
+      // Check for excluded tag tokens
+      else if (trimmed.startsWith('-#')) {
+        final tag = trimmed.substring(2).trim();
+        if (tag.isNotEmpty) {
+          excludeTags.add(tag.toLowerCase());
+        }
+      }
+      // Check for folder filter
+      else if (trimmed.startsWith('folder:')) {
+        folderName = trimmed.substring(7).trim();
+        if (folderName!.startsWith('"') && folderName!.endsWith('"')) {
+          folderName = folderName!.substring(1, folderName!.length - 1);
+        }
+      }
+      // Check for attachment filters
+      else if (trimmed == 'has:attachment') {
+        hasAttachment = true;
+      }
+      else if (trimmed.startsWith('type:')) {
+        attachmentType = trimmed.substring(5).trim();
+      }
+      else if (trimmed.startsWith('filename:')) {
+        attachmentFilename = trimmed.substring(9).trim();
+        if (attachmentFilename!.startsWith('"') && attachmentFilename!.endsWith('"')) {
+          attachmentFilename = attachmentFilename!.substring(1, attachmentFilename!.length - 1);
+        }
+      }
+      // Check for source filters
+      else if (trimmed == 'from:email') {
+        fromEmail = true;
+      }
+      else if (trimmed == 'from:web') {
+        fromWeb = true;
+      }
+      // Check for pinned filter
+      else if (trimmed == 'is:pinned') {
+        isPinned = true;
+      }
+      // Regular keyword
+      else {
+        keywords.add(trimmed);
+      }
+    }
+
+    return SearchQuery(
+      keywords: keywords.join(' '),
+      includeTags: includeTags,
+      excludeTags: excludeTags,
+      folderName: folderName,
+      hasAttachment: hasAttachment,
+      attachmentType: attachmentType,
+      attachmentFilename: attachmentFilename,
+      fromEmail: fromEmail,
+      fromWeb: fromWeb,
+      isPinned: isPinned,
+      rawFilters: {
+        'originalQuery': query,
+      },
+    );
+  }
+
+  /// Tokenize a query string, preserving quoted strings
+  static List<String> _tokenize(String query) {
+    final tokens = <String>[];
+    final buffer = StringBuffer();
+    bool inQuotes = false;
+    bool escaped = false;
+
+    for (int i = 0; i < query.length; i++) {
+      final char = query[i];
+
+      if (escaped) {
+        buffer.write(char);
+        escaped = false;
+        continue;
+      }
+
+      if (char == '\\') {
+        escaped = true;
+        continue;
+      }
+
+      if (char == '"') {
+        if (inQuotes) {
+          // End of quoted string
+          tokens.add(buffer.toString());
+          buffer.clear();
+          inQuotes = false;
+        } else {
+          // Start of quoted string
+          if (buffer.isNotEmpty) {
+            tokens.add(buffer.toString());
+            buffer.clear();
+          }
+          inQuotes = true;
+        }
+        continue;
+      }
+
+      if (!inQuotes && char == ' ') {
+        // Space outside quotes = token separator
+        if (buffer.isNotEmpty) {
+          tokens.add(buffer.toString());
+          buffer.clear();
+        }
+        continue;
+      }
+
+      buffer.write(char);
+    }
+
+    // Add remaining buffer content
+    if (buffer.isNotEmpty) {
+      tokens.add(buffer.toString());
+    }
+
+    return tokens;
+  }
+
+  /// Build a query string from components
+  static String build(SearchQuery query) {
     final parts = <String>[];
-    
+
     // Add keywords
-    parts.addAll(query.keywords);
-    
+    if (query.keywords.isNotEmpty) {
+      parts.add(query.keywords);
+    }
+
     // Add include tags
-    for (final tag in query.anyTags) {
+    for (final tag in query.includeTags) {
       parts.add('#$tag');
     }
-    
+
     // Add exclude tags
-    for (final tag in query.noneTags) {
+    for (final tag in query.excludeTags) {
       parts.add('-#$tag');
     }
-    
+
     // Add folder filter
-    if (query.folderPath != null) {
-      parts.add('folder:${query.folderPath}');
+    if (query.folderName != null) {
+      final name = query.folderName!;
+      if (name.contains(' ')) {
+        parts.add('folder:"$name"');
+      } else {
+        parts.add('folder:$name');
+      }
     }
-    
+
+    // Add attachment filters
+    if (query.hasAttachment) {
+      parts.add('has:attachment');
+    }
+
+    if (query.attachmentType != null) {
+      parts.add('type:${query.attachmentType}');
+    }
+
+    if (query.attachmentFilename != null) {
+      final filename = query.attachmentFilename!;
+      if (filename.contains(' ')) {
+        parts.add('filename:"$filename"');
+      } else {
+        parts.add('filename:$filename');
+      }
+    }
+
+    // Add source filters
+    if (query.fromEmail) {
+      parts.add('from:email');
+    }
+
+    if (query.fromWeb) {
+      parts.add('from:web');
+    }
+
+    // Add pinned filter
+    if (query.isPinned) {
+      parts.add('is:pinned');
+    }
+
     return parts.join(' ');
+  }
+
+  /// Get tag suggestions for autocomplete
+  static List<String> getTagSuggestions(String input, List<String> availableTags) {
+    if (input.isEmpty || !input.startsWith('#')) {
+      return [];
+    }
+
+    final prefix = input.substring(1).toLowerCase();
+    if (prefix.isEmpty) {
+      return availableTags.take(10).toList();
+    }
+
+    return availableTags
+        .where((tag) => tag.toLowerCase().startsWith(prefix))
+        .take(10)
+        .toList();
   }
 }

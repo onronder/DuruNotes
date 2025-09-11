@@ -769,6 +769,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.8),
                     ),
                     const SizedBox(width: 8),
+                    if (note.isPinned) ...[
+                      Icon(
+                        Icons.push_pin,
+                        size: 16,
+                        color: colorScheme.tertiary,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     Expanded(
                       child: Text(
                         note.title,
@@ -1897,18 +1905,36 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   List<LocalNote> _sortNotes(List<LocalNote> notes) {
     final sorted = List<LocalNote>.from(notes);
-    switch (_sortBy) {
-      case 'title':
-        sorted.sort((a, b) => a.title.compareTo(b.title));
-      case 'created':
-        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt)); // Using updatedAt as createdAt is not available
-      default: // date
-        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    
+    // Separate pinned and unpinned notes
+    final pinnedNotes = sorted.where((n) => n.isPinned).toList();
+    final unpinnedNotes = sorted.where((n) => !n.isPinned).toList();
+    
+    // Sort each group separately
+    void sortGroup(List<LocalNote> group) {
+      switch (_sortBy) {
+        case 'title':
+          group.sort((a, b) => a.title.compareTo(b.title));
+        case 'created':
+          group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt)); // Using updatedAt as createdAt is not available
+        default: // date
+          group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      }
     }
-    return sorted;
+    
+    sortGroup(pinnedNotes);
+    sortGroup(unpinnedNotes);
+    
+    // Return pinned notes first, then unpinned
+    return [...pinnedNotes, ...unpinnedNotes];
   }
 
   Widget _buildModernListView(BuildContext context, List<LocalNote> notes, bool hasMore) {
+    // Separate pinned and unpinned notes for visual grouping
+    final pinnedNotes = notes.where((n) => n.isPinned).toList();
+    final unpinnedNotes = notes.where((n) => !n.isPinned).toList();
+    final hasPinnedNotes = pinnedNotes.isNotEmpty;
+    
     return ListView.builder(
       key: const ValueKey('modern_list_view'),
       controller: _scrollController,
