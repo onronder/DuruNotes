@@ -19,6 +19,7 @@ class LocalNotes extends Table {
   DateTimeColumn get updatedAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   TextColumn get encryptedMetadata => text().nullable()();
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))(); // For pinning notes to top
 
   @override
   Set<Column> get primaryKey => {id};
@@ -28,7 +29,7 @@ class LocalNotes extends Table {
 class PendingOps extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entityId => text()();
-  TextColumn get kind => text()(); // 'upsert_note' | 'delete_note'
+  TextColumn get kind => text()(); // 'upsert_note' | 'delete_note' | 'upsert_folder' | 'delete_folder' | 'upsert_tag' | 'delete_tag' | 'upsert_saved_search' | 'delete_saved_search'
   TextColumn get payload => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -132,6 +133,26 @@ class TagCount {
   final int count;
 }
 
+/// Sort options for queries
+enum SortBy { 
+  updatedAt, 
+  title, 
+  createdAt,
+}
+
+/// Sort specification for queries
+class SortSpec {
+  final SortBy sortBy;
+  final bool ascending;
+  final bool pinnedFirst;
+  
+  const SortSpec({
+    this.sortBy = SortBy.updatedAt,
+    this.ascending = false,
+    this.pinnedFirst = true,
+  });
+}
+
 /// Folder system tables for hierarchical organization
 @DataClassName('LocalFolder')
 class LocalFolders extends Table {
@@ -188,37 +209,85 @@ class NoteFolders extends Table {
   Set<Column> get primaryKey => {noteId}; // One folder per note
 }
 
+/// Saved searches table for persisting user-defined queries/chips
+@DataClassName('SavedSearch')
+class SavedSearches extends Table {
+  /// Unique identifier for the saved search
+  TextColumn get id => text()();
+  
+  /// Display name for the search
+  TextColumn get name => text()();
+  
+  /// The search query/pattern
+  TextColumn get query => text()();
+  
+  /// Search type: 'text', 'tag', 'folder', 'date_range', 'compound'
+  TextColumn get searchType => text().withDefault(const Constant('text'))();
+  
+  /// Optional parameters as JSON (e.g., date ranges, folder IDs, etc.)
+  TextColumn get parameters => text().nullable()();
+  
+  /// Display order for the saved searches
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  
+  /// Optional color for display (hex format)
+  TextColumn get color => text().nullable()();
+  
+  /// Optional icon name for display
+  TextColumn get icon => text().nullable()();
+  
+  /// Whether this search is pinned/favorited
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
+  
+  /// Creation timestamp
+  DateTimeColumn get createdAt => dateTime()();
+  
+  /// Last used timestamp
+  DateTimeColumn get lastUsedAt => dateTime().nullable()();
+  
+  /// Usage count for sorting by frequency
+  IntColumn get usageCount => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// ----------------------
 /// Database
 /// ----------------------
-@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, LocalFolders, NoteFolders])
+@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, LocalFolders, NoteFolders, SavedSearches])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
 
-          // FTS tablosu
+          // FTS table with folder_path support
           await customStatement(
-            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
+            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
           );
 
-          // Tetikleyiciler: local_notes <-> fts_notes senkron
+          // Triggers: local_notes <-> fts_notes sync
           await _createFtsTriggers();
+          
+          // Triggers: folder path sync
+          await _createFolderSyncTriggers();
 
-          // İndeksler
+          // Indexes
           await _createIndexes();
           await _createReminderIndexes();
+          await _createFolderIndexes();
+          await _createSavedSearchIndexes();
 
-          // Mevcut veriyi FTS’ye tohumla
+          // Seed existing data to FTS
           await customStatement(
-            'INSERT INTO fts_notes(id, title, body) '
-            'SELECT id, title, body FROM local_notes WHERE deleted = 0',
+            'INSERT INTO fts_notes(id, title, body, folder_path) '
+            'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0',
           );
         },
         onUpgrade: (m, from, to) async {
@@ -265,6 +334,24 @@ class AppDb extends _$AppDb {
           if (from < 7) {
             // Add metadata column for attachment and email information persistence
             await m.addColumn(localNotes, localNotes.encryptedMetadata);
+          }
+          if (from < 8) {
+            // Version 8: Enhanced folder system, pinning, and saved searches
+            
+            // 1. Add is_pinned column to local_notes for pinning functionality
+            await m.addColumn(localNotes, localNotes.isPinned);
+            
+            // 2. Create saved_searches table for persisting user queries
+            await m.createTable(savedSearches);
+            
+            // 3. Create triggers to keep fts_notes.folder_path in sync
+            await _createFolderSyncTriggers();
+            
+            // 4. Create indexes for saved searches
+            await _createSavedSearchIndexes();
+            
+            // 5. Update existing notes in FTS with folder paths
+            await _syncExistingFolderPaths();
           }
         },
       );
@@ -326,28 +413,42 @@ class AppDb extends _$AppDb {
   }
 
   Future<void> _createFtsTriggers() async {
-    // INSERT -> fts’ye ekle (silinmiş değilse)
+    // INSERT -> Add to FTS (if not deleted) with folder_path
     await customStatement('''
       CREATE TRIGGER IF NOT EXISTS trg_local_notes_ai
       AFTER INSERT ON local_notes
       BEGIN
-        INSERT INTO fts_notes(id, title, body)
-        SELECT NEW.id, NEW.title, NEW.body WHERE NEW.deleted = 0;
+        INSERT INTO fts_notes(id, title, body, folder_path)
+        SELECT 
+          NEW.id, 
+          NEW.title, 
+          NEW.body,
+          (SELECT path FROM local_folders lf 
+           JOIN note_folders nf ON nf.folder_id = lf.id 
+           WHERE nf.note_id = NEW.id)
+        WHERE NEW.deleted = 0;
       END;
     ''');
 
-    // UPDATE -> fts’yi güncelle / sil
+    // UPDATE -> Update FTS with folder_path
     await customStatement('''
       CREATE TRIGGER IF NOT EXISTS trg_local_notes_au
       AFTER UPDATE ON local_notes
       BEGIN
         DELETE FROM fts_notes WHERE id = NEW.id;
-        INSERT INTO fts_notes(id, title, body)
-        SELECT NEW.id, NEW.title, NEW.body WHERE NEW.deleted = 0;
+        INSERT INTO fts_notes(id, title, body, folder_path)
+        SELECT 
+          NEW.id, 
+          NEW.title, 
+          NEW.body,
+          (SELECT path FROM local_folders lf 
+           JOIN note_folders nf ON nf.folder_id = lf.id 
+           WHERE nf.note_id = NEW.id)
+        WHERE NEW.deleted = 0;
       END;
     ''');
 
-    // DELETE -> fts’den sil
+    // DELETE -> Remove from FTS
     await customStatement('''
       CREATE TRIGGER IF NOT EXISTS trg_local_notes_ad
       AFTER DELETE ON local_notes
@@ -422,6 +523,72 @@ class AppDb extends _$AppDb {
             ..limit(limit, offset: offset))
           .get();
 
+  /// Get all notes with pinned notes first
+  Future<List<LocalNote>> allNotesWithPinned() =>
+      (select(localNotes)
+            ..where((t) => t.deleted.equals(false))
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.isPinned),
+              (t) => OrderingTerm.desc(t.updatedAt),
+            ]))
+          .get();
+
+  /// Get pinned notes only
+  Future<List<LocalNote>> getPinnedNotes() =>
+      (select(localNotes)
+            ..where((t) => t.deleted.equals(false) & t.isPinned.equals(true))
+            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          .get();
+
+  /// Pin or unpin a note
+  Future<void> toggleNotePin(String noteId) async {
+    final note = await findNote(noteId);
+    if (note != null) {
+      final updatedNote = note.copyWith(
+        isPinned: !note.isPinned,
+        updatedAt: DateTime.now(),
+      );
+      await upsertNote(updatedNote);
+      await enqueue(noteId, 'upsert_note');
+    }
+  }
+
+  /// Set pin status for a note
+  Future<void> setNotePin(String noteId, bool isPinned) async {
+    final note = await findNote(noteId);
+    if (note != null && note.isPinned != isPinned) {
+      final updatedNote = note.copyWith(
+        isPinned: isPinned,
+        updatedAt: DateTime.now(),
+      );
+      await upsertNote(updatedNote);
+      await enqueue(noteId, 'upsert_note');
+    }
+  }
+
+  /// Get notes in folder with pinned first
+  Future<List<LocalNote>> getNotesInFolderWithPinned(String folderId, {int? limit, DateTime? cursor}) {
+    final query = select(localNotes).join([
+      leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
+    ])
+      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId));
+    
+    if (cursor != null) {
+      query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
+    }
+    
+    query.orderBy([
+      OrderingTerm.desc(localNotes.isPinned),
+      OrderingTerm.desc(localNotes.updatedAt),
+    ]);
+    
+    if (limit != null) {
+      query.limit(limit);
+    }
+
+    return query.map((row) => row.readTable(localNotes)).get();
+  }
+
   Future<void> upsertNote(LocalNote n) =>
       into(localNotes).insertOnConflictUpdate(n);
 
@@ -483,10 +650,16 @@ class AppDb extends _$AppDb {
     await transaction(() async {
       await (delete(noteTags)..where((t) => t.noteId.equals(noteId))).go();
       if (tags.isNotEmpty) {
+        // Normalize tags to lowercase for consistent storage
+        final normalizedTags = tags
+            .map((t) => t.trim().toLowerCase())
+            .where((t) => t.isNotEmpty)
+            .toSet();
+        
         await batch((b) {
           b.insertAll(
             noteTags,
-            tags.map(
+            normalizedTags.map(
               (t) => NoteTagsCompanion.insert(noteId: noteId, tag: t),
             ),
           );
@@ -530,16 +703,16 @@ class AppDb extends _$AppDb {
     return rows.map((r) => r.read<String>('tag')).toList();
   }
 
-  /// Get tags with their note counts
+  /// Get tags with their note counts (normalized, excludes deleted notes)
   Future<List<TagCount>> getTagsWithCounts() async {
     final rows = await customSelect(
       '''
-      SELECT t.tag AS tag, COUNT(DISTINCT t.note_id) AS count
-      FROM note_tags t
-      JOIN local_notes n ON n.id = t.note_id
+      SELECT nt.tag AS tag, COUNT(*) AS count
+      FROM note_tags nt
+      JOIN local_notes n ON n.id = nt.note_id
       WHERE n.deleted = 0
-      GROUP BY t.tag
-      ORDER BY LOWER(t.tag) ASC
+      GROUP BY nt.tag
+      ORDER BY count DESC, tag ASC
       ''',
       readsFrom: {noteTags, localNotes},
     ).get();
@@ -550,20 +723,114 @@ class AppDb extends _$AppDb {
     )).toList();
   }
 
-  /// Search tags by prefix
+  /// Add tag to note (normalized, idempotent)
+  Future<void> addTagToNote(String noteId, String rawTag) async {
+    final tag = rawTag.trim().toLowerCase();
+    
+    await into(noteTags).insert(
+      NoteTag(noteId: noteId, tag: tag),
+      mode: InsertMode.insertOrIgnore,  // idempotent
+    );
+  }
+
+  /// Remove tag from note
+  Future<void> removeTagFromNote(String noteId, String rawTag) async {
+    final tag = rawTag.trim().toLowerCase();
+    await (delete(noteTags)
+      ..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag)))
+      .go();
+  }
+
+  /// Rename/merge tag across all notes
+  Future<int> renameTagEverywhere(String fromRaw, String toRaw) async {
+    final from = fromRaw.trim().toLowerCase();
+    final to = toRaw.trim().toLowerCase();
+    
+    if (from == to) return 0;
+    
+    // Use custom update to handle potential conflicts
+    return customUpdate(
+      'UPDATE OR IGNORE note_tags SET tag = ? WHERE tag = ?',
+      variables: [Variable<String>(to), Variable<String>(from)],
+      updates: {noteTags},
+    );
+  }
+
+  /// Filter notes by tags (union of anyTags, excluding noneTags)
+  Future<List<LocalNote>> notesByTags({
+    required List<String> anyTags,
+    List<String> noneTags = const [],
+    required SortSpec sort, // reuse your sort object
+  }) async {
+    final tagsAny = anyTags.map((t) => t.trim().toLowerCase()).toList();
+    final tagsNone = noneTags.map((t) => t.trim().toLowerCase()).toList();
+
+    final q = select(localNotes)..where((n) => n.deleted.equals(false));
+
+    if (tagsAny.isNotEmpty) {
+      final sub = selectOnly(noteTags)
+        ..where(noteTags.tag.isIn(tagsAny))
+        ..addColumns([noteTags.noteId]);
+      q.where((n) => n.id.isInQuery(sub));
+    }
+    if (tagsNone.isNotEmpty) {
+      final ex = selectOnly(noteTags)
+        ..where(noteTags.tag.isIn(tagsNone))
+        ..addColumns([noteTags.noteId]);
+      q.where((n) => n.id.isNotInQuery(ex));
+    }
+
+    // IMPORTANT: keep your existing pinned-first + sort helper
+    _applyPinnedFirstAndSort(q, sort);
+    return q.get();
+  }
+
+  /// Helper to apply pinned-first and sorting
+  void _applyPinnedFirstAndSort(SimpleSelectStatement<LocalNotes, LocalNote> q, SortSpec sort) {
+    final orderFuncs = <OrderingTerm Function(LocalNotes)>[];
+    
+    // Pinned first if enabled
+    if (sort.pinnedFirst) {
+      orderFuncs.add((n) => OrderingTerm.desc(n.isPinned));
+    }
+    
+    // Apply sort field
+    switch (sort.sortBy) {
+      case SortBy.title:
+        orderFuncs.add((n) => OrderingTerm(
+          expression: n.title,
+          mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+        ));
+        break;
+      case SortBy.createdAt:
+      case SortBy.updatedAt:
+      default:
+        orderFuncs.add((n) => OrderingTerm(
+          expression: n.updatedAt,
+          mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+        ));
+        break;
+    }
+    
+    q.orderBy(orderFuncs);
+  }
+
+  /// Search tags by prefix (normalized)
   Future<List<String>> searchTags(String prefix) async {
     if (prefix.trim().isEmpty) return distinctTags();
+    
+    final normalizedPrefix = prefix.trim().toLowerCase();
     
     final rows = await customSelect(
       '''
       SELECT DISTINCT t.tag AS tag
       FROM note_tags t
       JOIN local_notes n ON n.id = t.note_id
-      WHERE n.deleted = 0 AND LOWER(t.tag) LIKE LOWER(?)
-      ORDER BY LOWER(t.tag) ASC
+      WHERE n.deleted = 0 AND t.tag LIKE ?
+      ORDER BY t.tag ASC
       LIMIT 20
       ''',
-      variables: [Variable('${prefix.trim()}%')],
+      variables: [Variable('$normalizedPrefix%')],
       readsFrom: {noteTags, localNotes},
     ).get();
 
@@ -571,15 +838,18 @@ class AppDb extends _$AppDb {
   }
 
   Future<List<LocalNote>> notesWithTag(String tag) async {
+    // Normalize tag for query
+    final normalizedTag = tag.trim().toLowerCase();
+    
     final list = await customSelect(
       '''
       SELECT n.*
       FROM local_notes n
       JOIN note_tags t ON n.id = t.note_id
       WHERE n.deleted = 0 AND t.tag = ?
-      ORDER BY n.updated_at DESC
+      ORDER BY n.is_pinned DESC, n.updated_at DESC
       ''',
-      variables: [Variable(tag)],
+      variables: [Variable(normalizedTag)],
       readsFrom: {localNotes, noteTags},
     ).map<LocalNote>((row) => localNotes.map(row.data)).get();
 
@@ -988,6 +1258,92 @@ class AppDb extends _$AppDb {
     print('📁 Folder system initialized - existing notes remain unfiled');
   }
 
+  /// Create triggers to keep fts_notes.folder_path in sync with folder changes
+  Future<void> _createFolderSyncTriggers() async {
+    // Trigger: When a note is mapped to a folder, update fts_notes.folder_path
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_note_folders_ai
+      AFTER INSERT ON note_folders
+      BEGIN
+        UPDATE fts_notes
+        SET folder_path = (SELECT path FROM local_folders WHERE id = NEW.folder_id)
+        WHERE id = NEW.note_id;
+      END;
+    ''');
+
+    // Trigger: When a note's folder mapping is updated
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_note_folders_au
+      AFTER UPDATE ON note_folders
+      BEGIN
+        UPDATE fts_notes
+        SET folder_path = (SELECT path FROM local_folders WHERE id = NEW.folder_id)
+        WHERE id = NEW.note_id;
+      END;
+    ''');
+
+    // Trigger: When a note is removed from a folder
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_note_folders_ad
+      AFTER DELETE ON note_folders
+      BEGIN
+        UPDATE fts_notes 
+        SET folder_path = NULL 
+        WHERE id = OLD.note_id;
+      END;
+    ''');
+
+    // Trigger: When a folder's path changes (rename/move), update all affected notes in FTS
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS trg_local_folders_au_path
+      AFTER UPDATE OF name, parent_id, path ON local_folders
+      BEGIN
+        UPDATE fts_notes
+        SET folder_path = NEW.path
+        WHERE id IN (
+          SELECT note_id 
+          FROM note_folders 
+          WHERE folder_id = NEW.id
+        );
+      END;
+    ''');
+  }
+
+  /// Create indexes for saved searches table
+  Future<void> _createSavedSearchIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_saved_searches_pinned '
+      'ON saved_searches(is_pinned DESC, sort_order ASC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_saved_searches_usage '
+      'ON saved_searches(usage_count DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_saved_searches_type '
+      'ON saved_searches(search_type)',
+    );
+  }
+
+  /// Sync existing folder paths to FTS for notes already in folders
+  Future<void> _syncExistingFolderPaths() async {
+    // Update FTS entries for notes that are already in folders
+    await customStatement('''
+      UPDATE fts_notes
+      SET folder_path = (
+        SELECT lf.path 
+        FROM local_folders lf
+        JOIN note_folders nf ON nf.folder_id = lf.id
+        WHERE nf.note_id = fts_notes.id
+      )
+      WHERE EXISTS (
+        SELECT 1 
+        FROM note_folders nf 
+        WHERE nf.note_id = fts_notes.id
+      )
+    ''');
+  }
+
   /// ----------------------
   /// Folder CRUD Operations  
   /// ----------------------
@@ -1260,6 +1616,102 @@ class AppDb extends _$AppDb {
           ..where((f) => f.deleted.equals(false) & 
                          f.name.equals(name)))
         .getSingleOrNull();
+  }
+
+  // ----------------------
+  // Saved Searches CRUD
+  // ----------------------
+
+  /// Create or update a saved search
+  Future<void> upsertSavedSearch(SavedSearch search) async {
+    await into(savedSearches).insertOnConflictUpdate(search);
+  }
+
+  /// Get all saved searches ordered by pinned status and sort order
+  Future<List<SavedSearch>> getSavedSearches() {
+    return (select(savedSearches)
+          ..orderBy([
+            (s) => OrderingTerm.desc(s.isPinned),
+            (s) => OrderingTerm.asc(s.sortOrder),
+            (s) => OrderingTerm.desc(s.usageCount),
+          ]))
+        .get();
+  }
+
+  /// Get saved searches by type
+  Future<List<SavedSearch>> getSavedSearchesByType(String searchType) {
+    return (select(savedSearches)
+          ..where((s) => s.searchType.equals(searchType))
+          ..orderBy([
+            (s) => OrderingTerm.desc(s.isPinned),
+            (s) => OrderingTerm.asc(s.sortOrder),
+          ]))
+        .get();
+  }
+
+  /// Get a saved search by ID
+  Future<SavedSearch?> getSavedSearchById(String id) {
+    return (select(savedSearches)..where((s) => s.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  /// Delete a saved search
+  Future<void> deleteSavedSearch(String id) async {
+    await (delete(savedSearches)..where((s) => s.id.equals(id))).go();
+  }
+
+  /// Update usage statistics for a saved search
+  Future<void> updateSavedSearchUsage(String id) async {
+    final search = await getSavedSearchById(id);
+    if (search != null) {
+      await into(savedSearches).insertOnConflictUpdate(
+        search.copyWith(
+          lastUsedAt: Value(DateTime.now()),
+          usageCount: search.usageCount + 1,
+        ),
+      );
+    }
+  }
+
+  /// Pin/unpin a saved search
+  Future<void> toggleSavedSearchPin(String id) async {
+    final search = await getSavedSearchById(id);
+    if (search != null) {
+      await into(savedSearches).insertOnConflictUpdate(
+        search.copyWith(isPinned: !search.isPinned),
+      );
+    }
+  }
+
+  /// Reorder saved searches
+  Future<void> reorderSavedSearches(List<String> orderedIds) async {
+    for (var i = 0; i < orderedIds.length; i++) {
+      final search = await getSavedSearchById(orderedIds[i]);
+      if (search != null) {
+        await into(savedSearches).insertOnConflictUpdate(
+          search.copyWith(sortOrder: i),
+        );
+      }
+    }
+  }
+
+  /// Watch saved searches stream
+  Stream<List<SavedSearch>> watchSavedSearches() {
+    return (select(savedSearches)
+          ..orderBy([
+            (s) => OrderingTerm.desc(s.isPinned),
+            (s) => OrderingTerm.asc(s.sortOrder),
+            (s) => OrderingTerm.desc(s.usageCount),
+          ]))
+        .watch();
+  }
+
+  /// Get pinned saved searches
+  Future<List<SavedSearch>> getPinnedSavedSearches() {
+    return (select(savedSearches)
+          ..where((s) => s.isPinned.equals(true))
+          ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
+        .get();
   }
 }
 

@@ -245,7 +245,7 @@ class InboxManagementService {
       };
       
       // Store attachment info for later processing
-      final attachmentInfo = item.payloadJson['attachments'];
+      final attachmentInfo = item.payloadJson['attachments'] as Map<String, dynamic>?;
       if (attachmentInfo != null) {
         metadata['attachments'] = attachmentInfo;
         metadata['attachments_pending'] = true;  // Mark as pending upload

@@ -41,8 +41,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     });
 
     try {
-      final db = ref.read(appDbProvider);
-      final tags = await db.getTagsWithCounts();
+      final repo = ref.read(notesRepositoryProvider);
+      final tags = await repo.listTagsWithCounts();
       
       if (mounted) {
         setState(() {

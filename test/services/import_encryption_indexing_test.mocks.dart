@@ -159,6 +159,77 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
           as _i8.Future<void>);
 
   @override
+  _i8.Future<List<_i2.TagCount>> listTagsWithCounts() =>
+      (super.noSuchMethod(
+            Invocation.method(#listTagsWithCounts, []),
+            returnValue: _i8.Future<List<_i2.TagCount>>.value(<_i2.TagCount>[]),
+          )
+          as _i8.Future<List<_i2.TagCount>>);
+
+  @override
+  _i8.Future<void> addTag({required String? noteId, required String? tag}) =>
+      (super.noSuchMethod(
+            Invocation.method(#addTag, [], {#noteId: noteId, #tag: tag}),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<void> removeTag({required String? noteId, required String? tag}) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeTag, [], {#noteId: noteId, #tag: tag}),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<int> renameTagEverywhere({
+    required String? from,
+    required String? to,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#renameTagEverywhere, [], {#from: from, #to: to}),
+            returnValue: _i8.Future<int>.value(0),
+          )
+          as _i8.Future<int>);
+
+  @override
+  _i8.Future<List<_i2.LocalNote>> queryNotesByTags({
+    required List<String>? anyTags,
+    List<String>? noneTags = const [],
+    required _i2.SortSpec? sort,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#queryNotesByTags, [], {
+              #anyTags: anyTags,
+              #noneTags: noneTags,
+              #sort: sort,
+            }),
+            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
+            ),
+          )
+          as _i8.Future<List<_i2.LocalNote>>);
+
+  @override
+  _i8.Future<List<String>> searchTags(String? prefix) =>
+      (super.noSuchMethod(
+            Invocation.method(#searchTags, [prefix]),
+            returnValue: _i8.Future<List<String>>.value(<String>[]),
+          )
+          as _i8.Future<List<String>>);
+
+  @override
+  _i8.Future<List<String>> getTagsForNote(String? noteId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getTagsForNote, [noteId]),
+            returnValue: _i8.Future<List<String>>.value(<String>[]),
+          )
+          as _i8.Future<List<String>>);
+
+  @override
   _i8.Future<void> pushAllPending() =>
       (super.noSuchMethod(
             Invocation.method(#pushAllPending, []),

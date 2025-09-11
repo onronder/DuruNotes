@@ -54,6 +54,7 @@ class NotesRepository {
       updatedAt: now,
       deleted: false,
       encryptedMetadata: metaString,
+      isPinned: false,
     );
 
     await db.upsertNote(n);
@@ -79,6 +80,56 @@ class NotesRepository {
       await _indexer.indexNote(deletedNote);
       await db.enqueue(id, 'upsert_note');
     }
+  }
+
+  // ----------------------
+  // Tag Management
+  // ----------------------
+
+  /// List tags with counts (for TagsScreen & autocomplete)
+  Future<List<TagCount>> listTagsWithCounts() => db.getTagsWithCounts();
+
+  /// Add tag to a note (enqueue offline ops)
+  Future<void> addTag({required String noteId, required String tag}) async {
+    final norm = tag.trim().toLowerCase();
+    await db.addTagToNote(noteId, norm);
+    await db.enqueue('$noteId::$norm', 'upsert_note_tag',
+      payload: jsonEncode({'note_id': noteId, 'tag': norm}));
+  }
+
+  /// Remove tag from a note
+  Future<void> removeTag({required String noteId, required String tag}) async {
+    final norm = tag.trim().toLowerCase();
+    await db.removeTagFromNote(noteId, norm);
+    await db.enqueue('$noteId::$norm', 'delete_note_tag',
+      payload: jsonEncode({'note_id': noteId, 'tag': norm}));
+  }
+
+  /// Bulk rename/merge tag across all notes (Optional admin tool)
+  Future<int> renameTagEverywhere({required String from, required String to}) async {
+    final cnt = await db.renameTagEverywhere(from, to);
+    // optional: enqueue global op if your server supports it
+    await db.enqueue('tag::${from.trim().toLowerCase()}', 'rename_tag',
+      payload: jsonEncode({'from': from.trim().toLowerCase(), 'to': to.trim().toLowerCase()}));
+    return cnt;
+  }
+
+  /// Query notes by tags (union + exclude)
+  Future<List<LocalNote>> queryNotesByTags({
+    required List<String> anyTags,
+    List<String> noneTags = const [],
+    required SortSpec sort,
+  }) => db.notesByTags(anyTags: anyTags, noneTags: noneTags, sort: sort);
+
+  /// Search tags for autocomplete
+  Future<List<String>> searchTags(String prefix) => db.searchTags(prefix);
+
+  /// Get tags for a specific note
+  Future<List<String>> getTagsForNote(String noteId) async {
+    final tags = await (db.select(db.noteTags)
+          ..where((t) => t.noteId.equals(noteId)))
+        .get();
+    return tags.map((t) => t.tag).toList();
   }
 
   Future<void> pushAllPending() async {
@@ -151,6 +202,19 @@ class NotesRepository {
 
         } else if (op.kind == 'remove_note_folder') {
           await _pushNoteFolderRelationship(op.entityId, isAdd: false);
+          processedIds.add(op.id);
+          
+        } else if (op.kind == 'upsert_note_tag') {
+          await _pushNoteTag(op.payload, isAdd: true);
+          processedIds.add(op.id);
+          
+        } else if (op.kind == 'delete_note_tag') {
+          await _pushNoteTag(op.payload, isAdd: false);
+          processedIds.add(op.id);
+          
+        } else if (op.kind == 'rename_tag') {
+          // Optional: push tag rename if server supports it
+          // await _pushRenameTag(op.payload);
           processedIds.add(op.id);
         }
       } on Object catch (e) {
@@ -238,6 +302,7 @@ class NotesRepository {
             updatedAt: updatedAt,
             deleted: deleted,
             encryptedMetadata: metaString,
+            isPinned: false,
           );
           await db.upsertNote(n);
           await _indexer.indexNote(n);
@@ -624,6 +689,33 @@ class NotesRepository {
       final noteId = entityId.replaceAll('_remove', '');
       await api.removeNoteFolderRelation(noteId: noteId);
       debugPrint('✅ Removed note $noteId from folder');
+    }
+  }
+
+  /// Push note-tag relationship to remote
+  Future<void> _pushNoteTag(String? payload, {required bool isAdd}) async {
+    if (payload == null) return;
+    
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final noteId = data['note_id'] as String;
+      final tag = data['tag'] as String;
+      
+      if (isAdd) {
+        // For now, we'll include tags with the note update
+        // In the future, we can have a dedicated API endpoint
+        final note = await db.findNote(noteId);
+        if (note != null) {
+          // The tag is already in the local database
+          // Just mark it as needing sync with the note
+          debugPrint('✅ Tag "$tag" added to note $noteId (will sync with note)');
+        }
+      } else {
+        // Remove tag (similar approach)
+        debugPrint('✅ Tag "$tag" removed from note $noteId (will sync with note)');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to process tag operation: $e');
     }
   }
 

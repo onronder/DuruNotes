@@ -321,6 +321,7 @@ Contains #tag1 and #tag2.
             body: body,
             updatedAt: DateTime.now(),
             deleted: false,
+            isPinned: false,
           );
           
           return capturedNote!.id;
@@ -405,6 +406,7 @@ Multiple words for search testing.
             body: body,
             updatedAt: DateTime.now(),
             deleted: false,
+            isPinned: false,
           );
           
           // Actually index the note with real indexer
