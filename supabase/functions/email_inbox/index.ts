@@ -1,205 +1,278 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { encode } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function clientIp(req: Request): string | null {
-  const cf = req.headers.get("cf-connecting-ip");
-  if (cf) return cf;
-  const xff = req.headers.get("x-forwarded-for");
-  return xff ? xff.split(",")[0].trim() : null;
+// Extract provider timestamp from headers
+function extractProviderTimestamp(headers: string): number | null {
+  if (!headers) return null;
+  
+  // Mailgun: X-Mailgun-Timestamp (Unix timestamp)
+  const mailgunMatch = headers.match(/X-Mailgun-Timestamp:\s*(\d+)/i);
+  if (mailgunMatch) {
+    return parseInt(mailgunMatch[1]) * 1000; // Convert to milliseconds
+  }
+  
+  // SendGrid: X-Sendgrid-Event-Time (Unix timestamp)
+  const sendgridMatch = headers.match(/X-Sendgrid-Event-Time:\s*(\d+)/i);
+  if (sendgridMatch) {
+    return parseInt(sendgridMatch[1]) * 1000;
+  }
+  
+  // Standard Date header as fallback
+  const dateMatch = headers.match(/Date:\s*(.+)/i);
+  if (dateMatch) {
+    const parsed = Date.parse(dateMatch[1]);
+    if (!isNaN(parsed)) return parsed;
+  }
+  
+  // Provider-specific received headers
+  const receivedMatch = headers.match(/X-Provider-Received-At:\s*(.+)/i);
+  if (receivedMatch) {
+    const parsed = Date.parse(receivedMatch[1]);
+    if (!isNaN(parsed)) return parsed;
+  }
+  
+  return null;
 }
 
-function ipAllowed(ip: string | null, allowedCsv?: string): boolean {
-  if (!allowedCsv) return true; // disabled if not set
-  if (!ip) return false;
-  const allowed = new Set(allowedCsv.split(",").map((s) => s.trim()));
-  return allowed.has(ip);
+// HMAC signature verification for enhanced security
+async function verifyHmacSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const msgData = encoder.encode(payload);
+  
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign("HMAC", key, msgData);
+  const expectedSig = encode(new Uint8Array(signatureBuffer));
+  
+  return expectedSig === signature;
+}
+
+// Normalize alias (remove dots, plus addressing, etc)
+function normalizeAlias(email: string): string {
+  const [localPart, domain] = email.split("@");
+  if (!localPart) return "";
+  
+  // Remove plus addressing (e.g., alias+tag@domain -> alias@domain)
+  let normalized = localPart.split("+")[0];
+  
+  // Remove dots for Gmail-style normalization (optional)
+  // normalized = normalized.replace(/\./g, "");
+  
+  return normalized.toLowerCase();
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+  // Start timing immediately
+  const t_recv = Date.now();
+  const edge_region = Deno.env.get("DENO_REGION") || "unknown";
+  const project_ref = Deno.env.get("SUPABASE_PROJECT_REF") || "unknown";
+  
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  
+  if (req.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+  }
+
+  let messageId: string | undefined;
+  let aliasNorm: string | undefined;
+  let t_provider: number | null = null;
+  let t_insert: number | undefined;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const inboundSecret = Deno.env.get("INBOUND_PARSE_SECRET");
-    const allowedIps = Deno.env.get("INBOUND_ALLOWED_IPS"); // optional CSV
+    const hmacSecret = Deno.env.get("INBOUND_HMAC_SECRET"); // Optional HMAC key
 
     if (!supabaseUrl || !serviceKey) {
       console.error("Missing Supabase config");
       return new Response("Server Misconfigured", { status: 500, headers: corsHeaders });
     }
 
-    // Gate 1: shared secret
+    // Auth check - Fast path
     const url = new URL(req.url);
-    if (!inboundSecret || url.searchParams.get("secret") !== inboundSecret) {
+    const providedSecret = url.searchParams.get("secret");
+    
+    // Option 1: HMAC signature verification (if configured)
+    if (hmacSecret) {
+      const signature = req.headers.get("x-webhook-signature");
+      if (signature) {
+        const body = await req.clone().text();
+        if (!(await verifyHmacSignature(body, signature, hmacSecret))) {
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+      } else if (providedSecret !== inboundSecret) {
+        // Fallback to secret if no HMAC
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      }
+    } else if (!inboundSecret || providedSecret !== inboundSecret) {
+      // Option 2: Simple secret verification
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
-    // Gate 2 (optional): IP allow-list
-    const ip = clientIp(req);
-    if (!ipAllowed(ip, allowedIps)) {
-      return new Response("Forbidden", { status: 403, headers: corsHeaders });
-    }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // Parse multipart form
+    // Parse form data - minimal processing
     const formData = await req.formData();
-
-    const toField    = (formData.get("to") as string) ?? "";
-    const fromField  = (formData.get("from") as string) ?? "";
-    const subject    = (formData.get("subject") as string) ?? "";
-    const textBody   = (formData.get("text") as string) ?? "";
-    const htmlBody   = (formData.get("html") as string) ?? "";
-    const headers    = (formData.get("headers") as string) ?? "";
-    const spamScore  = (formData.get("spam_score") as string) ?? "";
-    const envelope   = (formData.get("envelope") as string) ?? "";
-
-    // Prefer exact recipient from envelope
+    
+    // Extract critical fields only
+    const envelope = (formData.get("envelope") as string) ?? "";
+    const toField = (formData.get("to") as string) ?? "";
+    const headers = (formData.get("headers") as string) ?? "";
+    
+    // Extract provider timestamp from headers
+    t_provider = extractProviderTimestamp(headers);
+    
+    // Fast recipient extraction
     let recipientEmail = "";
     if (envelope) {
       try {
         const env = JSON.parse(envelope);
-        if (env?.to && Array.isArray(env.to) && env.to.length > 0) {
+        if (env?.to?.[0]) {
           recipientEmail = String(env.to[0]).toLowerCase();
         }
-      } catch (e) {
-        console.warn("Envelope parse failed:", e);
+      } catch {
+        // Silent fail, use fallback
       }
     }
-    // Fallback: parse "to"
+    
     if (!recipientEmail && toField) {
       const m = toField.match(/<([^>]+)>/) || toField.match(/([^\s,;]+@[^\s,;]+)/);
       if (m) recipientEmail = m[1].toLowerCase();
     }
+    
     if (!recipientEmail) {
-      console.warn("No recipient; ignoring");
+      // No recipient, return fast
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
 
-    // Extract alias (local-part)
+    // Extract and normalize alias
     const [localPart] = recipientEmail.split("@");
-    if (!localPart) return new Response("OK", { status: 200, headers: corsHeaders });
+    if (!localPart) {
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+    
+    aliasNorm = normalizeAlias(recipientEmail);
 
-    // Map alias -> user
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Fast alias lookup - single query
     const { data: aliasRow, error: aliasErr } = await supabase
       .from("inbound_aliases")
       .select("user_id")
-      .eq("alias", localPart)
+      .eq("alias", aliasNorm)
       .maybeSingle();
 
     if (aliasErr) {
       console.error("Alias lookup error:", aliasErr);
-      // transient → allow SendGrid retry
       return new Response("Temporary error", { status: 500, headers: corsHeaders });
     }
+    
     if (!aliasRow?.user_id) {
-      console.log("Unknown alias:", localPart);
-      // unknown → do NOT retry
+      // Unknown alias, silently accept
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
+    
     const userId: string = aliasRow.user_id;
 
-    // Extract Message-ID (case-insensitive)
-    let messageId: string | undefined;
+    // Extract Message-ID for deduplication
     if (headers) {
-      const m = headers.match(/Message-Id:\s*<([^>]+)>/i) || headers.match(/Message-ID:\s*<([^>]+)>/i);
+      const m = headers.match(/Message-I[dD]:\s*<([^>]+)>/i);
       if (m) messageId = m[1];
     }
-
-    // Attachments
-    const attachCount = parseInt(((formData.get("attachments") as string) ?? "0"), 10) || 0;
-    const attachments: { filename: string; type: string; size: number; path?: string }[] = [];
-
-    let attachInfo: any = {};
-    if (attachCount > 0) {
-      try {
-        const infoStr = formData.get("attachment-info") as string;
-        if (infoStr) attachInfo = JSON.parse(infoStr);
-      } catch (e) {
-        console.warn("attachment-info parse failed:", e);
-      }
-
-      const emailFolder = `${userId}/${Date.now()}-${(messageId ?? "nomid").slice(0, 12)}`;
-      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-      const blocked = new Set(['application/x-dosexec', 'application/x-msdownload', 'application/x-msdos-program']);
-
-      for (let i = 1; i <= attachCount; i++) {
-        const file = formData.get(`attachment${i}`);
-        if (file instanceof File) {
-          const info = attachInfo[`attachment${i}`] ?? {};
-          const filename = info.filename || file.name || `attachment${i}`;
-          const type     = info.type || file.type || "application/octet-stream";
-          const size     = file.size;
-
-          // Skip oversized attachments
-          if (size > MAX_SIZE) {
-            console.warn('Skipping oversized attachment', { name: filename, size: size });
-            continue;
-          }
-
-          // Skip blocked MIME types
-          if (blocked.has(type.toLowerCase())) {
-            console.warn('Skipping blocked MIME type', { name: filename, type: type });
-            continue;
-          }
-
-          const filePath = `${emailFolder}/${filename}`;
-          const { error: upErr } = await supabase.storage
-            .from("inbound-attachments")
-            .upload(filePath, file, { contentType: type, upsert: false });
-
-          if (upErr) {
-            console.error("Attachment upload failed:", filePath, upErr);
-          } else {
-            attachments.push({ filename, type, size, path: filePath }); // store path only
-          }
-        }
-      }
+    
+    // Generate ID if not present
+    if (!messageId) {
+      messageId = `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    // Build payload JSON
+    // Build minimal payload - defer heavy processing
     const payload = {
       to: recipientEmail,
-      from: fromField,
-      subject: subject || "(no subject)",
-      text: textBody || undefined,
-      html: htmlBody || undefined,
+      from: (formData.get("from") as string) ?? "",
+      subject: (formData.get("subject") as string) ?? "(no subject)",
+      text: (formData.get("text") as string) ?? undefined,
+      html: (formData.get("html") as string) ?? undefined,
       message_id: messageId,
-      spam_score: spamScore || undefined,
-      headers: headers && headers.length < 10000 ? headers : undefined,
-      attachments: attachments.length > 0 ? { count: attachments.length, files: attachments } : undefined,
+      headers: headers.length < 10000 ? headers : undefined,
       received_at: new Date().toISOString(),
+      // Mark attachments as pending (processed by app later)
+      attachments_pending: formData.has("attachment1"),
+      provider_timestamp: t_provider ? new Date(t_provider).toISOString() : undefined,
     };
 
-    // Insert inbox row (user-scoped unique index handles duplicates)
+    // Fast insert - let unique index handle duplicates
     const { error: insErr } = await supabase
       .from("clipper_inbox")
       .insert({
         user_id: userId,
         source_type: "email_in",
         payload_json: payload,
-        message_id: messageId ?? null,
+        message_id: messageId,
       });
+
+    t_insert = Date.now();
+
+    // Log structured latency data
+    const latencyLog = {
+      event: "email_in_latency",
+      msg_id: messageId,
+      t_provider_to_edge_ms: t_provider ? t_recv - t_provider : null,
+      t_edge_to_insert_ms: t_insert - t_recv,
+      t_total_edge_ms: Date.now() - t_recv,
+      project_ref,
+      edge_region,
+      alias_norm: aliasNorm,
+      source: "email_in",
+      duplicate: insErr?.code === "23505",
+    };
+    
+    console.log(JSON.stringify(latencyLog));
 
     if (insErr) {
       if (insErr.code === "23505") {
-        console.log("Duplicate message, skipping:", messageId);
+        // Duplicate - still success
         return new Response("OK", { status: 200, headers: corsHeaders });
       }
-      console.error("DB insert failed:", insErr);
+      console.error("DB insert failed:", { code: insErr.code, message: insErr.message });
       return new Response("Temporary error", { status: 500, headers: corsHeaders });
     }
 
+    // Return immediately - attachments handled asynchronously by app
     return new Response("OK", { status: 200, headers: corsHeaders });
+    
   } catch (e) {
-    console.error("Unhandled email_inbox error:", e);
+    // Log error with timing
+    const errorLog = {
+      event: "email_in_error",
+      msg_id: messageId || "unknown",
+      t_total_edge_ms: Date.now() - t_recv,
+      project_ref,
+      edge_region,
+      alias_norm: aliasNorm || "unknown",
+      source: "email_in",
+      error: String(e),
+    };
+    console.error(JSON.stringify(errorLog));
+    
     return new Response("Temporary error", { status: 500, headers: corsHeaders });
   }
 });
