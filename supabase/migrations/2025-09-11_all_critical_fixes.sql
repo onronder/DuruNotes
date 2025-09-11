@@ -14,18 +14,20 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.folders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  name text NOT NULL,
+  name_enc bytea NOT NULL,  -- encrypted folder name
+  props_enc bytea NOT NULL, -- encrypted folder properties
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz,
-  deleted_at timestamptz
+  updated_at timestamptz DEFAULT now(),
+  deleted boolean DEFAULT false
 );
 
 -- note_folders (join table)
 CREATE TABLE IF NOT EXISTS public.note_folders (
   note_id uuid NOT NULL,
   folder_id uuid NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (note_id, folder_id)
+  user_id uuid NOT NULL,
+  added_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (note_id)  -- One folder per note
 );
 
 -- clipper_inbox (if not already provisioned)
@@ -93,15 +95,13 @@ BEGIN
     $sql$;
   END IF;
 
-  -- note_folders: derive via note owner or folder owner; simplest: allow when folder belongs to user
+  -- note_folders: use user_id column directly
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='note_folders' AND policyname='note_folders_select'
   ) THEN
     EXECUTE $sql$
       CREATE POLICY note_folders_select ON public.note_folders
-      FOR SELECT USING (
-        EXISTS (SELECT 1 FROM public.folders f WHERE f.id = note_folders.folder_id AND f.user_id = auth.uid())
-      );
+      FOR SELECT USING (user_id = auth.uid());
     $sql$;
   END IF;
 
@@ -110,9 +110,16 @@ BEGIN
   ) THEN
     EXECUTE $sql$
       CREATE POLICY note_folders_ins ON public.note_folders
-      FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM public.folders f WHERE f.id = note_folders.folder_id AND f.user_id = auth.uid())
-      );
+      FOR INSERT WITH CHECK (user_id = auth.uid());
+    $sql$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='note_folders' AND policyname='note_folders_upd'
+  ) THEN
+    EXECUTE $sql$
+      CREATE POLICY note_folders_upd ON public.note_folders
+      FOR UPDATE USING (user_id = auth.uid());
     $sql$;
   END IF;
 
@@ -121,9 +128,7 @@ BEGIN
   ) THEN
     EXECUTE $sql$
       CREATE POLICY note_folders_del ON public.note_folders
-      FOR DELETE USING (
-        EXISTS (SELECT 1 FROM public.folders f WHERE f.id = note_folders.folder_id AND f.user_id = auth.uid())
-      );
+      FOR DELETE USING (user_id = auth.uid());
     $sql$;
   END IF;
 
@@ -283,32 +288,21 @@ CREATE INDEX IF NOT EXISTS idx_notes_user_updated
   ON public.notes (user_id, updated_at DESC);
 
 -- Folder queries
-CREATE INDEX IF NOT EXISTS idx_folders_user_name_ci
-  ON public.folders (user_id, LOWER(TRIM(name)))
-  WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_folders_user_deleted
+  ON public.folders (user_id, deleted);
 
 -- Note-folder lookups
 CREATE INDEX IF NOT EXISTS idx_note_folders_folder_note
   ON public.note_folders (folder_id, note_id);
 
--- (Optional) If you store user_id on note_folders add:
--- CREATE INDEX IF NOT EXISTS idx_note_folders_user_folder ON public.note_folders (user_id, folder_id);
+-- Index for user_id on note_folders
+CREATE INDEX IF NOT EXISTS idx_note_folders_user_id ON public.note_folders (user_id);
 
 -------------------------------
 -- 7) GUARDRAIL: UNIQUE ACTIVE NAME PER USER FOR "Incoming Mail"
 -------------------------------
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uniq_active_folder_name_ci_per_user'
-  ) THEN
-    EXECUTE $sql$
-      CREATE UNIQUE INDEX uniq_active_folder_name_ci_per_user
-      ON public.folders (user_id, LOWER(TRIM(name)))
-      WHERE deleted_at IS NULL;
-    $sql$;
-  END IF;
-END$$;
+-- Note: Unique constraint removed as names are encrypted
+-- Folder name uniqueness should be enforced at application level
 
 -------------------------------
 -- 8) VERIFICATION QUERIES
