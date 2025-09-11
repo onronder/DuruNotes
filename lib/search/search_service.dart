@@ -27,7 +27,7 @@ class SearchService {
     if (query.keywords.isNotEmpty) {
       // Use FTS for keyword search
       results = await db.searchNotes(query.keywords);
-    } else if (query.anyTags.isNotEmpty || query.noneTags.isNotEmpty) {
+    } else if (query.includeTags.isNotEmpty || query.excludeTags.isNotEmpty) {
       // Tag-only search
       results = await repo.queryNotesByTags(
         anyTags: query.includeTags,
