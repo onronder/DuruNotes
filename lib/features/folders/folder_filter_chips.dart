@@ -47,7 +47,6 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     
     return SlideTransition(
@@ -121,11 +120,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                       );
                     }).toList(),
                   ),
-                  loading: () => const SizedBox(
-                    width: 40,
-                    height: 32,
-                    child: Center(child: CircularProgressIndicator.adaptive()),
-                  ),
+                  loading: () => _SkeletonChips(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
                 
@@ -517,5 +512,81 @@ class FolderBreadcrumb extends ConsumerWidget {
     }
     
     return path;
+  }
+}
+
+/// Skeleton loader for folder chips
+class _SkeletonChips extends StatefulWidget {
+  const _SkeletonChips();
+
+  @override
+  State<_SkeletonChips> createState() => _SkeletonChipsState();
+}
+
+class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+    
+    _shimmerAnimation = Tween<double>(
+      begin: -1.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(
+      parent: _shimmerController,
+      curve: Curves.linear,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Row(
+      children: List.generate(4, (index) {
+        final widths = [80.0, 90.0, 75.0, 85.0];
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: AnimatedBuilder(
+            animation: _shimmerAnimation,
+            builder: (context, child) {
+              return Container(
+                width: widths[index % widths.length],
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                      colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                    begin: Alignment(-1.0 + _shimmerAnimation.value * 2, 0),
+                    end: Alignment(1.0 + _shimmerAnimation.value * 2, 0),
+                  ),
+                  border: Border.all(
+                    color: colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }),
+    );
   }
 }

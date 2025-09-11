@@ -142,6 +142,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     // Initialize folder realtime service
     ref.watch(folderRealtimeServiceProvider);
     
+    // Trigger early loading of folders for deterministic first paint
+    ref.watch(rootFoldersProvider);
+    
     final user = Supabase.instance.client.auth.currentUser;
     final notesAsync = ref.watch(filteredNotesProvider);
     final hasMore = ref.watch(hasMoreNotesProvider);
@@ -524,7 +527,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 const SizedBox(width: 8),
                 
                 // Folder chips with drag-drop support
-                ...foldersAsync.maybeWhen(
+                ...foldersAsync.when(
                   data: (folders) => folders.map((folder) => 
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -543,7 +546,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       ),
                     )
                   ).toList(),
-                  orElse: () => <Widget>[],
+                  loading: () => _buildFolderSkeletons(context),
+                  error: (_, __) => <Widget>[],
                 ),
                 
                 // Create folder chip
@@ -626,6 +630,30 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ),
       ),
     );
+  }
+  
+  List<Widget> _buildFolderSkeletons(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    // Return a list of skeleton widgets that look like folder chips
+    return List.generate(4, (index) {
+      final widths = [80.0, 90.0, 75.0, 85.0];
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Container(
+          width: widths[index % widths.length],
+          height: 32,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            border: Border.all(
+              color: colorScheme.outline.withOpacity(0.2),
+            ),
+          ),
+        ),
+      );
+    });
   }
   
   Widget _buildErrorState(BuildContext context, String error) {
@@ -2749,11 +2777,32 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     // Logic order exactly as specified in requirements:
     // 1. Check for tag first
     if (preset.tag != null) {
-      // Push TagNotesScreen; it hits DB for all notes with that tag
+      // Map SavedSearchKey to string for the database method
+      String? savedSearchKey;
+      switch (preset.key) {
+        case SavedSearchKey.attachments:
+          savedSearchKey = 'attachments';
+          break;
+        case SavedSearchKey.emailNotes:
+          savedSearchKey = 'emailNotes';
+          break;
+        case SavedSearchKey.webNotes:
+          savedSearchKey = 'webNotes';
+          break;
+        case SavedSearchKey.inbox:
+          // Inbox uses folder selection, not tag-based search
+          savedSearchKey = null;
+          break;
+      }
+      
+      // Push TagNotesScreen with authoritative search key
       await Navigator.push(
         context, 
         MaterialPageRoute(
-          builder: (_) => TagNotesScreen(tag: preset.tag!),
+          builder: (_) => TagNotesScreen(
+            tag: preset.tag!,
+            savedSearchKey: savedSearchKey,
+          ),
         ),
       );
       return;

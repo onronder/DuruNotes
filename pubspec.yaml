@@ -51,6 +51,7 @@ dependencies:
   speech_to_text: ^7.3.0
   battery_plus: ^6.0.2
   device_info_plus: ^11.5.0
+  connectivity_plus: ^6.1.0  # Network connectivity monitoring
   flutter_local_notifications: ^19.4.1
   xml: ^6.3.0  # XML parsing for ENEX import
   geolocator: ^14.0.2

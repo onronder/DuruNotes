@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -583,6 +584,123 @@ class AppDb extends _$AppDb {
     ).map<LocalNote>((row) => localNotes.map(row.data)).get();
 
     return list;
+  }
+
+  /// Get notes for saved search with authoritative filtering
+  /// Combines metadata, tags, and content checks to prevent false negatives
+  Future<List<LocalNote>> notesForSavedSearch({
+    required String savedSearchKey,
+  }) async {
+    String query;
+    
+    switch (savedSearchKey) {
+      case 'attachments':
+        // Get notes with attachments OR tagged #Attachment
+        query = '''
+          SELECT DISTINCT n.*
+          FROM local_notes n
+          LEFT JOIN note_tags t ON n.id = t.note_id
+          WHERE n.deleted = 0 AND (
+            -- Has attachment tag
+            t.tag = 'Attachment'
+            -- Or has attachments in metadata
+            OR n.encrypted_metadata LIKE '%"attachments":%'
+            -- Or has #Attachment in body
+            OR n.body LIKE '%#Attachment%'
+          )
+          ORDER BY n.updated_at DESC
+        ''';
+        
+      case 'emailNotes':
+        // Get notes from email source OR tagged #Email
+        query = '''
+          SELECT DISTINCT n.*
+          FROM local_notes n
+          LEFT JOIN note_tags t ON n.id = t.note_id
+          WHERE n.deleted = 0 AND (
+            -- Has email tag
+            t.tag = 'Email'
+            -- Or has email source in metadata
+            OR n.encrypted_metadata LIKE '%"source":"email_in"%'
+            -- Or has #Email in body
+            OR n.body LIKE '%#Email%'
+          )
+          ORDER BY n.updated_at DESC
+        ''';
+        
+      case 'webNotes':
+        // Get notes from web source OR tagged #Web
+        query = '''
+          SELECT DISTINCT n.*
+          FROM local_notes n
+          LEFT JOIN note_tags t ON n.id = t.note_id
+          WHERE n.deleted = 0 AND (
+            -- Has web tag
+            t.tag = 'Web'
+            -- Or has web source in metadata
+            OR n.encrypted_metadata LIKE '%"source":"web"%'
+            -- Or has #Web in body
+            OR n.body LIKE '%#Web%'
+          )
+          ORDER BY n.updated_at DESC
+        ''';
+        
+      default:
+        // Fallback to empty list for unknown keys
+        return [];
+    }
+    
+    final list = await customSelect(
+      query,
+      readsFrom: {localNotes, noteTags},
+    ).map<LocalNote>((row) => localNotes.map(row.data)).get();
+
+    return list;
+  }
+
+  /// Helper method to check if a note has attachments (for in-memory filtering)
+  static bool noteHasAttachments(LocalNote note) {
+    // Check metadata for attachments
+    if (note.encryptedMetadata != null) {
+      try {
+        final meta = jsonDecode(note.encryptedMetadata!);
+        if (meta['attachments'] != null) return true;
+      } catch (_) {}
+    }
+    
+    // Check body for #Attachment tag
+    return note.body.contains('#Attachment');
+  }
+  
+  /// Helper method to check if a note is from email source (for in-memory filtering)
+  static bool noteIsFromEmail(LocalNote note) {
+    // Check metadata source
+    if (note.encryptedMetadata != null) {
+      try {
+        final meta = jsonDecode(note.encryptedMetadata!);
+        // Check both old and new format
+        if (meta['source'] == 'email_in' || meta['source'] == 'email_inbox') {
+          return true;
+        }
+      } catch (_) {}
+    }
+    
+    // Check body for #Email tag
+    return note.body.contains('#Email');
+  }
+  
+  /// Helper method to check if a note is from web source (for in-memory filtering)
+  static bool noteIsFromWeb(LocalNote note) {
+    // Check metadata source
+    if (note.encryptedMetadata != null) {
+      try {
+        final meta = jsonDecode(note.encryptedMetadata!);
+        if (meta['source'] == 'web') return true;
+      } catch (_) {}
+    }
+    
+    // Check body for #Web tag
+    return note.body.contains('#Web');
   }
 
   Future<List<BacklinkPair>> backlinksWithSources(String targetTitle) async {

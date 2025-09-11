@@ -5,8 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class TagNotesScreen extends ConsumerStatefulWidget {
-  const TagNotesScreen({required this.tag, super.key});
+  const TagNotesScreen({
+    required this.tag, 
+    this.savedSearchKey,
+    super.key,
+  });
+  
   final String tag;
+  /// Optional saved search key for authoritative filtering
+  final String? savedSearchKey;
 
   @override
   ConsumerState<TagNotesScreen> createState() => _TagNotesScreenState();
@@ -33,7 +40,11 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
 
     try {
       final db = ref.read(appDbProvider);
-      final notes = await db.notesWithTag(widget.tag);
+      
+      // Use authoritative search if savedSearchKey is provided
+      final notes = widget.savedSearchKey != null
+          ? await db.notesForSavedSearch(savedSearchKey: widget.savedSearchKey!)
+          : await db.notesWithTag(widget.tag);
       
       if (mounted) {
         setState(() {

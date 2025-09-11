@@ -96,62 +96,36 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
         return false;
       }
       
-      // Check from:email filter
-      if (fromEmail) {
-        // First choice: check encrypted metadata source
-        if (note.encryptedMetadata != null) {
-          try {
-            final meta = jsonDecode(note.encryptedMetadata!);
-            // Check for both 'email_inbox' (new format) and 'email_in' (old format)
-            if (meta['source'] != 'email_inbox' && meta['source'] != 'email_in') {
-              // Fallback: check for #Email tag in body
-              if (!note.body.contains('#Email')) return false;
-            }
-          } catch (e) {
-            // Fallback: check for #Email tag in body
-            if (!note.body.contains('#Email')) return false;
-          }
-        } else {
-          // Fallback: check for #Email tag in body
-          if (!note.body.contains('#Email')) return false;
-        }
+      // Check from:email filter using authoritative helper
+      if (fromEmail && !AppDb.noteIsFromEmail(note)) {
+        return false;
       }
       
-      // Check from:web filter
-      if (fromWeb) {
-        // First choice: check encrypted metadata source
-        if (note.encryptedMetadata != null) {
-          try {
-            final meta = jsonDecode(note.encryptedMetadata!);
-            if (meta['source'] != 'web') {
-              // Fallback: check for #Web tag in body
-              if (!note.body.contains('#Web')) return false;
-            }
-          } catch (e) {
-            // Fallback: check for #Web tag in body
-            if (!note.body.contains('#Web')) return false;
-          }
-        } else {
-          // Fallback: check for #Web tag in body
-          if (!note.body.contains('#Web')) return false;
-        }
+      // Check from:web filter using authoritative helper
+      if (fromWeb && !AppDb.noteIsFromWeb(note)) {
+        return false;
       }
       
       // Check attachment filters
       if (hasAttachment || typeFilter != null || filenameFilter != null) {
-        final attachments = _getAttachments(note);
-        
-        // Must have attachments if has:attachment is specified
-        if (hasAttachment && attachments.isEmpty) return false;
-        
-        // Check type filter
-        if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+        // Use authoritative helper for has:attachment
+        if (hasAttachment && !AppDb.noteHasAttachments(note)) {
           return false;
         }
         
-        // Check filename filter
-        if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
-          return false;
+        // For specific type/filename filters, still check the attachments list
+        if (typeFilter != null || filenameFilter != null) {
+          final attachments = _getAttachments(note);
+          
+          // Check type filter
+          if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+            return false;
+          }
+          
+          // Check filename filter
+          if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
+            return false;
+          }
         }
       }
       
@@ -181,62 +155,36 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     final fromWeb = filters['fromWeb'] as bool;
     
     return notes.where((note) {
-      // Check from:email filter
-      if (fromEmail) {
-        // First choice: check encrypted metadata source
-        if (note.encryptedMetadata != null) {
-          try {
-            final meta = jsonDecode(note.encryptedMetadata!);
-            // Check for both 'email_inbox' (new format) and 'email_in' (old format)
-            if (meta['source'] != 'email_inbox' && meta['source'] != 'email_in') {
-              // Fallback: check for #Email tag in body
-              if (!note.body.contains('#Email')) return false;
-            }
-          } catch (e) {
-            // Fallback: check for #Email tag in body
-            if (!note.body.contains('#Email')) return false;
-          }
-        } else {
-          // Fallback: check for #Email tag in body
-          if (!note.body.contains('#Email')) return false;
-        }
+      // Check from:email filter using authoritative helper
+      if (fromEmail && !AppDb.noteIsFromEmail(note)) {
+        return false;
       }
       
-      // Check from:web filter
-      if (fromWeb) {
-        // First choice: check encrypted metadata source
-        if (note.encryptedMetadata != null) {
-          try {
-            final meta = jsonDecode(note.encryptedMetadata!);
-            if (meta['source'] != 'web') {
-              // Fallback: check for #Web tag in body
-              if (!note.body.contains('#Web')) return false;
-            }
-          } catch (e) {
-            // Fallback: check for #Web tag in body
-            if (!note.body.contains('#Web')) return false;
-          }
-        } else {
-          // Fallback: check for #Web tag in body
-          if (!note.body.contains('#Web')) return false;
-        }
+      // Check from:web filter using authoritative helper
+      if (fromWeb && !AppDb.noteIsFromWeb(note)) {
+        return false;
       }
       
       // Check attachment filters
       if (hasAttachment || typeFilter != null || filenameFilter != null) {
-        final attachments = _getAttachments(note);
-        
-        // Must have attachments if has:attachment is specified
-        if (hasAttachment && attachments.isEmpty) return false;
-        
-        // Check type filter
-        if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+        // Use authoritative helper for has:attachment
+        if (hasAttachment && !AppDb.noteHasAttachments(note)) {
           return false;
         }
         
-        // Check filename filter
-        if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
-          return false;
+        // For specific type/filename filters, still check the attachments list
+        if (typeFilter != null || filenameFilter != null) {
+          final attachments = _getAttachments(note);
+          
+          // Check type filter
+          if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
+            return false;
+          }
+          
+          // Check filename filter
+          if (filenameFilter != null && !_matchesFilename(attachments, filenameFilter)) {
+            return false;
+          }
         }
       }
       
