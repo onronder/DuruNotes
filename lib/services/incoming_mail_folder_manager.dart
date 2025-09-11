@@ -41,25 +41,41 @@ class IncomingMailFolderManager {
       // Search for existing folder - be more thorough
       final folders = await _repository.listFolders();
       
-      // First pass: exact name match (case-insensitive)
+      // Collect all matching folders (case-insensitive)
+      final matchingFolders = <LocalFolder>[];
+      
       for (final folder in folders) {
-        if (folder.name.trim().toLowerCase() == _folderName.trim().toLowerCase() && 
-            !folder.deleted) {
-          await _cacheFolderId(folder.id);
-          debugPrint('[IncomingMailFolder] Found existing folder (exact match): ${folder.id} - ${folder.name}');
-          return folder.id;
+        if (!folder.deleted) {
+          // Check exact match (case-insensitive)
+          if (folder.name.trim().toLowerCase() == _folderName.trim().toLowerCase()) {
+            matchingFolders.add(folder);
+          } else {
+            // Check normalized match (handle extra spaces)
+            final normalizedFolderName = folder.name.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+            final normalizedTargetName = _folderName.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+            if (normalizedFolderName == normalizedTargetName) {
+              matchingFolders.add(folder);
+            }
+          }
         }
       }
       
-      // Second pass: check for variations (in case of trimming issues)
-      for (final folder in folders) {
-        final normalizedFolderName = folder.name.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
-        final normalizedTargetName = _folderName.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
-        if (normalizedFolderName == normalizedTargetName && !folder.deleted) {
-          await _cacheFolderId(folder.id);
-          debugPrint('[IncomingMailFolder] Found existing folder (normalized): ${folder.id} - ${folder.name}');
-          return folder.id;
+      // If we found matching folders, use the oldest one as canonical
+      if (matchingFolders.isNotEmpty) {
+        // Sort by creation date to get the oldest
+        matchingFolders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final canonicalFolder = matchingFolders.first;
+        
+        await _cacheFolderId(canonicalFolder.id);
+        debugPrint('[IncomingMailFolder] Found existing folder: ${canonicalFolder.id} - ${canonicalFolder.name}');
+        
+        // If there are duplicates, merge them
+        if (matchingFolders.length > 1) {
+          debugPrint('[IncomingMailFolder] Found ${matchingFolders.length} duplicate folders, merging...');
+          await _mergeDuplicateFolders(canonicalFolder, matchingFolders.skip(1).toList());
         }
+        
+        return canonicalFolder.id;
       }
       
       // Create new folder if not found
@@ -128,6 +144,35 @@ class IncomingMailFolderManager {
       debugPrint('[IncomingMailFolder] Cache cleared for user: $_userId');
     } catch (e) {
       debugPrint('[IncomingMailFolder] Error clearing cache: $e');
+    }
+  }
+  
+  /// Merge duplicate folders into the canonical folder
+  Future<void> _mergeDuplicateFolders(LocalFolder canonicalFolder, List<LocalFolder> duplicates) async {
+    for (final duplicate in duplicates) {
+      try {
+        // Get all notes in the duplicate folder
+        final notesInDuplicate = await _repository.getNotesInFolder(duplicate.id);
+        
+        // Move each note to the canonical folder
+        for (final note in notesInDuplicate) {
+          try {
+            // Remove from duplicate folder
+            await _repository.removeNoteFromFolder(note.id);
+            // Add to canonical folder
+            await _repository.addNoteToFolder(note.id, canonicalFolder.id);
+            debugPrint('[IncomingMailFolder] Moved note ${note.id} from duplicate ${duplicate.id} to canonical ${canonicalFolder.id}');
+          } catch (e) {
+            debugPrint('[IncomingMailFolder] Error moving note ${note.id}: $e');
+          }
+        }
+        
+        // Soft-delete the duplicate folder
+        await _repository.deleteFolder(duplicate.id);
+        debugPrint('[IncomingMailFolder] Soft-deleted duplicate folder: ${duplicate.id}');
+      } catch (e) {
+        debugPrint('[IncomingMailFolder] Error merging duplicate folder ${duplicate.id}: $e');
+      }
     }
   }
 }

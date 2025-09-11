@@ -26,6 +26,7 @@ import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/inbox_realtime_service.dart';
 import 'package:duru_notes/services/folder_realtime_service.dart';
+import 'package:duru_notes/services/notes_realtime_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -89,8 +90,13 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       // This also triggers rootFoldersProvider rebuild automatically
       await ref.read(folderHierarchyProvider.notifier).loadFolders();
       debugPrint('[Sync] Folders refreshed after sync completion');
+      
+      // Also refresh notes providers for immediate UI update
+      ref.invalidate(filteredNotesProvider);
+      ref.read(notesPageProvider.notifier).refresh();
+      debugPrint('[Sync] Notes providers refreshed after sync completion');
     } catch (e) {
-      debugPrint('[Sync] Error refreshing folders after sync: $e');
+      debugPrint('[Sync] Error refreshing after sync: $e');
     }
   });
   
@@ -292,6 +298,31 @@ final folderRealtimeServiceProvider = Provider<FolderRealtimeService>((ref) {
   // Clean up on logout/dispose
   ref.onDispose(() {
     service.dispose();
+  });
+  
+  return service;
+});
+
+/// Notes realtime subscription service provider
+final notesRealtimeServiceProvider = ChangeNotifierProvider<NotesRealtimeService>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('NotesRealtimeService requested without authentication');
+  }
+  
+  final service = NotesRealtimeService(
+    supabase: client,
+    ref: ref,
+  );
+  
+  // Start realtime subscription
+  service.start();
+  
+  // Clean up on logout/dispose
+  ref.onDispose(() {
+    service.stop();
   });
   
   return service;

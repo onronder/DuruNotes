@@ -139,8 +139,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Initialize folder realtime service
+    // Initialize realtime services
     ref.watch(folderRealtimeServiceProvider);
+    ref.watch(notesRealtimeServiceProvider);
     
     // Trigger early loading of folders for deterministic first paint
     ref.watch(rootFoldersProvider);
