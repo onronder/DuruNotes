@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { encode } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,16 +30,50 @@ function extractProviderTimestamp(headers: string): number | null {
     if (!isNaN(parsed)) return parsed;
   }
   
+  // Provider-specific received headers
+  const receivedMatch = headers.match(/X-Provider-Received-At:\s*(.+)/i);
+  if (receivedMatch) {
+    const parsed = Date.parse(receivedMatch[1]);
+    if (!isNaN(parsed)) return parsed;
+  }
+  
   return null;
 }
 
-// Normalize alias (remove plus addressing, etc)
+// HMAC signature verification for enhanced security
+async function verifyHmacSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const msgData = encoder.encode(payload);
+  
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign("HMAC", key, msgData);
+  const expectedSig = encode(new Uint8Array(signatureBuffer));
+  
+  return expectedSig === signature;
+}
+
+// Normalize alias (remove dots, plus addressing, etc)
 function normalizeAlias(email: string): string {
-  const [localPart] = email.split("@");
+  const [localPart, domain] = email.split("@");
   if (!localPart) return "";
   
   // Remove plus addressing (e.g., alias+tag@domain -> alias@domain)
   let normalized = localPart.split("+")[0];
+  
+  // Remove dots for Gmail-style normalization (optional)
+  // normalized = normalized.replace(/\./g, "");
   
   return normalized.toLowerCase();
 }
@@ -66,17 +101,31 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const inboundSecret = Deno.env.get("INBOUND_PARSE_SECRET");
+    const hmacSecret = Deno.env.get("INBOUND_HMAC_SECRET"); // Optional HMAC key
 
     if (!supabaseUrl || !serviceKey) {
       console.error("Missing Supabase config");
       return new Response("Server Misconfigured", { status: 500, headers: corsHeaders });
     }
 
-    // Simple secret verification
+    // Auth check - Fast path
     const url = new URL(req.url);
     const providedSecret = url.searchParams.get("secret");
     
-    if (!inboundSecret || providedSecret !== inboundSecret) {
+    // Option 1: HMAC signature verification (if configured)
+    if (hmacSecret) {
+      const signature = req.headers.get("x-webhook-signature");
+      if (signature) {
+        const body = await req.clone().text();
+        if (!(await verifyHmacSignature(body, signature, hmacSecret))) {
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+      } else if (providedSecret !== inboundSecret) {
+        // Fallback to secret if no HMAC
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      }
+    } else if (!inboundSecret || providedSecret !== inboundSecret) {
+      // Option 2: Simple secret verification
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
