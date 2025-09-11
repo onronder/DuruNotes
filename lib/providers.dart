@@ -25,6 +25,7 @@ import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/inbox_realtime_service.dart';
+import 'package:duru_notes/services/folder_realtime_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -79,7 +80,21 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   // Rebuild SyncService when repo or auth changes
   ref.watch(authStateChangesProvider);
   final repo = ref.watch(notesRepositoryProvider);
-  return SyncService(repo);
+  final service = SyncService(repo);
+  
+  // Listen to sync changes and refresh folders on completion
+  service.changes.listen((_) async {
+    try {
+      // Refresh folders after successful sync
+      // This also triggers rootFoldersProvider rebuild automatically
+      await ref.read(folderHierarchyProvider.notifier).loadFolders();
+      debugPrint('[Sync] Folders refreshed after sync completion');
+    } catch (e) {
+      debugPrint('[Sync] Error refreshing folders after sync: $e');
+    }
+  });
+  
+  return service;
 });
 
 /// Provider for paginated notes
@@ -257,6 +272,31 @@ final inboxRealtimeServiceProvider = ChangeNotifierProvider<InboxRealtimeService
   return service;
 });
 
+/// Folder realtime subscription service provider
+final folderRealtimeServiceProvider = Provider<FolderRealtimeService>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('FolderRealtimeService requested without authentication');
+  }
+  
+  final service = FolderRealtimeService(
+    supabase: client,
+    ref: ref,
+  );
+  
+  // Start realtime subscription
+  service.start();
+  
+  // Clean up on logout/dispose
+  ref.onDispose(() {
+    service.dispose();
+  });
+  
+  return service;
+});
+
 /// Inbox unread tracking service provider
 final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService>((ref) {
   ref.watch(authStateChangesProvider);
@@ -374,7 +414,12 @@ final visibleFolderNodesProvider = Provider<List<FolderTreeNode>>((ref) {
 });
 
 /// Root folders provider for quick access
+/// This provider is invalidated whenever folders change to ensure consistency
 final rootFoldersProvider = FutureProvider<List<LocalFolder>>((ref) {
+  // Watch the folder hierarchy state to ensure both providers stay in sync
+  // This causes rootFoldersProvider to rebuild when hierarchy changes
+  ref.watch(folderHierarchyProvider);
+  
   final repo = ref.watch(notesRepositoryProvider);
   return repo.getRootFolders();
 });

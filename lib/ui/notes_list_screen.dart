@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:duru_notes/core/performance/performance_optimizations.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
@@ -19,7 +18,6 @@ import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
 import 'package:duru_notes/ui/tag_notes_screen.dart';
 import 'package:duru_notes/ui/note_search_delegate.dart';
-import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -141,6 +139,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Initialize folder realtime service
+    ref.watch(folderRealtimeServiceProvider);
+    
     final user = Supabase.instance.client.auth.currentUser;
     final notesAsync = ref.watch(filteredNotesProvider);
     final hasMore = ref.watch(hasMoreNotesProvider);
@@ -575,6 +576,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             HapticFeedback.mediumImpact();
             await ref.read(notesPageProvider.notifier).refresh();
             ref.invalidate(filteredNotesProvider);
+            
+            // NEW: ensure folders refresh immediately
+            // This also triggers rootFoldersProvider rebuild automatically
+            await ref.read(folderHierarchyProvider.notifier).loadFolders();
           },
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
@@ -2741,81 +2746,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _handleSavedSearchTap(BuildContext context, SavedSearchPreset preset) async {
     HapticFeedback.selectionClick();
     
-    // If preset has a query token, open search with it prefilled
-    if (preset.queryToken != null) {
-      final notesAsync = ref.read(filteredNotesProvider);
-      final notes = notesAsync.maybeWhen(
-        data: (notes) => notes,
-        orElse: () => <LocalNote>[],
-      );
-      
-      final delegate = NoteSearchDelegate(
-        notes: notes,
-        initialQuery: preset.queryToken,
-        autoSearch: true,
-        resolveFolderIdByName: (folderName) async {
-          // Map "Inbox" to "Incoming Mail"
-          final actualName = folderName.toLowerCase() == 'inbox' ? 'Incoming Mail' : folderName;
-          
-          // Special handling for "Incoming Mail"
-          if (actualName == 'Incoming Mail') {
-            final user = Supabase.instance.client.auth.currentUser;
-            if (user == null) return null;
-            
-            // Use the singleton provider instead of creating a new instance
-            try {
-              final folderManager = ref.read(incomingMailFolderManagerProvider);
-              return folderManager.ensureIncomingMailFolderId();
-            } catch (e) {
-              debugPrint('Error getting Incoming Mail folder: $e');
-              return null;
-            }
-          }
-          
-          // For other folders, find by name
-          final db = ref.read(appDbProvider);
-          final folder = await db.findFolderByName(actualName);
-          return folder?.id;
-        },
-        getFolderNoteIdSet: (folderId) async {
-          final db = ref.read(appDbProvider);
-          final noteIds = await db.getNoteIdsInFolder(folderId);
-          return noteIds.toSet();
-        },
-      );
-      
-      // Show search and immediately show results
-      await showSearch(
-        context: context,
-        delegate: delegate,
-      );
-    }
-    // If preset has a tag, navigate to TagNotesScreen
-    else if (preset.tag != null) {
-      await Navigator.of(context).push(
+    // Logic order exactly as specified in requirements:
+    // 1. Check for tag first
+    if (preset.tag != null) {
+      // Push TagNotesScreen; it hits DB for all notes with that tag
+      await Navigator.push(
+        context, 
         MaterialPageRoute(
-          builder: (context) => TagNotesScreen(tag: preset.tag!),
+          builder: (_) => TagNotesScreen(tag: preset.tag!),
         ),
       );
+      return;
     }
-    // If preset has a folder name (e.g., Inbox -> Incoming Mail)
-    else if (preset.folderName != null) {
+    
+    // 2. Check for folder name second
+    if (preset.folderName != null) {
       try {
-        // Get the user ID
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user == null) return;
-        
-        // Create the folder manager to resolve the folder ID
-        final repository = ref.read(notesRepositoryProvider);
-        final folderManager = IncomingMailFolderManager(
-          repository: repository,
-          userId: user.id,
-        );
-        
-        // Ensure the folder exists and get its ID
+        // Resolve "Incoming Mail" folder id and select it using the SAME provider the folder chips use
+        final folderManager = ref.read(incomingMailFolderManagerProvider);
         final folderId = await folderManager.ensureIncomingMailFolderId();
         
         // Get all folders from repository to find the folder object
+        final repository = ref.read(notesRepositoryProvider);
         final allFolders = await repository.listFolders();
         final targetFolder = allFolders.firstWhere(
           (folder) => folder.id == folderId,
@@ -2834,11 +2786,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
         
-        // Use the same method as folder chips to select the folder
+        // Use the same call used by Folder chips
         ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
+        return;
       } catch (e) {
         debugPrint('Error resolving folder for saved search: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open Inbox folder')),
+          );
+        }
+        return;
       }
+    }
+    
+    // 3. Safety fallback if nothing matched
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved search not available')),
+      );
     }
   }
 }

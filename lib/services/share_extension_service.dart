@@ -389,9 +389,33 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
     required String type,
   }) async {
     try {
+      // Add appropriate tags based on content type
+      final tags = <String>[];
+      String bodyWithTags = content;
+      
+      // Check if this is an attachment-type content
+      if (type == 'image' || type == 'android_image' || 
+          type == 'android_file' || type == 'image_error') {
+        tags.add('#Attachment');
+      }
+      
+      // Append tags to body if any
+      if (tags.isNotEmpty) {
+        bodyWithTags = '$content\n\n${tags.join(' ')}';
+      }
+      
+      // Create metadata for the note
+      final metadata = <String, dynamic>{
+        'source': 'share_extension',
+        'share_type': type,
+        'platform': Platform.operatingSystem,
+        if (tags.isNotEmpty) 'tags': tags.map((t) => t.substring(1)).toList(),
+      };
+      
       final noteId = await _notesRepository.createOrUpdate(
         title: title,
-        body: content,
+        body: bodyWithTags,
+        metadataJson: metadata,
       );
 
       _analytics.event('share_extension.note_created', properties: {

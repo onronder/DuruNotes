@@ -1,7 +1,7 @@
 // lib/search/saved_search_registry.dart
 import 'package:flutter/material.dart';
 
-enum SavedSearchKey { attachments, emailNotes, webNotes }
+enum SavedSearchKey { attachments, emailNotes, webNotes, inbox }
 
 class SavedSearchPreset {
   final SavedSearchKey key;
@@ -37,22 +37,29 @@ class SavedSearchRegistry {
       key: SavedSearchKey.attachments,
       label: 'Attachments',
       icon: Icons.attach_file,
-      queryToken: 'has:attachment',
+      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Attachment',
     ),
     SavedSearchPreset(
       key: SavedSearchKey.emailNotes,
       label: 'Email Notes',
       icon: Icons.email,
-      queryToken: 'from:email',
+      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Email',
     ),
     SavedSearchPreset(
       key: SavedSearchKey.webNotes,
       label: 'Web Clips',
       icon: Icons.language,
-      queryToken: 'from:web',
+      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Web',
+    ),
+    SavedSearchPreset(
+      key: SavedSearchKey.inbox,
+      label: 'Inbox',
+      icon: Icons.inbox,
+      queryToken: null,  // Disabled to use folder selection
+      folderName: kIncomingMailFolderName,  // Use 'Incoming Mail' folder
     ),
   ];
 }
