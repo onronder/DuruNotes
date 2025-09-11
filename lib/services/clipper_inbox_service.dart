@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:duru_notes/services/inbox_unread_service.dart';
 
+/// Port interface for creating encrypted notes
 abstract class NotesCapturePort {
   Future<String> createEncryptedNote({
     required String title,
@@ -13,6 +14,22 @@ abstract class NotesCapturePort {
   });
 }
 
+/// Service for monitoring the clipper_inbox table
+/// 
+/// IMPORTANT: Auto-processing is DISABLED by default (kInboxAutoProcess = false)
+/// - Items remain in clipper_inbox until user manually converts them via the Inbox UI
+/// - Service only provides realtime notifications for badge updates
+/// - Manual conversion is handled by InboxManagementService
+/// 
+/// When kInboxAutoProcess = false (default):
+/// - No automatic conversion of inbox items to notes
+/// - Only realtime notifications for unread count updates
+/// - Items persist until user action
+/// 
+/// When kInboxAutoProcess = true (legacy mode):
+/// - Auto-converts inbox items to notes immediately
+/// - Deletes items after conversion
+/// - Used for backward compatibility only
 class ClipperInboxService {
   ClipperInboxService({
     required SupabaseClient supabase, 
@@ -22,12 +39,12 @@ class ClipperInboxService {
   }) : _supabase = supabase,
        _notesPort = notesPort,
        _folderManager = folderManager,
-       _unreadService = unreadService;
+       _unreadService = unreadService;  // Note: unreadService is no longer used here
   
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
   final IncomingMailFolderManager _folderManager;
-  final InboxUnreadService? _unreadService;
+  final InboxUnreadService? _unreadService;  // Deprecated - no longer used
   
   Timer? _timer;
   RealtimeChannel? _realtimeChannel;
@@ -46,8 +63,19 @@ class ClipperInboxService {
   // Polling intervals
   static const Duration _normalPollingInterval = Duration(seconds: 30);
   static const Duration _realtimePollingInterval = Duration(minutes: 2);
+  
+  // Feature flag to control auto-processing (disabled by default)
+  static const bool kInboxAutoProcess = false;
 
   void start() {
+    // Auto-processing is disabled - inbox items must be manually converted by user
+    if (!kInboxAutoProcess) {
+      debugPrint('[clipper] Auto-processing disabled - items will remain in inbox for user review');
+      // Realtime is now handled by InboxRealtimeService
+      return;
+    }
+    
+    // Legacy auto-processing code (disabled by default)
     stop();
     _startRealtimeSubscription();
     _startPolling();
@@ -174,20 +202,22 @@ class ClipperInboxService {
 
   Future<void> processOnce() async {
     try {
-      // Fetch both email and web entries
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('[clipper] No authenticated user for processOnce');
+        return;
+      }
+      
+      // Fetch both email and web entries - strictly scoped to user
       final rows = await _supabase
           .from('clipper_inbox')
           .select()
+          .eq('user_id', userId)  // Strict user scoping
           .or('source_type.eq.email_in,source_type.eq.web')
           .order('created_at', ascending: true);
 
       for (final row in rows) {
         await _handleRow(row);
-      }
-      
-      // Update unread count after processing new items
-      if (rows.isNotEmpty && _unreadService != null) {
-        await _unreadService!.updateUnreadCount();
       }
     } catch (e, st) {
       debugPrint('clipper inbox processing error: $e');
@@ -234,6 +264,10 @@ class ClipperInboxService {
     }
   }
 
+  /// LEGACY: Auto-conversion method - DO NOT USE
+  /// All conversions should go through InboxManagementService.convertInboxItemToNote()
+  /// This method is only called when kInboxAutoProcess = true (disabled by default)
+  @Deprecated('Use InboxManagementService.convertInboxItemToNote instead')
   Future<void> _handleEmailRow(String id, Map<String, dynamic> payload) async {
     try {
       // Extract fields from payload
@@ -300,7 +334,13 @@ class ClipperInboxService {
       debugPrint('[email_in] processed row=$id -> note=$noteId');
 
       // Only delete after successful save and folder assignment
-      await _supabase.from('clipper_inbox').delete().eq('id', id);
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        await _supabase.from('clipper_inbox')
+            .delete()
+            .eq('user_id', userId)  // Strict user scoping
+            .eq('id', id);
+      }
     } catch (e, st) {
       debugPrint('[email_in] failed to process row $id: $e');
       debugPrint('$st');
@@ -308,6 +348,10 @@ class ClipperInboxService {
     }
   }
 
+  /// LEGACY: Auto-conversion method - DO NOT USE
+  /// All conversions should go through InboxManagementService.convertInboxItemToNote()
+  /// This method is only called when kInboxAutoProcess = true (disabled by default)
+  @Deprecated('Use InboxManagementService.convertInboxItemToNote instead')
   Future<void> _handleWebRow(String id, Map<String, dynamic> payload) async {
     try {
       // Extract fields from web clip payload
@@ -364,7 +408,13 @@ class ClipperInboxService {
       debugPrint('[web] processed row=$id -> note=$noteId');
 
       // Only delete after successful save and folder assignment
-      await _supabase.from('clipper_inbox').delete().eq('id', id);
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        await _supabase.from('clipper_inbox')
+            .delete()
+            .eq('user_id', userId)  // Strict user scoping
+            .eq('id', id);
+      }
     } catch (e, st) {
       debugPrint('[web] failed to process row $id: $e');
       debugPrint('$st');

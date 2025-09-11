@@ -7,6 +7,17 @@ const corsHeaders = {
 };
 
 /**
+ * Normalize alias by stripping any domain part
+ * Examples:
+ *   "myalias@in.durunotes.app" -> "myalias"
+ *   "myalias@example.com" -> "myalias"
+ *   "myalias" -> "myalias"
+ */
+function normalizeAlias(alias: string): string {
+  return alias.split('@')[0].trim().toLowerCase();
+}
+
+/**
  * Compute HMAC-SHA256 signature
  */
 async function computeHmac(secret: string, message: string): Promise<string> {
@@ -109,9 +120,15 @@ serve(async (req) => {
       
       if (verification.valid) {
         authenticated = true;
-        console.log("Request authenticated via HMAC signature");
+        console.log(JSON.stringify({
+          event: "auth_success",
+          method: "hmac"
+        }));
       } else {
-        console.log("HMAC verification failed:", verification.reason);
+        console.log(JSON.stringify({
+          event: "hmac_failed",
+          reason: verification.reason
+        }));
       }
     }
     
@@ -120,12 +137,19 @@ serve(async (req) => {
       const url = new URL(req.url);
       if (inboundSecret && url.searchParams.get("secret") === inboundSecret) {
         authenticated = true;
-        console.log("Request authenticated via query secret (deprecated)");
+        console.log(JSON.stringify({
+          event: "auth_success",
+          method: "query_secret",
+          warning: "deprecated_method"
+        }));
       }
     }
     
     if (!authenticated) {
-      console.log("Authentication failed - no valid HMAC signature or query secret");
+      console.log(JSON.stringify({
+        event: "auth_failed",
+        reason: "no valid HMAC signature or query secret"
+      }));
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
     
@@ -133,28 +157,39 @@ serve(async (req) => {
     const { alias, title, text, url: pageUrl, html, clip_timestamp, clipped_at } = body;
     
     if (!alias) {
-      console.log("Missing required field: alias");
+      console.log(JSON.stringify({ 
+        event: "missing_alias",
+        error: "Missing required field: alias"
+      }));
       return new Response(
         JSON.stringify({ error: "Missing required field: alias" }), 
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    // Strip domain if user included it (handle both @in.durunotes.app and other variations)
-    const cleanAlias = alias.split('@')[0].trim();
-    console.log(`Received alias: "${alias}", cleaned to: "${cleanAlias}"`);
+    // Normalize alias by stripping any domain part
+    const normalizedAlias = normalizeAlias(alias);
+    console.log(JSON.stringify({
+      event: "alias_normalized",
+      original: alias,
+      normalized: normalizedAlias
+    }));
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Map alias to user (use cleaned alias)
+    // Map alias to user (use normalized alias)
     const { data: aliasRow, error: aliasErr } = await supabase
       .from("inbound_aliases")
       .select("user_id")
-      .eq("alias", cleanAlias)
+      .eq("alias", normalizedAlias)
       .maybeSingle();
 
     if (aliasErr) {
-      console.error("Alias lookup error:", aliasErr);
+      console.error(JSON.stringify({
+        event: "alias_lookup_error",
+        error: aliasErr.message,
+        code: aliasErr.code
+      }));
       return new Response(
         JSON.stringify({ error: "Temporary error" }), 
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -162,7 +197,14 @@ serve(async (req) => {
     }
 
     if (!aliasRow?.user_id) {
-      console.log("Unknown alias:", cleanAlias, "(original:", alias, ")");
+      // Log structured event for unknown alias
+      console.log(JSON.stringify({
+        event: "unknown_alias",
+        alias: normalizedAlias,
+        original_alias: alias,
+        title: title || "N/A",
+        url: pageUrl || "N/A"
+      }));
       // Return success to avoid revealing whether alias exists
       return new Response(
         JSON.stringify({ status: "ok", message: "Request processed" }), 
@@ -192,15 +234,26 @@ serve(async (req) => {
       });
 
     if (insErr) {
-      console.error("DB insert failed:", insErr);
-      console.error("Insert payload:", { user_id: userId, source_type: "web", payload });
+      console.error(JSON.stringify({
+        event: "insert_failed",
+        error: insErr.message,
+        code: insErr.code,
+        user_id: userId,
+        title: title || "N/A"
+      }));
       return new Response(
         JSON.stringify({ error: "Failed to save clip" }), 
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Web clip saved for user ${userId}: ${title}`);
+    console.log(JSON.stringify({
+      event: "clip_saved",
+      user_id: userId,
+      alias: normalizedAlias,
+      title: title || "Web Clip",
+      url: pageUrl || "N/A"
+    }));
     
     return new Response(
       JSON.stringify({ status: "ok", message: "Clip saved successfully" }), 

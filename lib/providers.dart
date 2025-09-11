@@ -24,6 +24,7 @@ import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/services/inbox_unread_service.dart';
+import 'package:duru_notes/services/inbox_realtime_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -221,13 +222,39 @@ final inboxManagementServiceProvider = Provider<InboxManagementService>((ref) {
   final aliasService = ref.watch(emailAliasServiceProvider);
   final repository = ref.watch(notesRepositoryProvider);
   final folderManager = ref.watch(incomingMailFolderManagerProvider);
+  final syncService = ref.watch(syncServiceProvider);
+  final attachmentService = ref.watch(attachmentServiceProvider);
   
   return InboxManagementService(
     supabase: client,
     aliasService: aliasService,
     notesRepository: repository,
     folderManager: folderManager,
+    syncService: syncService,
+    attachmentService: attachmentService,
   );
+});
+
+/// Inbox realtime subscription service provider
+final inboxRealtimeServiceProvider = ChangeNotifierProvider<InboxRealtimeService>((ref) {
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('InboxRealtimeService requested without authentication');
+  }
+  
+  final service = InboxRealtimeService(supabase: client);
+  
+  // Start realtime subscription
+  service.start();
+  
+  // Clean up on logout/dispose
+  ref.onDispose(() {
+    service.stop();
+  });
+  
+  return service;
 });
 
 /// Inbox unread tracking service provider
@@ -241,8 +268,19 @@ final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService>((r
   
   final service = InboxUnreadService(supabase: client);
   
-  // Update count periodically
-  service.updateUnreadCount();
+  // Listen to realtime changes for instant badge updates
+  try {
+    final realtimeService = ref.watch(inboxRealtimeServiceProvider);
+    // When realtime events occur, update badge count
+    realtimeService.addListener(() {
+      service.computeBadgeCount();
+    });
+  } catch (e) {
+    debugPrint('Could not connect realtime to unread service: $e');
+  }
+  
+  // Compute initial badge count
+  service.computeBadgeCount();
   
   // Clean up on logout
   ref.onDispose(() {
@@ -252,7 +290,7 @@ final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService>((r
   return service;
 });
 
-/// Clipper inbox service provider
+/// Clipper inbox service provider (legacy - for auto-processing mode only)
 final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   // Only create if authenticated
   ref.watch(authStateChangesProvider);
@@ -266,20 +304,11 @@ final clipperInboxServiceProvider = Provider<ClipperInboxService>((ref) {
   final adapter = CaptureNotesAdapter(repository: repo, db: db);
   final folderManager = ref.watch(incomingMailFolderManagerProvider);
   
-  // Get unread service but don't throw if it fails
-  InboxUnreadService? unreadService;
-  try {
-    unreadService = ref.watch(inboxUnreadServiceProvider);
-  } catch (e) {
-    // Continue without unread tracking
-    debugPrint('Could not get unread service: $e');
-  }
-  
   return ClipperInboxService(
     supabase: client,
     notesPort: adapter,
     folderManager: folderManager,
-    unreadService: unreadService,
+    unreadService: null,  // No longer needed - realtime handled separately
   );
 });
 

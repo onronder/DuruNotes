@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
+import 'package:duru_notes/services/inbox_realtime_service.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/providers.dart';
 
 /// Widget for displaying the unified inbox (email and web clips)
@@ -17,6 +21,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
   List<InboxItem> _items = [];
   bool _isLoading = true;
   String? _userEmailAddress;
+  StreamSubscription<InboxRealtimeEvent>? _realtimeSubscription;
   
   @override
   void initState() {
@@ -28,12 +33,37 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         final unreadService = ref.read(inboxUnreadServiceProvider);
-        unreadService.markAsViewed();
+        unreadService.markInboxViewed();
       } catch (e) {
         // Unread service might not be available
         debugPrint('Could not mark inbox as viewed: $e');
       }
+      
+      // Subscribe to realtime updates for instant list refresh
+      _subscribeToRealtime();
     });
+  }
+  
+  void _subscribeToRealtime() {
+    try {
+      final realtimeService = ref.read(inboxRealtimeServiceProvider);
+      _realtimeSubscription = realtimeService.listRefreshStream.listen((event) {
+        debugPrint('[InboxWidget] Realtime event received: $event');
+        // Refresh the list when items are added or deleted
+        if (event == InboxRealtimeEvent.listChanged) {
+          _loadData();
+        }
+      });
+      debugPrint('[InboxWidget] Subscribed to realtime updates');
+    } catch (e) {
+      debugPrint('[InboxWidget] Could not subscribe to realtime: $e');
+    }
+  }
+  
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    super.dispose();
   }
   
   Future<void> _loadData() async {
@@ -43,7 +73,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       // Load both email address and inbox items in parallel
       final results = await Future.wait([
         _inboxService.getUserInboundEmail(),
-        _inboxService.getClipperInboxItems(),
+        _inboxService.listInboxItems(),  // Unified inbox list
       ]);
       
       setState(() {
@@ -64,7 +94,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     }
   }
   
-  Future<void> _convertToNote(InboxItem item) async {
+  Future<void> _convertToNote(InboxItem item, {bool navigateToNote = true}) async {
     final itemType = item.isEmail ? 'email' : 'web clip';
     final confirm = await showDialog<bool>(
       context: context,
@@ -89,6 +119,16 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     
     if (confirm != true) return;
     
+    // Show immediate feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Converting to note...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+    
     final noteId = await _inboxService.convertInboxItemToNote(item);
     if (noteId != null) {
       if (mounted) {
@@ -96,10 +136,58 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
           SnackBar(
             content: Text('${item.isEmail ? "Email" : "Web clip"} converted to note successfully'),
             backgroundColor: Colors.green,
+            action: navigateToNote ? SnackBarAction(
+              label: 'OPEN',
+              textColor: Colors.white,
+              onPressed: () => _navigateToNote(noteId),
+            ) : null,
+          ),
+        );
+        
+        // Optionally navigate to the note immediately
+        if (navigateToNote) {
+          // Small delay to let the UI update
+          await Future.delayed(const Duration(milliseconds: 300));
+          _navigateToNote(noteId);
+        } else {
+          _loadData(); // Refresh the list if not navigating
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to convert to note'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-      _loadData(); // Refresh the list
+    }
+  }
+  
+  Future<void> _navigateToNote(String noteId) async {
+    try {
+      // Get the note details for navigation
+      final notesRepo = ref.read(notesRepositoryProvider);
+      final note = await notesRepo.getNote(noteId);
+      
+      if (note != null && mounted) {
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => ModernEditNoteScreen(
+              noteId: note.id,
+              initialTitle: note.title,
+              initialBody: note.body,
+            ),
+          ),
+        );
+        
+        // Refresh the list when returning from the note
+        _loadData();
+      }
+    } catch (e) {
+      debugPrint('[InboxWidget] Error navigating to note: $e');
     }
   }
   
@@ -229,13 +317,13 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                             const Icon(Icons.inbox, size: 64, color: Colors.grey),
                             const SizedBox(height: 16),
                             const Text(
-                              'No items yet',
+                              'Your inbox is empty',
                               style: TextStyle(fontSize: 18, color: Colors.grey),
                             ),
                             const SizedBox(height: 8),
                             if (_userEmailAddress != null)
                               Text(
-                                'Send emails to:\n$_userEmailAddress\n\nOr use the Web Clipper extension',
+                                '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(color: Colors.grey),
                               ),
@@ -273,12 +361,12 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                               },
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: item.isWebClip ? Colors.blue : null,
+                                  backgroundColor: item.isWebClip 
+                                      ? Colors.blue.shade100
+                                      : Colors.grey.shade200,
                                   child: item.isWebClip
-                                      ? const Icon(Icons.language, color: Colors.white)
-                                      : Text(
-                                          (item.from?.substring(0, 1) ?? '?').toUpperCase(),
-                                        ),
+                                      ? Icon(Icons.language, color: Colors.blue.shade700)
+                                      : Icon(Icons.email, color: Colors.grey.shade700),
                                 ),
                                 title: Text(
                                   item.displayTitle,
@@ -306,18 +394,15 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (item.hasAttachments)
-                                      Icon(
-                                        Icons.attach_file,
-                                        size: 20,
-                                        color: Colors.grey[600],
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 4),
+                                        child: Icon(
+                                          Icons.attach_file,
+                                          size: 18,
+                                          color: Colors.grey[600],
+                                        ),
                                       ),
-                                    if (item.isWebClip)
-                                      Icon(
-                                        Icons.link,
-                                        size: 20,
-                                        color: Colors.grey[600],
-                                      ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Text(
                                       _formatDate(item.createdAt),
                                       style: TextStyle(

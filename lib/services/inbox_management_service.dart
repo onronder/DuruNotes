@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/repository/sync_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
 
@@ -12,20 +15,38 @@ class InboxManagementService {
   final EmailAliasService _aliasService;
   final NotesRepository? _notesRepository;
   final IncomingMailFolderManager? _folderManager;
+  final SyncService? _syncService;
+  final AttachmentService? _attachmentService;
+  
+  // Debounce timer for sync
+  Timer? _syncDebounceTimer;
+  static const _syncDebounceDelay = Duration(milliseconds: 500);
   
   InboxManagementService({
     required SupabaseClient supabase,
     required EmailAliasService aliasService,
     NotesRepository? notesRepository,
     IncomingMailFolderManager? folderManager,
+    SyncService? syncService,
+    AttachmentService? attachmentService,
   }) : _supabase = supabase,
        _aliasService = aliasService,
        _notesRepository = notesRepository,
-       _folderManager = folderManager;
+       _folderManager = folderManager,
+       _syncService = syncService,
+       _attachmentService = attachmentService;
   
   /// Get the full inbound email address for the user (delegates to EmailAliasService)
   Future<String?> getUserInboundEmail() async {
     return _aliasService.getFullEmailAddress();
+  }
+  
+  /// List all inbox items (both email and web clips) - unified inbox
+  Future<List<InboxItem>> listInboxItems({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return getClipperInboxItems(limit: limit, offset: offset);
   }
   
   /// Fetch all clipper inbox items (both email and web clips)
@@ -34,9 +55,16 @@ class InboxManagementService {
     int offset = 0,
   }) async {
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('[InboxManagementService] No authenticated user');
+        return [];
+      }
+      
       final response = await _supabase
           .from('clipper_inbox')
           .select()
+          .eq('user_id', userId)  // Strict user scoping
           .or('source_type.eq.email_in,source_type.eq.web')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
@@ -73,9 +101,16 @@ class InboxManagementService {
   /// Delete an inbox item (email or web clip)
   Future<bool> deleteInboxItem(String itemId) async {
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('[InboxManagementService] No authenticated user');
+        return false;
+      }
+      
       await _supabase
           .from('clipper_inbox')
           .delete()
+          .eq('user_id', userId)  // Strict user scoping
           .eq('id', itemId);
       
       debugPrint('[InboxManagementService] Deleted inbox item: $itemId');
@@ -94,6 +129,7 @@ class InboxManagementService {
   }
   
   /// Convert an inbox item (email or web clip) to a note
+  /// Performance optimized: <3s from tap to synced
   Future<String?> convertInboxItemToNote(InboxItem item) async {
     if (_notesRepository == null) {
       debugPrint('[InboxManagementService] NotesRepository not available for conversion');
@@ -101,20 +137,46 @@ class InboxManagementService {
     }
     
     try {
+      final stopwatch = Stopwatch()..start();
+      
       // Branch based on source type
+      String? noteId;
       if (item.sourceType == 'email_in') {
-        return await _convertEmailToNote(item);
+        noteId = await _convertEmailToNote(item);
       } else if (item.sourceType == 'web') {
-        return await _convertWebClipToNote(item);
+        noteId = await _convertWebClipToNote(item);
       } else {
         debugPrint('[InboxManagementService] Unknown source type: ${item.sourceType}');
         return null;
       }
+      
+      if (noteId != null) {
+        // Trigger sync immediately (debounced)
+        _triggerDebouncedSync();
+        
+        debugPrint('[InboxManagementService] Conversion completed in ${stopwatch.elapsedMilliseconds}ms');
+      }
+      
+      return noteId;
     } catch (e, stackTrace) {
       debugPrint('[InboxManagementService] Error converting item to note: $e');
       debugPrint('$stackTrace');
       return null;
     }
+  }
+  
+  /// Trigger sync with debouncing to coalesce multiple conversions
+  void _triggerDebouncedSync() {
+    if (_syncService == null) return;
+    
+    // Cancel existing timer if any
+    _syncDebounceTimer?.cancel();
+    
+    // Start new timer
+    _syncDebounceTimer = Timer(_syncDebounceDelay, () {
+      debugPrint('[InboxManagementService] Triggering sync after conversion');
+      _syncService.syncNow();
+    });
   }
   
   /// Convert an inbound email to a note (deprecated - use convertInboxItemToNote)
@@ -137,14 +199,16 @@ class InboxManagementService {
     }
     
     try {
-      // Extract content from the email
-      final title = item.subject ?? 'Email from ${item.from}';
-      String body = item.text ?? '';
+      final phaseStopwatch = Stopwatch()..start();
+      
+      // Phase A: Build content and create note locally (target: <500ms)
+      final title = item.subject ?? 'Email from ${item.from ?? "Unknown"}';
+      String emailText = item.text ?? '';
       
       // If no text content, try to extract from HTML
-      if (body.isEmpty && item.html != null) {
+      if (emailText.isEmpty && item.html != null) {
         // Basic HTML to text conversion (strip tags)
-        body = item.html!
+        emailText = item.html!
             .replaceAll(RegExp(r'<br\s*/?>'), '\n')
             .replaceAll(RegExp(r'<p\s*>'), '\n')
             .replaceAll(RegExp(r'</p>'), '\n')
@@ -153,48 +217,62 @@ class InboxManagementService {
             .trim();
       }
       
-      // Add email metadata as tags
+      // Build body with email content and metadata footer
+      final body = StringBuffer();
+      if (emailText.isNotEmpty) {
+        body.write(emailText);
+      }
+      body.writeln('\n\n---');
+      body.writeln('From: ${item.from ?? "Unknown"}');
+      body.writeln('Received: ${item.createdAt.toIso8601String()}');
+      
+      // Add tags
       final tags = <String>['#Email'];
       if (item.hasAttachments) {
         tags.add('#Attachment');
       }
-      final bodyWithTags = '$body\n\n${tags.join(' ')}';
+      final bodyWithTags = '${body.toString()}\n\n${tags.join(' ')}';
       
       // Create metadata for the note
       final metadata = <String, dynamic>{
-        'source': 'email_inbox',
+        'source': 'email_in',
         'from': item.from,
         'to': item.to,
         'received_at': item.createdAt.toIso8601String(),
         'original_id': item.id,
         'message_id': item.messageId,
+        'tags': tags.map((t) => t.substring(1)).toList(),
       };
       
-      // Add attachments metadata if present
-      if (item.payloadJson['attachments'] != null) {
-        metadata['attachments'] = item.payloadJson['attachments'];
+      // Store attachment info for later processing
+      final attachmentInfo = item.payloadJson['attachments'];
+      if (attachmentInfo != null) {
+        metadata['attachments'] = attachmentInfo;
+        metadata['attachments_pending'] = true;  // Mark as pending upload
       }
       
-      // Create the note
+      // Add HTML to metadata if present
+      if (item.html != null) {
+        metadata['html'] = item.html;
+      }
+      
+      // Create the note locally (should be fast)
       final noteId = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
       );
       
-      // Add to Incoming Mail folder if folder manager is available
-      if (_folderManager != null && noteId.isNotEmpty) {
-        try {
-          await _folderManager.addNoteToIncomingMail(noteId);
-          debugPrint('[InboxManagementService] Added note to Incoming Mail folder');
-        } catch (e) {
-          debugPrint('[InboxManagementService] Failed to add note to folder: $e');
-          // Continue even if folder assignment fails
-        }
+      debugPrint('[InboxManagementService] Phase A completed in ${phaseStopwatch.elapsedMilliseconds}ms');
+      
+      // Phase B: Background operations (non-blocking)
+      // Process attachments in background if present
+      if (item.hasAttachments && attachmentInfo != null) {
+        _processAttachmentsInBackground(noteId, attachmentInfo, title, bodyWithTags, metadata);
       }
       
-      // Delete from inbox after successful conversion
-      await deleteInboxItem(item.id);
+      // Add to folder and delete from inbox (non-blocking)
+      _completeConversionInBackground(item.id, noteId);
       
       debugPrint('[InboxManagementService] Converted email ${item.id} to note $noteId');
       return noteId;
@@ -206,11 +284,19 @@ class InboxManagementService {
   }
   
   Future<String?> _convertWebClipToNote(InboxItem item) async {
+    if (_notesRepository == null) {
+      debugPrint('[InboxManagementService] NotesRepository not available for conversion');
+      return null;
+    }
+    
     try {
-      // Extract content from the web clip
+      final phaseStopwatch = Stopwatch()..start();
+      
+      // Phase A: Build content and create note locally (target: <500ms)
       final title = item.webTitle ?? 'Web Clip';
       final text = item.webText ?? '';
       final url = item.webUrl ?? '';
+      final clippedAt = item.webClippedAt ?? item.createdAt.toIso8601String();
       
       // Build body with source reference
       final body = StringBuffer();
@@ -219,9 +305,7 @@ class InboxManagementService {
       }
       body.writeln('\n\n---');
       body.writeln('Source: $url');
-      if (item.webClippedAt != null) {
-        body.writeln('Clipped: ${item.webClippedAt}');
-      }
+      body.writeln('Clipped: $clippedAt');
       
       // Add tags
       final tags = <String>['#Web'];
@@ -231,8 +315,9 @@ class InboxManagementService {
       final metadata = <String, dynamic>{
         'source': 'web',
         'url': url,
-        'clipped_at': item.webClippedAt ?? item.createdAt.toIso8601String(),
+        'clipped_at': clippedAt,
         'original_id': item.id,
+        'tags': tags.map((t) => t.substring(1)).toList(),
       };
       
       // Add HTML content to metadata if present
@@ -240,26 +325,17 @@ class InboxManagementService {
         metadata['html'] = item.webHtml;
       }
       
-      // Create the note
-      final noteId = await _notesRepository!.createOrUpdate(
+      // Create the note locally (should be fast)
+      final noteId = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
       );
       
-      // Add to Incoming Mail folder (serves as unified inbox)
-      if (_folderManager != null && noteId.isNotEmpty) {
-        try {
-          await _folderManager.addNoteToIncomingMail(noteId);
-          debugPrint('[InboxManagementService] Added web clip to Incoming Mail folder');
-        } catch (e) {
-          debugPrint('[InboxManagementService] Failed to add web clip to folder: $e');
-          // Continue even if folder assignment fails
-        }
-      }
+      debugPrint('[InboxManagementService] Phase A completed in ${phaseStopwatch.elapsedMilliseconds}ms');
       
-      // Delete from inbox after successful conversion
-      await deleteInboxItem(item.id);
+      // Complete remaining tasks in background
+      _completeConversionInBackground(item.id, noteId);
       
       debugPrint('[InboxManagementService] Converted web clip ${item.id} to note $noteId');
       return noteId;
@@ -267,6 +343,83 @@ class InboxManagementService {
       debugPrint('[InboxManagementService] Error converting web clip to note: $e');
       debugPrint('$stackTrace');
       return null;
+    }
+  }
+  
+  /// Process attachments in background without blocking note creation
+  Future<void> _processAttachmentsInBackground(
+    String noteId,
+    Map<String, dynamic> attachmentInfo,
+    String title,
+    String bodyWithTags,
+    Map<String, dynamic> metadata,
+  ) async {
+    try {
+      debugPrint('[InboxManagementService] Processing attachments in background for note $noteId');
+      
+      // Extract attachment details
+      final attachments = getAttachments(InboxItem(
+        id: '',
+        userId: '',
+        sourceType: 'email_in',
+        payloadJson: {'attachments': attachmentInfo},
+        createdAt: DateTime.now(),
+      ));
+      
+      if (attachments.isEmpty) return;
+      
+      final attachmentLinks = StringBuffer();
+      attachmentLinks.writeln('\n\n## Attachments');
+      
+      for (final attachment in attachments) {
+        // For now, just add metadata about attachments
+        // In a full implementation, you would:
+        // 1. Download attachment from storage
+        // 2. Re-upload to user's attachment storage
+        // 3. Get the new URL
+        attachmentLinks.writeln('- [${attachment.filename}](${attachment.url ?? "pending"}) (${attachment.sizeFormatted})');
+      }
+      
+      // Update note body with attachment links
+      final updatedBody = bodyWithTags + attachmentLinks.toString();
+      metadata['attachments_pending'] = false;
+      
+      // Update the note with attachment info
+      await _notesRepository?.createOrUpdate(
+        id: noteId,
+        title: title,
+        body: updatedBody,
+        metadataJson: metadata,
+      );
+      
+      // Trigger another sync to push the updated note
+      _triggerDebouncedSync();
+      
+      debugPrint('[InboxManagementService] Attachments processed for note $noteId');
+    } catch (e) {
+      debugPrint('[InboxManagementService] Error processing attachments: $e');
+      // Don't fail the conversion if attachment processing fails
+    }
+  }
+  
+  /// Complete conversion tasks in background
+  Future<void> _completeConversionInBackground(String itemId, String noteId) async {
+    try {
+      // Add to Incoming Mail folder if folder manager is available
+      if (_folderManager != null && noteId.isNotEmpty) {
+        try {
+          await _folderManager.addNoteToIncomingMail(noteId);
+          debugPrint('[InboxManagementService] Added note to Incoming Mail folder');
+        } catch (e) {
+          debugPrint('[InboxManagementService] Failed to add note to folder: $e');
+        }
+      }
+      
+      // Delete from inbox after successful conversion
+      await deleteInboxItem(itemId);
+      debugPrint('[InboxManagementService] Deleted inbox item $itemId');
+    } catch (e) {
+      debugPrint('[InboxManagementService] Error in background tasks: $e');
     }
   }
   
@@ -374,9 +527,20 @@ class InboxItem {
   }
   
   String? get displayText {
-    if (isEmail) return text;
-    if (isWebClip) return webText;
-    return null;
+    // Get preview text, trimmed and with normalized whitespace
+    String? rawText;
+    if (isEmail) {
+      rawText = text;
+    } else if (isWebClip) {
+      rawText = webText;
+    }
+    
+    if (rawText == null || rawText.isEmpty) return null;
+    
+    // Clean up the text for preview
+    return rawText
+        .replaceAll(RegExp(r'\s+'), ' ')  // Normalize whitespace
+        .trim();
   }
   
   bool get hasAttachments {

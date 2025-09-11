@@ -36,7 +36,7 @@ signature = HMAC-SHA256(secret, message)
 
 ```json
 {
-  "alias": "note_abc123",  // User's inbound alias (without @domain)
+  "alias": "note_abc123",  // User's inbound alias
   "title": "Page Title",   // Title of the web page
   "text": "Selected text", // Clipped text content
   "url": "https://example.com/page", // Source URL
@@ -45,10 +45,21 @@ signature = HMAC-SHA256(secret, message)
 }
 ```
 
-**Note about alias field:**
-- Use only the alias code (e.g., `note_abc123`)
-- Do NOT include the domain (e.g., NOT `note_abc123@in.durunotes.app`)
-- The function will automatically strip any domain if included
+### Alias Normalization
+
+The function automatically normalizes the alias field to handle various formats:
+
+| Input Alias | Normalized Alias |
+|-------------|-----------------|
+| `note_abc123` | `note_abc123` |
+| `note_abc123@in.durunotes.app` | `note_abc123` |
+| `Note_ABC123@example.com` | `note_abc123` |
+| `NOTE_ABC123 ` | `note_abc123` |
+
+- Strips any domain part (everything after @)
+- Converts to lowercase
+- Trims whitespace
+- This allows the extension to send either format
 
 ## Security
 
@@ -162,7 +173,33 @@ Error responses:
 
 ## Processing
 
-Web clips are stored with `source_type: "web"` in the `clipper_inbox` table. The Flutter app's `ClipperInboxService` polls this table every 30 seconds and converts web clips to encrypted notes, similar to how it processes inbound emails.
+Web clips are stored with `source_type: "web"` in the `clipper_inbox` table. The Flutter app receives instant realtime notifications when new clips arrive, and they appear in the unified Inbox UI for user review. Users can then manually convert clips to encrypted notes or delete them.
+
+## Structured Logging
+
+The function uses structured JSON logging for better observability:
+
+### Log Events
+
+| Event | Description | Fields |
+|-------|-------------|--------|
+| `auth_success` | Successful authentication | `method` (hmac/query_secret) |
+| `auth_failed` | Authentication failed | `reason` |
+| `hmac_failed` | HMAC verification failed | `reason` |
+| `alias_normalized` | Alias was normalized | `original`, `normalized` |
+| `unknown_alias` | Alias not found in database | `alias`, `original_alias`, `title`, `url` |
+| `alias_lookup_error` | Database error during alias lookup | `error`, `code` |
+| `clip_saved` | Successfully saved web clip | `user_id`, `alias`, `title`, `url` |
+| `insert_failed` | Failed to insert into database | `error`, `code`, `user_id`, `title` |
+| `missing_alias` | Request missing alias field | `error` |
+
+### Example Log Output
+
+```json
+{"event":"alias_normalized","original":"note_abc123@in.durunotes.app","normalized":"note_abc123"}
+{"event":"auth_success","method":"hmac"}
+{"event":"clip_saved","user_id":"123e4567-e89b-12d3-a456-426614174000","alias":"note_abc123","title":"Test Page","url":"https://example.com"}
+```
 
 ## Troubleshooting
 
@@ -173,9 +210,14 @@ Web clips are stored with `source_type: "web"` in the `clipper_inbox` table. The
    SELECT * FROM inbound_aliases WHERE user_id = 'USER_ID';
    ```
 
-2. **Check function logs**: Look for "Unknown alias" messages
+2. **Check function logs**: Look for structured log events
    ```bash
+   # View logs
    supabase functions logs inbound-web
+   
+   # Look for specific events
+   supabase functions logs inbound-web | grep '"event":"unknown_alias"'
+   supabase functions logs inbound-web | grep '"event":"clip_saved"'
    ```
 
 3. **Verify secret configuration**: Ensure `INBOUND_PARSE_SECRET` is set
@@ -184,9 +226,9 @@ Web clips are stored with `source_type: "web"` in the `clipper_inbox` table. The
    ```
 
 4. **Common issues**:
-   - User entered full email instead of just alias
-   - Alias doesn't exist (user needs to open Email Inbox in app first)
-   - Secret mismatch between extension and function
+   - **Unknown alias**: Check logs for `{"event":"unknown_alias"}` - user needs to open Email Inbox in app first
+   - **Auth failures**: Check logs for `{"event":"auth_failed"}` - verify secret and HMAC signature
+   - **Insert failures**: Check logs for `{"event":"insert_failed"}` - may indicate database issues
    - Function not deployed or not running
 
 ## Migration Guide

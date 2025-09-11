@@ -266,10 +266,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                                   builder: (context) => const InboundEmailInboxWidget(),
                                 ),
                               );
-                              // Update unread count after returning
+                              // Update badge count after returning
                               try {
                                 final unreadService = ref.read(inboxUnreadServiceProvider);
-                                await unreadService.updateUnreadCount();
+                                await unreadService.computeBadgeCount();
                               } catch (_) {}
                             },
                             tooltip: 'Inbox',
