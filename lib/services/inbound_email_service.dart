@@ -59,9 +59,16 @@ class InboundEmailService {
     int offset = 0,
   }) async {
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        print('[InboundEmailService] No authenticated user');
+        return [];
+      }
+      
       final response = await _supabase
           .from('clipper_inbox')
           .select()
+          .eq('user_id', userId)  // Strict user scoping
           .eq('source_type', 'email_in')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
@@ -78,9 +85,16 @@ class InboundEmailService {
   /// Delete an inbound email
   Future<bool> deleteInboundEmail(String emailId) async {
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        print('[InboundEmailService] No authenticated user');
+        return false;
+      }
+      
       await _supabase
           .from('clipper_inbox')
           .delete()
+          .eq('user_id', userId)  // Strict user scoping
           .eq('id', emailId);
       
       return true;
