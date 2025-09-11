@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { createHmac } from "https://deno.land/node/crypto.ts";
+import { encode } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,14 +41,26 @@ function extractProviderTimestamp(headers: string): number | null {
 }
 
 // HMAC signature verification for enhanced security
-function verifyHmacSignature(
+async function verifyHmacSignature(
   payload: string,
   signature: string,
   secret: string
-): boolean {
-  const hmac = createHmac("sha256", secret);
-  hmac.update(payload);
-  const expectedSig = hmac.digest("hex");
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const msgData = encoder.encode(payload);
+  
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign("HMAC", key, msgData);
+  const expectedSig = encode(new Uint8Array(signatureBuffer));
+  
   return expectedSig === signature;
 }
 
@@ -105,7 +117,7 @@ serve(async (req) => {
       const signature = req.headers.get("x-webhook-signature");
       if (signature) {
         const body = await req.clone().text();
-        if (!verifyHmacSignature(body, signature, hmacSecret)) {
+        if (!(await verifyHmacSignature(body, signature, hmacSecret))) {
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
       } else if (providedSecret !== inboundSecret) {
