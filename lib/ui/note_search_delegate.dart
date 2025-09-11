@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/search/search_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -25,6 +26,9 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   final FolderResolver? resolveFolderIdByName;
   final FolderNoteIdsResolver? getFolderNoteIdSet;
   final bool autoSearch;
+  
+  // Cache for preview generation to avoid repeated regex processing
+  static final Map<String, String> _previewCache = <String, String>{};
 
   @override
   String? get searchFieldLabel => 'Search notes...';
@@ -50,12 +54,18 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   @override
   List<Widget>? buildActions(BuildContext context) {
     return [
-      if (query.isNotEmpty)
+      if (query.isNotEmpty) ...[       
+        IconButton(
+          tooltip: 'Save Search',
+          icon: const Icon(Icons.bookmark_add_outlined),
+          onPressed: () => _saveCurrentSearch(context),
+        ),
         IconButton(
           tooltip: 'Clear',
           icon: const Icon(Icons.clear),
           onPressed: () => query = '',
         ),
+      ],
     ];
   }
 
@@ -69,6 +79,77 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
 
   Future<List<LocalNote>> _performSearchAsync(String query) async {
+    // Parse the search query using SearchParser
+    final searchQuery = SearchParser.parse(query);
+    
+    // Start with all notes
+    var results = notes;
+    
+    // Apply tag filters
+    if (searchQuery.includeTags.isNotEmpty) {
+      final includedIds = <String>{};
+      for (final note in notes) {
+        // Check if note has all required tags
+        bool hasAllTags = true;
+        for (final tag in searchQuery.includeTags) {
+          // Check in body for #tag or in metadata
+          if (!note.body.toLowerCase().contains('#$tag')) {
+            hasAllTags = false;
+            break;
+          }
+        }
+        if (hasAllTags) {
+          includedIds.add(note.id);
+        }
+      }
+      results = results.where((n) => includedIds.contains(n.id)).toList();
+    }
+    
+    // Apply exclude tag filters
+    if (searchQuery.excludeTags.isNotEmpty) {
+      final excludedIds = <String>{};
+      for (final note in notes) {
+        for (final tag in searchQuery.excludeTags) {
+          if (note.body.toLowerCase().contains('#$tag')) {
+            excludedIds.add(note.id);
+            break;
+          }
+        }
+      }
+      results = results.where((n) => !excludedIds.contains(n.id)).toList();
+    }
+    
+    // Apply other filters from search query
+    if (searchQuery.isPinned) {
+      results = results.where((n) => n.isPinned).toList();
+    }
+    
+    if (searchQuery.hasAttachment) {
+      results = results.where((n) => AppDb.noteHasAttachments(n)).toList();
+    }
+    
+    if (searchQuery.fromEmail) {
+      results = results.where((n) => AppDb.noteIsFromEmail(n)).toList();
+    }
+    
+    if (searchQuery.fromWeb) {
+      results = results.where((n) => AppDb.noteIsFromWeb(n)).toList();
+    }
+    
+    // Apply keyword search if present
+    if (searchQuery.keywords.isNotEmpty) {
+      final lowerKeywords = searchQuery.keywords.toLowerCase();
+      results = results.where((note) =>
+        note.title.toLowerCase().contains(lowerKeywords) ||
+        note.body.toLowerCase().contains(lowerKeywords)
+      ).toList();
+    }
+    
+    return results;
+  }
+  
+  // Original implementation for backward compatibility
+  Future<List<LocalNote>> _performSearchAsyncOriginal(String query) async {
     if (query.isEmpty) return [];
     
     // Parse search tokens
@@ -141,8 +222,80 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }).toList();
   }
   
-  // Keep synchronous version for backward compatibility (without folder filtering)
+  // Enhanced version with tag support via SearchParser
   List<LocalNote> _performSearch(String query) {
+    if (query.isEmpty) return [];
+    
+    // Parse search query using SearchParser
+    final searchQuery = SearchParser.parse(query);
+    
+    // Start with all notes
+    var results = notes;
+    
+    // Apply tag filters
+    if (searchQuery.includeTags.isNotEmpty) {
+      final includedIds = <String>{};
+      for (final note in notes) {
+        // Check if note has all required tags in body
+        bool hasAllTags = true;
+        for (final tag in searchQuery.includeTags) {
+          if (!note.body.toLowerCase().contains('#$tag')) {
+            hasAllTags = false;
+            break;
+          }
+        }
+        if (hasAllTags) {
+          includedIds.add(note.id);
+        }
+      }
+      results = results.where((n) => includedIds.contains(n.id)).toList();
+    }
+    
+    // Apply exclude tag filters
+    if (searchQuery.excludeTags.isNotEmpty) {
+      final excludedIds = <String>{};
+      for (final note in notes) {
+        for (final tag in searchQuery.excludeTags) {
+          if (note.body.toLowerCase().contains('#$tag')) {
+            excludedIds.add(note.id);
+            break;
+          }
+        }
+      }
+      results = results.where((n) => !excludedIds.contains(n.id)).toList();
+    }
+    
+    // Apply other filters
+    if (searchQuery.isPinned) {
+      results = results.where((n) => n.isPinned).toList();
+    }
+    
+    if (searchQuery.hasAttachment) {
+      results = results.where((n) => AppDb.noteHasAttachments(n)).toList();
+    }
+    
+    if (searchQuery.fromEmail) {
+      results = results.where((n) => AppDb.noteIsFromEmail(n)).toList();
+    }
+    
+    if (searchQuery.fromWeb) {
+      results = results.where((n) => AppDb.noteIsFromWeb(n)).toList();
+    }
+    
+    // Apply keyword search if present
+    if (searchQuery.keywords.isNotEmpty) {
+      final lowerKeywords = searchQuery.keywords.toLowerCase();
+      results = results.where((note) =>
+        note.title.toLowerCase().contains(lowerKeywords) ||
+        note.body.toLowerCase().contains(lowerKeywords)
+      ).toList();
+    }
+    
+    return results;
+  }
+  
+  // Keep original implementation for backward compatibility
+  List<LocalNote> _performSearchOriginal(String query) {
     if (query.isEmpty) return [];
     
     // Parse search tokens
@@ -390,9 +543,6 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       return '${date.day}/${date.month}/${date.year}';
     }
   }
-
-  // Cache for preview generation to avoid repeated regex processing
-  static final Map<String, String> _previewCache = <String, String>{};
   
   String _generatePreview(String body) {
     if (body.trim().isEmpty) return '(No content)';
@@ -494,6 +644,90 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       // Use synchronous search for backward compatibility
       final results = _performSearch(query);
       return _buildResultsList(context, results);
+    }
+  }
+  
+  Future<void> _saveCurrentSearch(BuildContext context) async {
+    if (query.trim().isEmpty) return;
+    
+    // Parse the current query to determine search type
+    final filters = _parseSearchQuery(query);
+    String searchType = 'text';
+    Map<String, dynamic>? parameters;
+    
+    // Determine search type based on filters
+    if (filters['folderName'] != null) {
+      searchType = 'folder';
+      parameters = {'folderName': filters['folderName']};
+    } else if (filters['hasAttachment'] == true || 
+               filters['fromEmail'] == true || 
+               filters['fromWeb'] == true) {
+      searchType = 'compound';
+      parameters = filters;
+    }
+    
+    // Show save dialog
+    final nameController = TextEditingController(text: query);
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Search'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Search Name',
+                hintText: 'Enter a name for this search',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Query: "$query"',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.pop(context, {
+                  'name': nameController.text.trim(),
+                  'query': query,
+                  'searchType': searchType,
+                  'parameters': parameters,
+                });
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result != null && context.mounted) {
+      // Save the search using a provider or service
+      // This would need to be injected or accessed somehow
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved search: "${result['name']}"'),
+          action: SnackBarAction(
+            label: 'Manage',
+            onPressed: () {
+              // Navigate to saved search management
+              Navigator.pushNamed(context, '/saved-searches');
+            },
+          ),
+        ),
+      );
     }
   }
   

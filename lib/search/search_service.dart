@@ -7,7 +7,6 @@ import 'package:duru_notes/search/search_parser.dart';
 class SearchService {
   final AppDb db;
   final NotesRepository repo;
-  final SearchParser parser = SearchParser();
 
   SearchService({
     required this.db,
@@ -16,7 +15,7 @@ class SearchService {
 
   /// Execute a search query string
   Future<List<LocalNote>> search(String query) async {
-    final searchQuery = parser.parse(query);
+    final searchQuery = SearchParser.parse(query);
     return executeQuery(searchQuery);
   }
 
@@ -27,14 +26,13 @@ class SearchService {
     
     if (query.keywords.isNotEmpty) {
       // Use FTS for keyword search
-      final ftsQuery = query.keywords.join(' ');
-      results = await db.searchNotes(ftsQuery);
+      results = await db.searchNotes(query.keywords);
     } else if (query.anyTags.isNotEmpty || query.noneTags.isNotEmpty) {
       // Tag-only search
       results = await repo.queryNotesByTags(
-        anyTags: query.anyTags,
-        noneTags: query.noneTags,
-        sort: query.sort,
+        anyTags: query.includeTags,
+        noneTags: query.excludeTags,
+        sort: const SortSpec(),
       );
     } else {
       // No filters - return all notes
@@ -42,8 +40,8 @@ class SearchService {
     }
     
     // Apply folder filter if specified
-    if (query.folderPath != null) {
-      final folder = await db.findFolderByPath(query.folderPath!);
+    if (query.folderName != null) {
+      final folder = await db.findFolderByPath(query.folderName!);
       if (folder != null) {
         final notesInFolder = await db.getNotesInFolder(folder.id);
         final folderNoteIds = notesInFolder.map((n) => n.id).toSet();
@@ -55,13 +53,13 @@ class SearchService {
     }
     
     // Apply tag filters if we started with FTS
-    if (query.keywords.isNotEmpty && (query.anyTags.isNotEmpty || query.noneTags.isNotEmpty)) {
+    if (query.keywords.isNotEmpty && (query.includeTags.isNotEmpty || query.excludeTags.isNotEmpty)) {
       // Post-filter by tags
       final noteIds = results.map((n) => n.id).toSet();
       final tagFiltered = await repo.queryNotesByTags(
-        anyTags: query.anyTags,
-        noneTags: query.noneTags,
-        sort: query.sort,
+        anyTags: query.includeTags,
+        noneTags: query.excludeTags,
+        sort: const SortSpec(),
       );
       final tagFilteredIds = tagFiltered.map((n) => n.id).toSet();
       
@@ -70,8 +68,8 @@ class SearchService {
     }
     
     // Apply sorting if not already sorted
-    if (query.keywords.isEmpty && query.anyTags.isEmpty && query.noneTags.isEmpty) {
-      results = _sortNotes(results, query.sort);
+    if (query.keywords.isEmpty && query.includeTags.isEmpty && query.excludeTags.isEmpty) {
+      results = _sortNotes(results, const SortSpec());
     }
     
     return results;
@@ -120,7 +118,7 @@ class SearchService {
     final savedSearch = SavedSearch(
       id: searchId,
       name: name,
-      query: parser.buildQueryString(query),
+      query: SearchParser.build(query),
       searchType: 'compound',
       parameters: query.toJson().toString(),
       color: color,

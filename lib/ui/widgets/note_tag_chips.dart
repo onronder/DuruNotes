@@ -1,286 +1,347 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 
 /// Widget to display and manage tags for a note
 class NoteTagChips extends ConsumerStatefulWidget {
-  const NoteTagChips({
-    required this.noteId,
-    super.key,
-    this.onTagsChanged,
-  });
-
   final String noteId;
-  final VoidCallback? onTagsChanged;
+  final List<String> initialTags;
+  final Function(List<String>)? onTagsChanged;
+  final bool editable;
+
+  const NoteTagChips({
+    super.key,
+    required this.noteId,
+    this.initialTags = const [],
+    this.onTagsChanged,
+    this.editable = true,
+  });
 
   @override
   ConsumerState<NoteTagChips> createState() => _NoteTagChipsState();
 }
 
 class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
-  List<String> _tags = [];
-  bool _isLoading = true;
-  
-  // Remember recently added tags for display casing (visual only)
-  final Map<String, String> _displayCasing = {};
+  late List<String> _tags;
+  bool _isAddingTag = false;
+  final _tagController = TextEditingController();
+  final _tagFocusNode = FocusNode();
+  List<String> _availableTags = [];
+  List<String> _suggestions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadTags();
+    _tags = List.from(widget.initialTags);
+    _loadAvailableTags();
+    _tagController.addListener(_updateSuggestions);
   }
 
-  Future<void> _loadTags() async {
-    if (!mounted) return;
-    
+  @override
+  void dispose() {
+    _tagController.dispose();
+    _tagFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAvailableTags() async {
     final repo = ref.read(notesRepositoryProvider);
-    final tags = await repo.getTagsForNote(widget.noteId);
-    
+    final tagCounts = await repo.listTagsWithCounts();
     if (mounted) {
       setState(() {
-        _tags = tags;
-        _isLoading = false;
+        _availableTags = tagCounts.map((tc) => tc.tag).toList();
       });
     }
   }
 
+  void _updateSuggestions() {
+    final input = _tagController.text.trim().toLowerCase();
+    if (input.isEmpty) {
+      setState(() => _suggestions = []);
+      return;
+    }
+
+    setState(() {
+      _suggestions = _availableTags
+          .where((tag) => 
+              tag.toLowerCase().contains(input) && 
+              !_tags.contains(tag))
+          .take(5)
+          .toList();
+    });
+  }
+
   Future<void> _addTag(String tag) async {
-    if (tag.trim().isEmpty) return;
-    
     final normalizedTag = tag.trim().toLowerCase();
-    if (_tags.contains(normalizedTag)) return;
-    
-    // Remember display casing for this session
-    _displayCasing[normalizedTag] = tag.trim();
-    
+    if (normalizedTag.isEmpty || _tags.contains(normalizedTag)) {
+      return;
+    }
+
     setState(() {
       _tags.add(normalizedTag);
+      _isAddingTag = false;
+      _tagController.clear();
+      _suggestions = [];
     });
-    
+
+    // Update in database
     final repo = ref.read(notesRepositoryProvider);
-    await repo.addTag(noteId: widget.noteId, tag: tag);
+    await repo.addTag(noteId: widget.noteId, tag: normalizedTag);
     
-    widget.onTagsChanged?.call();
+    widget.onTagsChanged?.call(_tags);
+    HapticFeedback.lightImpact();
+
+    // Reload available tags to include new one
+    _loadAvailableTags();
   }
 
   Future<void> _removeTag(String tag) async {
     setState(() {
       _tags.remove(tag);
-      _displayCasing.remove(tag);
     });
-    
+
+    // Update in database
     final repo = ref.read(notesRepositoryProvider);
     await repo.removeTag(noteId: widget.noteId, tag: tag);
     
-    widget.onTagsChanged?.call();
-  }
-
-  void _showAddTagDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => _AddTagDialog(
-        existingTags: _tags,
-        onTagSelected: _addTag,
-      ),
-    );
-  }
-
-  String _getDisplayTag(String tag) {
-    // Use remembered casing if available, otherwise use the normalized form
-    return _displayCasing[tag] ?? tag;
+    widget.onTagsChanged?.call(_tags);
+    HapticFeedback.lightImpact();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ..._tags.map((tag) => Chip(
-          label: Text('#${_getDisplayTag(tag)}'),
-          deleteIcon: const Icon(Icons.close, size: 18),
-          onDeleted: () => _removeTag(tag),
-          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-          labelStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
-          ),
-          deleteIconColor: Theme.of(context).colorScheme.onSecondaryContainer,
-        )),
-        ActionChip(
-          label: const Text('+ Tag'),
-          onPressed: _showAddTagDialog,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          labelStyle: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          avatar: Icon(
-            Icons.add,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // Existing tags
+            ..._tags.map((tag) => _buildTagChip(tag, colorScheme)),
+            // Add tag button or input
+            if (widget.editable)
+              _isAddingTag
+                  ? _buildAddTagInput(colorScheme)
+                  : _buildAddTagButton(colorScheme),
+          ],
         ),
+        // Suggestions
+        if (_suggestions.isNotEmpty && _isAddingTag)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _suggestions.map((suggestion) {
+                return InkWell(
+                  onTap: () => _addTag(suggestion),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tag,
+                          size: 16,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          suggestion,
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }
+
+  Widget _buildTagChip(String tag, ColorScheme colorScheme) {
+    return Chip(
+      label: Text(tag),
+      deleteIcon: widget.editable
+          ? Icon(
+              Icons.close,
+              size: 18,
+              color: colorScheme.onSecondaryContainer,
+            )
+          : null,
+      onDeleted: widget.editable ? () => _removeTag(tag) : null,
+      backgroundColor: colorScheme.secondaryContainer.withOpacity(0.7),
+      labelStyle: TextStyle(
+        color: colorScheme.onSecondaryContainer,
+        fontSize: 13,
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildAddTagButton(ColorScheme colorScheme) {
+    return ActionChip(
+      avatar: Icon(
+        Icons.add,
+        size: 18,
+        color: colorScheme.primary,
+      ),
+      label: Text(
+        'Tag',
+        style: TextStyle(
+          color: colorScheme.primary,
+          fontSize: 13,
+        ),
+      ),
+      onPressed: () {
+        setState(() => _isAddingTag = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _tagFocusNode.requestFocus();
+        });
+      },
+      backgroundColor: colorScheme.primary.withOpacity(0.1),
+      side: BorderSide(
+        color: colorScheme.primary.withOpacity(0.3),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildAddTagInput(ColorScheme colorScheme) {
+    return Container(
+      width: 120,
+      height: 32,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.primary.withOpacity(0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _tagController,
+              focusNode: _tagFocusNode,
+              decoration: const InputDecoration(
+                hintText: 'Add tag',
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: const TextStyle(fontSize: 13),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty) {
+                  _addTag(value);
+                } else {
+                  setState(() {
+                    _isAddingTag = false;
+                    _tagController.clear();
+                  });
+                }
+              },
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 24,
+              minHeight: 24,
+            ),
+            onPressed: () {
+              setState(() {
+                _isAddingTag = false;
+                _tagController.clear();
+                _suggestions = [];
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-/// Dialog for adding tags with autocomplete
-class _AddTagDialog extends ConsumerStatefulWidget {
-  const _AddTagDialog({
-    required this.existingTags,
-    required this.onTagSelected,
+/// Compact version of tag chips for list views
+class CompactTagChips extends StatelessWidget {
+  final List<String> tags;
+  final int maxTags;
+  final Function(String)? onTagTap;
+
+  const CompactTagChips({
+    super.key,
+    required this.tags,
+    this.maxTags = 3,
+    this.onTagTap,
   });
-
-  final List<String> existingTags;
-  final void Function(String) onTagSelected;
-
-  @override
-  ConsumerState<_AddTagDialog> createState() => _AddTagDialogState();
-}
-
-class _AddTagDialogState extends ConsumerState<_AddTagDialog> {
-  final _controller = TextEditingController();
-  List<String> _suggestions = [];
-  bool _isLoadingSuggestions = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_updateSuggestions);
-    _loadPopularTags();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadPopularTags() async {
-    if (!mounted) return;
-    
-    final repo = ref.read(notesRepositoryProvider);
-    final tags = await repo.listTagsWithCounts();
-    
-    if (mounted) {
-      setState(() {
-        // Show top 10 tags that aren't already on the note
-        _suggestions = tags
-            .where((t) => !widget.existingTags.contains(t.tag))
-            .take(10)
-            .map((t) => t.tag)
-            .toList();
-      });
-    }
-  }
-
-  Future<void> _updateSuggestions() async {
-    final query = _controller.text.trim();
-    
-    if (query.isEmpty) {
-      await _loadPopularTags();
-      return;
-    }
-    
-    setState(() {
-      _isLoadingSuggestions = true;
-    });
-    
-    final repo = ref.read(notesRepositoryProvider);
-    final suggestions = await repo.searchTags(query);
-    
-    if (mounted) {
-      setState(() {
-        _suggestions = suggestions
-            .where((t) => !widget.existingTags.contains(t))
-            .toList();
-        _isLoadingSuggestions = false;
-      });
-    }
-  }
-
-  void _selectTag(String tag) {
-    widget.onTagSelected(tag);
-    Navigator.of(context).pop();
-  }
-
-  void _addCustomTag() {
-    final tag = _controller.text.trim();
-    if (tag.isNotEmpty) {
-      _selectTag(tag);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add Tag'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: 'Enter tag name',
-                prefixText: '#',
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _controller.clear,
-                      )
-                    : null,
-              ),
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _addCustomTag(),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    final displayTags = tags.take(maxTags).toList();
+    final remaining = tags.length - displayTags.length;
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        ...displayTags.map((tag) => GestureDetector(
+          onTap: onTagTap != null ? () => onTagTap!(tag) : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 16),
-            if (_isLoadingSuggestions)
-              const LinearProgressIndicator()
-            else if (_suggestions.isNotEmpty) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _controller.text.isEmpty ? 'Popular tags:' : 'Suggestions:',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+            child: Text(
+              '#$tag',
+              style: TextStyle(
+                fontSize: 11,
+                color: colorScheme.onSecondaryContainer,
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _suggestions.map((tag) => InputChip(
-                  label: Text('#$tag'),
-                  onPressed: () => _selectTag(tag),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                )).toList(),
+            ),
+          ),
+        )),
+        if (remaining > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.tertiaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '+$remaining',
+              style: TextStyle(
+                fontSize: 11,
+                color: colorScheme.onTertiaryContainer,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _controller.text.trim().isNotEmpty ? _addCustomTag : null,
-          child: const Text('Add'),
-        ),
+            ),
+          ),
       ],
     );
   }

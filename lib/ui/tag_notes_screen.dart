@@ -1,29 +1,26 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/ui/modern_edit_note_screen.dart';
-import 'package:duru_notes/ui/widgets/error_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/ui/note_editor_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
+/// Screen that displays notes filtered by a specific tag
 class TagNotesScreen extends ConsumerStatefulWidget {
-  const TagNotesScreen({
-    required this.tag, 
-    this.savedSearchKey,
-    super.key,
-  });
-  
   final String tag;
-  /// Optional saved search key for authoritative filtering
-  final String? savedSearchKey;
+
+  const TagNotesScreen({
+    super.key,
+    required this.tag,
+  });
 
   @override
   ConsumerState<TagNotesScreen> createState() => _TagNotesScreenState();
 }
 
 class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
-  bool _isLoading = true;
   List<LocalNote> _notes = [];
-  String? _error;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -32,25 +29,18 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
   }
 
   Future<void> _loadNotes() async {
-    if (!mounted) return;
-    
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final repo = ref.read(notesRepositoryProvider);
-      
-      // Use authoritative search if savedSearchKey is provided
-      final notes = widget.savedSearchKey != null
-          ? await ref.read(appDbProvider).notesForSavedSearch(savedSearchKey: widget.savedSearchKey!)
-          : await repo.queryNotesByTags(
-              anyTags: [widget.tag],
-              noneTags: const [],
-              sort: const SortSpec(), // Default sort with pinned first
-            );
-      
+      final notes = await repo.queryNotesByTags(
+        anyTags: [widget.tag],
+        noneTags: [],
+        sort: const SortSpec(
+          sortBy: SortBy.updatedAt,
+          ascending: false,
+          pinnedFirst: true,
+        ),
+      );
       if (mounted) {
         setState(() {
           _notes = notes;
@@ -59,12 +49,133 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load notes: $e')),
+        );
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Icon(
+              Icons.tag,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(widget.tag),
+          ],
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _notes.isEmpty
+              ? _buildEmptyState(context)
+              : _buildNotesList(context),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.note_alt_outlined,
+            size: 64,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No notes with #${widget.tag}',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Notes tagged with #${widget.tag} will appear here',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesList(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _notes.length,
+      itemBuilder: (context, index) {
+        final note = _notes[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: note.isPinned
+                ? Icon(
+                    Icons.push_pin,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  )
+                : null,
+            title: Text(
+              note.title.isEmpty ? '(Untitled)' : note.title,
+              style: theme.textTheme.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (note.body.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    note.body,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  _formatDate(note.updatedAt),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => NoteEditorScreen(
+                    noteId: note.id,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   String _formatDate(DateTime date) {
@@ -82,195 +193,5 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
-  }
-
-  // Cache for preview generation to avoid repeated regex processing
-  static final Map<String, String> _previewCache = <String, String>{};
-  
-  String _generatePreview(String body) {
-    if (body.trim().isEmpty) return '(No content)';
-    
-    // Check cache first
-    final bodyHash = body.hashCode.toString();
-    if (_previewCache.containsKey(bodyHash)) {
-      return _previewCache[bodyHash]!;
-    }
-    
-    // Limit input length to prevent long processing
-    final limitedBody = body.length > 300 ? body.substring(0, 300) : body;
-    
-    // Strip markdown formatting for cleaner preview (optimized)
-    final preview = limitedBody
-        .replaceAll(RegExp(r'#{1,6}\s'), '') // Remove headers
-        .replaceAll(RegExp(r'\*\*([^*]*)\*\*'), r'$1') // Remove bold (non-greedy)
-        .replaceAll(RegExp(r'\*([^*]*)\*'), r'$1') // Remove italic (non-greedy)
-        .replaceAll(RegExp('`([^`]*)`'), r'$1') // Remove code (non-greedy)
-        .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // Remove links (non-greedy)
-        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
-        .trim();
-
-    final result = preview.isEmpty ? '(No content)' : 
-        (preview.length > 100 ? '${preview.substring(0, 100)}...' : preview);
-    
-    // Cache result (limit cache size)
-    if (_previewCache.length > 50) {
-      _previewCache.clear();
-    }
-    _previewCache[bodyHash] = result;
-    
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('#${widget.tag}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadNotes,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: _buildContent(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const ModernEditNoteScreen(),
-            ),
-          );
-          // Refresh notes after returning from editor
-          _loadNotes();
-        },
-        tooltip: 'Create note with #${widget.tag}',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    if (_isLoading) {
-      return const LoadingDisplay();
-    }
-
-    if (_error != null) {
-      return ErrorDisplay(
-        error: _error!,
-        message: 'Failed to load notes',
-        onRetry: _loadNotes,
-      );
-    }
-
-    if (_notes.isEmpty) {
-      // Provide friendly empty state messages based on the tag
-      String title;
-      String subtitle;
-      IconData icon;
-      
-      switch (widget.tag.toLowerCase()) {
-        case 'attachment':
-          title = 'No notes with #Attachment yet';
-          subtitle = 'Notes with file attachments will appear here';
-          icon = Icons.attach_file;
-          break;
-        case 'web':
-          title = 'No notes created via Web Clipper yet';
-          subtitle = 'Use the Web Clipper extension to save content from the web';
-          icon = Icons.language;
-          break;
-        case 'email':
-          title = 'No notes created via Email-in yet';
-          subtitle = 'Send emails to your Duru Notes inbox to create notes';
-          icon = Icons.email;
-          break;
-        default:
-          title = 'No notes with #${widget.tag}';
-          subtitle = 'Create a note and add #${widget.tag} to see it here';
-          icon = Icons.tag;
-      }
-      
-      return EmptyDisplay(
-        title: title,
-        subtitle: subtitle,
-        icon: icon,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadNotes,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _notes.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        itemBuilder: (context, i) {
-          final note = _notes[i];
-          final preview = _generatePreview(note.body);
-          
-          return Card(
-            elevation: 0,
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              title: Text(
-                note.title.isEmpty ? '(Untitled)' : note.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (preview != '(No content)') ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      preview,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(note.updatedAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => ModernEditNoteScreen(
-                      noteId: note.id,
-                    ),
-                  ),
-                );
-                // Refresh notes after returning from editor
-                _loadNotes();
-              },
-            ),
-          );
-        },
-      ),
-    );
   }
 }
