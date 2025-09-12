@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value, OrderingTerm, OrderingMode, leftOuterJoin;
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
@@ -71,7 +71,7 @@ class NotesRepository {
     Map<String, dynamic>? params;
     if (savedSearch.parameters != null) {
       try {
-        params = jsonDecode(savedSearch.parameters!);
+        params = jsonDecode(savedSearch.parameters!) as Map<String, dynamic>;
       } catch (e) {
         debugPrint('Failed to parse saved search parameters: $e');
       }
@@ -694,7 +694,7 @@ class NotesRepository {
           
           if (n.encryptedMetadata != null) {
             try {
-              final meta = jsonDecode(n.encryptedMetadata!);
+              final meta = jsonDecode(n.encryptedMetadata!) as Map<String, dynamic>;
               propsJson.addAll(meta);
             } catch (e) {
               // Ignore parsing errors
@@ -797,23 +797,75 @@ class NotesRepository {
         final titleEnc = r['title_enc'] as Uint8List;
         final propsEnc = r['props_enc'] as Uint8List;
         
-        final titleJson = await crypto.decryptJsonForNote(
-          userId: _supabase.auth.currentUser!.id,
-          noteId: id,
-          data: titleEnc,
-        );
+        // Try to decrypt title - handle both JSON and plain text
+        String title;
+        try {
+          final titleJson = await crypto.decryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: id,
+            data: titleEnc,
+          );
+          title = titleJson['title'] as String? ?? '';
+        } catch (e) {
+          // Fallback: try as plain text
+          try {
+            title = await crypto.decryptStringForNote(
+              userId: _supabase.auth.currentUser!.id,
+              noteId: id,
+              data: titleEnc,
+            );
+          } catch (_) {
+            debugPrint('⚠️ Could not decrypt title for note $id, using empty');
+            title = '';
+          }
+        }
         
-        final propsJson = await crypto.decryptJsonForNote(
-          userId: _supabase.auth.currentUser!.id,
-          noteId: id,
-          data: propsEnc,
-        );
-
-        final title = titleJson['title'] as String? ?? '';
-        final body = propsJson['body'] as String? ?? '';
-        final tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
-        final links = (propsJson['links'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final isPinned = propsJson['isPinned'] as bool? ?? false;
+        // Try to decrypt properties - handle both JSON and plain text
+        String body;
+        List<String> tags;
+        List<Map<String, dynamic>> links;
+        bool isPinned;
+        Map<String, dynamic> metadata;
+        
+        try {
+          final propsJson = await crypto.decryptJsonForNote(
+            userId: _supabase.auth.currentUser!.id,
+            noteId: id,
+            data: propsEnc,
+          );
+          body = propsJson['body'] as String? ?? '';
+          tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
+          links = (propsJson['links'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          isPinned = propsJson['isPinned'] as bool? ?? false;
+          
+          // Extract metadata
+          metadata = Map<String, dynamic>.from(propsJson);
+          metadata.remove('body');
+          metadata.remove('tags');
+          metadata.remove('links');
+          metadata.remove('isPinned');
+          metadata.remove('updatedAt');
+        } catch (e) {
+          // Fallback: try as plain text for body
+          try {
+            body = await crypto.decryptStringForNote(
+              userId: _supabase.auth.currentUser!.id,
+              noteId: id,
+              data: propsEnc,
+            );
+            tags = [];
+            links = [];
+            isPinned = false;
+            metadata = {};
+          } catch (_) {
+            debugPrint('⚠️ Could not decrypt body for note $id, using empty');
+            body = '';
+            tags = [];
+            links = [];
+            isPinned = false;
+            metadata = {};
+          }
+        }
         final updatedAt = DateTime.parse(r['updated_at'] as String);
 
         // Check if we need to update
@@ -826,14 +878,6 @@ class NotesRepository {
           debugPrint('⏭️ Skipped note (local is newer): $id');
           continue;
         }
-
-        // Extract metadata
-        final metadata = Map<String, dynamic>.from(propsJson);
-        metadata.remove('body');
-        metadata.remove('tags');
-        metadata.remove('links');
-        metadata.remove('isPinned');
-        metadata.remove('updatedAt');
 
         // Upsert the note
         await db.upsertNote(LocalNote(
@@ -902,23 +946,68 @@ class NotesRepository {
           final nameEnc = folder['name_enc'] as Uint8List;
           final propsEnc = folder['props_enc'] as Uint8List;
           
-          final nameJson = await crypto.decryptJsonForNote(
-            userId: _supabase.auth.currentUser!.id,
-            noteId: id,
-            data: nameEnc,
-          );
+          // Try to decrypt name - handle both JSON and plain text
+          String name;
+          try {
+            final nameJson = await crypto.decryptJsonForNote(
+              userId: _supabase.auth.currentUser!.id,
+              noteId: id,
+              data: nameEnc,
+            );
+            name = nameJson['name'] as String? ?? '';
+          } catch (e) {
+            // Fallback: try as plain text
+            try {
+              name = await crypto.decryptStringForNote(
+                userId: _supabase.auth.currentUser!.id,
+                noteId: id,
+                data: nameEnc,
+              );
+            } catch (_) {
+              debugPrint('⚠️ Could not decrypt name for folder $id, using empty');
+              name = '';
+            }
+          }
           
-          final propsJson = await crypto.decryptJsonForNote(
-            userId: _supabase.auth.currentUser!.id,
-            noteId: id,
-            data: propsEnc,
-          );
+          // Try to decrypt properties - handle both JSON and plain text
+          String? parentId;
+          int sortOrder;
+          String? color;
+          String? icon;
+          String description;
           
-          final name = nameJson['name'] as String? ?? '';
-          final parentId = propsJson['parentId'] as String?;
-          final sortOrder = propsJson['sortOrder'] as int? ?? 0;
-          final color = propsJson['color'] as String?;
-          final icon = propsJson['icon'] as String?;
+          try {
+            final propsJson = await crypto.decryptJsonForNote(
+              userId: _supabase.auth.currentUser!.id,
+              noteId: id,
+              data: propsEnc,
+            );
+            parentId = propsJson['parentId'] as String?;
+            sortOrder = propsJson['sortOrder'] as int? ?? 0;
+            color = propsJson['color'] as String?;
+            icon = propsJson['icon'] as String?;
+            description = (propsJson['description'] as String?) ?? '';
+          } catch (e) {
+            // Fallback: try as plain text for description
+            try {
+              description = await crypto.decryptStringForNote(
+                userId: _supabase.auth.currentUser!.id,
+                noteId: id,
+                data: propsEnc,
+              );
+              parentId = null;
+              sortOrder = 0;
+              color = null;
+              icon = null;
+            } catch (_) {
+              debugPrint('⚠️ Could not decrypt properties for folder $id, using defaults');
+              parentId = null;
+              sortOrder = 0;
+              color = null;
+              icon = null;
+              description = '';
+            }
+          }
           final createdAt = DateTime.parse(folder['created_at'] as String);
           final updatedAt = DateTime.parse(folder['updated_at'] as String);
           
@@ -931,7 +1020,7 @@ class NotesRepository {
             sortOrder: sortOrder,
             color: color,
             icon: icon,
-            description: (propsJson['description'] as String?) ?? '',
+            description: description,
             deleted: false,
             createdAt: createdAt,
             updatedAt: updatedAt,

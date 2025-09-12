@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -36,6 +38,10 @@ class FolderRepository {
   final AppDb db;
   final String userId;
   final _uuid = const Uuid();
+  
+  // Broadcast stream for folder updates
+  final _folderUpdates = StreamController<void>.broadcast();
+  Stream<void> get folderUpdates => _folderUpdates.stream;
 
   // ----------------------
   // Folder Management
@@ -114,6 +120,9 @@ class FolderRepository {
     await db.upsertFolder(folder);
     await db.enqueue(folderId, 'upsert_folder');
     
+    // Emit folder update event
+    _folderUpdates.add(null);
+    
     debugPrint('📁 Created folder: $name at $path');
     return folder;
   }
@@ -153,6 +162,9 @@ class FolderRepository {
     await _updateDescendantPaths(folderId, newPath);
     
     await db.enqueue(folderId, 'upsert_folder');
+    
+    // Emit folder update event
+    _folderUpdates.add(null);
     
     debugPrint('📝 Renamed folder: ${folder.name} -> $newName');
   }
@@ -200,6 +212,9 @@ class FolderRepository {
     
     await db.enqueue(folderId, 'upsert_folder');
     
+    // Emit folder update event
+    _folderUpdates.add(null);
+    
     debugPrint('📦 Moved folder: ${folder.name} to ${newParentId ?? 'root'}');
   }
 
@@ -237,6 +252,9 @@ class FolderRepository {
 
     await db.enqueue(folderId, 'delete_folder');
     
+    // Emit folder update event
+    _folderUpdates.add(null);
+    
     debugPrint('🗑️ Deleted folder: ${folder.name}');
   }
 
@@ -256,6 +274,9 @@ class FolderRepository {
         await db.enqueue(folder.id, 'upsert_folder');
       }
     }
+    
+    // Emit folder update event
+    _folderUpdates.add(null);
     
     debugPrint('🔄 Reordered ${orderedFolderIds.length} folders');
   }
@@ -278,6 +299,9 @@ class FolderRepository {
       await db.upsertNote(updatedNote);
       await db.enqueue(noteId, 'upsert_note');
     }
+    
+    // Emit folder update event
+    _folderUpdates.add(null);
     
     debugPrint('📁 Moved note $noteId to folder ${folderId ?? 'inbox'}');
   }
@@ -452,5 +476,10 @@ class FolderRepository {
     for (final op in folderOps) {
       await db.delete(db.pendingOps).delete(op);
     }
+  }
+  
+  /// Dispose the repository and close stream controllers
+  void dispose() {
+    _folderUpdates.close();
   }
 }
