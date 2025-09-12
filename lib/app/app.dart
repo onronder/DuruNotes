@@ -208,6 +208,14 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
     
     if (ref.read(syncModeProvider) == SyncMode.automatic) {
       await ref.read(notesPageProvider.notifier).refresh();
+      
+      // Load additional pages if there are more notes
+      while (ref.read(hasMoreNotesProvider)) {
+        await ref.read(notesPageProvider.notifier).loadMore();
+      }
+      
+      // Refresh folders as well
+      await ref.read(folderHierarchyProvider.notifier).loadFolders();
     }
   }
 
@@ -326,6 +334,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
         // Refresh notes if auto-sync ran
         if (ref.read(syncModeProvider) == SyncMode.automatic) {
           await ref.read(notesPageProvider.notifier).refresh();
+          
+          // Also load folders after sync
+          await ref.read(folderHierarchyProvider.notifier).loadFolders();
         }
 
         // Check mounted before final operations
@@ -345,6 +356,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
             // Final mounted check
             if (!mounted) return;
             await ref.read(notesPageProvider.notifier).refresh();
+            
+            // Load folders after initial sync
+            await ref.read(folderHierarchyProvider.notifier).loadFolders();
           }
         } catch (_) {
           // Ignore boot sync errors; user can trigger manual sync later

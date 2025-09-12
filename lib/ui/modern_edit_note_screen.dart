@@ -618,31 +618,34 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         children: [
           const SizedBox(height: kVerticalSpacingMedium),
           
-          // Folder indicator chip
-          _buildFolderIndicator(colorScheme),
-          
-          const SizedBox(height: kVerticalSpacingMedium),
-          
-          // Tag chips
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 6),
-            child: NoteTagChips(
-              noteId: _noteIdForTags,
-              initialTags: _currentTags,
-              editable: true,
-              onTagsChanged: (tags) {
-                setState(() {
-                  _currentTags = tags;
-                  // Mark as changed if tags differ from initial
-                  if (widget.noteId != null) {
-                    _hasChanges = true;
-                  }
-                });
-              },
-            ),
+          // Folder and tag section side by side
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Folder indicator chip
+              _buildFolderIndicator(colorScheme),
+              const SizedBox(width: 12),
+              // Tag chips (expanded to fill remaining space)
+              Expanded(
+                child: NoteTagChips(
+                  noteId: _noteIdForTags,
+                  initialTags: _currentTags,
+                  editable: true,
+                  onTagsChanged: (tags) {
+                    setState(() {
+                      _currentTags = tags;
+                      // Mark as changed if tags differ from initial
+                      if (widget.noteId != null) {
+                        _hasChanges = true;
+                      }
+                    });
+                  },
+                ),
+              ),
+            ],
           ),
           
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           
           // Unified text field
           Expanded(

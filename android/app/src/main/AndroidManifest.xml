@@ -30,7 +30,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="${appName}"
-        android:name="${applicationName}"
+        android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher">
         
         <!-- Adapty SDK Configuration -->
