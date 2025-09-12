@@ -275,9 +275,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
                 );
               }
               
-              // User is authenticated and AMK is available - show main app
-              _maybePerformInitialSync();
-              return const NotesListScreen();
+          // User is authenticated and AMK is available - show main app
+          _maybePerformInitialSync();
+          
+          // Initialize folder update listener
+          ref.watch(folderUpdateListenerProvider);
+          
+          return const NotesListScreen();
             },
           );
         } else {

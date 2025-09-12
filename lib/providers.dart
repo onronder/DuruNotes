@@ -11,8 +11,10 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
+import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/repository/sync_service.dart';
+import 'package:duru_notes/search/search_service.dart';
 import 'package:duru_notes/services/account_key_service.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/attachment_service.dart';
@@ -77,6 +79,55 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
     api: api,
     client: client,
   );
+});
+
+/// Folder repository provider
+final folderRepositoryProvider = Provider<FolderRepository>((ref) {
+  // Rebuild when auth state changes
+  ref.watch(authStateChangesProvider);
+  final db = ref.watch(appDbProvider);
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  if (userId == null || userId.isEmpty) {
+    throw StateError('FolderRepository requested without an authenticated user');
+  }
+  
+  final repo = FolderRepository(db: db, userId: userId);
+  
+  // Dispose when provider is disposed
+  ref.onDispose(() {
+    repo.dispose();
+  });
+  
+  return repo;
+});
+
+/// Folder updates stream provider
+final folderUpdatesProvider = StreamProvider<void>((ref) {
+  final repo = ref.watch(folderRepositoryProvider);
+  return repo.folderUpdates;
+});
+
+/// Folder update listener provider - listens to folder updates and invalidates dependent providers
+final folderUpdateListenerProvider = Provider<void>((ref) {
+  // Listen to folder updates and invalidate dependent providers
+  ref.listen(folderUpdatesProvider, (_, __) {
+    // Invalidate all folder-related providers to refresh UI
+    ref.invalidate(folderHierarchyProvider);
+    ref.invalidate(rootFoldersProvider);
+    ref.invalidate(folderListProvider);
+    ref.invalidate(visibleFolderNodesProvider);
+    ref.invalidate(unfiledNotesCountProvider);
+    ref.invalidate(filteredNotesProvider);
+    
+    // Also refresh notes if they're folder-filtered
+    final currentFolder = ref.read(currentFolderProvider);
+    if (currentFolder != null) {
+      ref.read(notesPageProvider.notifier).refresh();
+    }
+    
+    debugPrint('[FolderUpdates] Invalidated folder-dependent providers');
+  });
 });
 
 /// Sync service provider
@@ -463,4 +514,11 @@ final unfiledNotesCountProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(notesRepositoryProvider);
   final unfiledNotes = await repo.getUnfiledNotes();
   return unfiledNotes.length;
+});
+
+/// Search service provider
+final searchServiceProvider = Provider<SearchService>((ref) {
+  final db = ref.watch(appDbProvider);
+  final repo = ref.watch(notesRepositoryProvider);
+  return SearchService(db: db, repo: repo);
 });

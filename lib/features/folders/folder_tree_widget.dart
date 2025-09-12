@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
 
 /// Example widget showing folder hierarchy with navigation
@@ -429,15 +430,3 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     );
   }
 }
-
-/// Provider for FolderRepository
-final folderRepositoryProvider = Provider<FolderRepository>((ref) {
-  final db = ref.watch(appDbProvider);
-  const userId = 'current_user'; // This would come from auth
-  return FolderRepository(db: db, userId: userId);
-});
-
-/// Provider for AppDb (assuming it exists)
-final appDbProvider = Provider<AppDb>((ref) {
-  return AppDb();
-});
