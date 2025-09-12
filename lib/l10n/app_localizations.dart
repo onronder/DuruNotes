@@ -1228,6 +1228,12 @@ abstract class AppLocalizations {
   /// **'Add a new folder for organization'**
   String get createNewFolderSubtitle;
 
+  /// No description provided for @newFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New Folder'**
+  String get newFolder;
+
   /// No description provided for @folderName.
   ///
   /// In en, this message translates to:
@@ -1246,6 +1252,18 @@ abstract class AppLocalizations {
   /// **'Folder name is required'**
   String get folderNameRequired;
 
+  /// No description provided for @folderNameEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name cannot be empty'**
+  String get folderNameEmpty;
+
+  /// No description provided for @folderNameDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'A folder with this name already exists'**
+  String get folderNameDuplicate;
+
   /// No description provided for @folderColor.
   ///
   /// In en, this message translates to:
@@ -1263,6 +1281,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Parent Folder'**
   String get parentFolder;
+
+  /// No description provided for @rootFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Root (No Parent)'**
+  String get rootFolder;
 
   /// No description provided for @rootLevel.
   ///
@@ -1443,6 +1467,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All Folders'**
   String get allFolders;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @renameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Folder'**
+  String get renameFolder;
+
+  /// No description provided for @move.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get move;
+
+  /// No description provided for @folderRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder renamed successfully'**
+  String get folderRenamed;
+
+  /// No description provided for @folderMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder moved successfully'**
+  String get folderMoved;
+
+  /// No description provided for @folderDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder deleted'**
+  String get folderDeleted;
+
+  /// No description provided for @folderDeletedNotesMovedToInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder deleted, notes moved to Inbox'**
+  String get folderDeletedNotesMovedToInbox;
+
+  /// No description provided for @folderCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder \"{name}\" created'**
+  String folderCreated(String name);
+
+  /// No description provided for @deleteFolderConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder \"{name}\"? All notes will be moved to Inbox.'**
+  String deleteFolderConfirmation(String name);
+
+  /// No description provided for @folderDeleteDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes will be moved to Inbox'**
+  String get folderDeleteDescription;
+
+  /// No description provided for @errorRenamingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rename folder'**
+  String get errorRenamingFolder;
+
+  /// No description provided for @errorMovingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to move folder'**
+  String get errorMovingFolder;
+
+  /// No description provided for @errorDeletingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete folder'**
+  String get errorDeletingFolder;
+
+  /// No description provided for @errorCreatingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create folder'**
+  String get errorCreatingFolder;
+
+  /// No description provided for @errorLoadingFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load folders'**
+  String get errorLoadingFolders;
+
+  /// No description provided for @cannotMoveToDescendant.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot move folder to its own descendant'**
+  String get cannotMoveToDescendant;
 
   /// No description provided for @expandAll.
   ///

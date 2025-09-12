@@ -30,6 +30,8 @@ import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/inbox_realtime_service.dart';
 import 'package:duru_notes/services/folder_realtime_service.dart';
 import 'package:duru_notes/services/notes_realtime_service.dart';
+import 'package:duru_notes/services/sort_preferences_service.dart';
+import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -183,18 +185,82 @@ final currentFolderProvider = StateNotifierProvider<CurrentFolderNotifier, Local
   return CurrentFolderNotifier();
 });
 
+/// Helper function to batch fetch tags for multiple notes
+Future<Map<String, Set<String>>> _batchFetchTags(
+  NotesRepository repo,
+  List<String> noteIds,
+) async {
+  final Map<String, Set<String>> result = {};
+  
+  // Batch fetch all tags in a single query
+  final db = repo.db;
+  final tagsQuery = db.select(db.noteTags)
+    ..where((t) => t.noteId.isIn(noteIds));
+  
+  final allTags = await tagsQuery.get();
+  
+  // Group tags by note ID
+  for (final tag in allTags) {
+    result.putIfAbsent(tag.noteId, () => {}).add(tag.tag);
+  }
+  
+  // Ensure all noteIds have an entry (even if empty)
+  for (final noteId in noteIds) {
+    result.putIfAbsent(noteId, () => {});
+  }
+  
+  return result;
+}
+
 /// Provider for folder-filtered notes
 final filteredNotesProvider = FutureProvider<List<LocalNote>>((ref) async {
   final currentFolder = ref.watch(currentFolderProvider);
+  final filterState = ref.watch(filterStateProvider);
   final repo = ref.watch(notesRepositoryProvider);
   
+  // Get base notes based on folder selection
+  List<LocalNote> notes;
   if (currentFolder != null) {
-    // Show notes in the selected folder
-    return repo.getNotesInFolder(currentFolder.id);
+    notes = await repo.getNotesInFolder(currentFolder.id);
   } else {
-    // Show all notes
-    return ref.watch(currentNotesProvider);
+    // IMPORTANT: Use watch instead of read to trigger rebuilds when notes update
+    notes = ref.watch(currentNotesProvider);
   }
+  
+  // Apply advanced filters if active
+  if (filterState != null && filterState.hasActiveFilters) {
+    // Filter by pinned status
+    if (filterState.pinnedOnly) {
+      notes = notes.where((note) => note.isPinned).toList();
+    }
+    
+    // Batch fetch tags for all notes if needed
+    if (filterState.includeTags.isNotEmpty || filterState.excludeTags.isNotEmpty) {
+      // Batch fetch all tags at once
+      final noteIds = notes.map((n) => n.id).toList();
+      final noteTagsMap = await _batchFetchTags(repo, noteIds);
+      
+      // Filter by included tags
+      if (filterState.includeTags.isNotEmpty) {
+        notes = notes.where((note) {
+          final tagSet = noteTagsMap[note.id] ?? {};
+          // Check if note has ALL required tags
+          return filterState.includeTags.every((tag) => tagSet.contains(tag));
+        }).toList();
+      }
+      
+      // Filter by excluded tags
+      if (filterState.excludeTags.isNotEmpty) {
+        notes = notes.where((note) {
+          final tagSet = noteTagsMap[note.id] ?? {};
+          // Check if note has NONE of the excluded tags
+          return !filterState.excludeTags.any((tag) => tagSet.contains(tag));
+        }).toList();
+      }
+    }
+  }
+  
+  return notes;
 });
 
 /// Provider to check if there are more notes to load
@@ -522,3 +588,55 @@ final searchServiceProvider = Provider<SearchService>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
   return SearchService(db: db, repo: repo);
 });
+
+/// Sort preferences service
+final sortPreferencesServiceProvider = Provider<SortPreferencesService>((ref) {
+  return SortPreferencesService();
+});
+
+/// Stream of saved searches from the database
+final savedSearchesStreamProvider = StreamProvider<List<SavedSearch>>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return repo.watchSavedSearches();
+});
+
+/// Current filter state for advanced filters
+final filterStateProvider = StateProvider<FilterState?>((ref) => null);
+
+/// Current sort spec for the selected folder
+final currentSortSpecProvider = StateNotifierProvider<CurrentSortSpecNotifier, NoteSortSpec>((ref) {
+  final currentFolder = ref.watch(currentFolderProvider);
+  final service = ref.watch(sortPreferencesServiceProvider);
+  
+  // Create a new notifier when folder changes
+  final notifier = CurrentSortSpecNotifier(service, currentFolder?.id);
+  
+  // Clean up when folder changes
+  ref.onDispose(() {
+    // Nothing to dispose, but could add cleanup if needed
+  });
+  
+  return notifier;
+});
+
+/// Notifier for managing the current sort spec
+class CurrentSortSpecNotifier extends StateNotifier<NoteSortSpec> {
+  CurrentSortSpecNotifier(this._service, this._folderId) : super(const NoteSortSpec()) {
+    _loadSortSpec();
+  }
+
+  final SortPreferencesService _service;
+  final String? _folderId;
+
+  Future<void> _loadSortSpec() async {
+    final spec = await _service.getSortForFolder(_folderId);
+    if (mounted) {
+      state = spec;
+    }
+  }
+
+  Future<void> updateSortSpec(NoteSortSpec spec) async {
+    state = spec;
+    await _service.setSortForFolder(_folderId, spec);
+  }
+}

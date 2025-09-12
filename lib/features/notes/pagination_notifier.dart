@@ -3,6 +3,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/core/debounce_utils.dart';
 
 // Global instances
 final AppLogger logger = LoggerFactory.instance;
@@ -140,6 +141,12 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
 
   /// Refresh the entire list (reset pagination)
   Future<void> refresh() async {
+    // For immediate refresh (e.g., after sync), call directly
+    // The debouncing is moved inside _doRefresh for rapid user-triggered refreshes
+    await _doRefresh();
+  }
+  
+  Future<void> _doRefresh() async {
     logger.info('Pagination: Refreshing notes list');
     
     try {

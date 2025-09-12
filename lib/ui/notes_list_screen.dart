@@ -9,6 +9,8 @@ import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
+import 'package:duru_notes/services/sort_preferences_service.dart';
+import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:duru_notes/ui/help_screen.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/ui/settings_screen.dart';
@@ -38,6 +40,7 @@ class NotesListScreen extends ConsumerStatefulWidget {
 class _NotesListScreenState extends ConsumerState<NotesListScreen>
     with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  final Map<String, DateTime> _lastPinToggle = {}; // Debounce tracking
   late AnimationController _fabAnimationController;
   late AnimationController _listAnimationController;
   late AnimationController _headerAnimationController;
@@ -47,7 +50,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Animation<double> _headerHeightAnimation = const AlwaysStoppedAnimation<double>(1);
   
   bool _isFabExpanded = false;
-  String _sortBy = 'date'; // date, title, modified
   bool _isGridView = false;
   final Set<String> _selectedNoteIds = {};
   bool _isSelectionMode = false;
@@ -105,6 +107,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     _fabAnimationController.dispose();
     _listAnimationController.dispose();
     _headerAnimationController.dispose();
+    _lastPinToggle.clear();
     super.dispose();
   }
 
@@ -159,6 +162,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           // Saved search chips with counts
           SavedSearchChips(
             onTap: (preset) => _handleSavedSearchTap(context, preset),
+            onCustomSearchTap: (search) => _handleCustomSavedSearchTap(context, search),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             getTagCounts: () async {
               final db = ref.read(appDbProvider);
@@ -176,6 +180,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               }
               return 0;
             },
+            // Filter button removed - now always in AppBar
           ),
           
           // User stats card with animation
@@ -308,6 +313,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       );
                     },
                   ),
+                  // Filter button - always visible in AppBar
+                  _buildFilterButton(context),
                   // View toggle
                   IconButton(
                     icon: AnimatedSwitcher(
@@ -566,6 +573,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
   
   Widget _buildNotesContent(BuildContext context, AsyncValue<List<LocalNote>> notesAsync, bool hasMore) {
+    // Watch sort spec changes to trigger rebuilds
+    ref.watch(currentSortSpecProvider);
+    
     return notesAsync.when(
       data: (notes) {
         final filteredNotes = notes;
@@ -769,14 +779,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.8),
                     ),
                     const SizedBox(width: 8),
-                    if (note.isPinned) ...[
-                      Icon(
-                        Icons.push_pin,
-                        size: 16,
-                        color: colorScheme.tertiary,
-                      ),
-                      const SizedBox(width: 4),
-                    ],
                     Expanded(
                       child: Text(
                         note.title,
@@ -789,6 +791,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Pin toggle button
+                    _PinToggleButton(
+                      noteId: note.id,
+                      isPinned: note.isPinned,
+                      colorScheme: colorScheme,
+                    ),
+                    const SizedBox(width: 4),
                     // Source icon positioned to the left of menu
                     NoteSourceIcon(
                       note: note,
@@ -871,6 +880,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         color: colorScheme.onSurfaceVariant.withOpacity(0.6),
                       ),
                     ),
+                    // Small pin indicator in subtitle
+                    if (note.isPinned) ...[
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.push_pin,
+                        size: 12,
+                        color: colorScheme.tertiary.withOpacity(0.7),
+                      ),
+                    ],
                     if (folderName != null) ...[
                       const SizedBox(width: 12),
                       Icon(
@@ -1905,6 +1923,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   List<LocalNote> _sortNotes(List<LocalNote> notes) {
     final sorted = List<LocalNote>.from(notes);
+    final sortSpec = ref.read(currentSortSpecProvider);
     
     // Separate pinned and unpinned notes
     final pinnedNotes = sorted.where((n) => n.isPinned).toList();
@@ -1912,13 +1931,27 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     
     // Sort each group separately
     void sortGroup(List<LocalNote> group) {
-      switch (_sortBy) {
-        case 'title':
-          group.sort((a, b) => a.title.compareTo(b.title));
-        case 'created':
-          group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt)); // Using updatedAt as createdAt is not available
-        default: // date
-          group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      switch (sortSpec.field) {
+        case NoteSortField.title:
+          if (sortSpec.direction == SortDirection.asc) {
+            group.sort((a, b) => a.title.compareTo(b.title));
+          } else {
+            group.sort((a, b) => b.title.compareTo(a.title));
+          }
+        case NoteSortField.createdAt:
+          // Using updatedAt as proxy since createdAt is not available
+          if (sortSpec.direction == SortDirection.asc) {
+            group.sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+          } else {
+            group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          }
+        case NoteSortField.updatedAt:
+        default:
+          if (sortSpec.direction == SortDirection.asc) {
+            group.sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+          } else {
+            group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          }
       }
     }
     
@@ -2165,7 +2198,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   
-  void _enterSearch() async {
+  void _enterSearch() => _showSearchScreen(context);
+  
+  Future<void> _showSearchScreen(BuildContext context, {String? initialQuery}) async {
     HapticFeedback.lightImpact();
     
     // Get current notes for search
@@ -2175,9 +2210,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       orElse: () => <LocalNote>[],
     );
     
+    // Get existing saved searches for duplicate checking
+    final existingSearches = await ref.read(notesRepositoryProvider).getSavedSearches();
+    
     // Create and show search delegate
     final delegate = NoteSearchDelegate(
       notes: notes,
+      initialQuery: initialQuery,
+      notesRepository: ref.read(notesRepositoryProvider),
+      existingSavedSearches: existingSearches,
       resolveFolderIdByName: (name) async {
         if (name == 'Incoming Mail') {
           return await ref.read(incomingMailFolderManagerProvider)
@@ -2218,6 +2259,91 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     });
   }
   
+  Widget _buildFilterButton(BuildContext context) {
+    final filterState = ref.watch(filterStateProvider);
+    final hasActiveFilters = filterState?.hasActiveFilters ?? false;
+    
+    return Stack(
+      children: [
+        IconButton(
+          icon: Icon(
+            hasActiveFilters 
+                ? Icons.filter_list 
+                : Icons.filter_list_outlined,
+            color: hasActiveFilters 
+                ? Theme.of(context).colorScheme.primary 
+                : null,
+          ),
+          onPressed: () => _showFilterSheet(context),
+          tooltip: 'Advanced Filters',
+        ),
+        if (hasActiveFilters)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+  
+  Future<void> _showFilterSheet(BuildContext context) async {
+    final currentFilter = ref.read(filterStateProvider);
+    final currentSort = ref.read(currentSortSpecProvider);
+    
+    await FiltersBottomSheet.show(
+      context,
+      initialState: currentFilter ?? FilterState(sortSpec: currentSort),
+      onApply: (filterState) async {
+        // Update filter state
+        ref.read(filterStateProvider.notifier).state = filterState;
+        
+        // Update sort spec if changed
+        if (filterState.sortSpec != currentSort) {
+          await ref.read(currentSortSpecProvider.notifier)
+              .updateSortSpec(filterState.sortSpec);
+        }
+        
+        // Apply filters by refreshing the notes list
+        _applyFilters(filterState);
+        
+        // Show brief confirmation
+        if (context.mounted && filterState.hasActiveFilters) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Filters applied'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
+  
+  void _applyFilters(FilterState filterState) {
+    // Force refresh of notes list with new filters
+    ref.read(notesPageProvider.notifier).refresh();
+    
+    // If filters are active, you might want to clear folder selection
+    // to show filtered results from all folders
+    if (filterState.hasActiveFilters && 
+        (filterState.includeTags.isNotEmpty || filterState.excludeTags.isNotEmpty)) {
+      // Optionally clear folder selection to show all filtered results
+      // ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+    }
+  }
+  
   void _handleMenuSelection(String value) {
     HapticFeedback.selectionClick();
     switch (value) {
@@ -2237,71 +2363,118 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
   
   void _showSortDialog(BuildContext context) {
+    final currentSort = ref.read(currentSortSpecProvider);
+    final theme = Theme.of(context);
+    
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Sort Notes',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          NoteSortSpec selectedSort = currentSort;
+          
+          return Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.only(bottom: 20),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'Sort Notes',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  // Sort options
+                  ...SortPreferencesService.getAllSortOptions().map((spec) {
+                    final isSelected = selectedSort == spec;
+                    IconData icon;
+                    
+                    // Choose icon based on sort field
+                    switch (spec.field) {
+                      case NoteSortField.title:
+                        icon = Icons.sort_by_alpha_rounded;
+                      case NoteSortField.createdAt:
+                        icon = Icons.access_time_rounded;
+                      case NoteSortField.updatedAt:
+                      default:
+                        icon = Icons.update_rounded;
+                    }
+                    
+                    return RadioListTile<NoteSortSpec>(
+                      value: spec,
+                      groupValue: selectedSort,
+                      onChanged: (value) async {
+                        if (value != null) {
+                          setModalState(() {
+                            selectedSort = value;
+                          });
+                          
+                          // Apply the sort preference
+                          await ref.read(currentSortSpecProvider.notifier).updateSortSpec(value);
+                          
+                          // Haptic feedback
+                          HapticFeedback.selectionClick();
+                          
+                          // Force refresh the UI
+                          setState(() {});
+                          
+                          // Close the sheet
+                          if (mounted) {
+                            Navigator.pop(context);
+                            
+                            // Show confirmation toast
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Sorted by ${value.label}'),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      title: Text(spec.label),
+                      secondary: Icon(icon),
+                      activeColor: theme.colorScheme.primary,
+                      selected: isSelected,
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            _buildSortOption('Date Modified', 'date', Icons.calendar_today_rounded),
-            _buildSortOption('Title', 'title', Icons.sort_by_alpha_rounded),
-            _buildSortOption('Date Created', 'created', Icons.access_time_rounded),
-          ],
-        ),
+          );
+        },
       ),
-    );
-  }
-  
-  Widget _buildSortOption(String title, String value, IconData icon) {
-    final theme = Theme.of(context);
-    final isSelected = _sortBy == value;
-    
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected 
-            ? theme.colorScheme.primary 
-            : theme.colorScheme.onSurfaceVariant,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.onSurface,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      trailing: isSelected 
-          ? Icon(
-              Icons.check_rounded,
-              color: theme.colorScheme.primary,
-            )
-          : null,
-      onTap: () {
-        Navigator.pop(context);
-        HapticFeedback.selectionClick();
-        setState(() {
-          _sortBy = value;
-        });
-      },
     );
   }
   
@@ -2882,6 +3055,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       );
     }
   }
+  
+  void _handleCustomSavedSearchTap(BuildContext context, SavedSearch search) async {
+    HapticFeedback.selectionClick();
+    
+    // Update usage statistics
+    await ref.read(notesRepositoryProvider).db.updateSavedSearchUsage(search.id);
+    
+    // Open search with the saved query
+    await _showSearchScreen(context, initialQuery: search.query);
+  }
 }
 
 /// Enum for import types
@@ -3100,5 +3283,103 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
       final seconds = estimatedSeconds % 60;
       return '${minutes}m ${seconds}s';
     }
+  }
+}
+
+/// Pin toggle button widget with debouncing
+class _PinToggleButton extends ConsumerStatefulWidget {
+  const _PinToggleButton({
+    required this.noteId,
+    required this.isPinned,
+    required this.colorScheme,
+  });
+
+  final String noteId;
+  final bool isPinned;
+  final ColorScheme colorScheme;
+
+  @override
+  ConsumerState<_PinToggleButton> createState() => _PinToggleButtonState();
+}
+
+class _PinToggleButtonState extends ConsumerState<_PinToggleButton> {
+  static final Map<String, DateTime> _lastToggle = {};
+  static const _debounceMs = 300;
+  bool _isToggling = false;
+
+  Future<void> _togglePin() async {
+    // Debounce check
+    final lastToggle = _lastToggle[widget.noteId];
+    if (lastToggle != null) {
+      final elapsed = DateTime.now().difference(lastToggle).inMilliseconds;
+      if (elapsed < _debounceMs) {
+        return; // Ignore rapid taps
+      }
+    }
+
+    // Update debounce tracker
+    _lastToggle[widget.noteId] = DateTime.now();
+
+    // Prevent concurrent toggles
+    if (_isToggling) return;
+    
+    setState(() => _isToggling = true);
+
+    try {
+      // Haptic feedback
+      await HapticFeedback.mediumImpact();
+
+      // Toggle pin state
+      final notesRepo = ref.read(notesRepositoryProvider);
+      await notesRepo.setNotePin(widget.noteId, !widget.isPinned);
+
+      // Show snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isPinned ? 'Unpinned' : 'Pinned'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to update pin status'),
+            backgroundColor: widget.colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isToggling = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+        size: 20,
+        color: widget.isPinned 
+            ? widget.colorScheme.tertiary 
+            : widget.colorScheme.onSurfaceVariant.withOpacity(0.6),
+      ),
+      onPressed: _isToggling ? null : _togglePin,
+      tooltip: widget.isPinned ? 'Unpin' : 'Pin',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(
+        minWidth: 32,
+        minHeight: 32,
+      ),
+    );
   }
 }

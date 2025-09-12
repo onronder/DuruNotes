@@ -54,12 +54,6 @@ class SavedSearchRegistry {
       queryToken: null,  // Disabled to force tag-based routing
       tag: 'Web',
     ),
-    SavedSearchPreset(
-      key: SavedSearchKey.inbox,
-      label: 'Inbox',
-      icon: Icons.inbox,
-      queryToken: null,  // Disabled to use folder selection
-      folderName: kIncomingMailFolderName,  // Use 'Incoming Mail' folder
-    ),
+    // Inbox removed - using the inbox icon in AppBar instead
   ];
 }

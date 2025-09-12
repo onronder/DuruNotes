@@ -20,6 +20,7 @@ class NotesRealtimeService extends ChangeNotifier {
   final Ref _ref;
   RealtimeChannel? _channel;
   bool _isSubscribed = false;
+  bool _disposed = false;
   
   // Event deduplication
   final Set<String> _processedEventIds = {};
@@ -47,6 +48,10 @@ class NotesRealtimeService extends ChangeNotifier {
   
   /// Start realtime subscription for notes changes
   Future<void> start() async {
+    if (_disposed) {
+      debugPrint('[NotesRealtime] Cannot start: service is disposed');
+      return;
+    }
     await stop(); // Clean up any existing subscription
     
     final userId = _supabase.auth.currentUser?.id;
@@ -90,22 +95,27 @@ class NotesRealtimeService extends ChangeNotifier {
           _isSubscribed = true;
           _reconnectAttempts = 0; // Reset on successful connection
           _cancelReconnectTimer();
-          notifyListeners();
+          if (!_disposed) {
+            notifyListeners();
+          }
           debugPrint('[NotesRealtime] Subscription active');
         } else if (status == RealtimeSubscribeStatus.closed || 
                    status == RealtimeSubscribeStatus.channelError) {
           _isSubscribed = false;
-          notifyListeners();
-          debugPrint('[NotesRealtime] Subscription lost: $status, error: $error');
-          
-          // Schedule reconnect with exponential backoff
-          _scheduleReconnect();
+          if (!_disposed) {
+            notifyListeners();
+            debugPrint('[NotesRealtime] Subscription lost: $status, error: $error');
+            // Schedule reconnect with exponential backoff
+            _scheduleReconnect();
+          }
         }
       });
     } catch (e) {
       debugPrint('[NotesRealtime] Failed to setup subscription: $e');
       _isSubscribed = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     }
   }
   
@@ -120,7 +130,9 @@ class NotesRealtimeService extends ChangeNotifier {
     _isSubscribed = false;
     _processedEventIds.clear();
     _reconnectAttempts = 0;
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
     debugPrint('[NotesRealtime] Subscription stopped');
   }
   
@@ -175,7 +187,9 @@ class NotesRealtimeService extends ChangeNotifier {
       _scheduleProviderInvalidation();
       
       // Notify listeners
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[NotesRealtime] Error handling notes change: $e');
     }
@@ -217,7 +231,9 @@ class NotesRealtimeService extends ChangeNotifier {
       _scheduleProviderInvalidation();
       
       // Notify listeners
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[NotesRealtime] Error handling folder change: $e');
     }
@@ -228,17 +244,19 @@ class NotesRealtimeService extends ChangeNotifier {
     _cancelDebounceTimer();
     
     _debounceTimer = Timer(_debounceDuration, () {
-      try {
-        // Invalidate notes providers to trigger refresh
-        debugPrint('[NotesRealtime] Invalidating notes providers');
-        
-        // Invalidate the filtered notes provider to refresh the list
-        _ref.invalidate(filteredNotesProvider);
-        
-        // Also refresh the notes page
-        _ref.read(notesPageProvider.notifier).refresh();
-      } catch (e) {
-        debugPrint('[NotesRealtime] Error invalidating providers: $e');
+      if (!_disposed) {
+        try {
+          // Invalidate notes providers to trigger refresh
+          debugPrint('[NotesRealtime] Invalidating notes providers');
+          
+          // Invalidate the filtered notes provider to refresh the list
+          _ref.invalidate(filteredNotesProvider);
+          
+          // Also refresh the notes page
+          _ref.read(notesPageProvider.notifier).refresh();
+        } catch (e) {
+          debugPrint('[NotesRealtime] Error invalidating providers: $e');
+        }
       }
     });
   }
@@ -251,8 +269,8 @@ class NotesRealtimeService extends ChangeNotifier {
   
   /// Schedule reconnection with exponential backoff
   void _scheduleReconnect() {
-    if (_reconnectTimer?.isActive ?? false) {
-      return; // Already scheduled
+    if (_disposed || (_reconnectTimer?.isActive ?? false)) {
+      return; // Service disposed or already scheduled
     }
     
     final delayIndex = _reconnectAttempts < _backoffDelays.length 
@@ -263,7 +281,7 @@ class NotesRealtimeService extends ChangeNotifier {
     debugPrint('[NotesRealtime] Scheduling reconnect in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
     
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (!_isSubscribed && _supabase.auth.currentUser != null) {
+      if (!_disposed && !_isSubscribed && _supabase.auth.currentUser != null) {
         _reconnectAttempts++;
         debugPrint('[NotesRealtime] Attempting to reconnect...');
         start();
@@ -291,9 +309,10 @@ class NotesRealtimeService extends ChangeNotifier {
   
   @override
   void dispose() {
-    stop();
+    _disposed = true;
     _cancelReconnectTimer();
     _cancelDebounceTimer();
+    stop();
     _listRefreshController.close();
     super.dispose();
   }
