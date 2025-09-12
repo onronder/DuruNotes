@@ -103,3 +103,5 @@ assets/env/*.env
 *.tmp
 *.temp
 *.cache
+# Firebase configuration files (contain API keys)
+android/app/google-services.json
