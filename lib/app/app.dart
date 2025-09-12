@@ -289,6 +289,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           // Initialize folder update listener
           ref.watch(folderUpdateListenerProvider);
           
+          // Register push token for authenticated users
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('🔔 Attempting push token registration after authentication...');
+            _registerPushTokenInBackground();
+          });
+          
           return const NotesListScreen();
             },
           );
@@ -385,5 +391,27 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
     }
     
     return false;
+  }
+  
+  Future<void> _registerPushTokenInBackground() async {
+    // Register push token in background to not block UI
+    debugPrint('🔔 Starting push token registration...');
+    try {
+      final pushService = ref.read(pushNotificationServiceProvider);
+      debugPrint('🔔 Push service obtained, calling registerWithBackend...');
+      final result = await pushService.registerWithBackend();
+      if (result.success) {
+        debugPrint('✅ Push token registered successfully!');
+        if (result.token != null) {
+          debugPrint('📱 Token: ${result.token!.substring(0, 30)}...');
+        }
+      } else {
+        debugPrint('❌ Push token registration failed: ${result.error}');
+      }
+    } catch (e, stack) {
+      // Log error but don't show to user - push registration failure shouldn't block app usage
+      debugPrint('❌ Failed to register push token: $e');
+      debugPrint('Stack trace: $stack');
+    }
   }
 }

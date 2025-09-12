@@ -33,7 +33,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         final unreadService = ref.read(inboxUnreadServiceProvider);
-        unreadService.markInboxViewed();
+        unreadService?.markInboxViewed();
       } catch (e) {
         // Unread service might not be available
         debugPrint('Could not mark inbox as viewed: $e');

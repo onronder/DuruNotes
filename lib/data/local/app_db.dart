@@ -857,6 +857,44 @@ class AppDb extends _$AppDb {
   }
 
   /// Get notes for saved search with authoritative filtering
+  /// Debug method to check metadata content
+  Future<void> debugMetadata() async {
+    print('=== DEBUG METADATA ===');
+    final allNotes = await select(localNotes).get();
+    print('Total notes: ${allNotes.length}');
+    
+    for (final note in allNotes) {
+      if (note.encryptedMetadata != null && note.encryptedMetadata!.isNotEmpty) {
+        print('\nNote: ${note.title}');
+        print('Raw metadata: ${note.encryptedMetadata}');
+        
+        try {
+          final meta = jsonDecode(note.encryptedMetadata!);
+          final source = meta['source'];
+          if (source != null) {
+            print('  Source: $source');
+          }
+          if (meta['attachments'] != null) {
+            print('  Has attachments: ${meta['attachments']}');
+          }
+        } catch (e) {
+          print('  Error parsing: $e');
+        }
+      }
+    }
+    
+    // Test simpler queries
+    final emailCount = await customSelect(
+      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%email_in%'"
+    ).getSingle();
+    print('\nNotes with "email_in": ${emailCount.data['cnt']}');
+    
+    final webCount = await customSelect(
+      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%web%'"
+    ).getSingle();
+    print('Notes with "web": ${webCount.data['cnt']}');
+  }
+  
   /// Combines metadata, tags, and content checks to prevent false negatives
   Future<List<LocalNote>> notesForSavedSearch({
     required String savedSearchKey,
