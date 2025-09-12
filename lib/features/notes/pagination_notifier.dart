@@ -61,6 +61,7 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
         hasMore: true,
         nextCursor: null,
       )));
+  
 
   final NotesRepository _repo;
   static const int _pageSize = 20;
@@ -194,6 +195,7 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
   /// Check if currently loading more items
   bool get isLoadingMore => _isLoadingMore;
 }
+
 
 /// Extension to add pagination-specific analytics events
 extension PaginationAnalytics on AnalyticsEvents {

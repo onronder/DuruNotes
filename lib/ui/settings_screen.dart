@@ -676,19 +676,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isSyncing ? null : () => _performManualSync(l10n),
-                      icon: _isSyncing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.sync),
-                      label: Text(_isSyncing ? l10n.syncing : l10n.syncNow),
-                    ),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isSyncing ? null : () => _performManualSync(l10n),
+                          icon: _isSyncing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.sync),
+                          label: Text(_isSyncing ? l10n.syncing : l10n.syncNow),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Debug button for testing saved searches
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final db = ref.read(appDbProvider);
+                            await db.debugMetadata();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Check console for debug output'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.bug_report),
+                          label: const Text('Debug Saved Searches'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -5,6 +5,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,12 @@ Future<void> main() async {
     // Validate configuration
     if (!EnvironmentConfig.validateConfig()) {
       throw Exception('Invalid environment configuration');
+    }
+
+    // Initialize Firebase before Supabase
+    await Firebase.initializeApp();
+    if (EnvironmentConfig.current.debugMode) {
+      print('✅ Firebase initialized successfully');
     }
 
     // Initialize Supabase

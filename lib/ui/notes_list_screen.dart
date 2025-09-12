@@ -142,9 +142,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Initialize realtime services
-    ref.watch(folderRealtimeServiceProvider);
-    ref.watch(notesRealtimeServiceProvider);
+    // Initialize realtime services (only if authenticated)
+    final folderRealtime = ref.watch(folderRealtimeServiceProvider);
+    final notesRealtime = ref.watch(notesRealtimeServiceProvider);
     
     // Trigger early loading of folders for deterministic first paint
     ref.watch(rootFoldersProvider);
@@ -261,7 +261,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       int unreadCount = 0;
                       try {
                         final unreadService = ref.watch(inboxUnreadServiceProvider);
-                        unreadCount = unreadService.unreadCount;
+                        unreadCount = unreadService?.unreadCount ?? 0;
                       } catch (e) {
                         // Service might not be available
                       }
@@ -279,7 +279,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                               // Update badge count after returning
                               try {
                                 final unreadService = ref.read(inboxUnreadServiceProvider);
-                                await unreadService.computeBadgeCount();
+                                await unreadService?.computeBadgeCount();
                               } catch (_) {}
                             },
                             tooltip: 'Inbox',

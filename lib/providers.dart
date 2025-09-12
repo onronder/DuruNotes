@@ -21,6 +21,7 @@ import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
+import 'package:duru_notes/services/push_notification_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/clipper_inbox_notes_adapter.dart';
@@ -161,7 +162,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 /// Provider for paginated notes
-final notesPageProvider = StateNotifierProvider<NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
+final notesPageProvider = StateNotifierProvider.autoDispose<NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
   return NotesPaginationNotifier(repo)..loadMore(); // Load first page immediately
 });
@@ -302,6 +303,25 @@ final accountKeyServiceProvider = Provider<AccountKeyService>((ref) {
   );
 });
 
+/// Push notification service provider
+final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+  final service = PushNotificationService(
+    logger: ref.watch(loggerProvider),
+  );
+  
+  // Initialize the service
+  service.initialize().catchError((error) {
+    ref.watch(loggerProvider).error('Failed to initialize push notification service: $error');
+  });
+  
+  // Clean up on disposal
+  ref.onDispose(() {
+    service.dispose();
+  });
+  
+  return service;
+});
+
 /// Attachment service provider
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
   return AttachmentService(
@@ -400,12 +420,13 @@ final inboxRealtimeServiceProvider = ChangeNotifierProvider<InboxRealtimeService
 });
 
 /// Folder realtime subscription service provider
-final folderRealtimeServiceProvider = Provider<FolderRealtimeService>((ref) {
+final folderRealtimeServiceProvider = Provider<FolderRealtimeService?>((ref) {
   ref.watch(authStateChangesProvider);
   final client = Supabase.instance.client;
   
+  // Return null if not authenticated - graceful degradation
   if (client.auth.currentUser == null) {
-    throw StateError('FolderRealtimeService requested without authentication');
+    return null;
   }
   
   final service = FolderRealtimeService(
@@ -425,12 +446,13 @@ final folderRealtimeServiceProvider = Provider<FolderRealtimeService>((ref) {
 });
 
 /// Notes realtime subscription service provider
-final notesRealtimeServiceProvider = ChangeNotifierProvider<NotesRealtimeService>((ref) {
+final notesRealtimeServiceProvider = ChangeNotifierProvider<NotesRealtimeService?>((ref) {
   ref.watch(authStateChangesProvider);
   final client = Supabase.instance.client;
   
+  // Return null if not authenticated - graceful degradation
   if (client.auth.currentUser == null) {
-    throw StateError('NotesRealtimeService requested without authentication');
+    return null;
   }
   
   final service = NotesRealtimeService(
@@ -450,12 +472,13 @@ final notesRealtimeServiceProvider = ChangeNotifierProvider<NotesRealtimeService
 });
 
 /// Inbox unread tracking service provider
-final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService>((ref) {
+final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService?>((ref) {
   ref.watch(authStateChangesProvider);
   final client = Supabase.instance.client;
   
+  // Return null if not authenticated - graceful degradation
   if (client.auth.currentUser == null) {
-    throw StateError('InboxUnreadService requested without authentication');
+    return null;
   }
   
   final service = InboxUnreadService(supabase: client);

@@ -1,4 +1,5 @@
 import 'package:duru_notes/providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -74,6 +75,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
         // Let AuthWrapper in app.dart handle the unlock screen
         // This prevents duplicate unlock prompts
+        
+        // Register push token after successful login
+        _registerPushTokenInBackground();
       }
     } catch (error) {
       if (mounted) {
@@ -88,6 +92,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _registerPushTokenInBackground() async {
+    // Register push token in background to not block UI
+    try {
+      final pushService = ref.read(pushNotificationServiceProvider);
+      await pushService.registerWithBackend();
+    } catch (e) {
+      // Log error but don't show to user - push registration failure shouldn't block app usage
+      debugPrint('Failed to register push token: $e');
     }
   }
 
