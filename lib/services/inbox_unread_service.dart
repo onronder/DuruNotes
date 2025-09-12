@@ -23,6 +23,7 @@ class InboxUnreadService extends ChangeNotifier {
   DateTime? _lastViewedTimestamp;
   int _unreadCount = 0;
   InboxBadgeMode _badgeMode = kDefaultBadgeMode;
+  bool _disposed = false;
   
   InboxUnreadService({required SupabaseClient supabase}) : _supabase = supabase {
     _loadSettings();
@@ -64,7 +65,9 @@ class InboxUnreadService extends ChangeNotifier {
       // Load cached count
       _unreadCount = prefs.getInt(_unreadCountKey) ?? 0;
       
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
       
       // Compute fresh count after loading
       await computeBadgeCount();
@@ -91,7 +94,9 @@ class InboxUnreadService extends ChangeNotifier {
         await prefs.setInt(_unreadCountKey, 0);
       }
       
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
       debugPrint('[InboxUnread] Marked inbox as viewed at $_lastViewedTimestamp (mode: $_badgeMode)');
       
       // In total mode, recompute to get current total
@@ -109,7 +114,9 @@ class InboxUnreadService extends ChangeNotifier {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
         _unreadCount = 0;
+        if (!_disposed) {
         notifyListeners();
+      }
         return;
       }
       
@@ -137,7 +144,9 @@ class InboxUnreadService extends ChangeNotifier {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_unreadCountKey, _unreadCount);
         
+        if (!_disposed) {
         notifyListeners();
+      }
         debugPrint('[InboxUnread] Badge count updated: $_unreadCount (mode: $_badgeMode)');
       }
     } catch (e) {
@@ -159,6 +168,11 @@ class InboxUnreadService extends ChangeNotifier {
   
   /// Clear all stored data (useful on logout)
   Future<void> clear() async {
+    if (_disposed) {
+      debugPrint('[InboxUnread] Cannot clear: service is disposed');
+      return;
+    }
+    
     try {
       _lastViewedTimestamp = null;
       _unreadCount = 0;
@@ -167,9 +181,17 @@ class InboxUnreadService extends ChangeNotifier {
       await prefs.remove(_lastViewedKey);
       await prefs.remove(_unreadCountKey);
       
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[InboxUnread] Error clearing data: $e');
     }
+  }
+  
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

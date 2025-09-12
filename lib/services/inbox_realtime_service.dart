@@ -15,6 +15,7 @@ class InboxRealtimeService extends ChangeNotifier {
   final SupabaseClient _supabase;
   RealtimeChannel? _channel;
   bool _isSubscribed = false;
+  bool _disposed = false;
   
   // Event deduplication
   final Set<String> _processedEventIds = {};
@@ -36,6 +37,10 @@ class InboxRealtimeService extends ChangeNotifier {
   
   /// Start realtime subscription for inbox changes
   Future<void> start() async {
+    if (_disposed) {
+      debugPrint('[InboxRealtime] Cannot start: service is disposed');
+      return;
+    }
     await stop(); // Clean up any existing subscription
     
     final userId = _supabase.auth.currentUser?.id;
@@ -79,22 +84,27 @@ class InboxRealtimeService extends ChangeNotifier {
           _isSubscribed = true;
           _reconnectAttempts = 0; // Reset on successful connection
           _cancelReconnectTimer();
-          notifyListeners();
+          if (!_disposed) {
+            notifyListeners();
+          }
           debugPrint('[InboxRealtime] Subscription active');
         } else if (status == RealtimeSubscribeStatus.closed || 
                    status == RealtimeSubscribeStatus.channelError) {
           _isSubscribed = false;
-          notifyListeners();
-          debugPrint('[InboxRealtime] Subscription lost: $status, error: $error');
-          
-          // Schedule reconnect with exponential backoff
-          _scheduleReconnect();
+          if (!_disposed) {
+            notifyListeners();
+            debugPrint('[InboxRealtime] Subscription lost: $status, error: $error');
+            // Schedule reconnect with exponential backoff
+            _scheduleReconnect();
+          }
         }
       });
     } catch (e) {
       debugPrint('[InboxRealtime] Failed to setup subscription: $e');
       _isSubscribed = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     }
   }
   
@@ -108,14 +118,16 @@ class InboxRealtimeService extends ChangeNotifier {
     _isSubscribed = false;
     _processedEventIds.clear();
     _reconnectAttempts = 0;
-    notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
     debugPrint('[InboxRealtime] Subscription stopped');
   }
   
   /// Schedule reconnection with exponential backoff
   void _scheduleReconnect() {
-    if (_reconnectTimer?.isActive ?? false) {
-      return; // Already scheduled
+    if (_disposed || (_reconnectTimer?.isActive ?? false)) {
+      return; // Service disposed or already scheduled
     }
     
     final delayIndex = _reconnectAttempts < _backoffDelays.length 
@@ -126,7 +138,7 @@ class InboxRealtimeService extends ChangeNotifier {
     debugPrint('[InboxRealtime] Scheduling reconnect in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
     
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (!_isSubscribed && _supabase.auth.currentUser != null) {
+      if (!_disposed && !_isSubscribed && _supabase.auth.currentUser != null) {
         _reconnectAttempts++;
         debugPrint('[InboxRealtime] Attempting to reconnect...');
         start();
@@ -167,7 +179,9 @@ class InboxRealtimeService extends ChangeNotifier {
       _listRefreshController.add(InboxRealtimeEvent.listChanged);
       
       // Notify listeners (triggers badge update)
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[InboxRealtime] Error handling INSERT: $e');
     }
@@ -201,7 +215,9 @@ class InboxRealtimeService extends ChangeNotifier {
       _listRefreshController.add(InboxRealtimeEvent.listChanged);
       
       // Notify listeners (triggers badge update)
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[InboxRealtime] Error handling DELETE: $e');
     }
@@ -221,8 +237,9 @@ class InboxRealtimeService extends ChangeNotifier {
   
   @override
   void dispose() {
-    stop();
+    _disposed = true;
     _cancelReconnectTimer();
+    stop();
     _listRefreshController.close();
     super.dispose();
   }

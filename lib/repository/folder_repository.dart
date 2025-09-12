@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Sort specification for notes
@@ -248,6 +249,14 @@ class FolderRepository {
     final children = await db.getChildFolders(folderId);
     for (final child in children) {
       await deleteFolder(folderId: child.id, moveNotesToInbox: moveNotesToInbox);
+    }
+
+    // Clean up sort preferences for this folder
+    try {
+      await SortPreferencesService().removeSortForFolder(folderId);
+    } catch (e) {
+      // Silently fail - preferences cleanup is not critical
+      debugPrint('Failed to clean up sort preferences for folder: $e');
     }
 
     await db.enqueue(folderId, 'delete_folder');

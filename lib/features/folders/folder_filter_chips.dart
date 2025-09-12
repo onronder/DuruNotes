@@ -2,9 +2,15 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
+import 'package:duru_notes/core/haptic_utils.dart';
+import 'package:duru_notes/core/animation_config.dart';
+import 'package:duru_notes/core/accessibility_utils.dart';
+import 'package:duru_notes/core/debounce_utils.dart';
 
 /// Material 3 filter chips for folder navigation
 class FolderFilterChips extends ConsumerStatefulWidget {
@@ -32,7 +38,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
   void initState() {
     super.initState();
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: AnimationConfig.standard,
       vsync: this,
     );
     _slideController.forward();
@@ -49,6 +55,11 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     
+    // Auto-scroll to selected chip when selection changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedChip();
+    });
+    
     return SlideTransition(
       position: Tween<Offset>(
         begin: const Offset(0, -1),
@@ -58,18 +69,24 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
         curve: Curves.easeOutCubic,
       )),
       child: Container(
-        height: 60,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        height: AccessibilityUtils.minTouchTarget + 12, // 44dp + padding
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Consumer(
           builder: (context, ref, child) {
             final currentFolder = ref.watch(currentFolderProvider);
             final rootFoldersAsync = ref.watch(rootFoldersProvider);
             final unfiledCountAsync = ref.watch(unfiledNotesCountProvider);
             
+            // Debounce UI updates to animation frame
+            DebounceUtils.debounceFrame('folder_chips_update', () {
+              if (mounted) setState(() {});
+            });
+            
             return ListView(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
               padding: widget.padding,
+              physics: const ClampingScrollPhysics(),
               children: [
                 // All Notes chip
                 _FilterChip(
@@ -77,6 +94,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                   icon: Icons.notes,
                   isSelected: currentFolder == null,
                   onSelected: () {
+                    HapticUtils.selection();
                     // Clear folder filter by updating current folder to null
                     widget.onFolderSelected?.call(null);
                   },
@@ -132,13 +150,13 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                   onSelected: _showFolderPicker,
                 ),
                 
-                // Create folder chip (optional)
+                // New Folder chip (trailing)
                 if (widget.showCreateOption) ...[
                   const SizedBox(width: 8),
                   _ActionChip(
-                    label: l10n.createNewFolder,
-                    icon: Icons.add,
-                    onPressed: () => _showFolderPicker(showCreate: true),
+                    label: l10n.newFolder,
+                    icon: Icons.create_new_folder_outlined,
+                    onPressed: () => _showCreateFolderSheet(context),
                   ),
                 ],
               ],
@@ -146,6 +164,34 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
           },
         ),
       ),
+    );
+  }
+
+  void _scrollToSelectedChip() {
+    // Calculate approximate position of selected chip
+    // This is a simple implementation - could be enhanced with actual measurements
+    if (_scrollController.hasClients) {
+      // Don't auto-scroll for now to avoid jarring UX
+      // Could implement smooth scrolling to selected chip in future
+    }
+  }
+
+  Future<void> _showCreateFolderSheet(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
+          ),
+          child: _CreateFolderSheet(),
+        );
+      },
     );
   }
 
@@ -183,8 +229,15 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final semanticLabel = count != null 
+        ? '$label, $count items, ${isSelected ? "Selected" : "Not selected"}'
+        : '$label, ${isSelected ? "Selected" : "Not selected"}';
     
-    return FilterChip(
+    return AccessibilityUtils.semanticChip(
+      label: semanticLabel,
+      selected: isSelected,
+      onTap: onSelected,
+      child: FilterChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -217,7 +270,11 @@ class _FilterChip extends StatelessWidget {
         ],
       ),
       selected: isSelected,
-      onSelected: (_) => onSelected(),
+      onSelected: (_) {
+        HapticUtils.selection();
+        onSelected();
+        AccessibilityUtils.announce(context, '$label selected');
+      },
       backgroundColor: colorScheme.surface,
       selectedColor: colorScheme.secondaryContainer,
       side: BorderSide(
@@ -226,11 +283,12 @@ class _FilterChip extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
+    ),
     );
   }
 }
 
-class _FolderChip extends ConsumerWidget {
+class _FolderChip extends ConsumerStatefulWidget {
   const _FolderChip({
     required this.folder,
     required this.isSelected,
@@ -242,69 +300,382 @@ class _FolderChip extends ConsumerWidget {
   final VoidCallback onSelected;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FolderChip> createState() => _FolderChipState();
+}
+
+class _FolderChipState extends ConsumerState<_FolderChip> {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     
     // Get note count for this folder
     return FutureBuilder<int>(
-      future: ref.read(notesRepositoryProvider).db.countNotesInFolder(folder.id),
+      future: ref.read(notesRepositoryProvider).db.countNotesInFolder(widget.folder.id),
       builder: (context, snapshot) {
         final noteCount = snapshot.data ?? 0;
+        final semanticLabel = noteCount > 0
+            ? '${widget.folder.name} folder, $noteCount notes, ${widget.isSelected ? "Selected" : "Not selected"}'
+            : '${widget.folder.name} folder, ${widget.isSelected ? "Selected" : "Not selected"}';
         
-        return FilterChip(
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  FolderIconHelpers.getFolderIcon(folder.icon),
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(folder.name),
-              if (noteCount > 0) ...[
-                const SizedBox(width: 4),
+        return AccessibilityUtils.semanticChip(
+          label: semanticLabel,
+          selected: widget.isSelected,
+          onTap: widget.onSelected,
+          child: GestureDetector(
+            onLongPress: () => _showFolderActions(context, l10n),
+            child: FilterChip(
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  width: 16,
+                  height: 16,
                   decoration: BoxDecoration(
-                    color: isSelected 
-                        ? colorScheme.onSecondaryContainer.withOpacity(0.2)
-                        : colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
+                    color: FolderIconHelpers.getFolderColor(widget.folder.color) ?? colorScheme.primary,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(
-                    noteCount.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
+                  child: Icon(
+                    FolderIconHelpers.getFolderIcon(widget.folder.icon),
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(widget.folder.name),
+                if (noteCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: widget.isSelected 
+                          ? colorScheme.onSecondaryContainer.withOpacity(0.2)
+                          : colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      noteCount.toString(),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: widget.isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
+            selected: widget.isSelected,
+            onSelected: (_) {
+              HapticUtils.selection();
+              widget.onSelected();
+              AccessibilityUtils.announce(context, '${widget.folder.name} folder selected');
+            },
+            backgroundColor: colorScheme.surface,
+            selectedColor: colorScheme.secondaryContainer,
+            side: BorderSide(
+              color: widget.isSelected ? Colors.transparent : colorScheme.outline,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            tooltip: widget.folder.name,
           ),
-          selected: isSelected,
-          onSelected: (_) => onSelected(),
-          backgroundColor: colorScheme.surface,
-          selectedColor: colorScheme.secondaryContainer,
-          side: BorderSide(
-            color: isSelected ? Colors.transparent : colorScheme.outline,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
           ),
         );
       },
     );
+  }
+
+  Future<void> _showFolderActions(BuildContext context, AppLocalizations l10n) async {
+    // Haptic feedback
+    await HapticUtils.selection();
+    
+    if (!mounted) return;
+    
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Folder name header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  widget.folder.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              // Action items
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l10n.rename),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _renameFolder(context, l10n);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: Text(l10n.move),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _moveFolder(context, l10n);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  l10n.delete,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: Text(l10n.folderDeleteDescription),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _deleteFolder(context, l10n);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _renameFolder(BuildContext context, AppLocalizations l10n) async {
+    final controller = TextEditingController(text: widget.folder.name);
+    
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(l10n.renameFolder),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.folderName,
+                  errorText: errorText,
+                ),
+                onChanged: (value) {
+                  if (errorText != null) {
+                    setState(() => errorText = null);
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.cancel),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final name = controller.text.trim();
+                    if (name.isEmpty) {
+                      setState(() => errorText = l10n.folderNameEmpty);
+                      return;
+                    }
+                    
+                    // Check for duplicate name among siblings
+                    final siblings = widget.folder.parentId != null
+                        ? await ref.read(folderRepositoryProvider).db.getChildFolders(widget.folder.parentId!)
+                        : await ref.read(folderRepositoryProvider).db.getRootFolders();
+                    final isDuplicate = siblings.any(
+                      (f) => f.id != widget.folder.id && f.name == name
+                    );
+                    
+                    if (isDuplicate) {
+                      setState(() => errorText = l10n.folderNameDuplicate);
+                      return;
+                    }
+                    
+                    Navigator.pop(dialogContext, name);
+                  },
+                  child: Text(l10n.rename),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    
+    if (newName != null && newName != widget.folder.name) {
+      try {
+        await ref.read(folderRepositoryProvider).renameFolder(
+          folderId: widget.folder.id,
+          newName: newName,
+        );
+        
+        await HapticUtils.success();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.folderRenamed),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorRenamingFolder),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+    
+    controller.dispose();
+  }
+
+  Future<void> _moveFolder(BuildContext context, AppLocalizations l10n) async {
+    final selectedParentId = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return _ParentFolderPicker(
+              currentFolder: widget.folder,
+              scrollController: scrollController,
+            );
+          },
+        );
+      },
+    );
+    
+    if (selectedParentId != null && selectedParentId != widget.folder.parentId) {
+      try {
+        await ref.read(folderRepositoryProvider).moveFolder(
+          folderId: widget.folder.id,
+          newParentId: selectedParentId == 'root' ? null : selectedParentId,
+        );
+        
+        await HapticUtils.success();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.folderMoved),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().contains('descendant') 
+                  ? l10n.cannotMoveToDescendant 
+                  : l10n.errorMovingFolder),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteFolder(BuildContext context, AppLocalizations l10n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(l10n.deleteFolder),
+          content: Text(l10n.deleteFolderConfirmation(widget.folder.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: Text(l10n.delete),
+            ),
+          ],
+        );
+      },
+    );
+    
+    if (confirmed == true) {
+      try {
+        final currentFolder = ref.read(currentFolderProvider);
+        final wasSelected = currentFolder?.id == widget.folder.id;
+        
+        await ref.read(folderRepositoryProvider).deleteFolder(
+          folderId: widget.folder.id,
+          moveNotesToInbox: true,
+        );
+        
+        await HapticUtils.success();
+        
+        if (wasSelected) {
+          // Auto-select "All Notes" if deleted folder was selected
+          ref.read(currentFolderProvider.notifier).clearCurrentFolder();
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.folderDeletedNotesMovedToInbox),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.errorDeletingFolder),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -324,7 +695,11 @@ class _ActionChip extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
-    return ActionChip(
+    return AccessibilityUtils.semanticButton(
+      label: label,
+      hint: 'Double tap to $label',
+      onTap: onPressed,
+      child: ActionChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -340,12 +715,16 @@ class _ActionChip extends StatelessWidget {
           ),
         ],
       ),
-      onPressed: onPressed,
+      onPressed: () {
+        HapticUtils.tap();
+        onPressed();
+      },
       backgroundColor: colorScheme.primaryContainer.withOpacity(0.3),
       side: BorderSide(color: colorScheme.primary.withOpacity(0.5)),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
+    ),
     );
   }
 }
@@ -512,6 +891,311 @@ class FolderBreadcrumb extends ConsumerWidget {
     }
     
     return path;
+  }
+}
+
+/// Create folder sheet widget
+class _CreateFolderSheet extends ConsumerStatefulWidget {
+  const _CreateFolderSheet();
+
+  @override
+  ConsumerState<_CreateFolderSheet> createState() => _CreateFolderSheetState();
+}
+
+class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
+  final _nameController = TextEditingController();
+  String? _selectedParentId;
+  String? _errorText;
+  bool _isCreating = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Title
+            Text(
+              l10n.createNewFolder,
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 24),
+            // Name field
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: l10n.folderName,
+                prefixIcon: const Icon(Icons.folder_outlined),
+                errorText: _errorText,
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (_) {
+                if (_errorText != null) {
+                  setState(() => _errorText = null);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            // Parent folder selector
+            Consumer(
+              builder: (context, ref, child) {
+                final rootFoldersAsync = ref.watch(rootFoldersProvider);
+                
+                return rootFoldersAsync.when(
+                  data: (folders) {
+                    final allFolders = <LocalFolder?>[
+                      null, // Root option
+                      ...folders,
+                    ];
+                    
+                    return DropdownButtonFormField<String?>(
+                      value: _selectedParentId,
+                      decoration: InputDecoration(
+                        labelText: l10n.parentFolder,
+                        prefixIcon: const Icon(Icons.folder_open),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: allFolders.map((folder) {
+                        return DropdownMenuItem(
+                          value: folder?.id,
+                          child: Row(
+                            children: [
+                              if (folder != null) ...[
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Icon(
+                                    FolderIconHelpers.getFolderIcon(folder.icon),
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Text(folder?.name ?? l10n.rootFolder),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedParentId = value);
+                      },
+                    );
+                  },
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, __) => const SizedBox.shrink(),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isCreating ? null : () => Navigator.pop(context),
+                  child: Text(l10n.cancel),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _isCreating ? null : _createFolder,
+                  icon: _isCreating 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add),
+                  label: Text(l10n.create),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createFolder() async {
+    final l10n = AppLocalizations.of(context);
+    final name = _nameController.text.trim();
+    
+    if (name.isEmpty) {
+      setState(() => _errorText = l10n.folderNameEmpty);
+      return;
+    }
+    
+    setState(() => _isCreating = true);
+    
+    try {
+      // Check for duplicate name among siblings
+      final siblings = _selectedParentId != null
+          ? await ref.read(folderRepositoryProvider).db.getChildFolders(_selectedParentId!)
+          : await ref.read(folderRepositoryProvider).db.getRootFolders();
+      
+      final isDuplicate = siblings.any((f) => f.name == name);
+      
+      if (isDuplicate) {
+        setState(() {
+          _errorText = l10n.folderNameDuplicate;
+          _isCreating = false;
+        });
+        return;
+      }
+      
+      // Create the folder
+      await ref.read(folderRepositoryProvider).createFolder(
+        name: name,
+        parentId: _selectedParentId,
+      );
+      
+      await HapticFeedback.mediumImpact();
+      
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.folderCreated(name)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorText = l10n.errorCreatingFolder;
+        _isCreating = false;
+      });
+    }
+  }
+}
+
+/// Parent folder picker widget
+class _ParentFolderPicker extends ConsumerWidget {
+  const _ParentFolderPicker({
+    required this.currentFolder,
+    required this.scrollController,
+  });
+
+  final LocalFolder currentFolder;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    
+    return Column(
+      children: [
+        // Handle bar
+        Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.outline.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        // Title
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            l10n.selectParentFolder,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        // Folder list
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, child) {
+              final foldersAsync = ref.watch(rootFoldersProvider);
+              
+              return foldersAsync.when(
+                data: (folders) {
+                  // Filter out current folder and its descendants
+                  final availableFolders = _filterAvailableFolders(folders);
+                  
+                  return ListView(
+                    controller: scrollController,
+                    children: [
+                      // Root option
+                      ListTile(
+                        leading: const Icon(Icons.folder_outlined),
+                        title: Text(l10n.rootFolder),
+                        selected: currentFolder.parentId == null,
+                        onTap: () => Navigator.pop(context, 'root'),
+                      ),
+                      const Divider(height: 1),
+                      // Other folders
+                      ...availableFolders.map((folder) {
+                        return ListTile(
+                          leading: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              FolderIconHelpers.getFolderIcon(folder.icon),
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          title: Text(folder.name),
+                          selected: currentFolder.parentId == folder.id,
+                          onTap: () => Navigator.pop(context, folder.id),
+                        );
+                      }),
+                    ],
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => Center(child: Text(l10n.errorLoadingFolders)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<LocalFolder> _filterAvailableFolders(List<LocalFolder> allFolders) {
+    // TODO: Implement proper filtering to exclude current folder and its descendants
+    // For now, just exclude the current folder
+    return allFolders.where((f) => f.id != currentFolder.id).toList();
   }
 }
 

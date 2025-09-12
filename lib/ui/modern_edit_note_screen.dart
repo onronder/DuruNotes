@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
+import 'package:duru_notes/ui/widgets/note_tag_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 /// Modern Material 3 Note Editor with Unified Field (E2.9)
 /// Single text field design where first line becomes the title
@@ -48,8 +51,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   bool _contentHasFocus = false;
   bool _showFormattingToolbar = false;
   bool _isPreviewMode = false;
+  bool _isPinned = false; // Track pin state
   LocalFolder? _selectedFolder;
   String? _initialText;
+  late String _noteIdForTags; // Either real ID or temp ID for tags
+  List<String> _currentTags = [];
 
   // Material-3 Design Constants
   static const double kHeaderHeight = 64;
@@ -129,6 +135,38 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     
     // Initialize folder selection
     _initializeFolder();
+    
+    // Setup note ID for tags (real or temp)
+    _noteIdForTags = widget.noteId ?? 'note_draft_${const Uuid().v4()}';
+    
+    // Load metadata for existing notes
+    if (widget.noteId != null) {
+      _loadNoteMetadata();
+    }
+  }
+  
+  Future<void> _loadNoteMetadata() async {
+    if (widget.noteId == null) return;
+    
+    try {
+      final note = await ref.read(notesRepositoryProvider).getNote(widget.noteId!);
+      if (note != null && mounted) {
+        // Load pin state
+        setState(() {
+          _isPinned = note.isPinned;
+        });
+        
+        // Load existing tags
+        final tags = await ref.read(notesRepositoryProvider).getTagsForNote(widget.noteId!);
+        if (mounted) {
+          setState(() {
+            _currentTags = tags;
+          });
+        }
+      }
+    } catch (e) {
+      // Silently fail - metadata is not critical
+    }
   }
   
   Future<void> _initializeFolder() async {
@@ -160,7 +198,50 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     _contentFocusNode.dispose();
     _toolbarSlideController.dispose();
     _saveButtonController.dispose();
+    
+    // Clean up temp tags if note was discarded
+    if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
+      _cleanupTempTags();
+    }
+    
     super.dispose();
+  }
+  
+  Future<void> _cleanupTempTags() async {
+    try {
+      // Remove any temp tags that were created
+      final db = ref.read(notesRepositoryProvider).db;
+      await (db.delete(db.noteTags)
+        ..where((t) => t.noteId.equals(_noteIdForTags)))
+        .go();
+    } catch (e) {
+      // Silently fail - cleanup is not critical
+    }
+  }
+  
+  Future<void> _remapTempTags(String realNoteId) async {
+    try {
+      // Update all temp tags to use the real note ID
+      final db = ref.read(notesRepositoryProvider).db;
+      await (db.update(db.noteTags)
+        ..where((t) => t.noteId.equals(_noteIdForTags)))
+        .write(NoteTagsCompanion(noteId: Value(realNoteId)));
+      
+      // Update our local reference
+      _noteIdForTags = realNoteId;
+    } catch (e) {
+      // If remapping fails, try to ensure tags are saved with the real ID
+      for (final tag in _currentTags) {
+        try {
+          await ref.read(notesRepositoryProvider).addTag(
+            noteId: realNoteId,
+            tag: tag,
+          );
+        } catch (_) {
+          // Continue with other tags even if one fails
+        }
+      }
+    }
   }
 
   ({String title, String body}) _splitTitleBody(String raw) {
@@ -349,6 +430,18 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                       
                       const SizedBox(width: 4),
                       
+                      // Pin toggle button (only for existing notes)
+                      if (widget.noteId != null) ...[
+                        _buildHeaderAction(
+                          icon: _isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                          tooltip: _isPinned ? 'Unpin' : 'Pin',
+                          isActive: _isPinned,
+                          onPressed: _togglePin,
+                          colorScheme: colorScheme,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      
                       // Save button
                       AnimatedBuilder(
                         animation: _saveButtonScale,
@@ -368,6 +461,56 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _togglePin() async {
+    if (widget.noteId == null) return;
+    
+    // Prevent concurrent toggles
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      // Haptic feedback
+      await HapticFeedback.mediumImpact();
+      
+      // Toggle pin state
+      final newPinState = !_isPinned;
+      await ref.read(notesRepositoryProvider).setNotePin(widget.noteId!, newPinState);
+      
+      if (mounted) {
+        setState(() {
+          _isPinned = newPinState;
+        });
+        
+        // Show snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newPinState ? 'Pinned' : 'Unpinned'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to update pin status'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildHeaderAction({
@@ -479,6 +622,27 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           _buildFolderIndicator(colorScheme),
           
           const SizedBox(height: kVerticalSpacingMedium),
+          
+          // Tag chips
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 6),
+            child: NoteTagChips(
+              noteId: _noteIdForTags,
+              initialTags: _currentTags,
+              editable: true,
+              onTagsChanged: (tags) {
+                setState(() {
+                  _currentTags = tags;
+                  // Mark as changed if tags differ from initial
+                  if (widget.noteId != null) {
+                    _hasChanges = true;
+                  }
+                });
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 8),
           
           // Unified text field
           Expanded(
@@ -968,6 +1132,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         } else if (widget.noteId == null) {
           // ensure brand-new notes are not left with stale mapping
           await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(noteIdToUse);
+        }
+        
+        // Remap temp tags to real note ID if this was a new note
+        if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
+          await _remapTempTags(noteIdToUse);
         }
       }
 

@@ -226,12 +226,13 @@ class InboxManagementService {
       body.writeln('From: ${item.from ?? "Unknown"}');
       body.writeln('Received: ${item.createdAt.toIso8601String()}');
       
-      // Add tags
-      final tags = <String>['#Email'];
+      // Add tags (without # prefix for database)
+      final tags = <String>['Email'];
       if (item.hasAttachments) {
-        tags.add('#Attachment');
+        tags.add('Attachment');
       }
-      final bodyWithTags = '${body.toString()}\n\n${tags.join(' ')}';
+      // Add hashtags to body for display
+      final bodyWithTags = '${body.toString()}\n\n${tags.map((t) => '#$t').join(' ')}';
       
       // Create metadata for the note
       final metadata = <String, dynamic>{
@@ -241,7 +242,7 @@ class InboxManagementService {
         'received_at': item.createdAt.toIso8601String(),
         'original_id': item.id,
         'message_id': item.messageId,
-        'tags': tags.map((t) => t.substring(1)).toList(),
+        'tags': tags,
       };
       
       // Store attachment info for later processing
@@ -261,6 +262,7 @@ class InboxManagementService {
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
+        tags: tags.toSet(),
       );
       
       if (note == null) {
@@ -313,9 +315,10 @@ class InboxManagementService {
       body.writeln('Source: $url');
       body.writeln('Clipped: $clippedAt');
       
-      // Add tags
-      final tags = <String>['#Web'];
-      final bodyWithTags = '${body.toString()}\n\n${tags.join(' ')}';
+      // Add tags (without # prefix for database)
+      final tags = <String>['Web'];
+      // Add hashtags to body for display
+      final bodyWithTags = '${body.toString()}\n\n${tags.map((t) => '#$t').join(' ')}';
       
       // Create metadata for the note
       final metadata = <String, dynamic>{
@@ -323,7 +326,7 @@ class InboxManagementService {
         'url': url,
         'clipped_at': clippedAt,
         'original_id': item.id,
-        'tags': tags.map((t) => t.substring(1)).toList(),
+        'tags': tags,
       };
       
       // Add HTML content to metadata if present
@@ -336,6 +339,7 @@ class InboxManagementService {
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
+        tags: tags.toSet(),
       );
       
       if (note == null) {

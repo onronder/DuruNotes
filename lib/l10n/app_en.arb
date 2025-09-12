@@ -392,12 +392,16 @@
   "folderPickerSubtitle": "Organize your note",
   "createNewFolder": "Create New Folder", 
   "createNewFolderSubtitle": "Add a new folder for organization",
+  "newFolder": "New Folder",
   "folderName": "Folder Name",
   "folderNameHint": "e.g., Work, Personal, Ideas",
   "folderNameRequired": "Folder name is required",
+  "folderNameEmpty": "Folder name cannot be empty",
+  "folderNameDuplicate": "A folder with this name already exists",
   "folderColor": "Color",
   "folderIcon": "Icon",
   "parentFolder": "Parent Folder",
+  "rootFolder": "Root (No Parent)",
   "rootLevel": "Root Level",
   "description": "Description",
   "optional": "Optional",
@@ -444,6 +448,37 @@
   "folderEmpty": "This folder is empty",
   "folderEmptySubtitle": "Add notes to get started",
   "allFolders": "All Folders",
+  "rename": "Rename",
+  "renameFolder": "Rename Folder",
+  "move": "Move",
+  "folderRenamed": "Folder renamed successfully",
+  "folderMoved": "Folder moved successfully",
+  "folderDeleted": "Folder deleted",
+  "folderDeletedNotesMovedToInbox": "Folder deleted, notes moved to Inbox",
+  "folderCreated": "Folder \"{name}\" created",
+  "@folderCreated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFolderConfirmation": "Delete folder \"{name}\"? All notes will be moved to Inbox.",
+  "@deleteFolderConfirmation": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "folderDeleteDescription": "Notes will be moved to Inbox",
+  "errorRenamingFolder": "Failed to rename folder",
+  "errorMovingFolder": "Failed to move folder",
+  "errorDeletingFolder": "Failed to delete folder",
+  "errorCreatingFolder": "Failed to create folder",
+  "errorLoadingFolders": "Failed to load folders",
+  "cannotMoveToDescendant": "Cannot move folder to its own descendant",
+  "create": "Create",
   "expandAll": "Expand All",
   "collapseAll": "Collapse All",
 

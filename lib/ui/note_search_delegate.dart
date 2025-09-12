@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 
 typedef FolderResolver = Future<String?> Function(String folderName);
 typedef FolderNoteIdsResolver = Future<Set<String>> Function(String folderId);
@@ -16,6 +18,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     this.resolveFolderIdByName,
     this.getFolderNoteIdSet,
     this.autoSearch = false,
+    this.notesRepository,
+    this.existingSavedSearches,
   }) {
     if (initialQuery != null) {
       query = initialQuery!;
@@ -26,6 +30,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   final FolderResolver? resolveFolderIdByName;
   final FolderNoteIdsResolver? getFolderNoteIdSet;
   final bool autoSearch;
+  final NotesRepository? notesRepository;
+  final List<SavedSearch>? existingSavedSearches;
   
   // Cache for preview generation to avoid repeated regex processing
   static final Map<String, String> _previewCache = <String, String>{};
@@ -650,84 +656,170 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   Future<void> _saveCurrentSearch(BuildContext context) async {
     if (query.trim().isEmpty) return;
     
-    // Parse the current query to determine search type
-    final filters = _parseSearchQuery(query);
-    String searchType = 'text';
-    Map<String, dynamic>? parameters;
+    // Parse the current query using SearchParser
+    final searchQuery = SearchParser.parse(query);
     
-    // Determine search type based on filters
-    if (filters['folderName'] != null) {
-      searchType = 'folder';
-      parameters = {'folderName': filters['folderName']};
-    } else if (filters['hasAttachment'] == true || 
-               filters['fromEmail'] == true || 
-               filters['fromWeb'] == true) {
-      searchType = 'compound';
-      parameters = filters;
+    // Build parameters from parsed query
+    final parameters = <String, dynamic>{};
+    if (searchQuery.keywords.isNotEmpty) {
+      parameters['keywords'] = searchQuery.keywords;
+    }
+    if (searchQuery.folderName != null) {
+      parameters['folderName'] = searchQuery.folderName;
+    }
+    if (searchQuery.includeTags.isNotEmpty) {
+      parameters['includeTags'] = searchQuery.includeTags;
+    }
+    if (searchQuery.excludeTags.isNotEmpty) {
+      parameters['excludeTags'] = searchQuery.excludeTags;
+    }
+    if (searchQuery.isPinned) {
+      parameters['isPinned'] = true;
+    }
+    if (searchQuery.hasAttachment) {
+      parameters['hasAttachment'] = true;
+    }
+    if (searchQuery.fromEmail) {
+      parameters['fromEmail'] = true;
+    }
+    if (searchQuery.fromWeb) {
+      parameters['fromWeb'] = true;
+    }
+    // Add raw filters for any additional parameters
+    if (searchQuery.rawFilters.isNotEmpty) {
+      parameters.addAll(searchQuery.rawFilters);
+    }
+    
+    // Generate a suggested name based on the query
+    String suggestedName = query;
+    if (searchQuery.includeTags.isNotEmpty) {
+      suggestedName = '#${searchQuery.includeTags.join(' #')}';
+    } else if (searchQuery.keywords.isNotEmpty) {
+      suggestedName = searchQuery.keywords.length > 20 
+          ? '${searchQuery.keywords.substring(0, 20)}...'
+          : searchQuery.keywords;
     }
     
     // Show save dialog
-    final nameController = TextEditingController(text: query);
+    final nameController = TextEditingController(text: suggestedName);
+    String? errorText;
+    
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Save Search'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Search Name',
-                hintText: 'Enter a name for this search',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Save Search'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Search Name',
+                  hintText: 'Enter a name for this search',
+                  errorText: errorText,
+                ),
+                onChanged: (_) {
+                  if (errorText != null) {
+                    setState(() => errorText = null);
+                  }
+                },
               ),
+              const SizedBox(height: 8),
+              Text(
+                'Query: "$query"',
+                style: Theme.of(context).textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Query: "$query"',
-              style: Theme.of(context).textTheme.bodySmall,
+            FilledButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  setState(() => errorText = 'Name cannot be empty');
+                  return;
+                }
+                
+                // Check for duplicate names
+                if (existingSavedSearches != null) {
+                  final isDuplicate = existingSavedSearches!.any(
+                    (s) => s.name.toLowerCase() == name.toLowerCase()
+                  );
+                  if (isDuplicate) {
+                    setState(() => errorText = 'A saved search with this name already exists');
+                    return;
+                  }
+                }
+                
+                Navigator.pop(context, {
+                  'name': name,
+                  'query': query,
+                  'parameters': parameters,
+                });
+              },
+              child: const Text('Save'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (nameController.text.trim().isNotEmpty) {
-                Navigator.pop(context, {
-                  'name': nameController.text.trim(),
-                  'query': query,
-                  'searchType': searchType,
-                  'parameters': parameters,
-                });
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
     
     if (result != null && context.mounted) {
-      // Save the search using a provider or service
-      // This would need to be injected or accessed somehow
-      HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved search: "${result['name']}"'),
-          action: SnackBarAction(
-            label: 'Manage',
-            onPressed: () {
-              // Navigate to saved search management
-              Navigator.pushNamed(context, '/saved-searches');
-            },
-          ),
-        ),
-      );
+      // Create and save the search to database
+      if (notesRepository != null) {
+        final savedSearch = SavedSearch(
+          id: const Uuid().v4(),
+          name: result['name'] as String,
+          query: result['query'] as String,
+          searchType: parameters.containsKey('folderName') ? 'folder' :
+                      parameters.containsKey('includeTags') || parameters.containsKey('excludeTags') ? 'tag' :
+                      parameters.containsKey('hasAttachment') || parameters.containsKey('fromEmail') || parameters.containsKey('fromWeb') ? 'filter' :
+                      'text',
+          parameters: jsonEncode(result['parameters']),
+          createdAt: DateTime.now(),
+          lastUsedAt: DateTime.now(),
+          usageCount: 0,
+          isPinned: false,
+          sortOrder: 999, // Will be at the end
+        );
+        
+        await notesRepository!.createOrUpdateSavedSearch(savedSearch);
+        
+        HapticFeedback.mediumImpact();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Saved search: "${result['name']}"'),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'View',
+                onPressed: () {
+                  // Close search and apply the saved search
+                  close(context, null);
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        // Fallback if repository not provided
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to save search - repository not available'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
   

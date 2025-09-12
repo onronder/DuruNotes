@@ -629,6 +629,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createNewFolderSubtitle => 'Add a new folder for organization';
 
   @override
+  String get newFolder => 'New Folder';
+
+  @override
   String get folderName => 'Folder Name';
 
   @override
@@ -638,6 +641,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folderNameRequired => 'Folder name is required';
 
   @override
+  String get folderNameEmpty => 'Folder name cannot be empty';
+
+  @override
+  String get folderNameDuplicate => 'A folder with this name already exists';
+
+  @override
   String get folderColor => 'Color';
 
   @override
@@ -645,6 +654,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get parentFolder => 'Parent Folder';
+
+  @override
+  String get rootFolder => 'Root (No Parent)';
 
   @override
   String get rootLevel => 'Root Level';
@@ -748,6 +760,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allFolders => 'All Folders';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String get renameFolder => 'Rename Folder';
+
+  @override
+  String get move => 'Move';
+
+  @override
+  String get folderRenamed => 'Folder renamed successfully';
+
+  @override
+  String get folderMoved => 'Folder moved successfully';
+
+  @override
+  String get folderDeleted => 'Folder deleted';
+
+  @override
+  String get folderDeletedNotesMovedToInbox =>
+      'Folder deleted, notes moved to Inbox';
+
+  @override
+  String folderCreated(String name) {
+    return 'Folder \"$name\" created';
+  }
+
+  @override
+  String deleteFolderConfirmation(String name) {
+    return 'Delete folder \"$name\"? All notes will be moved to Inbox.';
+  }
+
+  @override
+  String get folderDeleteDescription => 'Notes will be moved to Inbox';
+
+  @override
+  String get errorRenamingFolder => 'Failed to rename folder';
+
+  @override
+  String get errorMovingFolder => 'Failed to move folder';
+
+  @override
+  String get errorDeletingFolder => 'Failed to delete folder';
+
+  @override
+  String get errorCreatingFolder => 'Failed to create folder';
+
+  @override
+  String get errorLoadingFolders => 'Failed to load folders';
+
+  @override
+  String get cannotMoveToDescendant =>
+      'Cannot move folder to its own descendant';
 
   @override
   String get expandAll => 'Expand All';
