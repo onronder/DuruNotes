@@ -890,8 +890,8 @@ class AppDb extends _$AppDb {
           WHERE n.deleted = 0 AND (
             -- Has email tag (case-insensitive)
             LOWER(t.tag) = 'email'
-            -- Or has email source in metadata
-            OR n.encrypted_metadata LIKE '%"source":"email_in"%'
+            -- Or has email source in metadata (with or without spaces in JSON)
+            OR n.encrypted_metadata LIKE '%"source"%"email_in"%'
             -- Or has #Email in body (case-insensitive)
             OR LOWER(n.body) LIKE '%#email%'
           )
@@ -907,8 +907,8 @@ class AppDb extends _$AppDb {
           WHERE n.deleted = 0 AND (
             -- Has web tag (case-insensitive)
             LOWER(t.tag) = 'web'
-            -- Or has web source in metadata
-            OR n.encrypted_metadata LIKE '%"source":"web"%'
+            -- Or has web source in metadata (with or without spaces in JSON)
+            OR n.encrypted_metadata LIKE '%"source"%"web"%'
             -- Or has #Web in body (case-insensitive)
             OR LOWER(n.body) LIKE '%#web%'
           )
