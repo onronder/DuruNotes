@@ -865,52 +865,52 @@ class AppDb extends _$AppDb {
     
     switch (savedSearchKey) {
       case 'attachments':
-        // Get notes with attachments OR tagged #Attachment
+        // Get notes with attachments OR tagged #Attachment (case-insensitive)
         query = '''
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
           WHERE n.deleted = 0 AND (
-            -- Has attachment tag
-            t.tag = 'Attachment'
+            -- Has attachment tag (case-insensitive)
+            LOWER(t.tag) = 'attachment'
             -- Or has attachments in metadata
             OR n.encrypted_metadata LIKE '%"attachments":%'
-            -- Or has #Attachment in body
-            OR n.body LIKE '%#Attachment%'
+            -- Or has #Attachment in body (case-insensitive)
+            OR LOWER(n.body) LIKE '%#attachment%'
           )
           ORDER BY n.updated_at DESC
         ''';
         
       case 'emailNotes':
-        // Get notes from email source OR tagged #Email
+        // Get notes from email source OR tagged #Email (case-insensitive)
         query = '''
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
           WHERE n.deleted = 0 AND (
-            -- Has email tag
-            t.tag = 'Email'
+            -- Has email tag (case-insensitive)
+            LOWER(t.tag) = 'email'
             -- Or has email source in metadata
             OR n.encrypted_metadata LIKE '%"source":"email_in"%'
-            -- Or has #Email in body
-            OR n.body LIKE '%#Email%'
+            -- Or has #Email in body (case-insensitive)
+            OR LOWER(n.body) LIKE '%#email%'
           )
           ORDER BY n.updated_at DESC
         ''';
         
       case 'webNotes':
-        // Get notes from web source OR tagged #Web
+        // Get notes from web source OR tagged #Web (case-insensitive)
         query = '''
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
           WHERE n.deleted = 0 AND (
-            -- Has web tag
-            t.tag = 'Web'
+            -- Has web tag (case-insensitive)
+            LOWER(t.tag) = 'web'
             -- Or has web source in metadata
             OR n.encrypted_metadata LIKE '%"source":"web"%'
-            -- Or has #Web in body
-            OR n.body LIKE '%#Web%'
+            -- Or has #Web in body (case-insensitive)
+            OR LOWER(n.body) LIKE '%#web%'
           )
           ORDER BY n.updated_at DESC
         ''';

@@ -6,90 +6,120 @@ import 'package:google_fonts/google_fonts.dart';
 /// 
 /// This theme system implements the complete Material Design 3 specification
 /// with dynamic color support, proper elevation, and semantic color usage.
-/// Updated with modern teal palette and Inter typography.
+/// Updated with exact logo colors and modern teal palette.
 class DuruMaterial3Theme {
   DuruMaterial3Theme._();
 
-  // Core color palette - Modern Teal Theme
-  static const Color _lightTeal = Color(0xFF048ABF);  // Primary gradient start
-  static const Color _deepTeal = Color(0xFF036693);   // Primary gradient end
-  static const Color _softAqua = Color(0xFF5FD0CB);   // Flat accent color
+  // Core color palette - Exact Logo Colors
+  static const Color _primaryTeal = Color(0xFF048ABF);    // Logo gradient start (exact)
+  static const Color _accentAqua = Color(0xFF5FD0CB);     // Logo gradient end (exact)
+  static const Color _deepTeal = Color(0xFF036693);       // Darker variant for depth
+  static const Color _lightAqua = Color(0xFF7DD8D3);      // Lighter variant for containers
   
   // Surface colors
-  static const Color _lightSurface = Color(0xFFF2F2F2);  // Light mode surface
-  static const Color _darkSurface = Color(0xFF0F1E2E);   // Dark mode surface
+  static const Color _lightSurface = Color(0xFFF8FAFC);   // Very light surface
+  static const Color _darkSurface = Color(0xFF0F1E2E);    // Dark mode surface
   
-  // Gradient definitions for modern design
+  // Logo-based gradient definitions
+  static const LinearGradient logoGradient = LinearGradient(
+    colors: [_primaryTeal, _accentAqua],  // Exact logo colors
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [_lightTeal, _deepTeal],
+    colors: [_primaryTeal, _deepTeal],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient accentGradient = LinearGradient(
+    colors: [_accentAqua, _lightAqua],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient surfaceGradient = LinearGradient(
-    colors: [Color(0xFFF8FAFC), Color(0xFFF2F2F2)],
+    colors: [Color(0xFFFCFDFE), _lightSurface],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient darkSurfaceGradient = LinearGradient(
-    colors: [Color(0xFF0F1E2E), Color(0xFF0A1828)],
+    colors: [Color(0xFF122438), _darkSurface],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
-  /// Light theme configuration
+  /// Light theme configuration with exact logo colors
   static ThemeData get lightTheme {
-    // Generate base scheme from light teal seed
+    // Generate base scheme from primary teal (logo color)
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _lightTeal,
+      seedColor: _primaryTeal,
       brightness: Brightness.light,
     ).copyWith(
-      // Override with exact brand colors
-      primary: _lightTeal,
-      secondary: _deepTeal,
-      tertiary: _softAqua,
+      // Override with exact logo colors
+      primary: _primaryTeal,           // #048ABF - Logo start color
+      secondary: _accentAqua,          // #5FD0CB - Logo end color
+      tertiary: _deepTeal,             // Darker variant
       surface: _lightSurface,
-      // Subtle surface variations
-      surfaceContainerLowest: const Color(0xFFFAFAFA),
-      surfaceContainerLow: const Color(0xFFF7F7F7),
-      surfaceContainer: const Color(0xFFF5F5F5),
-      surfaceContainerHigh: const Color(0xFFF2F2F2),
-      surfaceContainerHighest: const Color(0xFFEFEFEF),
-      // Ensure good contrast for text
-      onSurface: const Color(0xFF1D1D1D),
+      // Enhanced surface variations with logo color influence
+      surfaceContainerLowest: const Color(0xFFFEFEFE),
+      surfaceContainerLow: const Color(0xFFFBFCFD),
+      surfaceContainer: _lightSurface,
+      surfaceContainerHigh: const Color(0xFFF5F7F9),
+      surfaceContainerHighest: const Color(0xFFF2F4F6),
+      // Primary container with logo accent
+      primaryContainer: _accentAqua.withOpacity(0.12),
+      onPrimaryContainer: _deepTeal,
+      secondaryContainer: _lightAqua.withOpacity(0.12),
+      onSecondaryContainer: _primaryTeal,
+      // Ensure excellent contrast
+      onSurface: const Color(0xFF1A1C1E),
+      onSurfaceVariant: const Color(0xFF44474E),
       onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onTertiary: const Color(0xFF1D1D1D),
+      onSecondary: const Color(0xFF1A1C1E),
+      onTertiary: Colors.white,
+      // Outline colors with logo tint
+      outline: const Color(0xFF74777F),
+      outlineVariant: _accentAqua.withOpacity(0.2),
     );
 
     return _buildTheme(colorScheme, Brightness.light);
   }
 
-  /// Dark theme configuration with modern dark surfaces
+  /// Dark theme configuration with logo colors
   static ThemeData get darkTheme {
-    // Generate base scheme from teal seed
+    // Generate base scheme from primary teal
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: _lightTeal,
+      seedColor: _primaryTeal,
       brightness: Brightness.dark,
     ).copyWith(
-      // Keep brand colors consistent in dark mode
-      primary: _lightTeal,
-      secondary: _deepTeal,
-      tertiary: _softAqua,
+      // Keep exact logo colors in dark mode
+      primary: _primaryTeal,           // #048ABF
+      secondary: _accentAqua,          // #5FD0CB
+      tertiary: _lightAqua,            // Lighter for dark mode
       surface: _darkSurface,
-      // Rich dark surface variations
+      // Rich dark surface variations with logo color influence
       surfaceContainerLowest: const Color(0xFF0A1420),
       surfaceContainerLow: const Color(0xFF0C1724),
-      surfaceContainer: const Color(0xFF0F1E2E),
-      surfaceContainerHigh: const Color(0xFF122438),
-      surfaceContainerHighest: const Color(0xFF152A42),
-      // Ensure white text on dark backgrounds
-      onSurface: Colors.white,
-      onSurfaceVariant: const Color(0xFFE0E0E0),
+      surfaceContainer: _darkSurface,
+      surfaceContainerHigh: const Color(0xFF152A42),
+      surfaceContainerHighest: const Color(0xFF1A2F47),
+      // Primary containers in dark mode
+      primaryContainer: _primaryTeal.withOpacity(0.2),
+      onPrimaryContainer: _accentAqua,
+      secondaryContainer: _accentAqua.withOpacity(0.15),
+      onSecondaryContainer: _lightAqua,
+      // Dark mode text colors
+      onSurface: const Color(0xFFE3E3E3),
+      onSurfaceVariant: const Color(0xFFC4C7C5),
       onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onTertiary: const Color(0xFF1D1D1D),
+      onSecondary: const Color(0xFF1A1C1E),
+      onTertiary: const Color(0xFF1A1C1E),
+      // Dark outline colors
+      outline: const Color(0xFF8E918F),
+      outlineVariant: _primaryTeal.withOpacity(0.2),
     );
 
     return _buildTheme(colorScheme, Brightness.dark);
@@ -112,9 +142,9 @@ class DuruMaterial3Theme {
       // Typography using Inter font
       textTheme: _buildTextTheme(baseTextTheme, colorScheme),
       
-      // App Bar theme with teal gradient colors
+      // App Bar theme with logo primary color
       appBarTheme: AppBarTheme(
-        backgroundColor: _deepTeal,  // Use deep teal for app bars
+        backgroundColor: _primaryTeal,  // Use exact logo color
         foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 4,
@@ -129,7 +159,7 @@ class DuruMaterial3Theme {
         titleTextStyle: GoogleFonts.inter(
           color: Colors.white,
           fontSize: 22,
-          fontWeight: FontWeight.w600,  // SemiBold
+          fontWeight: FontWeight.w600,
           letterSpacing: 0,
         ),
         toolbarTextStyle: GoogleFonts.inter(
@@ -142,22 +172,24 @@ class DuruMaterial3Theme {
       // Scaffold theme
       scaffoldBackgroundColor: colorScheme.surface,
 
-      // Card theme
+      // Card theme with logo color accents
       cardTheme: CardThemeData(
         color: colorScheme.surfaceContainerLow,
-        shadowColor: isDark ? Colors.black.withOpacity(0.4) : colorScheme.shadow.withOpacity(0.1),
+        shadowColor: isDark 
+            ? Colors.black.withOpacity(0.4) 
+            : _primaryTeal.withOpacity(0.08),  // Logo color shadow
         surfaceTintColor: Colors.transparent,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),  // Slightly less rounded for modern look
+          borderRadius: BorderRadius.circular(16),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
 
-      // Button themes with teal colors
+      // Button themes with exact logo colors
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: _lightTeal,  // Use primary teal
+          backgroundColor: _primaryTeal,  // Exact logo color
           foregroundColor: Colors.white,
           disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
           disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
@@ -177,8 +209,8 @@ class DuruMaterial3Theme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.surfaceContainerHigh,
-          foregroundColor: colorScheme.primary,
-          shadowColor: colorScheme.shadow,
+          foregroundColor: _primaryTeal,  // Logo color text
+          shadowColor: _primaryTeal.withOpacity(0.2),
           surfaceTintColor: Colors.transparent,
           elevation: 1,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -195,8 +227,8 @@ class DuruMaterial3Theme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.primary,
-          side: BorderSide(color: colorScheme.outline),
+          foregroundColor: _primaryTeal,  // Logo color
+          side: BorderSide(color: _primaryTeal.withOpacity(0.5)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -211,7 +243,7 @@ class DuruMaterial3Theme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
+          foregroundColor: _primaryTeal,  // Logo color
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -237,9 +269,9 @@ class DuruMaterial3Theme {
         ),
       ),
 
-      // FAB theme with primary teal
+      // FAB theme with logo gradient effect
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: _lightTeal,
+        backgroundColor: _primaryTeal,  // Logo primary color
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -250,7 +282,7 @@ class DuruMaterial3Theme {
         highlightElevation: 12,
       ),
 
-      // Input decoration theme
+      // Input decoration theme with logo colors
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
@@ -264,7 +296,7 @@ class DuruMaterial3Theme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          borderSide: BorderSide(color: _primaryTeal, width: 2),  // Logo color focus
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -281,8 +313,8 @@ class DuruMaterial3Theme {
         hintStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant.withOpacity(0.6),
           fontSize: 14,
-          fontWeight: FontWeight.w300,  // Light weight for hints
-          fontStyle: FontStyle.italic,  // Italic for hints
+          fontWeight: FontWeight.w300,
+          fontStyle: FontStyle.italic,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -311,7 +343,7 @@ class DuruMaterial3Theme {
         ),
       ),
 
-      // Switch theme with teal colors
+      // Switch theme with logo colors
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
@@ -327,7 +359,7 @@ class DuruMaterial3Theme {
             return colorScheme.onSurface.withOpacity(0.12);
           }
           if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary;
+            return _primaryTeal;  // Logo color for active switch
           }
           return colorScheme.surfaceContainerHighest;
         }),
@@ -339,23 +371,43 @@ class DuruMaterial3Theme {
         }),
       ),
 
-      // Radio theme with teal selection
+      // Radio theme with logo selection
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
             return colorScheme.onSurface.withOpacity(0.38);
           }
           if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary;
+            return _primaryTeal;  // Logo color for selection
           }
           return colorScheme.onSurfaceVariant;
         }),
       ),
 
-      // Chip theme
+      // Checkbox theme with logo colors
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colorScheme.onSurface.withOpacity(0.38);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return _primaryTeal;  // Logo color for checked state
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.white),
+        side: WidgetStateBorderSide.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return BorderSide.none;
+          }
+          return BorderSide(color: colorScheme.outline, width: 2);
+        }),
+      ),
+
+      // Chip theme with logo accent
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
-        selectedColor: colorScheme.primaryContainer,
+        selectedColor: _accentAqua.withOpacity(0.2),  // Logo accent for selection
         disabledColor: colorScheme.onSurface.withOpacity(0.12),
         labelStyle: GoogleFonts.inter(
           color: colorScheme.onSurfaceVariant,
@@ -363,7 +415,7 @@ class DuruMaterial3Theme {
           fontWeight: FontWeight.w500,
         ),
         secondaryLabelStyle: GoogleFonts.inter(
-          color: colorScheme.onPrimaryContainer,
+          color: _primaryTeal,  // Logo color for selected text
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -371,7 +423,28 @@ class DuruMaterial3Theme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        side: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
+        side: BorderSide(color: _accentAqua.withOpacity(0.3)),  // Logo accent border
+      ),
+
+      // Progress indicator theme with logo colors
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: _primaryTeal,  // Logo color for progress
+        linearTrackColor: _accentAqua.withOpacity(0.2),
+        circularTrackColor: _accentAqua.withOpacity(0.2),
+      ),
+
+      // Slider theme with logo colors
+      sliderTheme: SliderThemeData(
+        activeTrackColor: _primaryTeal,
+        inactiveTrackColor: _accentAqua.withOpacity(0.3),
+        thumbColor: _primaryTeal,
+        overlayColor: _primaryTeal.withOpacity(0.12),
+        valueIndicatorColor: _primaryTeal,
+        valueIndicatorTextStyle: GoogleFonts.inter(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
 
       // Bottom sheet theme
@@ -382,9 +455,9 @@ class DuruMaterial3Theme {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         showDragHandle: true,
-        dragHandleColor: colorScheme.onSurfaceVariant.withOpacity(0.4),
+        dragHandleColor: _accentAqua.withOpacity(0.4),  // Logo accent for handle
         elevation: 8,
-        shadowColor: isDark ? Colors.black : colorScheme.shadow,
+        shadowColor: isDark ? Colors.black : _primaryTeal.withOpacity(0.1),
       ),
 
       // Dialog theme
@@ -392,7 +465,7 @@ class DuruMaterial3Theme {
         backgroundColor: colorScheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
         elevation: 6,
-        shadowColor: colorScheme.shadow,
+        shadowColor: _primaryTeal.withOpacity(0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -417,7 +490,7 @@ class DuruMaterial3Theme {
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
-        actionTextColor: colorScheme.inversePrimary,
+        actionTextColor: _accentAqua,  // Logo accent for actions
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -425,11 +498,11 @@ class DuruMaterial3Theme {
         elevation: 3,
       ),
 
-      // Navigation bar theme
+      // Navigation bar theme with logo colors
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colorScheme.primaryContainer,
+        indicatorColor: _accentAqua.withOpacity(0.2),  // Logo accent for indicator
         labelTextStyle: WidgetStateProperty.all(
           GoogleFonts.inter(
             fontSize: 12,
@@ -440,13 +513,28 @@ class DuruMaterial3Theme {
         iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
           return IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? colorScheme.onPrimaryContainer
+                ? _primaryTeal  // Logo color for selected
                 : colorScheme.onSurfaceVariant,
             size: 24,
           );
         }),
         elevation: 0,
         height: 80,
+      ),
+
+      // Tab bar theme with logo colors
+      tabBarTheme: TabBarThemeData(
+        labelColor: _primaryTeal,  // Logo color for active tab
+        unselectedLabelColor: colorScheme.onSurfaceVariant,
+        indicatorColor: _primaryTeal,  // Logo color for indicator
+        labelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
 
       // Divider theme
@@ -456,43 +544,46 @@ class DuruMaterial3Theme {
         space: 1,
       ),
 
-      // Extension themes
+      // Extension themes with logo colors
       extensions: [
         _CustomColors(
           noteCardBackground: colorScheme.surfaceContainerLow,
-          folderChipBackground: colorScheme.primaryContainer.withOpacity(0.3),
-          selectedNoteBackground: colorScheme.primaryContainer.withOpacity(0.4),
-          warningContainer: isDark ? const Color(0xFF4A4215) : const Color(0xFFFFF8E1),
-          onWarningContainer: isDark ? const Color(0xFFF9D71C) : const Color(0xFF7C6F00),
+          folderChipBackground: _accentAqua.withOpacity(0.1),  // Logo accent
+          selectedNoteBackground: _primaryTeal.withOpacity(0.08),  // Logo primary
+          warningContainer: const Color(0xFFFFF4E6),
+          onWarningContainer: const Color(0xFF8B4513),
+          logoGradientStart: _primaryTeal,  // Exact logo colors
+          logoGradientEnd: _accentAqua,
+          accentHighlight: _lightAqua,
         ),
       ],
     );
   }
 
-  /// Build Material 3 text theme with Inter font
+  /// Build text theme with Inter font and proper hierarchy
   static TextTheme _buildTextTheme(TextTheme baseTextTheme, ColorScheme colorScheme) {
     return baseTextTheme.copyWith(
-      // Display styles
+      // Display styles - Bold for major headings
       displayLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
         fontSize: 57,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,  // Bold
         letterSpacing: -0.25,
       ),
       displayMedium: GoogleFonts.inter(
         color: colorScheme.onSurface,
         fontSize: 45,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,  // Bold
         letterSpacing: 0,
       ),
       displaySmall: GoogleFonts.inter(
         color: colorScheme.onSurface,
         fontSize: 36,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w600,  // SemiBold
         letterSpacing: 0,
       ),
       
-      // Headline styles - SemiBold for headers
+      // Headline styles - SemiBold for section headers
       headlineLarge: GoogleFonts.inter(
         color: colorScheme.onSurface,
         fontSize: 32,
@@ -575,7 +666,7 @@ class DuruMaterial3Theme {
   }
 }
 
-/// Custom color extension for additional semantic colors
+/// Custom color extension with exact logo colors
 @immutable
 class _CustomColors extends ThemeExtension<_CustomColors> {
   const _CustomColors({
@@ -584,6 +675,9 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
     required this.selectedNoteBackground,
     required this.warningContainer,
     required this.onWarningContainer,
+    required this.logoGradientStart,
+    required this.logoGradientEnd,
+    required this.accentHighlight,
   });
 
   final Color noteCardBackground;
@@ -591,6 +685,9 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
   final Color selectedNoteBackground;
   final Color warningContainer;
   final Color onWarningContainer;
+  final Color logoGradientStart;    // #048ABF
+  final Color logoGradientEnd;      // #5FD0CB
+  final Color accentHighlight;      // #7DD8D3
 
   @override
   _CustomColors copyWith({
@@ -599,6 +696,9 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
     Color? selectedNoteBackground,
     Color? warningContainer,
     Color? onWarningContainer,
+    Color? logoGradientStart,
+    Color? logoGradientEnd,
+    Color? accentHighlight,
   }) {
     return _CustomColors(
       noteCardBackground: noteCardBackground ?? this.noteCardBackground,
@@ -606,6 +706,9 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
       selectedNoteBackground: selectedNoteBackground ?? this.selectedNoteBackground,
       warningContainer: warningContainer ?? this.warningContainer,
       onWarningContainer: onWarningContainer ?? this.onWarningContainer,
+      logoGradientStart: logoGradientStart ?? this.logoGradientStart,
+      logoGradientEnd: logoGradientEnd ?? this.logoGradientEnd,
+      accentHighlight: accentHighlight ?? this.accentHighlight,
     );
   }
 
@@ -620,6 +723,9 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
       selectedNoteBackground: Color.lerp(selectedNoteBackground, other.selectedNoteBackground, t)!,
       warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
       onWarningContainer: Color.lerp(onWarningContainer, other.onWarningContainer, t)!,
+      logoGradientStart: Color.lerp(logoGradientStart, other.logoGradientStart, t)!,
+      logoGradientEnd: Color.lerp(logoGradientEnd, other.logoGradientEnd, t)!,
+      accentHighlight: Color.lerp(accentHighlight, other.accentHighlight, t)!,
     );
   }
 }
@@ -629,50 +735,56 @@ extension CustomColorsExtension on ThemeData {
   _CustomColors get customColors => extension<_CustomColors>()!;
 }
 
-/// Theme gradient helpers for consistent gradient usage across the app
+/// Theme gradient helpers with exact logo colors
 class DuruGradients {
   DuruGradients._();
 
-  // Public color constants for gradients
-  static const Color lightTeal = Color(0xFF048ABF);
-  static const Color deepTeal = Color(0xFF036693);
-  static const Color softAqua = Color(0xFF5FD0CB);
+  // Exact logo color constants
+  static const Color logoStart = Color(0xFF048ABF);  // #048ABF
+  static const Color logoEnd = Color(0xFF5FD0CB);    // #5FD0CB
+  static const Color deepTeal = Color(0xFF036693);   // Darker variant
+  static const Color lightAqua = Color(0xFF7DD8D3);  // Lighter variant
   
-  /// Primary gradient using teal colors
+  /// Exact logo gradient
+  static LinearGradient getLogoGradient(BuildContext context) {
+    return const LinearGradient(
+      colors: [logoStart, logoEnd],  // Exact logo colors
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
+  /// Primary gradient using logo start color
   static LinearGradient getPrimaryGradient(BuildContext context) {
     return const LinearGradient(
-      colors: [lightTeal, deepTeal],
+      colors: [logoStart, deepTeal],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
   }
 
-  /// Accent gradient (teal to aqua)
+  /// Accent gradient using logo end color
   static LinearGradient getAccentGradient(BuildContext context) {
     return const LinearGradient(
-      colors: [deepTeal, softAqua],
+      colors: [logoEnd, lightAqua],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
   }
 
-  /// Save button gradient (dynamic based on state)
+  /// Save button gradient with logo colors
   static LinearGradient getSaveButtonGradient(BuildContext context, {bool hasChanges = false}) {
-    final colorScheme = Theme.of(context).colorScheme;
     if (hasChanges) {
-      return LinearGradient(
-        colors: [
-          colorScheme.primary,
-          colorScheme.secondary,
-        ],
+      return const LinearGradient(
+        colors: [logoStart, logoEnd],  // Full logo gradient when active
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     }
     return LinearGradient(
       colors: [
-        colorScheme.primaryContainer,
-        colorScheme.primaryContainer,
+        logoEnd.withOpacity(0.3),
+        logoEnd.withOpacity(0.3),
       ],
     );
   }
@@ -683,7 +795,7 @@ class DuruGradients {
     if (isDark) {
       return const LinearGradient(
         colors: [
-          Color(0xFF122438),  // Slightly lighter than base
+          Color(0xFF152A42),  // Slightly lighter than base
           Color(0xFF0F1E2E),  // Base dark surface
         ],
         begin: Alignment.topCenter,
@@ -693,33 +805,30 @@ class DuruGradients {
     return const LinearGradient(
       colors: [
         Colors.white,
-        Color(0xFFF2F2F2),
+        Color(0xFFF8FAFC),  // Very light surface
       ],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
   }
 
-  /// Focus border gradient
+  /// Focus border gradient with logo colors
   static LinearGradient getFocusBorderGradient(BuildContext context) {
     return const LinearGradient(
-      colors: [
-        lightTeal,
-        softAqua,
-      ],
+      colors: [logoStart, logoEnd],  // Exact logo gradient
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
   }
 
-  /// Glassmorphic overlay gradient (for special effects)
+  /// Glassmorphic overlay gradient
   static LinearGradient getGlassmorphicOverlay(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     if (isDark) {
       return LinearGradient(
         colors: [
-          Colors.white.withOpacity(0.05),
-          Colors.white.withOpacity(0.02),
+          logoEnd.withOpacity(0.05),
+          logoStart.withOpacity(0.02),
         ],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -727,11 +836,47 @@ class DuruGradients {
     }
     return LinearGradient(
       colors: [
-        Colors.white.withOpacity(0.7),
-        Colors.white.withOpacity(0.5),
+        Colors.white.withOpacity(0.8),
+        logoEnd.withOpacity(0.1),
       ],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
   }
+
+  /// Notification badge gradient
+  static LinearGradient getNotificationGradient(BuildContext context) {
+    return const LinearGradient(
+      colors: [logoStart, deepTeal],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
+  /// Success gradient (for completed actions)
+  static LinearGradient getSuccessGradient(BuildContext context) {
+    return const LinearGradient(
+      colors: [logoEnd, lightAqua],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
 }
+
+/// Logo color constants for easy access throughout the app
+class DuruColors {
+  DuruColors._();
+  
+  // Exact logo colors
+  static const Color primary = Color(0xFF048ABF);    // #048ABF - Logo gradient start
+  static const Color accent = Color(0xFF5FD0CB);     // #5FD0CB - Logo gradient end
+  static const Color deepTeal = Color(0xFF036693);   // Darker variant
+  static const Color lightAqua = Color(0xFF7DD8D3);  // Lighter variant
+  
+  // Semantic colors based on logo palette
+  static const Color success = Color(0xFF5FD0CB);    // Use logo accent for success
+  static const Color warning = Color(0xFFFFA726);    // Complementary orange
+  static const Color error = Color(0xFFEF5350);      // Standard error red
+  static const Color info = Color(0xFF048ABF);       // Use logo primary for info
+}
+

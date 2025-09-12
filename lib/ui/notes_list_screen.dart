@@ -586,6 +586,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         
         final sortedNotes = _sortNotes(filteredNotes);
         
+        // Check if we have active filters - if so, don't show loader for more pages
+        final filterState = ref.watch(filterStateProvider);
+        final hasActiveFilters = filterState?.hasActiveFilters ?? false;
+        final currentFolder = ref.watch(currentFolderProvider);
+        
+        // Only show "load more" if we're not filtering AND there are actually more pages
+        final shouldShowLoadMore = !hasActiveFilters && currentFolder == null && hasMore;
+        
         return RefreshIndicator(
           onRefresh: () async {
             HapticFeedback.mediumImpact();
@@ -599,8 +607,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: _isGridView
-                ? _buildModernGridView(context, sortedNotes, hasMore)
-                : _buildModernListView(context, sortedNotes, hasMore),
+                ? _buildModernGridView(context, sortedNotes, shouldShowLoadMore)
+                : _buildModernListView(context, sortedNotes, shouldShowLoadMore),
           ),
         );
       },

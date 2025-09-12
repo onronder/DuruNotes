@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
@@ -510,8 +511,25 @@ final syncModeProvider = StateNotifierProvider<SyncModeNotifier, SyncMode>((ref)
   final repo = ref.watch(notesRepositoryProvider);
   
   // Callback to refresh UI after successful sync
+  // Use a safe callback that checks if the provider is still alive
   void onSyncComplete() {
-    ref.read(notesPageProvider.notifier).refresh();
+    // Only refresh if the provider is still alive
+    try {
+      // Check if we can still access providers
+      ref.read(notesPageProvider.notifier).refresh();
+      
+      // Load additional pages if there are more notes
+      while (ref.read(hasMoreNotesProvider)) {
+        ref.read(notesPageProvider.notifier).loadMore();
+      }
+      
+      // Refresh folders as well
+      ref.read(folderHierarchyProvider.notifier).loadFolders();
+    } catch (e) {
+      // Provider is disposed or ref is not available
+      // Silently ignore - this is expected when the provider is disposed
+      debugPrint('[SyncMode] Cannot refresh after sync - provider disposed');
+    }
   }
   
   return SyncModeNotifier(repo, onSyncComplete);

@@ -3,20 +3,20 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i8;
+import 'dart:async' as _i7;
 import 'dart:typed_data' as _i11;
 
 import 'package:duru_notes/core/crypto/crypto_box.dart' as _i3;
 import 'package:duru_notes/core/monitoring/app_logger.dart' as _i12;
 import 'package:duru_notes/data/local/app_db.dart' as _i2;
-import 'package:duru_notes/data/remote/supabase_note_api.dart' as _i5;
+import 'package:duru_notes/data/remote/supabase_note_api.dart' as _i4;
 import 'package:duru_notes/models/note_block.dart' as _i10;
 import 'package:duru_notes/repository/notes_repository.dart' as _i6;
 import 'package:duru_notes/services/analytics/analytics_service.dart' as _i13;
 import 'package:duru_notes/services/attachment_service.dart' as _i9;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i7;
-import 'package:supabase_flutter/supabase_flutter.dart' as _i4;
+import 'package:mockito/src/dummies.dart' as _i8;
+import 'package:supabase_flutter/supabase_flutter.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -31,6 +31,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as _i4;
 // ignore_for_file: unnecessary_parenthesis
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
+// ignore_for_file: invalid_use_of_internal_member
 
 class _FakeAppDb_0 extends _i1.SmartFake implements _i2.AppDb {
   _FakeAppDb_0(Object parent, Invocation parentInvocation)
@@ -42,15 +43,20 @@ class _FakeCryptoBox_1 extends _i1.SmartFake implements _i3.CryptoBox {
     : super(parent, parentInvocation);
 }
 
-class _FakeSupabaseClient_2 extends _i1.SmartFake
-    implements _i4.SupabaseClient {
-  _FakeSupabaseClient_2(Object parent, Invocation parentInvocation)
+class _FakeSupabaseNoteApi_2 extends _i1.SmartFake
+    implements _i4.SupabaseNoteApi {
+  _FakeSupabaseNoteApi_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeSupabaseNoteApi_3 extends _i1.SmartFake
-    implements _i5.SupabaseNoteApi {
-  _FakeSupabaseNoteApi_3(Object parent, Invocation parentInvocation)
+class _FakeSupabaseClient_3 extends _i1.SmartFake
+    implements _i5.SupabaseClient {
+  _FakeSupabaseClient_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeLocalFolder_4 extends _i1.SmartFake implements _i2.LocalFolder {
+  _FakeLocalFolder_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -79,119 +85,166 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
           as _i3.CryptoBox);
 
   @override
-  _i4.SupabaseClient get client =>
+  _i4.SupabaseNoteApi get api =>
+      (super.noSuchMethod(
+            Invocation.getter(#api),
+            returnValue: _FakeSupabaseNoteApi_2(this, Invocation.getter(#api)),
+          )
+          as _i4.SupabaseNoteApi);
+
+  @override
+  _i5.SupabaseClient get client =>
       (super.noSuchMethod(
             Invocation.getter(#client),
-            returnValue: _FakeSupabaseClient_2(
+            returnValue: _FakeSupabaseClient_3(
               this,
               Invocation.getter(#client),
             ),
           )
-          as _i4.SupabaseClient);
+          as _i5.SupabaseClient);
 
   @override
-  String get userId =>
+  _i7.Future<void> createOrUpdateSavedSearch(_i2.SavedSearch? savedSearch) =>
       (super.noSuchMethod(
-            Invocation.getter(#userId),
-            returnValue: _i7.dummyValue<String>(
-              this,
-              Invocation.getter(#userId),
+            Invocation.method(#createOrUpdateSavedSearch, [savedSearch]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> deleteSavedSearch(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteSavedSearch, [id]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<List<_i2.SavedSearch>> getSavedSearches() =>
+      (super.noSuchMethod(
+            Invocation.method(#getSavedSearches, []),
+            returnValue: _i7.Future<List<_i2.SavedSearch>>.value(
+              <_i2.SavedSearch>[],
             ),
           )
-          as String);
+          as _i7.Future<List<_i2.SavedSearch>>);
 
   @override
-  _i5.SupabaseNoteApi get api =>
+  _i7.Stream<List<_i2.SavedSearch>> watchSavedSearches() =>
       (super.noSuchMethod(
-            Invocation.getter(#api),
-            returnValue: _FakeSupabaseNoteApi_3(this, Invocation.getter(#api)),
+            Invocation.method(#watchSavedSearches, []),
+            returnValue: _i7.Stream<List<_i2.SavedSearch>>.empty(),
           )
-          as _i5.SupabaseNoteApi);
+          as _i7.Stream<List<_i2.SavedSearch>>);
 
   @override
-  _i8.Future<String> createOrUpdate({
-    required String? title,
-    required String? body,
-    String? id,
-    Map<String, dynamic>? metadataJson,
-  }) =>
+  _i7.Future<void> toggleSavedSearchPin(String? id) =>
       (super.noSuchMethod(
-            Invocation.method(#createOrUpdate, [], {
-              #title: title,
-              #body: body,
-              #id: id,
-              #metadataJson: metadataJson,
-            }),
-            returnValue: _i8.Future<String>.value(
-              _i7.dummyValue<String>(
-                this,
-                Invocation.method(#createOrUpdate, [], {
-                  #title: title,
-                  #body: body,
-                  #id: id,
-                  #metadataJson: metadataJson,
-                }),
-              ),
+            Invocation.method(#toggleSavedSearchPin, [id]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> trackSavedSearchUsage(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#trackSavedSearchUsage, [id]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> reorderSavedSearches(List<String>? ids) =>
+      (super.noSuchMethod(
+            Invocation.method(#reorderSavedSearches, [ids]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<List<_i2.LocalNote>> executeSavedSearch(
+    _i2.SavedSearch? savedSearch,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#executeSavedSearch, [savedSearch]),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<String>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<_i2.LocalNote?> getNote(String? id) =>
+  _i7.Future<void> toggleNotePin(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getNote, [id]),
-            returnValue: _i8.Future<_i2.LocalNote?>.value(),
+            Invocation.method(#toggleNotePin, [noteId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<_i2.LocalNote?>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<void> delete(String? id) =>
+  _i7.Future<void> setNotePin(String? noteId, bool? isPinned) =>
       (super.noSuchMethod(
-            Invocation.method(#delete, [id]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            Invocation.method(#setNotePin, [noteId, isPinned]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<List<_i2.TagCount>> listTagsWithCounts() =>
+  _i7.Future<List<_i2.LocalNote>> getPinnedNotes() =>
+      (super.noSuchMethod(
+            Invocation.method(#getPinnedNotes, []),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalNote>>);
+
+  @override
+  _i7.Future<List<_i2.TagCount>> listTagsWithCounts() =>
       (super.noSuchMethod(
             Invocation.method(#listTagsWithCounts, []),
-            returnValue: _i8.Future<List<_i2.TagCount>>.value(<_i2.TagCount>[]),
+            returnValue: _i7.Future<List<_i2.TagCount>>.value(<_i2.TagCount>[]),
           )
-          as _i8.Future<List<_i2.TagCount>>);
+          as _i7.Future<List<_i2.TagCount>>);
 
   @override
-  _i8.Future<void> addTag({required String? noteId, required String? tag}) =>
+  _i7.Future<void> addTag({required String? noteId, required String? tag}) =>
       (super.noSuchMethod(
             Invocation.method(#addTag, [], {#noteId: noteId, #tag: tag}),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<void> removeTag({required String? noteId, required String? tag}) =>
+  _i7.Future<void> removeTag({required String? noteId, required String? tag}) =>
       (super.noSuchMethod(
             Invocation.method(#removeTag, [], {#noteId: noteId, #tag: tag}),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<int> renameTagEverywhere({
+  _i7.Future<int> renameTagEverywhere({
     required String? from,
     required String? to,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#renameTagEverywhere, [], {#from: from, #to: to}),
-            returnValue: _i8.Future<int>.value(0),
+            returnValue: _i7.Future<int>.value(0),
           )
-          as _i8.Future<int>);
+          as _i7.Future<int>);
 
   @override
-  _i8.Future<List<_i2.LocalNote>> queryNotesByTags({
+  _i7.Future<List<_i2.LocalNote>> queryNotesByTags({
     required List<String>? anyTags,
     List<String>? noneTags = const [],
     required _i2.SortSpec? sort,
@@ -202,107 +255,188 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
               #noneTags: noneTags,
               #sort: sort,
             }),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<List<String>> searchTags(String? prefix) =>
+  _i7.Future<List<String>> searchTags(String? prefix) =>
       (super.noSuchMethod(
             Invocation.method(#searchTags, [prefix]),
-            returnValue: _i8.Future<List<String>>.value(<String>[]),
+            returnValue: _i7.Future<List<String>>.value(<String>[]),
           )
-          as _i8.Future<List<String>>);
+          as _i7.Future<List<String>>);
 
   @override
-  _i8.Future<List<String>> getTagsForNote(String? noteId) =>
+  _i7.Future<List<String>> getTagsForNote(String? noteId) =>
       (super.noSuchMethod(
             Invocation.method(#getTagsForNote, [noteId]),
-            returnValue: _i8.Future<List<String>>.value(<String>[]),
+            returnValue: _i7.Future<List<String>>.value(<String>[]),
           )
-          as _i8.Future<List<String>>);
+          as _i7.Future<List<String>>);
 
   @override
-  _i8.Future<void> pushAllPending() =>
+  _i7.Future<_i2.LocalNote?> getLocalNoteById(String? id) =>
       (super.noSuchMethod(
-            Invocation.method(#pushAllPending, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            Invocation.method(#getLocalNoteById, [id]),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<_i2.LocalNote?>);
 
   @override
-  _i8.Future<void> pullSince(DateTime? since) =>
+  _i7.Future<_i2.LocalNote?> getNote(String? id) =>
       (super.noSuchMethod(
-            Invocation.method(#pullSince, [since]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            Invocation.method(#getNote, [id]),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<_i2.LocalNote?>);
 
   @override
-  _i8.Future<Set<String>> fetchRemoteActiveIds() =>
+  _i7.Future<_i2.LocalNote?> createOrUpdate({
+    String? id,
+    required String? title,
+    required String? body,
+    DateTime? updatedAt,
+    Set<String>? tags = const {},
+    List<Map<String, String?>>? links = const [],
+    Map<String, dynamic>? attachmentMeta,
+    Map<String, dynamic>? metadataJson,
+    bool? isPinned,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#fetchRemoteActiveIds, []),
-            returnValue: _i8.Future<Set<String>>.value(<String>{}),
+            Invocation.method(#createOrUpdate, [], {
+              #id: id,
+              #title: title,
+              #body: body,
+              #updatedAt: updatedAt,
+              #tags: tags,
+              #links: links,
+              #attachmentMeta: attachmentMeta,
+              #metadataJson: metadataJson,
+              #isPinned: isPinned,
+            }),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
           )
-          as _i8.Future<Set<String>>);
+          as _i7.Future<_i2.LocalNote?>);
 
   @override
-  _i8.Future<void> reconcileHardDeletes(Set<String>? remoteActiveIds) =>
+  _i7.Future<List<_i2.LocalNote>> getRecentlyViewedNotes({int? limit = 5}) =>
       (super.noSuchMethod(
-            Invocation.method(#reconcileHardDeletes, [remoteActiveIds]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<List<_i2.LocalNote>> list() =>
-      (super.noSuchMethod(
-            Invocation.method(#list, []),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+            Invocation.method(#getRecentlyViewedNotes, [], {#limit: limit}),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<List<_i2.LocalNote>> listAfter(
+  _i7.Future<List<_i2.LocalNote>> localNotes() =>
+      (super.noSuchMethod(
+            Invocation.method(#localNotes, []),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalNote>>);
+
+  @override
+  _i7.Future<List<_i2.LocalNote>> listAfter(
     DateTime? cursor, {
     int? limit = 20,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#listAfter, [cursor], {#limit: limit}),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<List<_i2.LocalNote>> listWithOffset({
-    int? limit = 20,
-    int? offset = 0,
+  _i7.Future<void> updateLocalNote(
+    String? id, {
+    String? title,
+    String? body,
+    bool? deleted,
+    DateTime? updatedAt,
+    Map<String, dynamic>? attachmentMeta,
+    Set<String>? tags,
+    List<Map<String, String?>>? links,
+    bool? isPinned,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#listWithOffset, [], {
-              #limit: limit,
-              #offset: offset,
-            }),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
-              <_i2.LocalNote>[],
+            Invocation.method(
+              #updateLocalNote,
+              [id],
+              {
+                #title: title,
+                #body: body,
+                #deleted: deleted,
+                #updatedAt: updatedAt,
+                #attachmentMeta: attachmentMeta,
+                #tags: tags,
+                #links: links,
+                #isPinned: isPinned,
+              },
             ),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<String> createOrUpdateFolder({
-    required String? name,
-    required String? parentId,
+  _i7.Future<void> deleteNote(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteNote, [id]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> delete(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#delete, [id]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i2.LocalFolder?> getFolder(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#getFolder, [id]),
+            returnValue: _i7.Future<_i2.LocalFolder?>.value(),
+          )
+          as _i7.Future<_i2.LocalFolder?>);
+
+  @override
+  _i7.Future<List<_i2.LocalFolder>> listFolders() =>
+      (super.noSuchMethod(
+            Invocation.method(#listFolders, []),
+            returnValue: _i7.Future<List<_i2.LocalFolder>>.value(
+              <_i2.LocalFolder>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalFolder>>);
+
+  @override
+  _i7.Future<List<_i2.LocalFolder>> getRootFolders() =>
+      (super.noSuchMethod(
+            Invocation.method(#getRootFolders, []),
+            returnValue: _i7.Future<List<_i2.LocalFolder>>.value(
+              <_i2.LocalFolder>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalFolder>>);
+
+  @override
+  _i7.Future<String> createOrUpdateFolder({
     String? id,
+    required String? name,
+    String? parentId,
     String? color,
     String? icon,
     String? description,
@@ -310,21 +444,21 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdateFolder, [], {
+              #id: id,
               #name: name,
               #parentId: parentId,
-              #id: id,
               #color: color,
               #icon: icon,
               #description: description,
               #sortOrder: sortOrder,
             }),
-            returnValue: _i8.Future<String>.value(
-              _i7.dummyValue<String>(
+            returnValue: _i7.Future<String>.value(
+              _i8.dummyValue<String>(
                 this,
                 Invocation.method(#createOrUpdateFolder, [], {
+                  #id: id,
                   #name: name,
                   #parentId: parentId,
-                  #id: id,
                   #color: color,
                   #icon: icon,
                   #description: description,
@@ -333,209 +467,258 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
               ),
             ),
           )
-          as _i8.Future<String>);
+          as _i7.Future<String>);
 
   @override
-  _i8.Future<_i2.LocalFolder?> getFolder(String? id) =>
+  _i7.Future<_i2.LocalFolder> createFolder({
+    required String? name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#getFolder, [id]),
-            returnValue: _i8.Future<_i2.LocalFolder?>.value(),
-          )
-          as _i8.Future<_i2.LocalFolder?>);
-
-  @override
-  _i8.Future<List<_i2.LocalFolder>> listFolders() =>
-      (super.noSuchMethod(
-            Invocation.method(#listFolders, []),
-            returnValue: _i8.Future<List<_i2.LocalFolder>>.value(
-              <_i2.LocalFolder>[],
+            Invocation.method(#createFolder, [], {
+              #name: name,
+              #parentId: parentId,
+              #color: color,
+              #icon: icon,
+              #description: description,
+            }),
+            returnValue: _i7.Future<_i2.LocalFolder>.value(
+              _FakeLocalFolder_4(
+                this,
+                Invocation.method(#createFolder, [], {
+                  #name: name,
+                  #parentId: parentId,
+                  #color: color,
+                  #icon: icon,
+                  #description: description,
+                }),
+              ),
             ),
           )
-          as _i8.Future<List<_i2.LocalFolder>>);
+          as _i7.Future<_i2.LocalFolder>);
 
   @override
-  _i8.Future<List<_i2.LocalFolder>> getRootFolders() =>
+  _i7.Future<void> renameFolder(String? folderId, String? newName) =>
       (super.noSuchMethod(
-            Invocation.method(#getRootFolders, []),
-            returnValue: _i8.Future<List<_i2.LocalFolder>>.value(
-              <_i2.LocalFolder>[],
-            ),
+            Invocation.method(#renameFolder, [folderId, newName]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<List<_i2.LocalFolder>>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<List<_i2.LocalFolder>> getChildFolders(String? parentId) =>
-      (super.noSuchMethod(
-            Invocation.method(#getChildFolders, [parentId]),
-            returnValue: _i8.Future<List<_i2.LocalFolder>>.value(
-              <_i2.LocalFolder>[],
-            ),
-          )
-          as _i8.Future<List<_i2.LocalFolder>>);
-
-  @override
-  _i8.Future<List<_i2.LocalFolder>> getFolderHierarchy() =>
-      (super.noSuchMethod(
-            Invocation.method(#getFolderHierarchy, []),
-            returnValue: _i8.Future<List<_i2.LocalFolder>>.value(
-              <_i2.LocalFolder>[],
-            ),
-          )
-          as _i8.Future<List<_i2.LocalFolder>>);
-
-  @override
-  _i8.Future<void> deleteFolder(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteFolder, [id]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> moveFolder(String? folderId, String? newParentId) =>
+  _i7.Future<void> moveFolder(String? folderId, String? newParentId) =>
       (super.noSuchMethod(
             Invocation.method(#moveFolder, [folderId, newParentId]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<void> pushAllPendingFolders() =>
+  _i7.Future<void> deleteFolder(String? folderId) =>
       (super.noSuchMethod(
-            Invocation.method(#pushAllPendingFolders, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            Invocation.method(#deleteFolder, [folderId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i8.Future<void> pullFoldersSince(DateTime? since) =>
-      (super.noSuchMethod(
-            Invocation.method(#pullFoldersSince, [since]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> pullNoteFolderRelationsSince(DateTime? since) =>
-      (super.noSuchMethod(
-            Invocation.method(#pullNoteFolderRelationsSince, [since]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<Set<String>> fetchRemoteActiveFolderIds() =>
-      (super.noSuchMethod(
-            Invocation.method(#fetchRemoteActiveFolderIds, []),
-            returnValue: _i8.Future<Set<String>>.value(<String>{}),
-          )
-          as _i8.Future<Set<String>>);
-
-  @override
-  _i8.Future<void> reconcileFolderHardDeletes(Set<String>? remoteActiveIds) =>
-      (super.noSuchMethod(
-            Invocation.method(#reconcileFolderHardDeletes, [remoteActiveIds]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> addNoteToFolder(String? noteId, String? folderId) =>
-      (super.noSuchMethod(
-            Invocation.method(#addNoteToFolder, [noteId, folderId]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> removeNoteFromFolder(String? noteId) =>
-      (super.noSuchMethod(
-            Invocation.method(#removeNoteFromFolder, [noteId]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> moveNoteToFolder(String? noteId, String? folderId) =>
-      (super.noSuchMethod(
-            Invocation.method(#moveNoteToFolder, [noteId, folderId]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<List<_i2.LocalNote>> getNotesInFolder(String? folderId) =>
+  _i7.Future<List<_i2.LocalNote>> getNotesInFolder(String? folderId) =>
       (super.noSuchMethod(
             Invocation.method(#getNotesInFolder, [folderId]),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<List<_i2.LocalNote>> getUnfiledNotes() =>
+  _i7.Future<List<_i2.LocalNote>> getUnfiledNotes() =>
       (super.noSuchMethod(
             Invocation.method(#getUnfiledNotes, []),
-            returnValue: _i8.Future<List<_i2.LocalNote>>.value(
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
             ),
           )
-          as _i8.Future<List<_i2.LocalNote>>);
+          as _i7.Future<List<_i2.LocalNote>>);
 
   @override
-  _i8.Future<_i2.LocalFolder?> getFolderForNote(String? noteId) =>
+  _i7.Future<void> addNoteToFolder(String? noteId, String? folderId) =>
+      (super.noSuchMethod(
+            Invocation.method(#addNoteToFolder, [noteId, folderId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> moveNoteToFolder(String? noteId, String? folderId) =>
+      (super.noSuchMethod(
+            Invocation.method(#moveNoteToFolder, [noteId, folderId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> removeNoteFromFolder(String? noteId) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeNoteFromFolder, [noteId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i2.LocalFolder?> getFolderForNote(String? noteId) =>
       (super.noSuchMethod(
             Invocation.method(#getFolderForNote, [noteId]),
-            returnValue: _i8.Future<_i2.LocalFolder?>.value(),
+            returnValue: _i7.Future<_i2.LocalFolder?>.value(),
           )
-          as _i8.Future<_i2.LocalFolder?>);
+          as _i7.Future<_i2.LocalFolder?>);
 
   @override
-  _i8.Future<void> validateAndRepairFolderStructure() =>
-      (super.noSuchMethod(
-            Invocation.method(#validateAndRepairFolderStructure, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> resolveFolderConflicts() =>
-      (super.noSuchMethod(
-            Invocation.method(#resolveFolderConflicts, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> cleanupOrphanedRelationships() =>
-      (super.noSuchMethod(
-            Invocation.method(#cleanupOrphanedRelationships, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<Map<String, dynamic>> performFolderHealthCheck() =>
+  _i7.Future<Map<String, dynamic>> performFolderHealthCheck() =>
       (super.noSuchMethod(
             Invocation.method(#performFolderHealthCheck, []),
-            returnValue: _i8.Future<Map<String, dynamic>>.value(
+            returnValue: _i7.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i8.Future<Map<String, dynamic>>);
+          as _i7.Future<Map<String, dynamic>>);
+
+  @override
+  _i7.Future<void> validateAndRepairFolderStructure() =>
+      (super.noSuchMethod(
+            Invocation.method(#validateAndRepairFolderStructure, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> cleanupOrphanedRelationships() =>
+      (super.noSuchMethod(
+            Invocation.method(#cleanupOrphanedRelationships, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> resolveFolderConflicts() =>
+      (super.noSuchMethod(
+            Invocation.method(#resolveFolderConflicts, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<List<_i2.LocalFolder>> getChildFolders(String? parentId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getChildFolders, [parentId]),
+            returnValue: _i7.Future<List<_i2.LocalFolder>>.value(
+              <_i2.LocalFolder>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalFolder>>);
+
+  @override
+  _i7.Future<List<_i2.LocalNote>> list({int? limit}) =>
+      (super.noSuchMethod(
+            Invocation.method(#list, [], {#limit: limit}),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalNote>>);
+
+  @override
+  _i7.Stream<List<_i2.LocalNote>> watchNotes({
+    String? folderId,
+    List<String>? anyTags,
+    List<String>? noneTags,
+    bool? pinnedFirst = true,
+    _i2.SortSpec? sort,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#watchNotes, [], {
+              #folderId: folderId,
+              #anyTags: anyTags,
+              #noneTags: noneTags,
+              #pinnedFirst: pinnedFirst,
+              #sort: sort,
+            }),
+            returnValue: _i7.Stream<List<_i2.LocalNote>>.empty(),
+          )
+          as _i7.Stream<List<_i2.LocalNote>>);
+
+  @override
+  _i7.Future<void> pushAllPending() =>
+      (super.noSuchMethod(
+            Invocation.method(#pushAllPending, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> pullSince(DateTime? since) =>
+      (super.noSuchMethod(
+            Invocation.method(#pullSince, [since]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<Set<String>> fetchRemoteActiveIds() =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchRemoteActiveIds, []),
+            returnValue: _i7.Future<Set<String>>.value(<String>{}),
+          )
+          as _i7.Future<Set<String>>);
+
+  @override
+  _i7.Future<void> reconcileHardDeletes(Set<String>? remoteIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#reconcileHardDeletes, [remoteIds]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> reconcile() =>
+      (super.noSuchMethod(
+            Invocation.method(#reconcile, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<DateTime?> getLastSyncTime() =>
+      (super.noSuchMethod(
+            Invocation.method(#getLastSyncTime, []),
+            returnValue: _i7.Future<DateTime?>.value(),
+          )
+          as _i7.Future<DateTime?>);
+
+  @override
+  _i7.Future<void> sync() =>
+      (super.noSuchMethod(
+            Invocation.method(#sync, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
 }
 
 /// A class which mocks [AttachmentService].
@@ -547,15 +730,15 @@ class MockAttachmentService extends _i1.Mock implements _i9.AttachmentService {
   }
 
   @override
-  _i8.Future<_i10.AttachmentBlockData?> pickAndUpload() =>
+  _i7.Future<_i10.AttachmentBlockData?> pickAndUpload() =>
       (super.noSuchMethod(
             Invocation.method(#pickAndUpload, []),
-            returnValue: _i8.Future<_i10.AttachmentBlockData?>.value(),
+            returnValue: _i7.Future<_i10.AttachmentBlockData?>.value(),
           )
-          as _i8.Future<_i10.AttachmentBlockData?>);
+          as _i7.Future<_i10.AttachmentBlockData?>);
 
   @override
-  _i8.Future<_i10.AttachmentBlockData?> uploadFromBytes({
+  _i7.Future<_i10.AttachmentBlockData?> uploadFromBytes({
     required _i11.Uint8List? bytes,
     required String? filename,
   }) =>
@@ -564,25 +747,25 @@ class MockAttachmentService extends _i1.Mock implements _i9.AttachmentService {
               #bytes: bytes,
               #filename: filename,
             }),
-            returnValue: _i8.Future<_i10.AttachmentBlockData?>.value(),
+            returnValue: _i7.Future<_i10.AttachmentBlockData?>.value(),
           )
-          as _i8.Future<_i10.AttachmentBlockData?>);
+          as _i7.Future<_i10.AttachmentBlockData?>);
 
   @override
-  _i8.Future<_i11.Uint8List?> download(String? url) =>
+  _i7.Future<_i11.Uint8List?> download(String? url) =>
       (super.noSuchMethod(
             Invocation.method(#download, [url]),
-            returnValue: _i8.Future<_i11.Uint8List?>.value(),
+            returnValue: _i7.Future<_i11.Uint8List?>.value(),
           )
-          as _i8.Future<_i11.Uint8List?>);
+          as _i7.Future<_i11.Uint8List?>);
 
   @override
-  _i8.Future<bool> delete(String? url) =>
+  _i7.Future<bool> delete(String? url) =>
       (super.noSuchMethod(
             Invocation.method(#delete, [url]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i7.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i7.Future<bool>);
 
   @override
   bool isSupported(String? mimeType) =>
@@ -652,13 +835,13 @@ class MockAppLogger extends _i1.Mock implements _i12.AppLogger {
       );
 
   @override
-  _i8.Future<void> flush() =>
+  _i7.Future<void> flush() =>
       (super.noSuchMethod(
             Invocation.method(#flush, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i7.Future<void>);
 }
 
 /// A class which mocks [AnalyticsService].

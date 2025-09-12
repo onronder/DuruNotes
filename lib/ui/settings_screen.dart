@@ -1012,6 +1012,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Reload the first page of notes to show synced data
         await ref.read(notesPageProvider.notifier).refresh();
         
+        // Load additional pages if there are more notes
+        while (ref.read(hasMoreNotesProvider)) {
+          await ref.read(notesPageProvider.notifier).loadMore();
+        }
+        
+        // Refresh folders as well
+        await ref.read(folderHierarchyProvider.notifier).loadFolders();
+        
         // Add a small delay to ensure UI updates
         await Future.delayed(const Duration(milliseconds: 500));
         

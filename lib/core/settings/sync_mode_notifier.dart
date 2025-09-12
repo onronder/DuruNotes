@@ -24,6 +24,9 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   // Timer for periodic sync in automatic mode
   Timer? _autoSyncTimer;
   
+  // Track if the notifier is disposed
+  bool _isDisposed = false;
+  
   // Sync interval for automatic mode (5 minutes)
   static const Duration _autoSyncInterval = Duration(minutes: 5);
 
@@ -76,6 +79,11 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
 
   /// Perform manual sync operation (production path)
   Future<bool> manualSync() async {
+    if (_isDisposed) {
+      print('⚠️ Sync skipped: notifier is disposed');
+      return false;
+    }
+    
     try {
       print('🔄 Starting manual sync...');
       
@@ -108,6 +116,13 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
         print('  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})');
       }
       
+      // Also check folders after sync
+      final localFolders = await _notesRepository.listFolders();
+      print('📁 Local database has ${localFolders.length} folders');
+      for (final folder in localFolders.take(5)) {
+        print('  - ${folder.name} (path: ${folder.path})');
+      }
+      
       print('🎉 Manual sync completed successfully');
       return true;
     } catch (e, stackTrace) {
@@ -121,9 +136,15 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   void _startPeriodicSync() {
     _stopPeriodicSync(); // Cancel any existing timer
     _autoSyncTimer = Timer.periodic(_autoSyncInterval, (_) async {
+      // Check if disposed before executing
+      if (_isDisposed) {
+        _stopPeriodicSync();
+        return;
+      }
+      
       // Perform background sync without blocking UI
       final success = await manualSync();
-      if (success) {
+      if (success && !_isDisposed) {
         // Trigger UI refresh if callback is provided
         _onSyncComplete?.call();
       }
@@ -145,6 +166,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   
   @override
   void dispose() {
+    _isDisposed = true;
     _stopPeriodicSync();
     super.dispose();
   }
