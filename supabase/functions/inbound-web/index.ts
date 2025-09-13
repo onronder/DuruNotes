@@ -255,6 +255,39 @@ serve(async (req) => {
       url: pageUrl || "N/A"
     }));
     
+    // Trigger push notification for web clip
+    try {
+      // Create notification event
+      await supabase.rpc("create_notification_event", {
+        p_user_id: userId,
+        p_event_type: "web_clip_saved",
+        p_event_source: "web",
+        p_payload: {
+          title: title || "Web Clip",
+          url: pageUrl || "",
+          preview: text ? text.substring(0, 100) : "",
+          clipped_at: payload.clipped_at,
+        },
+        p_priority: "normal",
+        p_dedupe_key: `webclip_${Date.now()}_${userId}`,
+      });
+      
+      console.log(JSON.stringify({
+        event: "notification_triggered",
+        type: "web_clip_saved",
+        user_id: userId,
+        title: title || "Web Clip",
+      }));
+    } catch (notifErr) {
+      // Log but don't fail the request
+      console.error(JSON.stringify({
+        event: "notification_trigger_failed",
+        error: String(notifErr),
+        user_id: userId,
+        title: title || "Web Clip",
+      }));
+    }
+    
     return new Response(
       JSON.stringify({ status: "ok", message: "Clip saved successfully" }), 
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

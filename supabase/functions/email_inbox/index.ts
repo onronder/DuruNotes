@@ -207,6 +207,44 @@ serve(async (req) => {
       return new Response("Temporary error", { status: 500, headers: corsHeaders });
     }
 
+    // Trigger push notification for new email
+    if (!insErr || insErr.code !== "23505") {
+      // Only trigger notification if it's not a duplicate
+      try {
+        // Create notification event
+        await supabase.rpc("create_notification_event", {
+          p_user_id: userId,
+          p_event_type: "email_received",
+          p_event_source: "email_in",
+          p_payload: {
+            inbox_id: messageId,
+            from: payload.from,
+            subject: payload.subject,
+            preview: payload.text ? payload.text.substring(0, 100) : "",
+            has_attachments: payload.attachments_pending || false,
+            received_at: payload.received_at,
+          },
+          p_priority: "high",
+          p_dedupe_key: `email_${messageId}`,
+        });
+        
+        console.log(JSON.stringify({
+          event: "notification_triggered",
+          type: "email_received",
+          user_id: userId,
+          msg_id: messageId,
+        }));
+      } catch (notifErr) {
+        // Log but don't fail the request
+        console.error(JSON.stringify({
+          event: "notification_trigger_failed",
+          error: String(notifErr),
+          user_id: userId,
+          msg_id: messageId,
+        }));
+      }
+    }
+
     // Return immediately - attachments handled asynchronously by app
     return new Response("OK", { status: 200, headers: corsHeaders });
     
