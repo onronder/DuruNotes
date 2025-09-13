@@ -32,6 +32,7 @@ import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/inbox_realtime_service.dart';
 import 'package:duru_notes/services/folder_realtime_service.dart';
 import 'package:duru_notes/services/notes_realtime_service.dart';
+import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:flutter/material.dart';
@@ -313,6 +314,30 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
   service.initialize().catchError((error) {
     ref.watch(loggerProvider).error('Failed to initialize push notification service: $error');
   });
+  
+  // Clean up on disposal
+  ref.onDispose(() {
+    service.dispose();
+  });
+  
+  return service;
+});
+
+/// Notification handler service provider
+final notificationHandlerServiceProvider = Provider<NotificationHandlerService>((ref) {
+  // Only create if authenticated
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  
+  if (client.auth.currentUser == null) {
+    throw StateError('NotificationHandlerService requested without authentication');
+  }
+  
+  final service = NotificationHandlerService(
+    client: client,
+    logger: ref.watch(loggerProvider),
+    pushService: ref.watch(pushNotificationServiceProvider),
+  );
   
   // Clean up on disposal
   ref.onDispose(() {

@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:duru_notes/core/settings/sync_mode.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
+import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/notes_list_screen.dart';
+import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
+import 'package:duru_notes/ui/note_edit_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +50,7 @@ class App extends ConsumerWidget {
       supportedLocales: generatedSupportedLocales,
       theme: DuruMaterial3Theme.lightTheme,
       darkTheme: DuruMaterial3Theme.darkTheme,
-      home: const AuthWrapper(),
+      home: AuthWrapper(navigatorKey: navigatorKey),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -159,7 +164,9 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
 
 /// Wrapper that handles authentication state
 class AuthWrapper extends ConsumerStatefulWidget {
-  const AuthWrapper({super.key});
+  const AuthWrapper({super.key, this.navigatorKey});
+  
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
@@ -168,6 +175,8 @@ class AuthWrapper extends ConsumerStatefulWidget {
 class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
   bool _hasTriggeredInitialSync = false;
   ClipperInboxService? _clipperService;
+  NotificationHandlerService? _notificationHandler;
+  StreamSubscription<NotificationPayload>? _notificationTapSubscription;
 
   @override
   void initState() {
@@ -178,6 +187,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   @override
   void dispose() {
     _clipperService?.stop();
+    _notificationTapSubscription?.cancel();
+    _notificationHandler?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -293,6 +304,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           WidgetsBinding.instance.addPostFrameCallback((_) {
             debugPrint('🔔 Attempting push token registration after authentication...');
             _registerPushTokenInBackground();
+            
+            // Initialize notification handler service
+            _initializeNotificationHandler();
           });
           
           return const NotesListScreen();
@@ -303,6 +317,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           _hasTriggeredInitialSync = false; // Reset flag when logged out
           _clipperService?.stop(); // Stop the clipper service when logged out
           _clipperService = null;
+          
+          // Clean up notification handler when logged out
+          _notificationTapSubscription?.cancel();
+          _notificationTapSubscription = null;
+          _notificationHandler?.dispose();
+          _notificationHandler = null;
+          
           return const AuthScreen();
         }
       },
@@ -412,6 +433,105 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       // Log error but don't show to user - push registration failure shouldn't block app usage
       debugPrint('❌ Failed to register push token: $e');
       debugPrint('Stack trace: $stack');
+    }
+  }
+  
+  Future<void> _initializeNotificationHandler() async {
+    try {
+      debugPrint('🔔 Initializing notification handler service...');
+      
+      // Get the notification handler service
+      _notificationHandler = ref.read(notificationHandlerServiceProvider);
+      
+      // Initialize the service (sets up Firebase message handlers)
+      await _notificationHandler!.initialize();
+      
+      // Subscribe to notification tap events for navigation
+      _notificationTapSubscription = _notificationHandler!.onNotificationTap.listen(
+        (payload) => _handleNotificationTap(payload),
+      );
+      
+      debugPrint('✅ Notification handler service initialized successfully');
+    } catch (e, stack) {
+      debugPrint('❌ Failed to initialize notification handler: $e');
+      debugPrint('Stack trace: $stack');
+    }
+  }
+  
+  void _handleNotificationTap(NotificationPayload payload) {
+    debugPrint('📱 Handling notification tap: ${payload.eventType}');
+    
+    // Get the navigator from the global key if available
+    final navigatorKey = widget.navigatorKey;
+    if (navigatorKey?.currentState == null) {
+      debugPrint('⚠️ Navigator not available, cannot navigate');
+      return;
+    }
+    
+    final navigator = navigatorKey!.currentState!;
+    
+    // Navigate based on event type
+    switch (payload.eventType) {
+      case 'email_received':
+        debugPrint('📧 Navigating to email inbox');
+        navigator.push(
+          MaterialPageRoute(
+            builder: (context) => const InboundEmailInboxWidget(),
+          ),
+        );
+        break;
+        
+      case 'web_clip_saved':
+        // Navigate to the web clip note if we have a note ID
+        final noteId = payload.data['note_id'] as String?;
+        if (noteId != null) {
+          _navigateToNote(navigator, noteId);
+        } else {
+          // Just go to notes list
+          debugPrint('📝 Web clip saved, returning to notes list');
+        }
+        break;
+        
+      case 'note_shared':
+        // Navigate to the shared note
+        final noteId = payload.data['note_id'] as String?;
+        if (noteId != null) {
+          debugPrint('🔗 Navigating to shared note: $noteId');
+          _navigateToNote(navigator, noteId);
+        }
+        break;
+        
+      case 'reminder_due':
+        // Navigate to the note with the reminder
+        final noteId = payload.data['note_id'] as String?;
+        if (noteId != null) {
+          debugPrint('⏰ Navigating to note with reminder: $noteId');
+          _navigateToNote(navigator, noteId);
+        }
+        break;
+        
+      default:
+        debugPrint('⚠️ Unknown notification event type: ${payload.eventType}');
+    }
+  }
+  
+  Future<void> _navigateToNote(NavigatorState navigator, String noteId) async {
+    try {
+      // Load the note from the repository
+      final repo = ref.read(notesRepositoryProvider);
+      final note = await repo.getNoteById(noteId);
+      
+      if (note != null) {
+        navigator.push(
+          MaterialPageRoute(
+            builder: (context) => NoteEditScreen(note: note),
+          ),
+        );
+      } else {
+        debugPrint('⚠️ Note not found: $noteId');
+      }
+    } catch (e) {
+      debugPrint('❌ Error navigating to note: $e');
     }
   }
 }
