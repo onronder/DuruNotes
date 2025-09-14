@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:duru_notes/core/utils/hash_utils.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -117,6 +118,85 @@ class NoteReminders extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get lastTriggered => dateTime().nullable()();
   IntColumn get triggerCount => integer().withDefault(const Constant(0))();
+}
+
+/// Task status enum
+enum TaskStatus {
+  open,      // Task is open/pending
+  completed, // Task is completed
+  cancelled, // Task was cancelled
+}
+
+/// Task priority levels
+enum TaskPriority {
+  low,
+  medium,
+  high,
+  urgent,
+}
+
+/// Note tasks table for tracking actionable items from notes
+@DataClassName('NoteTask')
+class NoteTasks extends Table {
+  /// Unique identifier for the task
+  TextColumn get id => text()();
+  
+  /// Reference to parent note ID
+  TextColumn get noteId => text()();
+  
+  /// Task content/description
+  TextColumn get content => text()();
+  
+  /// Task completion status
+  IntColumn get status => intEnum<TaskStatus>().withDefault(Constant(TaskStatus.open.index))();
+  
+  /// Task priority level
+  IntColumn get priority => intEnum<TaskPriority>().withDefault(Constant(TaskPriority.medium.index))();
+  
+  /// Optional due date for the task
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  
+  /// Date when task was completed
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  
+  /// User who completed the task (for shared notes)
+  TextColumn get completedBy => text().nullable()();
+  
+  /// Line number or position in note (for sync with markdown)
+  IntColumn get position => integer().withDefault(const Constant(0))();
+  
+  /// Hash of the task text for deduplication
+  TextColumn get contentHash => text()();
+  
+  /// Optional reminder ID if a reminder is set for this task
+  IntColumn get reminderId => integer().nullable()();
+  
+  /// Custom labels/tags for the task
+  TextColumn get labels => text().nullable()(); // JSON array
+  
+  /// Notes or additional context for the task
+  TextColumn get notes => text().nullable()();
+  
+  /// Time estimate in minutes
+  IntColumn get estimatedMinutes => integer().nullable()();
+  
+  /// Actual time spent in minutes
+  IntColumn get actualMinutes => integer().nullable()();
+  
+  /// Parent task ID for subtasks
+  TextColumn get parentTaskId => text().nullable()();
+  
+  /// Creation timestamp
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  
+  /// Last modification timestamp
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  
+  /// Soft delete flag
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 /// UI'da kullanmak için küçük taşıyıcı
@@ -255,12 +335,12 @@ class SavedSearches extends Table {
 /// ----------------------
 /// Database
 /// ----------------------
-@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, LocalFolders, NoteFolders, SavedSearches])
+@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, NoteTasks, LocalFolders, NoteFolders, SavedSearches])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -282,6 +362,7 @@ class AppDb extends _$AppDb {
           await _createIndexes();
           await _createReminderIndexes();
           await _createFolderIndexes();
+          await _createTaskIndexes();
           await _createSavedSearchIndexes();
 
           // Seed existing data to FTS
@@ -352,6 +433,19 @@ class AppDb extends _$AppDb {
             
             // 5. Update existing notes in FTS with folder paths
             await _syncExistingFolderPaths();
+          }
+          if (from < 9) {
+            // Version 9: Add note tasks table for task management
+            await m.createTable(noteTasks);
+            
+            // Create indexes for task queries
+            await _createTaskIndexes();
+            
+            // Parse existing notes and extract tasks from checkboxes
+            await _extractTasksFromExistingNotes();
+            
+            // Backfill content_hash for any existing tasks with stable hash
+            await _backfillTaskContentHash();
           }
         },
       );
@@ -1165,6 +1259,249 @@ class AppDb extends _$AppDb {
                 r.recurrencePattern.isNotValue(RecurrencePattern.none.index)))
           .get();
 
+  // ----------------------
+  // Tasks
+  // ----------------------
+  
+  /// Get all tasks for a specific note
+  Future<List<NoteTask>> getTasksForNote(String noteId) =>
+      (select(noteTasks)
+            ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
+            ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+          .get();
+  
+  /// Get a specific task by ID
+  Future<NoteTask?> getTaskById(String id) =>
+      (select(noteTasks)..where((t) => t.id.equals(id))).getSingleOrNull();
+  
+  /// Get all open tasks with optional filtering
+  Future<List<NoteTask>> getOpenTasks({
+    DateTime? dueBefore,
+    TaskPriority? priority,
+    String? parentTaskId,
+  }) {
+    final query = select(noteTasks)
+      ..where((t) => 
+          t.status.equals(TaskStatus.open.index) & 
+          t.deleted.equals(false));
+    
+    if (dueBefore != null) {
+      query.where((t) => t.dueDate.isSmallerOrEqualValue(dueBefore));
+    }
+    
+    if (priority != null) {
+      query.where((t) => t.priority.equals(priority.index));
+    }
+    
+    if (parentTaskId != null) {
+      query.where((t) => t.parentTaskId.equals(parentTaskId));
+    }
+    
+    query.orderBy([
+      (t) => OrderingTerm.asc(t.dueDate),
+      (t) => OrderingTerm.desc(t.priority),
+    ]);
+    
+    return query.get();
+  }
+  
+  /// Get tasks by due date range
+  Future<List<NoteTask>> getTasksByDateRange({
+    required DateTime start,
+    required DateTime end,
+  }) =>
+      (select(noteTasks)
+            ..where((t) => 
+                t.deleted.equals(false) &
+                t.dueDate.isBetweenValues(start, end))
+            ..orderBy([(t) => OrderingTerm.asc(t.dueDate)]))
+          .get();
+  
+  /// Get overdue tasks
+  Future<List<NoteTask>> getOverdueTasks() {
+    final now = DateTime.now();
+    return (select(noteTasks)
+          ..where((t) => 
+              t.status.equals(TaskStatus.open.index) &
+              t.deleted.equals(false) &
+              t.dueDate.isSmallerThanValue(now))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.priority),
+            (t) => OrderingTerm.asc(t.dueDate),
+          ]))
+        .get();
+  }
+  
+  /// Get completed tasks
+  Future<List<NoteTask>> getCompletedTasks({
+    DateTime? since,
+    int? limit,
+  }) {
+    final query = select(noteTasks)
+      ..where((t) => 
+          t.status.equals(TaskStatus.completed.index) &
+          t.deleted.equals(false));
+    
+    if (since != null) {
+      query.where((t) => t.completedAt.isBiggerOrEqualValue(since));
+    }
+    
+    query.orderBy([(t) => OrderingTerm.desc(t.completedAt)]);
+    
+    if (limit != null) {
+      query.limit(limit);
+    }
+    
+    return query.get();
+  }
+  
+  /// Create a new task
+  Future<void> createTask(NoteTasksCompanion task) =>
+      into(noteTasks).insert(task);
+  
+  /// Update an existing task
+  Future<void> updateTask(String id, NoteTasksCompanion updates) =>
+      (update(noteTasks)..where((t) => t.id.equals(id))).write(updates);
+  
+  /// Mark task as completed
+  Future<void> completeTask(String id, {String? completedBy}) =>
+      (update(noteTasks)..where((t) => t.id.equals(id)))
+          .write(NoteTasksCompanion(
+            status: Value(TaskStatus.completed),
+            completedAt: Value(DateTime.now()),
+            completedBy: Value(completedBy),
+            updatedAt: Value(DateTime.now()),
+          ));
+  
+  /// Toggle task completion status
+  Future<void> toggleTaskStatus(String id) async {
+    final task = await getTaskById(id);
+    if (task != null) {
+      final newStatus = task.status == TaskStatus.completed 
+          ? TaskStatus.open 
+          : TaskStatus.completed;
+      
+      await (update(noteTasks)..where((t) => t.id.equals(id)))
+          .write(NoteTasksCompanion(
+            status: Value(newStatus),
+            completedAt: newStatus == TaskStatus.completed 
+                ? Value(DateTime.now()) 
+                : const Value(null),
+            updatedAt: Value(DateTime.now()),
+          ));
+    }
+  }
+  
+  /// Delete a specific task
+  Future<void> deleteTaskById(String id) =>
+      (delete(noteTasks)..where((t) => t.id.equals(id))).go();
+  
+  /// Delete all tasks for a note
+  Future<void> deleteTasksForNote(String noteId) =>
+      (delete(noteTasks)..where((t) => t.noteId.equals(noteId))).go();
+  
+  /// Sync tasks with note content (called when note is saved)
+  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {
+    // Parse note content for checkboxes
+    final lines = noteContent.split('\n');
+    final taskPositions = <int, _ParsedTask>{};
+    var position = 0;
+    
+    for (final line in lines) {
+      final trimmedLine = line.trim();
+      
+      if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        final isCompleted = trimmedLine.startsWith('- [x]');
+        final content = trimmedLine.substring(5).trim();
+        
+        if (content.isNotEmpty) {
+          taskPositions[position] = _ParsedTask(
+            content: content,
+            isCompleted: isCompleted,
+          );
+          position++;
+        }
+      }
+    }
+    
+    // Get existing tasks for this note
+    final existingTasks = await getTasksForNote(noteId);
+    final existingByPosition = {
+      for (final task in existingTasks) task.position: task
+    };
+    
+    // Update or create tasks based on parsed content
+    for (final entry in taskPositions.entries) {
+      final position = entry.key;
+      final parsed = entry.value;
+      final contentHash = stableTaskHash(noteId, parsed.content);
+      
+      final existing = existingByPosition[position];
+      
+      if (existing != null) {
+        // Update existing task if content or status changed
+        if (existing.content != parsed.content || 
+            (existing.status == TaskStatus.completed) != parsed.isCompleted) {
+          await updateTask(
+            existing.id,
+            NoteTasksCompanion(
+              content: Value(parsed.content),
+              contentHash: Value(contentHash),
+              status: Value(parsed.isCompleted ? TaskStatus.completed : TaskStatus.open),
+              completedAt: parsed.isCompleted && existing.status != TaskStatus.completed
+                  ? Value(DateTime.now())
+                  : const Value.absent(),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        }
+        existingByPosition.remove(position);
+      } else {
+        // Create new task
+        final taskId = '${noteId}_task_$position';
+        await createTask(
+          NoteTasksCompanion.insert(
+            id: taskId,
+            noteId: noteId,
+            content: parsed.content,
+            contentHash: contentHash,
+            status: Value(parsed.isCompleted ? TaskStatus.completed : TaskStatus.open),
+            position: Value(position),
+            completedAt: parsed.isCompleted ? Value(DateTime.now()) : const Value.absent(),
+          ),
+        );
+      }
+    }
+    
+    // Mark removed tasks as deleted
+    for (final task in existingByPosition.values) {
+      await (update(noteTasks)..where((t) => t.id.equals(task.id)))
+          .write(NoteTasksCompanion(
+            deleted: const Value(true),
+            updatedAt: Value(DateTime.now()),
+          ));
+    }
+  }
+  
+  /// Watch all open tasks (for UI updates)
+  Stream<List<NoteTask>> watchOpenTasks() =>
+      (select(noteTasks)
+            ..where((t) => 
+                t.status.equals(TaskStatus.open.index) &
+                t.deleted.equals(false))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.dueDate),
+              (t) => OrderingTerm.desc(t.priority),
+            ]))
+          .watch();
+  
+  /// Watch tasks for a specific note
+  Stream<List<NoteTask>> watchTasksForNote(String noteId) =>
+      (select(noteTasks)
+            ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
+            ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+          .watch();
+
   /// Get snoozed reminders that are ready to be rescheduled
   Future<List<NoteReminder>> getSnoozedRemindersToReschedule({required DateTime now}) =>
       (select(noteReminders)
@@ -1265,6 +1602,88 @@ class AppDb extends _$AppDb {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_note_folders_folder_id ON note_folders(folder_id)',
     );
+  }
+
+  Future<void> _createTaskIndexes() async {
+    // Index for finding tasks by note
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tasks_note_id ON note_tasks(note_id)',
+    );
+    // Index for finding open tasks by due date
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tasks_due_date ON note_tasks(due_date) WHERE status = 0 AND deleted = 0',
+    );
+    // Index for finding tasks by status
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tasks_status ON note_tasks(status) WHERE deleted = 0',
+    );
+    // Index for finding tasks with reminders
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tasks_reminder_id ON note_tasks(reminder_id) WHERE reminder_id IS NOT NULL',
+    );
+    // Index for finding subtasks
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_note_tasks_parent ON note_tasks(parent_task_id) WHERE parent_task_id IS NOT NULL',
+    );
+  }
+
+  Future<void> _extractTasksFromExistingNotes() async {
+    // Extract tasks from existing notes that have checkboxes
+    final notes = await (select(localNotes)..where((n) => n.deleted.equals(false))).get();
+    
+    for (final note in notes) {
+      // Parse note body for checkbox patterns
+      final lines = note.body.split('\n');
+      var position = 0;
+      
+      for (final line in lines) {
+        final trimmedLine = line.trim();
+        
+        // Check for markdown checkbox patterns
+        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+          final isCompleted = trimmedLine.startsWith('- [x]');
+          final content = trimmedLine.substring(5).trim();
+          
+          if (content.isNotEmpty) {
+            final taskId = '${note.id}_task_${position}';
+            // Use stable hash for content
+            final contentHash = HashUtils.stableTaskHash(note.id, content);
+            
+            // Insert task into database
+            await into(noteTasks).insertOnConflictUpdate(
+              NoteTasksCompanion.insert(
+                id: taskId,
+                noteId: note.id,
+                content: content,
+                status: Value(isCompleted ? TaskStatus.completed : TaskStatus.open),
+                position: Value(position),
+                contentHash: contentHash,
+                completedAt: isCompleted ? Value(DateTime.now()) : const Value.absent(),
+              ),
+            );
+            
+            position++;
+          }
+        }
+      }
+    }
+  }
+  
+  Future<void> _backfillTaskContentHash() async {
+    // Backfill content_hash for any existing tasks with stable hash
+    final tasks = await (select(noteTasks)..where((t) => t.deleted.equals(false))).get();
+    
+    for (final task in tasks) {
+      // Only update if content_hash seems to be using old hashCode
+      if (task.contentHash == task.content.hashCode.toString()) {
+        final stableHash = HashUtils.stableTaskHash(task.noteId, task.content);
+        
+        await (update(noteTasks)..where((t) => t.id.equals(task.id)))
+          .write(NoteTasksCompanion(
+            contentHash: Value(stableHash),
+          ));
+      }
+    }
   }
 
   /// Update FTS to include folder path information
@@ -1445,6 +1864,18 @@ class AppDb extends _$AppDb {
 
     return query.map((row) => row.readTable(localNotes)).get();
   }
+
+  /// Get a single note by ID
+  Future<LocalNote?> getNote(String id) =>
+      (select(localNotes)..where((n) => n.id.equals(id))).getSingleOrNull();
+
+  /// Watch a single note for changes
+  Stream<LocalNote?> watchNote(String id) =>
+      (select(localNotes)..where((n) => n.id.equals(id))).watchSingleOrNull();
+
+  /// Update a note
+  Future<void> updateNote(String id, LocalNotesCompanion updates) =>
+      (update(localNotes)..where((n) => n.id.equals(id))).write(updates);
 
   /// Get unfiled notes (not in any folder)
   Future<List<LocalNote>> getUnfiledNotes({int? limit, DateTime? cursor}) {
@@ -1751,6 +2182,17 @@ class AppDb extends _$AppDb {
           ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
         .get();
   }
+}
+
+/// Helper class for parsing tasks from markdown
+class _ParsedTask {
+  final String content;
+  final bool isCompleted;
+  
+  const _ParsedTask({
+    required this.content,
+    required this.isCompleted,
+  });
 }
 
 /// ----------------------

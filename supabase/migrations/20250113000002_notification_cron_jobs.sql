@@ -291,7 +291,8 @@ GRANT EXECUTE ON FUNCTION public.manual_process_notifications TO authenticated;
 -- 9. Summary Comment
 -- =====================================================
 
-COMMENT ON SCHEMA cron IS 'Automated job scheduling for notification system';
+-- Note: Schema comment requires ownership, skipping for now
+-- COMMENT ON SCHEMA cron IS 'Automated job scheduling for notification system';
 
 -- Log successful setup
 DO $$

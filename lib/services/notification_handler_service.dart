@@ -44,19 +44,19 @@ class NotificationPayload {
 
   factory NotificationPayload.fromJson(Map<String, dynamic> json) {
     return NotificationPayload(
-      eventId: json['event_id'] ?? '',
-      eventType: json['event_type'] ?? '',
-      title: json['title'] ?? '',
-      body: json['body'] ?? '',
-      data: json['data'] ?? {},
+      eventId: (json['event_id'] as String?) ?? '',
+      eventType: (json['event_type'] as String?) ?? '',
+      title: (json['title'] as String?) ?? '',
+      body: (json['body'] as String?) ?? '',
+      data: (json['data'] as Map<String, dynamic>?) ?? {},
       action: json['action'] != null
           ? NotificationAction.values.firstWhere(
               (e) => e.name == json['action'],
               orElse: () => NotificationAction.open,
             )
           : null,
-      deepLink: json['deep_link'],
-      imageUrl: json['image_url'],
+      deepLink: json['deep_link'] as String?,
+      imageUrl: json['image_url'] as String?,
     );
   }
 
@@ -153,7 +153,7 @@ class NotificationHandlerService {
       requestAlertPermission: false, // We handle this via Firebase
       requestBadgePermission: false,
       requestSoundPermission: false,
-      onDidReceiveLocalNotification: null, // Not used in iOS 10+
+      // onDidReceiveLocalNotification removed in newer versions
     );
 
     // Platform settings
@@ -320,12 +320,12 @@ class NotificationHandlerService {
     final data = message.data;
     
     return NotificationPayload(
-      eventId: data['event_id'] ?? '',
-      eventType: data['event_type'] ?? '',
-      title: message.notification?.title ?? data['title'] ?? 'Notification',
-      body: message.notification?.body ?? data['body'] ?? '',
+      eventId: (data['event_id'] as String?) ?? '',
+      eventType: (data['event_type'] as String?) ?? '',
+      title: message.notification?.title ?? (data['title'] as String?) ?? 'Notification',
+      body: message.notification?.body ?? (data['body'] as String?) ?? '',
       data: data,
-      deepLink: data['deep_link'],
+      deepLink: data['deep_link'] as String?,
       imageUrl: message.notification?.android?.imageUrl ?? 
                 message.notification?.apple?.imageUrl,
     );
@@ -493,7 +493,7 @@ class NotificationHandlerService {
       // Check event-specific preferences
       final eventPrefs = response['event_preferences'] as Map<String, dynamic>?;
       if (eventPrefs != null && eventPrefs.containsKey(payload.eventType)) {
-        final eventEnabled = eventPrefs[payload.eventType]['enabled'] ?? true;
+        final eventEnabled = (eventPrefs[payload.eventType]['enabled'] as bool?) ?? true;
         if (!eventEnabled) {
           return false;
         }

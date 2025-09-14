@@ -1,10 +1,13 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+// OCR functionality temporarily disabled - uncomment when google_mlkit_text_recognition is added
+// import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// OCR (Optical Character Recognition) service for extracting text from images
+/// Note: OCR functionality is currently disabled. To enable, uncomment the google_mlkit_text_recognition import
+/// and add the package to pubspec.yaml
 class OCRService {
   OCRService({
     AppLogger? logger,
@@ -15,11 +18,12 @@ class OCRService {
   final AppLogger _logger;
   final AnalyticsService _analytics;
   final ImagePicker _imagePicker = ImagePicker();
-  TextRecognizer? _textRecognizer;
+  // TextRecognizer? _textRecognizer;
 
   /// Initialize the OCR service
   void _initializeRecognizer() {
-    _textRecognizer ??= TextRecognizer();
+    // OCR temporarily disabled
+    // _textRecognizer ??= TextRecognizer();
   }
 
   /// Pick image from camera and extract text
@@ -70,29 +74,29 @@ class OCRService {
       _analytics.startTiming('ocr_extract_text');
       _initializeRecognizer();
       
-      final inputImage = InputImage.fromFilePath(imagePath);
-      final recognizedText = await _textRecognizer!.processImage(inputImage);
+      // OCR temporarily disabled - return empty text
+      const extractedText = 'OCR functionality is temporarily disabled';
       
-      final extractedText = recognizedText.text;
+      // final inputImage = InputImage.fromFilePath(imagePath);
+      // final recognizedText = await _textRecognizer!.processImage(inputImage);
+      // final extractedText = recognizedText.text;
       
       _analytics.endTiming('ocr_extract_text', properties: {
         'success': extractedText.isNotEmpty,
         'text_length': extractedText.length,
-        'blocks_detected': recognizedText.blocks.length,
-        'lines_detected': recognizedText.blocks
-            .map((block) => block.lines.length)
-            .fold(0, (a, b) => a + b),
+        'blocks_detected': 0, // recognizedText.blocks.length,
+        'lines_detected': 0, // recognizedText.blocks.map((block) => block.lines.length).fold(0, (a, b) => a + b),
       });
       
       _analytics.featureUsed('ocr_text_extracted', properties: {
         'text_length': extractedText.length,
         'word_count': extractedText.split(' ').where((w) => w.isNotEmpty).length,
-        'block_count': recognizedText.blocks.length,
+        'block_count': 0, // recognizedText.blocks.length,
       });
       
       _logger.info('Text extracted from image', data: {
         'text_length': extractedText.length,
-        'blocks': recognizedText.blocks.length,
+        'blocks': 0, // recognizedText.blocks.length,
       });
       
       return extractedText.isNotEmpty ? extractedText : null;
@@ -115,11 +119,14 @@ class OCRService {
     try {
       _initializeRecognizer();
       
-      final inputImage = InputImage.fromFilePath(imagePath);
-      final recognizedText = await _textRecognizer!.processImage(inputImage);
-      
+      // OCR temporarily disabled - return empty blocks
       final blocks = <OCRTextBlock>[];
+      _logger.info('OCR service is currently disabled - structured text scanning unavailable');
       
+      // final inputImage = InputImage.fromFilePath(imagePath);
+      // final recognizedText = await _textRecognizer!.processImage(inputImage);
+      
+      /* OCR loop disabled
       for (final textBlock in recognizedText.blocks) {
         final lines = <OCRTextLine>[];
         
@@ -149,9 +156,10 @@ class OCRService {
           lines: lines,
         ));
       }
+      */
       
       final result = OCRResult(
-        fullText: recognizedText.text,
+        fullText: '', // recognizedText.text,
         blocks: blocks,
       );
       
@@ -181,12 +189,16 @@ class OCRService {
 
   /// Check if OCR is available on this device
   Future<bool> isAvailable() async {
+    // OCR temporarily disabled
+    return false;
+    /*
     try {
       _initializeRecognizer();
       return _textRecognizer != null;
     } catch (e) {
       return false;
     }
+    */
   }
 
   /// Get supported languages for OCR
@@ -210,8 +222,9 @@ class OCRService {
 
   /// Dispose of resources
   void dispose() {
-    _textRecognizer?.close();
-    _textRecognizer = null;
+    // OCR temporarily disabled
+    // _textRecognizer?.close();
+    // _textRecognizer = null;
   }
 }
 
