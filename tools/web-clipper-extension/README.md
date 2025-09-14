@@ -64,11 +64,16 @@ Before using the clipper, you need to configure three settings:
 
 ### Setting the INBOUND_PARSE_SECRET
 
+**IMPORTANT - Current Production Secret:**
+```
+04d8d736ffb82b7fcfcc1a51df065858b7f6fc6809220a128be009e6cada59dd
+```
+
 If you haven't set the secret yet:
 
 ```bash
 # In your project directory
-supabase secrets set INBOUND_PARSE_SECRET=your-secret-value
+supabase secrets set INBOUND_PARSE_SECRET=04d8d736ffb82b7fcfcc1a51df065858b7f6fc6809220a128be009e6cada59dd
 ```
 
 Use the same secret value in the extension configuration.

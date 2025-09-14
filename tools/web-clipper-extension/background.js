@@ -1,213 +1,191 @@
-// DuruNotes Web Clipper - Background Service Worker
-// Handles context menu creation and web clipping functionality
+// DuruNotes Chrome Extension - Background Service Worker
 
-/**
- * Compute HMAC-SHA256 signature for request authentication
- */
-async function computeHmac(secret, message) {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(message);
+const SUPABASE_URL = 'https://jtaedgpxesshdrnbgvjr.supabase.co';
+const FUNCTIONS_URL = 'https://jtaedgpxesshdrnbgvjr.functions.supabase.co';
+
+// Function to refresh token
+async function refreshAccessToken() {
+  const storage = await chrome.storage.local.get(['refresh_token']);
+  if (!storage.refresh_token) {
+    throw new Error('No refresh token available');
+  }
   
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDgzfQ.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U'
+    },
+    body: JSON.stringify({ refresh_token: storage.refresh_token })
+  });
   
-  const signature = await crypto.subtle.sign('HMAC', key, messageData);
-  const hashArray = Array.from(new Uint8Array(signature));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  if (!response.ok) {
+    throw new Error('Token refresh failed');
+  }
+  
+  const data = await response.json();
+  await chrome.storage.local.set({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    user: data.user
+  });
+  
+  return data.access_token;
 }
 
-// Create context menu on extension install/update
+// Listen for messages from content script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'sendToSupabase') {
+    handleClipRequest(request.data)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
+  }
+});
+
+// Handle clip request with authentication
+async function handleClipRequest(data, retryCount = 0) {
+  const { userId, alias, title, text, url, html } = data;
+  let { accessToken } = data;
+  
+  // If no token provided, get from storage
+  if (!accessToken) {
+    const storage = await chrome.storage.local.get(['access_token']);
+    accessToken = storage.access_token;
+  }
+  
+  if (!accessToken) {
+    throw new Error('Not authenticated');
+  }
+  
+  try {
+    // Send to authenticated endpoint
+    const response = await fetch(`${FUNCTIONS_URL}/inbound-web-auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'x-user-id': userId
+      },
+      body: JSON.stringify({
+        alias: alias || 'default',
+        title: title || 'Untitled',
+        text: text || '',
+        url: url,
+        html: html || '',
+        clipped_at: new Date().toISOString()
+      })
+    });
+    
+    if (response.ok) {
+      return { success: true };
+    } else {
+      // If token expired and we haven't retried yet, refresh and retry
+      if (response.status === 401 && retryCount === 0) {
+        console.log('Token expired, refreshing...');
+        try {
+          const newToken = await refreshAccessToken();
+          // Retry with new token
+          return handleClipRequest({ ...data, accessToken: newToken }, 1);
+        } catch (refreshError) {
+          throw new Error('Token refresh failed. Please sign in again.');
+        }
+      }
+      
+      const error = await response.text();
+      throw new Error(error || 'Failed to save clip');
+    }
+  } catch (error) {
+    console.error('Clip error:', error);
+    throw error;
+  }
+}
+
+// Handle extension install/update
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    // Open welcome page on first install
+    chrome.tabs.create({
+      url: 'https://durunotes.app/extension-welcome'
+    });
+  }
+});
+
+// Context menu for quick clipping
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: 'clip_to_durunotes',
+    id: 'clip-selection',
     title: 'Clip to DuruNotes',
-    contexts: ['selection', 'page']
+    contexts: ['selection']
+  });
+  
+  chrome.contextMenus.create({
+    id: 'clip-page',
+    title: 'Clip entire page to DuruNotes',
+    contexts: ['page']
   });
 });
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== 'clip_to_durunotes') return;
+  // Get authentication token
+  const storage = await chrome.storage.local.get(['access_token', 'user', 'inbox_alias']);
   
-  try {
-    // Get settings from storage
-    const settings = await chrome.storage.local.get(['dn_alias', 'dn_secret', 'dn_fn_base']);
-    
-    // Check if settings are configured
-    if (!settings.dn_alias || !settings.dn_secret || !settings.dn_fn_base) {
-      // Show notification prompting user to configure settings
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
-        title: 'DuruNotes Web Clipper',
-        message: 'Please configure your settings first. Click the extension icon to set up.',
-        priority: 2
-      });
-      return;
-    }
-    
-    // Execute script to get page content
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: getPageContent,
-      args: [info.selectionText]
-    });
-    
-    if (!results || !results[0]) {
-      throw new Error('Failed to get page content');
-    }
-    
-    const { title, text, url } = results[0].result;
-    
-    // Send to DuruNotes
-    await sendToDuruNotes({
-      alias: settings.dn_alias,
-      secret: settings.dn_secret,
-      fnBase: settings.dn_fn_base,
-      title,
-      text,
-      url
-    });
-    
-  } catch (error) {
-    console.error('Clipping failed:', error.message);
-    
-    // Show error notification
+  if (!storage.access_token) {
+    // Show notification to login
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
-      title: 'Clipping Failed',
-      message: error.message || 'An error occurred while clipping',
-      priority: 2
+      iconUrl: 'icon-128.png',
+      title: 'DuruNotes',
+      message: 'Please sign in to clip content'
     });
-  }
-});
-
-// Function to execute in the page context
-function getPageContent(selectedText) {
-  return {
-    title: document.title || 'Untitled',
-    text: selectedText || '',
-    url: window.location.href
-  };
-}
-
-// Send clip to DuruNotes with retry logic and HMAC signing
-async function sendToDuruNotes({ alias, secret, fnBase, title, text, url }) {
-  // Keep query secret as fallback for backward compatibility
-  const endpoint = `${fnBase}/inbound-web?secret=${encodeURIComponent(secret)}`;
-  
-  const payload = {
-    alias: alias,
-    title: title,
-    text: text,
-    url: url,
-    clipped_at: new Date().toISOString()
-  };
-  
-  // Extract domain for notification
-  let domain = 'this page';
-  try {
-    domain = new URL(url).hostname;
-  } catch (e) {
-    // Fallback to generic message
+    return;
   }
   
-  // Function to make the actual request with timeout
-  const makeRequest = async (retryCount = 0) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    try {
-      // Prepare request body
-      const bodyString = JSON.stringify(payload);
-      
-      // Compute HMAC signature for secure authentication
-      const timestamp = new Date().toISOString();
-      const message = `${timestamp}\n${bodyString}`;
-      const signature = await computeHmac(secret, message);
-      
-      // Build headers with HMAC authentication
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-Clipper-Timestamp': timestamp,
-        'X-Clipper-Signature': signature
-      };
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: headers,
-        body: bodyString,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      // Show success notification
+  // Send clip request
+  chrome.tabs.sendMessage(tab.id, {
+    action: 'clip',
+    type: info.menuItemId === 'clip-selection' ? 'selection' : 'page',
+    accessToken: storage.access_token,
+    alias: storage.inbox_alias || 'default',
+    userId: storage.user?.id
+  }, (response) => {
+    if (response?.success) {
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
-        title: 'Clipped Successfully',
-        message: `Saved from ${domain} to DuruNotes`,
-        priority: 1
+        iconUrl: 'icon-128.png',
+        title: 'DuruNotes',
+        message: 'Content clipped successfully!'
       });
-      
-      return result;
-      
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      // Check if it's a network error and we should retry
-      if (retryCount === 0 && (error.name === 'AbortError' || error.message.includes('fetch'))) {
-        console.error('Request failed, retrying once...', {
-          error: error.message,
-          attempt: retryCount + 1
-        });
-        
-        // Wait 1 second before retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return makeRequest(1); // Retry once
-      }
-      
-      // Log structured error without exposing secret
-      console.error('Failed to send clip to DuruNotes', {
-        error: error.message,
-        url: url,
-        domain: domain,
-        attempt: retryCount + 1,
-        // Never log the secret or full endpoint
-      });
-      
-      // Re-throw for outer catch block
-      if (error.name === 'AbortError') {
-        throw new Error('Request timed out. Please check your connection and try again.');
-      }
-      throw error;
     }
-  };
-  
-  return makeRequest();
-}
-
-// Listen for settings updates
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'settings_updated') {
-    console.log('Settings have been updated');
-  }
+  });
 });
 
-// Handle extension icon click (opens popup by default due to manifest)
-// No additional code needed here as popup.html is set as default_popup
+// Token refresh timer (refresh every 45 minutes)
+setInterval(async () => {
+  const storage = await chrome.storage.local.get(['refresh_token']);
+  
+  if (storage.refresh_token) {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U'
+        },
+        body: JSON.stringify({ refresh_token: storage.refresh_token })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        await chrome.storage.local.set({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          user: data.user
+        });
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+    }
+  }
+}, 45 * 60 * 1000); // 45 minutes

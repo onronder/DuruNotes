@@ -1,165 +1,332 @@
-// DuruNotes Web Clipper - Popup Configuration Script
-// Handles saving and loading of extension settings
+// DuruNotes Chrome Extension - Production Authentication
 
-// DOM elements
-const aliasInput = document.getElementById('alias');
-const secretInput = document.getElementById('secret');
-const fnBaseInput = document.getElementById('fn_base');
-const saveBtn = document.getElementById('save-btn');
+const SUPABASE_URL = 'https://jtaedgpxesshdrnbgvjr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U';
+
+// DOM Elements
+const loginView = document.getElementById('login-view');
+const authView = document.getElementById('auth-view');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const userEmail = document.getElementById('user-email');
+const userInitial = document.getElementById('user-initial');
+const inboxAlias = document.getElementById('inbox-alias');
+const clipSelectionBtn = document.getElementById('clip-selection-btn');
+const clipPageBtn = document.getElementById('clip-page-btn');
 const statusDiv = document.getElementById('status');
 
-// Error message elements
-const aliasError = document.getElementById('alias-error');
-const secretError = document.getElementById('secret-error');
-const fnBaseError = document.getElementById('fn_base-error');
+// State
+let currentUser = null;
+let accessToken = null;
+let refreshToken = null;
 
-// Load saved settings on popup open
+// Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const settings = await chrome.storage.local.get(['dn_alias', 'dn_secret', 'dn_fn_base']);
-    
-    if (settings.dn_alias) {
-      aliasInput.value = settings.dn_alias;
-    }
-    if (settings.dn_secret) {
-      secretInput.value = settings.dn_secret;
-    }
-    if (settings.dn_fn_base) {
-      fnBaseInput.value = settings.dn_fn_base;
-    }
-    
-    // Check if all fields are filled to enable save button
-    validateForm();
-  } catch (error) {
-    console.error('Failed to load settings:', error);
-  }
+  await checkAuthStatus();
+  setupEventListeners();
 });
 
-// Validate form and update UI
-function validateForm() {
-  const alias = aliasInput.value.trim();
-  const secret = secretInput.value.trim();
-  const fnBase = fnBaseInput.value.trim();
-  
-  let isValid = true;
-  
-  // Validate alias
-  if (!alias) {
-    aliasInput.classList.add('error');
-    aliasError.classList.add('show');
-    isValid = false;
-  } else {
-    aliasInput.classList.remove('error');
-    aliasError.classList.remove('show');
+// Check if user is already logged in
+async function checkAuthStatus() {
+  try {
+    const stored = await chrome.storage.local.get(['access_token', 'refresh_token', 'user']);
+    
+    if (stored.access_token) {
+      accessToken = stored.access_token;
+      refreshToken = stored.refresh_token;
+      currentUser = stored.user;
+      
+      // Verify token is still valid
+      const isValid = await verifyToken(accessToken);
+      if (isValid) {
+        showAuthenticatedView();
+      } else if (refreshToken) {
+        // Try to refresh the token
+        const refreshed = await refreshAccessToken(refreshToken);
+        if (refreshed) {
+          showAuthenticatedView();
+        } else {
+          showLoginView();
+        }
+      } else {
+        showLoginView();
+      }
+    } else {
+      showLoginView();
+    }
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    showLoginView();
   }
-  
-  // Validate secret
-  if (!secret) {
-    secretInput.classList.add('error');
-    secretError.classList.add('show');
-    isValid = false;
-  } else {
-    secretInput.classList.remove('error');
-    secretError.classList.remove('show');
-  }
-  
-  // Validate Functions Base URL
-  if (!fnBase) {
-    fnBaseInput.classList.add('error');
-    fnBaseError.textContent = 'Functions URL is required';
-    fnBaseError.classList.add('show');
-    isValid = false;
-  } else if (!isValidUrl(fnBase)) {
-    fnBaseInput.classList.add('error');
-    fnBaseError.textContent = 'Please enter a valid URL';
-    fnBaseError.classList.add('show');
-    isValid = false;
-  } else if (!fnBase.includes('.supabase.co')) {
-    fnBaseInput.classList.add('error');
-    fnBaseError.textContent = 'URL must be a Supabase functions URL';
-    fnBaseError.classList.add('show');
-    isValid = false;
-  } else {
-    fnBaseInput.classList.remove('error');
-    fnBaseError.classList.remove('show');
-  }
-  
-  // Enable/disable save button
-  saveBtn.disabled = !isValid;
-  
-  return isValid;
 }
 
-// Helper function to validate URL
-function isValidUrl(string) {
+// Verify token with Supabase
+async function verifyToken(token) {
   try {
-    const url = new URL(string);
-    return url.protocol === 'https:';
-  } catch (_) {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': SUPABASE_ANON_KEY
+      }
+    });
+    
+    if (response.ok) {
+      const user = await response.json();
+      currentUser = user;
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Token verification failed:', error);
     return false;
   }
 }
 
-// Add input event listeners for real-time validation
-aliasInput.addEventListener('input', validateForm);
-secretInput.addEventListener('input', validateForm);
-fnBaseInput.addEventListener('input', validateForm);
+// Refresh access token
+async function refreshAccessToken(refreshToken) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      accessToken = data.access_token;
+      refreshToken = data.refresh_token;
+      currentUser = data.user;
+      
+      // Store new tokens
+      await chrome.storage.local.set({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user: currentUser
+      });
+      
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    return false;
+  }
+}
 
-// Clear status message when user starts typing
-[aliasInput, secretInput, fnBaseInput].forEach(input => {
-  input.addEventListener('input', () => {
-    statusDiv.className = 'status';
-    statusDiv.textContent = '';
+// Setup event listeners
+function setupEventListeners() {
+  // Login form
+  loginBtn.addEventListener('click', handleLogin);
+  emailInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !loginBtn.disabled) {
+      passwordInput.focus();
+    }
   });
-});
+  passwordInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !loginBtn.disabled) {
+      handleLogin();
+    }
+  });
+  
+  // Logout
+  logoutBtn.addEventListener('click', handleLogout);
+  
+  // Clip actions
+  clipSelectionBtn.addEventListener('click', () => clipContent('selection'));
+  clipPageBtn.addEventListener('click', () => clipContent('page'));
+  
+  // Save alias on change
+  inboxAlias.addEventListener('change', async () => {
+    await chrome.storage.local.set({ inbox_alias: inboxAlias.value });
+  });
+}
 
-// Save settings
-saveBtn.addEventListener('click', async () => {
-  // Validate form
-  if (!validateForm()) {
+// Handle login
+async function handleLogin() {
+  // Clear previous errors
+  document.getElementById('email-error').textContent = '';
+  document.getElementById('password-error').textContent = '';
+  
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  
+  // Validate
+  if (!email) {
+    document.getElementById('email-error').textContent = 'Email is required';
+    return;
+  }
+  if (!password) {
+    document.getElementById('password-error').textContent = 'Password is required';
     return;
   }
   
-  // Get trimmed values
-  const alias = aliasInput.value.trim();
-  const secret = secretInput.value.trim();
-  let fnBase = fnBaseInput.value.trim();
-  
-  // Remove trailing slash from Functions Base URL if present
-  if (fnBase.endsWith('/')) {
-    fnBase = fnBase.slice(0, -1);
-  }
+  // Show loading state
+  loginBtn.disabled = true;
+  loginBtn.querySelector('.btn-text').textContent = 'Signing in...';
+  loginBtn.querySelector('.spinner').classList.remove('hidden');
   
   try {
-    // Save to chrome.storage.local
-    await chrome.storage.local.set({
-      dn_alias: alias,
-      dn_secret: secret,
-      dn_fn_base: fnBase
+    // Authenticate with Supabase
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ email, password })
     });
     
-    // Show success message
-    statusDiv.className = 'status success';
-    statusDiv.textContent = 'Settings saved successfully ✓';
-    
-    // Notify background script that settings have been updated
-    chrome.runtime.sendMessage({ type: 'settings_updated' });
-    
-    // Auto-close popup after a short delay
-    setTimeout(() => {
-      window.close();
-    }, 1500);
-    
+    if (response.ok) {
+      const data = await response.json();
+      accessToken = data.access_token;
+      refreshToken = data.refresh_token;
+      currentUser = data.user;
+      
+      // Store credentials
+      await chrome.storage.local.set({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user: currentUser
+      });
+      
+      // Get user's default inbox alias
+      const aliasResponse = await fetch(`${SUPABASE_URL}/rest/v1/inbound_aliases?user_id=eq.${currentUser.id}&select=alias&limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': SUPABASE_ANON_KEY
+        }
+      });
+      
+      if (aliasResponse.ok) {
+        const aliases = await aliasResponse.json();
+        if (aliases.length > 0) {
+          inboxAlias.value = aliases[0].alias.split('@')[0];
+          await chrome.storage.local.set({ inbox_alias: inboxAlias.value });
+        }
+      }
+      
+      showAuthenticatedView();
+      showStatus('Successfully signed in!', 'success');
+    } else {
+      const error = await response.json();
+      if (error.error === 'invalid_grant') {
+        document.getElementById('password-error').textContent = 'Invalid email or password';
+      } else {
+        showStatus('Login failed. Please try again.', 'error');
+      }
+    }
   } catch (error) {
-    console.error('Failed to save settings:', error);
-    statusDiv.className = 'status error';
-    statusDiv.textContent = 'Failed to save settings. Please try again.';
+    console.error('Login error:', error);
+    showStatus('Connection failed. Please check your internet.', 'error');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.querySelector('.btn-text').textContent = 'Sign In';
+    loginBtn.querySelector('.spinner').classList.add('hidden');
   }
-});
+}
 
-// Handle Enter key to save
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !saveBtn.disabled) {
-    saveBtn.click();
+// Handle logout
+async function handleLogout() {
+  try {
+    // Clear stored credentials
+    await chrome.storage.local.remove(['access_token', 'refresh_token', 'user']);
+    
+    // Sign out from Supabase
+    if (accessToken) {
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': SUPABASE_ANON_KEY
+        }
+      });
+    }
+    
+    // Reset state
+    currentUser = null;
+    accessToken = null;
+    refreshToken = null;
+    
+    showLoginView();
+    showStatus('Signed out successfully', 'success');
+  } catch (error) {
+    console.error('Logout error:', error);
   }
-});
+}
+
+// Clip content
+async function clipContent(type) {
+  if (!accessToken) {
+    showStatus('Please sign in first', 'error');
+    return;
+  }
+  
+  const alias = inboxAlias.value || 'default';
+  
+  try {
+    // Get active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // Send message to content script to get content
+    chrome.tabs.sendMessage(tab.id, { 
+      action: 'clip', 
+      type: type,
+      accessToken: accessToken,
+      alias: alias,
+      userId: currentUser.id
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        showStatus('Failed to clip. Please refresh the page.', 'error');
+      } else if (response && response.success) {
+        showStatus('Clipped successfully!', 'success');
+        setTimeout(() => window.close(), 1500);
+      } else {
+        showStatus(response?.error || 'Failed to clip content', 'error');
+      }
+    });
+  } catch (error) {
+    console.error('Clip error:', error);
+    showStatus('Failed to clip content', 'error');
+  }
+}
+
+// Show login view
+function showLoginView() {
+  loginView.classList.remove('hidden');
+  authView.classList.add('hidden');
+  emailInput.focus();
+}
+
+// Show authenticated view
+function showAuthenticatedView() {
+  loginView.classList.add('hidden');
+  authView.classList.remove('hidden');
+  
+  if (currentUser) {
+    userEmail.textContent = currentUser.email;
+    userInitial.textContent = (currentUser.email || 'U')[0].toUpperCase();
+  }
+  
+  // Load saved alias
+  chrome.storage.local.get(['inbox_alias'], (result) => {
+    if (result.inbox_alias) {
+      inboxAlias.value = result.inbox_alias;
+    }
+  });
+}
+
+// Show status message
+function showStatus(message, type = 'info') {
+  statusDiv.textContent = message;
+  statusDiv.className = `status ${type}`;
+  statusDiv.classList.remove('hidden');
+  
+  setTimeout(() => {
+    statusDiv.classList.add('hidden');
+  }, 3000);
+}
