@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DuruNotes Web Clipper",
-  "version": "0.2.0",
-  "description": "Clip web content directly to your DuruNotes inbox",
+  "version": "2.0.0",
+  "description": "Clip web content directly to your DuruNotes inbox with secure authentication",
   
   "permissions": [
     "contextMenus",
@@ -20,19 +20,29 @@
     "service_worker": "background.js"
   },
   
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
   "action": {
     "default_title": "DuruNotes Web Clipper",
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon-16.png",
-      "48": "icons/icon-48.png",
-      "128": "icons/icon-128.png"
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
     }
   },
   
   "icons": {
-    "16": "icons/icon-16.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
   }
 }

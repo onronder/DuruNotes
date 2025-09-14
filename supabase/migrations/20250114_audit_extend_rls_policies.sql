@@ -1,0 +1,548 @@
+-- =====================================================
+-- Migration: Audit and Extend Row-Level Security (RLS) Policies
+-- Date: 2025-01-14
+-- Purpose: Comprehensive RLS coverage for all tables and columns
+-- =====================================================
+
+-- This migration audits existing RLS policies and ensures complete
+-- coverage for all tables, including new columns like metadata.
+
+BEGIN;
+
+-- =====================================================
+-- 1. HELPER FUNCTION TO AUDIT RLS STATUS
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION pg_temp.audit_rls_status()
+RETURNS TABLE (
+    table_name text,
+    rls_enabled boolean,
+    policy_count integer,
+    has_select boolean,
+    has_insert boolean,
+    has_update boolean,
+    has_delete boolean
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        t.tablename::text,
+        t.rowsecurity,
+        COUNT(p.policyname)::integer as policy_count,
+        bool_or(p.cmd = 'SELECT') as has_select,
+        bool_or(p.cmd = 'INSERT') as has_insert,
+        bool_or(p.cmd = 'UPDATE') as has_update,
+        bool_or(p.cmd = 'DELETE') as has_delete
+    FROM pg_tables t
+    LEFT JOIN pg_policies p ON t.schemaname = p.schemaname AND t.tablename = p.tablename
+    WHERE t.schemaname = 'public'
+        AND t.tablename IN (
+            'notes', 'folders', 'note_folders', 'clipper_inbox', 
+            'inbound_aliases', 'user_devices', 'note_tasks'
+        )
+    GROUP BY t.tablename, t.rowsecurity
+    ORDER BY t.tablename;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Log current RLS status
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    RAISE NOTICE 'Current RLS Status:';
+    FOR r IN SELECT * FROM pg_temp.audit_rls_status()
+    LOOP
+        RAISE NOTICE '  Table: %, RLS: %, Policies: % (S:% I:% U:% D:%)', 
+            r.table_name, r.rls_enabled, r.policy_count,
+            r.has_select, r.has_insert, r.has_update, r.has_delete;
+    END LOOP;
+END $$;
+
+-- =====================================================
+-- 2. ENSURE RLS IS ENABLED ON ALL TABLES
+-- =====================================================
+
+-- Enable RLS on all user data tables
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.note_folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clipper_inbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inbound_aliases ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on user_devices if it exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'user_devices'
+    ) THEN
+        EXECUTE 'ALTER TABLE public.user_devices ENABLE ROW LEVEL SECURITY';
+    END IF;
+END $$;
+
+-- Enable RLS on note_tasks if it exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'note_tasks'
+    ) THEN
+        EXECUTE 'ALTER TABLE public.note_tasks ENABLE ROW LEVEL SECURITY';
+    END IF;
+END $$;
+
+-- =====================================================
+-- 3. COMPREHENSIVE RLS POLICIES FOR clipper_inbox
+-- =====================================================
+
+-- Drop existing policies to recreate with proper coverage
+DROP POLICY IF EXISTS "clipper_inbox_select_own" ON public.clipper_inbox;
+DROP POLICY IF EXISTS "clipper_inbox_ins_own" ON public.clipper_inbox;
+DROP POLICY IF EXISTS "clipper_inbox_del_own" ON public.clipper_inbox;
+DROP POLICY IF EXISTS "Users can view own inbox items" ON public.clipper_inbox;
+DROP POLICY IF EXISTS "Users can delete own inbox items" ON public.clipper_inbox;
+
+-- SELECT: Users can only view their own inbox items (including all columns)
+CREATE POLICY "users_select_own_inbox"
+    ON public.clipper_inbox
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- INSERT: Service role only (edge functions handle inserts)
+CREATE POLICY "service_role_insert_inbox"
+    ON public.clipper_inbox
+    FOR INSERT
+    WITH CHECK (
+        -- Only service role can insert
+        current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
+        OR 
+        -- Or authenticated users for their own data
+        auth.uid() = user_id
+    );
+
+-- UPDATE: Users can update their own items (for marking as converted)
+CREATE POLICY "users_update_own_inbox"
+    ON public.clipper_inbox
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- DELETE: Users can delete their own inbox items
+CREATE POLICY "users_delete_own_inbox"
+    ON public.clipper_inbox
+    FOR DELETE
+    USING (auth.uid() = user_id);
+
+COMMENT ON POLICY "users_select_own_inbox" ON public.clipper_inbox 
+    IS 'Users can view all columns of their own inbox items including metadata';
+COMMENT ON POLICY "service_role_insert_inbox" ON public.clipper_inbox 
+    IS 'Service role (edge functions) and users can insert inbox items';
+COMMENT ON POLICY "users_update_own_inbox" ON public.clipper_inbox 
+    IS 'Users can update their own items to mark as converted';
+COMMENT ON POLICY "users_delete_own_inbox" ON public.clipper_inbox 
+    IS 'Users can delete their own inbox items';
+
+-- =====================================================
+-- 4. COMPREHENSIVE RLS POLICIES FOR inbound_aliases
+-- =====================================================
+
+-- Drop existing policies to recreate
+DROP POLICY IF EXISTS "users-can-view-own-alias" ON public.inbound_aliases;
+
+-- SELECT: Users can only view their own alias
+CREATE POLICY "users_select_own_alias"
+    ON public.inbound_aliases
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- INSERT: Handled by generate_user_alias function (SECURITY DEFINER)
+-- No direct INSERT policy needed
+
+-- UPDATE: Users can update their own alias metadata
+CREATE POLICY "users_update_own_alias"
+    ON public.inbound_aliases
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- DELETE: Users cannot delete aliases (prevent accidental loss)
+-- Aliases should be permanent or deleted via admin action
+
+COMMENT ON POLICY "users_select_own_alias" ON public.inbound_aliases 
+    IS 'Users can view their own email alias';
+COMMENT ON POLICY "users_update_own_alias" ON public.inbound_aliases 
+    IS 'Users can update their own alias metadata';
+
+-- =====================================================
+-- 5. COMPREHENSIVE RLS POLICIES FOR notes
+-- =====================================================
+
+-- Ensure comprehensive policies exist
+DO $$
+BEGIN
+    -- Drop old policies if they exist
+    DROP POLICY IF EXISTS "notes_select_own" ON public.notes;
+    DROP POLICY IF EXISTS "notes_ins_own" ON public.notes;
+    DROP POLICY IF EXISTS "notes_upd_own" ON public.notes;
+    DROP POLICY IF EXISTS "notes_del_own" ON public.notes;
+    
+    -- SELECT: Users see their own notes
+    CREATE POLICY "users_select_own_notes"
+        ON public.notes
+        FOR SELECT
+        USING (auth.uid() = user_id);
+    
+    -- INSERT: Users create their own notes
+    CREATE POLICY "users_insert_own_notes"
+        ON public.notes
+        FOR INSERT
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- UPDATE: Users update their own notes (all columns)
+    CREATE POLICY "users_update_own_notes"
+        ON public.notes
+        FOR UPDATE
+        USING (auth.uid() = user_id)
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- DELETE: Users delete their own notes
+    CREATE POLICY "users_delete_own_notes"
+        ON public.notes
+        FOR DELETE
+        USING (auth.uid() = user_id);
+END $$;
+
+-- =====================================================
+-- 6. COMPREHENSIVE RLS POLICIES FOR folders
+-- =====================================================
+
+DO $$
+BEGIN
+    -- Drop old policies if they exist
+    DROP POLICY IF EXISTS "folders_select_own" ON public.folders;
+    DROP POLICY IF EXISTS "folders_ins_own" ON public.folders;
+    DROP POLICY IF EXISTS "folders_upd_own" ON public.folders;
+    DROP POLICY IF EXISTS "folders_del_own" ON public.folders;
+    
+    -- SELECT: Users see their own folders
+    CREATE POLICY "users_select_own_folders"
+        ON public.folders
+        FOR SELECT
+        USING (auth.uid() = user_id);
+    
+    -- INSERT: Users create their own folders
+    CREATE POLICY "users_insert_own_folders"
+        ON public.folders
+        FOR INSERT
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- UPDATE: Users update their own folders
+    CREATE POLICY "users_update_own_folders"
+        ON public.folders
+        FOR UPDATE
+        USING (auth.uid() = user_id)
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- DELETE: Users delete their own folders
+    CREATE POLICY "users_delete_own_folders"
+        ON public.folders
+        FOR DELETE
+        USING (auth.uid() = user_id);
+END $$;
+
+-- =====================================================
+-- 7. COMPREHENSIVE RLS POLICIES FOR note_folders
+-- =====================================================
+
+DO $$
+BEGIN
+    -- Drop old policies if they exist
+    DROP POLICY IF EXISTS "note_folders_select" ON public.note_folders;
+    DROP POLICY IF EXISTS "note_folders_ins" ON public.note_folders;
+    DROP POLICY IF EXISTS "note_folders_upd" ON public.note_folders;
+    DROP POLICY IF EXISTS "note_folders_del" ON public.note_folders;
+    
+    -- SELECT: Users see their own note-folder mappings
+    CREATE POLICY "users_select_own_note_folders"
+        ON public.note_folders
+        FOR SELECT
+        USING (auth.uid() = user_id);
+    
+    -- INSERT: Users create their own mappings
+    CREATE POLICY "users_insert_own_note_folders"
+        ON public.note_folders
+        FOR INSERT
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- UPDATE: Users update their own mappings
+    CREATE POLICY "users_update_own_note_folders"
+        ON public.note_folders
+        FOR UPDATE
+        USING (auth.uid() = user_id)
+        WITH CHECK (auth.uid() = user_id);
+    
+    -- DELETE: Users delete their own mappings
+    CREATE POLICY "users_delete_own_note_folders"
+        ON public.note_folders
+        FOR DELETE
+        USING (auth.uid() = user_id);
+END $$;
+
+-- =====================================================
+-- 8. COMPREHENSIVE RLS POLICIES FOR user_devices
+-- =====================================================
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'user_devices'
+    ) THEN
+        -- Drop old policies if they exist
+        EXECUTE 'DROP POLICY IF EXISTS "Users can view their own devices" ON public.user_devices';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can update their own devices" ON public.user_devices';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can delete their own devices" ON public.user_devices';
+        
+        -- SELECT: Users see their own devices
+        EXECUTE 'CREATE POLICY "users_select_own_devices"
+            ON public.user_devices
+            FOR SELECT
+            USING (auth.uid() = user_id)';
+        
+        -- INSERT: Handled via user_devices_upsert function
+        -- No direct INSERT policy needed
+        
+        -- UPDATE: Users update their own devices
+        EXECUTE 'CREATE POLICY "users_update_own_devices"
+            ON public.user_devices
+            FOR UPDATE
+            USING (auth.uid() = user_id)
+            WITH CHECK (auth.uid() = user_id)';
+        
+        -- DELETE: Users delete their own devices
+        EXECUTE 'CREATE POLICY "users_delete_own_devices"
+            ON public.user_devices
+            FOR DELETE
+            USING (auth.uid() = user_id)';
+    END IF;
+END $$;
+
+-- =====================================================
+-- 9. COMPREHENSIVE RLS POLICIES FOR note_tasks
+-- =====================================================
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'note_tasks'
+    ) THEN
+        -- Drop old policies if they exist
+        EXECUTE 'DROP POLICY IF EXISTS "Users can view their own tasks" ON public.note_tasks';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can create their own tasks" ON public.note_tasks';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can update their own tasks" ON public.note_tasks';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can delete their own tasks" ON public.note_tasks';
+        
+        -- SELECT: Users see their own tasks
+        EXECUTE 'CREATE POLICY "users_select_own_tasks"
+            ON public.note_tasks
+            FOR SELECT
+            USING (auth.uid() = user_id)';
+        
+        -- INSERT: Users create their own tasks
+        EXECUTE 'CREATE POLICY "users_insert_own_tasks"
+            ON public.note_tasks
+            FOR INSERT
+            WITH CHECK (auth.uid() = user_id)';
+        
+        -- UPDATE: Users update their own tasks
+        EXECUTE 'CREATE POLICY "users_update_own_tasks"
+            ON public.note_tasks
+            FOR UPDATE
+            USING (auth.uid() = user_id)
+            WITH CHECK (auth.uid() = user_id)';
+        
+        -- DELETE: Users delete their own tasks
+        EXECUTE 'CREATE POLICY "users_delete_own_tasks"
+            ON public.note_tasks
+            FOR DELETE
+            USING (auth.uid() = user_id)';
+    END IF;
+END $$;
+
+-- =====================================================
+-- 10. STORAGE BUCKET RLS POLICIES
+-- =====================================================
+
+-- Ensure proper RLS for attachments bucket
+DO $$
+BEGIN
+    -- Check if attachments bucket exists
+    IF EXISTS (
+        SELECT 1 FROM storage.buckets WHERE id = 'attachments'
+    ) THEN
+        -- Drop old policies if they exist
+        EXECUTE 'DROP POLICY IF EXISTS "att_sel_own" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "att_ins_own" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "att_del_own" ON storage.objects';
+        
+        -- SELECT: Users can view their own attachments
+        EXECUTE 'CREATE POLICY "users_select_own_attachments"
+            ON storage.objects
+            FOR SELECT
+            USING (
+                bucket_id = ''attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+        
+        -- INSERT: Users can upload to their own folder
+        EXECUTE 'CREATE POLICY "users_insert_own_attachments"
+            ON storage.objects
+            FOR INSERT
+            WITH CHECK (
+                bucket_id = ''attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+        
+        -- UPDATE: Users can update their own attachments
+        EXECUTE 'CREATE POLICY "users_update_own_attachments"
+            ON storage.objects
+            FOR UPDATE
+            USING (
+                bucket_id = ''attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+        
+        -- DELETE: Users can delete their own attachments
+        EXECUTE 'CREATE POLICY "users_delete_own_attachments"
+            ON storage.objects
+            FOR DELETE
+            USING (
+                bucket_id = ''attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+    END IF;
+    
+    -- Check if inbound-attachments bucket exists
+    IF EXISTS (
+        SELECT 1 FROM storage.buckets WHERE id = 'inbound-attachments'
+    ) THEN
+        -- Drop old policies if they exist
+        EXECUTE 'DROP POLICY IF EXISTS "Users can view own inbound attachments" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can delete own inbound attachments" ON storage.objects';
+        
+        -- SELECT: Users can view their own inbound attachments
+        EXECUTE 'CREATE POLICY "users_select_own_inbound_attachments"
+            ON storage.objects
+            FOR SELECT
+            USING (
+                bucket_id = ''inbound-attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+        
+        -- INSERT: Service role only (edge functions upload)
+        -- No user INSERT policy
+        
+        -- DELETE: Users can delete their own inbound attachments
+        EXECUTE 'CREATE POLICY "users_delete_own_inbound_attachments"
+            ON storage.objects
+            FOR DELETE
+            USING (
+                bucket_id = ''inbound-attachments'' 
+                AND auth.uid()::text = (storage.foldername(name))[1]
+            )';
+    END IF;
+END $$;
+
+-- =====================================================
+-- 11. FINAL RLS AUDIT
+-- =====================================================
+
+-- Log final RLS status
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE 'Final RLS Status:';
+    FOR r IN SELECT * FROM pg_temp.audit_rls_status()
+    LOOP
+        RAISE NOTICE '  Table: %, RLS: %, Policies: % (S:% I:% U:% D:%)', 
+            r.table_name, r.rls_enabled, r.policy_count,
+            r.has_select, r.has_insert, r.has_update, r.has_delete;
+    END LOOP;
+    
+    -- Warn if any table is missing policies
+    FOR r IN SELECT * FROM pg_temp.audit_rls_status()
+    WHERE NOT (has_select AND (has_insert OR table_name = 'inbound_aliases'))
+    LOOP
+        RAISE WARNING 'Table % may have incomplete RLS coverage!', r.table_name;
+    END LOOP;
+END $$;
+
+-- Clean up temporary function
+DROP FUNCTION IF EXISTS pg_temp.audit_rls_status();
+
+COMMIT;
+
+-- =====================================================
+-- POST-MIGRATION VERIFICATION QUERIES
+-- =====================================================
+
+-- 1. Verify RLS is enabled on all tables:
+/*
+SELECT 
+    schemaname,
+    tablename,
+    rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+    AND tablename IN (
+        'notes', 'folders', 'note_folders', 'clipper_inbox',
+        'inbound_aliases', 'user_devices', 'note_tasks'
+    )
+ORDER BY tablename;
+*/
+
+-- 2. List all RLS policies:
+/*
+SELECT 
+    schemaname,
+    tablename,
+    policyname,
+    cmd,
+    qual IS NOT NULL as has_using,
+    with_check IS NOT NULL as has_with_check
+FROM pg_policies
+WHERE schemaname IN ('public', 'storage')
+ORDER BY schemaname, tablename, policyname;
+*/
+
+-- 3. Test RLS enforcement (as a specific user):
+/*
+-- Set role to a test user
+SET ROLE authenticated;
+SET request.jwt.claim.sub = 'test-user-id';
+
+-- Try to access another user's data (should return 0 rows)
+SELECT * FROM public.clipper_inbox WHERE user_id != 'test-user-id';
+SELECT * FROM public.notes WHERE user_id != 'test-user-id';
+
+-- Reset role
+RESET ROLE;
+*/
+
+-- 4. Verify policy coverage by operation:
+/*
+SELECT 
+    tablename,
+    COUNT(*) FILTER (WHERE cmd = 'SELECT') as select_policies,
+    COUNT(*) FILTER (WHERE cmd = 'INSERT') as insert_policies,
+    COUNT(*) FILTER (WHERE cmd = 'UPDATE') as update_policies,
+    COUNT(*) FILTER (WHERE cmd = 'DELETE') as delete_policies
+FROM pg_policies
+WHERE schemaname = 'public'
+GROUP BY tablename
+ORDER BY tablename;
+*/

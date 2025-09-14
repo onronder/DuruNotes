@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuruNotes Extension Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #5b21b6;
+        }
+        .test-section {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .instruction {
+            background: #dbeafe;
+            padding: 15px;
+            border-left: 4px solid #3b82f6;
+            margin: 20px 0;
+        }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        button {
+            background: #5b21b6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4c1d95;
+        }
+        #console {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 2px solid #10b981;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 DuruNotes Chrome Extension Test Page</h1>
+    
+    <div class="instruction">
+        <h2>📋 Testing Instructions</h2>
+        <ol>
+            <li><strong>Reload Extension:</strong> Go to chrome://extensions/ and reload DuruNotes Web Clipper</li>
+            <li><strong>Refresh This Page:</strong> Press F5 or Cmd+R to refresh this test page</li>
+            <li><strong>Open Extension:</strong> Click the DuruNotes extension icon in your toolbar</li>
+            <li><strong>Verify Login:</strong> You should see "onder@onur.com Connected"</li>
+            <li><strong>Test Functions:</strong> Use the test sections below</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 1: Clip Selection</h2>
+        <p>
+            <span class="highlight">Select this highlighted text</span> and then click "Clip Selection" in the extension.
+            This tests whether the extension can capture selected text correctly.
+        </p>
+        <p>
+            You can also try selecting this longer paragraph. Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+            Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This should be captured as selected text
+            when you use the "Clip Selection" feature.
+        </p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Clip Full Page</h2>
+        <p>
+            Click "Clip Full Page" in the extension to capture this entire page. The extension should capture:
+        </p>
+        <ul>
+            <li>✅ Page title: "DuruNotes Extension Test Page"</li>
+            <li>✅ Page URL: The current URL</li>
+            <li>✅ Full text content</li>
+            <li>✅ HTML structure</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Debug Console</h2>
+        <button onclick="testContentScript()">Test Content Script</button>
+        <button onclick="testBackgroundScript()">Test Background Connection</button>
+        <button onclick="clearConsole()">Clear Console</button>
+        
+        <div id="console">
+            <div class="log-entry">Console ready...</div>
+        </div>
+    </div>
+
+    <script>
+        const logConsole = document.getElementById('console');
+        
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.style.borderColor = type === 'error' ? '#ef4444' : '#10b981';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logConsole.appendChild(entry);
+            logConsole.scrollTop = logConsole.scrollHeight;
+        }
+        
+        function clearConsole() {
+            logConsole.innerHTML = '<div class="log-entry">Console cleared...</div>';
+        }
+        
+        function testContentScript() {
+            log('Testing content script...');
+            
+            // Check if content script is injected
+            try {
+                // Try to send a message to content script
+                window.postMessage({ type: 'DURUNOTES_TEST' }, '*');
+                log('✅ Content script test message sent');
+                
+                // Check if chrome.runtime is available
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    log('✅ Chrome runtime API available');
+                    
+                    // Check extension ID
+                    if (chrome.runtime.id) {
+                        log(`✅ Extension ID: ${chrome.runtime.id}`);
+                    }
+                } else {
+                    log('⚠️ Chrome runtime API not directly accessible from page', 'error');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function testBackgroundScript() {
+            log('Testing background script connection...');
+            
+            // This won't work directly from the page, but shows what should happen
+            log('ℹ️ Background script can only be tested from extension context');
+            log('ℹ️ Use the extension popup to test actual functionality');
+            
+            // Test localStorage for debugging
+            try {
+                const testData = {
+                    timestamp: new Date().toISOString(),
+                    test: 'DuruNotes Extension Test'
+                };
+                localStorage.setItem('durunotes_test', JSON.stringify(testData));
+                log('✅ Local storage test successful');
+            } catch (error) {
+                log(`❌ Storage error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Listen for messages from content script
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'DURUNOTES_RESPONSE') {
+                log('✅ Received response from content script');
+            }
+        });
+        
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            log('Page loaded, extension should be ready');
+            
+            // Check for common issues
+            if (!window.chrome) {
+                log('⚠️ Not running in Chrome browser', 'error');
+            } else {
+                log('✅ Chrome browser detected');
+            }
+            
+            // Check if page is served over HTTPS (required for some features)
+            if (window.location.protocol === 'https:') {
+                log('✅ Page served over HTTPS');
+            } else if (window.location.protocol === 'file:') {
+                log('ℹ️ Page loaded from file:// protocol');
+            } else {
+                log('ℹ️ Page served over HTTP');
+            }
+        });
+    </script>
+</body>
+</html>

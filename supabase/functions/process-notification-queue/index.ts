@@ -1,373 +1,370 @@
+/**
+ * Notification Queue Processor
+ * Handles batch processing, cleanup, analytics, and retry operations
+ */
+
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { Logger } from "../common/logger.ts";
+import { extractJwt } from "../common/auth.ts";
+import {
+  ApiError,
+  ValidationError,
+  AuthenticationError,
+  ServerError,
+  errorResponse,
+} from "../common/errors.ts";
+
+const logger = new Logger("notification-queue");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Structured logging
-function log(level: string, event: string, data: Record<string, any> = {}) {
-  const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    level,
-    event,
-    ...data,
-    edge_region: Deno.env.get("DENO_REGION") || "unknown",
-    project_ref: Deno.env.get("SUPABASE_PROJECT_REF") || "unknown",
-  };
-  
-  if (level === "error") {
-    console.error(JSON.stringify(logEntry));
-  } else {
-    console.log(JSON.stringify(logEntry));
-  }
-}
-
-// Process a batch of notifications
-async function processBatch(supabase: any, batchSize: number): Promise<any> {
+/**
+ * Call the v1 push notification handler
+ */
+async function callPushHandler(
+  batchSize: number,
+  serviceKey: string
+): Promise<any> {
   const startTime = Date.now();
   
   try {
-    // Get the Edge Function URL for send-push-notification
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
     if (!supabaseUrl) {
-      throw new Error("SUPABASE_URL not configured");
+      throw new ServerError("SUPABASE_URL not configured");
     }
-
-    // Construct the Edge Function URL
+    
+    // Extract project ref from URL
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
     if (!projectRef) {
-      throw new Error("Could not extract project ref from SUPABASE_URL");
+      throw new ServerError("Could not extract project ref from SUPABASE_URL");
     }
     
-    const sendNotificationUrl = `https://${projectRef}.supabase.co/functions/v1/send-push-notification-v1`;
+    // Call the v1 handler using the auto-provided service key
+    const url = `https://${projectRef}.supabase.co/functions/v1/send-push-notification-v1`;
     
-    // Call the send-push-notification function to process a batch
-    const response = await fetch(sendNotificationUrl, {
+    // Use the SUPABASE_SERVICE_ROLE_KEY that's auto-provided by Supabase
+    const authKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${serviceKey}`,
+        "Authorization": `Bearer ${authKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        batch_size: batchSize,
-      }),
+      body: JSON.stringify({ batch_size: batchSize }),
     });
-
+    
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Failed to process batch: ${error}`);
+      throw new ServerError(`Push handler failed: ${error}`);
     }
-
+    
     const result = await response.json();
     
-    log("info", "batch_processed", {
-      processed: result.processed,
-      duration_ms: Date.now() - startTime,
-    });
-    
+    logger.perf("push_handler_called", startTime, result);
     return result;
+    
   } catch (error) {
-    log("error", "batch_processing_failed", {
-      error: String(error),
-      duration_ms: Date.now() - startTime,
-    });
+    logger.error("push_handler_error", error as Error);
     throw error;
   }
 }
 
-// Clean up old notifications
-async function cleanupOldNotifications(supabase: any, daysOld: number): Promise<number> {
-  try {
-    const { data, error } = await supabase.rpc("cleanup_old_notifications", {
-      p_days_old: daysOld,
-    });
+/**
+ * Process a batch of notifications
+ */
+async function processBatch(
+  supabase: any,
+  batchSize: number,
+  serviceKey: string
+): Promise<any> {
+  return callPushHandler(batchSize, serviceKey);
+}
 
+/**
+ * Clean up old notifications
+ */
+async function cleanupOldNotifications(
+  supabase: any,
+  daysOld: number
+): Promise<number> {
+  const startTime = Date.now();
+  
+  try {
+    // Delete old delivered/failed/cancelled notifications
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    const { data, error } = await supabase
+      .from("notification_events")
+      .delete()
+      .in("status", ["delivered", "failed", "cancelled"])
+      .lt("created_at", cutoffDate.toISOString())
+      .select("id");
+    
     if (error) {
       throw error;
     }
-
-    log("info", "cleanup_completed", {
-      deleted_count: data,
+    
+    const deletedCount = data?.length || 0;
+    
+    logger.perf("cleanup_completed", startTime, {
+      deleted_count: deletedCount,
       days_old: daysOld,
     });
-
-    return data;
+    
+    return deletedCount;
   } catch (error) {
-    log("error", "cleanup_failed", {
-      error: String(error),
-      days_old: daysOld,
-    });
-    throw error;
+    logger.error("cleanup_failed", error as Error);
+    throw new ServerError("Cleanup failed");
   }
 }
 
-// Collect and aggregate analytics
-async function collectAnalytics(supabase: any): Promise<any> {
+/**
+ * Generate analytics for notifications
+ */
+async function generateAnalytics(
+  supabase: any,
+  hours: number = 24
+): Promise<any> {
+  const startTime = Date.now();
+  
   try {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1); // Last 24 hours
-
-    // Get notification stats
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - hours);
+    
+    // Get notification statistics
     const { data: stats, error: statsError } = await supabase
-      .from("notification_stats")
-      .select("*")
-      .gte("date", startDate.toISOString().split("T")[0])
-      .lte("date", endDate.toISOString().split("T")[0]);
-
+      .from("notification_events")
+      .select("status, event_type")
+      .gte("created_at", cutoffDate.toISOString());
+    
     if (statsError) {
       throw statsError;
     }
-
-    // Calculate aggregates
-    const totals = {
-      total_events: 0,
-      total_delivered: 0,
-      total_failed: 0,
-      avg_delivery_time: 0,
-      by_type: {},
-      by_source: {},
+    
+    // Calculate metrics
+    const metrics = {
+      total: stats.length,
+      by_status: {} as Record<string, number>,
+      by_type: {} as Record<string, number>,
+      delivery_rate: 0,
     };
-
-    if (stats && stats.length > 0) {
-      stats.forEach((stat: any) => {
-        totals.total_events += stat.events_created || 0;
-        totals.total_delivered += stat.events_delivered || 0;
-        totals.total_failed += stat.events_failed || 0;
-
-        // Aggregate by type
-        if (!totals.by_type[stat.event_type]) {
-          totals.by_type[stat.event_type] = {
-            created: 0,
-            delivered: 0,
-            failed: 0,
-          };
-        }
-        totals.by_type[stat.event_type].created += stat.events_created || 0;
-        totals.by_type[stat.event_type].delivered += stat.events_delivered || 0;
-        totals.by_type[stat.event_type].failed += stat.events_failed || 0;
-
-        // Aggregate by source
-        if (!totals.by_source[stat.event_source]) {
-          totals.by_source[stat.event_source] = {
-            created: 0,
-            delivered: 0,
-            failed: 0,
-          };
-        }
-        totals.by_source[stat.event_source].created += stat.events_created || 0;
-        totals.by_source[stat.event_source].delivered += stat.events_delivered || 0;
-        totals.by_source[stat.event_source].failed += stat.events_failed || 0;
-      });
-
-      // Calculate average delivery time
-      const deliveryTimes = stats
-        .filter((s: any) => s.avg_delivery_time_seconds)
-        .map((s: any) => s.avg_delivery_time_seconds);
+    
+    for (const event of stats) {
+      // Count by status
+      metrics.by_status[event.status] = (metrics.by_status[event.status] || 0) + 1;
       
-      if (deliveryTimes.length > 0) {
-        totals.avg_delivery_time = 
-          deliveryTimes.reduce((a: number, b: number) => a + b, 0) / deliveryTimes.length;
-      }
+      // Count by type
+      metrics.by_type[event.event_type] = (metrics.by_type[event.event_type] || 0) + 1;
     }
-
-    log("info", "analytics_collected", {
-      period_start: startDate.toISOString(),
-      period_end: endDate.toISOString(),
-      totals,
-    });
-
-    return totals;
+    
+    // Calculate delivery rate
+    const delivered = metrics.by_status.delivered || 0;
+    const failed = metrics.by_status.failed || 0;
+    const total = delivered + failed;
+    
+    if (total > 0) {
+      metrics.delivery_rate = Math.round((delivered / total) * 100);
+    }
+    
+    // Store analytics
+    const { error: insertError } = await supabase
+      .from("notification_analytics")
+      .insert({
+        date: new Date().toISOString().split("T")[0],
+        metrics,
+      });
+    
+    if (insertError && !insertError.message.includes("duplicate")) {
+      logger.warn("analytics_insert_failed", { error: insertError });
+    }
+    
+    logger.perf("analytics_generated", startTime, metrics);
+    return metrics;
+    
   } catch (error) {
-    log("error", "analytics_failed", {
-      error: String(error),
-    });
-    throw error;
+    logger.error("analytics_failed", error as Error);
+    throw new ServerError("Analytics generation failed");
   }
 }
 
-// Check for stuck notifications and retry them
-async function retryStuckNotifications(supabase: any): Promise<number> {
+/**
+ * Retry stuck notifications
+ */
+async function retryStuckNotifications(
+  supabase: any,
+  minutesOld: number = 5
+): Promise<number> {
+  const startTime = Date.now();
+  
   try {
-    // Find notifications stuck in processing for more than 5 minutes
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const cutoffDate = new Date();
+    cutoffDate.setMinutes(cutoffDate.getMinutes() - minutesOld);
     
-    const { data: stuckEvents, error: fetchError } = await supabase
-      .from("notification_events")
-      .select("id")
-      .eq("status", "processing")
-      .lt("processed_at", fiveMinutesAgo.toISOString());
-
-    if (fetchError) {
-      throw fetchError;
-    }
-
-    if (!stuckEvents || stuckEvents.length === 0) {
-      return 0;
-    }
-
-    // Reset stuck events to pending
-    const { error: updateError } = await supabase
+    // Reset stuck notifications
+    const { data, error } = await supabase
       .from("notification_events")
       .update({
         status: "pending",
         processed_at: null,
         error_message: "Reset from stuck processing state",
+        retry_count: supabase.raw("retry_count + 1"),
       })
-      .in("id", stuckEvents.map((e: any) => e.id));
-
-    if (updateError) {
-      throw updateError;
+      .eq("status", "processing")
+      .lt("processed_at", cutoffDate.toISOString())
+      .select("id");
+    
+    if (error) {
+      throw error;
     }
-
-    log("info", "stuck_notifications_reset", {
-      count: stuckEvents.length,
-      event_ids: stuckEvents.map((e: any) => e.id),
+    
+    const resetCount = data?.length || 0;
+    
+    logger.perf("stuck_notifications_reset", startTime, {
+      reset_count: resetCount,
+      minutes_old: minutesOld,
     });
-
-    return stuckEvents.length;
+    
+    return resetCount;
   } catch (error) {
-    log("error", "retry_stuck_failed", {
-      error: String(error),
-    });
-    throw error;
+    logger.error("retry_stuck_failed", error as Error);
+    throw new ServerError("Failed to retry stuck notifications");
   }
 }
 
-// Main handler
+/**
+ * Main request handler
+ */
 serve(async (req) => {
   const startTime = Date.now();
   
-  // Handle CORS preflight
+  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
-
-  // Only allow POST
+  
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+    return errorResponse(
+      new ApiError("Method not allowed", 405),
+      corsHeaders
+    );
   }
-
+  
   try {
+    // Verify authentication
+    const jwt = extractJwt(req);
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    // Check if this is from pg_cron (no auth but has x-source header)
+    const source = req.headers.get("x-source");
+    const userAgent = req.headers.get("user-agent");
+    const isPgCron = source === "pg_cron" || userAgent?.includes("pg_net");
+    
+    if (!jwt && !isPgCron) {
+      // Check if it's a service-to-service call with service role key
+      const authHeader = req.headers.get("authorization");
+      
+      if (!authHeader || !serviceKey) {
+        logger.warn("auth_missing", {
+          hasAuth: !!authHeader,
+          hasServiceKey: !!serviceKey,
+          userAgent,
+          source
+        });
+        throw new AuthenticationError("Missing authentication");
+      }
+      
+      // Extract token from "Bearer <token>" format
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      
+      if (token !== serviceKey) {
+        throw new AuthenticationError("Invalid service role key");
+      }
+    }
+    
+    if (isPgCron) {
+      logger.info("pg_cron_request", { source, userAgent });
+    }
+    
+    // Parse request body
+    const body = await req.json().catch(() => ({}));
+    const action = body.action || "process";
+    
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !serviceKey) {
-      log("error", "config_missing", { 
-        error: "Missing Supabase configuration" 
-      });
-      return new Response(
-        JSON.stringify({ error: "Server misconfigured" }), 
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const supabaseServiceKey = serviceKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new ServerError("Supabase configuration missing");
     }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // Parse request body
-    const body = await req.json();
-    const { 
-      action = "process", 
-      batch_size = 50,
-      cleanup_days = 30,
-    } = body;
-
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     let result: any = {};
-
+    
+    // Execute requested action
     switch (action) {
       case "process":
-        // Process pending notifications
-        result.batch = await processBatch(supabase, batch_size);
+        const batchSize = body.batch_size || 50;
+        if (batchSize < 1 || batchSize > 100) {
+          throw new ValidationError("Batch size must be between 1 and 100");
+        }
+        result = await processBatch(supabase, batchSize, serviceKey);
         break;
-
+        
       case "cleanup":
-        // Clean up old notifications
-        result.cleaned = await cleanupOldNotifications(supabase, cleanup_days);
+        const daysOld = body.days_old || 30;
+        if (daysOld < 1 || daysOld > 365) {
+          throw new ValidationError("Days old must be between 1 and 365");
+        }
+        const deletedCount = await cleanupOldNotifications(supabase, daysOld);
+        result = { action: "cleanup", deleted_count: deletedCount };
         break;
-
+        
       case "analytics":
-        // Collect analytics
-        result.analytics = await collectAnalytics(supabase);
+        const hours = body.hours || 24;
+        if (hours < 1 || hours > 168) {
+          throw new ValidationError("Hours must be between 1 and 168");
+        }
+        const analytics = await generateAnalytics(supabase, hours);
+        result = { action: "analytics", metrics: analytics };
         break;
-
+        
       case "retry_stuck":
-        // Retry stuck notifications
-        result.retried = await retryStuckNotifications(supabase);
+        const minutesOld = body.minutes_old || 5;
+        if (minutesOld < 1 || minutesOld > 60) {
+          throw new ValidationError("Minutes old must be between 1 and 60");
+        }
+        const resetCount = await retryStuckNotifications(supabase, minutesOld);
+        result = { action: "retry_stuck", reset_count: resetCount };
         break;
-
-      case "full":
-        // Run all maintenance tasks
-        result.stuck_retried = await retryStuckNotifications(supabase);
-        result.batch = await processBatch(supabase, batch_size);
-        result.cleaned = await cleanupOldNotifications(supabase, cleanup_days);
-        result.analytics = await collectAnalytics(supabase);
-        break;
-
+        
       default:
-        return new Response(
-          JSON.stringify({ error: `Unknown action: ${action}` }), 
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        throw new ValidationError(`Unknown action: ${action}`);
     }
-
-    // Log completion
-    log("info", "queue_processor_completed", {
+    
+    logger.perf("request_completed", startTime, {
       action,
-      result,
+      ...result,
+    });
+    
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+    });
+    
+  } catch (error) {
+    logger.error("request_failed", error as Error, {
       duration_ms: Date.now() - startTime,
     });
-
-    return new Response(
-      JSON.stringify({
-        action,
-        result,
-        duration_ms: Date.now() - startTime,
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
-  } catch (error) {
-    log("error", "queue_processor_error", {
-      error: String(error),
-      stack: error.stack,
-    });
-
-    return new Response(
-      JSON.stringify({ 
-        error: "Internal server error",
-        details: String(error),
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+    
+    return errorResponse(error as Error, corsHeaders);
   }
 });
-
-// Schedule this function to run periodically using Supabase Cron Jobs
-// Example cron expression for every 5 minutes: */5 * * * *
-// This would be configured in the Supabase dashboard or via SQL:
-// 
-// SELECT cron.schedule(
-//   'process-notification-queue',
-//   '*/5 * * * *', -- Every 5 minutes
-//   $$
-//   SELECT net.http_post(
-//     url := 'https://YOUR_PROJECT.supabase.co/functions/v1/process-notification-queue',
-//     headers := jsonb_build_object(
-//       'Authorization', 'Bearer ' || current_setting('app.service_role_key'),
-//       'Content-Type', 'application/json'
-//     ),
-//     body := jsonb_build_object('action', 'full')
-//   );
-//   $$
-// );
