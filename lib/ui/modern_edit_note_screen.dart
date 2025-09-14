@@ -93,6 +93,18 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       }
     });
     
+    // Initialize task sync if editing existing note with tasks
+    if (widget.noteId != null && (initialBody.contains('- [ ]') || initialBody.contains('- [x]'))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final taskSyncService = ref.read(noteTaskSyncServiceProvider);
+          await taskSyncService.syncTasksForNote(widget.noteId!, initialBody);
+        } catch (e) {
+          debugPrint('Failed to initialize task sync: $e');
+        }
+      });
+    }
+    
     // Animation setup for toolbar slide with Material-3 timing
     _toolbarSlideController = AnimationController(
       duration: const Duration(milliseconds: 250),
@@ -1129,6 +1141,13 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       // handle folder assignment
       final noteIdToUse = savedNote?.id ?? widget.noteId;
       if (noteIdToUse != null) {
+        // Initialize task sync for this note
+        try {
+          final taskSyncService = ref.read(noteTaskSyncServiceProvider);
+          await taskSyncService.syncTasksForNote(noteIdToUse, cleanBody);
+        } catch (e) {
+          debugPrint('Failed to sync tasks: $e');
+        }
         if (_selectedFolder != null) {
           await ref.read(noteFolderProvider.notifier)
                    .addNoteToFolder(noteIdToUse, _selectedFolder!.id);

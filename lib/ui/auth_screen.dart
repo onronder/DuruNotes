@@ -138,7 +138,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: Image.asset(
-                        'design/app_icon.png',
+                        Theme.of(context).brightness == Brightness.dark
+                            ? 'design/duru_dark.png'
+                            : 'design/duru_light.png',
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
@@ -265,22 +267,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
                 const SizedBox(height: 24),
 
-                // Modern auth button
+                // Modern auth button with consistent styling
                 FilledButton(
                   onPressed: _isLoading ? null : _authenticate,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A9FD8), // Consistent blue color
+                    foregroundColor: Colors.white, // White text
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: _isLoading
-                      ? SizedBox(
+                      ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: colorScheme.onPrimary,
+                            color: Colors.white,
                           ),
                         )
                       : Text(
                           _isSignUp ? 'Sign Up' : 'Sign In',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          style: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
                 ),

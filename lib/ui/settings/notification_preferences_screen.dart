@@ -59,15 +59,16 @@ class _NotificationPreferencesScreenState
       if (response != null) {
         setState(() {
           _preferences = response;
-          _notificationsEnabled = response['enabled'] ?? true;
-          _pushEnabled = response['push_enabled'] ?? true;
-          _emailEnabled = response['email_enabled'] ?? false;
-          _quietHoursEnabled = response['quiet_hours_enabled'] ?? false;
-          _dndEnabled = response['dnd_enabled'] ?? false;
+          _notificationsEnabled = (response['enabled'] as bool?) ?? true;
+          _pushEnabled = (response['push_enabled'] as bool?) ?? true;
+          _emailEnabled = (response['email_enabled'] as bool?) ?? false;
+          _quietHoursEnabled = (response['quiet_hours_enabled'] as bool?) ?? false;
+          _dndEnabled = (response['dnd_enabled'] as bool?) ?? false;
           
           // Parse quiet hours
           if (response['quiet_hours_start'] != null) {
-            final parts = response['quiet_hours_start'].split(':');
+            final timeStr = response['quiet_hours_start'] as String;
+            final parts = timeStr.split(':');
             _quietHoursStart = TimeOfDay(
               hour: int.parse(parts[0]),
               minute: int.parse(parts[1]),
@@ -75,7 +76,8 @@ class _NotificationPreferencesScreenState
           }
           
           if (response['quiet_hours_end'] != null) {
-            final parts = response['quiet_hours_end'].split(':');
+            final timeStr = response['quiet_hours_end'] as String;
+            final parts = timeStr.split(':');
             _quietHoursEnd = TimeOfDay(
               hour: int.parse(parts[0]),
               minute: int.parse(parts[1]),
@@ -86,7 +88,7 @@ class _NotificationPreferencesScreenState
           final eventPrefs = response['event_preferences'] as Map<String, dynamic>? ?? {};
           eventPrefs.forEach((key, value) {
             if (_eventPreferences.containsKey(key) && value is Map) {
-              _eventPreferences[key] = value['enabled'] ?? true;
+              _eventPreferences[key] = (value['enabled'] as bool?) ?? true;
             }
           });
         });
@@ -210,13 +212,11 @@ class _NotificationPreferencesScreenState
           // Delivery channels
           _buildSection(
             title: 'Delivery Channels',
-            enabled: _notificationsEnabled,
             children: [
               SwitchListTile(
                 title: const Text('Push Notifications'),
                 subtitle: const Text('Receive push notifications on this device'),
                 value: _pushEnabled,
-                enabled: _notificationsEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) {
                         setState(() => _pushEnabled = value);
@@ -228,7 +228,6 @@ class _NotificationPreferencesScreenState
                 title: const Text('Email Notifications'),
                 subtitle: const Text('Receive notifications via email'),
                 value: _emailEnabled,
-                enabled: _notificationsEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) {
                         setState(() => _emailEnabled = value);
@@ -242,7 +241,6 @@ class _NotificationPreferencesScreenState
           // Event types
           _buildSection(
             title: 'Notification Types',
-            enabled: _notificationsEnabled,
             children: [
               _buildEventToggle(
                 'Email Received',
@@ -285,13 +283,11 @@ class _NotificationPreferencesScreenState
           // Quiet hours
           _buildSection(
             title: 'Quiet Hours',
-            enabled: _notificationsEnabled,
             children: [
               SwitchListTile(
                 title: const Text('Enable Quiet Hours'),
                 subtitle: const Text('Pause notifications during specific hours'),
                 value: _quietHoursEnabled,
-                enabled: _notificationsEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) {
                         setState(() => _quietHoursEnabled = value);
@@ -319,13 +315,11 @@ class _NotificationPreferencesScreenState
           // Do Not Disturb
           _buildSection(
             title: 'Do Not Disturb',
-            enabled: _notificationsEnabled,
             children: [
               SwitchListTile(
                 title: const Text('Do Not Disturb'),
                 subtitle: const Text('Temporarily disable all notifications'),
                 value: _dndEnabled,
-                enabled: _notificationsEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) async {
                         setState(() => _dndEnabled = value);
@@ -400,7 +394,6 @@ class _NotificationPreferencesScreenState
       title: Text(title),
       subtitle: Text(subtitle),
       value: _eventPreferences[eventType] ?? true,
-      enabled: _notificationsEnabled,
       onChanged: _notificationsEnabled
           ? (value) {
               setState(() => _eventPreferences[eventType] = value);

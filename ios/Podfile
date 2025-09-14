@@ -57,6 +57,10 @@ post_install do |installer|
       config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
       config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
       
+      # Fix for M1/M2 Mac simulator architecture issues
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
+      
       # COMPREHENSIVE FLUTTER FRAMEWORK FIX FOR ALL PLUGINS
       config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
         '$(inherited)',
@@ -102,6 +106,11 @@ post_install do |installer|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
         config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
+        
+        # Architecture fixes for M1/M2 Macs
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
 
         # Ensure Runner target can find Flutter headers and framework
         header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
@@ -210,6 +219,18 @@ post_install do |installer|
         config.build_settings['SWIFT_COMPILATION_MODE'] = 'singlefile'
         config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
         config.build_settings['ENABLE_TESTABILITY'] = 'YES'
+      end
+    end
+    
+    # Fix Adapty Flutter architecture issues
+    if target.name.include?('adapty') || target.name.include?('Adapty')
+      puts "🔧 Applying Adapty architecture fix for #{target.name}..."
+      target.build_configurations.each do |config|
+        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
       end
     end
     

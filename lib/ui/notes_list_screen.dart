@@ -28,6 +28,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
 import 'package:duru_notes/ui/widgets/note_source_icon.dart';
+import 'package:duru_notes/ui/task_list_screen.dart';
+import 'package:duru_notes/ui/inbox_badge_widget.dart';
 
 /// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -256,63 +258,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     tooltip: 'Search notes',
                   ),
                   // Inbox with badge
-                  Consumer(
-                    builder: (context, ref, child) {
-                      int unreadCount = 0;
-                      try {
-                        final unreadService = ref.watch(inboxUnreadServiceProvider);
-                        unreadCount = unreadService?.unreadCount ?? 0;
-                      } catch (e) {
-                        // Service might not be available
-                      }
-                      
-                      return Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.inbox_rounded),
-                            onPressed: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => const InboundEmailInboxWidget(),
-                                ),
-                              );
-                              // Update badge count after returning
-                              try {
-                                final unreadService = ref.read(inboxUnreadServiceProvider);
-                                await unreadService?.computeBadgeCount();
-                              } catch (_) {}
-                            },
-                            tooltip: 'Inbox',
-                          ),
-                          if (unreadCount > 0)
-                            Positioned(
-                              right: 6,
-                              top: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.error,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  unreadCount > 99 ? '99+' : '$unreadCount',
-                                  style: TextStyle(
-                                    color: colorScheme.onError,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
+                  const InboxBadgeWidget(),
                   // Filter button - always visible in AppBar
                   _buildFilterButton(context),
                   // View toggle
@@ -358,6 +304,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         child: ListTile(
                           leading: const Icon(Icons.download_rounded),
                           title: Text(l10n.exportNotes),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'tasks',
+                        child: ListTile(
+                          leading: Icon(Icons.task_alt_rounded),
+                          title: Text('Tasks & Reminders'),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -415,9 +370,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     note.updatedAt.day == today.day;
               }).length;
               
-              final foldersAsync = ref.watch(rootFoldersProvider);
-              final folderCount = foldersAsync.maybeWhen(
-                data: (folders) => folders.length,
+              final folderCountAsync = ref.watch(allFoldersCountProvider);
+              final folderCount = folderCountAsync.maybeWhen(
+                data: (count) => count,
                 orElse: () => 0,
               );
               
@@ -2361,6 +2316,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _showImportDialog(context);
       case 'export':
         _showExportDialog(context);
+      case 'tasks':
+        _showTasksScreen(context);
       case 'settings':
         _showSettingsDialog(context);
       case 'help':
@@ -2929,6 +2886,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       context,
       MaterialPageRoute<void>(
         builder: (context) => const HelpScreen(),
+      ),
+    );
+  }
+
+  void _showTasksScreen(BuildContext context) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const TaskListScreen(),
       ),
     );
   }

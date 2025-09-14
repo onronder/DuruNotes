@@ -2609,6 +2609,1126 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
   }
 }
 
+class $NoteTasksTable extends NoteTasks
+    with TableInfo<$NoteTasksTable, NoteTask> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaskStatus, int> status =
+      GeneratedColumn<int>(
+        'status',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(TaskStatus.open.index),
+      ).withConverter<TaskStatus>($NoteTasksTable.$converterstatus);
+  @override
+  late final GeneratedColumnWithTypeConverter<TaskPriority, int> priority =
+      GeneratedColumn<int>(
+        'priority',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(TaskPriority.medium.index),
+      ).withConverter<TaskPriority>($NoteTasksTable.$converterpriority);
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedByMeta = const VerificationMeta(
+    'completedBy',
+  );
+  @override
+  late final GeneratedColumn<String> completedBy = GeneratedColumn<String>(
+    'completed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reminderIdMeta = const VerificationMeta(
+    'reminderId',
+  );
+  @override
+  late final GeneratedColumn<int> reminderId = GeneratedColumn<int>(
+    'reminder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _labelsMeta = const VerificationMeta('labels');
+  @override
+  late final GeneratedColumn<String> labels = GeneratedColumn<String>(
+    'labels',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedMinutesMeta = const VerificationMeta(
+    'estimatedMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> estimatedMinutes = GeneratedColumn<int>(
+    'estimated_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actualMinutesMeta = const VerificationMeta(
+    'actualMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> actualMinutes = GeneratedColumn<int>(
+    'actual_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentTaskIdMeta = const VerificationMeta(
+    'parentTaskId',
+  );
+  @override
+  late final GeneratedColumn<String> parentTaskId = GeneratedColumn<String>(
+    'parent_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    noteId,
+    content,
+    status,
+    priority,
+    dueDate,
+    completedAt,
+    completedBy,
+    position,
+    contentHash,
+    reminderId,
+    labels,
+    notes,
+    estimatedMinutes,
+    actualMinutes,
+    parentTaskId,
+    createdAt,
+    updatedAt,
+    deleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_tasks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteTask> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completed_by')) {
+      context.handle(
+        _completedByMeta,
+        completedBy.isAcceptableOrUnknown(
+          data['completed_by']!,
+          _completedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    if (data.containsKey('reminder_id')) {
+      context.handle(
+        _reminderIdMeta,
+        reminderId.isAcceptableOrUnknown(data['reminder_id']!, _reminderIdMeta),
+      );
+    }
+    if (data.containsKey('labels')) {
+      context.handle(
+        _labelsMeta,
+        labels.isAcceptableOrUnknown(data['labels']!, _labelsMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('estimated_minutes')) {
+      context.handle(
+        _estimatedMinutesMeta,
+        estimatedMinutes.isAcceptableOrUnknown(
+          data['estimated_minutes']!,
+          _estimatedMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('actual_minutes')) {
+      context.handle(
+        _actualMinutesMeta,
+        actualMinutes.isAcceptableOrUnknown(
+          data['actual_minutes']!,
+          _actualMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('parent_task_id')) {
+      context.handle(
+        _parentTaskIdMeta,
+        parentTaskId.isAcceptableOrUnknown(
+          data['parent_task_id']!,
+          _parentTaskIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteTask(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      status: $NoteTasksTable.$converterstatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}status'],
+        )!,
+      ),
+      priority: $NoteTasksTable.$converterpriority.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}priority'],
+        )!,
+      ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      ),
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      completedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completed_by'],
+      ),
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      reminderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_id'],
+      ),
+      labels: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}labels'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      estimatedMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_minutes'],
+      ),
+      actualMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}actual_minutes'],
+      ),
+      parentTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_task_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $NoteTasksTable createAlias(String alias) {
+    return $NoteTasksTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<TaskStatus, int, int> $converterstatus =
+      const EnumIndexConverter<TaskStatus>(TaskStatus.values);
+  static JsonTypeConverter2<TaskPriority, int, int> $converterpriority =
+      const EnumIndexConverter<TaskPriority>(TaskPriority.values);
+}
+
+class NoteTask extends DataClass implements Insertable<NoteTask> {
+  /// Unique identifier for the task
+  final String id;
+
+  /// Reference to parent note ID
+  final String noteId;
+
+  /// Task content/description
+  final String content;
+
+  /// Task completion status
+  final TaskStatus status;
+
+  /// Task priority level
+  final TaskPriority priority;
+
+  /// Optional due date for the task
+  final DateTime? dueDate;
+
+  /// Date when task was completed
+  final DateTime? completedAt;
+
+  /// User who completed the task (for shared notes)
+  final String? completedBy;
+
+  /// Line number or position in note (for sync with markdown)
+  final int position;
+
+  /// Hash of the task text for deduplication
+  final String contentHash;
+
+  /// Optional reminder ID if a reminder is set for this task
+  final int? reminderId;
+
+  /// Custom labels/tags for the task
+  final String? labels;
+
+  /// Notes or additional context for the task
+  final String? notes;
+
+  /// Time estimate in minutes
+  final int? estimatedMinutes;
+
+  /// Actual time spent in minutes
+  final int? actualMinutes;
+
+  /// Parent task ID for subtasks
+  final String? parentTaskId;
+
+  /// Creation timestamp
+  final DateTime createdAt;
+
+  /// Last modification timestamp
+  final DateTime updatedAt;
+
+  /// Soft delete flag
+  final bool deleted;
+  const NoteTask({
+    required this.id,
+    required this.noteId,
+    required this.content,
+    required this.status,
+    required this.priority,
+    this.dueDate,
+    this.completedAt,
+    this.completedBy,
+    required this.position,
+    required this.contentHash,
+    this.reminderId,
+    this.labels,
+    this.notes,
+    this.estimatedMinutes,
+    this.actualMinutes,
+    this.parentTaskId,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.deleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['note_id'] = Variable<String>(noteId);
+    map['content'] = Variable<String>(content);
+    {
+      map['status'] = Variable<int>(
+        $NoteTasksTable.$converterstatus.toSql(status),
+      );
+    }
+    {
+      map['priority'] = Variable<int>(
+        $NoteTasksTable.$converterpriority.toSql(priority),
+      );
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    if (!nullToAbsent || completedBy != null) {
+      map['completed_by'] = Variable<String>(completedBy);
+    }
+    map['position'] = Variable<int>(position);
+    map['content_hash'] = Variable<String>(contentHash);
+    if (!nullToAbsent || reminderId != null) {
+      map['reminder_id'] = Variable<int>(reminderId);
+    }
+    if (!nullToAbsent || labels != null) {
+      map['labels'] = Variable<String>(labels);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || estimatedMinutes != null) {
+      map['estimated_minutes'] = Variable<int>(estimatedMinutes);
+    }
+    if (!nullToAbsent || actualMinutes != null) {
+      map['actual_minutes'] = Variable<int>(actualMinutes);
+    }
+    if (!nullToAbsent || parentTaskId != null) {
+      map['parent_task_id'] = Variable<String>(parentTaskId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['deleted'] = Variable<bool>(deleted);
+    return map;
+  }
+
+  NoteTasksCompanion toCompanion(bool nullToAbsent) {
+    return NoteTasksCompanion(
+      id: Value(id),
+      noteId: Value(noteId),
+      content: Value(content),
+      status: Value(status),
+      priority: Value(priority),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      completedBy: completedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedBy),
+      position: Value(position),
+      contentHash: Value(contentHash),
+      reminderId: reminderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderId),
+      labels: labels == null && nullToAbsent
+          ? const Value.absent()
+          : Value(labels),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      estimatedMinutes: estimatedMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimatedMinutes),
+      actualMinutes: actualMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actualMinutes),
+      parentTaskId: parentTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentTaskId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deleted: Value(deleted),
+    );
+  }
+
+  factory NoteTask.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteTask(
+      id: serializer.fromJson<String>(json['id']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      content: serializer.fromJson<String>(json['content']),
+      status: $NoteTasksTable.$converterstatus.fromJson(
+        serializer.fromJson<int>(json['status']),
+      ),
+      priority: $NoteTasksTable.$converterpriority.fromJson(
+        serializer.fromJson<int>(json['priority']),
+      ),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      completedBy: serializer.fromJson<String?>(json['completedBy']),
+      position: serializer.fromJson<int>(json['position']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      reminderId: serializer.fromJson<int?>(json['reminderId']),
+      labels: serializer.fromJson<String?>(json['labels']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      estimatedMinutes: serializer.fromJson<int?>(json['estimatedMinutes']),
+      actualMinutes: serializer.fromJson<int?>(json['actualMinutes']),
+      parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'noteId': serializer.toJson<String>(noteId),
+      'content': serializer.toJson<String>(content),
+      'status': serializer.toJson<int>(
+        $NoteTasksTable.$converterstatus.toJson(status),
+      ),
+      'priority': serializer.toJson<int>(
+        $NoteTasksTable.$converterpriority.toJson(priority),
+      ),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'completedBy': serializer.toJson<String?>(completedBy),
+      'position': serializer.toJson<int>(position),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'reminderId': serializer.toJson<int?>(reminderId),
+      'labels': serializer.toJson<String?>(labels),
+      'notes': serializer.toJson<String?>(notes),
+      'estimatedMinutes': serializer.toJson<int?>(estimatedMinutes),
+      'actualMinutes': serializer.toJson<int?>(actualMinutes),
+      'parentTaskId': serializer.toJson<String?>(parentTaskId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deleted': serializer.toJson<bool>(deleted),
+    };
+  }
+
+  NoteTask copyWith({
+    String? id,
+    String? noteId,
+    String? content,
+    TaskStatus? status,
+    TaskPriority? priority,
+    Value<DateTime?> dueDate = const Value.absent(),
+    Value<DateTime?> completedAt = const Value.absent(),
+    Value<String?> completedBy = const Value.absent(),
+    int? position,
+    String? contentHash,
+    Value<int?> reminderId = const Value.absent(),
+    Value<String?> labels = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    Value<int?> estimatedMinutes = const Value.absent(),
+    Value<int?> actualMinutes = const Value.absent(),
+    Value<String?> parentTaskId = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? deleted,
+  }) => NoteTask(
+    id: id ?? this.id,
+    noteId: noteId ?? this.noteId,
+    content: content ?? this.content,
+    status: status ?? this.status,
+    priority: priority ?? this.priority,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    completedBy: completedBy.present ? completedBy.value : this.completedBy,
+    position: position ?? this.position,
+    contentHash: contentHash ?? this.contentHash,
+    reminderId: reminderId.present ? reminderId.value : this.reminderId,
+    labels: labels.present ? labels.value : this.labels,
+    notes: notes.present ? notes.value : this.notes,
+    estimatedMinutes: estimatedMinutes.present
+        ? estimatedMinutes.value
+        : this.estimatedMinutes,
+    actualMinutes: actualMinutes.present
+        ? actualMinutes.value
+        : this.actualMinutes,
+    parentTaskId: parentTaskId.present ? parentTaskId.value : this.parentTaskId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deleted: deleted ?? this.deleted,
+  );
+  NoteTask copyWithCompanion(NoteTasksCompanion data) {
+    return NoteTask(
+      id: data.id.present ? data.id.value : this.id,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      content: data.content.present ? data.content.value : this.content,
+      status: data.status.present ? data.status.value : this.status,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      completedBy: data.completedBy.present
+          ? data.completedBy.value
+          : this.completedBy,
+      position: data.position.present ? data.position.value : this.position,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      reminderId: data.reminderId.present
+          ? data.reminderId.value
+          : this.reminderId,
+      labels: data.labels.present ? data.labels.value : this.labels,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      estimatedMinutes: data.estimatedMinutes.present
+          ? data.estimatedMinutes.value
+          : this.estimatedMinutes,
+      actualMinutes: data.actualMinutes.present
+          ? data.actualMinutes.value
+          : this.actualMinutes,
+      parentTaskId: data.parentTaskId.present
+          ? data.parentTaskId.value
+          : this.parentTaskId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteTask(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('content: $content, ')
+          ..write('status: $status, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('completedBy: $completedBy, ')
+          ..write('position: $position, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('reminderId: $reminderId, ')
+          ..write('labels: $labels, ')
+          ..write('notes: $notes, ')
+          ..write('estimatedMinutes: $estimatedMinutes, ')
+          ..write('actualMinutes: $actualMinutes, ')
+          ..write('parentTaskId: $parentTaskId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    noteId,
+    content,
+    status,
+    priority,
+    dueDate,
+    completedAt,
+    completedBy,
+    position,
+    contentHash,
+    reminderId,
+    labels,
+    notes,
+    estimatedMinutes,
+    actualMinutes,
+    parentTaskId,
+    createdAt,
+    updatedAt,
+    deleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteTask &&
+          other.id == this.id &&
+          other.noteId == this.noteId &&
+          other.content == this.content &&
+          other.status == this.status &&
+          other.priority == this.priority &&
+          other.dueDate == this.dueDate &&
+          other.completedAt == this.completedAt &&
+          other.completedBy == this.completedBy &&
+          other.position == this.position &&
+          other.contentHash == this.contentHash &&
+          other.reminderId == this.reminderId &&
+          other.labels == this.labels &&
+          other.notes == this.notes &&
+          other.estimatedMinutes == this.estimatedMinutes &&
+          other.actualMinutes == this.actualMinutes &&
+          other.parentTaskId == this.parentTaskId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deleted == this.deleted);
+}
+
+class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
+  final Value<String> id;
+  final Value<String> noteId;
+  final Value<String> content;
+  final Value<TaskStatus> status;
+  final Value<TaskPriority> priority;
+  final Value<DateTime?> dueDate;
+  final Value<DateTime?> completedAt;
+  final Value<String?> completedBy;
+  final Value<int> position;
+  final Value<String> contentHash;
+  final Value<int?> reminderId;
+  final Value<String?> labels;
+  final Value<String?> notes;
+  final Value<int?> estimatedMinutes;
+  final Value<int?> actualMinutes;
+  final Value<String?> parentTaskId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> deleted;
+  final Value<int> rowid;
+  const NoteTasksCompanion({
+    this.id = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.content = const Value.absent(),
+    this.status = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.completedBy = const Value.absent(),
+    this.position = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.reminderId = const Value.absent(),
+    this.labels = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.estimatedMinutes = const Value.absent(),
+    this.actualMinutes = const Value.absent(),
+    this.parentTaskId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteTasksCompanion.insert({
+    required String id,
+    required String noteId,
+    required String content,
+    this.status = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.completedBy = const Value.absent(),
+    this.position = const Value.absent(),
+    required String contentHash,
+    this.reminderId = const Value.absent(),
+    this.labels = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.estimatedMinutes = const Value.absent(),
+    this.actualMinutes = const Value.absent(),
+    this.parentTaskId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       noteId = Value(noteId),
+       content = Value(content),
+       contentHash = Value(contentHash);
+  static Insertable<NoteTask> custom({
+    Expression<String>? id,
+    Expression<String>? noteId,
+    Expression<String>? content,
+    Expression<int>? status,
+    Expression<int>? priority,
+    Expression<DateTime>? dueDate,
+    Expression<DateTime>? completedAt,
+    Expression<String>? completedBy,
+    Expression<int>? position,
+    Expression<String>? contentHash,
+    Expression<int>? reminderId,
+    Expression<String>? labels,
+    Expression<String>? notes,
+    Expression<int>? estimatedMinutes,
+    Expression<int>? actualMinutes,
+    Expression<String>? parentTaskId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? deleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (noteId != null) 'note_id': noteId,
+      if (content != null) 'content': content,
+      if (status != null) 'status': status,
+      if (priority != null) 'priority': priority,
+      if (dueDate != null) 'due_date': dueDate,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (completedBy != null) 'completed_by': completedBy,
+      if (position != null) 'position': position,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (reminderId != null) 'reminder_id': reminderId,
+      if (labels != null) 'labels': labels,
+      if (notes != null) 'notes': notes,
+      if (estimatedMinutes != null) 'estimated_minutes': estimatedMinutes,
+      if (actualMinutes != null) 'actual_minutes': actualMinutes,
+      if (parentTaskId != null) 'parent_task_id': parentTaskId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deleted != null) 'deleted': deleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteTasksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? noteId,
+    Value<String>? content,
+    Value<TaskStatus>? status,
+    Value<TaskPriority>? priority,
+    Value<DateTime?>? dueDate,
+    Value<DateTime?>? completedAt,
+    Value<String?>? completedBy,
+    Value<int>? position,
+    Value<String>? contentHash,
+    Value<int?>? reminderId,
+    Value<String?>? labels,
+    Value<String?>? notes,
+    Value<int?>? estimatedMinutes,
+    Value<int?>? actualMinutes,
+    Value<String?>? parentTaskId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? deleted,
+    Value<int>? rowid,
+  }) {
+    return NoteTasksCompanion(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      content: content ?? this.content,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+      dueDate: dueDate ?? this.dueDate,
+      completedAt: completedAt ?? this.completedAt,
+      completedBy: completedBy ?? this.completedBy,
+      position: position ?? this.position,
+      contentHash: contentHash ?? this.contentHash,
+      reminderId: reminderId ?? this.reminderId,
+      labels: labels ?? this.labels,
+      notes: notes ?? this.notes,
+      estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
+      actualMinutes: actualMinutes ?? this.actualMinutes,
+      parentTaskId: parentTaskId ?? this.parentTaskId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(
+        $NoteTasksTable.$converterstatus.toSql(status.value),
+      );
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(
+        $NoteTasksTable.$converterpriority.toSql(priority.value),
+      );
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (completedBy.present) {
+      map['completed_by'] = Variable<String>(completedBy.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (reminderId.present) {
+      map['reminder_id'] = Variable<int>(reminderId.value);
+    }
+    if (labels.present) {
+      map['labels'] = Variable<String>(labels.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (estimatedMinutes.present) {
+      map['estimated_minutes'] = Variable<int>(estimatedMinutes.value);
+    }
+    if (actualMinutes.present) {
+      map['actual_minutes'] = Variable<int>(actualMinutes.value);
+    }
+    if (parentTaskId.present) {
+      map['parent_task_id'] = Variable<String>(parentTaskId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('noteId: $noteId, ')
+          ..write('content: $content, ')
+          ..write('status: $status, ')
+          ..write('priority: $priority, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('completedBy: $completedBy, ')
+          ..write('position: $position, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('reminderId: $reminderId, ')
+          ..write('labels: $labels, ')
+          ..write('notes: $notes, ')
+          ..write('estimatedMinutes: $estimatedMinutes, ')
+          ..write('actualMinutes: $actualMinutes, ')
+          ..write('parentTaskId: $parentTaskId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LocalFoldersTable extends LocalFolders
     with TableInfo<$LocalFoldersTable, LocalFolder> {
   @override
@@ -4285,6 +5405,7 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $NoteTagsTable noteTags = $NoteTagsTable(this);
   late final $NoteLinksTable noteLinks = $NoteLinksTable(this);
   late final $NoteRemindersTable noteReminders = $NoteRemindersTable(this);
+  late final $NoteTasksTable noteTasks = $NoteTasksTable(this);
   late final $LocalFoldersTable localFolders = $LocalFoldersTable(this);
   late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
   late final $SavedSearchesTable savedSearches = $SavedSearchesTable(this);
@@ -4298,6 +5419,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     noteTags,
     noteLinks,
     noteReminders,
+    noteTasks,
     localFolders,
     noteFolders,
     savedSearches,
@@ -5579,6 +6701,482 @@ typedef $$NoteRemindersTableProcessedTableManager =
       NoteReminder,
       PrefetchHooks Function()
     >;
+typedef $$NoteTasksTableCreateCompanionBuilder =
+    NoteTasksCompanion Function({
+      required String id,
+      required String noteId,
+      required String content,
+      Value<TaskStatus> status,
+      Value<TaskPriority> priority,
+      Value<DateTime?> dueDate,
+      Value<DateTime?> completedAt,
+      Value<String?> completedBy,
+      Value<int> position,
+      required String contentHash,
+      Value<int?> reminderId,
+      Value<String?> labels,
+      Value<String?> notes,
+      Value<int?> estimatedMinutes,
+      Value<int?> actualMinutes,
+      Value<String?> parentTaskId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<int> rowid,
+    });
+typedef $$NoteTasksTableUpdateCompanionBuilder =
+    NoteTasksCompanion Function({
+      Value<String> id,
+      Value<String> noteId,
+      Value<String> content,
+      Value<TaskStatus> status,
+      Value<TaskPriority> priority,
+      Value<DateTime?> dueDate,
+      Value<DateTime?> completedAt,
+      Value<String?> completedBy,
+      Value<int> position,
+      Value<String> contentHash,
+      Value<int?> reminderId,
+      Value<String?> labels,
+      Value<String?> notes,
+      Value<int?> estimatedMinutes,
+      Value<int?> actualMinutes,
+      Value<String?> parentTaskId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> deleted,
+      Value<int> rowid,
+    });
+
+class $$NoteTasksTableFilterComposer
+    extends Composer<_$AppDb, $NoteTasksTable> {
+  $$NoteTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TaskStatus, TaskStatus, int> get status =>
+      $composableBuilder(
+        column: $table.status,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<TaskPriority, TaskPriority, int>
+  get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completedBy => $composableBuilder(
+    column: $table.completedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderId => $composableBuilder(
+    column: $table.reminderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get labels => $composableBuilder(
+    column: $table.labels,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedMinutes => $composableBuilder(
+    column: $table.estimatedMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get actualMinutes => $composableBuilder(
+    column: $table.actualMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentTaskId => $composableBuilder(
+    column: $table.parentTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteTasksTableOrderingComposer
+    extends Composer<_$AppDb, $NoteTasksTable> {
+  $$NoteTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completedBy => $composableBuilder(
+    column: $table.completedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderId => $composableBuilder(
+    column: $table.reminderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get labels => $composableBuilder(
+    column: $table.labels,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedMinutes => $composableBuilder(
+    column: $table.estimatedMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get actualMinutes => $composableBuilder(
+    column: $table.actualMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentTaskId => $composableBuilder(
+    column: $table.parentTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteTasksTableAnnotationComposer
+    extends Composer<_$AppDb, $NoteTasksTable> {
+  $$NoteTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<TaskStatus, int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<TaskPriority, int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get completedBy => $composableBuilder(
+    column: $table.completedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderId => $composableBuilder(
+    column: $table.reminderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get labels =>
+      $composableBuilder(column: $table.labels, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<int> get estimatedMinutes => $composableBuilder(
+    column: $table.estimatedMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actualMinutes => $composableBuilder(
+    column: $table.actualMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get parentTaskId => $composableBuilder(
+    column: $table.parentTaskId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+}
+
+class $$NoteTasksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $NoteTasksTable,
+          NoteTask,
+          $$NoteTasksTableFilterComposer,
+          $$NoteTasksTableOrderingComposer,
+          $$NoteTasksTableAnnotationComposer,
+          $$NoteTasksTableCreateCompanionBuilder,
+          $$NoteTasksTableUpdateCompanionBuilder,
+          (NoteTask, BaseReferences<_$AppDb, $NoteTasksTable, NoteTask>),
+          NoteTask,
+          PrefetchHooks Function()
+        > {
+  $$NoteTasksTableTableManager(_$AppDb db, $NoteTasksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<TaskStatus> status = const Value.absent(),
+                Value<TaskPriority> priority = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<String?> completedBy = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<int?> reminderId = const Value.absent(),
+                Value<String?> labels = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int?> estimatedMinutes = const Value.absent(),
+                Value<int?> actualMinutes = const Value.absent(),
+                Value<String?> parentTaskId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteTasksCompanion(
+                id: id,
+                noteId: noteId,
+                content: content,
+                status: status,
+                priority: priority,
+                dueDate: dueDate,
+                completedAt: completedAt,
+                completedBy: completedBy,
+                position: position,
+                contentHash: contentHash,
+                reminderId: reminderId,
+                labels: labels,
+                notes: notes,
+                estimatedMinutes: estimatedMinutes,
+                actualMinutes: actualMinutes,
+                parentTaskId: parentTaskId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String noteId,
+                required String content,
+                Value<TaskStatus> status = const Value.absent(),
+                Value<TaskPriority> priority = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<String?> completedBy = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                required String contentHash,
+                Value<int?> reminderId = const Value.absent(),
+                Value<String?> labels = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int?> estimatedMinutes = const Value.absent(),
+                Value<int?> actualMinutes = const Value.absent(),
+                Value<String?> parentTaskId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteTasksCompanion.insert(
+                id: id,
+                noteId: noteId,
+                content: content,
+                status: status,
+                priority: priority,
+                dueDate: dueDate,
+                completedAt: completedAt,
+                completedBy: completedBy,
+                position: position,
+                contentHash: contentHash,
+                reminderId: reminderId,
+                labels: labels,
+                notes: notes,
+                estimatedMinutes: estimatedMinutes,
+                actualMinutes: actualMinutes,
+                parentTaskId: parentTaskId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deleted: deleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteTasksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $NoteTasksTable,
+      NoteTask,
+      $$NoteTasksTableFilterComposer,
+      $$NoteTasksTableOrderingComposer,
+      $$NoteTasksTableAnnotationComposer,
+      $$NoteTasksTableCreateCompanionBuilder,
+      $$NoteTasksTableUpdateCompanionBuilder,
+      (NoteTask, BaseReferences<_$AppDb, $NoteTasksTable, NoteTask>),
+      NoteTask,
+      PrefetchHooks Function()
+    >;
 typedef $$LocalFoldersTableCreateCompanionBuilder =
     LocalFoldersCompanion Function({
       required String id,
@@ -6400,6 +7998,8 @@ class $AppDbManager {
       $$NoteLinksTableTableManager(_db, _db.noteLinks);
   $$NoteRemindersTableTableManager get noteReminders =>
       $$NoteRemindersTableTableManager(_db, _db.noteReminders);
+  $$NoteTasksTableTableManager get noteTasks =>
+      $$NoteTasksTableTableManager(_db, _db.noteTasks);
   $$LocalFoldersTableTableManager get localFolders =>
       $$LocalFoldersTableTableManager(_db, _db.localFolders);
   $$NoteFoldersTableTableManager get noteFolders =>

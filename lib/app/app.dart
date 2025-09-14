@@ -524,7 +524,11 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       if (note != null) {
         navigator.push(
           MaterialPageRoute(
-            builder: (context) => NoteEditScreen(note: note),
+            builder: (context) => NoteEditScreen(
+              noteId: note.id,
+              initialTitle: note.title,
+              initialBody: note.body,
+            ),
           ),
         );
       } else {

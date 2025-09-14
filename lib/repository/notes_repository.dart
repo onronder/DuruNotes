@@ -176,6 +176,34 @@ class NotesRepository {
   
   /// Get a note by ID (compatibility method)
   Future<LocalNote?> getNote(String id) => getLocalNoteById(id);
+  
+  /// Get a note by ID (alias for getNote)
+  Future<LocalNote?> getNoteById(String id) => getNote(id);
+  
+  /// Create a new note
+  Future<LocalNote?> createNote({
+    required String title,
+    required String body,
+    String? folderId,
+  }) async {
+    return createOrUpdate(
+      title: title,
+      body: body,
+    );
+  }
+  
+  /// Update an existing note
+  Future<LocalNote?> updateNote(
+    String id, {
+    required String title,
+    required String body,
+  }) async {
+    return createOrUpdate(
+      id: id,
+      title: title,
+      body: body,
+    );
+  }
 
   Future<LocalNote?> createOrUpdate({
     String? id,
@@ -455,24 +483,16 @@ class NotesRepository {
   Future<void> addNoteToFolder(String noteId, String folderId) async {
     await db.moveNoteToFolder(noteId, folderId);
     
-    // Update note's updatedAt to trigger sync
-    final note = await getNote(noteId);
-    if (note != null) {
-      await db.upsertNote(note.copyWith(updatedAt: DateTime.now()));
-      await db.enqueue(noteId, 'upsert_note');
-    }
+    // Don't update timestamp for folder changes - just sync the folder association
+    await db.enqueue(noteId, 'note_folder_change');
   }
 
   /// Move note to folder
   Future<void> moveNoteToFolder(String noteId, String? folderId) async {
     await db.moveNoteToFolder(noteId, folderId);
     
-    // Update note's updatedAt to trigger sync
-    final note = await getNote(noteId);
-    if (note != null) {
-      await db.upsertNote(note.copyWith(updatedAt: DateTime.now()));
-      await db.enqueue(noteId, 'upsert_note');
-    }
+    // Don't update timestamp for folder changes - just sync the folder association
+    await db.enqueue(noteId, 'note_folder_change');
   }
 
   /// Remove note from folder

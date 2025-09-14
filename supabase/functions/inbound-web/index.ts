@@ -229,6 +229,17 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         source_type: "web",
+        // New structure fields
+        title: title || 'Web Clip',
+        content: text || '',
+        html: html || null,
+        metadata: {
+          url: pageUrl,
+          clip_timestamp,
+          clipped_at,
+          ...body // Keep any extra fields from original request
+        },
+        // Backward compatibility - keep payload_json
         payload_json: payload,
         message_id: null, // Not applicable for web clips
       });
@@ -254,6 +265,26 @@ serve(async (req) => {
       title: title || "Web Clip",
       url: pageUrl || "N/A"
     }));
+
+    // Broadcast inbox change (fallback when DB replication is unavailable)
+    try {
+      const broadcastRes = await fetch(`${supabaseUrl}/realtime/v1/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          topic: `realtime:inbox_realtime_${userId}`,
+          event: 'broadcast',
+          payload: { event: 'inbox_changed', user_id: userId },
+        }),
+      });
+      console.log(JSON.stringify({ event: 'broadcast_sent', ok: broadcastRes.ok }));
+    } catch (e) {
+      console.log(JSON.stringify({ event: 'broadcast_failed', error: String(e) }));
+    }
     
     // Trigger push notification for web clip
     try {

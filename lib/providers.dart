@@ -34,6 +34,9 @@ import 'package:duru_notes/services/folder_realtime_service.dart';
 import 'package:duru_notes/services/notes_realtime_service.dart';
 import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
+import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/services/note_task_sync_service.dart';
+import 'package:duru_notes/repository/task_repository.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -295,6 +298,45 @@ final exportServiceProvider = Provider<ExportService>((ref) {
     analytics: ref.watch(analyticsProvider),
     // attachmentService: ref.watch(attachmentServiceProvider),  // Reserved for attachment export
   );
+});
+
+/// Task service provider
+final taskServiceProvider = Provider<TaskService>((ref) {
+  final database = ref.watch(appDbProvider);
+  return TaskService(database: database);
+});
+
+/// Task repository provider for sync
+final taskRepositoryProvider = Provider<TaskRepository>((ref) {
+  // Rebuild when auth state changes
+  ref.watch(authStateChangesProvider);
+  final database = ref.watch(appDbProvider);
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  
+  if (userId == null || userId.isEmpty) {
+    throw StateError('TaskRepository requested without an authenticated user');
+  }
+  
+  return TaskRepository(
+    database: database,
+    supabase: client,
+  );
+});
+
+/// Note-task sync service provider
+final noteTaskSyncServiceProvider = Provider<NoteTaskSyncService>((ref) {
+  final database = ref.watch(appDbProvider);
+  final taskService = ref.watch(taskServiceProvider);
+  
+  final service = NoteTaskSyncService(
+    database: database,
+    taskService: taskService,
+  );
+  
+  ref.onDispose(() => service.dispose());
+  
+  return service;
 });
 
 /// Account key service (AMK) provider
@@ -639,6 +681,16 @@ final rootFoldersProvider = FutureProvider<List<LocalFolder>>((ref) {
   
   final repo = ref.watch(notesRepositoryProvider);
   return repo.getRootFolders();
+});
+
+/// All folders count provider for accurate statistics
+final allFoldersCountProvider = FutureProvider<int>((ref) async {
+  // Watch the folder hierarchy to rebuild when folders change
+  ref.watch(folderHierarchyProvider);
+  
+  final repo = ref.watch(notesRepositoryProvider);
+  final allFolders = await repo.listFolders();
+  return allFolders.length;
 });
 
 /// Unfiled notes count provider

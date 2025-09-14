@@ -176,6 +176,20 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         source_type: "email_in",
+        // New structure fields
+        title: payload.subject || 'Email',
+        content: payload.text || '',
+        html: payload.html || null,
+        metadata: {
+          to: payload.to,
+          from: payload.from,
+          headers: payload.headers,
+          received_at: payload.received_at,
+          attachments_pending: payload.attachments_pending,
+          provider_timestamp: payload.provider_timestamp,
+          attachments: payload.attachments, // Include if present
+        },
+        // Backward compatibility - keep payload_json
         payload_json: payload,
         message_id: messageId,
       });
@@ -205,6 +219,26 @@ serve(async (req) => {
       }
       console.error("DB insert failed:", { code: insErr.code, message: insErr.message });
       return new Response("Temporary error", { status: 500, headers: corsHeaders });
+    }
+
+    // Broadcast inbox change (fallback when DB replication is unavailable)
+    try {
+      const broadcastRes = await fetch(`${supabaseUrl}/realtime/v1/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          topic: `realtime:inbox_realtime_${userId}`,
+          event: 'broadcast',
+          payload: { event: 'inbox_changed', user_id: userId },
+        }),
+      });
+      console.log(JSON.stringify({ event: 'broadcast_sent', ok: broadcastRes.ok }));
+    } catch (e) {
+      console.log(JSON.stringify({ event: 'broadcast_failed', error: String(e) }));
     }
 
     // Trigger push notification for new email
