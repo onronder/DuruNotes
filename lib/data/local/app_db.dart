@@ -1647,7 +1647,7 @@ class AppDb extends _$AppDb {
           if (content.isNotEmpty) {
             final taskId = '${note.id}_task_${position}';
             // Use stable hash for content
-            final contentHash = HashUtils.stableTaskHash(note.id, content);
+            final contentHash = stableTaskHash(note.id, content);
             
             // Insert task into database
             await into(noteTasks).insertOnConflictUpdate(
@@ -1676,7 +1676,7 @@ class AppDb extends _$AppDb {
     for (final task in tasks) {
       // Only update if content_hash seems to be using old hashCode
       if (task.contentHash == task.content.hashCode.toString()) {
-        final stableHash = HashUtils.stableTaskHash(task.noteId, task.content);
+        final stableHash = stableTaskHash(task.noteId, task.content);
         
         await (update(noteTasks)..where((t) => t.id.equals(task.id)))
           .write(NoteTasksCompanion(

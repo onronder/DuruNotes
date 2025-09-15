@@ -78,13 +78,11 @@ class InboxRealtimeService extends ChangeNotifier {
             callback: _handleDelete,
           )
           // Fallback: broadcast channel for environments without DB replication
-          .on(
-            RealtimeListenTypes.broadcast,
-            ChannelFilter(event: 'inbox_changed', schema: 'realtime'),
-            (payload, [_]) {
+          .onBroadcast(
+            event: 'inbox_changed',
+            callback: (Map<String, dynamic> payload) {
               try {
-                final data = payload['payload'] as Map<String, dynamic>?;
-                final targetUserId = data?['user_id'] as String?;
+                final targetUserId = payload['user_id'] as String?;
                 if (targetUserId == userId) {
                   debugPrint('[InboxRealtime] Broadcast inbox_changed received');
                   _listRefreshController.add(InboxRealtimeEvent.listChanged);
