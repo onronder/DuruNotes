@@ -1,332 +1,338 @@
-// DuruNotes Chrome Extension - Production Authentication
+/**
+ * Production-Grade Popup Script for Duru Notes Chrome Extension
+ */
 
-const SUPABASE_URL = 'https://jtaedgpxesshdrnbgvjr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U';
-
-// DOM Elements
-const loginView = document.getElementById('login-view');
-const authView = document.getElementById('auth-view');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const loginBtn = document.getElementById('login-btn');
-const logoutBtn = document.getElementById('logout-btn');
-const userEmail = document.getElementById('user-email');
-const userInitial = document.getElementById('user-initial');
-const inboxAlias = document.getElementById('inbox-alias');
-const clipSelectionBtn = document.getElementById('clip-selection-btn');
-const clipPageBtn = document.getElementById('clip-page-btn');
-const statusDiv = document.getElementById('status');
-
-// State
-let currentUser = null;
-let accessToken = null;
-let refreshToken = null;
-
-// Initialize
-document.addEventListener('DOMContentLoaded', async () => {
-  await checkAuthStatus();
-  setupEventListeners();
-});
-
-// Check if user is already logged in
-async function checkAuthStatus() {
-  try {
-    const stored = await chrome.storage.local.get(['access_token', 'refresh_token', 'user']);
-    
-    if (stored.access_token) {
-      accessToken = stored.access_token;
-      refreshToken = stored.refresh_token;
-      currentUser = stored.user;
+class DuruNotesPopup {
+  constructor() {
+    this.elements = {
+      status: document.getElementById('status'),
+      statusHeader: document.getElementById('statusHeader'),
+      appHeader: document.getElementById('appHeader'),
+      message: document.getElementById('message'),
+      loading: document.getElementById('loading'),
+      loginForm: document.getElementById('loginForm'),
+      clipActions: document.getElementById('clipActions'),
+      userInfo: document.getElementById('userInfo'),
+      userEmail: document.getElementById('userEmail'),
+      userAlias: document.getElementById('userAlias'),
       
-      // Verify token is still valid
-      const isValid = await verifyToken(accessToken);
-      if (isValid) {
-        showAuthenticatedView();
-      } else if (refreshToken) {
-        // Try to refresh the token
-        const refreshed = await refreshAccessToken(refreshToken);
-        if (refreshed) {
-          showAuthenticatedView();
+      // Form inputs
+      email: document.getElementById('email'),
+      password: document.getElementById('password'),
+      secretKey: document.getElementById('secretKey'),
+      
+      // Buttons
+      loginBtn: document.getElementById('loginBtn'),
+      logoutBtn: document.getElementById('logoutBtn'),
+      clipSelectionBtn: document.getElementById('clipSelectionBtn'),
+      clipPageBtn: document.getElementById('clipPageBtn'),
+      saveSecretBtn: document.getElementById('saveSecretBtn'),
+      
+      // Settings toggles
+      autoCloseToggle: document.getElementById('autoCloseToggle'),
+      notificationsToggle: document.getElementById('notificationsToggle')
+    };
+    
+    this.isAuthenticated = false;
+    this.settings = {
+      autoClose: true,
+      notifications: true
+    };
+    
+    this.init();
+  }
+  
+  async init() {
+    // Load settings
+    await this.loadSettings();
+    
+    // Check authentication status
+    await this.checkAuth();
+    
+    // Set up event listeners
+    this.setupEventListeners();
+  }
+  
+  setupEventListeners() {
+    // Login/Logout
+    this.elements.loginBtn.addEventListener('click', () => this.handleLogin());
+    this.elements.logoutBtn.addEventListener('click', () => this.handleLogout());
+    
+    // Clip actions
+    this.elements.clipSelectionBtn.addEventListener('click', () => this.handleClip('selection'));
+    this.elements.clipPageBtn.addEventListener('click', () => this.handleClip('page'));
+    
+    // Settings
+    this.elements.saveSecretBtn.addEventListener('click', () => this.saveSecret());
+    this.elements.autoCloseToggle.addEventListener('click', () => this.toggleSetting('autoClose'));
+    this.elements.notificationsToggle.addEventListener('click', () => this.toggleSetting('notifications'));
+    
+    // Enter key for login
+    this.elements.password.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.handleLogin();
+    });
+  }
+  
+  async checkAuth() {
+    this.showLoading();
+    
+    try {
+      const response = await this.sendMessage({ action: 'getSession' });
+      
+      if (response.isAuthenticated && response.session) {
+        // Check if token is about to expire (within 5 minutes)
+        const expiresAt = response.session.expires_at;
+        const now = Date.now();
+        const timeUntilExpiry = expiresAt - now;
+        
+        if (timeUntilExpiry < 5 * 60 * 1000) {
+          // Token is about to expire, try to refresh
+          this.showMessage('Refreshing session...', 'info');
+          const refreshResponse = await this.sendMessage({ action: 'refreshToken' });
+          
+          if (refreshResponse.success) {
+            this.isAuthenticated = true;
+            this.showClipActions(response.session.user);
+            this.hideMessage();
+          } else {
+            // Refresh failed, show login
+            this.showLoginForm();
+            this.showMessage('Session expired. Please login again.', 'error');
+          }
         } else {
-          showLoginView();
+          // Token is still valid
+          this.isAuthenticated = true;
+          this.showClipActions(response.session.user);
+          
+          // Show time until expiry in status
+          const minutesUntilExpiry = Math.floor(timeUntilExpiry / 60000);
+          if (minutesUntilExpiry < 30) {
+            this.elements.status.textContent = `Connected (expires in ${minutesUntilExpiry}m)`;
+          }
         }
       } else {
-        showLoginView();
+        this.showLoginForm();
       }
+    } catch (error) {
+      console.error('Auth check error:', error);
+      this.showLoginForm();
+    } finally {
+      this.hideLoading();
+    }
+  }
+  
+  async handleLogin() {
+    const email = this.elements.email.value.trim();
+    const password = this.elements.password.value;
+    
+    if (!email || !password) {
+      this.showMessage('Please enter email and password', 'error');
+      return;
+    }
+    
+    this.showLoading();
+    this.hideMessage();
+    
+    try {
+      const response = await this.sendMessage({
+        action: 'login',
+        email,
+        password
+      });
+      
+      if (response.success) {
+        this.isAuthenticated = true;
+        this.showClipActions(response.user);
+        this.showMessage('Signed in successfully', 'success');
+      } else {
+        this.showMessage(response.error || 'Login failed', 'error');
+      }
+    } catch (error) {
+      this.showMessage('Login error: ' + error.message, 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  
+  async handleLogout() {
+    this.showLoading();
+    
+    try {
+      await this.sendMessage({ action: 'logout' });
+      this.isAuthenticated = false;
+      this.showLoginForm();
+      this.showMessage('Signed out successfully', 'success');
+    } catch (error) {
+      this.showMessage('Logout error: ' + error.message, 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  
+  async handleClip(type) {
+    this.showLoading();
+    this.hideMessage();
+    
+    try {
+      const response = await this.sendMessage({
+        action: 'clipCurrentTab',
+        type
+      });
+      
+      if (response.success) {
+        this.showMessage(
+          `${type === 'page' ? 'Page' : 'Selection'} clipped successfully!`,
+          'success'
+        );
+        
+        if (this.settings.autoClose) {
+          setTimeout(() => window.close(), 1500);
+        }
+      } else {
+        this.showMessage(
+          response.error || 'Failed to clip content',
+          'error'
+        );
+      }
+    } catch (error) {
+      this.showMessage('Clip error: ' + error.message, 'error');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  
+  async saveSecret() {
+    const secret = this.elements.secretKey.value.trim();
+    
+    if (!secret) {
+      this.showMessage('Please enter a secret key', 'error');
+      return;
+    }
+    
+    try {
+      await this.sendMessage({
+        action: 'setFallbackSecret',
+        secret
+      });
+      
+      await chrome.storage.local.set({ fallbackSecret: secret });
+      
+      this.showMessage('Secret saved successfully', 'success');
+      this.elements.secretKey.value = '';
+    } catch (error) {
+      this.showMessage('Failed to save secret', 'error');
+    }
+  }
+  
+  async loadSettings() {
+    const data = await chrome.storage.local.get([
+      'autoClose',
+      'notifications',
+      'fallbackSecret'
+    ]);
+    
+    this.settings.autoClose = data.autoClose !== false;
+    this.settings.notifications = data.notifications !== false;
+    
+    // Update UI toggles
+    if (this.settings.autoClose) {
+      this.elements.autoCloseToggle.classList.add('active');
     } else {
-      showLoginView();
+      this.elements.autoCloseToggle.classList.remove('active');
     }
-  } catch (error) {
-    console.error('Auth check failed:', error);
-    showLoginView();
-  }
-}
-
-// Verify token with Supabase
-async function verifyToken(token) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'apikey': SUPABASE_ANON_KEY
-      }
-    });
     
-    if (response.ok) {
-      const user = await response.json();
-      currentUser = user;
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    return false;
-  }
-}
-
-// Refresh access token
-async function refreshAccessToken(refreshToken) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ refresh_token: refreshToken })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      accessToken = data.access_token;
-      refreshToken = data.refresh_token;
-      currentUser = data.user;
-      
-      // Store new tokens
-      await chrome.storage.local.set({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        user: currentUser
-      });
-      
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    return false;
-  }
-}
-
-// Setup event listeners
-function setupEventListeners() {
-  // Login form
-  loginBtn.addEventListener('click', handleLogin);
-  emailInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !loginBtn.disabled) {
-      passwordInput.focus();
-    }
-  });
-  passwordInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !loginBtn.disabled) {
-      handleLogin();
-    }
-  });
-  
-  // Logout
-  logoutBtn.addEventListener('click', handleLogout);
-  
-  // Clip actions
-  clipSelectionBtn.addEventListener('click', () => clipContent('selection'));
-  clipPageBtn.addEventListener('click', () => clipContent('page'));
-  
-  // Save alias on change
-  inboxAlias.addEventListener('change', async () => {
-    await chrome.storage.local.set({ inbox_alias: inboxAlias.value });
-  });
-}
-
-// Handle login
-async function handleLogin() {
-  // Clear previous errors
-  document.getElementById('email-error').textContent = '';
-  document.getElementById('password-error').textContent = '';
-  
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
-  
-  // Validate
-  if (!email) {
-    document.getElementById('email-error').textContent = 'Email is required';
-    return;
-  }
-  if (!password) {
-    document.getElementById('password-error').textContent = 'Password is required';
-    return;
-  }
-  
-  // Show loading state
-  loginBtn.disabled = true;
-  loginBtn.querySelector('.btn-text').textContent = 'Signing in...';
-  loginBtn.querySelector('.spinner').classList.remove('hidden');
-  
-  try {
-    // Authenticate with Supabase
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      accessToken = data.access_token;
-      refreshToken = data.refresh_token;
-      currentUser = data.user;
-      
-      // Store credentials
-      await chrome.storage.local.set({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        user: currentUser
-      });
-      
-      // Get user's default inbox alias
-      const aliasResponse = await fetch(`${SUPABASE_URL}/rest/v1/inbound_aliases?user_id=eq.${currentUser.id}&select=alias&limit=1`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': SUPABASE_ANON_KEY
-        }
-      });
-      
-      if (aliasResponse.ok) {
-        const aliases = await aliasResponse.json();
-        if (aliases.length > 0) {
-          inboxAlias.value = aliases[0].alias.split('@')[0];
-          await chrome.storage.local.set({ inbox_alias: inboxAlias.value });
-        }
-      }
-      
-      showAuthenticatedView();
-      showStatus('Successfully signed in!', 'success');
+    if (this.settings.notifications) {
+      this.elements.notificationsToggle.classList.add('active');
     } else {
-      const error = await response.json();
-      if (error.error === 'invalid_grant') {
-        document.getElementById('password-error').textContent = 'Invalid email or password';
-      } else {
-        showStatus('Login failed. Please try again.', 'error');
-      }
+      this.elements.notificationsToggle.classList.remove('active');
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    showStatus('Connection failed. Please check your internet.', 'error');
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.querySelector('.btn-text').textContent = 'Sign In';
-    loginBtn.querySelector('.spinner').classList.add('hidden');
-  }
-}
-
-// Handle logout
-async function handleLogout() {
-  try {
-    // Clear stored credentials
-    await chrome.storage.local.remove(['access_token', 'refresh_token', 'user']);
     
-    // Sign out from Supabase
-    if (accessToken) {
-      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': SUPABASE_ANON_KEY
+    if (data.fallbackSecret) {
+      this.elements.secretKey.placeholder = 'Secret key (saved)';
+    }
+  }
+  
+  async toggleSetting(setting) {
+    this.settings[setting] = !this.settings[setting];
+    
+    // Update the correct toggle element
+    const toggleElement = setting === 'autoClose' ? 
+      this.elements.autoCloseToggle : 
+      this.elements.notificationsToggle;
+    
+    toggleElement.classList.toggle('active', this.settings[setting]);
+    
+    await chrome.storage.local.set({
+      [setting]: this.settings[setting]
+    });
+  }
+  
+  showLoginForm() {
+    this.elements.loginForm.classList.add('active');
+    this.elements.clipActions.classList.remove('active');
+    this.elements.appHeader.style.display = 'block';
+    this.elements.statusHeader.classList.remove('active');
+    this.elements.status.textContent = 'Not connected';
+  }
+  
+  showClipActions(user) {
+    this.elements.loginForm.classList.remove('active');
+    this.elements.clipActions.classList.add('active');
+    this.elements.appHeader.style.display = 'none';
+    this.elements.statusHeader.classList.add('active');
+    
+    if (user) {
+      this.elements.userInfo.style.display = 'block';
+      this.elements.userEmail.textContent = user.email || 'User';
+      
+      // Get the actual alias from storage or user object
+      chrome.storage.local.get(['userAlias'], (data) => {
+        const displayAlias = data.userAlias || user.alias || user.email?.split('@')[0] || 'web_clipper';
+        this.elements.userAlias.textContent = `Alias: ${displayAlias}`;
+      });
+      
+      this.elements.status.textContent = 'Connected';
+    } else {
+      this.elements.userInfo.style.display = 'none';
+      this.elements.status.textContent = 'Using secret authentication';
+    }
+  }
+  
+  showMessage(text, type) {
+    this.elements.message.textContent = text;
+    this.elements.message.className = `message ${type} active`;
+    
+    setTimeout(() => {
+      this.hideMessage();
+    }, 5000);
+  }
+  
+  hideMessage() {
+    this.elements.message.classList.remove('active');
+  }
+  
+  showLoading() {
+    this.elements.loading.classList.add('active');
+  }
+  
+  hideLoading() {
+    this.elements.loading.classList.remove('active');
+  }
+  
+  sendMessage(message) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(response || {});
         }
       });
-    }
-    
-    // Reset state
-    currentUser = null;
-    accessToken = null;
-    refreshToken = null;
-    
-    showLoginView();
-    showStatus('Signed out successfully', 'success');
-  } catch (error) {
-    console.error('Logout error:', error);
-  }
-}
-
-// Clip content
-async function clipContent(type) {
-  if (!accessToken) {
-    showStatus('Please sign in first', 'error');
-    return;
-  }
-  
-  const alias = inboxAlias.value || 'default';
-  
-  try {
-    // Get active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Send message to content script to get content
-    chrome.tabs.sendMessage(tab.id, { 
-      action: 'clip', 
-      type: type,
-      accessToken: accessToken,
-      alias: alias,
-      userId: currentUser.id
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        showStatus('Failed to clip. Please refresh the page.', 'error');
-      } else if (response && response.success) {
-        showStatus('Clipped successfully!', 'success');
-        setTimeout(() => window.close(), 1500);
-      } else {
-        showStatus(response?.error || 'Failed to clip content', 'error');
-      }
     });
-  } catch (error) {
-    console.error('Clip error:', error);
-    showStatus('Failed to clip content', 'error');
   }
 }
 
-// Show login view
-function showLoginView() {
-  loginView.classList.remove('hidden');
-  authView.classList.add('hidden');
-  emailInput.focus();
-}
-
-// Show authenticated view
-function showAuthenticatedView() {
-  loginView.classList.add('hidden');
-  authView.classList.remove('hidden');
-  
-  if (currentUser) {
-    userEmail.textContent = currentUser.email;
-    userInitial.textContent = (currentUser.email || 'U')[0].toUpperCase();
-  }
-  
-  // Load saved alias
-  chrome.storage.local.get(['inbox_alias'], (result) => {
-    if (result.inbox_alias) {
-      inboxAlias.value = result.inbox_alias;
-    }
-  });
-}
-
-// Show status message
-function showStatus(message, type = 'info') {
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-  statusDiv.classList.remove('hidden');
-  
-  setTimeout(() => {
-    statusDiv.classList.add('hidden');
-  }, 3000);
-}
+// Initialize popup
+document.addEventListener('DOMContentLoaded', () => {
+  new DuruNotesPopup();
+});

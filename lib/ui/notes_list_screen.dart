@@ -3307,6 +3307,10 @@ class _PinToggleButtonState extends ConsumerState<_PinToggleButton> {
       final notesRepo = ref.read(notesRepositoryProvider);
       await notesRepo.setNotePin(widget.noteId, !widget.isPinned);
 
+      // Refresh the notes list to show the note in its new sorted position
+      ref.invalidate(filteredNotesProvider);
+      ref.invalidate(currentNotesProvider);
+      
       // Show snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3344,7 +3348,7 @@ class _PinToggleButtonState extends ConsumerState<_PinToggleButton> {
         widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
         size: 20,
         color: widget.isPinned 
-            ? widget.colorScheme.tertiary 
+            ? widget.colorScheme.primary 
             : widget.colorScheme.onSurfaceVariant.withOpacity(0.6),
       ),
       onPressed: _isToggling ? null : _togglePin,
