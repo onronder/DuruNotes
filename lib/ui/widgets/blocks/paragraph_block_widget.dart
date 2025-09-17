@@ -4,7 +4,12 @@ import 'package:flutter/services.dart';
 
 class ParagraphBlockWidget extends StatefulWidget {
   const ParagraphBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNewLine, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    required this.onNewLine,
+    super.key,
     this.isQuote = false,
   });
 
@@ -28,7 +33,7 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
     super.initState();
     _controller = TextEditingController(text: widget.block.data);
     _focusNode = FocusNode();
-    
+
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
     });
@@ -43,11 +48,11 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
   @override
   void didUpdateWidget(ParagraphBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _controller.text = widget.block.data;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _focusNode.requestFocus();
     }
@@ -98,9 +103,7 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
           focusNode: _focusNode,
           onChanged: (_) => _handleTextChanged(),
           decoration: InputDecoration(
-            hintText: widget.isQuote 
-                ? 'Quote...' 
-                : 'Type something...',
+            hintText: widget.isQuote ? 'Quote...' : 'Type something...',
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,

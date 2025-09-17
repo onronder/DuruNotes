@@ -13,7 +13,6 @@ enum ShareFormat { plainText, markdown, html, json }
 
 /// Share options for customizing the sharing experience
 class ShareOptions {
-
   const ShareOptions({
     this.format = ShareFormat.markdown,
     this.includeTitle = true,
@@ -28,11 +27,9 @@ class ShareOptions {
 
 /// Service for sharing notes via various methods
 class ShareService {
-  ShareService({
-    AppLogger? logger,
-    AnalyticsService? analytics,
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  ShareService({AppLogger? logger, AnalyticsService? analytics})
+    : _logger = logger ?? LoggerFactory.instance,
+      _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
@@ -46,7 +43,8 @@ class ShareService {
       _analytics.startTiming('share_note');
 
       final content = _formatNoteContent(note, options);
-      final subject = options.customSubject ??
+      final subject =
+          options.customSubject ??
           (note.title.isNotEmpty ? note.title : 'Shared Note');
 
       if (await _canUseNativeShare()) {
@@ -55,28 +53,40 @@ class ShareService {
         await _shareViaClipboard(content);
       }
 
-      _analytics.endTiming('share_note', properties: {
-        'success': true,
-        'format': options.format.name,
-        'include_title': options.includeTitle,
-        'include_metadata': options.includeMetadata,
-      });
+      _analytics.endTiming(
+        'share_note',
+        properties: {
+          'success': true,
+          'format': options.format.name,
+          'include_title': options.includeTitle,
+          'include_metadata': options.includeMetadata,
+        },
+      );
 
-      _analytics.featureUsed('note_shared', properties: {
-        'format': options.format.name,
-        'method': await _canUseNativeShare() ? 'native' : 'clipboard',
-      });
+      _analytics.featureUsed(
+        'note_shared',
+        properties: {
+          'format': options.format.name,
+          'method': await _canUseNativeShare() ? 'native' : 'clipboard',
+        },
+      );
 
-      _logger.info('Note shared successfully', data: {
-        'note_id': note.id,
-        'format': options.format.name,
-      });
+      _logger.info(
+        'Note shared successfully',
+        data: {'note_id': note.id, 'format': options.format.name},
+      );
 
       return true;
     } catch (e) {
-      _logger.error('Failed to share note', error: e, data: {'note_id': note.id});
-      _analytics.endTiming('share_note',
-          properties: {'success': false, 'error': e.toString()});
+      _logger.error(
+        'Failed to share note',
+        error: e,
+        data: {'note_id': note.id},
+      );
+      _analytics.endTiming(
+        'share_note',
+        properties: {'success': false, 'error': e.toString()},
+      );
       return false;
     }
   }
@@ -90,8 +100,11 @@ class ShareService {
     try {
       _analytics.startTiming('share_multiple_notes');
 
-      final content =
-          _formatMultipleNotesContent(notes, options, collectionTitle);
+      final content = _formatMultipleNotesContent(
+        notes,
+        options,
+        collectionTitle,
+      );
       final subject = collectionTitle ?? 'Shared Notes (${notes.length})';
 
       if (await _canUseNativeShare()) {
@@ -100,26 +113,36 @@ class ShareService {
         await _shareViaClipboard(content);
       }
 
-      _analytics.endTiming('share_multiple_notes', properties: {
-        'success': true,
-        'note_count': notes.length,
-        'format': options.format.name,
-      });
+      _analytics.endTiming(
+        'share_multiple_notes',
+        properties: {
+          'success': true,
+          'note_count': notes.length,
+          'format': options.format.name,
+        },
+      );
 
-      _analytics.featureUsed('multiple_notes_shared', properties: {
-        'count': notes.length,
-        'format': options.format.name,
-      });
+      _analytics.featureUsed(
+        'multiple_notes_shared',
+        properties: {'count': notes.length, 'format': options.format.name},
+      );
 
-      _logger.info('Multiple notes shared successfully',
-          data: {'note_count': notes.length, 'format': options.format.name});
+      _logger.info(
+        'Multiple notes shared successfully',
+        data: {'note_count': notes.length, 'format': options.format.name},
+      );
 
       return true;
     } catch (e) {
-      _logger.error('Failed to share multiple notes',
-          error: e, data: {'note_count': notes.length});
-      _analytics.endTiming('share_multiple_notes',
-          properties: {'success': false, 'error': e.toString()});
+      _logger.error(
+        'Failed to share multiple notes',
+        error: e,
+        data: {'note_count': notes.length},
+      );
+      _analytics.endTiming(
+        'share_multiple_notes',
+        properties: {'success': false, 'error': e.toString()},
+      );
       return false;
     }
   }
@@ -143,24 +166,40 @@ class ShareService {
       final file = File(path.join(dir.path, fileName));
       await file.writeAsString(content);
 
-      _analytics.endTiming('export_note_file', properties: {
-        'success': true,
-        'format': format.name,
-        'file_size': content.length,
-      });
+      _analytics.endTiming(
+        'export_note_file',
+        properties: {
+          'success': true,
+          'format': format.name,
+          'file_size': content.length,
+        },
+      );
 
-      _analytics.featureUsed('note_exported_as_file',
-          properties: {'format': format.name});
+      _analytics.featureUsed(
+        'note_exported_as_file',
+        properties: {'format': format.name},
+      );
 
-      _logger.info('Note exported as file',
-          data: {'note_id': note.id, 'file_path': file.path, 'format': format.name});
+      _logger.info(
+        'Note exported as file',
+        data: {
+          'note_id': note.id,
+          'file_path': file.path,
+          'format': format.name,
+        },
+      );
 
       return file.path;
     } catch (e) {
-      _logger.error('Failed to export note as file',
-          error: e, data: {'note_id': note.id});
-      _analytics.endTiming('export_note_file',
-          properties: {'success': false, 'error': e.toString()});
+      _logger.error(
+        'Failed to export note as file',
+        error: e,
+        data: {'note_id': note.id},
+      );
+      _analytics.endTiming(
+        'export_note_file',
+        properties: {'success': false, 'error': e.toString()},
+      );
       return null;
     }
   }
@@ -174,8 +213,10 @@ class ShareService {
       final content = _formatNoteContent(note, options);
       await _shareViaClipboard(content);
 
-      _analytics.featureUsed('note_copied_to_clipboard',
-          properties: {'format': options.format.name});
+      _analytics.featureUsed(
+        'note_copied_to_clipboard',
+        properties: {'format': options.format.name},
+      );
       return true;
     } catch (e) {
       _logger.error('Failed to copy note to clipboard', error: e);
@@ -244,8 +285,11 @@ class ShareService {
     buffer
       ..writeln('<style>')
       ..writeln(
-          'body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; }')
-      ..writeln('pre { background: #f5f5f5; padding: 16px; border-radius: 8px; }')
+        'body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; }',
+      )
+      ..writeln(
+        'pre { background: #f5f5f5; padding: 16px; border-radius: 8px; }',
+      )
       ..writeln('</style>')
       ..writeln('</head>')
       ..writeln('<body>');
@@ -258,7 +302,9 @@ class ShareService {
       buffer
         ..writeln('<hr>')
         ..writeln('<p><small>')
-        ..writeln('<strong>Created:</strong> ${_formatDate(note.updatedAt)}<br>')
+        ..writeln(
+          '<strong>Created:</strong> ${_formatDate(note.updatedAt)}<br>',
+        )
         ..writeln('<strong>Updated:</strong> ${_formatDate(note.updatedAt)}')
         ..writeln('</small></p>');
     }
@@ -269,10 +315,7 @@ class ShareService {
   }
 
   String _formatAsJson(LocalNote note, ShareOptions options) {
-    final data = <String, dynamic>{
-      'title': note.title,
-      'body': note.body,
-    };
+    final data = <String, dynamic>{'title': note.title, 'body': note.body};
     if (options.includeMetadata) {
       data['created_at'] = note.updatedAt.toIso8601String();
       data['updated_at'] = note.updatedAt.toIso8601String();
@@ -368,18 +411,30 @@ class ShareService {
 
   String _simpleMarkdownToHtml(String markdown) {
     var html = _escapeHtml(markdown);
-    html = html.replaceAllMapped(RegExp(r'^### (.+)$', multiLine: true),
-        (m) => '<h3>${m.group(1)}</h3>');
-    html = html.replaceAllMapped(RegExp(r'^## (.+)$', multiLine: true),
-        (m) => '<h2>${m.group(1)}</h2>');
-    html = html.replaceAllMapped(RegExp(r'^# (.+)$', multiLine: true),
-        (m) => '<h1>${m.group(1)}</h1>');
-    html = html.replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'),
-        (m) => '<strong>${m.group(1)}</strong>');
-    html = html.replaceAllMapped(RegExp(r'\*(.+?)\*'),
-        (m) => '<em>${m.group(1)}</em>');
-    html = html.replaceAllMapped(RegExp('`(.+?)`'),
-        (m) => '<code>${m.group(1)}</code>');
+    html = html.replaceAllMapped(
+      RegExp(r'^### (.+)$', multiLine: true),
+      (m) => '<h3>${m.group(1)}</h3>',
+    );
+    html = html.replaceAllMapped(
+      RegExp(r'^## (.+)$', multiLine: true),
+      (m) => '<h2>${m.group(1)}</h2>',
+    );
+    html = html.replaceAllMapped(
+      RegExp(r'^# (.+)$', multiLine: true),
+      (m) => '<h1>${m.group(1)}</h1>',
+    );
+    html = html.replaceAllMapped(
+      RegExp(r'\*\*(.+?)\*\*'),
+      (m) => '<strong>${m.group(1)}</strong>',
+    );
+    html = html.replaceAllMapped(
+      RegExp(r'\*(.+?)\*'),
+      (m) => '<em>${m.group(1)}</em>',
+    );
+    html = html.replaceAllMapped(
+      RegExp('`(.+?)`'),
+      (m) => '<code>${m.group(1)}</code>',
+    );
     html = html.replaceAll('\n', '<br>\n');
     return html;
   }

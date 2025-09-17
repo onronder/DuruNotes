@@ -478,6 +478,9 @@
   "errorCreatingFolder": "Failed to create folder",
   "errorLoadingFolders": "Failed to load folders",
   "cannotMoveToDescendant": "Cannot move folder to its own descendant",
+  "selectFolder": "Select Folder",
+  "unfiled": "Unfiled",
+  "createYourFirstFolder": "Create your first folder",
   "create": "Create",
   "expandAll": "Expand All",
   "collapseAll": "Collapse All",
@@ -505,5 +508,20 @@
   "completed": "Completed",
   "preparing": "Preparing",
   "rendering": "Rendering",
-  "finalizing": "Finalizing"
+  "finalizing": "Finalizing",
+  
+  "@_MISSING_STRINGS": {},
+  "attachments": "Attachments",
+  "dateModified": "Date Modified",
+  "highPriority": "High Priority",
+  "lowPriority": "Low Priority",
+  "mediumPriority": "Medium Priority",
+  "noTitle": "No Title",
+  "overdue": "Overdue",
+  "pinnedNotes": "Pinned Notes",
+  "pinNote": "Pin Note",
+  "tags": "Tags",
+  "today": "Today",
+  "tomorrow": "Tomorrow",
+  "unpinNote": "Unpin Note"
 }

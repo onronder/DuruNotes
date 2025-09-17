@@ -12,6 +12,12 @@ import UserNotifications
     // Register all Flutter plugins for the main isolate.
     GeneratedPluginRegistrant.register(with: self)
     
+    // Register Widget Bridge for Quick Capture Widget
+    // TODO: Uncomment when WidgetBridge.swift is added to Xcode project
+    // if let controller = window?.rootViewController as? FlutterViewController {
+    //   WidgetBridge.register(with: controller)
+    // }
+    
     // TODO: Register custom share extension plugin when Xcode project is updated
     // ShareExtensionPlugin.register(with: self.registrar(forPlugin: "ShareExtensionPlugin")!)
 
@@ -43,5 +49,43 @@ import UserNotifications
     // -------------------------------------------------------------------------------
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+  
+  // MARK: - Deep Link Handling for Widget
+  override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+    // Handle widget deep links
+    // TODO: Uncomment when WidgetBridge.swift is added to Xcode project
+    // if WidgetBridge.handleAppLaunch(with: url) {
+    //   return true
+    // }
+    
+    // Handle other deep links
+    return super.application(app, open: url, options: options)
+  }
+  
+  override func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+    // Handle universal links from widget
+    if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+       let url = userActivity.webpageURL,
+       url.scheme == "durunotes" {
+      // TODO: Uncomment when WidgetBridge.swift is added to Xcode project
+      // return WidgetBridge.handleAppLaunch(with: url)
+      return false
+    }
+    
+    return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
+  }
+  
+  // MARK: - Widget Lifecycle
+  override func applicationWillResignActive(_ application: UIApplication) {
+    super.applicationWillResignActive(application)
+    // Update widget data when app goes to background
+    NotificationCenter.default.post(name: Notification.Name("UpdateWidgetData"), object: nil)
+  }
+  
+  override func applicationWillTerminate(_ application: UIApplication) {
+    super.applicationWillTerminate(application)
+    // Clear sensitive widget data on app termination if needed
+    // WidgetBridge.clearWidgetData() // Uncomment if you want to clear data on termination
   }
 }

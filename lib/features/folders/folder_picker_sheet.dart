@@ -1,11 +1,11 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Material 3 bottom sheet for folder selection with hierarchical tree view
 class FolderPickerSheet extends ConsumerStatefulWidget {
@@ -48,11 +48,11 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     // Start animation
     _slideController.forward();
     _fadeController.forward();
-    
+
     // Load folder hierarchy
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(folderHierarchyProvider.notifier).loadFolders();
@@ -72,7 +72,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
     setState(() {
       _showSearch = !_showSearch;
     });
-    
+
     if (_showSearch) {
       _searchFocusNode.requestFocus();
     } else {
@@ -91,20 +91,22 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
   bool _matchesSearch(LocalFolder folder) {
     if (_searchQuery.isEmpty) return true;
     return folder.name.toLowerCase().contains(_searchQuery) ||
-           folder.path.toLowerCase().contains(_searchQuery);
+        folder.path.toLowerCase().contains(_searchQuery);
   }
 
   List<FolderTreeNode> _filterNodes(List<FolderTreeNode> nodes) {
     if (_searchQuery.isEmpty) return nodes;
-    
+
     final filtered = <FolderTreeNode>[];
     for (final node in nodes) {
       final nodeMatches = _matchesSearch(node.folder);
-      
+
       if (nodeMatches) {
-        filtered.add(node.copyWith(
-          isExpanded: _searchQuery.isNotEmpty, // Auto-expand when searching
-        ));
+        filtered.add(
+          node.copyWith(
+            isExpanded: _searchQuery.isNotEmpty, // Auto-expand when searching
+          ),
+        );
       }
     }
     return filtered;
@@ -115,15 +117,15 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, 1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _slideController,
-        curve: Curves.easeOutCubic,
-      )),
+      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _slideController,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
       child: FadeTransition(
         opacity: _fadeController,
         child: DraggableScrollableSheet(
@@ -132,13 +134,15 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
           maxChildSize: 0.95,
           expand: false,
           builder: (context, scrollController) {
-            return Container(
+            return DecoratedBox(
               decoration: BoxDecoration(
                 color: colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.15),
+                    color: colorScheme.shadow.withValues(alpha: 0.15),
                     blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),
@@ -152,11 +156,13 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                     height: 4,
                     margin: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  
+
                   // Header
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 8, 16),
@@ -182,7 +188,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                             ],
                           ),
                         ),
-                        
+
                         // Search toggle button
                         IconButton.filledTonal(
                           onPressed: _toggleSearch,
@@ -193,9 +199,11 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                               key: ValueKey(_showSearch),
                             ),
                           ),
-                          tooltip: _showSearch ? l10n.hideSearch : l10n.showSearch,
+                          tooltip: _showSearch
+                              ? l10n.hideSearch
+                              : l10n.showSearch,
                         ),
-                        
+
                         // Close button
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
@@ -205,7 +213,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                       ],
                     ),
                   ),
-                  
+
                   // Search bar (when visible)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -236,29 +244,35 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                           )
                         : const SizedBox.shrink(),
                   ),
-                  
+
                   // Folder list
                   Expanded(
                     child: Consumer(
                       builder: (context, ref, child) {
-                        final hierarchyState = ref.watch(folderHierarchyProvider);
-                        
+                        final hierarchyState = ref.watch(
+                          folderHierarchyProvider,
+                        );
+
                         if (hierarchyState.isLoading) {
                           return const Center(
                             child: CircularProgressIndicator.adaptive(),
                           );
                         }
-                        
+
                         if (hierarchyState.error != null) {
                           return _ErrorDisplay(
                             error: hierarchyState.error!,
-                            onRetry: () => ref.read(folderHierarchyProvider.notifier).loadFolders(),
+                            onRetry: () => ref
+                                .read(folderHierarchyProvider.notifier)
+                                .loadFolders(),
                           );
                         }
-                        
-                        final visibleNodes = ref.read(folderHierarchyProvider.notifier).getVisibleNodes();
+
+                        final visibleNodes = ref
+                            .read(folderHierarchyProvider.notifier)
+                            .getVisibleNodes();
                         final filteredNodes = _filterNodes(visibleNodes);
-                        
+
                         return ListView(
                           controller: scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -269,24 +283,26 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                                 isSelected: widget.selectedFolderId == null,
                                 onTap: () => Navigator.of(context).pop(),
                               ),
-                            
+
                             // Create new folder option
                             if (widget.showCreateOption)
                               _CreateFolderOption(
                                 onTap: _showCreateFolderDialog,
                               ),
-                            
+
                             // Divider
-                            if (widget.showUnfiledOption || widget.showCreateOption)
+                            if (widget.showUnfiledOption ||
+                                widget.showCreateOption)
                               const Divider(height: 1),
-                            
+
                             // Folder tree
                             ...filteredNodes.map(_buildFolderTreeItem),
-                            
+
                             // Empty state
-                            if (filteredNodes.isEmpty && _searchQuery.isNotEmpty)
+                            if (filteredNodes.isEmpty &&
+                                _searchQuery.isNotEmpty)
                               _EmptySearchState(query: _searchQuery),
-                            
+
                             // Bottom padding for better scrolling
                             const SizedBox(height: 24),
                           ],
@@ -309,7 +325,9 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
       isSelected: node.folder.id == widget.selectedFolderId,
       onTap: () => Navigator.of(context).pop(node.folder),
       onExpandToggle: () {
-        ref.read(folderHierarchyProvider.notifier).toggleExpansion(node.folder.id);
+        ref
+            .read(folderHierarchyProvider.notifier)
+            .toggleExpansion(node.folder.id);
       },
       children: node.children.map(_buildFolderTreeItem).toList(),
     );
@@ -320,7 +338,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
       context: context,
       builder: (context) => const CreateFolderDialog(),
     );
-    
+
     if (result != null && mounted) {
       // Refresh folder hierarchy
       ref.read(folderHierarchyProvider.notifier).loadFolders();
@@ -331,10 +349,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
 }
 
 class _UnfiledOption extends StatelessWidget {
-  const _UnfiledOption({
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _UnfiledOption({required this.isSelected, required this.onTap});
 
   final bool isSelected;
   final VoidCallback onTap;
@@ -344,11 +359,11 @@ class _UnfiledOption extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Consumer(
       builder: (context, ref, child) {
         final unfiledCountAsync = ref.watch(unfiledNotesCountProvider);
-        
+
         return ListTile(
           leading: Container(
             width: 40,
@@ -366,17 +381,12 @@ class _UnfiledOption extends StatelessWidget {
           title: Text(l10n.unfiledNotes),
           subtitle: unfiledCountAsync.when(
             data: (count) => Text(l10n.noteCount(count)),
-            loading: () => const SizedBox(
-              height: 16,
-              child: LinearProgressIndicator(),
-            ),
+            loading: () =>
+                const SizedBox(height: 16, child: LinearProgressIndicator()),
             error: (_, __) => Text(l10n.loadError),
           ),
           trailing: isSelected
-              ? Icon(
-                  Icons.check_circle,
-                  color: colorScheme.primary,
-                )
+              ? Icon(Icons.check_circle, color: colorScheme.primary)
               : null,
           selected: isSelected,
           onTap: onTap,
@@ -399,7 +409,7 @@ class _CreateFolderOption extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return ListTile(
       leading: Container(
         width: 40,
@@ -423,9 +433,7 @@ class _CreateFolderOption extends StatelessWidget {
       ),
       subtitle: Text(l10n.createNewFolderSubtitle),
       onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }
@@ -450,7 +458,7 @@ class _FolderTreeTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final folder = node.folder;
-    
+
     return Column(
       children: [
         ListTile(
@@ -459,7 +467,7 @@ class _FolderTreeTile extends StatelessWidget {
             children: [
               // Indentation for hierarchy
               SizedBox(width: node.level * 16.0),
-              
+
               // Expand/collapse button
               if (node.hasChildren)
                 IconButton(
@@ -470,18 +478,23 @@ class _FolderTreeTile extends StatelessWidget {
                   ),
                   onPressed: onExpandToggle,
                   iconSize: 20,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   padding: EdgeInsets.zero,
                 )
               else
                 const SizedBox(width: 32),
-              
+
               // Folder icon
               Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
+                      colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -516,7 +529,10 @@ class _FolderTreeTile extends StatelessWidget {
               // Note count badge
               if (node.noteCount > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.secondaryContainer,
                     borderRadius: BorderRadius.circular(10),
@@ -532,10 +548,7 @@ class _FolderTreeTile extends StatelessWidget {
             ],
           ),
           trailing: isSelected
-              ? Icon(
-                  Icons.check_circle,
-                  color: colorScheme.primary,
-                )
+              ? Icon(Icons.check_circle, color: colorScheme.primary)
               : null,
           selected: isSelected,
           onTap: onTap,
@@ -543,20 +556,16 @@ class _FolderTreeTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        
+
         // Child folders (when expanded)
-        if (node.isExpanded && children.isNotEmpty)
-          ...children,
+        if (node.isExpanded && children.isNotEmpty) ...children,
       ],
     );
   }
 }
 
 class _ErrorDisplay extends StatelessWidget {
-  const _ErrorDisplay({
-    required this.error,
-    required this.onRetry,
-  });
+  const _ErrorDisplay({required this.error, required this.onRetry});
 
   final String error;
   final VoidCallback onRetry;
@@ -566,18 +575,14 @@ class _ErrorDisplay extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
             const SizedBox(height: 16),
             Text(
               l10n.loadFoldersError,
@@ -615,16 +620,12 @@ class _EmptySearchState extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(
-            Icons.search_off,
-            size: 48,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: 16),
           Text(
             l10n.noFoldersFound,

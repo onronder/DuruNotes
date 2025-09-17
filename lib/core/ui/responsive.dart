@@ -15,13 +15,17 @@ class AppBreakpoints {
 
   /// Clamp the text scale factor for control UI while keeping content readable.
   /// Compatible with older Flutter versions that do not expose TextScaler.
-  static Widget clampControlsTextScale({required BuildContext context, required Widget child}) {
+  static Widget clampControlsTextScale({
+    required BuildContext context,
+    required Widget child,
+  }) {
     final mq = MediaQuery.of(context);
     final maxScale = isCompact(context) ? 1.2 : 1.3;
     final current = mq.textScaleFactor;
     final clamped = current > maxScale ? maxScale : current;
-    return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(clamped)), child: child);
+    return MediaQuery(
+      data: mq.copyWith(textScaler: TextScaler.linear(clamped)),
+      child: child,
+    );
   }
 }
-
-

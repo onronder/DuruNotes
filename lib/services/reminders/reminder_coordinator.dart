@@ -12,10 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Coordinator service that manages all reminder functionalities.
-/// 
+///
 /// Acts as a facade for:
 /// - [GeofenceReminderService] for location-based reminders
-/// - [RecurringReminderService] for time-based & recurring reminders  
+/// - [RecurringReminderService] for time-based & recurring reminders
 /// - [SnoozeReminderService] for snooze functionality
 class ReminderCoordinator {
   ReminderCoordinator(this._plugin, this._db) {
@@ -43,23 +43,33 @@ class ReminderCoordinator {
     if (_initialized) return;
     // Create main notification channel for reminders
     const channel = AndroidNotificationChannel(
-      _channelId, _channelName,
+      _channelId,
+      _channelName,
       description: _channelDescription,
       importance: Importance.high,
     );
     await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // Initialize geofence sub-service (recurring and snooze may initialize on demand)
     try {
       await _geofenceService.initialize();
     } catch (e, stack) {
-      logger.error('Failed to initialize geofence service', error: e, stackTrace: stack);
+      logger.error(
+        'Failed to initialize geofence service',
+        error: e,
+        stackTrace: stack,
+      );
     }
     _initialized = true;
     logger.info('ReminderCoordinator initialized');
-    analytics.event('app.feature_enabled', properties: {'feature': 'reminder_coordinator'});
+    analytics.event(
+      'app.feature_enabled',
+      properties: {'feature': 'reminder_coordinator'},
+    );
   }
 
   // Permission Management
@@ -68,7 +78,9 @@ class ReminderCoordinator {
     try {
       if (Platform.isIOS) {
         final result = await _plugin
-            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
             ?.requestPermissions(alert: true, badge: true, sound: true);
         return result ?? false;
       } else {
@@ -76,7 +88,11 @@ class ReminderCoordinator {
         return status.isGranted;
       }
     } catch (e, stack) {
-      logger.error('Failed to request notification permissions', error: e, stackTrace: stack);
+      logger.error(
+        'Failed to request notification permissions',
+        error: e,
+        stackTrace: stack,
+      );
       return false;
     }
   }
@@ -182,7 +198,8 @@ class ReminderCoordinator {
           type: r.type,
           scheduledTime: r.remindAt ?? DateTime.now(),
           remindAt: r.remindAt,
-          isSnoozed: r.snoozedUntil != null && r.snoozedUntil!.isAfter(DateTime.now()),
+          isSnoozed:
+              r.snoozedUntil != null && r.snoozedUntil!.isAfter(DateTime.now()),
           snoozedUntil: r.snoozedUntil,
           isActive: r.isActive ?? true,
           recurrencePattern: r.recurrencePattern,
@@ -200,7 +217,11 @@ class ReminderCoordinator {
         );
       }).toList();
     } catch (e, stack) {
-      logger.error('Failed to get reminders for note', error: e, stackTrace: stack);
+      logger.error(
+        'Failed to get reminders for note',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }

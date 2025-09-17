@@ -47,9 +47,9 @@ class _HelpScreenState extends State<HelpScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch $url')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
       }
     }
   }
@@ -80,8 +80,8 @@ class _HelpScreenState extends State<HelpScreen> {
               ),
             )
           : _errorMessage != null
-              ? _buildErrorView()
-              : _buildHelpContent(),
+          ? _buildErrorView()
+          : _buildHelpContent(),
     );
   }
 
@@ -147,9 +147,7 @@ class _HelpScreenState extends State<HelpScreen> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor,
-              ),
+              bottom: BorderSide(color: Theme.of(context).dividerColor),
             ),
           ),
           child: Row(
@@ -191,26 +189,26 @@ class _HelpScreenState extends State<HelpScreen> {
             },
             styleSheet: MarkdownStyleSheet(
               h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-              h2: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-              h3: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              h2: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+              h3: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               p: Theme.of(context).textTheme.bodyMedium,
               code: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
+                fontFamily: 'monospace',
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+              ),
               codeblockDecoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor,
-                ),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               blockquoteDecoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -223,9 +221,9 @@ class _HelpScreenState extends State<HelpScreen> {
                 ),
               ),
               listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             selectable: true,
           ),
@@ -246,24 +244,18 @@ class _HelpScreenState extends State<HelpScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Theme.of(context).dividerColor,
-          ),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -311,7 +303,9 @@ class _HelpScreenState extends State<HelpScreen> {
               icon: Icons.email_outlined,
               title: 'Email Support',
               subtitle: 'Get help via email',
-              onTap: () => _launchUrl('mailto:support@durunotes.com?subject=Duru Notes Support Request'),
+              onTap: () => _launchUrl(
+                'mailto:support@durunotes.com?subject=Duru Notes Support Request',
+              ),
             ),
             const SizedBox(height: 16),
             _buildSupportOption(
@@ -369,7 +363,10 @@ class _HelpScreenState extends State<HelpScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Duru Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(
+              'Duru Notes',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
             SizedBox(height: 8),
             Text('Version: 1.0.0'),
             Text('Build: 100'),
@@ -486,10 +483,22 @@ class _HelpScreenState extends State<HelpScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Bug Report', child: Text('Bug Report')),
-                    DropdownMenuItem(value: 'Feature Request', child: Text('Feature Request')),
-                    DropdownMenuItem(value: 'General Feedback', child: Text('General Feedback')),
-                    DropdownMenuItem(value: 'Performance Issue', child: Text('Performance Issue')),
+                    DropdownMenuItem(
+                      value: 'Bug Report',
+                      child: Text('Bug Report'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Feature Request',
+                      child: Text('Feature Request'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'General Feedback',
+                      child: Text('General Feedback'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Performance Issue',
+                      child: Text('Performance Issue'),
+                    ),
                   ],
                   onChanged: (value) => setState(() => feedbackType = value!),
                 ),
@@ -551,11 +560,7 @@ class _HelpScreenState extends State<HelpScreen> {
 }
 
 class _QuickHelpSection extends StatelessWidget {
-
-  const _QuickHelpSection({
-    required this.title,
-    required this.items,
-  });
+  const _QuickHelpSection({required this.title, required this.items});
   final String title;
   final List<String> items;
 
@@ -569,9 +574,9 @@ class _QuickHelpSection extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
         ),
         ...items.map(

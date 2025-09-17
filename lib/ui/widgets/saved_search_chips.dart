@@ -1,13 +1,13 @@
 // lib/ui/widgets/saved_search_chips.dart
+import 'package:duru_notes/core/accessibility_utils.dart';
+import 'package:duru_notes/core/animation_config.dart';
+import 'package:duru_notes/core/debounce_utils.dart';
+import 'package:duru_notes/core/haptic_utils.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/search/saved_search_registry.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/core/haptic_utils.dart';
-import 'package:duru_notes/core/animation_config.dart';
-import 'package:duru_notes/core/accessibility_utils.dart';
-import 'package:duru_notes/core/debounce_utils.dart';
 
 typedef SavedSearchTap = void Function(SavedSearchPreset preset);
 typedef CustomSearchTap = void Function(SavedSearch search);
@@ -15,6 +15,16 @@ typedef TagCountProvider = Future<Map<String, int>> Function();
 typedef FolderCountProvider = Future<int> Function(String folderName);
 
 class SavedSearchChips extends ConsumerStatefulWidget {
+  const SavedSearchChips({
+    required this.onTap,
+    super.key,
+    this.onCustomSearchTap,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.hideZeroCount = false,
+    this.getTagCounts,
+    this.getFolderCount,
+    this.trailingWidget,
+  });
   final SavedSearchTap onTap;
   final CustomSearchTap? onCustomSearchTap;
   final EdgeInsets padding;
@@ -22,17 +32,6 @@ class SavedSearchChips extends ConsumerStatefulWidget {
   final TagCountProvider? getTagCounts;
   final FolderCountProvider? getFolderCount;
   final Widget? trailingWidget;
-
-  const SavedSearchChips({
-    super.key,
-    required this.onTap,
-    this.onCustomSearchTap,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    this.hideZeroCount = false,
-    this.getTagCounts,
-    this.getFolderCount,
-    this.trailingWidget,
-  });
 
   @override
   ConsumerState<SavedSearchChips> createState() => _SavedSearchChipsState();
@@ -62,27 +61,31 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
     if (widget.getTagCounts == null && widget.getFolderCount == null) {
       return; // No providers, no counts to load
     }
-    
+
     setState(() => _loading = true);
     try {
       final counts = <String, int>{};
-      
+
       // Load tag counts
       if (widget.getTagCounts != null) {
         final tagCounts = await widget.getTagCounts!();
-        counts.addAll(tagCounts);
+        // PRODUCTION FIX: Normalize all tag keys to lowercase for consistent matching
+        tagCounts.forEach((key, value) {
+          counts[key.toLowerCase()] = value;
+        });
       }
-      
+
       // Load folder count for Inbox
       if (widget.getFolderCount != null) {
         for (final preset in SavedSearchRegistry.presets) {
           if (preset.folderName != null) {
             final count = await widget.getFolderCount!(preset.folderName!);
-            counts['folder:${preset.folderName}'] = count;
+            // PRODUCTION FIX: Normalize folder keys as well
+            counts['folder:${preset.folderName!.toLowerCase()}'] = count;
           }
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _counts = counts;
@@ -99,19 +102,21 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
 
   int? _getCountForPreset(SavedSearchPreset preset) {
     if (preset.tag != null) {
-      return _counts[preset.tag];
+      // PRODUCTION FIX: Normalize tag key when fetching count
+      return _counts[preset.tag!.toLowerCase()];
     } else if (preset.folderName != null) {
-      return _counts['folder:${preset.folderName}'];
+      // PRODUCTION FIX: Normalize folder key when fetching count
+      return _counts['folder:${preset.folderName!.toLowerCase()}'];
     }
     return null;
   }
 
   bool _shouldShowPreset(SavedSearchPreset preset) {
     if (!widget.hideZeroCount) return true;
-    
+
     // Always show Inbox (folder-based, not tag-based)
     if (preset.folderName != null) return true;
-    
+
     // Check count
     final count = _getCountForPreset(preset);
     return count == null || count > 0;
@@ -122,7 +127,9 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       constraints: const BoxConstraints(minWidth: 18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
+        color: Theme.of(
+          context,
+        ).colorScheme.primaryContainer.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -142,18 +149,22 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
     final visiblePresets = SavedSearchRegistry.presets
         .where(_shouldShowPreset)
         .toList();
-    
+
     // Watch custom saved searches from database
     final customSearchesAsync = ref.watch(savedSearchesStreamProvider);
 
-    if (visiblePresets.isEmpty && !_loading && 
-        customSearchesAsync.maybeWhen(data: (s) => s.isEmpty, orElse: () => true)) {
+    if (visiblePresets.isEmpty &&
+        !_loading &&
+        customSearchesAsync.maybeWhen(
+          data: (s) => s.isEmpty,
+          orElse: () => true,
+        )) {
       return const SizedBox.shrink();
     }
 
     // Build all chips list
-    final List<Widget> allChips = [];
-    
+    final allChips = <Widget>[];
+
     // Loading indicator
     if (_loading && visiblePresets.isEmpty) {
       allChips.add(
@@ -175,36 +186,34 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
         visiblePresets.map((preset) {
           final count = _getCountForPreset(preset);
           final showBadge = count != null && count > 0;
-          
+
           return _buildPresetChip(preset, count, showBadge);
         }),
       );
-      
+
       // Custom saved searches
       allChips.addAll(
         customSearchesAsync.maybeWhen(
-          data: (searches) => searches.map((search) {
-            return _buildCustomSearchChip(search);
-          }).toList(),
+          data: (searches) => searches.map(_buildCustomSearchChip).toList(),
           orElse: () => [],
         ),
       );
     }
-    
+
     // Add trailing widget if provided
     if (widget.trailingWidget != null) {
       allChips.add(widget.trailingWidget!);
     }
-    
+
     if (allChips.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     // Debounce UI updates to animation frame
     DebounceUtils.debounceFrame('saved_search_chips_update', () {
       if (mounted) setState(() {});
     });
-    
+
     return SizedBox(
       height: AccessibilityUtils.minTouchTarget + 8, // 44dp + padding
       child: ListView.separated(
@@ -222,15 +231,18 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       ),
     );
   }
-  
-  Widget _buildPresetChip(SavedSearchPreset preset, int? count, bool showBadge) {
+
+  Widget _buildPresetChip(
+    SavedSearchPreset preset,
+    int? count,
+    bool showBadge,
+  ) {
     final semanticLabel = count != null && count > 0
         ? '${preset.label}, $count items'
         : preset.label;
-    
+
     return AccessibilityUtils.semanticChip(
       label: semanticLabel,
-      selected: false,
       onTap: () => widget.onTap(preset),
       child: ActionChip(
         avatar: Icon(preset.icon, size: 18),
@@ -238,10 +250,7 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(preset.label),
-            if (showBadge) ...[
-              const SizedBox(width: 6),
-              _buildBadge(count!),
-            ],
+            if (showBadge) ...[const SizedBox(width: 6), _buildBadge(count!)],
           ],
         ),
         onPressed: () {
@@ -251,11 +260,10 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       ),
     );
   }
-  
+
   Widget _buildCustomSearchChip(SavedSearch search) {
     return AccessibilityUtils.semanticChip(
       label: search.name,
-      selected: false,
       onTap: () {
         if (widget.onCustomSearchTap != null) {
           widget.onCustomSearchTap!(search);

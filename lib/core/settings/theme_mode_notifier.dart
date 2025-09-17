@@ -15,7 +15,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final modeString = prefs.getString(_themeModeKey);
-      
+
       if (modeString != null) {
         final mode = ThemeMode.values.firstWhere(
           (e) => e.name == modeString,
@@ -53,7 +53,7 @@ extension ThemeModeExtension on ThemeMode {
         return 'System Default';
     }
   }
-  
+
   /// Icon for the theme mode
   IconData get icon {
     switch (this) {

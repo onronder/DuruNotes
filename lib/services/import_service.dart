@@ -17,7 +17,8 @@ import 'package:xml/xml.dart';
 typedef ProgressCallback = void Function(ImportProgress progress);
 
 /// Production-grade import service with comprehensive error handling and validation
-class ImportService { // 1MB per note content
+class ImportService {
+  // 1MB per note content
   // static const Duration _operationTimeout = Duration(minutes: 10);  // Reserved for timeout implementation
 
   ImportService({
@@ -25,10 +26,10 @@ class ImportService { // 1MB per note content
     required NoteIndexer noteIndexer,
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _notesRepository = notesRepository,
-        _noteIndexer = noteIndexer,
-        _logger = logger,
-        _analytics = analytics;
+  }) : _notesRepository = notesRepository,
+       _noteIndexer = noteIndexer,
+       _logger = logger,
+       _analytics = analytics;
   final NotesRepository _notesRepository;
   final NoteIndexer _noteIndexer;
   final AppLogger _logger;
@@ -47,52 +48,69 @@ class ImportService { // 1MB per note content
     ProgressCallback? onProgress,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
-      _logger.info('Starting Markdown import', data: {
-        'file': file.path,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      _logger.info(
+        'Starting Markdown import',
+        data: {
+          'file': file.path,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
 
       // Validate file
-      await _validateFile(file, allowedExtensions: ['.md', '.markdown', '.txt']);
-      
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.reading,
-        current: 0,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+      await _validateFile(
+        file,
+        allowedExtensions: ['.md', '.markdown', '.txt'],
+      );
+
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.reading,
+          current: 0,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Read and validate content
       final content = await _readFileWithValidation(file);
-      
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.parsing,
-        current: 0,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.parsing,
+          current: 0,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Parse note
-      final parsedNote = await _parseMarkdownFile(content, path.basename(file.path));
-      
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.converting,
-        current: 0,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+      final parsedNote = await _parseMarkdownFile(
+        content,
+        path.basename(file.path),
+      );
+
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.converting,
+          current: 0,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Convert to blocks with validation
       final blocks = await _parseMarkdownToBlocks(parsedNote.content);
-      
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.saving,
-        current: 0,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.saving,
+          current: 0,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Create note with full validation
       await _createNoteWithValidation(
@@ -104,12 +122,14 @@ class ImportService { // 1MB per note content
         tags: parsedNote.tags,
       );
 
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.completed,
-        current: 1,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.completed,
+          current: 1,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       stopwatch.stop();
       final result = ImportResult.success(
@@ -118,20 +138,25 @@ class ImportService { // 1MB per note content
         importedFiles: [file.path],
       );
 
-      _analytics.event('import.success', properties: {
-        'type': 'markdown',
-        'count': 1,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'file_size': await file.length(),
-      });
+      _analytics.event(
+        'import.success',
+        properties: {
+          'type': 'markdown',
+          'count': 1,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'file_size': await file.length(),
+        },
+      );
 
-      _logger.info('Markdown import completed successfully', data: {
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'file_size': await file.length(),
-      });
+      _logger.info(
+        'Markdown import completed successfully',
+        data: {
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'file_size': await file.length(),
+        },
+      );
 
       return result;
-
     } catch (e, stackTrace) {
       stopwatch.stop();
       return _handleImportError(e, stackTrace, 'markdown', stopwatch.elapsed);
@@ -149,77 +174,88 @@ class ImportService { // 1MB per note content
     final importedFiles = <String>[];
 
     try {
-      _logger.info('Starting ENEX import', data: {
-        'file': file.path,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      _logger.info(
+        'Starting ENEX import',
+        data: {
+          'file': file.path,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
 
       // Validate file
       await _validateFile(file, allowedExtensions: ['.enex']);
-      
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.reading,
-        current: 0,
-        total: 1,
-        currentFile: path.basename(file.path),
-      ));
+
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.reading,
+          current: 0,
+          total: 1,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Read and parse XML with error handling
       final content = await _readFileWithValidation(file);
       late XmlDocument document;
-      
+
       try {
         document = XmlDocument.parse(content);
       } catch (e) {
         throw ImportException('Invalid XML format: $e');
       }
-      
+
       // Find notes with validation
       final noteElements = document.findAllElements('note');
       final totalNotes = noteElements.length;
-      
+
       if (totalNotes == 0) {
         throw ImportException('No notes found in ENEX file');
       }
-      
+
       if (totalNotes > _maxNotesPerImport) {
         throw ImportException(
-          'Too many notes in file: $totalNotes. Maximum allowed: $_maxNotesPerImport'
+          'Too many notes in file: $totalNotes. Maximum allowed: $_maxNotesPerImport',
         );
       }
 
       _logger.info('Found $totalNotes notes in ENEX file');
 
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.parsing,
-        current: 0,
-        total: totalNotes,
-        currentFile: path.basename(file.path),
-      ));
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.parsing,
+          current: 0,
+          total: totalNotes,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       // Process each note with individual error handling
       final notesList = noteElements.toList();
       for (var i = 0; i < notesList.length; i++) {
         final noteElement = notesList[i];
-        
+
         try {
-          onProgress?.call(ImportProgress(
-            phase: ImportPhase.parsing,
-            current: i,
-            total: totalNotes,
-            currentFile: 'Note ${i + 1}',
-          ));
-          
+          onProgress?.call(
+            ImportProgress(
+              phase: ImportPhase.parsing,
+              current: i,
+              total: totalNotes,
+              currentFile: 'Note ${i + 1}',
+            ),
+          );
+
           final parsedNote = await _parseEnexNote(noteElement);
           final blocks = await _parseMarkdownToBlocks(parsedNote.content);
-          
-          onProgress?.call(ImportProgress(
-            phase: ImportPhase.saving,
-            current: i,
-            total: totalNotes,
-            currentFile: 'Note ${i + 1}',
-          ));
-          
+
+          onProgress?.call(
+            ImportProgress(
+              phase: ImportPhase.saving,
+              current: i,
+              total: totalNotes,
+              currentFile: 'Note ${i + 1}',
+            ),
+          );
+
           await _createNoteWithValidation(
             title: parsedNote.title,
             blocks: blocks,
@@ -228,10 +264,9 @@ class ImportService { // 1MB per note content
             updatedAt: parsedNote.updatedAt,
             tags: parsedNote.tags,
           );
-          
+
           successCount++;
           importedFiles.add('Note ${i + 1}: ${parsedNote.title}');
-          
         } catch (e, stackTrace) {
           final error = ImportError(
             message: 'Failed to import note ${i + 1}: $e',
@@ -240,21 +275,24 @@ class ImportService { // 1MB per note content
             stackTrace: stackTrace,
           );
           errors.add(error);
-          
-          _logger.error('Failed to import ENEX note ${i + 1}', 
-            error: e, 
+
+          _logger.error(
+            'Failed to import ENEX note ${i + 1}',
+            error: e,
             stackTrace: stackTrace,
             data: {'note_index': i + 1},
           );
         }
       }
 
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.completed,
-        current: totalNotes,
-        total: totalNotes,
-        currentFile: path.basename(file.path),
-      ));
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.completed,
+          current: totalNotes,
+          total: totalNotes,
+          currentFile: path.basename(file.path),
+        ),
+      );
 
       stopwatch.stop();
       final result = ImportResult(
@@ -265,28 +303,37 @@ class ImportService { // 1MB per note content
         importedFiles: importedFiles,
       );
 
-      _analytics.event('import.success', properties: {
-        'type': 'enex',
-        'total': totalNotes,
-        'success': successCount,
-        'errors': errors.length,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'file_size': await file.length(),
-      });
+      _analytics.event(
+        'import.success',
+        properties: {
+          'type': 'enex',
+          'total': totalNotes,
+          'success': successCount,
+          'errors': errors.length,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'file_size': await file.length(),
+        },
+      );
 
-      _logger.info('ENEX import completed', data: {
-        'success': successCount,
-        'errors': errors.length,
-        'total': totalNotes,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-      });
+      _logger.info(
+        'ENEX import completed',
+        data: {
+          'success': successCount,
+          'errors': errors.length,
+          'total': totalNotes,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
       return result;
-
     } catch (e, stackTrace) {
       stopwatch.stop();
-      return _handleImportError(e, stackTrace, 'enex', stopwatch.elapsed, 
-        partialSuccessCount: successCount, 
+      return _handleImportError(
+        e,
+        stackTrace,
+        'enex',
+        stopwatch.elapsed,
+        partialSuccessCount: successCount,
         partialErrors: errors,
         partialImportedFiles: importedFiles,
       );
@@ -304,34 +351,39 @@ class ImportService { // 1MB per note content
     final importedFiles = <String>[];
 
     try {
-      _logger.info('Starting Obsidian vault import', data: {
-        'directory': directory.path,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      _logger.info(
+        'Starting Obsidian vault import',
+        data: {
+          'directory': directory.path,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
 
       // Validate directory
       if (!await directory.exists()) {
         throw ImportException('Directory does not exist: ${directory.path}');
       }
 
-      onProgress?.call(const ImportProgress(
-        phase: ImportPhase.scanning,
-        current: 0,
-        total: 1,
-        currentFile: 'Scanning files...',
-      ));
+      onProgress?.call(
+        const ImportProgress(
+          phase: ImportPhase.scanning,
+          current: 0,
+          total: 1,
+          currentFile: 'Scanning files...',
+        ),
+      );
 
       // Find all Markdown files with validation
       final markdownFiles = await _findMarkdownFiles(directory);
       final totalFiles = markdownFiles.length;
-      
+
       if (totalFiles == 0) {
         throw ImportException('No Markdown files found in directory');
       }
-      
+
       if (totalFiles > _maxNotesPerImport) {
         throw ImportException(
-          'Too many files: $totalFiles. Maximum allowed: $_maxNotesPerImport'
+          'Too many files: $totalFiles. Maximum allowed: $_maxNotesPerImport',
         );
       }
 
@@ -340,34 +392,35 @@ class ImportService { // 1MB per note content
       // Process each file with comprehensive error handling
       for (var i = 0; i < totalFiles; i++) {
         final file = markdownFiles[i];
-        
+
         try {
           final relativePath = path.relative(file.path, from: directory.path);
-          
-          onProgress?.call(ImportProgress(
-            phase: ImportPhase.processing,
-            current: i,
-            total: totalFiles,
-            currentFile: relativePath,
-          ));
-          
+
+          onProgress?.call(
+            ImportProgress(
+              phase: ImportPhase.processing,
+              current: i,
+              total: totalFiles,
+              currentFile: relativePath,
+            ),
+          );
+
           // Validate individual file
           await _validateFile(file, allowedExtensions: ['.md', '.markdown']);
-          
+
           final content = await _readFileWithValidation(file);
           final parsedNote = await _parseMarkdownFile(content, relativePath);
           final blocks = await _parseMarkdownToBlocks(parsedNote.content);
-          
+
           await _createNoteWithValidation(
             title: parsedNote.title,
             blocks: blocks,
             originalPath: file.path,
             tags: _extractObsidianTags(content),
           );
-          
+
           successCount++;
           importedFiles.add(relativePath);
-          
         } catch (e, stackTrace) {
           final relativePath = path.relative(file.path, from: directory.path);
           final error = ImportError(
@@ -377,21 +430,24 @@ class ImportService { // 1MB per note content
             stackTrace: stackTrace,
           );
           errors.add(error);
-          
-          _logger.error('Failed to import Obsidian file', 
-            error: e, 
+
+          _logger.error(
+            'Failed to import Obsidian file',
+            error: e,
             stackTrace: stackTrace,
             data: {'file': file.path, 'relative_path': relativePath},
           );
         }
       }
 
-      onProgress?.call(ImportProgress(
-        phase: ImportPhase.completed,
-        current: totalFiles,
-        total: totalFiles,
-        currentFile: 'Import completed',
-      ));
+      onProgress?.call(
+        ImportProgress(
+          phase: ImportPhase.completed,
+          current: totalFiles,
+          total: totalFiles,
+          currentFile: 'Import completed',
+        ),
+      );
 
       stopwatch.stop();
       final result = ImportResult(
@@ -402,26 +458,35 @@ class ImportService { // 1MB per note content
         importedFiles: importedFiles,
       );
 
-      _analytics.event('import.success', properties: {
-        'type': 'obsidian',
-        'total': totalFiles,
-        'success': successCount,
-        'errors': errors.length,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-      });
+      _analytics.event(
+        'import.success',
+        properties: {
+          'type': 'obsidian',
+          'total': totalFiles,
+          'success': successCount,
+          'errors': errors.length,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
-      _logger.info('Obsidian vault import completed', data: {
-        'success': successCount,
-        'errors': errors.length,
-        'total': totalFiles,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-      });
+      _logger.info(
+        'Obsidian vault import completed',
+        data: {
+          'success': successCount,
+          'errors': errors.length,
+          'total': totalFiles,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
       return result;
-
     } catch (e, stackTrace) {
       stopwatch.stop();
-      return _handleImportError(e, stackTrace, 'obsidian', stopwatch.elapsed,
+      return _handleImportError(
+        e,
+        stackTrace,
+        'obsidian',
+        stopwatch.elapsed,
         partialSuccessCount: successCount,
         partialErrors: errors,
         partialImportedFiles: importedFiles,
@@ -430,16 +495,16 @@ class ImportService { // 1MB per note content
   }
 
   /// Pick and import files with user-friendly interface
-  Future<ImportResult?> pickAndImport({
-    ProgressCallback? onProgress,
-  }) async {
+  Future<ImportResult?> pickAndImport({ProgressCallback? onProgress}) async {
     try {
-      onProgress?.call(const ImportProgress(
-        phase: ImportPhase.selecting,
-        current: 0,
-        total: 1,
-        currentFile: 'Opening file picker...',
-      ));
+      onProgress?.call(
+        const ImportProgress(
+          phase: ImportPhase.selecting,
+          current: 0,
+          total: 1,
+          currentFile: 'Opening file picker...',
+        ),
+      );
 
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -454,22 +519,22 @@ class ImportService { // 1MB per note content
 
       final file = result.files.first;
       final filePath = file.path;
-      
+
       if (filePath == null) {
         throw ImportException('Unable to access selected file');
       }
 
       return await importFromPath(filePath, onProgress: onProgress);
-      
     } catch (e, stackTrace) {
-      _logger.error('Failed to pick and import file', 
-        error: e, 
+      _logger.error(
+        'Failed to pick and import file',
+        error: e,
         stackTrace: stackTrace,
       );
-      _analytics.event('import.error', properties: {
-        'phase': 'file_picking',
-        'error': e.toString(),
-      });
+      _analytics.event(
+        'import.error',
+        properties: {'phase': 'file_picking', 'error': e.toString()},
+      );
       rethrow;
     }
   }
@@ -480,11 +545,11 @@ class ImportService { // 1MB per note content
     ProgressCallback? onProgress,
   }) async {
     final fileSystemEntity = await FileSystemEntity.type(filePath);
-    
+
     if (fileSystemEntity == FileSystemEntityType.file) {
       final file = File(filePath);
       final extension = path.extension(filePath).toLowerCase();
-      
+
       switch (extension) {
         case '.md':
         case '.markdown':
@@ -505,7 +570,10 @@ class ImportService { // 1MB per note content
   // Private helper methods with comprehensive validation
 
   /// Validate file size, existence, and type
-  Future<void> _validateFile(File file, {required List<String> allowedExtensions}) async {
+  Future<void> _validateFile(
+    File file, {
+    required List<String> allowedExtensions,
+  }) async {
     if (!await file.exists()) {
       throw ImportException('File does not exist: ${file.path}');
     }
@@ -514,7 +582,7 @@ class ImportService { // 1MB per note content
     if (fileSize > _maxFileSize) {
       throw ImportException(
         'File too large: ${_formatBytes(fileSize)}. '
-        'Maximum allowed: ${_formatBytes(_maxFileSize)}'
+        'Maximum allowed: ${_formatBytes(_maxFileSize)}',
       );
     }
 
@@ -526,7 +594,7 @@ class ImportService { // 1MB per note content
     if (!allowedExtensions.contains(extension)) {
       throw ImportException(
         'Unsupported file type: $extension. '
-        'Allowed types: ${allowedExtensions.join(', ')}'
+        'Allowed types: ${allowedExtensions.join(', ')}',
       );
     }
   }
@@ -535,30 +603,30 @@ class ImportService { // 1MB per note content
   Future<String> _readFileWithValidation(File file) async {
     try {
       final bytes = await file.readAsBytes();
-      
+
       // Try UTF-8 first
       try {
         final content = utf8.decode(bytes, allowMalformed: false);
-        
+
         if (content.length > _maxContentLength) {
           throw ImportException(
             'File content too large: ${content.length} characters. '
-            'Maximum allowed: $_maxContentLength characters.'
+            'Maximum allowed: $_maxContentLength characters.',
           );
         }
-        
+
         return content;
       } catch (e) {
         // Fallback to Latin-1 if UTF-8 fails
         final content = latin1.decode(bytes);
-        
+
         if (content.length > _maxContentLength) {
           throw ImportException(
             'File content too large: ${content.length} characters. '
-            'Maximum allowed: $_maxContentLength characters.'
+            'Maximum allowed: $_maxContentLength characters.',
           );
         }
-        
+
         return content;
       }
     } catch (e) {
@@ -572,11 +640,11 @@ class ImportService { // 1MB per note content
     var title = '';
     var bodyContent = content;
     final tags = <String>[];
-    
+
     // Enhanced title extraction
     if (lines.isNotEmpty) {
       final firstLine = lines.first.trim();
-      
+
       // Try H1 heading
       if (firstLine.startsWith('# ')) {
         title = firstLine.substring(2).trim();
@@ -597,7 +665,7 @@ class ImportService { // 1MB per note content
         }
       }
     }
-    
+
     // Generate title from filename if none found
     if (title.isEmpty) {
       title = _generateTitleFromFilename(filename);
@@ -605,7 +673,7 @@ class ImportService { // 1MB per note content
 
     // Extract tags from content
     tags.addAll(_extractMarkdownTags(content));
-    
+
     return ParsedNote(
       title: title.isEmpty ? 'Untitled Note' : title,
       content: bodyContent,
@@ -620,36 +688,36 @@ class ImportService { // 1MB per note content
     DateTime? createdAt;
     DateTime? updatedAt;
     final tags = <String>[];
-    
+
     try {
       // Extract title with validation
       final titleElement = noteElement.findElements('title').firstOrNull;
       if (titleElement != null && titleElement.innerText.trim().isNotEmpty) {
         title = titleElement.innerText.trim();
-        
+
         // Validate title length
         if (title.length > 1000) {
           title = '${title.substring(0, 997)}...';
         }
       }
-      
+
       // Extract content with ENML conversion
       final contentElement = noteElement.findElements('content').firstOrNull;
       if (contentElement != null) {
         content = await _convertEnmlToMarkdown(contentElement.innerText);
       }
-      
+
       // Extract dates with validation
       final createdElement = noteElement.findElements('created').firstOrNull;
       if (createdElement != null) {
         createdAt = _parseEnexDate(createdElement.innerText);
       }
-      
+
       final updatedElement = noteElement.findElements('updated').firstOrNull;
       if (updatedElement != null) {
         updatedAt = _parseEnexDate(updatedElement.innerText);
       }
-      
+
       // Extract tags
       for (final tagElement in noteElement.findElements('tag')) {
         final tag = tagElement.innerText.trim();
@@ -657,11 +725,10 @@ class ImportService { // 1MB per note content
           tags.add(tag);
         }
       }
-      
     } catch (e) {
       _logger.error('Error parsing ENEX note element', error: e);
     }
-    
+
     return ParsedNote(
       title: title,
       content: content,
@@ -674,23 +741,26 @@ class ImportService { // 1MB per note content
   /// Convert ENML to Markdown with robust parsing
   Future<String> _convertEnmlToMarkdown(String enml) async {
     if (enml.trim().isEmpty) return '';
-    
+
     try {
       var markdown = enml;
-      
+
       // Remove ENML envelope
       markdown = markdown.replaceAll(RegExp(r'<\?xml[^>]*>'), '');
       markdown = markdown.replaceAll(RegExp('<!DOCTYPE[^>]*>'), '');
       markdown = markdown.replaceAll(RegExp('<en-note[^>]*>'), '');
       markdown = markdown.replaceAll('</en-note>', '');
-      
+
       // Convert block elements
       markdown = markdown.replaceAll(RegExp('<div[^>]*>'), '\n');
       markdown = markdown.replaceAll('</div>', '\n');
-      markdown = markdown.replaceAll(RegExp('<br[^>]*/?>', multiLine: true), '\n');
+      markdown = markdown.replaceAll(
+        RegExp('<br[^>]*/?>', multiLine: true),
+        '\n',
+      );
       markdown = markdown.replaceAll(RegExp('<p[^>]*>'), '\n');
       markdown = markdown.replaceAll('</p>', '\n');
-      
+
       // Convert formatting with proper escaping
       markdown = markdown.replaceAllMapped(
         RegExp('<b[^>]*>(.*?)</b>', dotAll: true),
@@ -708,7 +778,7 @@ class ImportService { // 1MB per note content
         RegExp('<em[^>]*>(.*?)</em>', dotAll: true),
         (match) => '*${match.group(1)?.trim() ?? ''}*',
       );
-      
+
       // Convert lists
       markdown = markdown.replaceAll(RegExp('<ul[^>]*>'), '');
       markdown = markdown.replaceAll('</ul>', '');
@@ -716,13 +786,12 @@ class ImportService { // 1MB per note content
       markdown = markdown.replaceAll('</ol>', '');
       markdown = markdown.replaceAll(RegExp('<li[^>]*>'), '- ');
       markdown = markdown.replaceAll('</li>', '\n');
-      
+
       // Clean up excessive whitespace
       markdown = markdown.replaceAll(RegExp(r'\n\s*\n\s*\n+'), '\n\n');
       markdown = markdown.replaceAll(RegExp(r'^\s+|\s+$'), '');
-      
+
       return markdown;
-      
     } catch (e) {
       _logger.error('Error converting ENML to Markdown', error: e);
       return enml; // Return original if conversion fails
@@ -732,39 +801,53 @@ class ImportService { // 1MB per note content
   /// Parse Evernote date with comprehensive validation
   DateTime? _parseEnexDate(String dateStr) {
     if (dateStr.trim().isEmpty) return null;
-    
+
     try {
       // Handle various Evernote date formats
       final cleaned = dateStr.trim().replaceAll(RegExp('[TZ]'), '');
-      
+
       if (cleaned.length >= 8) {
         final year = int.parse(cleaned.substring(0, 4));
         final month = int.parse(cleaned.substring(4, 6));
         final day = int.parse(cleaned.substring(6, 8));
-        
+
         // Validate date components
-        if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+        if (year < 1900 ||
+            year > 2100 ||
+            month < 1 ||
+            month > 12 ||
+            day < 1 ||
+            day > 31) {
           return null;
         }
-        
+
         if (cleaned.length >= 14) {
           final hour = int.parse(cleaned.substring(8, 10));
           final minute = int.parse(cleaned.substring(10, 12));
           final second = int.parse(cleaned.substring(12, 14));
-          
-          if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+
+          if (hour < 0 ||
+              hour > 23 ||
+              minute < 0 ||
+              minute > 59 ||
+              second < 0 ||
+              second > 59) {
             return DateTime.utc(year, month, day);
           }
-          
+
           return DateTime.utc(year, month, day, hour, minute, second);
         } else {
           return DateTime.utc(year, month, day);
         }
       }
     } catch (e) {
-      _logger.error('Failed to parse ENEX date', error: e, data: {'date': dateStr});
+      _logger.error(
+        'Failed to parse ENEX date',
+        error: e,
+        data: {'date': dateStr},
+      );
     }
-    
+
     return null;
   }
 
@@ -772,73 +855,77 @@ class ImportService { // 1MB per note content
   Future<List<File>> _findMarkdownFiles(Directory directory) async {
     final files = <File>[];
     final validExtensions = {'.md', '.markdown'};
-    
+
     try {
       await for (final entity in directory.list(recursive: true)) {
         if (entity is File) {
           final extension = path.extension(entity.path).toLowerCase();
           final filename = path.basename(entity.path);
-          
+
           // Check extension
           if (!validExtensions.contains(extension)) continue;
-          
+
           // Skip hidden files, system files, and common non-content files
-          if (filename.startsWith('.') || 
-              filename.startsWith('_') || 
+          if (filename.startsWith('.') ||
+              filename.startsWith('_') ||
               filename.toLowerCase() == 'readme.md' ||
               filename.toLowerCase().contains('license') ||
               filename.toLowerCase().contains('changelog')) {
             continue;
           }
-          
+
           // Validate file size
           try {
             final fileSize = await entity.length();
             if (fileSize > _maxFileSize || fileSize == 0) continue;
           } catch (e) {
-            _logger.error('Cannot check file size', error: e, data: {'file': entity.path});
+            _logger.error(
+              'Cannot check file size',
+              error: e,
+              data: {'file': entity.path},
+            );
             continue;
           }
-          
+
           files.add(entity);
         }
       }
     } catch (e) {
       throw ImportException('Failed to scan directory: $e');
     }
-    
+
     return files;
   }
 
   /// Extract tags from content with validation
   List<String> _extractObsidianTags(String content) {
     final tags = <String>{};
-    
+
     // Find hashtag-style tags
     final hashtagPattern = RegExp(r'#([a-zA-Z0-9_-]+)(?:\s|$)');
     final matches = hashtagPattern.allMatches(content);
-    
+
     for (final match in matches) {
       final tag = match.group(1);
       if (tag != null && tag.length <= 50 && tag.length >= 2) {
         tags.add(tag.toLowerCase());
       }
     }
-    
+
     return tags.toList();
   }
 
   /// Extract tags from Markdown content
   List<String> _extractMarkdownTags(String content) {
     final tags = <String>{};
-    
+
     // Look for tags in various formats
     final patterns = [
       RegExp(r'tags:\s*\[(.*?)\]', multiLine: true), // YAML array
       RegExp(r'tags:\s*(.*?)(?:\n|$)', multiLine: true), // YAML list
       RegExp(r'#([a-zA-Z0-9_-]+)(?:\s|$)'), // Hashtags
     ];
-    
+
     for (final pattern in patterns) {
       final matches = pattern.allMatches(content);
       for (final match in matches) {
@@ -848,13 +935,15 @@ class ImportService { // 1MB per note content
           final individualTags = tagText
               .split(RegExp(r'[,\s]+'))
               .where((tag) => tag.isNotEmpty && tag.length <= 50)
-              .map((tag) => tag.toLowerCase().replaceAll(RegExp(r'[^\w-]'), ''));
-          
+              .map(
+                (tag) => tag.toLowerCase().replaceAll(RegExp(r'[^\w-]'), ''),
+              );
+
           tags.addAll(individualTags);
         }
       }
     }
-    
+
     return tags.toList();
   }
 
@@ -864,7 +953,7 @@ class ImportService { // 1MB per note content
       if (content.trim().isEmpty) {
         return [const NoteBlock(type: NoteBlockType.paragraph, data: '')];
       }
-      
+
       // Use the parser from the helper function
       return await compute(_parseMarkdownInIsolate, {
         'content': content,
@@ -890,20 +979,20 @@ class ImportService { // 1MB per note content
     if (title.trim().isEmpty) {
       throw ImportException('Note title cannot be empty');
     }
-    
+
     if (title.length > 1000) {
       throw ImportException('Note title too long: ${title.length} characters');
     }
-    
+
     // Validate blocks
     if (blocks.isEmpty) {
       throw ImportException('Note must have at least one block');
     }
-    
+
     if (blocks.length > 1000) {
       throw ImportException('Too many blocks: ${blocks.length}. Maximum: 1000');
     }
-    
+
     // Validate each block
     for (var i = 0; i < blocks.length; i++) {
       final block = blocks[i];
@@ -911,23 +1000,27 @@ class ImportService { // 1MB per note content
         throw ImportException('Invalid block at position $i');
       }
     }
-    
+
     // Validate tags
-    final validTags = tags?.where((tag) => 
-      tag.trim().isNotEmpty && 
-      tag.length <= 50 && 
-      tag.length >= 2
-    ).take(20).toList() ?? [];
+    final validTags =
+        tags
+            ?.where(
+              (tag) =>
+                  tag.trim().isNotEmpty && tag.length <= 50 && tag.length >= 2,
+            )
+            .take(20)
+            .toList() ??
+        [];
 
     try {
       // Create the note with timeout
       final createdNote = await _notesRepository.createOrUpdate(
-        title: title.trim(), 
+        title: title.trim(),
         body: blocksToMarkdown(blocks),
       );
 
       if (createdNote == null) {
-        debugPrint('[ImportService] Failed to create note');
+        _logger.error('Failed to create note');
         return;
       }
 
@@ -944,20 +1037,23 @@ class ImportService { // 1MB per note content
       // Index for search
       await _noteIndexer.indexNote(note);
 
-      _logger.info('Successfully imported note', data: {
-        'noteId': createdNote.id,
-        'title': title,
-        'originalPath': originalPath,
-        'blockCount': blocks.length,
-        'tagCount': validTags.length,
-      });
-
+      _logger.info(
+        'Successfully imported note',
+        data: {
+          'noteId': createdNote.id,
+          'title': title,
+          'originalPath': originalPath,
+          'blockCount': blocks.length,
+          'tagCount': validTags.length,
+        },
+      );
     } catch (e, stackTrace) {
-      _logger.error('Failed to create imported note', 
-        error: e, 
+      _logger.error(
+        'Failed to create imported note',
+        error: e,
         stackTrace: stackTrace,
         data: {
-          'title': title, 
+          'title': title,
           'originalPath': originalPath,
           'blockCount': blocks.length,
         },
@@ -968,18 +1064,19 @@ class ImportService { // 1MB per note content
 
   /// Handle import errors with comprehensive logging
   ImportResult _handleImportError(
-    Object error, 
-    StackTrace stackTrace, 
-    String importType, 
+    Object error,
+    StackTrace stackTrace,
+    String importType,
     Duration elapsed, {
     int partialSuccessCount = 0,
     List<ImportError> partialErrors = const [],
     List<String> partialImportedFiles = const [],
   }) {
     final errorMessage = error.toString();
-    
-    _logger.error('Import failed', 
-      error: error, 
+
+    _logger.error(
+      'Import failed',
+      error: error,
       stackTrace: stackTrace,
       data: {
         'import_type': importType,
@@ -988,12 +1085,15 @@ class ImportService { // 1MB per note content
       },
     );
 
-    _analytics.event('import.error', properties: {
-      'type': importType,
-      'error': errorMessage,
-      'duration_ms': elapsed.inMilliseconds,
-      'partial_success': partialSuccessCount,
-    });
+    _analytics.event(
+      'import.error',
+      properties: {
+        'type': importType,
+        'error': errorMessage,
+        'duration_ms': elapsed.inMilliseconds,
+        'partial_success': partialSuccessCount,
+      },
+    );
 
     final importError = ImportError(
       message: errorMessage,
@@ -1020,7 +1120,10 @@ class ImportService { // 1MB per note content
   }
 
   String _extractTitleFromFrontmatter(String frontmatter) {
-    final titleMatch = RegExp(r'^title:\s*(.+)$', multiLine: true).firstMatch(frontmatter);
+    final titleMatch = RegExp(
+      r'^title:\s*(.+)$',
+      multiLine: true,
+    ).firstMatch(frontmatter);
     final title = titleMatch?.group(1)?.trim() ?? '';
     // Remove quotes from beginning and end
     var result = title;
@@ -1037,11 +1140,17 @@ class ImportService { // 1MB per note content
     var title = path.basenameWithoutExtension(filename);
     title = title.replaceAll(RegExp('[_-]'), ' ');
     title = title.replaceAll(RegExp(r'\s+'), ' ');
-    
+
     // Capitalize words
-    return title.split(' ').map((word) => 
-      word.isEmpty ? word : word[0].toUpperCase() + word.substring(1).toLowerCase()
-    ).join(' ').trim();
+    return title
+        .split(' ')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : word[0].toUpperCase() + word.substring(1).toLowerCase(),
+        )
+        .join(' ')
+        .trim();
   }
 }
 
@@ -1049,7 +1158,6 @@ class ImportService { // 1MB per note content
 
 /// Represents a parsed note with metadata
 class ParsedNote {
-
   const ParsedNote({
     required this.title,
     required this.content,
@@ -1066,7 +1174,6 @@ class ParsedNote {
 
 /// Import result with comprehensive error information
 class ImportResult {
-
   const ImportResult({
     required this.successCount,
     required this.errorCount,
@@ -1097,13 +1204,13 @@ class ImportResult {
   bool get hasErrors => errorCount > 0;
   int get totalProcessed => successCount + errorCount;
   bool get isSuccess => errorCount == 0 && successCount > 0;
-  
-  double get successRate => totalProcessed > 0 ? successCount / totalProcessed : 0.0;
+
+  double get successRate =>
+      totalProcessed > 0 ? successCount / totalProcessed : 0.0;
 }
 
 /// Detailed import error information
 class ImportError {
-
   const ImportError({
     required this.message,
     required this.source,
@@ -1121,7 +1228,6 @@ class ImportError {
 
 /// Import progress information for UI updates
 class ImportProgress {
-
   const ImportProgress({
     required this.phase,
     required this.current,
@@ -1156,7 +1262,7 @@ enum ImportPhase {
 class ImportException implements Exception {
   ImportException(this.message);
   final String message;
-  
+
   @override
   String toString() => 'ImportException: $message';
 }
@@ -1170,10 +1276,10 @@ extension XmlElementExtension on Iterable<XmlElement> {
 List<NoteBlock> _parseMarkdownInIsolate(Map<String, dynamic> params) {
   final content = params['content'] as String;
   final maxLength = params['maxLength'] as int;
-  
+
   if (content.length > maxLength) {
     throw ImportException('Content too long: ${content.length} characters');
   }
-  
+
   return parseMarkdownToBlocks(content);
 }

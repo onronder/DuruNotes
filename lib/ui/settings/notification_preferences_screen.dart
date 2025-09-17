@@ -1,6 +1,4 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Screen for managing notification preferences
@@ -15,10 +13,10 @@ class NotificationPreferencesScreen extends StatefulWidget {
 class _NotificationPreferencesScreenState
     extends State<NotificationPreferencesScreen> {
   final _supabase = Supabase.instance.client;
-  
+
   bool _isLoading = true;
   Map<String, dynamic> _preferences = {};
-  
+
   // Default preferences
   bool _notificationsEnabled = true;
   bool _pushEnabled = true;
@@ -27,7 +25,7 @@ class _NotificationPreferencesScreenState
   TimeOfDay _quietHoursStart = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _quietHoursEnd = const TimeOfDay(hour: 7, minute: 0);
   bool _dndEnabled = false;
-  
+
   // Event preferences
   final Map<String, bool> _eventPreferences = {
     'email_received': true,
@@ -62,9 +60,10 @@ class _NotificationPreferencesScreenState
           _notificationsEnabled = (response['enabled'] as bool?) ?? true;
           _pushEnabled = (response['push_enabled'] as bool?) ?? true;
           _emailEnabled = (response['email_enabled'] as bool?) ?? false;
-          _quietHoursEnabled = (response['quiet_hours_enabled'] as bool?) ?? false;
+          _quietHoursEnabled =
+              (response['quiet_hours_enabled'] as bool?) ?? false;
           _dndEnabled = (response['dnd_enabled'] as bool?) ?? false;
-          
+
           // Parse quiet hours
           if (response['quiet_hours_start'] != null) {
             final timeStr = response['quiet_hours_start'] as String;
@@ -74,7 +73,7 @@ class _NotificationPreferencesScreenState
               minute: int.parse(parts[1]),
             );
           }
-          
+
           if (response['quiet_hours_end'] != null) {
             final timeStr = response['quiet_hours_end'] as String;
             final parts = timeStr.split(':');
@@ -83,9 +82,10 @@ class _NotificationPreferencesScreenState
               minute: int.parse(parts[1]),
             );
           }
-          
+
           // Parse event preferences
-          final eventPrefs = response['event_preferences'] as Map<String, dynamic>? ?? {};
+          final eventPrefs =
+              response['event_preferences'] as Map<String, dynamic>? ?? {};
           eventPrefs.forEach((key, value) {
             if (_eventPreferences.containsKey(key) && value is Map) {
               _eventPreferences[key] = (value['enabled'] as bool?) ?? true;
@@ -117,8 +117,10 @@ class _NotificationPreferencesScreenState
         'push_enabled': _pushEnabled,
         'email_enabled': _emailEnabled,
         'quiet_hours_enabled': _quietHoursEnabled,
-        'quiet_hours_start': '${_quietHoursStart.hour.toString().padLeft(2, '0')}:${_quietHoursStart.minute.toString().padLeft(2, '0')}',
-        'quiet_hours_end': '${_quietHoursEnd.hour.toString().padLeft(2, '0')}:${_quietHoursEnd.minute.toString().padLeft(2, '0')}',
+        'quiet_hours_start':
+            '${_quietHoursStart.hour.toString().padLeft(2, '0')}:${_quietHoursStart.minute.toString().padLeft(2, '0')}',
+        'quiet_hours_end':
+            '${_quietHoursEnd.hour.toString().padLeft(2, '0')}:${_quietHoursEnd.minute.toString().padLeft(2, '0')}',
         'dnd_enabled': _dndEnabled,
         'event_preferences': eventPrefs,
         'timezone': DateTime.now().timeZoneName,
@@ -148,10 +150,7 @@ class _NotificationPreferencesScreenState
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -160,7 +159,7 @@ class _NotificationPreferencesScreenState
       context: context,
       initialTime: isStart ? _quietHoursStart : _quietHoursEnd,
     );
-    
+
     if (time != null) {
       setState(() {
         if (isStart) {
@@ -176,19 +175,14 @@ class _NotificationPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notification Preferences'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _savePreferences,
-          ),
+          IconButton(icon: const Icon(Icons.save), onPressed: _savePreferences),
         ],
       ),
       body: ListView(
@@ -208,14 +202,16 @@ class _NotificationPreferencesScreenState
               ),
             ],
           ),
-          
+
           // Delivery channels
           _buildSection(
             title: 'Delivery Channels',
             children: [
               SwitchListTile(
                 title: const Text('Push Notifications'),
-                subtitle: const Text('Receive push notifications on this device'),
+                subtitle: const Text(
+                  'Receive push notifications on this device',
+                ),
                 value: _pushEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) {
@@ -237,7 +233,7 @@ class _NotificationPreferencesScreenState
               ),
             ],
           ),
-          
+
           // Event types
           _buildSection(
             title: 'Notification Types',
@@ -257,11 +253,7 @@ class _NotificationPreferencesScreenState
                 'note_shared',
                 'Notes shared with you',
               ),
-              _buildEventToggle(
-                'Reminders',
-                'reminder_due',
-                'Note reminders',
-              ),
+              _buildEventToggle('Reminders', 'reminder_due', 'Note reminders'),
               _buildEventToggle(
                 'Mentions',
                 'note_mentioned',
@@ -279,14 +271,16 @@ class _NotificationPreferencesScreenState
               ),
             ],
           ),
-          
+
           // Quiet hours
           _buildSection(
             title: 'Quiet Hours',
             children: [
               SwitchListTile(
                 title: const Text('Enable Quiet Hours'),
-                subtitle: const Text('Pause notifications during specific hours'),
+                subtitle: const Text(
+                  'Pause notifications during specific hours',
+                ),
                 value: _quietHoursEnabled,
                 onChanged: _notificationsEnabled
                     ? (value) {
@@ -311,7 +305,7 @@ class _NotificationPreferencesScreenState
               ],
             ],
           ),
-          
+
           // Do Not Disturb
           _buildSection(
             title: 'Do Not Disturb',
@@ -323,39 +317,38 @@ class _NotificationPreferencesScreenState
                 onChanged: _notificationsEnabled
                     ? (value) async {
                         setState(() => _dndEnabled = value);
-                        
+
                         if (value) {
                           // Show duration picker
                           final duration = await showDialog<Duration>(
                             context: context,
                             builder: (context) => _DndDurationDialog(),
                           );
-                          
+
                           if (duration != null) {
                             final until = DateTime.now().add(duration);
                             await _supabase
                                 .from('notification_preferences')
                                 .update({
-                              'dnd_enabled': true,
-                              'dnd_until': until.toIso8601String(),
-                            }).eq('user_id', _supabase.auth.currentUser!.id);
+                                  'dnd_enabled': true,
+                                  'dnd_until': until.toIso8601String(),
+                                })
+                                .eq('user_id', _supabase.auth.currentUser!.id);
                           } else {
                             setState(() => _dndEnabled = false);
                           }
                         } else {
                           await _supabase
                               .from('notification_preferences')
-                              .update({
-                            'dnd_enabled': false,
-                            'dnd_until': null,
-                          }).eq('user_id', _supabase.auth.currentUser!.id);
+                              .update({'dnd_enabled': false, 'dnd_until': null})
+                              .eq('user_id', _supabase.auth.currentUser!.id);
                         }
                       }
                     : null,
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
         ],
       ),
@@ -377,9 +370,9 @@ class _NotificationPreferencesScreenState
             child: Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           ...children,

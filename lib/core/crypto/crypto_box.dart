@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
+import 'package:flutter/foundation.dart';
 
 /// Result wrapper for decrypt operations that may use a legacy key fallback
 /// [value] is the decrypted payload, [usedLegacyKey] indicates a legacy device key was used
@@ -99,15 +103,25 @@ class CryptoBox {
       final map = decoded is Map<String, dynamic>
           ? decoded
           : <String, dynamic>{'body': decoded.toString()};
-      return DecryptResult<Map<String, dynamic>>(value: map, usedLegacyKey: false);
+      return DecryptResult<Map<String, dynamic>>(
+        value: map,
+        usedLegacyKey: false,
+      );
     } catch (_) {
       // Try legacy key
-      final bytes = await _decryptWithLegacy(userId: userId, noteId: noteId, box: sb);
+      final bytes = await _decryptWithLegacy(
+        userId: userId,
+        noteId: noteId,
+        box: sb,
+      );
       final decoded = jsonDecode(utf8.decode(bytes));
       final map = decoded is Map<String, dynamic>
           ? decoded
           : <String, dynamic>{'body': decoded.toString()};
-      return DecryptResult<Map<String, dynamic>>(value: map, usedLegacyKey: true);
+      return DecryptResult<Map<String, dynamic>>(
+        value: map,
+        usedLegacyKey: true,
+      );
     }
   }
 
@@ -120,10 +134,20 @@ class CryptoBox {
     final sb = _deserializeSecretBox(data);
     try {
       final bytes = await _decrypt(userId: userId, noteId: noteId, box: sb);
-      return DecryptResult<String>(value: utf8.decode(bytes), usedLegacyKey: false);
+      return DecryptResult<String>(
+        value: utf8.decode(bytes),
+        usedLegacyKey: false,
+      );
     } catch (_) {
-      final bytes = await _decryptWithLegacy(userId: userId, noteId: noteId, box: sb);
-      return DecryptResult<String>(value: utf8.decode(bytes), usedLegacyKey: true);
+      final bytes = await _decryptWithLegacy(
+        userId: userId,
+        noteId: noteId,
+        box: sb,
+      );
+      return DecryptResult<String>(
+        value: utf8.decode(bytes),
+        usedLegacyKey: true,
+      );
     }
   }
 
@@ -197,24 +221,28 @@ class CryptoBox {
       } else {
         jsonString = utf8.decode(data);
       }
-      
+
       final decoded = jsonDecode(jsonString);
-      print('🔍 SecretBox data structure: ${decoded.runtimeType}');
-      
+      debugPrint('🔍 SecretBox data structure: ${decoded.runtimeType}');
+
       if (decoded is Map<String, dynamic>) {
-        print('📋 Map keys: ${decoded.keys.toList()}');
+        debugPrint('📋 Map keys: ${decoded.keys.toList()}');
         // Expected format: {'n': nonce, 'c': ciphertext, 'm': mac}
-        if (decoded.containsKey('n') && decoded.containsKey('c') && decoded.containsKey('m')) {
+        if (decoded.containsKey('n') &&
+            decoded.containsKey('c') &&
+            decoded.containsKey('m')) {
           return SecretBox(
             base64Decode(decoded['c'] as String),
             nonce: base64Decode(decoded['n'] as String),
             mac: Mac(base64Decode(decoded['m'] as String)),
           );
         } else {
-          print('❌ Missing required keys. Expected: n, c, m. Found: ${decoded.keys.toList()}');
+          debugPrint(
+            '❌ Missing required keys. Expected: n, c, m. Found: ${decoded.keys.toList()}',
+          );
         }
       }
-      
+
       // Handle the case where Supabase returns the JSON as a List<int>
       if (decoded is List<dynamic>) {
         try {
@@ -222,10 +250,14 @@ class CryptoBox {
           final bytes = decoded.cast<int>();
           final jsonStr = utf8.decode(bytes);
           final actualData = jsonDecode(jsonStr) as Map<String, dynamic>;
-          
-          print('🔧 Converted List<int> to Map: ${actualData.keys.toList()}');
-          
-          if (actualData.containsKey('n') && actualData.containsKey('c') && actualData.containsKey('m')) {
+
+          debugPrint(
+            '🔧 Converted List<int> to Map: ${actualData.keys.toList()}',
+          );
+
+          if (actualData.containsKey('n') &&
+              actualData.containsKey('c') &&
+              actualData.containsKey('m')) {
             return SecretBox(
               base64Decode(actualData['c'] as String),
               nonce: base64Decode(actualData['n'] as String),
@@ -233,13 +265,15 @@ class CryptoBox {
             );
           }
         } catch (e) {
-          print('❌ Failed to convert List<int> to JSON: $e');
-          
+          debugPrint('❌ Failed to convert List<int> to JSON: $e');
+
           // Fallback: check if it's a List with a Map as first element
           if (decoded.isNotEmpty && decoded.first is Map) {
             final map = (decoded.first as Map).cast<String, dynamic>();
-            print('📋 List[0] keys: ${map.keys.toList()}');
-            if (map.containsKey('n') && map.containsKey('c') && map.containsKey('m')) {
+            debugPrint('📋 List[0] keys: ${map.keys.toList()}');
+            if (map.containsKey('n') &&
+                map.containsKey('c') &&
+                map.containsKey('m')) {
               return SecretBox(
                 base64Decode(map['c'] as String),
                 nonce: base64Decode(map['n'] as String),
@@ -249,12 +283,12 @@ class CryptoBox {
           }
         }
       }
-      
-      print('❌ Invalid SecretBox structure: $decoded');
+
+      debugPrint('❌ Invalid SecretBox structure: $decoded');
       throw const FormatException('Invalid SecretBox JSON structure');
     } catch (e) {
-      print('❌ SecretBox deserialization error: $e');
-      print('📄 Raw data sample: ${data.take(50).toList()}');
+      debugPrint('❌ SecretBox deserialization error: $e');
+      debugPrint('📄 Raw data sample: ${data.take(50).toList()}');
       rethrow;
     }
   }

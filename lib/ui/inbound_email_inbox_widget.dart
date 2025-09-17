@@ -1,34 +1,36 @@
 import 'dart:async';
+
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/inbox_management_service.dart';
+import 'package:duru_notes/services/unified_realtime_service.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/inbox_management_service.dart';
-import 'package:duru_notes/services/inbox_realtime_service.dart';
-import 'package:duru_notes/ui/modern_edit_note_screen.dart';
-import 'package:duru_notes/providers.dart';
 
 /// Widget for displaying the unified inbox (email and web clips)
 class InboundEmailInboxWidget extends ConsumerStatefulWidget {
-  const InboundEmailInboxWidget({Key? key}) : super(key: key);
+  const InboundEmailInboxWidget({super.key});
 
   @override
-  ConsumerState<InboundEmailInboxWidget> createState() => _InboundEmailInboxWidgetState();
+  ConsumerState<InboundEmailInboxWidget> createState() =>
+      _InboundEmailInboxWidgetState();
 }
 
-class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidget> {
+class _InboundEmailInboxWidgetState
+    extends ConsumerState<InboundEmailInboxWidget> {
   late final InboxManagementService _inboxService;
   List<InboxItem> _items = [];
   bool _isLoading = true;
   String? _userEmailAddress;
-  StreamSubscription<InboxRealtimeEvent>? _realtimeSubscription;
-  
+  StreamSubscription<DatabaseChangeEvent>? _realtimeSubscription;
+
   @override
   void initState() {
     super.initState();
     _inboxService = ref.read(inboxManagementServiceProvider);
     _loadData();
-    
+
     // Mark inbox as viewed to reset unread counter
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
@@ -38,47 +40,49 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
         // Unread service might not be available
         debugPrint('Could not mark inbox as viewed: $e');
       }
-      
+
       // Subscribe to realtime updates for instant list refresh
       _subscribeToRealtime();
     });
   }
-  
+
   void _subscribeToRealtime() {
     try {
-      final realtimeService = ref.read(inboxRealtimeServiceProvider);
-      _realtimeSubscription = realtimeService.listRefreshStream.listen((event) {
-        debugPrint('[InboxWidget] Realtime event received: $event');
-        // Refresh the list when items are added or deleted
-        if (event == InboxRealtimeEvent.listChanged) {
+      final unifiedRealtime = ref.read(unifiedRealtimeServiceProvider);
+      if (unifiedRealtime != null) {
+        _realtimeSubscription = unifiedRealtime.inboxStream.listen((event) {
+          debugPrint(
+            '[InboxWidget] Unified realtime event received: ${event.eventType}',
+          );
+          // Refresh the list when items are added or deleted
           _loadData();
-        }
-      });
+        });
+      }
       debugPrint('[InboxWidget] Subscribed to realtime updates');
     } catch (e) {
       debugPrint('[InboxWidget] Could not subscribe to realtime: $e');
     }
   }
-  
+
   @override
   void dispose() {
     _realtimeSubscription?.cancel();
     super.dispose();
   }
-  
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Load both email address and inbox items in parallel
       final results = await Future.wait([
         _inboxService.getUserInboundEmail(),
-        _inboxService.listInboxItems(),  // Unified inbox list
+        _inboxService.listInboxItems(), // Unified inbox list
       ]);
-      
+
       setState(() {
         _userEmailAddress = results[0] as String?;
-        _items = results[1] as List<InboxItem>;
+        _items = results[1]! as List<InboxItem>;
         _isLoading = false;
       });
     } catch (e) {
@@ -93,8 +97,11 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       }
     }
   }
-  
-  Future<void> _convertToNote(InboxItem item, {bool navigateToNote = true}) async {
+
+  Future<void> _convertToNote(
+    InboxItem item, {
+    bool navigateToNote = true,
+  }) async {
     final itemType = item.isEmail ? 'email' : 'web clip';
     final confirm = await showDialog<bool>(
       context: context,
@@ -116,9 +123,9 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
         ],
       ),
     );
-    
+
     if (confirm != true) return;
-    
+
     // Show immediate feedback
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,49 +135,59 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
         ),
       );
     }
-    
-    final noteId = await _inboxService.convertInboxItemToNote(item);
-    if (noteId != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${item.isEmail ? "Email" : "Web clip"} converted to note successfully'),
-            backgroundColor: Colors.green,
-            action: navigateToNote ? SnackBarAction(
-              label: 'OPEN',
-              textColor: Colors.white,
-              onPressed: () => _navigateToNote(noteId),
-            ) : null,
-          ),
-        );
-        
-        // Optionally navigate to the note immediately
-        if (navigateToNote) {
-          // Small delay to let the UI update
-          await Future.delayed(const Duration(milliseconds: 300));
-          _navigateToNote(noteId);
-        } else {
-          _loadData(); // Refresh the list if not navigating
+
+    final result = await _inboxService.convertItemToNote(item);
+
+    await result.when(
+      success: (noteId) async {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${item.isEmail ? "Email" : "Web clip"} converted to note successfully',
+              ),
+              backgroundColor: Colors.green,
+              action: navigateToNote
+                  ? SnackBarAction(
+                      label: 'OPEN',
+                      textColor: Colors.white,
+                      onPressed: () => _navigateToNote(noteId),
+                    )
+                  : null,
+            ),
+          );
+
+          // Optionally navigate to the note immediately
+          if (navigateToNote) {
+            // Small delay to let the UI update
+            await Future.delayed(const Duration(milliseconds: 300));
+            if (mounted) {
+              _navigateToNote(noteId);
+            }
+          } else {
+            _loadData(); // Refresh the list if not navigating
+          }
         }
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to convert to note'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+      },
+      failure: (error) async {
+        if (mounted) {
+          // Show user-friendly error message
+          final message = error.userMessage;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.red),
+          );
+        }
+      },
+    );
   }
-  
+
   Future<void> _navigateToNote(String noteId) async {
     try {
       // Get the note details for navigation
       final notesRepo = ref.read(notesRepositoryProvider);
       final note = await notesRepo.getNote(noteId);
-      
+
       if (note != null && mounted) {
         await Navigator.push<void>(
           context,
@@ -182,7 +199,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
             ),
           ),
         );
-        
+
         // Refresh the list when returning from the note
         _loadData();
       }
@@ -190,7 +207,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       debugPrint('[InboxWidget] Error navigating to note: $e');
     }
   }
-  
+
   Future<void> _deleteItem(InboxItem item) async {
     final itemType = item.isEmail ? 'Email' : 'Web Clip';
     final confirm = await showDialog<bool>(
@@ -205,28 +222,26 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
-    
+
     if (confirm != true) return;
-    
-    final success = await _inboxService.deleteInboxItem(item.id);
-    if (success) {
+
+    final result = await _inboxService.deleteInboxItem(item.id);
+    if (result.isSuccess) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$itemType deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$itemType deleted')));
       }
       _loadData(); // Refresh the list
     }
   }
-  
+
   void _showItemDetails(InboxItem item) {
     showModalBottomSheet(
       context: context,
@@ -245,7 +260,7 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       ),
     );
   }
-  
+
   void _copyEmailAddress() {
     if (_userEmailAddress != null) {
       Clipboard.setData(ClipboardData(text: _userEmailAddress!));
@@ -254,17 +269,14 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
       );
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inbox'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: Column(
@@ -304,130 +316,142 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
                 ),
               ),
             ),
-          
+
           // Email list
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _items.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.inbox, size: 64, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Your inbox is empty',
-                              style: TextStyle(fontSize: 18, color: Colors.grey),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_userEmailAddress != null)
-                              Text(
-                                '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.inbox, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Your inbox is empty',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: ListView.builder(
-                          itemCount: _items.length,
-                          itemBuilder: (context, index) {
-                            final item = _items[index];
-                            return Dismissible(
-                              key: Key(item.id),
-                              background: Container(
-                                color: Colors.green,
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 16),
-                                child: const Icon(Icons.note_add, color: Colors.white),
-                              ),
-                              secondaryBackground: Container(
-                                color: Colors.red,
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 16),
-                                child: const Icon(Icons.delete, color: Colors.white),
-                              ),
-                              confirmDismiss: (direction) async {
-                                if (direction == DismissDirection.startToEnd) {
-                                  await _convertToNote(item);
-                                  return false; // Don't dismiss, we'll refresh
-                                } else {
-                                  await _deleteItem(item);
-                                  return false; // Don't dismiss, we'll refresh
-                                }
-                              },
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: item.isWebClip 
-                                      ? Colors.blue.shade100
-                                      : Colors.grey.shade200,
-                                  child: item.isWebClip
-                                      ? Icon(Icons.language, color: Colors.blue.shade700)
-                                      : Icon(Icons.email, color: Colors.grey.shade700),
-                                ),
-                                title: Text(
-                                  item.displayTitle,
+                        const SizedBox(height: 8),
+                        if (_userEmailAddress != null)
+                          Text(
+                            '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: ListView.builder(
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return Dismissible(
+                          key: Key(item.id),
+                          background: Container(
+                            color: Colors.green,
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.only(left: 16),
+                            child: const Icon(
+                              Icons.note_add,
+                              color: Colors.white,
+                            ),
+                          ),
+                          secondaryBackground: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                            ),
+                          ),
+                          confirmDismiss: (direction) async {
+                            if (direction == DismissDirection.startToEnd) {
+                              await _convertToNote(item);
+                              return false; // Don't dismiss, we'll refresh
+                            } else {
+                              await _deleteItem(item);
+                              return false; // Don't dismiss, we'll refresh
+                            }
+                          },
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: item.isWebClip
+                                  ? Colors.blue.shade100
+                                  : Colors.grey.shade200,
+                              child: item.isWebClip
+                                  ? Icon(
+                                      Icons.language,
+                                      color: Colors.blue.shade700,
+                                    )
+                                  : Icon(
+                                      Icons.email,
+                                      color: Colors.grey.shade700,
+                                    ),
+                            ),
+                            title: Text(
+                              item.displayTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.displaySubtitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.displaySubtitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                if (item.displayText != null)
+                                  Text(
+                                    item.displayText!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (item.hasAttachments)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: Icon(
+                                      Icons.attach_file,
+                                      size: 18,
+                                      color: Colors.grey[600],
                                     ),
-                                    if (item.displayText != null)
-                                      Text(
-                                        item.displayText!,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                  ],
+                                  ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDate(item.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
                                 ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (item.hasAttachments)
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: 4),
-                                        child: Icon(
-                                          Icons.attach_file,
-                                          size: 18,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _formatDate(item.createdAt),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                onTap: () => _showItemDetails(item),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                              ],
+                            ),
+                            onTap: () => _showItemDetails(item),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
-  
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inMinutes < 60) {
       return '${diff.inMinutes}m ago';
     } else if (diff.inHours < 24) {
@@ -441,23 +465,24 @@ class _InboundEmailInboxWidgetState extends ConsumerState<InboundEmailInboxWidge
 }
 
 class InboxItemDetailSheet extends StatelessWidget {
-  final InboxItem item;
-  final InboxManagementService inboxService;
-  final VoidCallback onConvert;
-  final VoidCallback onDelete;
-  
   const InboxItemDetailSheet({
-    Key? key,
     required this.item,
     required this.inboxService,
     required this.onConvert,
     required this.onDelete,
-  }) : super(key: key);
-  
+    super.key,
+  });
+  final InboxItem item;
+  final InboxManagementService inboxService;
+  final VoidCallback onConvert;
+  final VoidCallback onDelete;
+
   @override
   Widget build(BuildContext context) {
-    final attachments = item.isEmail ? inboxService.getAttachments(item) : <EmailAttachment>[];
-    
+    final attachments = item.isEmail
+        ? inboxService.getAttachments(item)
+        : <EmailAttachment>[];
+
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.3,
@@ -481,7 +506,7 @@ class InboxItemDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               // Title
               Text(
                 item.displayTitle,
@@ -491,13 +516,16 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Source-specific details
               if (item.isEmail) ...[
                 // From
                 Row(
                   children: [
-                    const Text('From: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'From: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     Expanded(
                       child: Text(
                         item.from ?? 'Unknown',
@@ -507,11 +535,14 @@ class InboxItemDetailSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // To
                 Row(
                   children: [
-                    const Text('To: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'To: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     Expanded(
                       child: Text(
                         item.to ?? 'Unknown',
@@ -522,12 +553,15 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              
+
               if (item.isWebClip) ...[
                 // URL
                 Row(
                   children: [
-                    const Text('Source: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Source: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     Expanded(
                       child: Text(
                         item.webUrl ?? 'Unknown',
@@ -539,7 +573,7 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              
+
               // Date
               Row(
                 children: [
@@ -551,7 +585,7 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Attachments
               if (attachments.isNotEmpty) ...[
                 const Text(
@@ -562,11 +596,15 @@ class InboxItemDetailSheet extends StatelessWidget {
                 // Limit height of attachments list to prevent overflow
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: attachments.length > 3 ? 200 : attachments.length * 70.0,
+                    maxHeight: attachments.length > 3
+                        ? 200
+                        : attachments.length * 70.0,
                   ),
                   child: ListView.builder(
                     shrinkWrap: true,
-                    physics: attachments.length > 3 ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+                    physics: attachments.length > 3
+                        ? const AlwaysScrollableScrollPhysics()
+                        : const NeverScrollableScrollPhysics(),
                     itemCount: attachments.length,
                     itemBuilder: (context, index) {
                       final attachment = attachments[index];
@@ -581,7 +619,9 @@ class InboxItemDetailSheet extends StatelessWidget {
                             // TODO: Implement attachment viewing
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Attachment viewing not yet implemented'),
+                                content: Text(
+                                  'Attachment viewing not yet implemented',
+                                ),
                               ),
                             );
                           }
@@ -592,7 +632,7 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Body
               const Text(
                 'Content:',
@@ -616,7 +656,7 @@ class InboxItemDetailSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Actions
               Row(
                 children: [
@@ -624,7 +664,10 @@ class InboxItemDetailSheet extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      label: const Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),

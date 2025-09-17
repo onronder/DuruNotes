@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_saved_search_presets.dart';
+import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter/foundation.dart';
 
 /// Engine for evaluating smart folder rules and filtering notes
 class SmartFolderEngine {
-
   SmartFolderEngine(this._repository);
   final NotesRepository _repository;
   final Map<String, StreamController<List<LocalNote>>> _controllers = {};
@@ -20,25 +19,27 @@ class SmartFolderEngine {
   }
 
   /// Get notes matching a smart folder configuration
-  Future<List<LocalNote>> getNotesForSmartFolder(SmartFolderConfig config) async {
+  Future<List<LocalNote>> getNotesForSmartFolder(
+    SmartFolderConfig config,
+  ) async {
     try {
       // Get all notes first
       final allNotes = await _repository.list();
-      
+
       // Filter based on rules
       final filteredNotes = _filterNotes(allNotes, config);
-      
+
       // Sort by modified date (most recent first)
       filteredNotes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      
+
       // Apply max results limit
       if (filteredNotes.length > config.maxResults) {
         return filteredNotes.take(config.maxResults).toList();
       }
-      
+
       return filteredNotes;
     } catch (e) {
-      if (kDebugMode) print('Error getting smart folder notes: $e');
+      if (kDebugMode) debugPrint('Error getting smart folder notes: $e');
       return [];
     }
   }
@@ -48,14 +49,14 @@ class SmartFolderEngine {
     // Cancel existing controller if any
     _controllers[config.id]?.close();
     _refreshTimers[config.id]?.cancel();
-    
+
     // Create new controller
     final controller = StreamController<List<LocalNote>>.broadcast();
     _controllers[config.id] = controller;
-    
+
     // Initial load
     _refreshSmartFolder(config);
-    
+
     // Setup auto-refresh if enabled
     if (config.autoRefresh) {
       final interval = config.refreshInterval ?? const Duration(minutes: 1);
@@ -63,7 +64,7 @@ class SmartFolderEngine {
         _refreshSmartFolder(config);
       });
     }
-    
+
     return controller.stream;
   }
 
@@ -86,14 +87,17 @@ class SmartFolderEngine {
   }
 
   /// Filter notes based on smart folder rules
-  List<LocalNote> _filterNotes(List<LocalNote> notes, SmartFolderConfig config) {
+  List<LocalNote> _filterNotes(
+    List<LocalNote> notes,
+    SmartFolderConfig config,
+  ) {
     // Check if this is a saved search preset
     if (config.id.startsWith('saved_search_')) {
       return notes.filterForSavedSearch(config.id);
     }
-    
+
     if (config.rules.isEmpty) return notes;
-    
+
     return notes.where((note) {
       if (config.combineWithAnd) {
         // All rules must match (AND)
@@ -108,38 +112,46 @@ class SmartFolderEngine {
   /// Evaluate a single rule against a note
   bool _evaluateRule(LocalNote note, SmartFolderRule rule) {
     final fieldValue = _getFieldValue(note, rule.field);
-    
+
     switch (rule.operator) {
       case RuleOperator.equals:
         return fieldValue == rule.value;
-        
+
       case RuleOperator.notEquals:
         return fieldValue != rule.value;
-        
+
       case RuleOperator.contains:
         if (fieldValue is String && rule.value is String) {
-          return fieldValue.toLowerCase().contains((rule.value as String).toLowerCase());
+          return fieldValue.toLowerCase().contains(
+            (rule.value as String).toLowerCase(),
+          );
         }
         return false;
-        
+
       case RuleOperator.notContains:
         if (fieldValue is String && rule.value is String) {
-          return !fieldValue.toLowerCase().contains((rule.value as String).toLowerCase());
+          return !fieldValue.toLowerCase().contains(
+            (rule.value as String).toLowerCase(),
+          );
         }
         return true;
-        
+
       case RuleOperator.startsWith:
         if (fieldValue is String && rule.value is String) {
-          return fieldValue.toLowerCase().startsWith((rule.value as String).toLowerCase());
+          return fieldValue.toLowerCase().startsWith(
+            (rule.value as String).toLowerCase(),
+          );
         }
         return false;
-        
+
       case RuleOperator.endsWith:
         if (fieldValue is String && rule.value is String) {
-          return fieldValue.toLowerCase().endsWith((rule.value as String).toLowerCase());
+          return fieldValue.toLowerCase().endsWith(
+            (rule.value as String).toLowerCase(),
+          );
         }
         return false;
-        
+
       case RuleOperator.greaterThan:
         if (fieldValue is num && rule.value is num) {
           return fieldValue > (rule.value as num);
@@ -148,7 +160,7 @@ class SmartFolderEngine {
           return fieldValue.isAfter(rule.value as DateTime);
         }
         return false;
-        
+
       case RuleOperator.lessThan:
         if (fieldValue is num && rule.value is num) {
           return fieldValue < (rule.value as num);
@@ -157,28 +169,32 @@ class SmartFolderEngine {
           return fieldValue.isBefore(rule.value as DateTime);
         }
         return false;
-        
+
       case RuleOperator.between:
         if (fieldValue is num && rule.value is num && rule.secondValue is num) {
-          return fieldValue >= (rule.value as num) && fieldValue <= (rule.secondValue as num);
+          return fieldValue >= (rule.value as num) &&
+              fieldValue <= (rule.secondValue as num);
         }
-        if (fieldValue is DateTime && rule.value is DateTime && rule.secondValue is DateTime) {
-          return fieldValue.isAfter(rule.value as DateTime) && fieldValue.isBefore(rule.secondValue as DateTime);
+        if (fieldValue is DateTime &&
+            rule.value is DateTime &&
+            rule.secondValue is DateTime) {
+          return fieldValue.isAfter(rule.value as DateTime) &&
+              fieldValue.isBefore(rule.secondValue as DateTime);
         }
         return false;
-        
+
       case RuleOperator.inList:
         if (rule.value is List) {
           return (rule.value as List).contains(fieldValue);
         }
         return false;
-        
+
       case RuleOperator.notInList:
         if (rule.value is List) {
           return !(rule.value as List).contains(fieldValue);
         }
         return true;
-        
+
       case RuleOperator.isEmpty:
         if (fieldValue is String) {
           return fieldValue.isEmpty;
@@ -187,7 +203,7 @@ class SmartFolderEngine {
           return fieldValue.isEmpty;
         }
         return fieldValue == null;
-        
+
       case RuleOperator.isNotEmpty:
         if (fieldValue is String) {
           return fieldValue.isNotEmpty;
@@ -204,52 +220,55 @@ class SmartFolderEngine {
     switch (field) {
       case RuleField.title:
         return note.title;
-        
+
       case RuleField.content:
         return note.body;
-        
+
       case RuleField.tags:
         // Extract tags from content (assuming #tag format)
         final tagPattern = RegExp(r'#\w+');
         final matches = tagPattern.allMatches(note.body);
         return matches.map((m) => m.group(0)).toList();
-        
+
       case RuleField.createdDate:
         // Use updatedAt since createdAt is not available in LocalNote
         return note.updatedAt;
-        
+
       case RuleField.modifiedDate:
         return note.updatedAt;
-        
+
       case RuleField.attachmentCount:
         // Count attachment blocks in content
         final attachmentPattern = RegExp(r'!\[.*?\]\(.*?\)');
         return attachmentPattern.allMatches(note.body).length;
-        
+
       case RuleField.wordCount:
-        return note.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-        
+        return note.body
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .length;
+
       case RuleField.hasImages:
         return note.body.contains(RegExp(r'!\[.*?\]\(.*?\)'));
-        
+
       case RuleField.hasLinks:
         return note.body.contains(RegExp(r'\[.*?\]\(.*?\)')) ||
-               note.body.contains(RegExp('https?://'));
-        
+            note.body.contains(RegExp('https?://'));
+
       case RuleField.hasCode:
         return note.body.contains('```');
-        
+
       case RuleField.hasTasks:
         return note.body.contains('- [ ]') || note.body.contains('- [x]');
-        
+
       case RuleField.isEncrypted:
         // TODO: Add encryption support when available
         return false; // note.encryptedDataKey != null;
-        
+
       case RuleField.isFavorite:
         // TODO: Add favorite field to LocalNote
         return false;
-        
+
       case RuleField.isArchived:
         // TODO: Add archived field to LocalNote
         return false;
@@ -262,7 +281,7 @@ class SmartFolderEngine {
       controller.close();
     }
     _controllers.clear();
-    
+
     for (final timer in _refreshTimers.values) {
       timer.cancel();
     }
@@ -272,7 +291,6 @@ class SmartFolderEngine {
 
 /// Statistics for a smart folder
 class SmartFolderStats {
-
   const SmartFolderStats({
     required this.totalNotes,
     required this.matchingNotes,
@@ -285,10 +303,7 @@ class SmartFolderStats {
 
   factory SmartFolderStats.fromNotes(List<LocalNote> notes, int totalNotes) {
     if (notes.isEmpty) {
-      return SmartFolderStats(
-        totalNotes: totalNotes,
-        matchingNotes: 0,
-      );
+      return SmartFolderStats(totalNotes: totalNotes, matchingNotes: 0);
     }
 
     // Calculate average age
@@ -302,7 +317,10 @@ class SmartFolderStats {
     // Calculate total words
     var totalWords = 0;
     for (final note in notes) {
-      totalWords += note.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      totalWords += note.body
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .length;
     }
 
     // Count attachments
@@ -341,6 +359,6 @@ class SmartFolderStats {
   final int totalAttachments;
   final Map<String, int> tagCounts;
 
-  double get matchPercentage => 
+  double get matchPercentage =>
       totalNotes > 0 ? (matchingNotes / totalNotes) * 100 : 0;
 }

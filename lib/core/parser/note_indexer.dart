@@ -5,10 +5,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 
 /// Manages indexing and cross-referencing of notes for search and linking
 class NoteIndexer {
-
-  NoteIndexer({
-    AppLogger? logger,
-  }) : _logger = logger ?? LoggerFactory.instance;
+  NoteIndexer({AppLogger? logger}) : _logger = logger ?? LoggerFactory.instance;
   final AppLogger _logger;
   final Map<String, Set<String>> _tagIndex = {};
   final Map<String, Set<String>> _linkIndex = {};
@@ -17,10 +14,10 @@ class NoteIndexer {
   /// Index a note for search and cross-referencing
   Future<void> indexNote(LocalNote note) async {
     try {
-      _logger.debug('Indexing note', data: {
-        'note_id': note.id,
-        'title': note.title,
-      });
+      _logger.debug(
+        'Indexing note',
+        data: {'note_id': note.id, 'title': note.title},
+      );
 
       // Clear existing index entries for this note
       await removeNoteFromIndex(note.id);
@@ -34,13 +31,14 @@ class NoteIndexer {
       // Index words for search
       await _indexWords(note);
 
-      _logger.debug('Note indexed successfully', data: {
-        'note_id': note.id,
-      });
+      _logger.debug('Note indexed successfully', data: {'note_id': note.id});
     } catch (e, stackTrace) {
-      _logger.error('Failed to index note', error: e, stackTrace: stackTrace, data: {
-        'note_id': note.id,
-      });
+      _logger.error(
+        'Failed to index note',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'note_id': note.id},
+      );
     }
   }
 
@@ -65,13 +63,13 @@ class NoteIndexer {
       }
       _wordIndex.removeWhere((word, noteIds) => noteIds.isEmpty);
 
-      _logger.debug('Note removed from index', data: {
-        'note_id': noteId,
-      });
+      _logger.debug('Note removed from index', data: {'note_id': noteId});
     } catch (e) {
-      _logger.error('Failed to remove note from index', error: e, data: {
-        'note_id': noteId,
-      });
+      _logger.error(
+        'Failed to remove note from index',
+        error: e,
+        data: {'note_id': noteId},
+      );
     }
   }
 
@@ -143,16 +141,17 @@ class NoteIndexer {
     _tagIndex.clear();
     _linkIndex.clear();
     _wordIndex.clear();
-    
+
     _logger.info('All indexes cleared');
   }
 
   /// Rebuild index for all notes
   Future<void> rebuildIndex(List<LocalNote> allNotes) async {
     try {
-      _logger.info('Rebuilding note index', data: {
-        'total_notes': allNotes.length,
-      });
+      _logger.info(
+        'Rebuilding note index',
+        data: {'total_notes': allNotes.length},
+      );
 
       await clearIndex();
 
@@ -170,7 +169,7 @@ class NoteIndexer {
 
   Future<void> _indexTags(LocalNote note) async {
     final tags = _extractTags(note.body);
-    
+
     for (final tag in tags) {
       final normalizedTag = tag.toLowerCase();
       _tagIndex.putIfAbsent(normalizedTag, () => <String>{}).add(note.id);
@@ -179,7 +178,7 @@ class NoteIndexer {
 
   Future<void> _indexLinks(LocalNote note) async {
     final links = _extractNoteLinks(note.body);
-    
+
     for (final linkedNoteId in links) {
       _linkIndex.putIfAbsent(linkedNoteId, () => <String>{}).add(note.id);
     }
@@ -187,10 +186,11 @@ class NoteIndexer {
 
   Future<void> _indexWords(LocalNote note) async {
     final words = _extractWords('${note.title} ${note.body}');
-    
+
     for (final word in words) {
       final normalizedWord = word.toLowerCase();
-      if (normalizedWord.length >= 3) { // Index words with 3+ characters
+      if (normalizedWord.length >= 3) {
+        // Index words with 3+ characters
         _wordIndex.putIfAbsent(normalizedWord, () => <String>{}).add(note.id);
       }
     }
@@ -198,7 +198,7 @@ class NoteIndexer {
 
   Set<String> _extractTags(String content) {
     final tags = <String>{};
-    
+
     // Extract hashtags (#tag)
     final hashtagRegex = RegExp(r'#(\w+)', multiLine: true);
     final hashtagMatches = hashtagRegex.allMatches(content);
@@ -207,7 +207,7 @@ class NoteIndexer {
         tags.add(match.group(1)!);
       }
     }
-    
+
     // Extract mention-style tags (@tag)
     final mentionRegex = RegExp(r'@(\w+)', multiLine: true);
     final mentionMatches = mentionRegex.allMatches(content);
@@ -216,13 +216,13 @@ class NoteIndexer {
         tags.add(match.group(1)!);
       }
     }
-    
+
     return tags;
   }
 
   Set<String> _extractNoteLinks(String content) {
     final links = <String>{};
-    
+
     // Extract note links in format [[note-id]] or [[note-title]]
     final linkRegex = RegExp(r'\[\[([^\]]+)\]\]', multiLine: true);
     final linkMatches = linkRegex.allMatches(content);
@@ -231,19 +231,19 @@ class NoteIndexer {
         links.add(match.group(1)!);
       }
     }
-    
+
     return links;
   }
 
   Set<String> _extractWords(String content) {
     final words = <String>{};
-    
+
     // Remove markdown formatting and special characters
     final cleanContent = content
         .replaceAll(RegExp('[#*`>]'), ' ')
         .replaceAll(RegExp(r'\[[^\]]*\]'), ' ')
         .replaceAll(RegExp(r'\([^)]*\)'), ' ');
-    
+
     // Split into words
     final wordRegex = RegExp(r'\b\w+\b', multiLine: true);
     final wordMatches = wordRegex.allMatches(cleanContent);
@@ -255,22 +255,90 @@ class NoteIndexer {
         }
       }
     }
-    
+
     return words;
   }
 
   bool _isStopWord(String word) {
     const stopWords = {
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-      'of', 'with', 'by', 'from', 'up', 'about', 'into', 'through', 'during',
-      'before', 'after', 'above', 'below', 'between', 'among', 'under', 'over',
-      'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
-      'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
-      'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she',
-      'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his',
-      'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs',
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'from',
+      'up',
+      'about',
+      'into',
+      'through',
+      'during',
+      'before',
+      'after',
+      'above',
+      'below',
+      'between',
+      'among',
+      'under',
+      'over',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'must',
+      'can',
+      'this',
+      'that',
+      'these',
+      'those',
+      'i',
+      'you',
+      'he',
+      'she',
+      'it',
+      'we',
+      'they',
+      'me',
+      'him',
+      'her',
+      'us',
+      'them',
+      'my',
+      'your',
+      'his',
+      'its',
+      'our',
+      'their',
+      'mine',
+      'yours',
+      'hers',
+      'ours',
+      'theirs',
     };
-    
+
     return stopWords.contains(word.toLowerCase());
   }
 }

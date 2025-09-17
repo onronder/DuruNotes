@@ -4,7 +4,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 class LinkBlockWidget extends StatefulWidget {
   const LinkBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    super.key,
   });
 
   final NoteBlock block;
@@ -33,7 +37,7 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
     _urlController = TextEditingController(text: _url);
     _titleFocusNode = FocusNode();
     _urlFocusNode = FocusNode();
-    
+
     _titleFocusNode.addListener(() {
       widget.onFocusChanged(_titleFocusNode.hasFocus);
     });
@@ -49,13 +53,13 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
   @override
   void didUpdateWidget(LinkBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _parseLinkData();
       _titleController.text = _title;
       _urlController.text = _url;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _isEditing = true;
       _titleFocusNode.requestFocus();
@@ -103,7 +107,7 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
     setState(() {
       _isEditing = !_isEditing;
     });
-    
+
     if (_isEditing) {
       _titleFocusNode.requestFocus();
     }
@@ -115,9 +119,9 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
       if (uri != null && await canLaunchUrl(uri)) {
         await launchUrl(uri);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid URL')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Invalid URL')));
       }
     }
   }
@@ -149,9 +153,9 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
               const SizedBox(width: 8),
               Text(
                 'Link',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.blue.shade700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(color: Colors.blue.shade700),
               ),
               const Spacer(),
               IconButton(
@@ -161,9 +165,9 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Title Field
           TextField(
             controller: _titleController,
@@ -175,9 +179,9 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // URL Field
           TextField(
             controller: _urlController,
@@ -211,13 +215,9 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.link,
-                size: 20,
-                color: Colors.blue.shade600,
-              ),
+              Icon(Icons.link, size: 20, color: Colors.blue.shade600),
               const SizedBox(width: 12),
-              
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +245,7 @@ class _LinkBlockWidgetState extends State<LinkBlockWidget> {
                   ],
                 ),
               ),
-              
+
               // Actions
               Row(
                 mainAxisSize: MainAxisSize.min,

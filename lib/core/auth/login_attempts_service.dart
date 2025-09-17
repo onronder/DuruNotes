@@ -3,10 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Result of account lockout check
 class AccountLockoutStatus {
-
   const AccountLockoutStatus({
     required this.isLocked,
-    required this.attemptsRemaining, this.remainingLockoutTime,
+    required this.attemptsRemaining,
+    this.remainingLockoutTime,
   });
   final bool isLocked;
   final Duration? remainingLockoutTime;
@@ -24,12 +24,12 @@ class LoginAttemptsService {
   Future<bool> isLockedOut() async {
     final prefs = await SharedPreferences.getInstance();
     final attempts = prefs.getInt(_attemptsKey) ?? 0;
-    
+
     if (attempts >= _maxAttempts) {
       final lastAttemptMs = prefs.getInt(_lastAttemptKey) ?? 0;
       final lastAttempt = DateTime.fromMillisecondsSinceEpoch(lastAttemptMs);
       final timeSinceLastAttempt = DateTime.now().difference(lastAttempt);
-      
+
       if (timeSinceLastAttempt < _lockoutDuration) {
         return true;
       } else {
@@ -38,7 +38,7 @@ class LoginAttemptsService {
         return false;
       }
     }
-    
+
     return false;
   }
 
@@ -46,17 +46,17 @@ class LoginAttemptsService {
   Future<Duration?> getRemainingLockoutTime() async {
     final prefs = await SharedPreferences.getInstance();
     final attempts = prefs.getInt(_attemptsKey) ?? 0;
-    
+
     if (attempts >= _maxAttempts) {
       final lastAttemptMs = prefs.getInt(_lastAttemptKey) ?? 0;
       final lastAttempt = DateTime.fromMillisecondsSinceEpoch(lastAttemptMs);
       final timeSinceLastAttempt = DateTime.now().difference(lastAttempt);
-      
+
       if (timeSinceLastAttempt < _lockoutDuration) {
         return _lockoutDuration - timeSinceLastAttempt;
       }
     }
-    
+
     return null;
   }
 
@@ -64,7 +64,7 @@ class LoginAttemptsService {
   Future<void> recordFailedAttempt() async {
     final prefs = await SharedPreferences.getInstance();
     final currentAttempts = prefs.getInt(_attemptsKey) ?? 0;
-    
+
     await prefs.setInt(_attemptsKey, currentAttempts + 1);
     await prefs.setInt(_lastAttemptKey, DateTime.now().millisecondsSinceEpoch);
   }
@@ -103,7 +103,7 @@ class LoginAttemptsService {
     final isLocked = await isLockedOut();
     final remaining = await getRemainingLockoutTime();
     final attempts = await getRemainingAttempts();
-    
+
     return AccountLockoutStatus(
       isLocked: isLocked,
       remainingLockoutTime: remaining,

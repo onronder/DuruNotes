@@ -1,11 +1,18 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:drift/drift.dart';
-import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 part 'app_db.g.dart';
 
@@ -20,7 +27,9 @@ class LocalNotes extends Table {
   DateTimeColumn get updatedAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   TextColumn get encryptedMetadata => text().nullable()();
-  BoolColumn get isPinned => boolean().withDefault(const Constant(false))(); // For pinning notes to top
+  BoolColumn get isPinned => boolean().withDefault(
+    const Constant(false),
+  )(); // For pinning notes to top
 
   @override
   Set<Column> get primaryKey => {id};
@@ -30,7 +39,8 @@ class LocalNotes extends Table {
 class PendingOps extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entityId => text()();
-  TextColumn get kind => text()(); // 'upsert_note' | 'delete_note' | 'upsert_folder' | 'delete_folder' | 'upsert_tag' | 'delete_tag' | 'upsert_saved_search' | 'delete_saved_search'
+  TextColumn get kind =>
+      text()(); // 'upsert_note' | 'delete_note' | 'upsert_folder' | 'delete_folder' | 'upsert_tag' | 'delete_tag' | 'upsert_saved_search' | 'delete_saved_search'
   TextColumn get payload => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -56,19 +66,13 @@ class NoteLinks extends Table {
 
 // Reminder types
 enum ReminderType {
-  time,      // Time-based reminder
-  location,  // Location-based reminder (geofence)
+  time, // Time-based reminder
+  location, // Location-based reminder (geofence)
   recurring, // Recurring reminder
 }
 
 // Recurring patterns
-enum RecurrencePattern {
-  none,
-  daily,
-  weekly,
-  monthly,
-  yearly,
-}
+enum RecurrencePattern { none, daily, weekly, monthly, yearly }
 
 // Snooze durations
 enum SnoozeDuration {
@@ -87,32 +91,36 @@ class NoteReminders extends Table {
   TextColumn get noteId => text()(); // Foreign key to note
   TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get body => text().withDefault(const Constant(''))();
-  
+
   // Reminder type and timing
   IntColumn get type => intEnum<ReminderType>()(); // time, location, recurring
-  DateTimeColumn get remindAt => dateTime().nullable()(); // for time-based reminders (UTC)
+  DateTimeColumn get remindAt =>
+      dateTime().nullable()(); // for time-based reminders (UTC)
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
-  
+
   // Location-based fields
   RealColumn get latitude => real().nullable()();
   RealColumn get longitude => real().nullable()();
   RealColumn get radius => real().nullable()(); // in meters
   TextColumn get locationName => text().nullable()();
-  
+
   // Recurring reminder fields
-  IntColumn get recurrencePattern => intEnum<RecurrencePattern>().withDefault(Constant(RecurrencePattern.none.index))();
+  IntColumn get recurrencePattern => intEnum<RecurrencePattern>().withDefault(
+    Constant(RecurrencePattern.none.index),
+  )();
   DateTimeColumn get recurrenceEndDate => dateTime().nullable()();
-  IntColumn get recurrenceInterval => integer().withDefault(const Constant(1))(); // every X days/weeks/months
-  
+  IntColumn get recurrenceInterval =>
+      integer().withDefault(const Constant(1))(); // every X days/weeks/months
+
   // Snooze functionality
   DateTimeColumn get snoozedUntil => dateTime().nullable()();
   IntColumn get snoozeCount => integer().withDefault(const Constant(0))();
-  
+
   // Rich notification content
   TextColumn get notificationTitle => text().nullable()();
   TextColumn get notificationBody => text().nullable()();
   TextColumn get notificationImage => text().nullable()(); // path or URL
-  
+
   // Metadata
   TextColumn get timeZone => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -122,79 +130,77 @@ class NoteReminders extends Table {
 
 /// Task status enum
 enum TaskStatus {
-  open,      // Task is open/pending
+  open, // Task is open/pending
   completed, // Task is completed
   cancelled, // Task was cancelled
 }
 
 /// Task priority levels
-enum TaskPriority {
-  low,
-  medium,
-  high,
-  urgent,
-}
+enum TaskPriority { low, medium, high, urgent }
 
 /// Note tasks table for tracking actionable items from notes
 @DataClassName('NoteTask')
 class NoteTasks extends Table {
   /// Unique identifier for the task
   TextColumn get id => text()();
-  
+
   /// Reference to parent note ID
   TextColumn get noteId => text()();
-  
+
   /// Task content/description
   TextColumn get content => text()();
-  
+
   /// Task completion status
-  IntColumn get status => intEnum<TaskStatus>().withDefault(Constant(TaskStatus.open.index))();
-  
+  IntColumn get status =>
+      intEnum<TaskStatus>().withDefault(Constant(TaskStatus.open.index))();
+
   /// Task priority level
-  IntColumn get priority => intEnum<TaskPriority>().withDefault(Constant(TaskPriority.medium.index))();
-  
+  IntColumn get priority => intEnum<TaskPriority>().withDefault(
+    Constant(TaskPriority.medium.index),
+  )();
+
   /// Optional due date for the task
   DateTimeColumn get dueDate => dateTime().nullable()();
-  
+
   /// Date when task was completed
   DateTimeColumn get completedAt => dateTime().nullable()();
-  
+
   /// User who completed the task (for shared notes)
   TextColumn get completedBy => text().nullable()();
-  
+
   /// Line number or position in note (for sync with markdown)
   IntColumn get position => integer().withDefault(const Constant(0))();
-  
+
   /// Hash of the task text for deduplication
   TextColumn get contentHash => text()();
-  
+
   /// Optional reminder ID if a reminder is set for this task
   IntColumn get reminderId => integer().nullable()();
-  
+
   /// Custom labels/tags for the task
   TextColumn get labels => text().nullable()(); // JSON array
-  
+
   /// Notes or additional context for the task
   TextColumn get notes => text().nullable()();
-  
+
   /// Time estimate in minutes
   IntColumn get estimatedMinutes => integer().nullable()();
-  
+
   /// Actual time spent in minutes
   IntColumn get actualMinutes => integer().nullable()();
-  
+
   /// Parent task ID for subtasks
   TextColumn get parentTaskId => text().nullable()();
-  
+
   /// Creation timestamp
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-  
+
   /// Last modification timestamp
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-  
+
   /// Soft delete flag
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
-  
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -214,23 +220,18 @@ class TagCount {
 }
 
 /// Sort options for queries
-enum SortBy { 
-  updatedAt, 
-  title, 
-  createdAt,
-}
+enum SortBy { updatedAt, title, createdAt }
 
 /// Sort specification for queries
 class SortSpec {
-  final SortBy sortBy;
-  final bool ascending;
-  final bool pinnedFirst;
-  
   const SortSpec({
     this.sortBy = SortBy.updatedAt,
     this.ascending = false,
     this.pinnedFirst = true,
   });
+  final SortBy sortBy;
+  final bool ascending;
+  final bool pinnedFirst;
 }
 
 /// Folder system tables for hierarchical organization
@@ -238,34 +239,34 @@ class SortSpec {
 class LocalFolders extends Table {
   /// Unique identifier for the folder
   TextColumn get id => text()();
-  
+
   /// Display name of the folder
   TextColumn get name => text()();
-  
+
   /// Parent folder ID for hierarchy (null for root folders)
   TextColumn get parentId => text().nullable()();
-  
+
   /// Full path from root (e.g., "/Work/Projects/2024")
   TextColumn get path => text()();
-  
+
   /// Display order within parent folder
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
-  
+
   /// Optional color for folder display (hex format)
   TextColumn get color => text().nullable()();
-  
+
   /// Optional icon name for folder display
   TextColumn get icon => text().nullable()();
-  
+
   /// Folder description/notes
   TextColumn get description => text().withDefault(const Constant(''))();
-  
+
   /// Creation timestamp
   DateTimeColumn get createdAt => dateTime()();
-  
+
   /// Last modification timestamp
   DateTimeColumn get updatedAt => dateTime()();
-  
+
   /// Soft delete flag
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
 
@@ -278,10 +279,10 @@ class LocalFolders extends Table {
 class NoteFolders extends Table {
   /// Note ID (foreign key to local_notes)
   TextColumn get noteId => text()();
-  
+
   /// Folder ID (foreign key to local_folders)
   TextColumn get folderId => text()();
-  
+
   /// When the note was added to this folder
   DateTimeColumn get addedAt => dateTime()();
 
@@ -294,37 +295,37 @@ class NoteFolders extends Table {
 class SavedSearches extends Table {
   /// Unique identifier for the saved search
   TextColumn get id => text()();
-  
+
   /// Display name for the search
   TextColumn get name => text()();
-  
+
   /// The search query/pattern
   TextColumn get query => text()();
-  
+
   /// Search type: 'text', 'tag', 'folder', 'date_range', 'compound'
   TextColumn get searchType => text().withDefault(const Constant('text'))();
-  
+
   /// Optional parameters as JSON (e.g., date ranges, folder IDs, etc.)
   TextColumn get parameters => text().nullable()();
-  
+
   /// Display order for the saved searches
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
-  
+
   /// Optional color for display (hex format)
   TextColumn get color => text().nullable()();
-  
+
   /// Optional icon name for display
   TextColumn get icon => text().nullable()();
-  
+
   /// Whether this search is pinned/favorited
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
-  
+
   /// Creation timestamp
   DateTimeColumn get createdAt => dateTime()();
-  
+
   /// Last used timestamp
   DateTimeColumn get lastUsedAt => dateTime().nullable()();
-  
+
   /// Usage count for sorting by frequency
   IntColumn get usageCount => integer().withDefault(const Constant(0))();
 
@@ -335,7 +336,19 @@ class SavedSearches extends Table {
 /// ----------------------
 /// Database
 /// ----------------------
-@DriftDatabase(tables: [LocalNotes, PendingOps, NoteTags, NoteLinks, NoteReminders, NoteTasks, LocalFolders, NoteFolders, SavedSearches])
+@DriftDatabase(
+  tables: [
+    LocalNotes,
+    PendingOps,
+    NoteTags,
+    NoteLinks,
+    NoteReminders,
+    NoteTasks,
+    LocalFolders,
+    NoteFolders,
+    SavedSearches,
+  ],
+)
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
@@ -344,111 +357,111 @@ class AppDb extends _$AppDb {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
+    onCreate: (m) async {
+      await m.createAll();
 
-          // FTS table with folder_path support
-          await customStatement(
-            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
-          );
-
-          // Triggers: local_notes <-> fts_notes sync
-          await _createFtsTriggers();
-          
-          // Triggers: folder path sync
-          await _createFolderSyncTriggers();
-
-          // Indexes
-          await _createIndexes();
-          await _createReminderIndexes();
-          await _createFolderIndexes();
-          await _createTaskIndexes();
-          await _createSavedSearchIndexes();
-
-          // Seed existing data to FTS
-          await customStatement(
-            'INSERT INTO fts_notes(id, title, body, folder_path) '
-            'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0',
-          );
-        },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(noteTags);
-            await m.createTable(noteLinks);
-          }
-          // FTS tablosu ve tetikleyiciler/indeksler
-          await customStatement(
-            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
-          );
-          if (from < 3) {
-            await _createFtsTriggers();
-            await _createIndexes();
-            await customStatement('DELETE FROM fts_notes');
-            await customStatement(
-              'INSERT INTO fts_notes(id, title, body) '
-              'SELECT id, title, body FROM local_notes WHERE deleted = 0',
-            );
-          }
-          if (from < 4) {
-            await m.createTable(noteReminders);
-            await _createReminderIndexes();
-          }
-          if (from < 5) {
-            // Migration from simple reminders to advanced reminders
-            await _migrateToAdvancedReminders(m);
-            await _createAdvancedReminderIndexes();
-          }
-          if (from < 6) {
-            // Add folder system tables
-            await m.createTable(localFolders);
-            await m.createTable(noteFolders);
-            
-            // Create folder indexes for performance
-            await _createFolderIndexes();
-            
-            // Update FTS to include folder path
-            await _updateFtsForFolders();
-            
-            // Create default "Unfiled" folder for existing notes (optional)
-            await _createDefaultFolders();
-          }
-          if (from < 7) {
-            // Add metadata column for attachment and email information persistence
-            await m.addColumn(localNotes, localNotes.encryptedMetadata);
-          }
-          if (from < 8) {
-            // Version 8: Enhanced folder system, pinning, and saved searches
-            
-            // 1. Add is_pinned column to local_notes for pinning functionality
-            await m.addColumn(localNotes, localNotes.isPinned);
-            
-            // 2. Create saved_searches table for persisting user queries
-            await m.createTable(savedSearches);
-            
-            // 3. Create triggers to keep fts_notes.folder_path in sync
-            await _createFolderSyncTriggers();
-            
-            // 4. Create indexes for saved searches
-            await _createSavedSearchIndexes();
-            
-            // 5. Update existing notes in FTS with folder paths
-            await _syncExistingFolderPaths();
-          }
-          if (from < 9) {
-            // Version 9: Add note tasks table for task management
-            await m.createTable(noteTasks);
-            
-            // Create indexes for task queries
-            await _createTaskIndexes();
-            
-            // Parse existing notes and extract tasks from checkboxes
-            await _extractTasksFromExistingNotes();
-            
-            // Backfill content_hash for any existing tasks with stable hash
-            await _backfillTaskContentHash();
-          }
-        },
+      // FTS table with folder_path support
+      await customStatement(
+        'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
       );
+
+      // Triggers: local_notes <-> fts_notes sync
+      await _createFtsTriggers();
+
+      // Triggers: folder path sync
+      await _createFolderSyncTriggers();
+
+      // Indexes
+      await _createIndexes();
+      await _createReminderIndexes();
+      await _createFolderIndexes();
+      await _createTaskIndexes();
+      await _createSavedSearchIndexes();
+
+      // Seed existing data to FTS
+      await customStatement(
+        'INSERT INTO fts_notes(id, title, body, folder_path) '
+        'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0',
+      );
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(noteTags);
+        await m.createTable(noteLinks);
+      }
+      // FTS tablosu ve tetikleyiciler/indeksler
+      await customStatement(
+        'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
+      );
+      if (from < 3) {
+        await _createFtsTriggers();
+        await _createIndexes();
+        await customStatement('DELETE FROM fts_notes');
+        await customStatement(
+          'INSERT INTO fts_notes(id, title, body) '
+          'SELECT id, title, body FROM local_notes WHERE deleted = 0',
+        );
+      }
+      if (from < 4) {
+        await m.createTable(noteReminders);
+        await _createReminderIndexes();
+      }
+      if (from < 5) {
+        // Migration from simple reminders to advanced reminders
+        await _migrateToAdvancedReminders(m);
+        await _createAdvancedReminderIndexes();
+      }
+      if (from < 6) {
+        // Add folder system tables
+        await m.createTable(localFolders);
+        await m.createTable(noteFolders);
+
+        // Create folder indexes for performance
+        await _createFolderIndexes();
+
+        // Update FTS to include folder path
+        await _updateFtsForFolders();
+
+        // Create default "Unfiled" folder for existing notes (optional)
+        await _createDefaultFolders();
+      }
+      if (from < 7) {
+        // Add metadata column for attachment and email information persistence
+        await m.addColumn(localNotes, localNotes.encryptedMetadata);
+      }
+      if (from < 8) {
+        // Version 8: Enhanced folder system, pinning, and saved searches
+
+        // 1. Add is_pinned column to local_notes for pinning functionality
+        await m.addColumn(localNotes, localNotes.isPinned);
+
+        // 2. Create saved_searches table for persisting user queries
+        await m.createTable(savedSearches);
+
+        // 3. Create triggers to keep fts_notes.folder_path in sync
+        await _createFolderSyncTriggers();
+
+        // 4. Create indexes for saved searches
+        await _createSavedSearchIndexes();
+
+        // 5. Update existing notes in FTS with folder paths
+        await _syncExistingFolderPaths();
+      }
+      if (from < 9) {
+        // Version 9: Add note tasks table for task management
+        await m.createTable(noteTasks);
+
+        // Create indexes for task queries
+        await _createTaskIndexes();
+
+        // Parse existing notes and extract tasks from checkboxes
+        await _extractTasksFromExistingNotes();
+
+        // Backfill content_hash for any existing tasks with stable hash
+        await _backfillTaskContentHash();
+      }
+    },
+  );
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -501,7 +514,7 @@ class AppDb extends _$AppDb {
   Future<void> _migrateToAdvancedReminders(Migrator m) async {
     // Drop the old table if it exists (since we're changing the schema significantly)
     await customStatement('DROP TABLE IF EXISTS note_reminders');
-    
+
     // Create the new advanced table
     await m.createTable(noteReminders);
   }
@@ -572,9 +585,11 @@ class AppDb extends _$AppDb {
     final wordStart = '% $q%';
 
     return (select(localNotes)
-          ..where((t) =>
-              t.deleted.equals(false) &
-              (t.title.like(startsWith) | t.title.like(wordStart)))
+          ..where(
+            (t) =>
+                t.deleted.equals(false) &
+                (t.title.like(startsWith) | t.title.like(wordStart)),
+          )
           ..orderBy([(t) => OrderingTerm.asc(t.title)])
           ..limit(limit))
         .get();
@@ -593,16 +608,16 @@ class AppDb extends _$AppDb {
     required int limit,
   }) {
     final query = select(localNotes)..where((t) => t.deleted.equals(false));
-    
+
     // If cursor is provided, get notes older than cursor
     if (cursor != null) {
       query.where((t) => t.updatedAt.isSmallerThanValue(cursor));
     }
-    
+
     query
       ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
       ..limit(limit);
-    
+
     return query.get();
   }
 
@@ -661,21 +676,31 @@ class AppDb extends _$AppDb {
   }
 
   /// Get notes in folder with pinned first
-  Future<List<LocalNote>> getNotesInFolderWithPinned(String folderId, {int? limit, DateTime? cursor}) {
-    final query = select(localNotes).join([
-      leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
-    ])
-      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId));
-    
+  Future<List<LocalNote>> getNotesInFolderWithPinned(
+    String folderId, {
+    int? limit,
+    DateTime? cursor,
+  }) {
+    final query =
+        select(localNotes).join([
+          leftOuterJoin(
+            noteFolders,
+            noteFolders.noteId.equalsExp(localNotes.id),
+          ),
+        ])..where(
+          localNotes.deleted.equals(false) &
+              noteFolders.folderId.equals(folderId),
+        );
+
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
     }
-    
+
     query.orderBy([
       OrderingTerm.desc(localNotes.isPinned),
       OrderingTerm.desc(localNotes.updatedAt),
     ]);
-    
+
     if (limit != null) {
       query.limit(limit);
     }
@@ -710,9 +735,9 @@ class AppDb extends _$AppDb {
   }
 
   Future<List<PendingOp>> dequeueAll() async {
-    final ops = await (select(pendingOps)
-          ..orderBy([(o) => OrderingTerm.asc(o.id)]))
-        .get();
+    final ops = await (select(
+      pendingOps,
+    )..orderBy([(o) => OrderingTerm.asc(o.id)])).get();
     await delete(pendingOps).go();
     return ops;
   }
@@ -732,8 +757,9 @@ class AppDb extends _$AppDb {
   }
 
   Future<Set<String>> getLocalActiveNoteIds() async {
-    final rows =
-        await (select(localNotes)..where((t) => t.deleted.equals(false))).get();
+    final rows = await (select(
+      localNotes,
+    )..where((t) => t.deleted.equals(false))).get();
     return rows.map((e) => e.id).toSet();
   }
 
@@ -749,7 +775,7 @@ class AppDb extends _$AppDb {
             .map((t) => t.trim().toLowerCase())
             .where((t) => t.isNotEmpty)
             .toSet();
-        
+
         await batch((b) {
           b.insertAll(
             noteTags,
@@ -762,7 +788,10 @@ class AppDb extends _$AppDb {
     });
   }
 
-  Future<void> replaceLinksForNote(String noteId, List<Map<String, String?>> links) async {
+  Future<void> replaceLinksForNote(
+    String noteId,
+    List<Map<String, String?>> links,
+  ) async {
     await transaction(() async {
       await (delete(noteLinks)..where((t) => t.sourceId.equals(noteId))).go();
       if (links.isNotEmpty) {
@@ -811,37 +840,39 @@ class AppDb extends _$AppDb {
       readsFrom: {noteTags, localNotes},
     ).get();
 
-    return rows.map((r) => TagCount(
-      tag: r.read<String>('tag'),
-      count: r.read<int>('count'),
-    )).toList();
+    return rows
+        .map(
+          (r) =>
+              TagCount(tag: r.read<String>('tag'), count: r.read<int>('count')),
+        )
+        .toList();
   }
 
   /// Add tag to note (normalized, idempotent)
   Future<void> addTagToNote(String noteId, String rawTag) async {
     final tag = rawTag.trim().toLowerCase();
-    
+
     await into(noteTags).insert(
       NoteTag(noteId: noteId, tag: tag),
-      mode: InsertMode.insertOrIgnore,  // idempotent
+      mode: InsertMode.insertOrIgnore, // idempotent
     );
   }
 
   /// Remove tag from note
   Future<void> removeTagFromNote(String noteId, String rawTag) async {
     final tag = rawTag.trim().toLowerCase();
-    await (delete(noteTags)
-      ..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag)))
-      .go();
+    await (delete(
+      noteTags,
+    )..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag))).go();
   }
 
   /// Rename/merge tag across all notes
   Future<int> renameTagEverywhere(String fromRaw, String toRaw) async {
     final from = fromRaw.trim().toLowerCase();
     final to = toRaw.trim().toLowerCase();
-    
+
     if (from == to) return 0;
-    
+
     // Use custom update to handle potential conflicts
     return customUpdate(
       'UPDATE OR IGNORE note_tags SET tag = ? WHERE tag = ?',
@@ -853,8 +884,8 @@ class AppDb extends _$AppDb {
   /// Filter notes by tags (union of anyTags, excluding noneTags)
   Future<List<LocalNote>> notesByTags({
     required List<String> anyTags,
+    required SortSpec sort,
     List<String> noneTags = const [],
-    required SortSpec sort, // reuse your sort object
   }) async {
     final tagsAny = anyTags.map((t) => t.trim().toLowerCase()).toList();
     final tagsNone = noneTags.map((t) => t.trim().toLowerCase()).toList();
@@ -880,41 +911,48 @@ class AppDb extends _$AppDb {
   }
 
   /// Helper to apply pinned-first and sorting
-  void _applyPinnedFirstAndSort(SimpleSelectStatement<LocalNotes, LocalNote> q, SortSpec sort) {
+  void _applyPinnedFirstAndSort(
+    SimpleSelectStatement<LocalNotes, LocalNote> q,
+    SortSpec sort,
+  ) {
     final orderFuncs = <OrderingTerm Function(LocalNotes)>[];
-    
+
     // Pinned first if enabled
     if (sort.pinnedFirst) {
       orderFuncs.add((n) => OrderingTerm.desc(n.isPinned));
     }
-    
+
     // Apply sort field
     switch (sort.sortBy) {
       case SortBy.title:
-        orderFuncs.add((n) => OrderingTerm(
-          expression: n.title,
-          mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-        ));
+        orderFuncs.add(
+          (n) => OrderingTerm(
+            expression: n.title,
+            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        );
         break;
       case SortBy.createdAt:
       case SortBy.updatedAt:
       default:
-        orderFuncs.add((n) => OrderingTerm(
-          expression: n.updatedAt,
-          mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-        ));
+        orderFuncs.add(
+          (n) => OrderingTerm(
+            expression: n.updatedAt,
+            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        );
         break;
     }
-    
+
     q.orderBy(orderFuncs);
   }
 
   /// Search tags by prefix (normalized)
   Future<List<String>> searchTags(String prefix) async {
     if (prefix.trim().isEmpty) return distinctTags();
-    
+
     final normalizedPrefix = prefix.trim().toLowerCase();
-    
+
     final rows = await customSelect(
       '''
       SELECT DISTINCT t.tag AS tag
@@ -934,7 +972,7 @@ class AppDb extends _$AppDb {
   Future<List<LocalNote>> notesWithTag(String tag) async {
     // Normalize tag for query
     final normalizedTag = tag.trim().toLowerCase();
-    
+
     final list = await customSelect(
       '''
       SELECT n.*
@@ -953,48 +991,49 @@ class AppDb extends _$AppDb {
   /// Get notes for saved search with authoritative filtering
   /// Debug method to check metadata content
   Future<void> debugMetadata() async {
-    print('=== DEBUG METADATA ===');
+    debugPrint('=== DEBUG METADATA ===');
     final allNotes = await select(localNotes).get();
-    print('Total notes: ${allNotes.length}');
-    
+    debugPrint('Total notes: ${allNotes.length}');
+
     for (final note in allNotes) {
-      if (note.encryptedMetadata != null && note.encryptedMetadata!.isNotEmpty) {
-        print('\nNote: ${note.title}');
-        print('Raw metadata: ${note.encryptedMetadata}');
-        
+      if (note.encryptedMetadata != null &&
+          note.encryptedMetadata!.isNotEmpty) {
+        debugPrint('\nNote: ${note.title}');
+        debugPrint('Raw metadata: ${note.encryptedMetadata}');
+
         try {
           final meta = jsonDecode(note.encryptedMetadata!);
           final source = meta['source'];
           if (source != null) {
-            print('  Source: $source');
+            debugPrint('  Source: $source');
           }
           if (meta['attachments'] != null) {
-            print('  Has attachments: ${meta['attachments']}');
+            debugPrint('  Has attachments: ${meta['attachments']}');
           }
         } catch (e) {
-          print('  Error parsing: $e');
+          debugPrint('  Error parsing: $e');
         }
       }
     }
-    
+
     // Test simpler queries
     final emailCount = await customSelect(
-      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%email_in%'"
+      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%email_in%'",
     ).getSingle();
-    print('\nNotes with "email_in": ${emailCount.data['cnt']}');
-    
+    debugPrint('\nNotes with "email_in": ${emailCount.data['cnt']}');
+
     final webCount = await customSelect(
-      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%web%'"
+      "SELECT COUNT(*) as cnt FROM local_notes WHERE encrypted_metadata LIKE '%web%'",
     ).getSingle();
-    print('Notes with "web": ${webCount.data['cnt']}');
+    debugPrint('Notes with "web": ${webCount.data['cnt']}');
   }
-  
+
   /// Combines metadata, tags, and content checks to prevent false negatives
   Future<List<LocalNote>> notesForSavedSearch({
     required String savedSearchKey,
   }) async {
     String query;
-    
+
     switch (savedSearchKey) {
       case 'attachments':
         // Get notes with attachments OR tagged #Attachment (case-insensitive)
@@ -1012,7 +1051,7 @@ class AppDb extends _$AppDb {
           )
           ORDER BY n.updated_at DESC
         ''';
-        
+
       case 'emailNotes':
         // Get notes from email source OR tagged #Email (case-insensitive)
         query = '''
@@ -1029,7 +1068,7 @@ class AppDb extends _$AppDb {
           )
           ORDER BY n.updated_at DESC
         ''';
-        
+
       case 'webNotes':
         // Get notes from web source OR tagged #Web (case-insensitive)
         query = '''
@@ -1046,12 +1085,12 @@ class AppDb extends _$AppDb {
           )
           ORDER BY n.updated_at DESC
         ''';
-        
+
       default:
         // Fallback to empty list for unknown keys
         return [];
     }
-    
+
     final list = await customSelect(
       query,
       readsFrom: {localNotes, noteTags},
@@ -1069,11 +1108,11 @@ class AppDb extends _$AppDb {
         if (meta['attachments'] != null) return true;
       } catch (_) {}
     }
-    
+
     // Check body for #Attachment tag
     return note.body.contains('#Attachment');
   }
-  
+
   /// Helper method to check if a note is from email source (for in-memory filtering)
   static bool noteIsFromEmail(LocalNote note) {
     // Check metadata source
@@ -1086,11 +1125,11 @@ class AppDb extends _$AppDb {
         }
       } catch (_) {}
     }
-    
+
     // Check body for #Email tag
     return note.body.contains('#Email');
   }
-  
+
   /// Helper method to check if a note is from web source (for in-memory filtering)
   static bool noteIsFromWeb(LocalNote note) {
     // Check metadata source
@@ -1100,22 +1139,22 @@ class AppDb extends _$AppDb {
         if (meta['source'] == 'web') return true;
       } catch (_) {}
     }
-    
+
     // Check body for #Web tag
     return note.body.contains('#Web');
   }
 
   Future<List<BacklinkPair>> backlinksWithSources(String targetTitle) async {
-    final links = await (select(noteLinks)
-          ..where((l) => l.targetTitle.equals(targetTitle)))
-        .get();
+    final links = await (select(
+      noteLinks,
+    )..where((l) => l.targetTitle.equals(targetTitle))).get();
 
     if (links.isEmpty) return const <BacklinkPair>[];
 
     final sourceIds = links.map((l) => l.sourceId).toSet().toList();
-    final sources = await (select(localNotes)
-          ..where((n) => n.deleted.equals(false) & n.id.isIn(sourceIds)))
-        .get();
+    final sources = await (select(
+      localNotes,
+    )..where((n) => n.deleted.equals(false) & n.id.isIn(sourceIds))).get();
 
     final byId = {for (final n in sources) n.id: n};
     return links
@@ -1133,10 +1172,11 @@ class AppDb extends _$AppDb {
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .map((t) {
-      var s = t.replaceAll('"', '').replaceAll("'", '');
-      if (!s.endsWith('*')) s = '$s*';
-      return s;
-    }).toList();
+          var s = t.replaceAll('"', '').replaceAll("'", '');
+          if (!s.endsWith('*')) s = '$s*';
+          return s;
+        })
+        .toList();
     if (parts.isEmpty) return '';
     // Tüm kelimeler eşleşsin
     return parts.join(' AND ');
@@ -1158,9 +1198,9 @@ class AppDb extends _$AppDb {
       final needle = q.substring(1).trim();
       if (needle.isEmpty) return allNotes();
 
-      final tagRows = await (select(noteTags)
-            ..where((t) => t.tag.like(likeWrap(needle))))
-          .get();
+      final tagRows = await (select(
+        noteTags,
+      )..where((t) => t.tag.like(likeWrap(needle)))).get();
 
       final ids = tagRows.map((e) => e.noteId).toSet().toList();
       if (ids.isEmpty) return const <LocalNote>[];
@@ -1193,9 +1233,11 @@ class AppDb extends _$AppDb {
       // FTS bir nedenden hata verirse LIKE'a dönüş
       final needle = likeWrap(q);
       return (select(localNotes)
-            ..where((t) =>
-                t.deleted.equals(false) &
-                (t.title.like(needle) | t.body.like(needle)))
+            ..where(
+              (t) =>
+                  t.deleted.equals(false) &
+                  (t.title.like(needle) | t.body.like(needle)),
+            )
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
           .get();
     }
@@ -1204,11 +1246,11 @@ class AppDb extends _$AppDb {
   // ----------------------
   // Advanced Reminders
   // ----------------------
-  
+
   /// Get all reminders for a specific note
-  Future<List<NoteReminder>> getRemindersForNote(String noteId) =>
-      (select(noteReminders)..where((r) => r.noteId.equals(noteId) & r.isActive.equals(true)))
-          .get();
+  Future<List<NoteReminder>> getRemindersForNote(String noteId) => (select(
+    noteReminders,
+  )..where((r) => r.noteId.equals(noteId) & r.isActive.equals(true))).get();
 
   /// Get a specific reminder by ID
   Future<NoteReminder?> getReminderById(int id) =>
@@ -1231,49 +1273,55 @@ class AppDb extends _$AppDb {
       (delete(noteReminders)..where((r) => r.noteId.equals(noteId))).go();
 
   /// Get all active time-based reminders due before a specific time
-  Future<List<NoteReminder>> getTimeRemindersToTrigger({required DateTime before}) =>
-      (select(noteReminders)
-            ..where((r) => 
+  Future<List<NoteReminder>> getTimeRemindersToTrigger({
+    required DateTime before,
+  }) =>
+      (select(noteReminders)..where(
+            (r) =>
                 r.type.equals(ReminderType.time.index) &
                 r.isActive.equals(true) &
                 r.remindAt.isSmallerOrEqualValue(before) &
-                (r.snoozedUntil.isNull() | r.snoozedUntil.isSmallerOrEqualValue(before))))
+                (r.snoozedUntil.isNull() |
+                    r.snoozedUntil.isSmallerOrEqualValue(before)),
+          ))
           .get();
 
   /// Get all active location-based reminders
   Future<List<NoteReminder>> getLocationReminders() =>
-      (select(noteReminders)
-            ..where((r) => 
+      (select(noteReminders)..where(
+            (r) =>
                 r.type.equals(ReminderType.location.index) &
                 r.isActive.equals(true) &
                 r.latitude.isNotNull() &
-                r.longitude.isNotNull()))
+                r.longitude.isNotNull(),
+          ))
           .get();
 
   /// Get all recurring reminders that need to be scheduled
   Future<List<NoteReminder>> getRecurringReminders() =>
-      (select(noteReminders)
-            ..where((r) => 
+      (select(noteReminders)..where(
+            (r) =>
                 r.type.equals(ReminderType.recurring.index) &
                 r.isActive.equals(true) &
-                r.recurrencePattern.isNotValue(RecurrencePattern.none.index)))
+                r.recurrencePattern.isNotValue(RecurrencePattern.none.index),
+          ))
           .get();
 
   // ----------------------
   // Tasks
   // ----------------------
-  
+
   /// Get all tasks for a specific note
   Future<List<NoteTask>> getTasksForNote(String noteId) =>
       (select(noteTasks)
             ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
             ..orderBy([(t) => OrderingTerm.asc(t.position)]))
           .get();
-  
+
   /// Get a specific task by ID
   Future<NoteTask?> getTaskById(String id) =>
       (select(noteTasks)..where((t) => t.id.equals(id))).getSingleOrNull();
-  
+
   /// Get all open tasks with optional filtering
   Future<List<NoteTask>> getOpenTasks({
     DateTime? dueBefore,
@@ -1281,139 +1329,147 @@ class AppDb extends _$AppDb {
     String? parentTaskId,
   }) {
     final query = select(noteTasks)
-      ..where((t) => 
-          t.status.equals(TaskStatus.open.index) & 
-          t.deleted.equals(false));
-    
+      ..where(
+        (t) => t.status.equals(TaskStatus.open.index) & t.deleted.equals(false),
+      );
+
     if (dueBefore != null) {
       query.where((t) => t.dueDate.isSmallerOrEqualValue(dueBefore));
     }
-    
+
     if (priority != null) {
       query.where((t) => t.priority.equals(priority.index));
     }
-    
+
     if (parentTaskId != null) {
       query.where((t) => t.parentTaskId.equals(parentTaskId));
     }
-    
+
     query.orderBy([
       (t) => OrderingTerm.asc(t.dueDate),
       (t) => OrderingTerm.desc(t.priority),
     ]);
-    
+
     return query.get();
   }
-  
+
   /// Get tasks by due date range
   Future<List<NoteTask>> getTasksByDateRange({
     required DateTime start,
     required DateTime end,
   }) =>
       (select(noteTasks)
-            ..where((t) => 
-                t.deleted.equals(false) &
-                t.dueDate.isBetweenValues(start, end))
+            ..where(
+              (t) =>
+                  t.deleted.equals(false) &
+                  t.dueDate.isBetweenValues(start, end),
+            )
             ..orderBy([(t) => OrderingTerm.asc(t.dueDate)]))
           .get();
-  
+
   /// Get overdue tasks
   Future<List<NoteTask>> getOverdueTasks() {
     final now = DateTime.now();
     return (select(noteTasks)
-          ..where((t) => 
-              t.status.equals(TaskStatus.open.index) &
-              t.deleted.equals(false) &
-              t.dueDate.isSmallerThanValue(now))
+          ..where(
+            (t) =>
+                t.status.equals(TaskStatus.open.index) &
+                t.deleted.equals(false) &
+                t.dueDate.isSmallerThanValue(now),
+          )
           ..orderBy([
             (t) => OrderingTerm.desc(t.priority),
             (t) => OrderingTerm.asc(t.dueDate),
           ]))
         .get();
   }
-  
+
   /// Get completed tasks
-  Future<List<NoteTask>> getCompletedTasks({
-    DateTime? since,
-    int? limit,
-  }) {
+  Future<List<NoteTask>> getCompletedTasks({DateTime? since, int? limit}) {
     final query = select(noteTasks)
-      ..where((t) => 
-          t.status.equals(TaskStatus.completed.index) &
-          t.deleted.equals(false));
-    
+      ..where(
+        (t) =>
+            t.status.equals(TaskStatus.completed.index) &
+            t.deleted.equals(false),
+      );
+
     if (since != null) {
       query.where((t) => t.completedAt.isBiggerOrEqualValue(since));
     }
-    
+
     query.orderBy([(t) => OrderingTerm.desc(t.completedAt)]);
-    
+
     if (limit != null) {
       query.limit(limit);
     }
-    
+
     return query.get();
   }
-  
+
   /// Create a new task
   Future<void> createTask(NoteTasksCompanion task) =>
       into(noteTasks).insert(task);
-  
+
   /// Update an existing task
   Future<void> updateTask(String id, NoteTasksCompanion updates) =>
       (update(noteTasks)..where((t) => t.id.equals(id))).write(updates);
-  
+
   /// Mark task as completed
   Future<void> completeTask(String id, {String? completedBy}) =>
-      (update(noteTasks)..where((t) => t.id.equals(id)))
-          .write(NoteTasksCompanion(
-            status: Value(TaskStatus.completed),
-            completedAt: Value(DateTime.now()),
-            completedBy: Value(completedBy),
-            updatedAt: Value(DateTime.now()),
-          ));
-  
+      (update(noteTasks)..where((t) => t.id.equals(id))).write(
+        NoteTasksCompanion(
+          status: const Value(TaskStatus.completed),
+          completedAt: Value(DateTime.now()),
+          completedBy: Value(completedBy),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
   /// Toggle task completion status
   Future<void> toggleTaskStatus(String id) async {
     final task = await getTaskById(id);
     if (task != null) {
-      final newStatus = task.status == TaskStatus.completed 
-          ? TaskStatus.open 
+      final newStatus = task.status == TaskStatus.completed
+          ? TaskStatus.open
           : TaskStatus.completed;
-      
-      await (update(noteTasks)..where((t) => t.id.equals(id)))
-          .write(NoteTasksCompanion(
-            status: Value(newStatus),
-            completedAt: newStatus == TaskStatus.completed 
-                ? Value(DateTime.now()) 
-                : const Value(null),
-            updatedAt: Value(DateTime.now()),
-          ));
+
+      await (update(noteTasks)..where((t) => t.id.equals(id))).write(
+        NoteTasksCompanion(
+          status: Value(newStatus),
+          completedAt: newStatus == TaskStatus.completed
+              ? Value(DateTime.now())
+              : const Value(null),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
     }
   }
-  
+
   /// Delete a specific task
   Future<void> deleteTaskById(String id) =>
       (delete(noteTasks)..where((t) => t.id.equals(id))).go();
-  
+
   /// Delete all tasks for a note
   Future<void> deleteTasksForNote(String noteId) =>
       (delete(noteTasks)..where((t) => t.noteId.equals(noteId))).go();
-  
+
   /// Sync tasks with note content (called when note is saved)
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {
     // Parse note content for checkboxes
     final lines = noteContent.split('\n');
     final taskPositions = <int, _ParsedTask>{};
     var position = 0;
-    
+
     for (final line in lines) {
       final trimmedLine = line.trim();
-      
+
       if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
         final isCompleted = trimmedLine.startsWith('- [x]');
         final content = trimmedLine.substring(5).trim();
-        
+
         if (content.isNotEmpty) {
           taskPositions[position] = _ParsedTask(
             content: content,
@@ -1423,32 +1479,35 @@ class AppDb extends _$AppDb {
         }
       }
     }
-    
+
     // Get existing tasks for this note
     final existingTasks = await getTasksForNote(noteId);
     final existingByPosition = {
-      for (final task in existingTasks) task.position: task
+      for (final task in existingTasks) task.position: task,
     };
-    
+
     // Update or create tasks based on parsed content
     for (final entry in taskPositions.entries) {
       final position = entry.key;
       final parsed = entry.value;
       final contentHash = stableTaskHash(noteId, parsed.content);
-      
+
       final existing = existingByPosition[position];
-      
+
       if (existing != null) {
         // Update existing task if content or status changed
-        if (existing.content != parsed.content || 
+        if (existing.content != parsed.content ||
             (existing.status == TaskStatus.completed) != parsed.isCompleted) {
           await updateTask(
             existing.id,
             NoteTasksCompanion(
               content: Value(parsed.content),
               contentHash: Value(contentHash),
-              status: Value(parsed.isCompleted ? TaskStatus.completed : TaskStatus.open),
-              completedAt: parsed.isCompleted && existing.status != TaskStatus.completed
+              status: Value(
+                parsed.isCompleted ? TaskStatus.completed : TaskStatus.open,
+              ),
+              completedAt:
+                  parsed.isCompleted && existing.status != TaskStatus.completed
                   ? Value(DateTime.now())
                   : const Value.absent(),
               updatedAt: Value(DateTime.now()),
@@ -1465,36 +1524,43 @@ class AppDb extends _$AppDb {
             noteId: noteId,
             content: parsed.content,
             contentHash: contentHash,
-            status: Value(parsed.isCompleted ? TaskStatus.completed : TaskStatus.open),
+            status: Value(
+              parsed.isCompleted ? TaskStatus.completed : TaskStatus.open,
+            ),
             position: Value(position),
-            completedAt: parsed.isCompleted ? Value(DateTime.now()) : const Value.absent(),
+            completedAt: parsed.isCompleted
+                ? Value(DateTime.now())
+                : const Value.absent(),
           ),
         );
       }
     }
-    
+
     // Mark removed tasks as deleted
     for (final task in existingByPosition.values) {
-      await (update(noteTasks)..where((t) => t.id.equals(task.id)))
-          .write(NoteTasksCompanion(
-            deleted: const Value(true),
-            updatedAt: Value(DateTime.now()),
-          ));
+      await (update(noteTasks)..where((t) => t.id.equals(task.id))).write(
+        NoteTasksCompanion(
+          deleted: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
     }
   }
-  
+
   /// Watch all open tasks (for UI updates)
   Stream<List<NoteTask>> watchOpenTasks() =>
       (select(noteTasks)
-            ..where((t) => 
-                t.status.equals(TaskStatus.open.index) &
-                t.deleted.equals(false))
+            ..where(
+              (t) =>
+                  t.status.equals(TaskStatus.open.index) &
+                  t.deleted.equals(false),
+            )
             ..orderBy([
               (t) => OrderingTerm.asc(t.dueDate),
               (t) => OrderingTerm.desc(t.priority),
             ]))
           .watch();
-  
+
   /// Watch tasks for a specific note
   Stream<List<NoteTask>> watchTasksForNote(String noteId) =>
       (select(noteTasks)
@@ -1503,43 +1569,46 @@ class AppDb extends _$AppDb {
           .watch();
 
   /// Get snoozed reminders that are ready to be rescheduled
-  Future<List<NoteReminder>> getSnoozedRemindersToReschedule({required DateTime now}) =>
-      (select(noteReminders)
-            ..where((r) => 
+  Future<List<NoteReminder>> getSnoozedRemindersToReschedule({
+    required DateTime now,
+  }) =>
+      (select(noteReminders)..where(
+            (r) =>
                 r.isActive.equals(true) &
                 r.snoozedUntil.isNotNull() &
-                r.snoozedUntil.isSmallerOrEqualValue(now)))
+                r.snoozedUntil.isSmallerOrEqualValue(now),
+          ))
           .get();
 
   /// Mark a reminder as triggered
   Future<void> markReminderTriggered(int id, {DateTime? triggeredAt}) =>
-      (update(noteReminders)..where((r) => r.id.equals(id)))
-          .write(NoteRemindersCompanion(
-            lastTriggered: Value(triggeredAt ?? DateTime.now().toUtc()),
-                          // Note: trigger_count will be incremented by database trigger
-          ));
+      (update(noteReminders)..where((r) => r.id.equals(id))).write(
+        NoteRemindersCompanion(
+          lastTriggered: Value(triggeredAt ?? DateTime.now().toUtc()),
+          // Note: trigger_count will be incremented by database trigger
+        ),
+      );
 
   /// Snooze a reminder
   Future<void> snoozeReminder(int id, DateTime snoozeUntil) =>
-      (update(noteReminders)..where((r) => r.id.equals(id)))
-          .write(NoteRemindersCompanion(
-            snoozedUntil: Value(snoozeUntil),
-                           // Note: snooze_count will be incremented by database trigger
-          ));
+      (update(noteReminders)..where((r) => r.id.equals(id))).write(
+        NoteRemindersCompanion(
+          snoozedUntil: Value(snoozeUntil),
+          // Note: snooze_count will be incremented by database trigger
+        ),
+      );
 
   /// Clear snooze for a reminder
   Future<void> clearSnooze(int id) =>
-      (update(noteReminders)..where((r) => r.id.equals(id)))
-          .write(const NoteRemindersCompanion(
-            snoozedUntil: Value(null),
-          ));
+      (update(noteReminders)..where((r) => r.id.equals(id))).write(
+        const NoteRemindersCompanion(snoozedUntil: Value(null)),
+      );
 
   /// Deactivate a reminder
   Future<void> deactivateReminder(int id) =>
-      (update(noteReminders)..where((r) => r.id.equals(id)))
-          .write(const NoteRemindersCompanion(
-            isActive: Value(false),
-          ));
+      (update(noteReminders)..where((r) => r.id.equals(id))).write(
+        const NoteRemindersCompanion(isActive: Value(false)),
+      );
 
   /// Get all reminders (for debugging/admin)
   Future<List<NoteReminder>> getAllReminders({bool activeOnly = false}) {
@@ -1571,7 +1640,7 @@ class AppDb extends _$AppDb {
       WHERE is_active = 1
       GROUP BY type
     ''').get();
-    
+
     final stats = <String, int>{};
     for (final row in result) {
       final type = ReminderType.values[row.read<int>('type')];
@@ -1584,7 +1653,7 @@ class AppDb extends _$AppDb {
   /// ----------------------
   /// Folder Migration Methods (v5 → v6)
   /// ----------------------
-  
+
   /// Create indexes for folder performance
   Future<void> _createFolderIndexes() async {
     await customStatement(
@@ -1629,59 +1698,67 @@ class AppDb extends _$AppDb {
 
   Future<void> _extractTasksFromExistingNotes() async {
     // Extract tasks from existing notes that have checkboxes
-    final notes = await (select(localNotes)..where((n) => n.deleted.equals(false))).get();
-    
+    final notes = await (select(
+      localNotes,
+    )..where((n) => n.deleted.equals(false))).get();
+
     for (final note in notes) {
       // Parse note body for checkbox patterns
       final lines = note.body.split('\n');
       var position = 0;
-      
+
       for (final line in lines) {
         final trimmedLine = line.trim();
-        
+
         // Check for markdown checkbox patterns
-        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        if (trimmedLine.startsWith('- [ ]') ||
+            trimmedLine.startsWith('- [x]')) {
           final isCompleted = trimmedLine.startsWith('- [x]');
           final content = trimmedLine.substring(5).trim();
-          
+
           if (content.isNotEmpty) {
-            final taskId = '${note.id}_task_${position}';
+            final taskId = '${note.id}_task_$position';
             // Use stable hash for content
             final contentHash = stableTaskHash(note.id, content);
-            
+
             // Insert task into database
             await into(noteTasks).insertOnConflictUpdate(
               NoteTasksCompanion.insert(
                 id: taskId,
                 noteId: note.id,
                 content: content,
-                status: Value(isCompleted ? TaskStatus.completed : TaskStatus.open),
+                status: Value(
+                  isCompleted ? TaskStatus.completed : TaskStatus.open,
+                ),
                 position: Value(position),
                 contentHash: contentHash,
-                completedAt: isCompleted ? Value(DateTime.now()) : const Value.absent(),
+                completedAt: isCompleted
+                    ? Value(DateTime.now())
+                    : const Value.absent(),
               ),
             );
-            
+
             position++;
           }
         }
       }
     }
   }
-  
+
   Future<void> _backfillTaskContentHash() async {
     // Backfill content_hash for any existing tasks with stable hash
-    final tasks = await (select(noteTasks)..where((t) => t.deleted.equals(false))).get();
-    
+    final tasks = await (select(
+      noteTasks,
+    )..where((t) => t.deleted.equals(false))).get();
+
     for (final task in tasks) {
       // Only update if content_hash seems to be using old hashCode
       if (task.contentHash == task.content.hashCode.toString()) {
         final stableHash = stableTaskHash(task.noteId, task.content);
-        
-        await (update(noteTasks)..where((t) => t.id.equals(task.id)))
-          .write(NoteTasksCompanion(
-            contentHash: Value(stableHash),
-          ));
+
+        await (update(noteTasks)..where((t) => t.id.equals(task.id))).write(
+          NoteTasksCompanion(contentHash: Value(stableHash)),
+        );
       }
     }
   }
@@ -1690,7 +1767,7 @@ class AppDb extends _$AppDb {
   Future<void> _updateFtsForFolders() async {
     // Drop existing FTS table
     await customStatement('DROP TABLE IF EXISTS fts_notes');
-    
+
     // Create new FTS table with folder_path
     await customStatement(
       'CREATE VIRTUAL TABLE fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
@@ -1712,7 +1789,7 @@ class AppDb extends _$AppDb {
   Future<void> _createDefaultFolders() async {
     // Create system folders (optional - could be created on first use instead)
     // For now, we'll leave existing notes unfiled
-    print('📁 Folder system initialized - existing notes remain unfiled');
+    debugPrint('📁 Folder system initialized - existing notes remain unfiled');
   }
 
   /// Create triggers to keep fts_notes.folder_path in sync with folder changes
@@ -1802,14 +1879,17 @@ class AppDb extends _$AppDb {
   }
 
   /// ----------------------
-  /// Folder CRUD Operations  
+  /// Folder CRUD Operations
   /// ----------------------
-  
+
   /// Get all root folders (parent_id is null)
   Future<List<LocalFolder>> getRootFolders() {
     return (select(localFolders)
           ..where((f) => f.deleted.equals(false) & f.parentId.isNull())
-          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+          ..orderBy([
+            (f) => OrderingTerm.asc(f.sortOrder),
+            (f) => OrderingTerm.asc(f.name),
+          ]))
         .get();
   }
 
@@ -1817,13 +1897,18 @@ class AppDb extends _$AppDb {
   Future<List<LocalFolder>> getChildFolders(String parentId) {
     return (select(localFolders)
           ..where((f) => f.deleted.equals(false) & f.parentId.equals(parentId))
-          ..orderBy([(f) => OrderingTerm.asc(f.sortOrder), (f) => OrderingTerm.asc(f.name)]))
+          ..orderBy([
+            (f) => OrderingTerm.asc(f.sortOrder),
+            (f) => OrderingTerm.asc(f.name),
+          ]))
         .get();
   }
 
   /// Get folder by ID
   Future<LocalFolder?> getFolderById(String id) {
-    return (select(localFolders)..where((f) => f.id.equals(id))).getSingleOrNull();
+    return (select(
+      localFolders,
+    )..where((f) => f.id.equals(id))).getSingleOrNull();
   }
 
   /// Insert or update folder
@@ -1838,31 +1923,95 @@ class AppDb extends _$AppDb {
       ..join([
         leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
       ])
-      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId))
+      ..where(
+        localNotes.deleted.equals(false) &
+            noteFolders.folderId.equals(folderId),
+      )
       ..addColumns([countExp]);
-    
+
     final result = await query.getSingle();
     return result.read(countExp) ?? 0;
   }
 
   /// Get notes in a specific folder
-  Future<List<LocalNote>> getNotesInFolder(String folderId, {int? limit, DateTime? cursor}) {
-    final query = select(localNotes).join([
-      leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
-    ])
-      ..where(localNotes.deleted.equals(false) & noteFolders.folderId.equals(folderId));
-    
+  Future<List<LocalNote>> getNotesInFolder(
+    String folderId, {
+    int? limit,
+    DateTime? cursor,
+  }) {
+    final query =
+        select(localNotes).join([
+          leftOuterJoin(
+            noteFolders,
+            noteFolders.noteId.equalsExp(localNotes.id),
+          ),
+        ])..where(
+          localNotes.deleted.equals(false) &
+              noteFolders.folderId.equals(folderId),
+        );
+
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
     }
-    
+
     query.orderBy([OrderingTerm.desc(localNotes.updatedAt)]);
-    
+
     if (limit != null) {
       query.limit(limit);
     }
 
     return query.map((row) => row.readTable(localNotes)).get();
+  }
+
+  /// Batch fetch note counts for all folders
+  Future<Map<String, int>> getFolderNoteCounts() async {
+    final counts = <String, int>{};
+    final folderIdColumn = noteFolders.folderId;
+    final countColumn = folderIdColumn.count();
+
+    final query =
+        await (selectOnly(noteFolders)
+              ..join([
+                innerJoin(
+                  localNotes,
+                  localNotes.id.equalsExp(noteFolders.noteId),
+                ),
+              ])
+              ..where(localNotes.deleted.equals(false))
+              ..addColumns([folderIdColumn, countColumn])
+              ..groupBy([folderIdColumn]))
+            .get();
+
+    for (final row in query) {
+      final folderId = row.read(folderIdColumn);
+      final count = row.read(countColumn) ?? 0;
+      if (folderId != null) {
+        counts[folderId] = count;
+      }
+    }
+
+    return counts;
+  }
+
+  /// Remove orphaned note-folder relationships (notes or folders deleted)
+  Future<void> cleanupOrphanedRelationships() async {
+    final relations = await select(noteFolders).get();
+
+    for (final rel in relations) {
+      final note = await getNote(rel.noteId);
+      final folder = await (select(
+        localFolders,
+      )..where((f) => f.id.equals(rel.folderId))).getSingleOrNull();
+
+      if (note == null || folder == null) {
+        await (delete(noteFolders)..where(
+              (nf) =>
+                  nf.noteId.equals(rel.noteId) &
+                  nf.folderId.equals(rel.folderId),
+            ))
+            .go();
+      }
+    }
   }
 
   /// Get a single note by ID
@@ -1881,15 +2030,14 @@ class AppDb extends _$AppDb {
   Future<List<LocalNote>> getUnfiledNotes({int? limit, DateTime? cursor}) {
     final query = select(localNotes).join([
       leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
-    ])
-      ..where(localNotes.deleted.equals(false) & noteFolders.noteId.isNull());
-    
+    ])..where(localNotes.deleted.equals(false) & noteFolders.noteId.isNull());
+
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
     }
-    
+
     query.orderBy([OrderingTerm.desc(localNotes.updatedAt)]);
-    
+
     if (limit != null) {
       query.limit(limit);
     }
@@ -1918,7 +2066,7 @@ class AppDb extends _$AppDb {
   Future<List<String>> getNoteIdsInFolder(String folderId) async {
     final query = select(noteFolders)
       ..where((nf) => nf.folderId.equals(folderId));
-    
+
     final results = await query.get();
     return results.map((nf) => nf.noteId).toList();
   }
@@ -1941,7 +2089,7 @@ class AppDb extends _$AppDb {
     while (currentId != null) {
       final folder = await getFolderById(currentId);
       if (folder == null) break;
-      
+
       pathParts.insert(0, folder.name);
       currentId = folder.parentId;
     }
@@ -1958,9 +2106,9 @@ class AppDb extends _$AppDb {
 
   /// Get all folders (active and deleted for sync purposes)
   Future<List<LocalFolder>> allFolders() {
-    return (select(localFolders)
-          ..orderBy([(f) => OrderingTerm.asc(f.path)]))
-        .get();
+    return (select(
+      localFolders,
+    )..orderBy([(f) => OrderingTerm.asc(f.path)])).get();
   }
 
   /// Get all active folders
@@ -1991,22 +2139,24 @@ class AppDb extends _$AppDb {
 
   /// Get local active note IDs (for repository sync)
   Future<Set<String>> getActiveNoteIds() async {
-    final notes = await (select(localNotes)
-          ..where((n) => n.deleted.equals(false)))
-        .get();
+    final notes = await (select(
+      localNotes,
+    )..where((n) => n.deleted.equals(false))).get();
     return notes.map((n) => n.id).toSet();
   }
 
   /// Get local active folder IDs
   Future<Set<String>> getLocalActiveFolderIds() async {
-    final folders = await (select(localFolders)
-          ..where((f) => f.deleted.equals(false)))
-        .get();
+    final folders = await (select(
+      localFolders,
+    )..where((f) => f.deleted.equals(false))).get();
     return folders.map((f) => f.id).toSet();
   }
 
   /// Get recently updated folders
-  Future<List<LocalFolder>> getRecentlyUpdatedFolders({required DateTime since}) {
+  Future<List<LocalFolder>> getRecentlyUpdatedFolders({
+    required DateTime since,
+  }) {
     return (select(localFolders)
           ..where((f) => f.updatedAt.isBiggerThanValue(since))
           ..orderBy([(f) => OrderingTerm.desc(f.updatedAt)]))
@@ -2027,7 +2177,7 @@ class AppDb extends _$AppDb {
     final query = selectOnly(noteFolders)
       ..addColumns([noteFolders.noteId.count()])
       ..where(noteFolders.folderId.equals(folderId));
-    
+
     final result = await query.getSingleOrNull();
     return result?.read(noteFolders.noteId.count()) ?? 0;
   }
@@ -2037,10 +2187,11 @@ class AppDb extends _$AppDb {
     var depth = 0;
     String? currentId = folderId;
 
-    while (currentId != null && depth < 100) { // Safety limit
+    while (currentId != null && depth < 100) {
+      // Safety limit
       final folder = await findFolder(currentId);
       if (folder == null || folder.parentId == null) break;
-      
+
       currentId = folder.parentId;
       depth++;
     }
@@ -2060,7 +2211,7 @@ class AppDb extends _$AppDb {
     final root = await findFolder(rootId);
     if (root != null) {
       result.add(root);
-      
+
       final children = await getChildFolders(rootId);
       for (final child in children) {
         final subtree = await getFolderSubtree(child.id);
@@ -2073,17 +2224,15 @@ class AppDb extends _$AppDb {
   /// Search folders by name
   Future<List<LocalFolder>> searchFolders(String query) {
     return (select(localFolders)
-          ..where((f) => f.deleted.equals(false) & 
-                         f.name.contains(query))
+          ..where((f) => f.deleted.equals(false) & f.name.contains(query))
           ..orderBy([(f) => OrderingTerm.asc(f.name)]))
         .get();
   }
-  
+
   /// Find folder by exact name
   Future<LocalFolder?> findFolderByName(String name) async {
     return (select(localFolders)
-          ..where((f) => f.deleted.equals(false) & 
-                         f.name.equals(name)))
+          ..where((f) => f.deleted.equals(false) & f.name.equals(name)))
         .getSingleOrNull();
   }
 
@@ -2098,12 +2247,11 @@ class AppDb extends _$AppDb {
 
   /// Get all saved searches ordered by pinned status and sort order
   Future<List<SavedSearch>> getSavedSearches() {
-    return (select(savedSearches)
-          ..orderBy([
-            (s) => OrderingTerm.desc(s.isPinned),
-            (s) => OrderingTerm.asc(s.sortOrder),
-            (s) => OrderingTerm.desc(s.usageCount),
-          ]))
+    return (select(savedSearches)..orderBy([
+          (s) => OrderingTerm.desc(s.isPinned),
+          (s) => OrderingTerm.asc(s.sortOrder),
+          (s) => OrderingTerm.desc(s.usageCount),
+        ]))
         .get();
   }
 
@@ -2120,8 +2268,9 @@ class AppDb extends _$AppDb {
 
   /// Get a saved search by ID
   Future<SavedSearch?> getSavedSearchById(String id) {
-    return (select(savedSearches)..where((s) => s.id.equals(id)))
-        .getSingleOrNull();
+    return (select(
+      savedSearches,
+    )..where((s) => s.id.equals(id))).getSingleOrNull();
   }
 
   /// Delete a saved search
@@ -2146,9 +2295,9 @@ class AppDb extends _$AppDb {
   Future<void> toggleSavedSearchPin(String id) async {
     final search = await getSavedSearchById(id);
     if (search != null) {
-      await into(savedSearches).insertOnConflictUpdate(
-        search.copyWith(isPinned: !search.isPinned),
-      );
+      await into(
+        savedSearches,
+      ).insertOnConflictUpdate(search.copyWith(isPinned: !search.isPinned));
     }
   }
 
@@ -2157,21 +2306,20 @@ class AppDb extends _$AppDb {
     for (var i = 0; i < orderedIds.length; i++) {
       final search = await getSavedSearchById(orderedIds[i]);
       if (search != null) {
-        await into(savedSearches).insertOnConflictUpdate(
-          search.copyWith(sortOrder: i),
-        );
+        await into(
+          savedSearches,
+        ).insertOnConflictUpdate(search.copyWith(sortOrder: i));
       }
     }
   }
 
   /// Watch saved searches stream
   Stream<List<SavedSearch>> watchSavedSearches() {
-    return (select(savedSearches)
-          ..orderBy([
-            (s) => OrderingTerm.desc(s.isPinned),
-            (s) => OrderingTerm.asc(s.sortOrder),
-            (s) => OrderingTerm.desc(s.usageCount),
-          ]))
+    return (select(savedSearches)..orderBy([
+          (s) => OrderingTerm.desc(s.isPinned),
+          (s) => OrderingTerm.asc(s.sortOrder),
+          (s) => OrderingTerm.desc(s.usageCount),
+        ]))
         .watch();
   }
 
@@ -2186,13 +2334,9 @@ class AppDb extends _$AppDb {
 
 /// Helper class for parsing tasks from markdown
 class _ParsedTask {
+  const _ParsedTask({required this.content, required this.isCompleted});
   final String content;
   final bool isCompleted;
-  
-  const _ParsedTask({
-    required this.content,
-    required this.isCompleted,
-  });
 }
 
 /// ----------------------

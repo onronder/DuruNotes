@@ -5,7 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class NoteLinkBlockWidget extends ConsumerStatefulWidget {
   const NoteLinkBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNoteSelected, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    required this.onNoteSelected,
+    super.key,
   });
 
   final NoteBlock block;
@@ -15,7 +20,8 @@ class NoteLinkBlockWidget extends ConsumerStatefulWidget {
   final Function(LocalNote) onNoteSelected;
 
   @override
-  ConsumerState<NoteLinkBlockWidget> createState() => _NoteLinkBlockWidgetState();
+  ConsumerState<NoteLinkBlockWidget> createState() =>
+      _NoteLinkBlockWidgetState();
 }
 
 class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
@@ -33,7 +39,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
   @override
   void didUpdateWidget(NoteLinkBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _parseNoteLinkData();
       _loadLinkedNote();
@@ -123,20 +129,16 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.note,
-                size: 20,
-                color: Colors.purple.shade600,
-              ),
+              Icon(Icons.note, size: 20, color: Colors.purple.shade600),
               const SizedBox(width: 12),
-              
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _linkedNote!.title.isNotEmpty 
-                          ? _linkedNote!.title 
+                      _linkedNote!.title.isNotEmpty
+                          ? _linkedNote!.title
                           : 'Untitled Note',
                       style: TextStyle(
                         color: Colors.purple.shade600,
@@ -168,7 +170,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                   ],
                 ),
               ),
-              
+
               // Actions
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -206,13 +208,9 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.note_add,
-                size: 20,
-                color: Colors.grey.shade500,
-              ),
+              Icon(Icons.note_add, size: 20, color: Colors.grey.shade500),
               const SizedBox(width: 12),
-              
+
               Expanded(
                 child: Text(
                   'Link to another note...',
@@ -222,7 +220,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                   ),
                 ),
               ),
-              
+
               Icon(
                 Icons.arrow_forward_ios,
                 size: 12,
@@ -267,48 +265,48 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
               ],
             ),
           ),
-          
-                      // Notes List - Simple placeholder for now
-            SizedBox(
-              height: 200,
-              child: Consumer(
-                builder: (context, ref, child) {
-                  final notesAsync = ref.watch(currentNotesProvider);
-                  
-                  // Simple list handling without .when method
-                  final notes = notesAsync;
-                  if (notes.isEmpty) {
-                    return const Center(
-                      child: Text('No notes available'),
+
+          // Notes List - Simple placeholder for now
+          SizedBox(
+            height: 200,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final notesAsync = ref.watch(currentNotesProvider);
+
+                // Simple list handling without .when method
+                final notes = notesAsync;
+                if (notes.isEmpty) {
+                  return const Center(child: Text('No notes available'));
+                }
+
+                return ListView.builder(
+                  itemCount: notes.length,
+                  itemBuilder: (context, index) {
+                    final note = notes[index];
+                    return ListTile(
+                      leading: const Icon(Icons.note, size: 16),
+                      title: Text(
+                        note.title.isNotEmpty ?? false
+                            ? note.title
+                            : 'Untitled',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: note.body.isNotEmpty ?? false
+                          ? Text(
+                              note.body,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )
+                          : null,
+                      onTap: () => _selectNote(note),
+                      dense: true,
                     );
-                  }
-                  
-                  return ListView.builder(
-                    itemCount: notes.length,
-                    itemBuilder: (context, index) {
-                      final note = notes[index];
-                      return ListTile(
-                        leading: const Icon(Icons.note, size: 16),
-                        title: Text(
-                          note.title.isNotEmpty ?? false ? note.title : 'Untitled',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: note.body.isNotEmpty ?? false
-                            ? Text(
-                                note.body,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : null,
-                        onTap: () => _selectNote(note),
-                        dense: true,
-                      );
-                    },
-                  );
-                                },
-              ),
+                  },
+                );
+              },
             ),
+          ),
         ],
       ),
     );
@@ -317,7 +315,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 7) {
       return '${date.day}/${date.month}/${date.year}';
     } else if (difference.inDays > 0) {

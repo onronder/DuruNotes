@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/tag_notes_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // TODO: Generate localization files
 
 class TagsScreen extends ConsumerStatefulWidget {
@@ -53,9 +53,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load tags: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load tags: $e')));
       }
     }
   }
@@ -85,21 +85,19 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
         from: oldTag,
         to: newTag.trim(),
       );
-      
+
       HapticFeedback.mediumImpact();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Renamed tag in $count notes'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Renamed tag in $count notes')));
         _loadTags(); // Reload tags
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to rename tag: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to rename tag: $e')));
       }
     }
   }
@@ -138,7 +136,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -147,13 +145,13 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
+                        onPressed: _searchController.clear,
                       )
                     : null,
                 filled: true,
-                fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
@@ -167,8 +165,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredTags.isEmpty
-              ? _buildEmptyState(context)
-              : _buildTagsList(context),
+          ? _buildEmptyState(context)
+          : _buildTagsList(context),
     );
   }
 
@@ -183,13 +181,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           Icon(
             isSearching ? Icons.search_off : Icons.tag,
             size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
-            isSearching
-                ? 'No tags found for "$_searchQuery"'
-                : 'No tags yet',
+            isSearching ? 'No tags found for "$_searchQuery"' : 'No tags yet',
             style: theme.textTheme.titleLarge?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -199,7 +195,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             Text(
               'Tags will appear here when you add them to notes',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
               textAlign: TextAlign.center,
             ),
@@ -225,7 +223,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _getTagColor(tagCount.tag, colorScheme).withOpacity(0.2),
+              color: _getTagColor(
+                tagCount.tag,
+                colorScheme,
+              ).withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -247,10 +248,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                   onSubmitted: (_) => _saveEdit(tagCount.tag),
                   onTapOutside: (_) => _cancelEdit(),
                 )
-              : Text(
-                  tagCount.tag,
-                  style: theme.textTheme.titleMedium,
-                ),
+              : Text(tagCount.tag, style: theme.textTheme.titleMedium),
           subtitle: Text(
             '${tagCount.count} ${tagCount.count == 1 ? 'note' : 'notes'}',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -284,10 +282,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'rename',
-                      child: Text('Rename'),
-                    ),
+                    const PopupMenuItem(value: 'rename', child: Text('Rename')),
                     const PopupMenuItem(
                       value: 'merge',
                       child: Text('Merge with...'),
@@ -300,9 +295,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                   // Navigate to filtered notes
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => TagNotesScreen(
-                        tag: tagCount.tag,
-                      ),
+                      builder: (context) => TagNotesScreen(tag: tagCount.tag),
                     ),
                   );
                 },
@@ -355,16 +348,13 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedTarget,
+                initialValue: selectedTarget,
                 decoration: const InputDecoration(
                   labelText: 'Target tag',
                   border: OutlineInputBorder(),
                 ),
                 items: targetTags.map((tag) {
-                  return DropdownMenuItem(
-                    value: tag,
-                    child: Text(tag),
-                  );
+                  return DropdownMenuItem(value: tag, child: Text(tag));
                 }).toList(),
                 onChanged: (value) {
                   setDialogState(() {

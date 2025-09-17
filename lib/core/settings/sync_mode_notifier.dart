@@ -1,10 +1,16 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/settings/sync_mode.dart';
+import 'package:flutter/foundation.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 /// Helper function to fire and forget async operations
 void unawaited(Future<void> future) {
@@ -13,20 +19,21 @@ void unawaited(Future<void> future) {
 
 /// Notifier for managing sync mode settings
 class SyncModeNotifier extends StateNotifier<SyncMode> {
-  SyncModeNotifier(this._notesRepository, [this._onSyncComplete]) : super(SyncMode.automatic) {
+  SyncModeNotifier(this._notesRepository, [this._onSyncComplete])
+    : super(SyncMode.automatic) {
     _loadSyncMode();
   }
 
   final NotesRepository _notesRepository;
   final VoidCallback? _onSyncComplete;
   static const String _syncModeKey = 'sync_mode';
-  
+
   // Timer for periodic sync in automatic mode
   Timer? _autoSyncTimer;
-  
+
   // Track if the notifier is disposed
   bool _isDisposed = false;
-  
+
   // Sync interval for automatic mode (5 minutes)
   static const Duration _autoSyncInterval = Duration(minutes: 5);
 
@@ -35,14 +42,14 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final modeString = prefs.getString(_syncModeKey);
-      
+
       if (modeString != null) {
         final mode = SyncMode.values.firstWhere(
           (e) => e.name == modeString,
           orElse: () => SyncMode.automatic,
         );
         state = mode;
-        
+
         // Start periodic sync if mode is automatic
         if (mode == SyncMode.automatic) {
           _startPeriodicSync();
@@ -61,7 +68,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_syncModeKey, mode.name);
       state = mode;
-      
+
       // Handle automatic mode setup
       if (mode == SyncMode.automatic) {
         // Perform immediate sync when switching to automatic
@@ -80,58 +87,64 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   /// Perform manual sync operation (production path)
   Future<bool> manualSync() async {
     if (_isDisposed) {
-      print('⚠️ Sync skipped: notifier is disposed');
+      debugPrint('⚠️ Sync skipped: notifier is disposed');
       return false;
     }
-    
+
     try {
-      print('🔄 Starting manual sync...');
-      
+      debugPrint('🔄 Starting manual sync...');
+
       // Check authentication first
       final currentUser = _notesRepository.client.auth.currentUser;
       if (currentUser == null) {
-        print('❌ Sync failed: No authenticated user');
+        debugPrint('❌ Sync failed: No authenticated user');
         return false;
       }
-      print('✅ Authenticated user: ${currentUser.id}');
-      
+      debugPrint('✅ Authenticated user: ${currentUser.id}');
+
       // Always push locals first
-      print('📤 Pushing local changes...');
+      debugPrint('📤 Pushing local changes...');
       await _notesRepository.pushAllPending();
-      print('✅ Local changes pushed');
+      debugPrint('✅ Local changes pushed');
 
       // Determine since: if no local notes, force full pull
       final localCount = (await _notesRepository.db.allNotes()).length;
-      final since = localCount == 0 ? null : DateTime.fromMillisecondsSinceEpoch(0);
+      final since = localCount == 0
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(0);
 
       // Then pull latest changes
-      print('📥 Pulling remote changes... (since: ${since == null ? 'beginning' : since.toIso8601String()})');
+      debugPrint(
+        '📥 Pulling remote changes... (since: ${since == null ? 'beginning' : since.toIso8601String()})',
+      );
       await _notesRepository.pullSince(null);
-      print('✅ Remote changes pulled');
-      
+      debugPrint('✅ Remote changes pulled');
+
       // Check local database after sync
       final localNotes = await _notesRepository.listAfter(null, limit: 100);
-      print('📊 Local database now has ${localNotes.length} notes');
+      debugPrint('📊 Local database now has ${localNotes.length} notes');
       for (final note in localNotes.take(5)) {
-        print('  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})');
+        debugPrint(
+          '  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})',
+        );
       }
-      
+
       // Also check folders after sync
       final localFolders = await _notesRepository.listFolders();
-      print('📁 Local database has ${localFolders.length} folders');
+      debugPrint('📁 Local database has ${localFolders.length} folders');
       for (final folder in localFolders.take(5)) {
-        print('  - ${folder.name} (path: ${folder.path})');
+        debugPrint('  - ${folder.name} (path: ${folder.path})');
       }
-      
-      print('🎉 Manual sync completed successfully');
+
+      debugPrint('🎉 Manual sync completed successfully');
       return true;
     } catch (e, stackTrace) {
-      print('❌ Manual sync failed: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('❌ Manual sync failed: $e');
+      debugPrint('Stack trace: $stackTrace');
       return false;
     }
   }
-  
+
   /// Start periodic sync timer for automatic mode
   void _startPeriodicSync() {
     _stopPeriodicSync(); // Cancel any existing timer
@@ -141,7 +154,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
         _stopPeriodicSync();
         return;
       }
-      
+
       // Perform background sync without blocking UI
       final success = await manualSync();
       if (success && !_isDisposed) {
@@ -150,20 +163,20 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       }
     });
   }
-  
+
   /// Stop periodic sync timer
   void _stopPeriodicSync() {
     _autoSyncTimer?.cancel();
     _autoSyncTimer = null;
   }
-  
+
   /// Perform initial sync if in automatic mode (called on app startup)
   Future<void> performInitialSyncIfAuto() async {
     if (state == SyncMode.automatic) {
       await manualSync();
     }
   }
-  
+
   @override
   void dispose() {
     _isDisposed = true;

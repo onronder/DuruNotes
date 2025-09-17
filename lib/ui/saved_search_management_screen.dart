@@ -1,20 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // TODO: Generate localization files
 
 class SavedSearchManagementScreen extends ConsumerStatefulWidget {
   const SavedSearchManagementScreen({super.key});
 
   @override
-  ConsumerState<SavedSearchManagementScreen> createState() => _SavedSearchManagementScreenState();
+  ConsumerState<SavedSearchManagementScreen> createState() =>
+      _SavedSearchManagementScreenState();
 }
 
-class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagementScreen> {
+class _SavedSearchManagementScreenState
+    extends ConsumerState<SavedSearchManagementScreen> {
   List<SavedSearch> _savedSearches = [];
   bool _isLoading = true;
   bool _isReordering = false;
@@ -59,22 +60,20 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
         name: result['name'] as String,
         query: result['query'] as String,
         searchType: result['type'] as String,
-        parameters: null,
         sortOrder: 0,
         color: result['color'] as String?,
         icon: result['icon'] as String?,
         isPinned: false,
         createdAt: DateTime.now(),
-        lastUsedAt: null,
         usageCount: 0,
       );
       await repo.createOrUpdateSavedSearch(savedSearch);
       await _loadSavedSearches();
       if (mounted) {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved search created')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Saved search created')));
       }
     }
   }
@@ -82,9 +81,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
   Future<void> _editSavedSearch(SavedSearch search) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => _CreateSavedSearchDialog(
-        initialSearch: search,
-      ),
+      builder: (context) => _CreateSavedSearchDialog(initialSearch: search),
     );
 
     if (result != null) {
@@ -100,9 +97,9 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
       await _loadSavedSearches();
       if (mounted) {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved search updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Saved search updated')));
       }
     }
   }
@@ -129,15 +126,15 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       final repo = ref.read(notesRepositoryProvider);
       await repo.deleteSavedSearch(search.id);
       await _loadSavedSearches();
       if (mounted) {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved search deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Saved search deleted')));
       }
     }
   }
@@ -155,9 +152,9 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
     setState(() => _isReordering = false);
     HapticFeedback.mediumImpact();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Order saved')));
     }
   }
 
@@ -171,10 +168,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
         title: const Text('Saved Searches'),
         actions: [
           if (_isReordering)
-            TextButton(
-              onPressed: _saveReorder,
-              child: const Text('Done'),
-            )
+            TextButton(onPressed: _saveReorder, child: const Text('Done'))
           else
             IconButton(
               icon: const Icon(Icons.reorder),
@@ -188,10 +182,10 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _savedSearches.isEmpty
-              ? _buildEmptyState(context)
-              : _isReordering
-                  ? _buildReorderableList()
-                  : _buildNormalList(),
+          ? _buildEmptyState(context)
+          : _isReordering
+          ? _buildReorderableList()
+          : _buildNormalList(),
       floatingActionButton: FloatingActionButton(
         onPressed: _createSavedSearch,
         child: const Icon(Icons.add),
@@ -208,7 +202,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
           Icon(
             Icons.saved_search,
             size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -221,7 +215,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
           Text(
             'Create custom searches to quickly find your notes',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -315,14 +309,8 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
           ),
           PopupMenuButton(
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('Edit'),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
+              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],
             onSelected: (value) {
               switch (value) {
@@ -341,7 +329,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
         // Track usage
         final repo = ref.read(notesRepositoryProvider);
         await repo.trackSavedSearchUsage(search.id);
-        
+
         // Execute search
         if (mounted) {
           Navigator.pop(context, search);
@@ -366,7 +354,7 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
           return Icons.search;
       }
     }
-    
+
     // Default icons based on type
     switch (search.searchType) {
       case 'tag':
@@ -399,12 +387,12 @@ class _SavedSearchManagementScreenState extends ConsumerState<SavedSearchManagem
 }
 
 class _CreateSavedSearchDialog extends StatefulWidget {
+  const _CreateSavedSearchDialog({this.initialSearch});
   final SavedSearch? initialSearch;
 
-  const _CreateSavedSearchDialog({this.initialSearch});
-
   @override
-  State<_CreateSavedSearchDialog> createState() => _CreateSavedSearchDialogState();
+  State<_CreateSavedSearchDialog> createState() =>
+      _CreateSavedSearchDialogState();
 }
 
 class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
@@ -415,18 +403,37 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
   String? _selectedColor;
 
   final List<String> _searchTypes = ['text', 'tag', 'folder', 'compound'];
-  final List<String> _availableIcons = ['search', 'star', 'folder', 'tag', 'calendar'];
+  final List<String> _availableIcons = [
+    'search',
+    'star',
+    'folder',
+    'tag',
+    'calendar',
+  ];
   final List<String> _availableColors = [
-    '#FF5252', '#E91E63', '#9C27B0', '#673AB7',
-    '#3F51B5', '#2196F3', '#00BCD4', '#009688',
-    '#4CAF50', '#8BC34A', '#FFC107', '#FF9800',
+    '#FF5252',
+    '#E91E63',
+    '#9C27B0',
+    '#673AB7',
+    '#3F51B5',
+    '#2196F3',
+    '#00BCD4',
+    '#009688',
+    '#4CAF50',
+    '#8BC34A',
+    '#FFC107',
+    '#FF9800',
   ];
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialSearch?.name ?? '');
-    _queryController = TextEditingController(text: widget.initialSearch?.query ?? '');
+    _nameController = TextEditingController(
+      text: widget.initialSearch?.name ?? '',
+    );
+    _queryController = TextEditingController(
+      text: widget.initialSearch?.query ?? '',
+    );
     _searchType = widget.initialSearch?.searchType ?? 'text';
     _selectedIcon = widget.initialSearch?.icon;
     _selectedColor = widget.initialSearch?.color;
@@ -442,9 +449,13 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AlertDialog(
-      title: Text(widget.initialSearch == null ? 'Create Saved Search' : 'Edit Saved Search'),
+      title: Text(
+        widget.initialSearch == null
+            ? 'Create Saved Search'
+            : 'Edit Saved Search',
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -460,7 +471,7 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _searchType,
+              initialValue: _searchType,
               decoration: const InputDecoration(labelText: 'Search Type'),
               items: _searchTypes.map((type) {
                 return DropdownMenuItem(
@@ -515,7 +526,9 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
                       color: Color(int.parse(color.replaceFirst('#', '0xff'))),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -535,7 +548,9 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _nameController.text.isNotEmpty && _queryController.text.isNotEmpty
+          onPressed:
+              _nameController.text.isNotEmpty &&
+                  _queryController.text.isNotEmpty
               ? () {
                   Navigator.pop(context, {
                     'name': _nameController.text,

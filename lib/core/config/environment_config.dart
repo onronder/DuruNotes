@@ -3,14 +3,21 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Production-grade environment configuration management
 class EnvironmentConfig {
-
   const EnvironmentConfig._({
     required this.supabaseUrl,
     required this.supabaseAnonKey,
-    required this.crashReportingEnabled, required this.analyticsEnabled, required this.analyticsSamplingRate, required this.sentryTracesSampleRate, required this.enableAutoSessionTracking, required this.sendDefaultPii, required this.debugMode, required this.currentEnvironment, this.sentryDsn,
+    required this.crashReportingEnabled,
+    required this.analyticsEnabled,
+    required this.analyticsSamplingRate,
+    required this.sentryTracesSampleRate,
+    required this.enableAutoSessionTracking,
+    required this.sendDefaultPii,
+    required this.debugMode,
+    required this.currentEnvironment,
+    this.sentryDsn,
   });
   static EnvironmentConfig? _instance;
-  
+
   final String supabaseUrl;
   final String supabaseAnonKey;
   final String? sentryDsn;
@@ -25,7 +32,9 @@ class EnvironmentConfig {
 
   static EnvironmentConfig get current {
     if (_instance == null) {
-      throw StateError('EnvironmentConfig not initialized. Call initialize() first.');
+      throw StateError(
+        'EnvironmentConfig not initialized. Call initialize() first.',
+      );
     }
     return _instance!;
   }
@@ -39,44 +48,71 @@ class EnvironmentConfig {
       // 2) Fallback to a generic .env if present
       // 3) If none found, continue with sane defaults
       try {
-        const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
-        const flavoredEnvPath = 'assets/env/$flavor.env';
+        // Determine which env file to load based on build mode
+        var envFile = 'assets/env/dev.env';
 
-        var loaded = false;
-        try {
-          await dotenv.load(fileName: flavoredEnvPath);
-          loaded = true;
-        } catch (_) {
-          // Will try generic .env next
+        // In release mode, use production env
+        if (kReleaseMode) {
+          envFile = 'assets/env/prod.env';
+        } else if (kProfileMode) {
+          envFile = 'assets/env/staging.env';
         }
 
-        if (!loaded) {
-          try {
-            await dotenv.load(fileName: 'assets/env/.env');
-            loaded = true;
-          } catch (_) {
-            // No env files found - proceed with defaults
+        // Also check for explicit FLAVOR override
+        const flavor = String.fromEnvironment('FLAVOR');
+        if (flavor == 'production' || flavor == 'prod') {
+          envFile = 'assets/env/prod.env';
+        } else if (flavor == 'staging') {
+          envFile = 'assets/env/staging.env';
+        } else if (flavor == 'dev' || flavor == 'development') {
+          envFile = 'assets/env/dev.env';
+        }
+
+        await dotenv.load(fileName: envFile);
+
+        if (kDebugMode) {
+          debugPrint('✅ Loaded environment file: $envFile');
+          final sentryDsn = dotenv.env['SENTRY_DSN'];
+          if (sentryDsn != null && sentryDsn.isNotEmpty) {
+            debugPrint(
+              '📊 SENTRY_DSN loaded: ${sentryDsn.substring(0, 30)}...',
+            );
+          } else {
+            debugPrint('⚠️ SENTRY_DSN not found in environment file');
           }
         }
       } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ Failed to load environment file: $e');
+        }
         // Ignore env file errors - use defaults
       }
-      
+
       _instance = EnvironmentConfig._(
-        supabaseUrl: dotenv.env['SUPABASE_URL'] ?? const String.fromEnvironment(
-          'SUPABASE_URL',
-          defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
-        ),
-        supabaseAnonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? const String.fromEnvironment(
-          'SUPABASE_ANON_KEY',
-          defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
-        ),
+        supabaseUrl:
+            dotenv.env['SUPABASE_URL'] ??
+            const String.fromEnvironment(
+              'SUPABASE_URL',
+              defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
+            ),
+        supabaseAnonKey:
+            dotenv.env['SUPABASE_ANON_KEY'] ??
+            const String.fromEnvironment(
+              'SUPABASE_ANON_KEY',
+              defaultValue:
+                  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
+            ),
         sentryDsn: dotenv.env['SENTRY_DSN'],
         crashReportingEnabled: dotenv.env['CRASH_REPORTING_ENABLED'] == 'true',
         analyticsEnabled: dotenv.env['ANALYTICS_ENABLED'] == 'true',
-        analyticsSamplingRate: double.tryParse(dotenv.env['ANALYTICS_SAMPLING_RATE'] ?? '1.0') ?? 1.0,
-        sentryTracesSampleRate: double.tryParse(dotenv.env['SENTRY_TRACES_SAMPLE_RATE'] ?? '0.1') ?? 0.1,
-        enableAutoSessionTracking: dotenv.env['ENABLE_AUTO_SESSION_TRACKING'] != 'false',
+        analyticsSamplingRate:
+            double.tryParse(dotenv.env['ANALYTICS_SAMPLING_RATE'] ?? '1.0') ??
+            1.0,
+        sentryTracesSampleRate:
+            double.tryParse(dotenv.env['SENTRY_TRACES_SAMPLE_RATE'] ?? '0.1') ??
+            0.1,
+        enableAutoSessionTracking:
+            dotenv.env['ENABLE_AUTO_SESSION_TRACKING'] != 'false',
         sendDefaultPii: dotenv.env['SEND_DEFAULT_PII'] == 'true',
         debugMode: kDebugMode,
         currentEnvironment: _detectEnvironment(),
@@ -84,14 +120,19 @@ class EnvironmentConfig {
     } catch (e) {
       // Fallback configuration for development
       _instance = EnvironmentConfig._(
-        supabaseUrl: dotenv.env['SUPABASE_URL'] ?? const String.fromEnvironment(
-          'SUPABASE_URL',
-          defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
-        ),
-        supabaseAnonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? const String.fromEnvironment(
-          'SUPABASE_ANON_KEY', 
-          defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
-        ),
+        supabaseUrl:
+            dotenv.env['SUPABASE_URL'] ??
+            const String.fromEnvironment(
+              'SUPABASE_URL',
+              defaultValue: 'https://jtaedgpxesshdrnbgvjr.supabase.co',
+            ),
+        supabaseAnonKey:
+            dotenv.env['SUPABASE_ANON_KEY'] ??
+            const String.fromEnvironment(
+              'SUPABASE_ANON_KEY',
+              defaultValue:
+                  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U',
+            ),
         crashReportingEnabled: false,
         analyticsEnabled: false,
         analyticsSamplingRate: 1,
@@ -122,7 +163,10 @@ class EnvironmentConfig {
 
     if (kDebugMode) return Environment.development;
 
-    const env = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
+    const env = String.fromEnvironment(
+      'ENVIRONMENT',
+      defaultValue: 'development',
+    );
     switch (env.toLowerCase()) {
       case 'production':
       case 'prod':
@@ -139,8 +183,7 @@ class EnvironmentConfig {
   static bool validateConfig() {
     try {
       final config = current;
-      return config.supabaseUrl.isNotEmpty && 
-             config.supabaseAnonKey.isNotEmpty;
+      return config.supabaseUrl.isNotEmpty && config.supabaseAnonKey.isNotEmpty;
     } catch (e) {
       return false;
     }

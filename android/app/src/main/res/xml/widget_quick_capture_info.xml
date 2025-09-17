@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="40dp"
+    android:updatePeriodMillis="3600000"
+    android:previewImage="@drawable/widget_preview"
+    android:initialLayout="@layout/widget_quick_capture_small"
+    android:configure="com.fittechs.durunotes.widget.QuickCaptureConfigActivity"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen|keyguard"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:description="@string/widget_description">
+</appwidget-provider>

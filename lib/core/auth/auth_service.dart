@@ -43,7 +43,7 @@ class AuthService {
   static const int _maxRetries = 3;
   static const Duration _baseDelay = Duration(seconds: 1);
   static const Duration _maxDelay = Duration(seconds: 30);
-  
+
   // Backoff tracking per email
   final Map<String, _BackoffState> _backoffStates = {};
 
@@ -54,7 +54,7 @@ class AuthService {
     bool enableRetry = true,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
-    
+
     // Check if account is locked
     final lockStatus = await _loginAttemptsService.checkAccountLockout();
     if (lockStatus.isLocked) {
@@ -62,8 +62,9 @@ class AuthService {
         success: false,
         isAccountLocked: true,
         lockoutDuration: lockStatus.remainingLockoutTime,
-        error: 'Account temporarily locked due to multiple failed login attempts. '
-               'Please try again in ${_formatDuration(lockStatus.remainingLockoutTime!)}.',
+        error:
+            'Account temporarily locked due to multiple failed login attempts. '
+            'Please try again in ${_formatDuration(lockStatus.remainingLockoutTime!)}.',
       );
     }
 
@@ -73,12 +74,13 @@ class AuthService {
 
     // Get or create backoff state for this email
     final backoffState = _backoffStates[normalizedEmail] ??= _BackoffState();
-    
+
     // Check if we're in a backoff period
     if (backoffState.isInBackoff) {
       return AuthResult(
         success: false,
-        error: 'Too many recent attempts. Please wait ${_formatDuration(backoffState.remainingBackoffTime)} before trying again.',
+        error:
+            'Too many recent attempts. Please wait ${_formatDuration(backoffState.remainingBackoffTime)} before trying again.',
       );
     }
 
@@ -90,13 +92,15 @@ class AuthService {
         if (attempt > 0) {
           final delay = _calculateDelay(attempt - 1);
           if (kDebugMode) {
-            print('Auth retry attempt $attempt after ${delay.inSeconds}s delay');
+            debugPrint(
+              'Auth retry attempt $attempt after ${delay.inSeconds}s delay',
+            );
           }
           await Future<void>.delayed(delay);
         }
 
         result = await _performSingleSignIn(normalizedEmail, password);
-        
+
         if (result.success) {
           // Reset backoff on success
           backoffState.reset();
@@ -114,7 +118,6 @@ class AuthService {
           backoffState.activateBackoff();
           return result;
         }
-
       } on AuthException catch (e) {
         lastException = e;
         if (_isCredentialError(e.message)) {
@@ -130,10 +133,13 @@ class AuthService {
 
     // All retries failed - activate backoff
     backoffState.activateBackoff();
-    
+
     return AuthResult(
       success: false,
-      error: result?.error ?? lastException?.toString() ?? 'Authentication failed after multiple attempts',
+      error:
+          result?.error ??
+          lastException?.toString() ??
+          'Authentication failed after multiple attempts',
     );
   }
 
@@ -163,7 +169,7 @@ class AuthService {
       if (response.user != null && response.session != null) {
         // Record successful login
         await _loginAttemptsService.recordSuccessfulLogin();
-        
+
         return AuthResult(
           success: true,
           user: response.user,
@@ -177,14 +183,13 @@ class AuthService {
         success: false,
         error: 'Authentication failed - no session created',
       );
-
     } on AuthException catch (e) {
       // Record failed login attempt
       await _loginAttemptsService.recordFailedLogin();
 
       // Check if account is now locked after this attempt
       final lockStatus = await _loginAttemptsService.checkAccountLockout();
-      
+
       return AuthResult(
         success: false,
         error: e.message,
@@ -195,11 +200,11 @@ class AuthService {
     } on Exception catch (e) {
       // Record generic failed attempt
       await _loginAttemptsService.recordFailedLogin();
-      
+
       if (kDebugMode) {
-        print('Auth error: $e');
+        debugPrint('Auth error: $e');
       }
-      
+
       return const AuthResult(
         success: false,
         error: 'Authentication failed. Please try again.',
@@ -213,7 +218,7 @@ class AuthService {
     required String password,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
-    
+
     try {
       final response = await _client.auth.signUp(
         email: normalizedEmail,
@@ -228,21 +233,14 @@ class AuthService {
         );
       }
 
-      return const AuthResult(
-        success: false,
-        error: 'Account creation failed',
-      );
-
+      return const AuthResult(success: false, error: 'Account creation failed');
     } on AuthException catch (e) {
-      return AuthResult(
-        success: false,
-        error: e.message,
-      );
+      return AuthResult(success: false, error: e.message);
     } on Exception catch (e) {
       if (kDebugMode) {
-        print('Signup error: $e');
+        debugPrint('Signup error: $e');
       }
-      
+
       return const AuthResult(
         success: false,
         error: 'Account creation failed. Please try again.',
@@ -253,14 +251,12 @@ class AuthService {
   /// Calculate exponential backoff delay
   Duration _calculateDelay(int attemptNumber) {
     final exponentialDelay = Duration(
-      milliseconds: _baseDelay.inMilliseconds * pow(2, attemptNumber).toInt()
+      milliseconds: _baseDelay.inMilliseconds * pow(2, attemptNumber).toInt(),
     );
-    
+
     // Add jitter to prevent thundering herd
-    final jitter = Duration(
-      milliseconds: Random().nextInt(1000)
-    );
-    
+    final jitter = Duration(milliseconds: Random().nextInt(1000));
+
     final totalDelay = exponentialDelay + jitter;
     return totalDelay > _maxDelay ? _maxDelay : totalDelay;
   }
@@ -268,13 +264,13 @@ class AuthService {
   /// Check if error is a credential error (shouldn't retry)
   bool _isCredentialError(String? errorMessage) {
     if (errorMessage == null) return false;
-    
+
     final lowerError = errorMessage.toLowerCase();
     return lowerError.contains('invalid login credentials') ||
-           lowerError.contains('wrong password') ||
-           lowerError.contains('invalid email') ||
-           lowerError.contains('user not found') ||
-           lowerError.contains('invalid credentials');
+        lowerError.contains('wrong password') ||
+        lowerError.contains('invalid email') ||
+        lowerError.contains('user not found') ||
+        lowerError.contains('invalid credentials');
   }
 
   /// Format duration for user display
@@ -306,7 +302,7 @@ class _BackoffState {
   DateTime? _backoffUntil;
   static const Duration _backoffDuration = Duration(minutes: 2);
 
-  bool get isInBackoff => 
+  bool get isInBackoff =>
       _backoffUntil != null && DateTime.now().isBefore(_backoffUntil!);
 
   Duration get remainingBackoffTime {

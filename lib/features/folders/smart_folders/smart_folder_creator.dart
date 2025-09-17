@@ -5,10 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 class SmartFolderCreator extends ConsumerStatefulWidget {
-  const SmartFolderCreator({
-    super.key,
-    this.initialConfig,
-  });
+  const SmartFolderCreator({super.key, this.initialConfig});
 
   final SmartFolderConfig? initialConfig;
 
@@ -30,7 +27,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
   @override
   void initState() {
     super.initState();
-    
+
     final config = widget.initialConfig;
     _nameController = TextEditingController(text: config?.name ?? '');
     _selectedType = config?.type ?? SmartFolderType.custom;
@@ -41,7 +38,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     _maxResults = config?.maxResults ?? 100;
     _autoRefresh = config?.autoRefresh ?? true;
     _refreshInterval = config?.refreshInterval ?? const Duration(minutes: 5);
-    
+
     // Add initial rule if empty
     if (_rules.isEmpty) {
       _addRule();
@@ -56,11 +53,13 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
 
   void _addRule() {
     setState(() {
-      _rules.add(SmartFolderRule(
-        id: const Uuid().v4(),
-        field: RuleField.title,
-        operator: RuleOperator.contains,
-      ));
+      _rules.add(
+        SmartFolderRule(
+          id: const Uuid().v4(),
+          field: RuleField.title,
+          operator: RuleOperator.contains,
+        ),
+      );
     });
   }
 
@@ -86,7 +85,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     setState(() {
       _nameController.text = template.name;
       _selectedType = template.type;
-      _rules = template.rules.map((r) => r.copyWith(id: const Uuid().v4())).toList();
+      _rules = template.rules
+          .map((r) => r.copyWith(id: const Uuid().v4()))
+          .toList();
       _combineWithAnd = template.combineWithAnd;
     });
   }
@@ -100,8 +101,8 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     }
 
     for (final rule in _rules) {
-      if (rule.value == null && 
-          rule.operator != RuleOperator.isEmpty && 
+      if (rule.value == null &&
+          rule.operator != RuleOperator.isEmpty &&
           rule.operator != RuleOperator.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please complete all rule conditions')),
@@ -140,12 +141,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Smart Folder' : 'Create Smart Folder'),
-        actions: [
-          TextButton(
-            onPressed: _save,
-            child: const Text('Save'),
-          ),
-        ],
+        actions: [TextButton(onPressed: _save, child: const Text('Save'))],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -154,10 +150,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
           children: [
             // Templates section (only for new folders)
             if (!isEditing) ...[
-              Text(
-                'Start with a template',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Start with a template', style: theme.textTheme.titleMedium),
               const SizedBox(height: 12),
               SizedBox(
                 height: 100,
@@ -177,12 +170,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
             ],
 
             // Basic info
-            Text(
-              'Folder Details',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Folder Details', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            
+
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -191,9 +181,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                 border: OutlineInputBorder(),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Folder type
             DropdownButtonFormField<SmartFolderType>(
               initialValue: _selectedType,
@@ -225,10 +215,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
             // Rules section
             Row(
               children: [
-                Text(
-                  'Rules',
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text('Rules', style: theme.textTheme.titleMedium),
                 const SizedBox(width: 16),
                 if (_rules.length > 1) ...[
                   const Text('Match'),
@@ -252,9 +239,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             ...List.generate(_rules.length, (index) {
               final rule = _rules[index];
               return _RuleBuilder(
@@ -282,7 +269,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                       ),
-                      controller: TextEditingController(text: _maxResults.toString()),
+                      controller: TextEditingController(
+                        text: _maxResults.toString(),
+                      ),
                       onChanged: (value) {
                         final parsed = int.tryParse(value);
                         if (parsed != null && parsed > 0) {
@@ -292,7 +281,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                     ),
                   ),
                 ),
-                
+
                 SwitchListTile(
                   title: const Text('Auto Refresh'),
                   subtitle: const Text('Update folder contents automatically'),
@@ -301,7 +290,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                     setState(() => _autoRefresh = value);
                   },
                 ),
-                
+
                 if (_autoRefresh)
                   ListTile(
                     title: const Text('Refresh Interval'),
@@ -330,12 +319,13 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                       ],
                     ),
                   ),
-                
+
                 ListTile(
                   title: const Text('Custom Icon'),
                   subtitle: const Text('Choose a custom icon'),
                   trailing: CircleAvatar(
-                    backgroundColor: (_customColor ?? _selectedType.color).withOpacity(0.2),
+                    backgroundColor: (_customColor ?? _selectedType.color)
+                        .withValues(alpha: 0.2),
                     child: Icon(
                       _customIcon ?? _selectedType.icon,
                       color: _customColor ?? _selectedType.color,
@@ -343,7 +333,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                   ),
                   onTap: _selectIcon,
                 ),
-                
+
                 ListTile(
                   title: const Text('Custom Color'),
                   subtitle: const Text('Choose a custom color'),
@@ -398,9 +388,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
           children: icons.map((icon) {
             return InkWell(
               onTap: () => Navigator.of(context).pop(icon),
-              child: CircleAvatar(
-                child: Icon(icon),
-              ),
+              child: CircleAvatar(child: Icon(icon)),
             );
           }).toList(),
         ),
@@ -463,10 +451,7 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
 }
 
 class _TemplateCard extends StatelessWidget {
-  const _TemplateCard({
-    required this.template,
-    required this.onTap,
-  });
+  const _TemplateCard({required this.template, required this.onTap});
 
   final SmartFolderConfig template;
   final VoidCallback onTap;
@@ -474,7 +459,7 @@ class _TemplateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       margin: const EdgeInsets.only(right: 12),
       child: InkWell(
@@ -486,11 +471,7 @@ class _TemplateCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                template.type.icon,
-                color: template.type.color,
-                size: 32,
-              ),
+              Icon(template.type.icon, color: template.type.color, size: 32),
               const SizedBox(height: 8),
               Text(
                 template.name,
@@ -509,7 +490,9 @@ class _TemplateCard extends StatelessWidget {
 
 class _RuleBuilder extends StatelessWidget {
   const _RuleBuilder({
-    required this.rule, required this.onChanged, super.key,
+    required this.rule,
+    required this.onChanged,
+    super.key,
     this.onRemove,
   });
 
@@ -535,7 +518,10 @@ class _RuleBuilder extends StatelessWidget {
                     decoration: const InputDecoration(
                       labelText: 'Field',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     items: RuleField.values.map((field) {
                       return DropdownMenuItem(
@@ -547,20 +533,17 @@ class _RuleBuilder extends StatelessWidget {
                       if (field != null) {
                         // Reset operator when field changes
                         final availableOps = field.availableOperators;
-                        final newOp = availableOps.contains(rule.operator) 
-                            ? rule.operator 
+                        final newOp = availableOps.contains(rule.operator)
+                            ? rule.operator
                             : availableOps.first;
-                        onChanged(rule.copyWith(
-                          field: field,
-                          operator: newOp,
-                        ));
+                        onChanged(rule.copyWith(field: field, operator: newOp));
                       }
                     },
                   ),
                 ),
-                
+
                 const SizedBox(width: 8),
-                
+
                 // Operator selector
                 Expanded(
                   flex: 2,
@@ -569,7 +552,10 @@ class _RuleBuilder extends StatelessWidget {
                     decoration: const InputDecoration(
                       labelText: 'Condition',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     items: rule.field.availableOperators.map((op) {
                       return DropdownMenuItem(
@@ -584,7 +570,7 @@ class _RuleBuilder extends StatelessWidget {
                     },
                   ),
                 ),
-                
+
                 if (onRemove != null) ...[
                   const SizedBox(width: 8),
                   IconButton(
@@ -595,9 +581,9 @@ class _RuleBuilder extends StatelessWidget {
                 ],
               ],
             ),
-            
+
             // Value input(s)
-            if (rule.operator != RuleOperator.isEmpty && 
+            if (rule.operator != RuleOperator.isEmpty &&
                 rule.operator != RuleOperator.isNotEmpty) ...[
               const SizedBox(height: 12),
               _buildValueInput(context, rule),
@@ -610,13 +596,15 @@ class _RuleBuilder extends StatelessWidget {
 
   Widget _buildValueInput(BuildContext context, SmartFolderRule rule) {
     final fieldType = rule.field.valueType;
-    
+
     if (rule.operator == RuleOperator.between) {
       // Two value inputs for 'between' operator
       return Row(
         children: [
           Expanded(
-            child: _buildSingleValueInput(context, fieldType, rule.value, (value) {
+            child: _buildSingleValueInput(context, fieldType, rule.value, (
+              value,
+            ) {
               onChanged(rule.copyWith(value: value));
             }, 'From'),
           ),
@@ -624,9 +612,15 @@ class _RuleBuilder extends StatelessWidget {
           const Text('to'),
           const SizedBox(width: 8),
           Expanded(
-            child: _buildSingleValueInput(context, fieldType, rule.secondValue, (value) {
-              onChanged(rule.copyWith(secondValue: value));
-            }, 'To'),
+            child: _buildSingleValueInput(
+              context,
+              fieldType,
+              rule.secondValue,
+              (value) {
+                onChanged(rule.copyWith(secondValue: value));
+              },
+              'To',
+            ),
           ),
         ],
       );

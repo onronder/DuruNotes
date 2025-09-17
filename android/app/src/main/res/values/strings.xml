@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget General -->
+    <string name="widget_name">Quick Capture</string>
+    <string name="widget_description">Quickly capture notes from your home screen</string>
+    <string name="widget_title_quick_capture">Duru Notes</string>
+    <string name="widget_subtitle">Quick Capture Widget</string>
+    <string name="widget_loading">Loading...</string>
+    <string name="widget_login_required">Please login to use widget</string>
+    
+    <!-- Widget Actions -->
+    <string name="widget_tap_to_capture">Tap to capture</string>
+    <string name="widget_capture_note">Capture Note</string>
+    <string name="widget_capture_text">Capture Text</string>
+    <string name="widget_capture_voice">Capture Voice</string>
+    <string name="widget_capture_camera">Capture Photo</string>
+    <string name="widget_text">Text</string>
+    <string name="widget_voice">Voice</string>
+    <string name="widget_camera">Camera</string>
+    <string name="widget_text_desc">Quick text note</string>
+    <string name="widget_voice_desc">Voice memo</string>
+    <string name="widget_camera_desc">Photo note</string>
+    
+    <!-- Widget Templates -->
+    <string name="widget_templates">Templates</string>
+    <string name="widget_template_meeting">Meeting</string>
+    <string name="widget_template_idea">Idea</string>
+    <string name="widget_template_task">Task</string>
+    
+    <!-- Widget Content -->
+    <string name="widget_recent_captures">Recent Captures</string>
+    <string name="widget_no_recent_captures">No recent captures</string>
+    <string name="widget_tap_to_start">Tap any button to start capturing</string>
+    <string name="widget_view_all">View All</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_settings">Settings</string>
+    
+    <!-- Widget Configuration -->
+    <string name="widget_config_title">Configure Widget</string>
+    <string name="widget_config_capture_type">Default Capture Type</string>
+    <string name="widget_config_features">Features</string>
+    <string name="widget_config_show_recent">Show recent captures</string>
+    <string name="widget_config_enable_voice">Enable voice capture</string>
+    <string name="widget_config_enable_camera">Enable camera capture</string>
+    <string name="widget_config_template">Default Template</string>
+    <string name="widget_config_no_template">No template</string>
+    <string name="widget_config_theme">Widget Theme</string>
+    <string name="widget_config_theme_auto">Auto (System)</string>
+    <string name="widget_config_theme_light">Light</string>
+    <string name="widget_config_theme_dark">Dark</string>
+    <string name="widget_config_save">Save</string>
+    <string name="widget_config_cancel">Cancel</string>
+    <string name="widget_config_saved">Widget configured successfully</string>
+</resources>

@@ -2,18 +2,19 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_hierarchy_view.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Comprehensive folder management screen with full CRUD operations
 class FolderManagementScreen extends ConsumerStatefulWidget {
   const FolderManagementScreen({super.key});
 
   @override
-  ConsumerState<FolderManagementScreen> createState() => _FolderManagementScreenState();
+  ConsumerState<FolderManagementScreen> createState() =>
+      _FolderManagementScreenState();
 }
 
 class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
@@ -25,7 +26,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Load folders when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(folderProvider.notifier).refresh();
@@ -44,7 +45,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -127,14 +128,8 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(
-              icon: const Icon(Icons.account_tree),
-              text: l10n.allFolders,
-            ),
-            const Tab(
-              icon: Icon(Icons.info_outline),
-              text: 'Details',
-            ),
+            Tab(icon: const Icon(Icons.account_tree), text: l10n.allFolders),
+            const Tab(icon: Icon(Icons.info_outline), text: 'Details'),
           ],
         ),
       ),
@@ -159,23 +154,24 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
               selectedFolderId: _selectedFolder?.id,
             ),
           ),
-          
+
           // Folder details tab
-          if (_selectedFolder != null) _FolderDetailsView(
-                  folder: _selectedFolder!,
-                  onFolderUpdated: () {
-                    ref.read(folderProvider.notifier).refresh();
-                    ref.read(folderHierarchyProvider.notifier).refresh();
-                  },
-                  onFolderDeleted: () {
-                    setState(() {
-                      _selectedFolder = null;
-                    });
-                    _tabController.animateTo(0);
-                  },
-                ) else _EmptyDetailsView(
-                  onCreateFolder: _showCreateFolderDialog,
-                ),
+          if (_selectedFolder != null)
+            _FolderDetailsView(
+              folder: _selectedFolder!,
+              onFolderUpdated: () {
+                ref.read(folderProvider.notifier).refresh();
+                ref.read(folderHierarchyProvider.notifier).refresh();
+              },
+              onFolderDeleted: () {
+                setState(() {
+                  _selectedFolder = null;
+                });
+                _tabController.animateTo(0);
+              },
+            )
+          else
+            _EmptyDetailsView(onCreateFolder: _showCreateFolderDialog),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -191,7 +187,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       context: context,
       builder: (context) => CreateFolderDialog(parentFolder: parent),
     );
-    
+
     if (result != null && mounted) {
       ref.read(folderProvider.notifier).refresh();
       ref.read(folderHierarchyProvider.notifier).refresh();
@@ -207,7 +203,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       context: context,
       builder: (context) => _FolderActionsSheet(folder: folder),
     );
-    
+
     switch (result) {
       case 'edit':
         await _editFolder(folder);
@@ -230,13 +226,15 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       context: context,
       builder: (context) => EditFolderDialog(folder: folder),
     );
-    
+
     if (result ?? false && mounted) {
       ref.read(folderProvider.notifier).refresh();
       ref.read(folderHierarchyProvider.notifier).refresh();
       // Update selected folder if it was the one being edited
       if (_selectedFolder?.id == folder.id) {
-        final updatedFolder = await ref.read(notesRepositoryProvider).getFolder(folder.id);
+        final updatedFolder = await ref
+            .read(notesRepositoryProvider)
+            .getFolder(folder.id);
         setState(() {
           _selectedFolder = updatedFolder;
         });
@@ -246,7 +244,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
   Future<void> _moveFolder(LocalFolder folder) async {
     final l10n = AppLocalizations.of(context);
-    
+
     // Show folder picker excluding the folder itself and its descendants
     final targetFolder = await showDialog<LocalFolder?>(
       context: context,
@@ -269,16 +267,17 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         ],
       ),
     );
-    
+
     if (targetFolder != null) {
-      final success = await ref.read(folderProvider.notifier).moveFolder(
-        folder.id,
-        targetFolder.id,
-      );
-      
+      final success = await ref
+          .read(folderProvider.notifier)
+          .moveFolder(folder.id, targetFolder.id);
+
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Moved "${folder.name}" to "${targetFolder.name}"')),
+          SnackBar(
+            content: Text('Moved "${folder.name}" to "${targetFolder.name}"'),
+          ),
         );
       }
     }
@@ -286,7 +285,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
   Future<void> _confirmDeleteFolder(LocalFolder folder) async {
     final l10n = AppLocalizations.of(context);
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -309,7 +308,9 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: FolderIconHelpers.getFolderColor(folder.color) ?? Theme.of(context).colorScheme.primary,
+                      color:
+                          FolderIconHelpers.getFolderColor(folder.color) ??
+                          Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
@@ -347,10 +348,12 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         ],
       ),
     );
-    
+
     if (confirmed ?? false && mounted) {
-      final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
-      
+      final success = await ref
+          .read(folderProvider.notifier)
+          .deleteFolder(folder.id);
+
       if (success) {
         // Clear selection if deleted folder was selected
         if (_selectedFolder?.id == folder.id) {
@@ -359,7 +362,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           });
           _tabController.animateTo(0);
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -372,7 +375,9 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete folder: ${ref.read(folderProvider).error}'),
+              content: Text(
+                'Failed to delete folder: ${ref.read(folderProvider).error}',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -383,10 +388,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
   Future<void> _performHealthCheck() async {
     final repo = ref.read(notesRepositoryProvider);
-    
+
     try {
       final healthStats = await repo.performFolderHealthCheck();
-      
+
       if (mounted) {
         showDialog(
           context: context,
@@ -397,41 +402,79 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHealthStatRow('Total Folders', healthStats['total_folders'].toString()),
-                  _buildHealthStatRow('Active Folders', healthStats['active_folders'].toString()),
-                  _buildHealthStatRow('Deleted Folders', healthStats['deleted_folders'].toString()),
-                  _buildHealthStatRow('Root Folders', healthStats['root_folders'].toString()),
-                  _buildHealthStatRow('Orphaned Folders', healthStats['orphaned_folders'].toString()),
-                  _buildHealthStatRow('Total Relationships', healthStats['total_relationships'].toString()),
-                  _buildHealthStatRow('Orphaned Relationships', healthStats['orphaned_relationships'].toString()),
-                  _buildHealthStatRow('Notes with Folders', healthStats['notes_with_folders'].toString()),
-                  _buildHealthStatRow('Unfiled Notes', healthStats['unfiled_notes'].toString()),
-                  _buildHealthStatRow('Max Depth', healthStats['max_depth'].toString()),
-                  
-                  if (healthStats['issues_found'] != null && (healthStats['issues_found'] as List).isNotEmpty) ...[
+                  _buildHealthStatRow(
+                    'Total Folders',
+                    healthStats['total_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Active Folders',
+                    healthStats['active_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Deleted Folders',
+                    healthStats['deleted_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Root Folders',
+                    healthStats['root_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Orphaned Folders',
+                    healthStats['orphaned_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Total Relationships',
+                    healthStats['total_relationships'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Orphaned Relationships',
+                    healthStats['orphaned_relationships'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Notes with Folders',
+                    healthStats['notes_with_folders'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Unfiled Notes',
+                    healthStats['unfiled_notes'].toString(),
+                  ),
+                  _buildHealthStatRow(
+                    'Max Depth',
+                    healthStats['max_depth'].toString(),
+                  ),
+
+                  if (healthStats['issues_found'] != null &&
+                      (healthStats['issues_found'] as List).isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text(
                       'Issues Found:',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    ...(healthStats['issues_found'] as List).map<Widget>((issue) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.warning, size: 16, color: Colors.orange),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(issue.toString())),
-                        ],
+                    ...(healthStats['issues_found'] as List).map<Widget>(
+                      (issue) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.warning,
+                              size: 16,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(issue.toString())),
+                          ],
+                        ),
                       ),
-                    )),
+                    ),
                   ],
                 ],
               ),
             ),
             actions: [
-              if (healthStats['issues_found'] != null && (healthStats['issues_found'] as List).isNotEmpty)
+              if (healthStats['issues_found'] != null &&
+                  (healthStats['issues_found'] as List).isNotEmpty)
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -466,10 +509,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -477,7 +517,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
   Future<void> _validateFolderStructure() async {
     final repo = ref.read(notesRepositoryProvider);
-    
+
     try {
       // Show loading dialog
       showDialog(
@@ -493,15 +533,15 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           ),
         ),
       );
-      
+
       await repo.validateAndRepairFolderStructure();
       await repo.cleanupOrphanedRelationships();
       await repo.resolveFolderConflicts();
-      
+
       // Refresh our providers
       await ref.read(folderProvider.notifier).refresh();
       await ref.read(folderHierarchyProvider.notifier).refresh();
-      
+
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
@@ -535,7 +575,7 @@ class _FolderActionsSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -552,7 +592,9 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
+                      colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -584,9 +626,9 @@ class _FolderActionsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Actions
           ListTile(
             leading: const Icon(Icons.visibility),
@@ -614,7 +656,10 @@ class _FolderActionsSheet extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: colorScheme.error),
-            title: Text(l10n.deleteFolder, style: TextStyle(color: colorScheme.error)),
+            title: Text(
+              l10n.deleteFolder,
+              style: TextStyle(color: colorScheme.error),
+            ),
             subtitle: const Text('Permanently delete this folder'),
             onTap: () => Navigator.of(context).pop('delete'),
           ),
@@ -640,7 +685,7 @@ class _FolderDetailsView extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -658,12 +703,16 @@ class _FolderDetailsView extends ConsumerWidget {
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                          color:
+                              FolderIconHelpers.getFolderColor(folder.color) ??
+                              colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           FolderIconHelpers.getFolderIcon(folder.icon),
-                          color: FolderIconHelpers.getFolderColor(folder.color) != null
+                          color:
+                              FolderIconHelpers.getFolderColor(folder.color) !=
+                                  null
                               ? Colors.white
                               : colorScheme.onPrimaryContainer,
                           size: 32,
@@ -692,14 +741,16 @@ class _FolderDetailsView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
+
                   if (folder.description.isNotEmpty ?? false) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -712,9 +763,9 @@ class _FolderDetailsView extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Statistics
           Card(
             child: Padding(
@@ -733,20 +784,38 @@ class _FolderDetailsView extends ConsumerWidget {
                     future: _getFolderStats(ref, folder),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator.adaptive());
+                        return const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        );
                       }
-                      
+
                       if (snapshot.hasError) {
                         return Text('Error: ${snapshot.error}');
                       }
-                      
+
                       final stats = snapshot.data ?? {};
                       return Column(
                         children: [
-                          _buildStatRow(context, 'Notes in Folder', stats['notes'] ?? 0),
-                          _buildStatRow(context, 'Subfolders', stats['subfolders'] ?? 0),
-                          _buildStatRow(context, 'Total Descendants', stats['totalDescendants'] ?? 0),
-                          _buildStatRow(context, 'Depth Level', stats['depth'] ?? 0),
+                          _buildStatRow(
+                            context,
+                            'Notes in Folder',
+                            stats['notes'] ?? 0,
+                          ),
+                          _buildStatRow(
+                            context,
+                            'Subfolders',
+                            stats['subfolders'] ?? 0,
+                          ),
+                          _buildStatRow(
+                            context,
+                            'Total Descendants',
+                            stats['totalDescendants'] ?? 0,
+                          ),
+                          _buildStatRow(
+                            context,
+                            'Depth Level',
+                            stats['depth'] ?? 0,
+                          ),
                         ],
                       );
                     },
@@ -755,9 +824,9 @@ class _FolderDetailsView extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Properties
           Card(
             child: Padding(
@@ -773,18 +842,38 @@ class _FolderDetailsView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildPropertyRow(context, 'ID', folder.id),
-                  _buildPropertyRow(context, 'Parent ID', folder.parentId ?? 'None (Root Level)'),
-                  _buildPropertyRow(context, 'Sort Order', folder.sortOrder.toString()),
-                  _buildPropertyRow(context, 'Created', _formatDateTime(folder.createdAt)),
-                  _buildPropertyRow(context, 'Modified', _formatDateTime(folder.updatedAt)),
-                  _buildPropertyRow(context, 'Status', folder.deleted ? 'Deleted' : 'Active'),
+                  _buildPropertyRow(
+                    context,
+                    'Parent ID',
+                    folder.parentId ?? 'None (Root Level)',
+                  ),
+                  _buildPropertyRow(
+                    context,
+                    'Sort Order',
+                    folder.sortOrder.toString(),
+                  ),
+                  _buildPropertyRow(
+                    context,
+                    'Created',
+                    _formatDateTime(folder.createdAt),
+                  ),
+                  _buildPropertyRow(
+                    context,
+                    'Modified',
+                    _formatDateTime(folder.updatedAt),
+                  ),
+                  _buildPropertyRow(
+                    context,
+                    'Status',
+                    folder.deleted ? 'Deleted' : 'Active',
+                  ),
                 ],
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Action buttons
           Row(
             children: [
@@ -858,9 +947,9 @@ class _FolderDetailsView extends ConsumerWidget {
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -868,24 +957,27 @@ class _FolderDetailsView extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, int>> _getFolderStats(WidgetRef ref, LocalFolder folder) async {
+  Future<Map<String, int>> _getFolderStats(
+    WidgetRef ref,
+    LocalFolder folder,
+  ) async {
     final repo = ref.read(notesRepositoryProvider);
-    
+
     // Get notes count
     final noteIds = await repo.db.getNoteIdsInFolder(folder.id);
     final notesCount = noteIds.length;
-    
+
     // Get subfolders count
     final subfolders = await repo.getChildFolders(folder.id);
     final subfoldersCount = subfolders.length;
-    
+
     // Get total descendants (recursive)
     final subtree = await repo.db.getFolderSubtree(folder.id);
     final totalDescendants = subtree.length - 1; // Subtract the folder itself
-    
+
     // Get depth
     final depth = await repo.db.getFolderDepth(folder.id);
-    
+
     return {
       'notes': notesCount,
       'subfolders': subfoldersCount,
@@ -896,8 +988,8 @@ class _FolderDetailsView extends ConsumerWidget {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} '
-           '${dateTime.hour.toString().padLeft(2, '0')}:'
-           '${dateTime.minute.toString().padLeft(2, '0')}';
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _editFolder(BuildContext context, WidgetRef ref) async {
@@ -905,7 +997,7 @@ class _FolderDetailsView extends ConsumerWidget {
       context: context,
       builder: (context) => EditFolderDialog(folder: folder),
     );
-    
+
     if (result ?? false) {
       onFolderUpdated();
     }
@@ -913,7 +1005,7 @@ class _FolderDetailsView extends ConsumerWidget {
 
   Future<void> _deleteFolder(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -934,10 +1026,12 @@ class _FolderDetailsView extends ConsumerWidget {
         ],
       ),
     );
-    
+
     if (confirmed ?? false) {
-      final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
-      
+      final success = await ref
+          .read(folderProvider.notifier)
+          .deleteFolder(folder.id);
+
       if (success) {
         onFolderDeleted();
         if (context.mounted) {
@@ -959,7 +1053,7 @@ class _EmptyDetailsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -969,7 +1063,7 @@ class _EmptyDetailsView extends StatelessWidget {
             Icon(
               Icons.folder_outlined,
               size: 80,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 24),
             Text(

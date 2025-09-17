@@ -1,10 +1,9 @@
 platform :ios, '14.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# Use static frameworks + modular headers (stable for Flutter)
+# Use static frameworks WITHOUT modular headers to fix Google library issues
 use_frameworks! :linkage => :static
-# NOTE: Modular headers can break 'Flutter/Flutter.h' includes for some plugins (e.g., sqflite_darwin)
-# Disable modular headers to ensure Flutter headers are discoverable during archive
+# Disable modular headers globally to fix double-quoted include issues
 # use_modular_headers!
 
 project 'Runner', {
@@ -40,6 +39,16 @@ end
 
 
 post_install do |installer|
+  # Fix for GoogleUtilities double-quoted includes
+  installer.pods_project.targets.each do |target|
+    if target.name == 'GoogleUtilities'
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+  end
+  
   # PRODUCTION-GRADE PLUGIN COMPATIBILITY FIXES
   installer.pods_project.targets.each do |target|
     # Apply Flutter settings to appropriate targets

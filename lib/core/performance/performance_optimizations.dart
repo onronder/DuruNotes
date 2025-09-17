@@ -1,5 +1,5 @@
 /// Performance optimization utilities for Duru Notes
-/// 
+///
 /// This file contains various performance optimization techniques
 /// to ensure smooth and efficient app operation.
 library;
@@ -13,7 +13,6 @@ import 'package:flutter/scheduler.dart';
 
 /// Debouncer for search and other frequent operations
 class Debouncer {
-
   Debouncer({required this.milliseconds});
   final int milliseconds;
   Timer? _timer;
@@ -30,7 +29,6 @@ class Debouncer {
 
 /// Throttler for scroll and gesture events
 class Throttler {
-
   Throttler({required this.milliseconds});
   final int milliseconds;
   Timer? _timer;
@@ -38,10 +36,10 @@ class Throttler {
 
   void run(VoidCallback action) {
     if (!_canRun) return;
-    
+
     action();
     _canRun = false;
-    
+
     _timer?.cancel();
     _timer = Timer(Duration(milliseconds: milliseconds), () {
       _canRun = true;
@@ -55,7 +53,6 @@ class Throttler {
 
 /// Memory cache with size limit and LRU eviction
 class LRUCache<K, V> {
-
   LRUCache({required this.maxSize});
   final int maxSize;
   final Map<K, V> _cache = {};
@@ -115,9 +112,9 @@ class ImageCacheManager {
 
 /// Lazy loading widget for heavy content
 class LazyLoadWidget extends StatefulWidget {
-
   const LazyLoadWidget({
-    required this.builder, super.key,
+    required this.builder,
+    super.key,
     this.placeholder = const CircularProgressIndicator(),
     this.delay = const Duration(milliseconds: 100),
   });
@@ -154,9 +151,10 @@ class _LazyLoadWidgetState extends State<LazyLoadWidget> {
 
 /// Optimized list view with viewport caching
 class OptimizedListView extends StatelessWidget {
-
   const OptimizedListView({
-    required this.itemCount, required this.itemBuilder, super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    super.key,
     this.controller,
     this.padding,
   });
@@ -182,10 +180,7 @@ class OptimizedListView extends StatelessWidget {
 
 /// Frame rate monitor for development
 class FrameRateMonitor extends StatefulWidget {
-
-  const FrameRateMonitor({
-    required this.child, super.key,
-  });
+  const FrameRateMonitor({required this.child, super.key});
   final Widget child;
 
   @override
@@ -209,7 +204,7 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
     _frameCount++;
     final now = DateTime.now();
     final elapsed = now.difference(_lastTime).inMilliseconds;
-    
+
     if (elapsed >= 1000) {
       setState(() {
         _fps = (_frameCount * 1000 / elapsed).clamp(0, 120);
@@ -217,7 +212,7 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
         _lastTime = now;
       });
     }
-    
+
     SchedulerBinding.instance.addPostFrameCallback(_onFrame);
   }
 
@@ -233,11 +228,11 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _fps < 30 
-                    ? Colors.red.withOpacity(0.8)
-                    : _fps < 50 
-                        ? Colors.orange.withOpacity(0.8)
-                        : Colors.green.withOpacity(0.8),
+                color: _fps < 30
+                    ? Colors.red.withValues(alpha: 0.8)
+                    : _fps < 50
+                    ? Colors.orange.withValues(alpha: 0.8)
+                    : Colors.green.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -257,7 +252,6 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
 
 /// Batch operation executor for database operations
 class BatchOperationExecutor<T> {
-
   BatchOperationExecutor({
     required this.executor,
     this.batchDelay = const Duration(milliseconds: 500),
@@ -266,13 +260,13 @@ class BatchOperationExecutor<T> {
   final Future<void> Function(List<T>) executor;
   final Duration batchDelay;
   final int maxBatchSize;
-  
+
   final List<T> _queue = [];
   Timer? _timer;
 
   void add(T item) {
     _queue.add(item);
-    
+
     if (_queue.length >= maxBatchSize) {
       _executeBatch();
     } else {
@@ -287,16 +281,16 @@ class BatchOperationExecutor<T> {
 
   Future<void> _executeBatch() async {
     if (_queue.isEmpty) return;
-    
+
     final batch = List<T>.from(_queue);
     _queue.clear();
     _timer?.cancel();
-    
+
     try {
       await executor(batch);
     } catch (e) {
       if (kDebugMode) {
-        print('Batch operation failed: $e');
+        debugPrint('Batch operation failed: $e');
       }
     }
   }
@@ -313,12 +307,14 @@ class BatchOperationExecutor<T> {
 class MemoryPressureMonitor {
   static void startMonitoring() {
     if (!kDebugMode) return;
-    
+
     Timer.periodic(const Duration(seconds: 30), (timer) {
       final memoryUsage = ProcessInfo.currentRss / 1024 / 1024; // Convert to MB
-      
+
       if (memoryUsage > 500) {
-        debugPrint('⚠️ High memory usage: ${memoryUsage.toStringAsFixed(2)} MB');
+        debugPrint(
+          '⚠️ High memory usage: ${memoryUsage.toStringAsFixed(2)} MB',
+        );
         // Trigger cleanup
         imageCache.clear();
         ImageCacheManager().clearCache();
@@ -354,15 +350,12 @@ extension PerformanceExtensions on Widget {
   Widget withRepaintBoundary() {
     return RepaintBoundary(child: this);
   }
-  
+
   /// Wrap widget with lazy loading
   Widget withLazyLoad({Duration delay = const Duration(milliseconds: 100)}) {
-    return LazyLoadWidget(
-      builder: () => this,
-      delay: delay,
-    );
+    return LazyLoadWidget(builder: () => this, delay: delay);
   }
-  
+
   /// Add hero animation
   Widget withHero(String tag) {
     return Hero(tag: tag, child: this);

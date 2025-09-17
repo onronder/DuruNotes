@@ -12,20 +12,20 @@ class AttachmentLimits {
   static const int maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
   static const int maxImageSizeBytes = 10 * 1024 * 1024; // 10MB
   static const int maxVideoSizeBytes = 100 * 1024 * 1024; // 100MB
-  
+
   static const List<String> supportedImageTypes = [
     'image/jpeg',
     'image/png',
     'image/gif',
     'image/webp',
   ];
-  
+
   static const List<String> supportedVideoTypes = [
     'video/mp4',
     'video/mov',
     'video/avi',
   ];
-  
+
   static const List<String> supportedDocumentTypes = [
     'application/pdf',
     'text/plain',
@@ -36,23 +36,18 @@ class AttachmentLimits {
 
 /// Exception thrown when attachment operations fail
 class AttachmentException implements Exception {
-  
   const AttachmentException(this.message, {this.code});
   final String message;
   final String? code;
-  
+
   @override
   String toString() => 'AttachmentException: $message';
 }
 
 /// Exception for file size violations
 class AttachmentSizeException extends AttachmentException {
-  
-  const AttachmentSizeException(
-    super.message,
-    this.actualSize,
-    this.maxSize,
-  ) : super(code: 'FILE_TOO_LARGE');
+  const AttachmentSizeException(super.message, this.actualSize, this.maxSize)
+    : super(code: 'FILE_TOO_LARGE');
   final int actualSize;
   final int maxSize;
 }
@@ -63,9 +58,9 @@ class AttachmentService {
     SupabaseClient? client,
     AppLogger? logger,
     AnalyticsService? analytics,
-  })  : _client = client ?? Supabase.instance.client,
-        _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  }) : _client = client ?? Supabase.instance.client,
+       _logger = logger ?? LoggerFactory.instance,
+       _analytics = analytics ?? AnalyticsFactory.instance;
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -75,35 +70,30 @@ class AttachmentService {
   Future<AttachmentBlockData?> pickAndUpload() async {
     try {
       _analytics.startTiming('attachment_pick_upload');
-      
-      final result = await FilePicker.platform.pickFiles(
-        withData: true,
-      );
+
+      final result = await FilePicker.platform.pickFiles(withData: true);
 
       if (result == null || result.files.isEmpty) {
-        _analytics.endTiming('attachment_pick_upload', properties: {
-          'success': false,
-          'reason': 'cancelled',
-        });
+        _analytics.endTiming(
+          'attachment_pick_upload',
+          properties: {'success': false, 'reason': 'cancelled'},
+        );
         return null;
       }
 
       final file = result.files.first;
-      
+
       if (file.bytes == null) {
         throw const AttachmentException('Failed to read file data');
       }
 
-      return await uploadFromBytes(
-        bytes: file.bytes!,
-        filename: file.name,
-      );
+      return await uploadFromBytes(bytes: file.bytes!, filename: file.name);
     } catch (e) {
       _logger.error('Failed to pick and upload file', error: e);
-      _analytics.endTiming('attachment_pick_upload', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming(
+        'attachment_pick_upload',
+        properties: {'success': false, 'error': e.toString()},
+      );
       rethrow;
     }
   }
@@ -115,9 +105,9 @@ class AttachmentService {
   }) async {
     try {
       _validateFile(bytes, filename);
-      
+
       _analytics.startTiming('attachment_upload');
-      
+
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
         throw const AttachmentException('User not authenticated');
@@ -134,12 +124,10 @@ class AttachmentService {
           .uploadBinary(storagePath, bytes);
 
       // Get public URL
-      final url = _client.storage
-          .from('attachments')
-          .getPublicUrl(storagePath);
+      final url = _client.storage.from('attachments').getPublicUrl(storagePath);
 
       final mimeType = _getMimeType(filename);
-      
+
       final attachment = AttachmentBlockData(
         fileName: filename,
         fileSize: bytes.length,
@@ -147,40 +135,50 @@ class AttachmentService {
         url: url,
       );
 
-      _analytics.endTiming('attachment_upload', properties: {
-        'success': true,
-        'file_size': bytes.length,
-        'mime_type': mimeType,
-      });
+      _analytics.endTiming(
+        'attachment_upload',
+        properties: {
+          'success': true,
+          'file_size': bytes.length,
+          'mime_type': mimeType,
+        },
+      );
 
-      _analytics.featureUsed('attachment_upload', properties: {
-        'file_type': mimeType.split('/').first,
-        'file_size_mb': (bytes.length / (1024 * 1024)).round(),
-      });
+      _analytics.featureUsed(
+        'attachment_upload',
+        properties: {
+          'file_type': mimeType.split('/').first,
+          'file_size_mb': (bytes.length / (1024 * 1024)).round(),
+        },
+      );
 
-      _logger.info('File uploaded successfully', data: {
-        'filename': filename,
-        'size': bytes.length,
-        'mime_type': mimeType,
-      });
+      _logger.info(
+        'File uploaded successfully',
+        data: {
+          'filename': filename,
+          'size': bytes.length,
+          'mime_type': mimeType,
+        },
+      );
 
       return attachment;
     } catch (e) {
-      _logger.error('Failed to upload file', error: e, data: {
-        'filename': filename,
-        'size': bytes.length,
-      });
-      
-      _analytics.endTiming('attachment_upload', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
-      
-      _analytics.trackError('Attachment upload failed', properties: {
-        'filename': filename,
-        'size': bytes.length,
-      });
-      
+      _logger.error(
+        'Failed to upload file',
+        error: e,
+        data: {'filename': filename, 'size': bytes.length},
+      );
+
+      _analytics.endTiming(
+        'attachment_upload',
+        properties: {'success': false, 'error': e.toString()},
+      );
+
+      _analytics.trackError(
+        'Attachment upload failed',
+        properties: {'filename': filename, 'size': bytes.length},
+      );
+
       rethrow;
     }
   }
@@ -189,54 +187,56 @@ class AttachmentService {
   Future<Uint8List?> download(String url) async {
     try {
       _analytics.startTiming('attachment_download');
-      
+
       // For Supabase storage URLs, we can use the storage client
       if (url.contains('supabase') && url.contains('storage')) {
         final uri = Uri.parse(url);
         final pathSegments = uri.pathSegments;
-        
+
         if (pathSegments.length >= 3) {
           final bucket = pathSegments[2];
           final path = pathSegments.skip(3).join('/');
-          
-          final bytes = await _client.storage
-              .from(bucket)
-              .download(path);
-          
-          _analytics.endTiming('attachment_download', properties: {
-            'success': true,
-            'size': bytes.length,
-          });
-          
+
+          final bytes = await _client.storage.from(bucket).download(path);
+
+          _analytics.endTiming(
+            'attachment_download',
+            properties: {'success': true, 'size': bytes.length},
+          );
+
           return bytes;
         }
       }
-      
+
       // Fallback to HTTP client
-              final response = await http.get(Uri.parse(url));
-      
+      final response = await http.get(Uri.parse(url));
+
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
-        
-        _analytics.endTiming('attachment_download', properties: {
-          'success': true,
-          'size': bytes.length,
-        });
-        
+
+        _analytics.endTiming(
+          'attachment_download',
+          properties: {'success': true, 'size': bytes.length},
+        );
+
         return bytes;
       } else {
-        throw AttachmentException('Download failed with status ${response.statusCode}');
+        throw AttachmentException(
+          'Download failed with status ${response.statusCode}',
+        );
       }
     } catch (e) {
-      _logger.error('Failed to download attachment', error: e, data: {
-        'url': url,
-      });
-      
-      _analytics.endTiming('attachment_download', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
-      
+      _logger.error(
+        'Failed to download attachment',
+        error: e,
+        data: {'url': url},
+      );
+
+      _analytics.endTiming(
+        'attachment_download',
+        properties: {'success': false, 'error': e.toString()},
+      );
+
       return null;
     }
   }
@@ -247,26 +247,26 @@ class AttachmentService {
       if (url.contains('supabase') && url.contains('storage')) {
         final uri = Uri.parse(url);
         final pathSegments = uri.pathSegments;
-        
+
         if (pathSegments.length >= 3) {
           final bucket = pathSegments[2];
           final path = pathSegments.skip(3).join('/');
-          
-          await _client.storage
-              .from(bucket)
-              .remove([path]);
-          
+
+          await _client.storage.from(bucket).remove([path]);
+
           _analytics.featureUsed('attachment_delete');
           _logger.info('Attachment deleted', data: {'url': url});
           return true;
         }
       }
-      
+
       return false;
     } catch (e) {
-      _logger.error('Failed to delete attachment', error: e, data: {
-        'url': url,
-      });
+      _logger.error(
+        'Failed to delete attachment',
+        error: e,
+        data: {'url': url},
+      );
       return false;
     }
   }
@@ -283,7 +283,7 @@ class AttachmentService {
     }
 
     final mimeType = _getMimeType(filename);
-    
+
     // Check specific type limits
     if (AttachmentLimits.supportedImageTypes.contains(mimeType) &&
         bytes.length > AttachmentLimits.maxImageSizeBytes) {
@@ -293,7 +293,7 @@ class AttachmentService {
         AttachmentLimits.maxImageSizeBytes,
       );
     }
-    
+
     if (AttachmentLimits.supportedVideoTypes.contains(mimeType) &&
         bytes.length > AttachmentLimits.maxVideoSizeBytes) {
       throw AttachmentSizeException(
@@ -307,7 +307,7 @@ class AttachmentService {
   /// Get MIME type from filename
   String _getMimeType(String filename) {
     final extension = filename.split('.').last.toLowerCase();
-    
+
     switch (extension) {
       case 'jpg':
       case 'jpeg':
@@ -340,8 +340,8 @@ class AttachmentService {
   /// Check if file type is supported
   bool isSupported(String mimeType) {
     return AttachmentLimits.supportedImageTypes.contains(mimeType) ||
-           AttachmentLimits.supportedVideoTypes.contains(mimeType) ||
-           AttachmentLimits.supportedDocumentTypes.contains(mimeType);
+        AttachmentLimits.supportedVideoTypes.contains(mimeType) ||
+        AttachmentLimits.supportedDocumentTypes.contains(mimeType);
   }
 
   /// Get human-readable file size

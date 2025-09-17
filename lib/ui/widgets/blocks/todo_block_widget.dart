@@ -4,7 +4,12 @@ import 'package:flutter/services.dart';
 
 class TodoBlockWidget extends StatefulWidget {
   const TodoBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNewLine, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    required this.onNewLine,
+    super.key,
   });
 
   final NoteBlock block;
@@ -29,7 +34,7 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
     _parseTodoData();
     _controller = TextEditingController(text: _text);
     _focusNode = FocusNode();
-    
+
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
     });
@@ -44,12 +49,12 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
   @override
   void didUpdateWidget(TodoBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _parseTodoData();
       _controller.text = _text;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _focusNode.requestFocus();
     }
@@ -117,27 +122,23 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
                 height: 20,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: _isCompleted 
-                        ? Theme.of(context).primaryColor 
+                    color: _isCompleted
+                        ? Theme.of(context).primaryColor
                         : Colors.grey.shade400,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(4),
-                  color: _isCompleted 
-                      ? Theme.of(context).primaryColor 
+                  color: _isCompleted
+                      ? Theme.of(context).primaryColor
                       : Colors.transparent,
                 ),
                 child: _isCompleted
-                    ? const Icon(
-                        Icons.check,
-                        size: 14,
-                        color: Colors.white,
-                      )
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
                     : null,
               ),
             ),
           ),
-          
+
           // Todo Text
           Expanded(
             child: Focus(
@@ -158,19 +159,17 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
                   ),
                 ),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  decoration: _isCompleted 
-                      ? TextDecoration.lineThrough 
+                  decoration: _isCompleted
+                      ? TextDecoration.lineThrough
                       : TextDecoration.none,
-                  color: _isCompleted 
-                      ? Colors.grey.shade500 
-                      : null,
+                  color: _isCompleted ? Colors.grey.shade500 : null,
                 ),
                 maxLines: null,
                 textInputAction: TextInputAction.newline,
               ),
             ),
           ),
-          
+
           // Priority Selector
           PopupMenuButton<String>(
             icon: Icon(

@@ -4,7 +4,11 @@ import 'package:flutter/services.dart';
 
 class CodeBlockWidget extends StatefulWidget {
   const CodeBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    super.key,
   });
 
   final NoteBlock block;
@@ -32,7 +36,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     _languageController = TextEditingController(text: _language);
     _codeFocusNode = FocusNode();
     _languageFocusNode = FocusNode();
-    
+
     _codeFocusNode.addListener(() {
       widget.onFocusChanged(_codeFocusNode.hasFocus);
     });
@@ -47,13 +51,13 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   @override
   void didUpdateWidget(CodeBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _parseCodeData();
       _codeController.text = _code;
       _languageController.text = _language;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _codeFocusNode.requestFocus();
     }
@@ -97,9 +101,9 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
   void _copyToClipboard() {
     Clipboard.setData(ClipboardData(text: _code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code copied to clipboard')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Code copied to clipboard')));
   }
 
   @override
@@ -145,16 +149,16 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                     ),
                   ),
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Copy Button
                 IconButton(
                   icon: const Icon(Icons.copy, size: 16),
                   onPressed: _copyToClipboard,
                   tooltip: 'Copy code',
                 ),
-                
+
                 // Language Selector
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.language, size: 16),
@@ -164,8 +168,14 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(value: 'dart', child: Text('Dart')),
-                    const PopupMenuItem(value: 'javascript', child: Text('JavaScript')),
-                    const PopupMenuItem(value: 'typescript', child: Text('TypeScript')),
+                    const PopupMenuItem(
+                      value: 'javascript',
+                      child: Text('JavaScript'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'typescript',
+                      child: Text('TypeScript'),
+                    ),
                     const PopupMenuItem(value: 'python', child: Text('Python')),
                     const PopupMenuItem(value: 'java', child: Text('Java')),
                     const PopupMenuItem(value: 'cpp', child: Text('C++')),
@@ -178,7 +188,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
               ],
             ),
           ),
-          
+
           // Code Text Area
           TextField(
             controller: _codeController,
@@ -189,10 +199,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
               border: InputBorder.none,
               contentPadding: EdgeInsets.all(12),
             ),
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
             maxLines: null,
             minLines: 3,
             keyboardType: TextInputType.multiline,

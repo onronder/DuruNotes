@@ -1,17 +1,13 @@
 import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-@GenerateMocks([
-  SupabaseClient,
-  GoTrueClient,
-  FirebaseMessaging,
-  RemoteMessage,
-])
+@GenerateMocks([SupabaseClient, GoTrueClient, FirebaseMessaging, RemoteMessage])
 void main() {
   group('Push Notification System Tests', () {
     late MockSupabaseClient mockSupabase;
@@ -22,9 +18,9 @@ void main() {
     setUp(() {
       mockSupabase = MockSupabaseClient();
       mockAuth = MockGoTrueClient();
-      
+
       when(mockSupabase.auth).thenReturn(mockAuth);
-      
+
       pushService = PushNotificationService(client: mockSupabase);
       handlerService = NotificationHandlerService(
         client: mockSupabase,
@@ -40,9 +36,9 @@ void main() {
 
       test('should handle missing user gracefully', () async {
         when(mockAuth.currentUser).thenReturn(null);
-        
+
         final result = await pushService.registerWithBackend();
-        
+
         expect(result.success, isFalse);
         expect(result.error, contains('not authenticated'));
       });
@@ -57,11 +53,11 @@ void main() {
           createdAt: DateTime.now().toIso8601String(),
         );
         when(mockAuth.currentUser).thenReturn(mockUser);
-        
+
         // Mock permission denied
         // This would require mocking Firebase Messaging
         // For now, we'll test the structure
-        
+
         expect(pushService.registerWithBackend, returnsNormally);
       });
     });
@@ -73,7 +69,7 @@ void main() {
       });
 
       test('should parse notification payload correctly', () {
-        final payload = NotificationPayload(
+        const payload = NotificationPayload(
           eventId: 'test-event-id',
           eventType: 'email_received',
           title: 'Test Title',
@@ -94,17 +90,14 @@ void main() {
       test('should emit notification tap events', () async {
         await handlerService.initialize();
 
-        final payload = NotificationPayload(
+        const payload = NotificationPayload(
           eventId: 'test-event',
           eventType: 'test',
           title: 'Test',
           body: 'Body',
         );
 
-        expectLater(
-          handlerService.onNotificationTap,
-          emits(payload),
-        );
+        expectLater(handlerService.onNotificationTap, emits(payload));
 
         // Simulate notification tap
         handlerService.notificationTapSubject.add(payload);
@@ -121,13 +114,14 @@ void main() {
         when(mockAuth.currentUser).thenReturn(mockUser);
 
         // Mock preferences response
-        when(mockSupabase.from('notification_preferences'))
-            .thenReturn(MockSupabaseQueryBuilder());
+        when(
+          mockSupabase.from('notification_preferences'),
+        ).thenReturn(MockSupabaseQueryBuilder());
 
         await handlerService.initialize();
-        
+
         // Test preference checking
-        final payload = NotificationPayload(
+        const payload = NotificationPayload(
           eventId: 'test',
           eventType: 'email_received',
           title: 'Test',
@@ -151,28 +145,29 @@ void main() {
         when(mockAuth.currentUser).thenReturn(mockUser);
 
         // Mock RPC call
-        when(mockSupabase.rpc(
-          'create_notification_event',
-          params: anyNamed('params'),
-        )).thenAnswer((_) async => 'event-id-123');
+        when(
+          mockSupabase.rpc(
+            'create_notification_event',
+            params: anyNamed('params'),
+          ),
+        ).thenAnswer((_) async => 'event-id-123');
 
         // Test event creation
         final eventData = {
           'p_user_id': 'test-user-id',
           'p_event_type': 'email_received',
           'p_event_source': 'email_in',
-          'p_payload': {
-            'from': 'sender@example.com',
-            'subject': 'Test Email',
-          },
+          'p_payload': {'from': 'sender@example.com', 'subject': 'Test Email'},
         };
 
         await mockSupabase.rpc('create_notification_event', params: eventData);
 
-        verify(mockSupabase.rpc(
-          'create_notification_event',
-          params: argThat(isA<Map>()),
-        )).called(1);
+        verify(
+          mockSupabase.rpc(
+            'create_notification_event',
+            params: argThat(isA<Map>()),
+          ),
+        ).called(1);
       });
 
       test('should handle deduplication', () async {
@@ -190,15 +185,23 @@ void main() {
         };
 
         // First event should succeed
-        when(mockSupabase.rpc('create_notification_event', params: eventData1))
-            .thenAnswer((_) async => 'event-1');
+        when(
+          mockSupabase.rpc('create_notification_event', params: eventData1),
+        ).thenAnswer((_) async => 'event-1');
 
         // Second event should update, not create new
-        when(mockSupabase.rpc('create_notification_event', params: eventData2))
-            .thenAnswer((_) async => 'event-1'); // Same ID
+        when(
+          mockSupabase.rpc('create_notification_event', params: eventData2),
+        ).thenAnswer((_) async => 'event-1'); // Same ID
 
-        final result1 = await mockSupabase.rpc('create_notification_event', params: eventData1);
-        final result2 = await mockSupabase.rpc('create_notification_event', params: eventData2);
+        final result1 = await mockSupabase.rpc(
+          'create_notification_event',
+          params: eventData1,
+        );
+        final result2 = await mockSupabase.rpc(
+          'create_notification_event',
+          params: eventData2,
+        );
 
         expect(result1, equals(result2));
       });
@@ -207,26 +210,28 @@ void main() {
     group('Edge Function Integration', () {
       test('should process notification batch', () async {
         // Mock batch processing
-        final batchData = {
-          'batch_size': 10,
-        };
+        final batchData = {'batch_size': 10};
 
-        when(mockSupabase.functions.invoke(
-          'send-push-notification',
-          body: batchData,
-        )).thenAnswer((_) async => FunctionResponse(
-          data: {
-            'processed': 5,
-            'results': [
-              {'event_id': '1', 'status': 'delivered'},
-              {'event_id': '2', 'status': 'delivered'},
-              {'event_id': '3', 'status': 'failed'},
-              {'event_id': '4', 'status': 'delivered'},
-              {'event_id': '5', 'status': 'retrying'},
-            ],
-          },
-          status: 200,
-        ));
+        when(
+          mockSupabase.functions.invoke(
+            'send-push-notification',
+            body: batchData,
+          ),
+        ).thenAnswer(
+          (_) async => FunctionResponse(
+            data: {
+              'processed': 5,
+              'results': [
+                {'event_id': '1', 'status': 'delivered'},
+                {'event_id': '2', 'status': 'delivered'},
+                {'event_id': '3', 'status': 'failed'},
+                {'event_id': '4', 'status': 'delivered'},
+                {'event_id': '5', 'status': 'retrying'},
+              ],
+            },
+            status: 200,
+          ),
+        );
 
         final response = await mockSupabase.functions.invoke(
           'send-push-notification',
@@ -240,11 +245,11 @@ void main() {
       test('should handle retry logic', () async {
         // Test exponential backoff calculation
         final retryDelays = [30, 120, 600, 3600]; // seconds
-        
-        for (int i = 0; i < retryDelays.length; i++) {
+
+        for (var i = 0; i < retryDelays.length; i++) {
           final nextRetry = calculateNextRetryTime(i);
           final expectedDelay = retryDelays[i];
-          
+
           expect(
             nextRetry.difference(DateTime.now()).inSeconds,
             closeTo(expectedDelay, 1),
@@ -263,8 +268,9 @@ void main() {
           'delivered_at': DateTime.now().toIso8601String(),
         };
 
-        when(mockSupabase.from('notification_deliveries'))
-            .thenReturn(MockSupabaseQueryBuilder());
+        when(
+          mockSupabase.from('notification_deliveries'),
+        ).thenReturn(MockSupabaseQueryBuilder());
 
         // Simulate delivery tracking
         await mockSupabase.from('notification_deliveries').insert(deliveryData);
@@ -283,8 +289,9 @@ void main() {
           'failed_at': DateTime.now().toIso8601String(),
         };
 
-        when(mockSupabase.from('notification_deliveries'))
-            .thenReturn(MockSupabaseQueryBuilder());
+        when(
+          mockSupabase.from('notification_deliveries'),
+        ).thenReturn(MockSupabaseQueryBuilder());
 
         await mockSupabase.from('notification_deliveries').insert(failureData);
 
@@ -297,35 +304,37 @@ void main() {
         final now = DateTime.now();
         final quietStart = TimeOfDay(hour: 22, minute: 0);
         final quietEnd = TimeOfDay(hour: 7, minute: 0);
-        
+
         // Test if current time is in quiet hours
         final currentMinutes = now.hour * 60 + now.minute;
         final startMinutes = quietStart.hour * 60 + quietStart.minute;
         final endMinutes = quietEnd.hour * 60 + quietEnd.minute;
-        
+
         bool inQuietHours;
         if (startMinutes > endMinutes) {
           // Quiet hours span midnight
-          inQuietHours = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+          inQuietHours =
+              currentMinutes >= startMinutes || currentMinutes <= endMinutes;
         } else {
-          inQuietHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+          inQuietHours =
+              currentMinutes >= startMinutes && currentMinutes <= endMinutes;
         }
-        
+
         expect(inQuietHours, isA<bool>());
       });
 
       test('should respect Do Not Disturb', () async {
         final dndUntil = DateTime.now().add(const Duration(hours: 2));
-        
+
         // Check if DND is active
         final isDndActive = DateTime.now().isBefore(dndUntil);
-        
+
         expect(isDndActive, isTrue);
-        
+
         // Check after DND expires
         final afterDnd = dndUntil.add(const Duration(minutes: 1));
         final isDndExpired = afterDnd.isAfter(dndUntil);
-        
+
         expect(isDndExpired, isTrue);
       });
 
@@ -335,7 +344,7 @@ void main() {
           'web_clip_saved': {'enabled': false},
           'reminder_due': {'enabled': true},
         };
-        
+
         // Test filtering
         expect(eventPreferences['email_received']?['enabled'], isTrue);
         expect(eventPreferences['web_clip_saved']?['enabled'], isFalse);
@@ -354,19 +363,20 @@ DateTime calculateNextRetryTime(int retryCount) {
 }
 
 // Mock classes for testing
-class MockSupabaseQueryBuilder extends Mock implements SupabaseQueryBuilder<dynamic> {
+class MockSupabaseQueryBuilder extends Mock
+    implements SupabaseQueryBuilder<dynamic> {
   @override
   SupabaseQueryBuilder<dynamic> select([String? columns]) => this;
-  
+
   @override
   SupabaseQueryBuilder<dynamic> eq(String column, Object value) => this;
-  
+
   @override
   Future<dynamic> maybeSingle() async => null;
-  
+
   @override
   Future<dynamic> insert(Map<String, dynamic> values) async => null;
-  
+
   @override
   Future<dynamic> update(Map<String, dynamic> values) async => null;
 }

@@ -1,13 +1,5 @@
 /// Metadata model for notes that came from external sources
 class NoteMetadata {
-  final String? source;
-  final String? fromEmail;
-  final String? to;
-  final String? receivedAt;
-  final String? messageId;
-  final String? originalHtml;
-  final Map<String, dynamic>? attachments;
-
   NoteMetadata({
     this.source,
     this.fromEmail,
@@ -17,18 +9,6 @@ class NoteMetadata {
     this.originalHtml,
     this.attachments,
   });
-
-  Map<String, dynamic> toJson() {
-    return {
-      if (source != null) 'source': source,
-      if (fromEmail != null) 'from_email': fromEmail,
-      if (to != null) 'to': to,
-      if (receivedAt != null) 'received_at': receivedAt,
-      if (messageId != null) 'message_id': messageId,
-      if (originalHtml != null) 'original_html': originalHtml,
-      if (attachments != null) 'attachments': attachments,
-    };
-  }
 
   factory NoteMetadata.fromJson(Map<String, dynamic> json) {
     return NoteMetadata(
@@ -40,5 +20,24 @@ class NoteMetadata {
       originalHtml: json['original_html'] as String?,
       attachments: json['attachments'] as Map<String, dynamic>?,
     );
+  }
+  final String? source;
+  final String? fromEmail;
+  final String? to;
+  final String? receivedAt;
+  final String? messageId;
+  final String? originalHtml;
+  final Map<String, dynamic>? attachments;
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (source != null) 'source': source,
+      if (fromEmail != null) 'from_email': fromEmail,
+      if (to != null) 'to': to,
+      if (receivedAt != null) 'received_at': receivedAt,
+      if (messageId != null) 'message_id': messageId,
+      if (originalHtml != null) 'original_html': originalHtml,
+      if (attachments != null) 'attachments': attachments,
+    };
   }
 }

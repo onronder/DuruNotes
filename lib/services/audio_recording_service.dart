@@ -11,16 +11,14 @@ import 'package:record/record.dart';
 
 /// Audio recording service for recording voice notes
 class AudioRecordingService {
-  AudioRecordingService({
-    AppLogger? logger,
-    AnalyticsService? analytics,
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  AudioRecordingService({AppLogger? logger, AnalyticsService? analytics})
+    : _logger = logger ?? LoggerFactory.instance,
+      _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
   final AudioRecorder _recorder = AudioRecorder();
-  
+
   bool _isRecording = false;
   String? _currentRecordingPath;
   DateTime? _recordingStartTime;
@@ -30,7 +28,7 @@ class AudioRecordingService {
     if (_isRecording) {
       await stopRecording();
     }
-    
+
     try {
       // Check microphone permission
       final micPermission = await Permission.microphone.status;
@@ -40,47 +38,44 @@ class AudioRecordingService {
           throw Exception('Microphone permission denied');
         }
       }
-      
+
       // Check if recording is supported
       if (!await _recorder.hasPermission()) {
         throw Exception('Recording permission not granted');
       }
-      
+
       _analytics.startTiming('audio_recording_session');
-      
+
       // Generate recording file path
       final directory = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final sessionPrefix = sessionId != null ? '${sessionId}_' : '';
       final filename = '${sessionPrefix}voice_note_$timestamp.m4a';
       _currentRecordingPath = path.join(directory.path, filename);
-      
+
       // Start recording
-      await _recorder.start(
-        const RecordConfig(
-          
-        ),
-        path: _currentRecordingPath!,
-      );
-      
+      await _recorder.start(const RecordConfig(), path: _currentRecordingPath!);
+
       _isRecording = true;
       _recordingStartTime = DateTime.now();
-      
-      _analytics.featureUsed('audio_recording_start', properties: {
-        'session_id': sessionId,
-      });
-      
-      _logger.info('Audio recording started', data: {
-        'path': _currentRecordingPath,
-        'session_id': sessionId,
-      });
-      
+
+      _analytics.featureUsed(
+        'audio_recording_start',
+        properties: {'session_id': sessionId},
+      );
+
+      _logger.info(
+        'Audio recording started',
+        data: {'path': _currentRecordingPath, 'session_id': sessionId},
+      );
+
       return true;
     } catch (e) {
       _logger.error('Failed to start audio recording', error: e);
-      _analytics.trackError('Audio recording start failed', properties: {
-        'error': e.toString(),
-      });
+      _analytics.trackError(
+        'Audio recording start failed',
+        properties: {'error': e.toString()},
+      );
       return false;
     }
   }
@@ -88,37 +83,41 @@ class AudioRecordingService {
   /// Stop recording and return the file path
   Future<String?> stopRecording() async {
     if (!_isRecording) return null;
-    
+
     try {
       final recordingPath = await _recorder.stop();
       _isRecording = false;
-      
-      final duration = _recordingStartTime != null 
+
+      final duration = _recordingStartTime != null
           ? DateTime.now().difference(_recordingStartTime!)
           : Duration.zero;
-      
-      _analytics.endTiming('audio_recording_session', properties: {
-        'success': true,
-        'duration_seconds': duration.inSeconds,
-        'file_path': recordingPath,
-      });
-      
-      _analytics.featureUsed('audio_recording_complete', properties: {
-        'duration_seconds': duration.inSeconds,
-      });
-      
-      _logger.info('Audio recording completed', data: {
-        'path': recordingPath,
-        'duration': duration.inSeconds,
-      });
-      
+
+      _analytics.endTiming(
+        'audio_recording_session',
+        properties: {
+          'success': true,
+          'duration_seconds': duration.inSeconds,
+          'file_path': recordingPath,
+        },
+      );
+
+      _analytics.featureUsed(
+        'audio_recording_complete',
+        properties: {'duration_seconds': duration.inSeconds},
+      );
+
+      _logger.info(
+        'Audio recording completed',
+        data: {'path': recordingPath, 'duration': duration.inSeconds},
+      );
+
       return recordingPath ?? _currentRecordingPath;
     } catch (e) {
       _logger.error('Failed to stop audio recording', error: e);
-      _analytics.endTiming('audio_recording_session', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming(
+        'audio_recording_session',
+        properties: {'success': false, 'error': e.toString()},
+      );
       return null;
     }
   }
@@ -126,11 +125,11 @@ class AudioRecordingService {
   /// Cancel recording without saving
   Future<void> cancelRecording() async {
     if (!_isRecording) return;
-    
+
     try {
       await _recorder.stop();
       _isRecording = false;
-      
+
       // Delete the recording file if it exists
       if (_currentRecordingPath != null) {
         final file = File(_currentRecordingPath!);
@@ -138,12 +137,12 @@ class AudioRecordingService {
           await file.delete();
         }
       }
-      
-      _analytics.endTiming('audio_recording_session', properties: {
-        'success': false,
-        'reason': 'cancelled',
-      });
-      
+
+      _analytics.endTiming(
+        'audio_recording_session',
+        properties: {'success': false, 'reason': 'cancelled'},
+      );
+
       _logger.info('Audio recording cancelled');
     } catch (e) {
       _logger.error('Failed to cancel audio recording', error: e);
@@ -158,19 +157,21 @@ class AudioRecordingService {
         _logger.warning('Recording file not found', data: {'path': filePath});
         return null;
       }
-      
+
       final bytes = await file.readAsBytes();
-      
-      _logger.info('Recording file read', data: {
-        'path': filePath,
-        'size': bytes.length,
-      });
-      
+
+      _logger.info(
+        'Recording file read',
+        data: {'path': filePath, 'size': bytes.length},
+      );
+
       return bytes;
     } catch (e) {
-      _logger.error('Failed to read recording file', error: e, data: {
-        'path': filePath,
-      });
+      _logger.error(
+        'Failed to read recording file',
+        error: e,
+        data: {'path': filePath},
+      );
       return null;
     }
   }
@@ -186,9 +187,11 @@ class AudioRecordingService {
       }
       return false;
     } catch (e) {
-      _logger.error('Failed to delete recording file', error: e, data: {
-        'path': filePath,
-      });
+      _logger.error(
+        'Failed to delete recording file',
+        error: e,
+        data: {'path': filePath},
+      );
       return false;
     }
   }
@@ -200,16 +203,16 @@ class AudioRecordingService {
       if (!await file.exists()) {
         return null;
       }
-      
+
       // This is a simplified implementation
       // In a real app, you might want to use a library like just_audio to get exact duration
       final stat = await file.stat();
       final size = stat.size;
-      
+
       // Rough estimation: 128kbps bitrate
       // Duration ≈ (file_size_bytes * 8) / bitrate_bps
       final estimatedDurationSeconds = (size * 8) / 128000;
-      
+
       return Duration(seconds: estimatedDurationSeconds.round());
     } catch (e) {
       _logger.error('Failed to get recording duration', error: e);
@@ -220,9 +223,11 @@ class AudioRecordingService {
   /// Get suggested filename for voice recording
   String getSuggestedFilename({String prefix = 'voice_note'}) {
     final timestamp = DateTime.now();
-    final formattedDate = '${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}';
-    final formattedTime = '${timestamp.hour.toString().padLeft(2, '0')}${timestamp.minute.toString().padLeft(2, '0')}';
-    
+    final formattedDate =
+        '${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}';
+    final formattedTime =
+        '${timestamp.hour.toString().padLeft(2, '0')}${timestamp.minute.toString().padLeft(2, '0')}';
+
     return '${prefix}_${formattedDate}_$formattedTime.m4a';
   }
 
@@ -249,10 +254,10 @@ class AudioRecordingService {
 
   /// Get current recording state
   bool get isRecording => _isRecording;
-  
+
   /// Get current recording path
   String? get currentRecordingPath => _currentRecordingPath;
-  
+
   /// Get recording duration so far
   Duration? get currentRecordingDuration {
     if (!_isRecording || _recordingStartTime == null) {

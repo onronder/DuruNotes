@@ -7,9 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Material 3 dialog for editing folder properties
 class EditFolderDialog extends ConsumerStatefulWidget {
-  const EditFolderDialog({
-    required this.folder, super.key,
-  });
+  const EditFolderDialog({required this.folder, super.key});
 
   final LocalFolder folder;
 
@@ -17,16 +15,16 @@ class EditFolderDialog extends ConsumerStatefulWidget {
   ConsumerState<EditFolderDialog> createState() => _EditFolderDialogState();
 }
 
-class _EditFolderDialogState extends ConsumerState<EditFolderDialog> 
+class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   final _nameFocusNode = FocusNode();
-  
+
   late AnimationController _scaleController;
   late AnimationController _slideController;
-  
+
   LocalFolder? _selectedParent;
   late Color _selectedColor;
   late IconData _selectedIcon;
@@ -71,11 +69,13 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize controllers with current folder values
     _nameController = TextEditingController(text: widget.folder.name);
-    _descriptionController = TextEditingController(text: widget.folder.description ?? '');
-    
+    _descriptionController = TextEditingController(
+      text: widget.folder.description ?? '',
+    );
+
     // Initialize color
     if (widget.folder.color != null) {
       try {
@@ -86,21 +86,24 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
     } else {
       _selectedColor = Colors.blue;
     }
-    
+
     // Initialize icon
     if (widget.folder.icon != null) {
       try {
-        _selectedIcon = IconData(int.parse(widget.folder.icon!), fontFamily: 'MaterialIcons');
+        _selectedIcon = IconData(
+          int.parse(widget.folder.icon!),
+          fontFamily: 'MaterialIcons',
+        );
       } catch (e) {
         _selectedIcon = Icons.folder;
       }
     } else {
       _selectedIcon = Icons.folder;
     }
-    
+
     // Load parent folder if exists
     _loadParentFolder();
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -109,14 +112,16 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _scaleController.forward();
     _slideController.forward();
   }
 
   Future<void> _loadParentFolder() async {
     if (widget.folder.parentId != null) {
-      final parent = await ref.read(notesRepositoryProvider).getFolder(widget.folder.parentId!);
+      final parent = await ref
+          .read(notesRepositoryProvider)
+          .getFolder(widget.folder.parentId!);
       if (mounted) {
         setState(() {
           _selectedParent = parent;
@@ -137,23 +142,25 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
 
   Future<void> _updateFolder() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isUpdating = true;
     });
-    
+
     try {
-      final success = await ref.read(folderProvider.notifier).updateFolder(
-        id: widget.folder.id,
-        name: _nameController.text.trim(),
-        parentId: _selectedParent?.id,
-        color: _selectedColor.value.toRadixString(16),
-        icon: _selectedIcon.codePoint.toString(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
-            : _descriptionController.text.trim(),
-      );
-      
+      final success = await ref
+          .read(folderProvider.notifier)
+          .updateFolder(
+            id: widget.folder.id,
+            name: _nameController.text.trim(),
+            parentId: _selectedParent?.id,
+            color: _selectedColor.value.toRadixString(16),
+            icon: _selectedIcon.codePoint.toString(),
+            description: _descriptionController.text.trim().isEmpty
+                ? null
+                : _descriptionController.text.trim(),
+          );
+
       if (success && mounted) {
         Navigator.of(context).pop(true);
       }
@@ -182,7 +189,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       title: AppLocalizations.of(context).selectParentFolder,
       showCreateOption: false,
     );
-    
+
     if (mounted) {
       // Prevent circular references
       if (selectedFolder?.id == widget.folder.id) {
@@ -194,10 +201,13 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
         );
         return;
       }
-      
+
       // Check if the selected folder is a descendant
       if (selectedFolder != null) {
-        final isDescendant = await _isDescendant(selectedFolder.id, widget.folder.id);
+        final isDescendant = await _isDescendant(
+          selectedFolder.id,
+          widget.folder.id,
+        );
         if (isDescendant) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -208,7 +218,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
           return;
         }
       }
-      
+
       setState(() {
         _selectedParent = selectedFolder;
       });
@@ -218,7 +228,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
   Future<bool> _isDescendant(String potentialParentId, String folderId) async {
     final repository = ref.read(notesRepositoryProvider);
     String? currentId = potentialParentId;
-    
+
     while (currentId != null) {
       if (currentId == folderId) {
         return true;
@@ -226,7 +236,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       final folder = await repository.getFolder(currentId);
       currentId = folder?.parentId;
     }
-    
+
     return false;
   }
 
@@ -235,20 +245,20 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return ScaleTransition(
       scale: CurvedAnimation(
         parent: _scaleController,
         curve: Curves.easeOutBack,
       ),
       child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.3),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: _slideController,
-          curve: Curves.easeOutCubic,
-        )),
+        position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: _slideController,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
         child: AlertDialog(
           backgroundColor: colorScheme.surface,
           surfaceTintColor: colorScheme.surfaceTint,
@@ -261,14 +271,10 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _selectedColor.withOpacity(0.2),
+                  color: _selectedColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  _selectedIcon,
-                  color: _selectedColor,
-                  size: 20,
-                ),
+                child: Icon(_selectedIcon, color: _selectedColor, size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -310,9 +316,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                     },
                     onFieldSubmitted: (_) => _updateFolder(),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Parent folder selection
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -333,9 +339,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Color selection
                   Text(
                     l10n.folderColor,
@@ -367,7 +373,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: color.withOpacity(0.4),
+                                      color: color.withValues(alpha: 0.4),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -385,9 +391,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                       );
                     }).toList(),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Icon selection
                   Text(
                     l10n.folderIcon,
@@ -399,30 +405,28 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                   SizedBox(
                     height: 120,
                     child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 8,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 8,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
                       itemCount: _folderIcons.length,
                       itemBuilder: (context, index) {
                         final icon = _folderIcons[index];
                         final isSelected = icon == _selectedIcon;
-                        
+
                         return GestureDetector(
                           onTap: () => setState(() => _selectedIcon = icon),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? _selectedColor.withOpacity(0.2)
+                                  ? _selectedColor.withValues(alpha: 0.2)
                                   : colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                               border: isSelected
-                                  ? Border.all(
-                                      color: _selectedColor,
-                                      width: 2,
-                                    )
+                                  ? Border.all(color: _selectedColor, width: 2)
                                   : null,
                             ),
                             child: Icon(
@@ -437,9 +441,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                       },
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Description (optional)
                   TextFormField(
                     controller: _descriptionController,
@@ -454,13 +458,15 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                     maxLines: 2,
                     textCapitalization: TextCapitalization.sentences,
                   ),
-                  
+
                   // Original path info
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                      color: colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -488,7 +494,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
           ),
           actions: [
             TextButton(
-              onPressed: _isUpdating ? null : () => Navigator.of(context).pop(false),
+              onPressed: _isUpdating
+                  ? null
+                  : () => Navigator.of(context).pop(false),
               child: Text(l10n.cancel),
             ),
             FilledButton(

@@ -3,11 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service to manage password history and prevent password reuse
 class PasswordHistoryService {
-  PasswordHistoryService({SupabaseClient? client}) 
-      : _client = client ?? Supabase.instance.client;
+  PasswordHistoryService({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
-  
+
   // Number of previous passwords to check
   static const int _historyLimit = 5;
 
@@ -23,7 +23,7 @@ class PasswordHistoryService {
           .limit(_historyLimit);
 
       final passwordHistory = response as List<dynamic>;
-      
+
       // Check if the new password matches any previous password using secure verification
       for (final record in passwordHistory) {
         final historicalHash = record['password_hash'] as String;
@@ -31,7 +31,7 @@ class PasswordHistoryService {
           return true; // Password has been used before
         }
       }
-      
+
       return false; // Password is new
     } catch (e) {
       // If there's an error (e.g., table doesn't exist), allow the password
@@ -44,7 +44,7 @@ class PasswordHistoryService {
   Future<void> storePasswordHash(String userId, String password) async {
     try {
       final passwordHash = PasswordValidator.hashPassword(password);
-      
+
       // Insert the new password hash
       await _client.from('password_history').insert({
         'user_id': userId,
@@ -72,7 +72,7 @@ class PasswordHistoryService {
           .order('created_at', ascending: false);
 
       final passwordHistory = response as List<dynamic>;
-      
+
       // If we have more than the limit, delete the oldest ones
       if (passwordHistory.length > _historyLimit) {
         final idsToDelete = passwordHistory
@@ -107,7 +107,7 @@ class PasswordHistoryService {
       if (response != null) {
         return DateTime.parse(response['created_at'] as String);
       }
-      
+
       return null;
     } catch (e) {
       return null;
@@ -117,10 +117,7 @@ class PasswordHistoryService {
   /// Clear all password history for a user (useful for account deletion)
   Future<void> clearPasswordHistory(String userId) async {
     try {
-      await _client
-          .from('password_history')
-          .delete()
-          .eq('user_id', userId);
+      await _client.from('password_history').delete().eq('user_id', userId);
     } catch (e) {
       // If cleanup fails, it's not critical
       return;

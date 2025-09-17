@@ -1,12 +1,12 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// Material 3 expandable folder hierarchy with drag & drop support
 class FolderHierarchyView extends ConsumerStatefulWidget {
@@ -28,7 +28,8 @@ class FolderHierarchyView extends ConsumerStatefulWidget {
   final EdgeInsets padding;
 
   @override
-  ConsumerState<FolderHierarchyView> createState() => _FolderHierarchyViewState();
+  ConsumerState<FolderHierarchyView> createState() =>
+      _FolderHierarchyViewState();
 }
 
 class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
@@ -37,7 +38,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
   final FocusNode _searchFocusNode = FocusNode();
   late AnimationController _fadeController;
   late AnimationController _expansionController;
-  
+
   String _searchQuery = '';
   bool _showSearch = false;
   String? _draggedFolderId;
@@ -53,9 +54,9 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _fadeController.forward();
-    
+
     // Load folder hierarchy
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(folderHierarchyProvider.notifier).refresh();
@@ -75,7 +76,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     setState(() {
       _showSearch = !_showSearch;
     });
-    
+
     if (_showSearch) {
       _searchFocusNode.requestFocus();
       _expansionController.forward();
@@ -96,23 +97,25 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
   bool _matchesSearch(LocalFolder folder) {
     if (_searchQuery.isEmpty) return true;
     return folder.name.toLowerCase().contains(_searchQuery) ||
-           folder.path.toLowerCase().contains(_searchQuery) ||
-           (folder.description.toLowerCase().contains(_searchQuery) ?? false);
+        folder.path.toLowerCase().contains(_searchQuery) ||
+        (folder.description.toLowerCase().contains(_searchQuery) ?? false);
   }
 
   List<FolderTreeNode> _filterNodes(List<FolderTreeNode> nodes) {
     if (_searchQuery.isEmpty) return nodes;
-    
+
     final filtered = <FolderTreeNode>[];
     for (final node in nodes) {
       final childrenFiltered = _filterNodes(node.children);
       final nodeMatches = _matchesSearch(node.folder);
-      
+
       if (nodeMatches || childrenFiltered.isNotEmpty) {
-        filtered.add(node.copyWith(
-          children: childrenFiltered,
-          isExpanded: _searchQuery.isNotEmpty, // Auto-expand when searching
-        ));
+        filtered.add(
+          node.copyWith(
+            children: childrenFiltered,
+            isExpanded: _searchQuery.isNotEmpty, // Auto-expand when searching
+          ),
+        );
       }
     }
     return filtered;
@@ -123,7 +126,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       context: context,
       builder: (context) => CreateFolderDialog(parentFolder: parent),
     );
-    
+
     if (result != null && mounted) {
       ref.read(folderHierarchyProvider.notifier).refresh();
       ref.read(folderProvider.notifier).refresh();
@@ -135,7 +138,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       context: context,
       builder: (context) => EditFolderDialog(folder: folder),
     );
-    
+
     if (result ?? false && mounted) {
       ref.read(folderHierarchyProvider.notifier).refresh();
       ref.read(folderProvider.notifier).refresh();
@@ -147,7 +150,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       context: context,
       builder: (context) => _FolderActionsSheet(folder: folder),
     );
-    
+
     switch (result) {
       case 'edit':
         await _showEditFolderDialog(folder);
@@ -160,7 +163,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
   Future<void> _confirmDeleteFolder(LocalFolder folder) async {
     final l10n = AppLocalizations.of(context);
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,9 +176,9 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
             const SizedBox(height: 8),
             Text(
               '"${folder.name}"',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -194,16 +197,20 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
         ],
       ),
     );
-    
+
     if (confirmed ?? false && mounted) {
-      final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
+      final success = await ref
+          .read(folderProvider.notifier)
+          .deleteFolder(folder.id);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete folder: ${ref.read(folderProvider).error}'),
+              content: Text(
+                'Failed to delete folder: ${ref.read(folderProvider).error}',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -217,7 +224,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return FadeTransition(
       opacity: _fadeController,
       child: Column(
@@ -237,7 +244,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                       ),
                     ),
                   ),
-                  
+
                   // Search toggle
                   if (widget.showSearch)
                     IconButton.filledTonal(
@@ -251,15 +258,20 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                       ),
                       tooltip: _showSearch ? l10n.hideSearch : l10n.showSearch,
                     ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // Expand/Collapse all
                   IconButton.filledTonal(
                     onPressed: () {
-                      final hierarchyNotifier = ref.read(folderHierarchyProvider.notifier);
-                      final hasExpandedFolders = ref.read(folderHierarchyProvider).expandedIds.isNotEmpty;
-                      
+                      final hierarchyNotifier = ref.read(
+                        folderHierarchyProvider.notifier,
+                      );
+                      final hasExpandedFolders = ref
+                          .read(folderHierarchyProvider)
+                          .expandedIds
+                          .isNotEmpty;
+
                       if (hasExpandedFolders) {
                         hierarchyNotifier.collapseAll();
                       } else {
@@ -268,15 +280,28 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                     },
                     icon: Consumer(
                       builder: (context, ref, child) {
-                        final hasExpandedFolders = ref.watch(folderHierarchyProvider).expandedIds.isNotEmpty;
-                        return Icon(hasExpandedFolders ? Icons.unfold_less : Icons.unfold_more);
+                        final hasExpandedFolders = ref
+                            .watch(folderHierarchyProvider)
+                            .expandedIds
+                            .isNotEmpty;
+                        return Icon(
+                          hasExpandedFolders
+                              ? Icons.unfold_less
+                              : Icons.unfold_more,
+                        );
                       },
                     ),
-                    tooltip: ref.watch(folderHierarchyProvider).expandedFolders.isNotEmpty ? l10n.collapseAll : l10n.expandAll,
+                    tooltip:
+                        ref
+                            .watch(folderHierarchyProvider)
+                            .expandedFolders
+                            .isNotEmpty
+                        ? l10n.collapseAll
+                        : l10n.expandAll,
                   ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // Create folder
                   IconButton.filled(
                     onPressed: _showCreateFolderDialog,
@@ -286,7 +311,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                 ],
               ),
             ),
-          
+
           // Search bar (animated)
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
@@ -316,57 +341,66 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                   )
                 : const SizedBox.shrink(),
           ),
-          
+
           // Folder hierarchy
           Expanded(
             child: Consumer(
               builder: (context, ref, child) {
                 final hierarchyState = ref.watch(folderHierarchyProvider);
-                
+
                 if (hierarchyState.isLoading) {
                   return const Center(
                     child: CircularProgressIndicator.adaptive(),
                   );
                 }
-                
+
                 if (hierarchyState.error != null) {
                   return _ErrorDisplay(
                     error: hierarchyState.error!,
-                    onRetry: () => ref.read(folderHierarchyProvider.notifier).refresh(),
+                    onRetry: () =>
+                        ref.read(folderHierarchyProvider.notifier).refresh(),
                   );
                 }
-                
+
                 final filteredNodes = _filterNodes(hierarchyState.rootNodes);
-                
+
                 if (filteredNodes.isEmpty) {
                   return _EmptyState(
                     searchQuery: _searchQuery,
-                    onCreateFolder: widget.showActions ? _showCreateFolderDialog : null,
+                    onCreateFolder: widget.showActions
+                        ? _showCreateFolderDialog
+                        : null,
                   );
                 }
-                
+
                 return DragTarget<String>(
                   onWillAcceptWithDetails: (details) => details.data != null,
                   onAcceptWithDetails: (details) => _moveToRoot(details.data),
                   builder: (context, candidateData, rejectedData) {
-                    return Container(
-                      decoration: candidateData.isNotEmpty
-                          ? BoxDecoration(
+                    return candidateData.isNotEmpty
+                        ? DecoratedBox(
+                            decoration: BoxDecoration(
                               border: Border.all(
                                 color: colorScheme.primary,
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
-                            )
-                          : null,
-                      child: ListView.builder(
-                        padding: widget.padding.copyWith(top: 0),
-                        itemCount: filteredNodes.length,
-                        itemBuilder: (context, index) {
-                          return _buildFolderTreeItem(filteredNodes[index]);
-                        },
-                      ),
-                    );
+                            ),
+                            child: ListView.builder(
+                              padding: widget.padding.copyWith(top: 0),
+                              itemCount: filteredNodes.length,
+                              itemBuilder: (context, index) {
+                                return _buildFolderTreeItem(filteredNodes[index]);
+                              },
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: widget.padding.copyWith(top: 0),
+                            itemCount: filteredNodes.length,
+                            itemBuilder: (context, index) {
+                              return _buildFolderTreeItem(filteredNodes[index]);
+                            },
+                          );
                   },
                 );
               },
@@ -391,7 +425,9 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
         }
       },
       onExpandToggle: () {
-        ref.read(folderHierarchyProvider.notifier).toggleExpansion(node.folder.id);
+        ref
+            .read(folderHierarchyProvider.notifier)
+            .toggleExpansion(node.folder.id);
       },
       onDragStarted: (folderId) => setState(() => _draggedFolderId = folderId),
       onDragCompleted: () => setState(() => _draggedFolderId = null),
@@ -403,7 +439,9 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
   Future<void> _moveToRoot(String folderId) async {
     if (folderId == _draggedFolderId) {
-      final success = await ref.read(folderProvider.notifier).moveFolder(folderId, null);
+      final success = await ref
+          .read(folderProvider.notifier)
+          .moveFolder(folderId, null);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
       }
@@ -412,7 +450,9 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
   Future<void> _moveFolderToFolder(String draggedId, String targetId) async {
     if (draggedId != targetId) {
-      final success = await ref.read(folderProvider.notifier).moveFolder(draggedId, targetId);
+      final success = await ref
+          .read(folderProvider.notifier)
+          .moveFolder(draggedId, targetId);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
       }
@@ -422,7 +462,16 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
 class _FolderTreeTile extends StatefulWidget {
   const _FolderTreeTile({
-    required this.node, required this.isSelected, required this.onTap, required this.onLongPress, required this.onExpandToggle, required this.onDragStarted, required this.onDragCompleted, required this.onAcceptDrop, required this.isDragging, super.key,
+    required this.node,
+    required this.isSelected,
+    required this.onTap,
+    required this.onLongPress,
+    required this.onExpandToggle,
+    required this.onDragStarted,
+    required this.onDragCompleted,
+    required this.onAcceptDrop,
+    required this.isDragging,
+    super.key,
     this.children = const [],
   });
 
@@ -441,7 +490,7 @@ class _FolderTreeTile extends StatefulWidget {
   State<_FolderTreeTile> createState() => _FolderTreeTileState();
 }
 
-class _FolderTreeTileState extends State<_FolderTreeTile> 
+class _FolderTreeTileState extends State<_FolderTreeTile>
     with TickerProviderStateMixin {
   late AnimationController _scaleController;
   late AnimationController _rotationController;
@@ -459,7 +508,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     if (widget.node.isExpanded) {
       _rotationController.value = 1.0;
     }
@@ -468,7 +517,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
   @override
   void didUpdateWidget(_FolderTreeTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.node.isExpanded != oldWidget.node.isExpanded) {
       if (widget.node.isExpanded) {
         _rotationController.forward();
@@ -476,7 +525,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
         _rotationController.reverse();
       }
     }
-    
+
     if (widget.isDragging != oldWidget.isDragging) {
       if (widget.isDragging) {
         _scaleController.animateTo(1.1);
@@ -498,10 +547,11 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final folder = widget.node.folder;
-    
+
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) => details.data != folder.id,
-      onAcceptWithDetails: (details) => widget.onAcceptDrop(details.data, folder.id),
+      onAcceptWithDetails: (details) =>
+          widget.onAcceptDrop(details.data, folder.id),
       onMove: (details) => setState(() => _isDragOver = true),
       onLeave: (data) => setState(() => _isDragOver = false),
       builder: (context, candidateData, rejectedData) {
@@ -530,12 +580,20 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                            color:
+                                FolderIconHelpers.getFolderColor(
+                                  folder.color,
+                                ) ??
+                                colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             FolderIconHelpers.getFolderIcon(folder.icon),
-                            color: FolderIconHelpers.getFolderColor(folder.color) != null
+                            color:
+                                FolderIconHelpers.getFolderColor(
+                                      folder.color,
+                                    ) !=
+                                    null
                                 ? Colors.white
                                 : colorScheme.onPrimaryContainer,
                             size: 16,
@@ -560,7 +618,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                 onDragCompleted: widget.onDragCompleted,
                 child: _buildTileContent(context, theme, colorScheme, folder),
               ),
-              
+
               // Child folders (when expanded)
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
@@ -576,16 +634,21 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
     );
   }
 
-  Widget _buildTileContent(BuildContext context, ThemeData theme, ColorScheme colorScheme, LocalFolder folder) {
+  Widget _buildTileContent(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    LocalFolder folder,
+  ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         color: widget.isSelected
-            ? colorScheme.primaryContainer.withOpacity(0.5)
+            ? colorScheme.primaryContainer.withValues(alpha: 0.5)
             : _isDragOver
-                ? colorScheme.surfaceContainerHighest
-                : null,
+            ? colorScheme.surfaceContainerHighest
+            : null,
         borderRadius: BorderRadius.circular(12),
         border: _isDragOver
             ? Border.all(color: colorScheme.primary, width: 2)
@@ -597,7 +660,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
           children: [
             // Indentation
             SizedBox(width: widget.node.level * 20.0),
-            
+
             // Expand/collapse button
             if (widget.node.children.isNotEmpty)
               AnimatedBuilder(
@@ -609,7 +672,10 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                       icon: const Icon(Icons.chevron_right),
                       onPressed: widget.onExpandToggle,
                       iconSize: 20,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                   );
@@ -617,13 +683,15 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
               )
             else
               const SizedBox(width: 32),
-            
+
             // Folder icon
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                color:
+                    FolderIconHelpers.getFolderColor(folder.color) ??
+                    colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -654,8 +722,9 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            if (folder.description.isNotEmpty ?? false) const SizedBox(width: 8),
-            
+            if (folder.description.isNotEmpty ?? false)
+              const SizedBox(width: 8),
+
             // Note count badge
             if (widget.node.noteCount > 0)
               Container(
@@ -675,17 +744,12 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
           ],
         ),
         trailing: widget.isSelected
-            ? Icon(
-                Icons.folder_open,
-                color: colorScheme.primary,
-              )
+            ? Icon(Icons.folder_open, color: colorScheme.primary)
             : null,
         selected: widget.isSelected,
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -701,7 +765,7 @@ class _FolderActionsSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -718,7 +782,9 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primaryContainer,
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
+                      colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -750,9 +816,9 @@ class _FolderActionsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Actions
           ListTile(
             leading: const Icon(Icons.edit_outlined),
@@ -767,7 +833,10 @@ class _FolderActionsSheet extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: colorScheme.error),
-            title: Text(l10n.deleteFolder, style: TextStyle(color: colorScheme.error)),
+            title: Text(
+              l10n.deleteFolder,
+              style: TextStyle(color: colorScheme.error),
+            ),
             onTap: () => Navigator.of(context).pop('delete'),
           ),
         ],
@@ -777,10 +846,7 @@ class _FolderActionsSheet extends StatelessWidget {
 }
 
 class _ErrorDisplay extends StatelessWidget {
-  const _ErrorDisplay({
-    required this.error,
-    required this.onRetry,
-  });
+  const _ErrorDisplay({required this.error, required this.onRetry});
 
   final String error;
   final VoidCallback onRetry;
@@ -790,18 +856,14 @@ class _ErrorDisplay extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
             const SizedBox(height: 16),
             Text(
               l10n.loadFoldersError,
@@ -830,10 +892,7 @@ class _ErrorDisplay extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.searchQuery,
-    this.onCreateFolder,
-  });
+  const _EmptyState({required this.searchQuery, this.onCreateFolder});
 
   final String searchQuery;
   final VoidCallback? onCreateFolder;
@@ -843,7 +902,7 @@ class _EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -853,7 +912,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               searchQuery.isNotEmpty ? Icons.search_off : Icons.folder_outlined,
               size: 64,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 16),
             Text(
@@ -863,7 +922,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              searchQuery.isNotEmpty 
+              searchQuery.isNotEmpty
                   ? l10n.noFoldersFoundSubtitle(searchQuery)
                   : 'Create folders to organize your notes',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -871,7 +930,7 @@ class _EmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             if (onCreateFolder != null && searchQuery.isEmpty) ...[
               const SizedBox(height: 24),
               FilledButton.icon(

@@ -2,9 +2,13 @@ import 'package:duru_notes/core/ui/responsive.dart';
 import 'package:flutter/material.dart';
 
 class StatsCard extends StatelessWidget {
-
   const StatsCard({
-    required this.greeting, required this.email, required this.stats, required this.isCollapsed, required this.onToggleCollapse, super.key,
+    required this.greeting,
+    required this.email,
+    required this.stats,
+    required this.isCollapsed,
+    required this.onToggleCollapse,
+    super.key,
   });
   final String greeting;
   final String email;
@@ -45,9 +49,12 @@ class StatsCard extends StatelessWidget {
                             email,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ),
@@ -58,9 +65,12 @@ class StatsCard extends StatelessWidget {
                       children: [
                         Text(
                           isCollapsed ? 'Expand' : 'Collapse',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                         const SizedBox(width: 8),
                         Icon(
@@ -88,9 +98,11 @@ class StatsCard extends StatelessWidget {
 }
 
 class StatItem extends StatelessWidget {
-
   const StatItem({
-    required this.icon, required this.value, required this.label, super.key,
+    required this.icon,
+    required this.value,
+    required this.label,
+    super.key,
   });
   final IconData icon;
   final String value;
@@ -104,9 +116,9 @@ class StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         Text(
           label,

@@ -7,10 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// A floating action bar that appears during batch selection mode
 class BatchOperationsBar extends ConsumerStatefulWidget {
-  const BatchOperationsBar({
-    super.key,
-    this.onClose,
-  });
+  const BatchOperationsBar({super.key, this.onClose});
 
   final VoidCallback? onClose;
 
@@ -24,39 +21,32 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
   late AnimationController _expandController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _expandAnimation;
-  
+
   bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _expandController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOut,
-    ));
-    
-    _expandAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _expandController,
-      curve: Curves.easeInOut,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
+
+    _expandAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _expandController, curve: Curves.easeInOut),
+    );
+
     // Start animations
     _slideController.forward();
   }
@@ -70,13 +60,13 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
 
   void _toggleExpansion() {
     setState(() => _isExpanded = !_isExpanded);
-    
+
     if (_isExpanded) {
       _expandController.forward();
     } else {
       _expandController.reverse();
     }
-    
+
     HapticFeedback.selectionClick();
   }
 
@@ -86,7 +76,7 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
     final selectionState = ref.watch(batchSelectionProvider);
     final capabilities = ref.watch(batchOperationCapabilitiesProvider);
     final operationsState = ref.watch(batchOperationsProvider);
-    
+
     if (!selectionState.isSelectionMode || selectionState.selectedCount == 0) {
       return const SizedBox.shrink();
     }
@@ -100,13 +90,13 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         child: Column(
@@ -122,7 +112,10 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                   GestureDetector(
                     onTap: _toggleExpansion,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(20),
@@ -169,7 +162,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.folder_outlined,
                           tooltip: 'Move to folder',
-                          onPressed: capabilities.canMove ? _showFolderPicker : null,
+                          onPressed: capabilities.canMove
+                              ? _showFolderPicker
+                              : null,
                           isLoading: operationsState.isLoading,
                         ),
 
@@ -179,7 +174,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.delete_outline,
                           tooltip: 'Delete notes',
-                          onPressed: capabilities.canDelete ? _confirmDelete : null,
+                          onPressed: capabilities.canDelete
+                              ? _confirmDelete
+                              : null,
                           isLoading: operationsState.isLoading,
                           isDestructive: true,
                         ),
@@ -229,14 +226,17 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
     );
   }
 
-  Widget _buildExpandedActions(ThemeData theme, BatchOperationCapabilities capabilities) {
+  Widget _buildExpandedActions(
+    ThemeData theme,
+    BatchOperationCapabilities capabilities,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           const Divider(height: 1),
           const SizedBox(height: 16),
-          
+
           // Selection tools
           Row(
             children: [
@@ -277,9 +277,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Batch actions grid
           GridView.count(
             shrinkWrap: true,
@@ -376,9 +376,12 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
       context: context,
       isScrollControlled: true,
       builder: (context) => FolderPicker(
-        title: 'Move ${ref.read(batchSelectionProvider).selectedCount} notes to...',
+        title:
+            'Move ${ref.read(batchSelectionProvider).selectedCount} notes to...',
         onFolderSelected: (folderId) {
-          ref.read(batchOperationsProvider.notifier).moveNotesToFolder(folderId);
+          ref
+              .read(batchOperationsProvider.notifier)
+              .moveNotesToFolder(folderId);
         },
       ),
     );
@@ -386,12 +389,14 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
 
   void _confirmDelete() {
     final count = ref.read(batchSelectionProvider).selectedCount;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Notes'),
-        content: Text('Are you sure you want to delete $count note${count > 1 ? 's' : ''}? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete $count note${count > 1 ? 's' : ''}? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -418,11 +423,15 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
   }
 
   void _toggleArchive(bool archive) {
-    ref.read(batchOperationsProvider.notifier).toggleArchiveSelectedNotes(archive);
+    ref
+        .read(batchOperationsProvider.notifier)
+        .toggleArchiveSelectedNotes(archive);
   }
 
   void _toggleFavorite(bool favorite) {
-    ref.read(batchOperationsProvider.notifier).toggleFavoriteSelectedNotes(favorite);
+    ref
+        .read(batchOperationsProvider.notifier)
+        .toggleFavoriteSelectedNotes(favorite);
   }
 
   void _encryptNotes() {
@@ -457,7 +466,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
               title: const Text('Markdown'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('markdown');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('markdown');
               },
             ),
             ListTile(
@@ -465,7 +476,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
               title: const Text('PDF'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('pdf');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('pdf');
               },
             ),
             ListTile(
@@ -473,7 +486,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
               title: const Text('JSON'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('json');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('json');
               },
             ),
           ],
@@ -501,16 +516,18 @@ class _BatchActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Tooltip(
       message: tooltip,
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: isDestructive 
-              ? theme.colorScheme.errorContainer.withOpacity(0.3)
-              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          color: isDestructive
+              ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Material(
@@ -519,7 +536,7 @@ class _BatchActionButton extends StatelessWidget {
           child: InkWell(
             onTap: onPressed,
             borderRadius: BorderRadius.circular(12),
-            child: isLoading 
+            child: isLoading
                 ? const Center(
                     child: SizedBox(
                       width: 20,
@@ -529,7 +546,7 @@ class _BatchActionButton extends StatelessWidget {
                   )
                 : Icon(
                     icon,
-                    color: isDestructive 
+                    color: isDestructive
                         ? theme.colorScheme.error
                         : theme.colorScheme.onSurfaceVariant,
                     size: 20,
@@ -555,12 +572,14 @@ class _SelectionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return ActionChip(
       avatar: Icon(icon, size: 16),
       label: Text(label),
       onPressed: onPressed,
-      backgroundColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.5,
+      ),
       side: BorderSide.none,
       labelStyle: theme.textTheme.labelSmall,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -584,11 +603,11 @@ class _BatchActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Material(
-      color: enabled 
-          ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
-          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
+      color: enabled
+          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: enabled ? onPressed : null,
@@ -600,18 +619,20 @@ class _BatchActionTile extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: enabled 
+                color: enabled
                     ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                 size: 20,
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: enabled 
+                  color: enabled
                       ? theme.colorScheme.onSurfaceVariant
-                      : theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                      : theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,

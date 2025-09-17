@@ -6,9 +6,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// A widget that catches and handles errors in its child widget tree
 class ErrorBoundary extends StatefulWidget {
-  
   const ErrorBoundary({
-    required this.child, super.key,
+    required this.child,
+    super.key,
     this.fallback,
     this.onError,
     this.captureErrors = true,
@@ -30,11 +30,11 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   @override
   void initState() {
     super.initState();
-    
+
     // Set up error handling for this boundary
-    FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.onError = (details) {
       _handleError(details.exception, details.stack);
-      
+
       // Call the original error handler to maintain default behavior
       FlutterError.presentError(details);
     };
@@ -56,7 +56,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         });
       });
     }
-    
+
     // Log the error
     logger.error(
       'ErrorBoundary caught error',
@@ -67,21 +67,24 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         'widget': widget.child.runtimeType.toString(),
       },
     );
-    
+
     // Capture error in Sentry if enabled
     if (widget.captureErrors) {
       Sentry.captureException(
         error,
         stackTrace: stackTrace,
-                  withScope: (scope) {
-            scope.level = SentryLevel.error;
-            scope.setTag('error_source', 'error_boundary');
-            scope.setTag('widget_type', widget.child.runtimeType.toString());
-            scope.setTag('has_custom_fallback', widget.fallback != null ? 'true' : 'false');
-          },
+        withScope: (scope) {
+          scope.level = SentryLevel.error;
+          scope.setTag('error_source', 'error_boundary');
+          scope.setTag('widget_type', widget.child.runtimeType.toString());
+          scope.setTag(
+            'has_custom_fallback',
+            widget.fallback != null ? 'true' : 'false',
+          );
+        },
       );
     }
-    
+
     // Call custom error handler if provided
     if (widget.onError != null) {
       try {
@@ -99,7 +102,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
       _stackTrace = null;
       _hasError = false;
     });
-    
+
     logger.info('ErrorBoundary: User retried after error');
   }
 
@@ -108,7 +111,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
     if (_hasError) {
       return widget.fallback ?? _buildDefaultErrorWidget(context);
     }
-    
+
     return widget.child;
   }
 
@@ -175,7 +178,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   }
 
   void _showErrorDetails(BuildContext context) {
-            showDialog<void>(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Error Details'),
@@ -184,16 +187,13 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Error:',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Error:', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Text(
                 _error.toString(),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
               ),
               if (_stackTrace != null) ...[
                 const SizedBox(height: 16),
@@ -204,9 +204,9 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
                 const SizedBox(height: 8),
                 Text(
                   _stackTrace.toString(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                 ),
               ],
             ],
@@ -225,9 +225,10 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
 
 /// A specialized error boundary for specific features
 class FeatureErrorBoundary extends StatelessWidget {
-  
   const FeatureErrorBoundary({
-    required this.child, required this.featureName, super.key,
+    required this.child,
+    required this.featureName,
+    super.key,
     this.fallback,
   });
   final Widget child;
@@ -242,10 +243,7 @@ class FeatureErrorBoundary extends StatelessWidget {
           'Error in $featureName',
           error: error,
           stackTrace: stackTrace,
-          data: {
-            'feature': featureName,
-            'context': 'FeatureErrorBoundary',
-          },
+          data: {'feature': featureName, 'context': 'FeatureErrorBoundary'},
         );
       },
       fallback: fallback ?? _buildFeatureErrorWidget(context),
@@ -301,7 +299,7 @@ extension ErrorBoundaryExtension on Widget {
       child: this,
     );
   }
-  
+
   /// Wrap this widget with a feature-specific error boundary
   Widget withFeatureErrorBoundary(String featureName, {Widget? fallback}) {
     return FeatureErrorBoundary(

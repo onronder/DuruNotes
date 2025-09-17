@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 /// Optimized for both iOS and Android with proper accessibility
 class IOSStyleToggle extends StatefulWidget {
   const IOSStyleToggle({
-    required this.value, required this.onChanged, super.key,
+    required this.value,
+    required this.onChanged,
+    super.key,
     this.activeColor,
     this.inactiveColor,
     this.thumbColor,
@@ -32,7 +34,7 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
   late AnimationController _controller;
   late Animation<double> _positionAnimation;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -40,23 +42,17 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
       duration: widget.animationDuration,
       vsync: this,
     );
-    
+
     _positionAnimation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
     _scaleAnimation = Tween<double>(
       begin: 1,
       end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
     if (widget.value) {
       _controller.value = 1.0;
     }
@@ -65,7 +61,7 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
   @override
   void didUpdateWidget(IOSStyleToggle oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.value != oldWidget.value) {
       if (widget.value) {
         _controller.forward();
@@ -90,14 +86,16 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Calculate colors based on current state
     final backgroundColor = widget.value
-        ? (widget.activeColor ?? 
-            (isDark ? const Color(0xFF667eea) : theme.colorScheme.primary))
-        : (widget.inactiveColor ?? 
-            (isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade300));
-    
+        ? (widget.activeColor ??
+              (isDark ? const Color(0xFF667eea) : theme.colorScheme.primary))
+        : (widget.inactiveColor ??
+              (isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.grey.shade300));
+
     return Semantics(
       label: widget.value ? 'Enabled' : 'Disabled',
       value: widget.value.toString(),
@@ -107,9 +105,9 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
-            final thumbPosition = _positionAnimation.value * 
-                (widget.width - widget.height);
-            
+            final thumbPosition =
+                _positionAnimation.value * (widget.width - widget.height);
+
             return AnimatedContainer(
               duration: widget.animationDuration,
               width: widget.width,
@@ -119,7 +117,7 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
                 borderRadius: BorderRadius.circular(widget.height / 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -148,7 +146,7 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withValues(alpha: 0.2),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -172,7 +170,10 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
 /// Enhanced settings list tile with iOS-style toggle
 class SettingsToggleTile extends StatelessWidget {
   const SettingsToggleTile({
-    required this.title, required this.value, required this.onChanged, super.key,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    super.key,
     this.subtitle,
     this.leading,
     this.activeColor,
@@ -191,12 +192,12 @@ class SettingsToggleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
-        color: isDark 
-            ? Colors.white.withOpacity(0.02)
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.02)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
@@ -205,8 +206,8 @@ class SettingsToggleTile extends StatelessWidget {
         title: Text(
           title,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: isDark 
-                ? Colors.white.withOpacity(0.9)
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.9)
                 : theme.colorScheme.onSurface,
             fontWeight: FontWeight.w500,
           ),
@@ -215,8 +216,8 @@ class SettingsToggleTile extends StatelessWidget {
             ? Text(
                 subtitle!,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isDark 
-                      ? Colors.white.withOpacity(0.6)
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.6)
                       : theme.colorScheme.onSurfaceVariant,
                 ),
               )
@@ -236,7 +237,9 @@ class SettingsToggleTile extends StatelessWidget {
 /// Settings section with glassmorphic design
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
-    required this.title, required this.children, super.key,
+    required this.title,
+    required this.children,
+    super.key,
     this.icon,
   });
 
@@ -248,7 +251,7 @@ class SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -260,7 +263,7 @@ class SettingsSection extends StatelessWidget {
               if (icon != null) ...[
                 Icon(
                   icon,
-                  color: isDark 
+                  color: isDark
                       ? const Color(0xFF667eea)
                       : theme.colorScheme.primary,
                   size: 20,
@@ -270,8 +273,8 @@ class SettingsSection extends StatelessWidget {
               Text(
                 title.toUpperCase(),
                 style: theme.textTheme.labelLarge?.copyWith(
-                  color: isDark 
-                      ? Colors.white.withOpacity(0.6)
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.6)
                       : theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -280,29 +283,31 @@ class SettingsSection extends StatelessWidget {
             ],
           ),
         ),
-        
+
         // Section content
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: isDark 
-                ? Colors.white.withOpacity(0.03)
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.03)
                 : theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: isDark
                 ? Border.all(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     width: 0.5,
                   )
                 : Border.all(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.3,
+                    ),
                     width: 0.5,
                   ),
-            boxShadow: isDark 
+            boxShadow: isDark
                 ? null
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -312,7 +317,7 @@ class SettingsSection extends StatelessWidget {
             children: children.asMap().entries.map((entry) {
               final index = entry.key;
               final child = entry.value;
-              
+
               return Column(
                 children: [
                   child,
@@ -320,9 +325,11 @@ class SettingsSection extends StatelessWidget {
                     Divider(
                       height: 1,
                       thickness: 0.5,
-                      color: isDark 
-                          ? Colors.white.withOpacity(0.05)
-                          : theme.colorScheme.outlineVariant.withOpacity(0.3),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.3,
+                            ),
                       indent: 16,
                       endIndent: 16,
                     ),

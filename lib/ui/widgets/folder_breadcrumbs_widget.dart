@@ -1,19 +1,18 @@
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 
 /// Displays folder path as clickable breadcrumbs for navigation
 class FolderBreadcrumbsWidget extends StatelessWidget {
+  const FolderBreadcrumbsWidget({
+    required this.breadcrumbs,
+    required this.onFolderTap,
+    super.key,
+    this.showHome = true,
+  });
   final List<LocalFolder> breadcrumbs;
   final Function(LocalFolder?) onFolderTap;
   final bool showHome;
-
-  const FolderBreadcrumbsWidget({
-    super.key,
-    required this.breadcrumbs,
-    required this.onFolderTap,
-    this.showHome = true,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +36,7 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 16,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
           ],
           // Folder breadcrumbs
@@ -45,7 +44,7 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
             final index = entry.key;
             final folder = entry.value;
             final isLast = index == breadcrumbs.length - 1;
-            
+
             return [
               _BreadcrumbChip(
                 icon: _getFolderIcon(folder),
@@ -59,7 +58,7 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
                 Icon(
                   Icons.chevron_right,
                   size: 16,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
             ];
           }),
@@ -97,6 +96,14 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
 }
 
 class _BreadcrumbChip extends StatelessWidget {
+  const _BreadcrumbChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isLast,
+    required this.colorScheme,
+    this.color,
+  });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -104,33 +111,26 @@ class _BreadcrumbChip extends StatelessWidget {
   final Color? color;
   final ColorScheme colorScheme;
 
-  const _BreadcrumbChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.isLast,
-    this.color,
-    required this.colorScheme,
-  });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isActive = isLast;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: isActive ? null : () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
+        onTap: isActive
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap();
+              },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isActive 
-                ? colorScheme.primaryContainer.withOpacity(0.3)
+            color: isActive
+                ? colorScheme.primaryContainer.withValues(alpha: 0.3)
                 : null,
             borderRadius: BorderRadius.circular(16),
           ),
@@ -140,17 +140,19 @@ class _BreadcrumbChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: color ?? (isActive 
-                    ? colorScheme.primary 
-                    : colorScheme.onSurfaceVariant),
+                color:
+                    color ??
+                    (isActive
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  color: isActive 
-                      ? colorScheme.primary 
+                  color: isActive
+                      ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -164,26 +166,25 @@ class _BreadcrumbChip extends StatelessWidget {
 
 /// Compact breadcrumbs for limited space (e.g., app bar)
 class CompactFolderBreadcrumbs extends StatelessWidget {
+  const CompactFolderBreadcrumbs({
+    required this.breadcrumbs,
+    required this.onFolderTap,
+    super.key,
+    this.maxItems = 3,
+  });
   final List<LocalFolder> breadcrumbs;
   final Function(LocalFolder?) onFolderTap;
   final int maxItems;
-
-  const CompactFolderBreadcrumbs({
-    super.key,
-    required this.breadcrumbs,
-    required this.onFolderTap,
-    this.maxItems = 3,
-  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Truncate breadcrumbs if too many
-    List<LocalFolder> displayBreadcrumbs = breadcrumbs;
-    bool hasMore = false;
-    
+    var displayBreadcrumbs = breadcrumbs;
+    var hasMore = false;
+
     if (breadcrumbs.length > maxItems) {
       displayBreadcrumbs = [
         breadcrumbs.first,
@@ -200,28 +201,25 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
           onPressed: () => onFolderTap(null),
           tooltip: 'Home',
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(
-            minWidth: 32,
-            minHeight: 32,
-          ),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
         if (breadcrumbs.isNotEmpty) ...[
           Icon(
             Icons.chevron_right,
             size: 16,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           if (hasMore) ...[
             Text(
               '...',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ),
             Icon(
               Icons.chevron_right,
               size: 16,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
           Expanded(
@@ -231,16 +229,18 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
                 children: displayBreadcrumbs.asMap().entries.expand((entry) {
                   final index = entry.key;
                   final folder = entry.value;
-                  final isLast = (hasMore && index == 0) 
-                      ? false 
+                  final isLast = (hasMore && index == 0)
+                      ? false
                       : index == displayBreadcrumbs.length - 1;
-                  
+
                   return [
                     GestureDetector(
-                      onTap: isLast ? null : () {
-                        HapticFeedback.selectionClick();
-                        onFolderTap(folder);
-                      },
+                      onTap: isLast
+                          ? null
+                          : () {
+                              HapticFeedback.selectionClick();
+                              onFolderTap(folder);
+                            },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -249,9 +249,11 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
                         child: Text(
                           folder.name,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
-                            color: isLast 
-                                ? colorScheme.primary 
+                            fontWeight: isLast
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isLast
+                                ? colorScheme.primary
                                 : colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -261,7 +263,9 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
                       Icon(
                         Icons.chevron_right,
                         size: 16,
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                   ];
                 }).toList(),

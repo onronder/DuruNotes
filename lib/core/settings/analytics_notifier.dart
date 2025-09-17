@@ -17,7 +17,7 @@ class AnalyticsNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool(_analyticsEnabledKey) ?? true;
       state = enabled;
-      
+
       // Apply the setting to the analytics service
       if (enabled) {
         _analyticsService.enable();
@@ -36,7 +36,7 @@ class AnalyticsNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_analyticsEnabledKey, enabled);
       state = enabled;
-      
+
       // Apply the setting to the analytics service
       if (enabled) {
         _analyticsService.enable();

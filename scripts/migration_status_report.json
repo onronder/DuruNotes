@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-09-17T06:19:37.883Z",
+  "activeFiles": [
+    "20240912_user_devices_push_tokens.sql",
+    "20250113000001_notification_improvements.sql",
+    "20250113000002_notification_cron_jobs.sql",
+    "20250114_audit_extend_rls_policies.sql",
+    "20250115_enable_inbox_realtime.sql",
+    "20250116_enable_pg_net.sql",
+    "20250117_backfill_note_tags.sql",
+    "20250118_fix_clipper_inbox_structure_v2.sql",
+    "20250120_quick_capture_widget.sql",
+    "20250121_fix_quick_capture_function.sql",
+    "20250909_in_main_full.sql",
+    "20250910_fix_clipper_inbox_web_constraint.sql",
+    "20250911_all_critical_fixes.sql",
+    "20250911_canonicalize_incoming_mail_folders.sql",
+    "20250911_email_deduplication_index.sql",
+    "20250915_fix_cron_jobs_simple.sql",
+    "20250915_fix_edge_functions_auth.sql"
+  ],
+  "skippedFiles": [
+    "20250114_audit_extend_rls_policies.sql.skip",
+    "20250114_convert_to_jsonb.sql.skip",
+    "20250114_create_unique_indexes.sql.skip",
+    "20250114_enforce_foreign_key_cascades.sql.skip",
+    "20250114_fix_database_settings.sql.skip",
+    "20250117_fix_clipper_inbox_structure.sql.skip",
+    "20250119_note_tasks.sql.skip"
+  ],
+  "verificationResults": [
+    {
+      "file": "20250120_quick_capture_widget.sql",
+      "status": "ACTIVE",
+      "applied": "YES"
+    },
+    {
+      "file": "20250911_all_critical_fixes.sql",
+      "status": "ACTIVE",
+      "applied": "YES"
+    }
+  ],
+  "hasPartialMigrations": false,
+  "hasSkippedCritical": true
+}

@@ -2,7 +2,7 @@
 enum SyncMode {
   /// Automatically sync changes on startup and periodically
   automatic,
-  
+
   /// Only sync when manually requested by the user
   manual,
 }
@@ -17,7 +17,7 @@ extension SyncModeExtension on SyncMode {
         return 'Manual';
     }
   }
-  
+
   /// Description of what this sync mode does
   String get description {
     switch (this) {

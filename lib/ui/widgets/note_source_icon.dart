@@ -1,20 +1,20 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:flutter/material.dart';
 
 /// Widget that displays an icon indicating the source of a note
 class NoteSourceIcon extends StatelessWidget {
-  final LocalNote note;
-  final double size;
-  final Color? color;
-  
   const NoteSourceIcon({
-    super.key,
     required this.note,
+    super.key,
     this.size = 16,
     this.color,
   });
-  
+  final LocalNote note;
+  final double size;
+  final Color? color;
+
   /// Determines the source type of the note
   NoteSourceType _getNoteSourceType() {
     // Check encrypted metadata first (most reliable)
@@ -22,7 +22,7 @@ class NoteSourceIcon extends StatelessWidget {
       try {
         final meta = jsonDecode(note.encryptedMetadata!);
         final source = meta['source'] as String?;
-        
+
         if (source == 'email_in') {
           // Check if it has attachments
           final attachments = meta['attachments']?['files'] as List?;
@@ -37,7 +37,7 @@ class NoteSourceIcon extends StatelessWidget {
         // Fall through to tag-based detection
       }
     }
-    
+
     // Fallback to tag-based detection
     final body = note.body.toLowerCase();
     if (body.contains('#email')) {
@@ -59,7 +59,7 @@ class NoteSourceIcon extends StatelessWidget {
     } else if (body.contains('#web')) {
       return NoteSourceType.web;
     }
-    
+
     // Check for standalone attachments
     if (note.encryptedMetadata != null) {
       try {
@@ -70,20 +70,21 @@ class NoteSourceIcon extends StatelessWidget {
         }
       } catch (_) {}
     }
-    
+
     // Default to regular note
     return NoteSourceType.regular;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final sourceType = _getNoteSourceType();
     final theme = Theme.of(context);
-    final iconColor = color ?? theme.colorScheme.onSurfaceVariant.withOpacity(0.7);
-    
+    final iconColor =
+        color ?? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7);
+
     Widget icon;
     String tooltip;
-    
+
     switch (sourceType) {
       case NoteSourceType.email:
         icon = Icon(Icons.email_outlined, size: size, color: iconColor);
@@ -125,22 +126,13 @@ class NoteSourceIcon extends StatelessWidget {
         // Don't show an icon for regular notes to reduce clutter
         return const SizedBox.shrink();
     }
-    
+
     return Tooltip(
       message: tooltip,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 4),
-        child: icon,
-      ),
+      child: Padding(padding: const EdgeInsets.only(left: 4), child: icon),
     );
   }
 }
 
 /// Enum representing different note source types
-enum NoteSourceType {
-  regular,
-  email,
-  emailWithAttachment,
-  web,
-  attachment,
-}
+enum NoteSourceType { regular, email, emailWithAttachment, web, attachment }

@@ -114,9 +114,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
             sortBy: _sortBy,
             showCompleted: _showCompleted,
           ),
-          _TasksByDateView(
-            showCompleted: _showCompleted,
-          ),
+          _TasksByDateView(showCompleted: _showCompleted),
           _TaskCalendarView(),
         ],
       ),
@@ -131,7 +129,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   Future<void> _showCreateTaskDialog(BuildContext context) async {
     final contentController = TextEditingController();
     DateTime? selectedDate;
-    TaskPriority selectedPriority = TaskPriority.medium;
+    var selectedPriority = TaskPriority.medium;
 
     await showDialog(
       context: context,
@@ -187,9 +185,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                 const SizedBox(height: 8),
                 DropdownButtonFormField<TaskPriority>(
                   initialValue: selectedPriority,
-                  decoration: const InputDecoration(
-                    labelText: 'Priority',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Priority'),
                   items: TaskPriority.values.map((priority) {
                     return DropdownMenuItem(
                       value: priority,
@@ -308,9 +304,7 @@ class _TaskListView extends ConsumerWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         var tasks = snapshot.data ?? [];
@@ -384,8 +378,8 @@ class _TaskListView extends ConsumerWidget {
         }).toList();
       case TaskFilter.highPriority:
         return tasks.where((t) {
-          return t.priority == TaskPriority.high || 
-                 t.priority == TaskPriority.urgent;
+          return t.priority == TaskPriority.high ||
+              t.priority == TaskPriority.urgent;
         }).toList();
     }
   }
@@ -424,9 +418,10 @@ class _TaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final taskService = ref.watch(taskServiceProvider);
-    final isOverdue = task.dueDate != null && 
-                      task.dueDate!.isBefore(DateTime.now()) && 
-                      task.status != TaskStatus.completed;
+    final isOverdue =
+        task.dueDate != null &&
+        task.dueDate!.isBefore(DateTime.now()) &&
+        task.status != TaskStatus.completed;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -442,9 +437,7 @@ class _TaskCard extends ConsumerWidget {
             decoration: task.status == TaskStatus.completed
                 ? TextDecoration.lineThrough
                 : null,
-            color: task.status == TaskStatus.completed
-                ? Colors.grey
-                : null,
+            color: task.status == TaskStatus.completed ? Colors.grey : null,
           ),
         ),
         subtitle: Row(
@@ -484,10 +477,7 @@ class _TaskCard extends ConsumerWidget {
           itemBuilder: (context) => [
             const PopupMenuItem(
               value: 'edit',
-              child: ListTile(
-                leading: Icon(Icons.edit),
-                title: Text('Edit'),
-              ),
+              child: ListTile(leading: Icon(Icons.edit), title: Text('Edit')),
             ),
             const PopupMenuItem(
               value: 'delete',
@@ -515,11 +505,7 @@ class _TaskCard extends ConsumerWidget {
                 break;
               case 'open_note':
                 // Navigate to note
-                Navigator.pushNamed(
-                  context,
-                  '/note',
-                  arguments: task.noteId,
-                );
+                Navigator.pushNamed(context, '/note', arguments: task.noteId);
                 break;
             }
           },
@@ -534,8 +520,8 @@ class _TaskCard extends ConsumerWidget {
     NoteTask task,
   ) async {
     final contentController = TextEditingController(text: task.content);
-    DateTime? selectedDate = task.dueDate;
-    TaskPriority selectedPriority = task.priority;
+    var selectedDate = task.dueDate;
+    var selectedPriority = task.priority;
 
     await showDialog(
       context: context,
@@ -590,9 +576,7 @@ class _TaskCard extends ConsumerWidget {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<TaskPriority>(
                   initialValue: selectedPriority,
-                  decoration: const InputDecoration(
-                    labelText: 'Priority',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Priority'),
                   items: TaskPriority.values.map((priority) {
                     return DropdownMenuItem(
                       value: priority,
@@ -704,17 +688,13 @@ class _TasksByDateView extends ConsumerWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         final groupedTasks = snapshot.data ?? {};
 
         if (groupedTasks.isEmpty) {
-          return const Center(
-            child: Text('No tasks with due dates'),
-          );
+          return const Center(child: Text('No tasks with due dates'));
         }
 
         return ListView.builder(
@@ -732,8 +712,8 @@ class _TasksByDateView extends ConsumerWidget {
                   child: Text(
                     dateGroup,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 ...tasks.map((task) => _TaskCard(task: task)),
@@ -875,25 +855,28 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
             future: _getTasksForMonth(taskService),
             builder: (context, snapshot) {
               final tasksByDate = snapshot.data ?? {};
-              
+
               return GridView.builder(
                 padding: const EdgeInsets.all(8),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
-                  childAspectRatio: 1,
                 ),
                 itemCount: 42, // 6 weeks * 7 days
                 itemBuilder: (context, index) {
                   final firstDayOfMonth = DateTime(
                     _selectedMonth.year,
                     _selectedMonth.month,
-                    1,
                   );
                   final firstDayWeekday = firstDayOfMonth.weekday;
                   final dayOffset = index - (firstDayWeekday - 1);
-                  
-                  if (dayOffset < 0 || 
-                      dayOffset >= DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day) {
+
+                  if (dayOffset < 0 ||
+                      dayOffset >=
+                          DateTime(
+                            _selectedMonth.year,
+                            _selectedMonth.month + 1,
+                            0,
+                          ).day) {
                     return const SizedBox();
                   }
 
@@ -904,11 +887,13 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                   );
 
                   final tasks = tasksByDate[date] ?? [];
-                  final isSelected = _selectedDate != null &&
+                  final isSelected =
+                      _selectedDate != null &&
                       date.year == _selectedDate!.year &&
                       date.month == _selectedDate!.month &&
                       date.day == _selectedDate!.day;
-                  final isToday = date.year == DateTime.now().year &&
+                  final isToday =
+                      date.year == DateTime.now().year &&
                       date.month == DateTime.now().month &&
                       date.day == DateTime.now().day;
 
@@ -923,8 +908,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                         color: isSelected
                             ? theme.primaryColor.withValues(alpha: 0.2)
                             : isToday
-                                ? theme.primaryColor.withValues(alpha: 0.1)
-                                : null,
+                            ? theme.primaryColor.withValues(alpha: 0.1)
+                            : null,
                         border: Border.all(
                           color: isSelected
                               ? theme.primaryColor
@@ -955,9 +940,13 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: tasks.any((t) => 
-                                          t.priority == TaskPriority.urgent ||
-                                          t.priority == TaskPriority.high)
+                                      color:
+                                          tasks.any(
+                                            (t) =>
+                                                t.priority ==
+                                                    TaskPriority.urgent ||
+                                                t.priority == TaskPriority.high,
+                                          )
                                           ? Colors.red
                                           : theme.primaryColor,
                                       shape: BoxShape.circle,
@@ -992,8 +981,12 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
   Future<Map<DateTime, List<NoteTask>>> _getTasksForMonth(
     TaskService taskService,
   ) async {
-    final startOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final endOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final startOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
+    final endOfMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+      0,
+    );
 
     final tasks = await taskService.getTasksByDateRange(
       start: startOfMonth,
@@ -1036,26 +1029,26 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
             if (tasks.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(
-                  child: Text('No tasks for this date'),
-                ),
+                child: Center(child: Text('No tasks for this date')),
               )
             else
-              ...tasks.map((task) => ListTile(
-                    leading: Checkbox(
-                      value: task.status == TaskStatus.completed,
-                      onChanged: (_) {
-                        ref.read(taskServiceProvider).toggleTaskStatus(task.id);
-                        Navigator.pop(context);
-                      },
-                    ),
-                    title: Text(task.content),
-                    subtitle: Text(_getPriorityLabel(task.priority)),
-                    trailing: Icon(
-                      _getPriorityIcon(task.priority),
-                      color: _getPriorityColor(task.priority),
-                    ),
-                  )),
+              ...tasks.map(
+                (task) => ListTile(
+                  leading: Checkbox(
+                    value: task.status == TaskStatus.completed,
+                    onChanged: (_) {
+                      ref.read(taskServiceProvider).toggleTaskStatus(task.id);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  title: Text(task.content),
+                  subtitle: Text(_getPriorityLabel(task.priority)),
+                  trailing: Icon(
+                    _getPriorityIcon(task.priority),
+                    color: _getPriorityColor(task.priority),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1103,18 +1096,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
 }
 
 /// Task filter options
-enum TaskFilter {
-  all,
-  today,
-  week,
-  overdue,
-  highPriority,
-}
+enum TaskFilter { all, today, week, overdue, highPriority }
 
 /// Task sort options
-enum TaskSortBy {
-  dueDate,
-  priority,
-  created,
-  alphabetical,
-}
+enum TaskSortBy { dueDate, priority, created, alphabetical }
