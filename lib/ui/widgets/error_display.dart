@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 /// across the application with retry functionality.
 class ErrorDisplay extends StatelessWidget {
   const ErrorDisplay({
-    required this.error, super.key,
+    required this.error,
+    super.key,
     this.message,
     this.onRetry,
   });
@@ -16,18 +17,14 @@ class ErrorDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               message ?? 'Something went wrong',
@@ -68,23 +65,20 @@ class ErrorDisplay extends StatelessWidget {
     if (error.toString().contains('FormatException')) {
       return 'Data format error.\nPlease try again or contact support.';
     }
-    
+
     // Truncate very long error messages
     final errorStr = error.toString();
     if (errorStr.length > 200) {
       return '${errorStr.substring(0, 200)}...';
     }
-    
+
     return errorStr;
   }
 }
 
 /// A loading state widget with consistent styling
 class LoadingDisplay extends StatelessWidget {
-  const LoadingDisplay({
-    super.key,
-    this.message,
-  });
+  const LoadingDisplay({super.key, this.message});
 
   final String? message;
 
@@ -100,7 +94,9 @@ class LoadingDisplay extends StatelessWidget {
             Text(
               message!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -113,7 +109,9 @@ class LoadingDisplay extends StatelessWidget {
 /// Empty state widget for when there's no content to display
 class EmptyDisplay extends StatelessWidget {
   const EmptyDisplay({
-    required this.icon, required this.title, super.key,
+    required this.icon,
+    required this.title,
+    super.key,
     this.subtitle,
     this.action,
   });
@@ -126,7 +124,7 @@ class EmptyDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -156,10 +154,7 @@ class EmptyDisplay extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: 24),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 24), action!],
           ],
         ),
       ),

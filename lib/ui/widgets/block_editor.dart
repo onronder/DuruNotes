@@ -10,9 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// large `TextField` to support rich content such as headings, todos, quotes,
 /// code blocks and tables.
 class BlockEditor extends StatefulWidget {
-  const BlockEditor({
-    required this.blocks, required this.onChanged, super.key,
-  });
+  const BlockEditor({required this.blocks, required this.onChanged, super.key});
 
   /// The initial blocks to edit. The list is copied internally; mutations
   /// inside the editor will not modify the provided list directly.
@@ -55,14 +53,14 @@ class _BlockEditorState extends State<BlockEditor> {
 
   void _initFromBlocks(List<NoteBlock> blocks) {
     _blocks = blocks.map((b) => b).toList();
-    
+
     // Only recreate controllers if the list length changed
     if (_controllers.length != _blocks.length) {
       // Dispose old controllers
       for (final controller in _controllers) {
         controller?.dispose();
       }
-      
+
       _controllers = _blocks.map<TextEditingController?>((block) {
         switch (block.type) {
           case NoteBlockType.paragraph:
@@ -138,24 +136,15 @@ class _BlockEditorState extends State<BlockEditor> {
       newBlock = const NoteBlock(type: NoteBlockType.heading2, data: '');
     } else if (type == NoteBlockType.heading3) {
       newBlock = const NoteBlock(type: NoteBlockType.heading3, data: '');
-    } else     if (type == NoteBlockType.todo) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.todo,
-        data: '',
-      );
+    } else if (type == NoteBlockType.todo) {
+      newBlock = const NoteBlock(type: NoteBlockType.todo, data: '');
     } else if (type == NoteBlockType.quote) {
       newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
     } else if (type == NoteBlockType.code) {
-      newBlock = const NoteBlock(
-        type: NoteBlockType.code,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.code, data: '');
     } else {
       // Table block
-      newBlock = const NoteBlock(
-        type: NoteBlockType.table,
-        data: '',
-      );
+      newBlock = const NoteBlock(type: NoteBlockType.table, data: '');
     }
     if (mounted) {
       setState(() {
@@ -226,9 +215,9 @@ class _BlockEditorState extends State<BlockEditor> {
       // Dismiss the dialog before showing error.
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Attachment upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Attachment upload failed: $e')));
       }
       return;
     }
@@ -242,7 +231,10 @@ class _BlockEditorState extends State<BlockEditor> {
     // Insert the new attachment block.
     if (mounted) {
       setState(() {
-        final newBlock = NoteBlock(type: NoteBlockType.attachment, data: data?.fileName ?? 'attachment');
+        final newBlock = NoteBlock(
+          type: NoteBlockType.attachment,
+          data: data?.fileName ?? 'attachment',
+        );
         _blocks.insert(insertIndex, newBlock);
         _controllers.insert(insertIndex, null);
       });
@@ -257,11 +249,29 @@ class _BlockEditorState extends State<BlockEditor> {
       case NoteBlockType.paragraph:
         return _buildTextBlock(index, block, controller!, isParagraph: true);
       case NoteBlockType.heading1:
-        return _buildTextBlock(index, block, controller!, fontSize: 24, fontWeight: FontWeight.bold);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        );
       case NoteBlockType.heading2:
-        return _buildTextBlock(index, block, controller!, fontSize: 20, fontWeight: FontWeight.bold);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        );
       case NoteBlockType.heading3:
-        return _buildTextBlock(index, block, controller!, fontSize: 18, fontWeight: FontWeight.w600);
+        return _buildTextBlock(
+          index,
+          block,
+          controller!,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        );
       case NoteBlockType.bulletList:
         return _buildListBlock(index, block, controller!, isBulleted: true);
       case NoteBlockType.numberedList:
@@ -366,11 +376,18 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
-  Widget _buildQuoteBlock(int index, NoteBlock block, TextEditingController controller) {
+  Widget _buildQuoteBlock(
+    int index,
+    NoteBlock block,
+    TextEditingController controller,
+  ) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          left: BorderSide(color: Theme.of(context).colorScheme.outline, width: 4),
+          left: BorderSide(
+            color: Theme.of(context).colorScheme.outline,
+            width: 4,
+          ),
         ),
         // Use surfaceContainerHighest instead of the deprecated surfaceVariant.
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -384,7 +401,10 @@ class _BlockEditorState extends State<BlockEditor> {
               controller: controller,
               maxLines: null,
               textDirection: TextDirection.ltr,
-              decoration: const InputDecoration(border: InputBorder.none, hintText: 'Quote'),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                hintText: 'Quote',
+              ),
               onChanged: (value) {
                 if (mounted) {
                   setState(() {
@@ -404,7 +424,11 @@ class _BlockEditorState extends State<BlockEditor> {
     );
   }
 
-  Widget _buildCodeBlock(int index, NoteBlock block, TextEditingController controller) {
+  Widget _buildCodeBlock(
+    int index,
+    NoteBlock block,
+    TextEditingController controller,
+  ) {
     return Container(
       decoration: BoxDecoration(
         // Use surfaceContainerHighest instead of the deprecated surfaceVariant.
@@ -455,32 +479,41 @@ class _BlockEditorState extends State<BlockEditor> {
     final todoText = block.data;
     final isCompleted = todoText.startsWith('[x]');
     final cleanText = todoText.replaceFirst(RegExp(r'^\[[x\s]\]\s?'), '');
-    
+
     return Row(
       children: [
         Checkbox(
           value: isCompleted,
-          onChanged: mounted ? (checked) {
-            if (mounted) {
-              setState(() {
-                final prefix = (checked ?? false) ? '[x] ' : '[ ] ';
-                _blocks[index] = _blocks[index].copyWith(data: prefix + cleanText);
-              });
-              _notifyChange();
-            }
-          } : null,
+          onChanged: mounted
+              ? (checked) {
+                  if (mounted) {
+                    setState(() {
+                      final prefix = (checked ?? false) ? '[x] ' : '[ ] ';
+                      _blocks[index] = _blocks[index].copyWith(
+                        data: prefix + cleanText,
+                      );
+                    });
+                    _notifyChange();
+                  }
+                }
+              : null,
         ),
         Expanded(
           child: TextField(
             controller: _controllers[index]?..text = cleanText,
             maxLines: null,
             textDirection: TextDirection.ltr,
-            decoration: const InputDecoration(hintText: 'Todo', border: InputBorder.none),
+            decoration: const InputDecoration(
+              hintText: 'Todo',
+              border: InputBorder.none,
+            ),
             onChanged: (value) {
               if (mounted) {
                 setState(() {
                   final prefix = isCompleted ? '[x] ' : '[ ] ';
-                  _blocks[index] = _blocks[index].copyWith(data: prefix + value);
+                  _blocks[index] = _blocks[index].copyWith(
+                    data: prefix + value,
+                  );
                 });
                 _notifyChange();
               }
@@ -520,7 +553,8 @@ class _BlockEditorState extends State<BlockEditor> {
             maxLines: null,
             decoration: const InputDecoration(
               border: InputBorder.none,
-              hintText: 'Enter table data (use | for columns, newlines for rows)\nExample: Header1|Header2\nRow1Col1|Row1Col2',
+              hintText:
+                  'Enter table data (use | for columns, newlines for rows)\nExample: Header1|Header2\nRow1Col1|Row1Col2',
             ),
             onChanged: (value) {
               if (mounted) {
@@ -550,7 +584,7 @@ class _BlockEditorState extends State<BlockEditor> {
   Widget _buildAttachmentBlock(int index, NoteBlock block) {
     // Simplified attachment block using string data (just the filename)
     final fileName = block.data;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -577,7 +611,9 @@ class _BlockEditorState extends State<BlockEditor> {
                   Text(
                     'Attachment file',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -585,39 +621,48 @@ class _BlockEditorState extends State<BlockEditor> {
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: mounted ? () {
-                // Simple edit: just allow changing the filename
-                showDialog<String>(
-                  context: context,
-                  builder: (context) {
-                    final controller = TextEditingController(text: fileName);
-                    return AlertDialog(
-                      title: const Text('Edit Attachment'),
-                      content: TextField(
-                        controller: controller,
-                        decoration: const InputDecoration(labelText: 'File name'),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, controller.text),
-                          child: const Text('Save'),
-                        ),
-                      ],
-                    );
-                  },
-                ).then((newName) {
-                  if (newName != null && newName.isNotEmpty && mounted) {
-                    setState(() {
-                      _blocks[index] = _blocks[index].copyWith(data: newName);
-                    });
-                    _notifyChange();
-                  }
-                });
-              } : null,
+              onPressed: mounted
+                  ? () {
+                      // Simple edit: just allow changing the filename
+                      showDialog<String>(
+                        context: context,
+                        builder: (context) {
+                          final controller = TextEditingController(
+                            text: fileName,
+                          );
+                          return AlertDialog(
+                            title: const Text('Edit Attachment'),
+                            content: TextField(
+                              controller: controller,
+                              decoration: const InputDecoration(
+                                labelText: 'File name',
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, controller.text),
+                                child: const Text('Save'),
+                              ),
+                            ],
+                          );
+                        },
+                      ).then((newName) {
+                        if (newName != null && newName.isNotEmpty && mounted) {
+                          setState(() {
+                            _blocks[index] = _blocks[index].copyWith(
+                              data: newName,
+                            );
+                          });
+                          _notifyChange();
+                        }
+                      });
+                    }
+                  : null,
               tooltip: 'Edit attachment',
             ),
             IconButton(
@@ -663,7 +708,7 @@ class _BlockEditorState extends State<BlockEditor> {
   Future<void> _editAttachment(int index, AttachmentBlockData data) async {
     final fileNameController = TextEditingController(text: data.fileName);
     final urlController = TextEditingController(text: data.url);
-    
+
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -700,7 +745,7 @@ class _BlockEditorState extends State<BlockEditor> {
         ],
       ),
     );
-    
+
     fileNameController.dispose();
     urlController.dispose();
   }
@@ -781,6 +826,4 @@ class _BlockEditorState extends State<BlockEditor> {
       ],
     );
   }
-
-
 }

@@ -30,7 +30,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="${appName}"
-        android:name=".MainApplication"
+        android:name="com.fittechs.duruNotesApp.MainApplication"
         android:icon="@mipmap/ic_launcher">
         
         <!-- Firebase Cloud Messaging Configuration -->
@@ -55,7 +55,7 @@
             android:name="AdaptyGoogleAdvertisingIdCollectionDisabled"
             android:value="false" />
         <activity
-            android:name=".MainActivity"
+            android:name="com.fittechs.duruNotesApp.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -92,7 +92,54 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
             </intent-filter>
+            
+            <!-- Deep link for widget captures -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="durunotes" />
+            </intent-filter>
         </activity>
+        
+        <!-- Quick Capture Widget Provider -->
+        <receiver 
+            android:name="com.fittechs.durunotes.widget.QuickCaptureWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.fittechs.durunotes.CAPTURE_TEXT" />
+                <action android:name="com.fittechs.durunotes.CAPTURE_VOICE" />
+                <action android:name="com.fittechs.durunotes.CAPTURE_CAMERA" />
+                <action android:name="com.fittechs.durunotes.OPEN_TEMPLATE" />
+                <action android:name="com.fittechs.durunotes.REFRESH_WIDGET" />
+                <action android:name="com.fittechs.durunotes.OPEN_NOTE" />
+                <action android:name="com.fittechs.durunotes.VIEW_ALL" />
+                <action android:name="com.fittechs.durunotes.WIDGET_SETTINGS" />
+                <action android:name="com.fittechs.durunotes.UPDATE_WIDGET_DATA" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_capture_info" />
+        </receiver>
+        
+        <!-- Widget RemoteViewsService for list data -->
+        <service
+            android:name="com.fittechs.durunotes.widget.QuickCaptureRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+        
+        <!-- Widget Configuration Activity -->
+        <activity
+            android:name="com.fittechs.durunotes.widget.QuickCaptureConfigActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.Dialog">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

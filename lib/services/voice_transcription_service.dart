@@ -10,8 +10,8 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// Service for converting speech to text using the microphone.
 class VoiceTranscriptionService {
   VoiceTranscriptionService({AppLogger? logger, AnalyticsService? analytics})
-      : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+    : _logger = logger ?? LoggerFactory.instance,
+      _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
@@ -48,12 +48,18 @@ class VoiceTranscriptionService {
         throw Exception('Speech recognition not available');
       }
       _isInitialized = true;
-      _analytics.endTiming('voice_transcription_init', properties: {'success': true});
+      _analytics.endTiming(
+        'voice_transcription_init',
+        properties: {'success': true},
+      );
       _logger.info('Voice transcription service initialized');
       return true;
     } catch (e) {
       _logger.error('Failed to initialize voice transcription', error: e);
-      _analytics.endTiming('voice_transcription_init', properties: {'success': false, 'error': e.toString()});
+      _analytics.endTiming(
+        'voice_transcription_init',
+        properties: {'success': false, 'error': e.toString()},
+      );
       return false;
     }
   }
@@ -103,11 +109,17 @@ class VoiceTranscriptionService {
       if (_lastWords.isNotEmpty) {
         _onFinal?.call(_lastWords);
       }
-      _analytics.endTiming('voice_transcription_session', properties: {
-        'success': true,
-        'words_transcribed': _lastWords.split(' ').length,
-      });
-      _logger.info('Voice transcription stopped', data: {'final_text': _lastWords});
+      _analytics.endTiming(
+        'voice_transcription_session',
+        properties: {
+          'success': true,
+          'words_transcribed': _lastWords.split(' ').length,
+        },
+      );
+      _logger.info(
+        'Voice transcription stopped',
+        data: {'final_text': _lastWords},
+      );
     } catch (e) {
       _logger.error('Error stopping voice transcription', error: e);
     }
@@ -120,10 +132,10 @@ class VoiceTranscriptionService {
       await _speechToText.cancel();
       _isListening = false;
       _lastWords = '';
-      _analytics.endTiming('voice_transcription_session', properties: {
-        'success': false,
-        'reason': 'cancelled',
-      });
+      _analytics.endTiming(
+        'voice_transcription_session',
+        properties: {'success': false, 'reason': 'cancelled'},
+      );
       _logger.info('Voice transcription cancelled');
     } catch (e) {
       _logger.error('Error cancelling voice transcription', error: e);
@@ -137,10 +149,13 @@ class VoiceTranscriptionService {
     _lastWords = recognizedWords;
     if (isFinal) {
       _onFinal?.call(recognizedWords);
-      _analytics.featureUsed('voice_transcription_final', properties: {
-        'word_count': recognizedWords.split(' ').length,
-        'character_count': recognizedWords.length,
-      });
+      _analytics.featureUsed(
+        'voice_transcription_final',
+        properties: {
+          'word_count': recognizedWords.split(' ').length,
+          'character_count': recognizedWords.length,
+        },
+      );
     } else {
       _onPartial?.call(recognizedWords);
     }
@@ -149,12 +164,16 @@ class VoiceTranscriptionService {
   /// Handle speech recognition errors.
   void _handleError(SpeechRecognitionError error) {
     final errorMsg = error.errorMsg;
-    final errorType = error.errorMsg; // Use errorMsg as errorType since errorType doesn't exist
-    _logger.error('Voice transcription error', data: {'error_msg': errorMsg, 'error_type': errorType});
-    _analytics.trackError('Voice transcription error', properties: {
-      'error_type': errorType,
-      'error_message': errorMsg,
-    });
+    final errorType = error
+        .errorMsg; // Use errorMsg as errorType since errorType doesn't exist
+    _logger.error(
+      'Voice transcription error',
+      data: {'error_msg': errorMsg, 'error_type': errorType},
+    );
+    _analytics.trackError(
+      'Voice transcription error',
+      properties: {'error_type': errorType, 'error_message': errorMsg},
+    );
     _onError?.call(errorMsg);
   }
 

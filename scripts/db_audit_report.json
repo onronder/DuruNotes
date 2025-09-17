@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-09-17T06:23:21.203Z",
+  "successes": [
+    "✅ Table 'notes' exists (null records)",
+    "✅ Table 'folders' exists (null records)",
+    "✅ Table 'note_folders' exists (null records)",
+    "✅ Table 'note_tags' exists (null records)",
+    "✅ Table 'clipper_inbox' exists (null records)",
+    "✅ Table 'inbound_aliases' exists (null records)",
+    "✅ Table 'user_devices' exists (null records)",
+    "✅ Table 'note_tasks' exists (null records)",
+    "✅ Table 'rate_limits' exists (null records)",
+    "✅ Table 'analytics_events' exists (null records)"
+  ],
+  "warnings": [],
+  "issues": [],
+  "migrationFiles": [
+    "20240912_user_devices_push_tokens.sql",
+    "20250113000001_notification_improvements.sql",
+    "20250113000002_notification_cron_jobs.sql",
+    "20250114_audit_extend_rls_policies.sql",
+    "20250115_enable_inbox_realtime.sql",
+    "20250116_enable_pg_net.sql",
+    "20250117_backfill_note_tags.sql",
+    "20250118_fix_clipper_inbox_structure_v2.sql",
+    "20250120_quick_capture_widget.sql",
+    "20250121_fix_quick_capture_function.sql",
+    "20250122_comprehensive_db_repair.sql",
+    "20250123_create_note_tasks_table.sql",
+    "20250909_in_main_full.sql",
+    "20250910_fix_clipper_inbox_web_constraint.sql",
+    "20250911_all_critical_fixes.sql",
+    "20250911_canonicalize_incoming_mail_folders.sql",
+    "20250911_email_deduplication_index.sql",
+    "20250915_fix_cron_jobs_simple.sql",
+    "20250915_fix_edge_functions_auth.sql"
+  ],
+  "severity": "HEALTHY"
+}

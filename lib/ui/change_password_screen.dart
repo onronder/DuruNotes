@@ -11,7 +11,8 @@ class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  ConsumerState<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
 class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
@@ -19,10 +20,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   final _passwordValidator = PasswordValidator();
   final _passwordHistoryService = PasswordHistoryService();
-  
+
   bool _isLoading = false;
   bool _showCurrentPassword = false;
   bool _showNewPassword = false;
@@ -48,7 +49,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   void _onNewPasswordChanged() {
     setState(() {
-      _passwordValidation = _passwordValidator.validatePassword(_newPasswordController.text);
+      _passwordValidation = _passwordValidator.validatePassword(
+        _newPasswordController.text,
+      );
     });
   }
 
@@ -64,7 +67,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     }
 
     // Validate new password
-    final validation = _passwordValidator.validatePassword(_newPasswordController.text);
+    final validation = _passwordValidator.validatePassword(
+      _newPasswordController.text,
+    );
     if (!validation.isValid) {
       setState(() {
         _errorMessage = 'New password does not meet security requirements';
@@ -74,12 +79,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
     // Check password reuse
     final isReused = await _passwordHistoryService.isPasswordReused(
-      currentUser.id, 
+      currentUser.id,
       _newPasswordController.text,
     );
     if (isReused) {
       setState(() {
-        _errorMessage = 'You cannot reuse a previous password. Please choose a different password.';
+        _errorMessage =
+            'You cannot reuse a previous password. Please choose a different password.';
       });
       return;
     }
@@ -92,18 +98,18 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
     try {
       final client = Supabase.instance.client;
-      
+
       // Update password with Supabase
       await client.auth.updateUser(
         UserAttributes(password: _newPasswordController.text),
       );
-      
+
       // Store new password in history
       await _passwordHistoryService.storePasswordHash(
-        currentUser.id, 
+        currentUser.id,
         _newPasswordController.text,
       );
-      
+
       setState(() {
         _successMessage = 'Password changed successfully!';
         _currentPasswordController.clear();
@@ -111,14 +117,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         _confirmPasswordController.clear();
         _passwordValidation = null;
       });
-      
+
       // Navigate back after a delay
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.of(context).pop();
         }
       });
-      
     } on AuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -126,7 +131,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     } catch (e) {
       // Log error for debugging but don't expose details to user
       if (kDebugMode) {
-        print('Password change error: $e');
+        debugPrint('Password change error: $e');
       }
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
@@ -175,17 +180,23 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                           children: [
                             Text(
                               'Password Security',
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Your new password must meet all security requirements and cannot be one of your last 5 passwords.',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                                  ),
                             ),
                           ],
                         ),
@@ -205,7 +216,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _showCurrentPassword ? Icons.visibility_off : Icons.visibility,
+                        _showCurrentPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -233,7 +246,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _showNewPassword ? Icons.visibility_off : Icons.visibility,
+                        _showNewPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -246,20 +261,22 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     if (value == null || value.isEmpty) {
                       return 'New password is required';
                     }
-                    
-                    final validation = _passwordValidator.validatePassword(value);
+
+                    final validation = _passwordValidator.validatePassword(
+                      value,
+                    );
                     if (!validation.isValid) {
                       return 'Password must meet security requirements';
                     }
-                    
+
                     if (value == _currentPasswordController.text) {
                       return 'New password must be different from current password';
                     }
-                    
+
                     return null;
                   },
                 ),
-                
+
                 // Password Strength Meter
                 if (_passwordValidation != null) ...[
                   const SizedBox(height: 16),
@@ -267,16 +284,24 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _passwordValidation!.isValid ? Colors.green.shade50 : Colors.red.shade50,
+                      color: _passwordValidation!.isValid
+                          ? Colors.green.shade50
+                          : Colors.red.shade50,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _passwordValidation!.isValid ? Colors.green : Colors.red,
+                        color: _passwordValidation!.isValid
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
                     child: Text(
-                      _passwordValidation!.isValid ? 'Password meets requirements' : 'Password does not meet requirements',
+                      _passwordValidation!.isValid
+                          ? 'Password meets requirements'
+                          : 'Password does not meet requirements',
                       style: TextStyle(
-                        color: _passwordValidation!.isValid ? Colors.green.shade700 : Colors.red.shade700,
+                        color: _passwordValidation!.isValid
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
                       ),
                     ),
                   ),
@@ -293,7 +318,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _showConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                        _showConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -306,11 +333,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please confirm your new password';
                     }
-                    
+
                     if (value != _newPasswordController.text) {
                       return 'Passwords do not match';
                     }
-                    
+
                     return null;
                   },
                 ),
@@ -389,7 +416,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
                 // Cancel Button
                 OutlinedButton(
-                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isLoading
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
                 ),
               ],

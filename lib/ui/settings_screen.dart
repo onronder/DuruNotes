@@ -37,9 +37,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final notes = ref.read(currentNotesProvider);
       if (notes.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No notes to export')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('No notes to export')));
         }
         return;
       }
@@ -59,32 +59,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final res = await svc.exportToPdf(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Exported as PDF')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Exported as PDF')));
           }
         case ExportFormat.html:
           final res = await svc.exportToHtml(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Exported as HTML')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Exported as HTML')));
           }
         case ExportFormat.docx:
         case ExportFormat.txt:
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Export format ${format.displayName} not supported yet')),
+              SnackBar(
+                content: Text(
+                  'Export format ${format.displayName} not supported yet',
+                ),
+              ),
             );
           }
       }
     } catch (e, st) {
       logger.error('Settings export failed', error: e, stackTrace: st);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
       }
     }
   }
@@ -95,27 +99,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadPackageInfo();
     _loadEmailAddress();
   }
-  
+
   Future<void> _loadEmailAddress() async {
     setState(() => _isLoadingEmail = true);
     try {
       // Use the provider to get the EmailAliasService
       final aliasService = ref.read(emailAliasServiceProvider);
-      
+
       // Debug: Check if dotenv is loaded
       debugPrint('[Settings] Checking dotenv status...');
-      debugPrint('[Settings] INBOUND_EMAIL_DOMAIN from env: ${dotenv.env['INBOUND_EMAIL_DOMAIN']}');
-      
+      debugPrint(
+        '[Settings] INBOUND_EMAIL_DOMAIN from env: ${dotenv.env['INBOUND_EMAIL_DOMAIN']}',
+      );
+
       final address = await aliasService.getFullEmailAddress();
       debugPrint('[Settings] Loaded email address: $address');
-      
+
       // Validate the domain is correct
       if (address != null && !address.endsWith('@in.durunotes.app')) {
         debugPrint('[Settings] WARNING: Email address has wrong domain!');
         debugPrint('[Settings] Expected: @in.durunotes.app');
         debugPrint('[Settings] Got: $address');
       }
-      
+
       if (mounted) {
         setState(() {
           _emailInAddress = address;
@@ -145,7 +151,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -175,7 +181,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               // Header section with user info
               _buildHeaderSection(context, l10n),
-              
+
               // Settings sections with cards
               Padding(
                 padding: AppBreakpoints.screenPadding(context),
@@ -214,7 +220,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final colorScheme = theme.colorScheme;
     final user = Supabase.instance.client.auth.currentUser;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Container(
       width: double.infinity,
       margin: EdgeInsets.all(isCompact ? 12 : 16),
@@ -231,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.1),
             offset: const Offset(0, 4),
             blurRadius: 12,
           ),
@@ -248,7 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: colorScheme.primary.withOpacity(0.3),
+                  color: colorScheme.primary.withValues(alpha: 0.3),
                   offset: const Offset(0, 4),
                   blurRadius: 12,
                 ),
@@ -275,7 +281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
           ),
           SizedBox(height: isCompact ? 12 : 16),
-          
+
           // User info
           if (user != null) ...[
             Text(
@@ -291,7 +297,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Signed in',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onPrimaryContainer.withOpacity(0.7),
+                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
               ),
             ),
           ] else ...[
@@ -317,14 +323,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.2),
-        ),
+        side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       color: colorScheme.surfaceContainerLow,
       child: Padding(
@@ -338,7 +342,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Container(
                   padding: EdgeInsets.all(isCompact ? 6 : 8),
                   decoration: BoxDecoration(
-                    color: (iconColor ?? colorScheme.primary).withOpacity(0.1),
+                    color: (iconColor ?? colorScheme.primary).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -386,15 +392,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildEmailInSection(BuildContext context, AppLocalizations l10n) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Card(
       elevation: 0,
       color: colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: colorScheme.outlineVariant.withOpacity(0.5),
-          width: 1,
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -419,11 +424,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             if (_isLoadingEmail)
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(8.0),
+                  padding: EdgeInsets.all(8),
                   child: CircularProgressIndicator(),
                 ),
               )
@@ -435,7 +440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: colorScheme.outline.withOpacity(0.3),
+                    color: colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -452,11 +457,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     IconButton(
                       icon: const Icon(Icons.copy, size: 20),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _emailInAddress!));
+                        Clipboard.setData(
+                          ClipboardData(text: _emailInAddress!),
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text('Copied to clipboard'),
-                            duration: const Duration(seconds: 2),
+                            duration: Duration(seconds: 2),
                           ),
                         );
                       },
@@ -466,7 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Action buttons
               Row(
                 children: [
@@ -478,7 +485,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           path: _emailInAddress,
                           query: 'subject=Test Note from DuruNotes',
                         );
-                        
+
                         if (await canLaunchUrl(uri)) {
                           await launchUrl(uri);
                         } else {
@@ -493,7 +500,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       label: const Text('Send Test Email'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colorScheme.primary,
-                        side: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                        side: BorderSide(
+                          color: colorScheme.outline.withValues(alpha: 0.5),
+                        ),
                       ),
                     ),
                   ),
@@ -506,12 +515,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // Info text
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.3),
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -541,7 +550,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.errorContainer.withOpacity(0.3),
+                  color: colorScheme.errorContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -575,11 +584,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-  
+
   Widget _buildAccountSection(BuildContext context, AppLocalizations l10n) {
     final user = Supabase.instance.client.auth.currentUser;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -599,24 +608,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                   ),
-                  title: Text(l10n.signedInAs, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(user.email ?? 'Unknown', maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
-                  trailing: Icon(Icons.verified_user, color: Theme.of(context).colorScheme.tertiary),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                  visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                  title: Text(
+                    l10n.signedInAs,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    user.email ?? 'Unknown',
+                    maxLines: isCompact ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Icon(
+                    Icons.verified_user,
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: isCompact ? 6 : 10,
+                  ),
+                  visualDensity: isCompact
+                      ? const VisualDensity(vertical: -2)
+                      : null,
                   minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
               ],
               ListTile(
-                leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                leading: Icon(
+                  Icons.logout,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 title: Text(
                   l10n.signOut,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
                 onTap: () => _showSignOutDialog(context, l10n),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -629,7 +662,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSyncSection(BuildContext context, AppLocalizations l10n) {
     final syncMode = ref.watch(syncModeProvider);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -639,16 +672,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.sync),
-                title: Text(l10n.syncMode, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(syncMode.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                title: Text(
+                  l10n.syncMode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  syncMode.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               RadioListTile<SyncMode>(
-                title: Text(l10n.automaticSync, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(l10n.automaticSyncDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.automaticSync,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  l10n.automaticSyncDesc,
+                  maxLines: isCompact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 value: SyncMode.automatic,
                 groupValue: syncMode,
                 onChanged: (mode) {
@@ -656,12 +710,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(syncModeProvider.notifier).setMode(mode);
                   }
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<SyncMode>(
-                title: Text(l10n.manualSync, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(l10n.manualSyncDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.manualSync,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  l10n.manualSyncDesc,
+                  maxLines: isCompact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 value: SyncMode.manual,
                 groupValue: syncMode,
                 onChanged: (mode) {
@@ -669,8 +736,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(syncModeProvider.notifier).setMode(mode);
                   }
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               if (syncMode == SyncMode.manual) ...[
                 const Divider(height: 1),
@@ -681,12 +753,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _isSyncing ? null : () => _performManualSync(l10n),
+                          onPressed: _isSyncing
+                              ? null
+                              : () => _performManualSync(l10n),
                           icon: _isSyncing
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.sync),
                           label: Text(_isSyncing ? l10n.syncing : l10n.syncNow),
@@ -703,7 +779,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Check console for debug output'),
+                                  content: Text(
+                                    'Check console for debug output',
+                                  ),
                                   duration: Duration(seconds: 2),
                                 ),
                               );
@@ -727,7 +805,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildAppearanceSection(BuildContext context, AppLocalizations l10n) {
     final themeMode = ref.watch(themeModeProvider);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -736,7 +814,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             children: [
               RadioListTile<ThemeMode>(
-                title: Text(l10n.lightTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.lightTheme,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 value: ThemeMode.light,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.light_mode),
@@ -745,11 +827,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<ThemeMode>(
-                title: Text(l10n.darkTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.darkTheme,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 value: ThemeMode.dark,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.dark_mode),
@@ -758,11 +849,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<ThemeMode>(
-                title: Text(l10n.systemTheme, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.systemTheme,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 value: ThemeMode.system,
                 groupValue: themeMode,
                 secondary: const Icon(Icons.brightness_auto),
@@ -771,8 +871,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
                   }
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
             ],
           ),
@@ -784,7 +889,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildLanguageSection(BuildContext context, AppLocalizations l10n) {
     final currentLocale = ref.watch(localeProvider);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -794,12 +899,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.language),
-                title: Text(l10n.selectLanguage, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(currentLocale?.displayName ?? 'System Default', maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.selectLanguage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  currentLocale?.displayName ?? 'System Default',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showLanguageDialog(context, l10n),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -809,7 +927,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildNotificationsSection(BuildContext context, AppLocalizations l10n) {
+  Widget _buildNotificationsSection(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     final isCompact = MediaQuery.sizeOf(context).width < 380;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -820,12 +941,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.notifications),
-                title: Text(l10n.notificationPermissions, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: const Text('Manage notification settings', maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.notificationPermissions,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text(
+                  'Manage notification settings',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: _openNotificationSettings,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -838,7 +972,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSecuritySection(BuildContext context, AppLocalizations l10n) {
     final analyticsEnabled = ref.watch(analyticsSettingsProvider);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -847,25 +981,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             children: [
               ListTile(
-                leading: Icon(Icons.security, color: Theme.of(context).colorScheme.tertiary),
-                title: Text(l10n.endToEndEncryption, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(l10n.encryptionEnabled, maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Icon(Icons.verified, color: Theme.of(context).colorScheme.tertiary),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                leading: Icon(
+                  Icons.security,
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
+                title: Text(
+                  l10n.endToEndEncryption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  l10n.encryptionEnabled,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Icon(
+                  Icons.verified,
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: Text(l10n.analyticsOptIn, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(l10n.analyticsDesc, maxLines: isCompact ? 1 : 2, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.analyticsOptIn,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  l10n.analyticsDesc,
+                  maxLines: isCompact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 secondary: const Icon(Icons.analytics),
                 value: analyticsEnabled,
                 onChanged: (value) {
-                  ref.read(analyticsSettingsProvider.notifier).setAnalyticsEnabled(value);
+                  ref
+                      .read(analyticsSettingsProvider.notifier)
+                      .setAnalyticsEnabled(value);
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 0 : 4),
-                visualDensity: isCompact ? const VisualDensity(vertical: -3) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 0 : 4,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
             ],
           ),
@@ -874,7 +1042,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildImportExportSection(BuildContext context, AppLocalizations l10n) {
+  Widget _buildImportExportSection(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     final isCompact = MediaQuery.sizeOf(context).width < 380;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,23 +1056,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.file_download),
-                title: Text(l10n.importNotes, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: const Text('Import from Markdown, Evernote, or Obsidian', maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.importNotes,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text(
+                  'Import from Markdown, Evernote, or Obsidian',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showImportDialog(context, l10n),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.file_upload),
-                title: Text(l10n.exportNotes, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: const Text('Export to Markdown, PDF, or HTML', maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.exportNotes,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text(
+                  'Export to Markdown, PDF, or HTML',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showExportDialog(context, l10n),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -922,57 +1119,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.help),
-                title: Text(l10n.userGuide, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.userGuide,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 subtitle: const Text('Learn how to use Duru Notes'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const HelpScreen()),
-                  );
+                  Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const HelpScreen()));
                 },
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.info),
-                title: Text(l10n.version, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.version,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 subtitle: Text(
                   _packageInfo != null
                       ? '${_packageInfo!.version} (${_packageInfo!.buildNumber})'
                       : 'Loading...',
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.privacy_tip),
-                title: Text(l10n.privacyPolicy, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.privacyPolicy,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/privacy'),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
                 leading: const Icon(Icons.description),
-                title: Text(l10n.termsOfService, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.termsOfService,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://durunotes.com/terms'),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent),
-                title: Text(l10n.contactSupport, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  l10n.contactSupport,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('mailto:support@durunotes.com'),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 6 : 10),
-                visualDensity: isCompact ? const VisualDensity(vertical: -2) : null,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -982,7 +1224,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> _showSignOutDialog(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _showSignOutDialog(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1017,9 +1262,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await Supabase.instance.client.auth.signOut();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error signing out: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error signing out: $e')));
         }
       }
     }
@@ -1029,69 +1274,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isSyncing = true);
 
     try {
-      print('🔄 Manual sync triggered from settings screen');
+      debugPrint('🔄 Manual sync triggered from settings screen');
       final success = await ref.read(syncModeProvider.notifier).manualSync();
-      
+
       if (success) {
-        print('📱 Refreshing notes list in UI...');
+        debugPrint('📱 Refreshing notes list in UI...');
         // Reload the first page of notes to show synced data
         await ref.read(notesPageProvider.notifier).refresh();
-        
+
         // Load additional pages if there are more notes
         while (ref.read(hasMoreNotesProvider)) {
           await ref.read(notesPageProvider.notifier).loadMore();
         }
-        
+
         // Refresh folders as well
         await ref.read(folderHierarchyProvider.notifier).loadFolders();
-        
+
         // Add a small delay to ensure UI updates
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         // Get current notes count for feedback
         final currentNotes = ref.read(currentNotesProvider);
-        print('📊 UI now showing ${currentNotes.length} notes');
+        debugPrint('📊 UI now showing ${currentNotes.length} notes');
       }
-      
+
       if (mounted) {
-        final message = success 
-          ? '${l10n.syncComplete} (${ref.read(currentNotesProvider).length} notes)'
-          : l10n.syncFailed;
-          
+        final message = success
+            ? '${l10n.syncComplete} (${ref.read(currentNotesProvider).length} notes)'
+            : l10n.syncFailed;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: success ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
-            action: success ? null : SnackBarAction(
-              label: 'Debug',
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Sync Debug Info'),
-                    content: const Text(
-                      'Check console logs for detailed sync information.\n\n'
-                      'Common issues:\n'
-                      '• Not authenticated\n'
-                      '• Network connectivity\n'
-                      '• Supabase configuration\n'
-                      '• Encryption key issues'
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK'),
-                      ),
-                    ],
+            backgroundColor: success
+                ? Theme.of(context).colorScheme.tertiary
+                : Theme.of(context).colorScheme.error,
+            action: success
+                ? null
+                : SnackBarAction(
+                    label: 'Debug',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Sync Debug Info'),
+                          content: const Text(
+                            'Check console logs for detailed sync information.\n\n'
+                            'Common issues:\n'
+                            '• Not authenticated\n'
+                            '• Network connectivity\n'
+                            '• Supabase configuration\n'
+                            '• Encryption key issues',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         );
       }
     } catch (e) {
-      print('❌ Sync operation threw exception: $e');
+      debugPrint('❌ Sync operation threw exception: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1108,9 +1357,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _showLanguageDialog(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _showLanguageDialog(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     final currentLocale = ref.read(localeProvider);
-    
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1300,10 +1552,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleSmall),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1321,9 +1570,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// Build security section with iOS-style toggles
-  Widget _buildSecuritySectionWithIOSToggles(BuildContext context, AppLocalizations l10n) {
+  Widget _buildSecuritySectionWithIOSToggles(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     final analyticsEnabled = ref.watch(analyticsSettingsProvider);
-    
+
     return SettingsSection(
       title: l10n.security,
       icon: Icons.security,
@@ -1351,22 +1603,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () async {
             try {
               final repo = ref.read(notesRepositoryProvider);
-              final queued = await ref.read(accountKeyServiceProvider).migrateLegacyContentAndEnqueue(
-                db: ref.read(appDbProvider),
-                repo: repo,
-              );
+              final queued = await ref
+                  .read(accountKeyServiceProvider)
+                  .migrateLegacyContentAndEnqueue(
+                    db: ref.read(appDbProvider),
+                    repo: repo,
+                  );
               // Trigger a sync
               await ref.read(syncModeProvider.notifier).manualSync();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Queued $queued items for rewrap and sync')),
+                  SnackBar(
+                    content: Text('Queued $queued items for rewrap and sync'),
+                  ),
                 );
               }
             } catch (e) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Migration failed: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Migration failed: $e')));
               }
             }
           },
@@ -1377,7 +1633,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           leading: const Icon(Icons.analytics),
           value: analyticsEnabled,
           onChanged: (value) {
-            ref.read(analyticsSettingsProvider.notifier).setAnalyticsEnabled(value);
+            ref
+                .read(analyticsSettingsProvider.notifier)
+                .setAnalyticsEnabled(value);
           },
         ),
       ],
@@ -1444,10 +1702,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               try {
-                await ref.read(accountKeyServiceProvider).changePassphrase(
-                  oldPassphrase: oldCtrl.text,
-                  newPassphrase: newCtrl.text,
-                );
+                await ref
+                    .read(accountKeyServiceProvider)
+                    .changePassphrase(
+                      oldPassphrase: oldCtrl.text,
+                      newPassphrase: newCtrl.text,
+                    );
                 if (mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1456,9 +1716,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Failed: $e')));
                 }
               }
             },
@@ -1468,7 +1728,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -1480,9 +1739,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open $url')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not open $url')));
       }
     }
   }

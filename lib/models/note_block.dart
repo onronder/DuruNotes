@@ -15,22 +15,14 @@ enum NoteBlockType {
 
 /// Base class for all note blocks
 class NoteBlock {
-  const NoteBlock({
-    required this.type,
-    required this.data,
-    this.id,
-  });
+  const NoteBlock({required this.type, required this.data, this.id});
 
   final NoteBlockType type;
   final String data; // Simplified to always be String
   final String? id;
 
   /// Creates a copy of this block with the given fields replaced
-  NoteBlock copyWith({
-    NoteBlockType? type,
-    String? data,
-    String? id,
-  }) {
+  NoteBlock copyWith({NoteBlockType? type, String? data, String? id}) {
     return NoteBlock(
       type: type ?? this.type,
       data: data ?? this.data,
@@ -53,18 +45,12 @@ class NoteBlock {
 
 /// Data classes for complex block types
 class CodeBlockData {
-  const CodeBlockData({
-    required this.code,
-    this.language,
-  });
+  const CodeBlockData({required this.code, this.language});
 
   final String code;
   final String? language;
 
-  CodeBlockData copyWith({
-    String? code,
-    String? language,
-  }) {
+  CodeBlockData copyWith({String? code, String? language}) {
     return CodeBlockData(
       code: code ?? this.code,
       language: language ?? this.language,
@@ -85,18 +71,12 @@ class CodeBlockData {
 
 /// Table block data class
 class TableBlockData {
-  const TableBlockData({
-    required this.headers,
-    required this.rows,
-  });
+  const TableBlockData({required this.headers, required this.rows});
 
   final List<String> headers;
   final List<List<String>> rows;
 
-  TableBlockData copyWith({
-    List<String>? headers,
-    List<List<String>>? rows,
-  }) {
+  TableBlockData copyWith({List<String>? headers, List<List<String>>? rows}) {
     return TableBlockData(
       headers: headers ?? this.headers,
       rows: rows ?? this.rows,
@@ -135,18 +115,12 @@ class TableBlockData {
 
 /// Todo block data class
 class TodoBlockData {
-  const TodoBlockData({
-    required this.text,
-    required this.isCompleted,
-  });
+  const TodoBlockData({required this.text, required this.isCompleted});
 
   final String text;
   final bool isCompleted;
 
-  TodoBlockData copyWith({
-    String? text,
-    bool? isCompleted,
-  }) {
+  TodoBlockData copyWith({String? text, bool? isCompleted}) {
     return TodoBlockData(
       text: text ?? this.text,
       isCompleted: isCompleted ?? this.isCompleted,
@@ -220,12 +194,12 @@ class AttachmentBlockData {
 
   @override
   int get hashCode => Object.hash(
-        fileName,
-        fileSize,
-        mimeType,
-        url,
-        localPath,
-        thumbnailUrl,
-        description,
-      );
+    fileName,
+    fileSize,
+    mimeType,
+    url,
+    localPath,
+    thumbnailUrl,
+    description,
+  );
 }

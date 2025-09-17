@@ -2,7 +2,7 @@ import 'package:duru_notes/models/note_block.dart';
 import 'package:flutter/material.dart';
 
 /// Widget for rendering and editing quote blocks.
-/// 
+///
 /// This widget handles:
 /// - Distinctive visual styling with left border and background
 /// - Multiline quote text editing
@@ -10,22 +10,26 @@ import 'package:flutter/material.dart';
 /// - Block deletion functionality
 class QuoteBlockWidget extends StatelessWidget {
   const QuoteBlockWidget({
-    required this.block, required this.controller, required this.onChanged, required this.onDelete, super.key,
+    required this.block,
+    required this.controller,
+    required this.onChanged,
+    required this.onDelete,
+    super.key,
     this.hintText = 'Quote',
   });
 
   /// The quote block being edited
   final NoteBlock block;
-  
+
   /// Text controller for the quote content
   final TextEditingController controller;
-  
+
   /// Callback when the block content changes
   final ValueChanged<NoteBlock> onChanged;
-  
+
   /// Callback when the block should be deleted
   final VoidCallback onDelete;
-  
+
   /// Hint text to display when empty
   final String hintText;
 
@@ -55,10 +59,12 @@ class QuoteBlockWidget extends StatelessWidget {
             child: Icon(
               Icons.format_quote,
               size: 18,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.7),
             ),
           ),
-          
+
           // Quote text input
           Expanded(
             child: TextField(
@@ -75,7 +81,9 @@ class QuoteBlockWidget extends StatelessWidget {
                 hintText: hintText,
                 hintStyle: TextStyle(
                   fontStyle: FontStyle.italic,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
@@ -85,7 +93,7 @@ class QuoteBlockWidget extends StatelessWidget {
               },
             ),
           ),
-          
+
           // Delete button
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 20),
@@ -101,17 +109,18 @@ class QuoteBlockWidget extends StatelessWidget {
 /// Widget for displaying quote blocks in read-only mode.
 class QuoteBlockPreview extends StatelessWidget {
   const QuoteBlockPreview({
-    required this.text, super.key,
+    required this.text,
+    super.key,
     this.attribution,
     this.maxLines,
   });
 
   /// The quote text to display
   final String text;
-  
+
   /// Optional attribution/author of the quote
   final String? attribution;
-  
+
   /// Maximum number of lines to show (for compact previews)
   final int? maxLines;
 
@@ -147,7 +156,9 @@ class QuoteBlockPreview extends StatelessWidget {
               Icon(
                 Icons.format_quote,
                 size: 20,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.7),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -165,7 +176,7 @@ class QuoteBlockPreview extends StatelessWidget {
               ),
             ],
           ),
-          
+
           // Attribution
           if (attribution?.isNotEmpty ?? false) ...[
             const SizedBox(height: 8),
@@ -175,7 +186,9 @@ class QuoteBlockPreview extends StatelessWidget {
                 '— $attribution',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -189,16 +202,18 @@ class QuoteBlockPreview extends StatelessWidget {
 /// Widget for famous quotes or inspirational content.
 class InspirationalQuoteWidget extends StatelessWidget {
   const InspirationalQuoteWidget({
-    required this.quote, required this.author, super.key,
+    required this.quote,
+    required this.author,
+    super.key,
     this.onTap,
   });
 
   /// The inspirational quote text
   final String quote;
-  
+
   /// The author of the quote
   final String author;
-  
+
   /// Optional callback when tapped
   final VoidCallback? onTap;
 
@@ -217,10 +232,12 @@ class InspirationalQuoteWidget extends StatelessWidget {
               Icon(
                 Icons.format_quote,
                 size: 32,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.6),
               ),
               const SizedBox(height: 12),
-              
+
               // Quote text
               Text(
                 quote,
@@ -231,7 +248,7 @@ class InspirationalQuoteWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              
+
               // Author
               Text(
                 '— $author',

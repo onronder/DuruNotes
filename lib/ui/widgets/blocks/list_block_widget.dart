@@ -4,7 +4,12 @@ import 'package:flutter/services.dart';
 
 class ListBlockWidget extends StatefulWidget {
   const ListBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNewLine, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    required this.onNewLine,
+    super.key,
   });
 
   final NoteBlock block;
@@ -26,7 +31,7 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
     super.initState();
     _controller = TextEditingController(text: widget.block.data);
     _focusNode = FocusNode();
-    
+
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
     });
@@ -41,11 +46,11 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
   @override
   void didUpdateWidget(ListBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _controller.text = widget.block.data;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _focusNode.requestFocus();
     }
@@ -72,8 +77,8 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
   }
 
   IconData _getListIcon() {
-    return widget.block.type == NoteBlockType.bulletList 
-        ? Icons.circle 
+    return widget.block.type == NoteBlockType.bulletList
+        ? Icons.circle
         : Icons.looks_one;
   }
 
@@ -93,7 +98,7 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
               color: Theme.of(context).primaryColor,
             ),
           ),
-          
+
           // List Item Text
           Expanded(
             child: Focus(

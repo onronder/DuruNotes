@@ -19,11 +19,15 @@ enum ExportFormat {
   markdown('Markdown', 'md', 'text/markdown'),
   pdf('PDF', 'pdf', 'application/pdf'),
   html('HTML', 'html', 'text/html'),
-  docx('Word Document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+  docx(
+    'Word Document',
+    'docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ),
   txt('Plain Text', 'txt', 'text/plain');
 
   const ExportFormat(this.displayName, this.extension, this.mimeType);
-  
+
   final String displayName;
   final String extension;
   final String mimeType;
@@ -31,7 +35,6 @@ enum ExportFormat {
 
 /// Export options for customizing output
 class ExportOptions {
-
   const ExportOptions({
     this.includeMetadata = true,
     this.includeTimestamps = true,
@@ -63,7 +66,6 @@ typedef ExportProgressCallback = void Function(ExportProgress progress);
 
 /// Export progress information
 class ExportProgress {
-
   const ExportProgress({
     required this.phase,
     required this.current,
@@ -96,10 +98,11 @@ enum ExportPhase {
 
 /// Export result with comprehensive information
 class ExportResult {
-
   const ExportResult({
     required this.success,
-    required this.processingTime, required this.format, this.file,
+    required this.processingTime,
+    required this.format,
+    this.file,
     this.error,
     this.errorCode,
     this.fileSize = 0,
@@ -124,7 +127,9 @@ class ExportResult {
 
   factory ExportResult.failure({
     required String error,
-    required Duration processingTime, required ExportFormat format, String? errorCode,
+    required Duration processingTime,
+    required ExportFormat format,
+    String? errorCode,
   }) {
     return ExportResult(
       success: false,
@@ -146,13 +151,12 @@ class ExportResult {
 
 /// World-class export service with comprehensive format support
 class ExportService {
-
   ExportService({
     AppLogger? logger,
     AnalyticsService? analytics,
     // AttachmentService? attachmentService,  // Reserved for future attachment export
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  }) : _logger = logger ?? LoggerFactory.instance,
+       _analytics = analytics ?? AnalyticsFactory.instance;
   final AppLogger _logger;
   final AnalyticsService _analytics;
   // final AttachmentService _attachmentService;  // Reserved for future attachment export
@@ -164,7 +168,7 @@ class ExportService {
   static const double _defaultFontSize = 12;
   static const double _titleFontSize = 24;
   static const double _headingFontSize = 18;
-        // _attachmentService = attachmentService ?? AttachmentService();
+  // _attachmentService = attachmentService ?? AttachmentService();
 
   /// Export a note to Markdown format
   Future<ExportResult> exportToMarkdown(
@@ -173,62 +177,76 @@ class ExportService {
     ExportProgressCallback? onProgress,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
-      _logger.info('Starting Markdown export', data: {
-        'note_id': note.id,
-        'note_title': note.title,
-      });
+      _logger.info(
+        'Starting Markdown export',
+        data: {'note_id': note.id, 'note_title': note.title},
+      );
 
       _analytics.startTiming('export_markdown');
-      
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.preparing,
-        current: 0,
-        total: 100,
-        currentOperation: 'Preparing markdown export...',
-      ));
+
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.preparing,
+          current: 0,
+          total: 100,
+          currentOperation: 'Preparing markdown export...',
+        ),
+      );
 
       // Parse note content to blocks
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.parsing,
-        current: 20,
-        total: 100,
-        currentOperation: 'Parsing note content...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.parsing,
+          current: 20,
+          total: 100,
+          currentOperation: 'Parsing note content...',
+        ),
+      );
+
       final blocks = parseMarkdownToBlocks(note.body);
-      
+
       // Build markdown content
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.processing,
-        current: 40,
-        total: 100,
-        currentOperation: 'Processing blocks...',
-      ));
-      
-      final markdownContent = await _buildMarkdownContent(note, blocks, options);
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.processing,
+          current: 40,
+          total: 100,
+          currentOperation: 'Processing blocks...',
+        ),
+      );
+
+      final markdownContent = await _buildMarkdownContent(
+        note,
+        blocks,
+        options,
+      );
+
       // Save to file
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.saving,
-        current: 80,
-        total: 100,
-        currentOperation: 'Saving file...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.saving,
+          current: 80,
+          total: 100,
+          currentOperation: 'Saving file...',
+        ),
+      );
+
       final file = await _saveToFile(
         content: markdownContent,
         filename: _generateFilename(note.title, ExportFormat.markdown),
         format: ExportFormat.markdown,
       );
 
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.completed,
-        current: 100,
-        total: 100,
-        currentOperation: 'Export completed',
-      ));
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.completed,
+          current: 100,
+          total: 100,
+          currentOperation: 'Export completed',
+        ),
+      );
 
       final result = ExportResult.success(
         file: file,
@@ -241,27 +259,33 @@ class ExportService {
         },
       );
 
-      _analytics.endTiming('export_markdown', properties: {
-        'success': true,
-        'file_size': result.fileSize,
-        'processing_time_ms': stopwatch.elapsedMilliseconds,
-      });
+      _analytics.endTiming(
+        'export_markdown',
+        properties: {
+          'success': true,
+          'file_size': result.fileSize,
+          'processing_time_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
-      _analytics.featureUsed('note_exported', properties: {
-        'format': 'markdown',
-        'blocks_count': blocks.length,
-      });
+      _analytics.featureUsed(
+        'note_exported',
+        properties: {'format': 'markdown', 'blocks_count': blocks.length},
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Markdown export failed', error: e, stackTrace: stackTrace, data: {
-        'note_id': note.id,
-      });
+      _logger.error(
+        'Markdown export failed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'note_id': note.id},
+      );
 
-      _analytics.endTiming('export_markdown', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming(
+        'export_markdown',
+        properties: {'success': false, 'error': e.toString()},
+      );
 
       return ExportResult.failure(
         error: 'Failed to export to Markdown: $e',
@@ -279,71 +303,94 @@ class ExportService {
     ExportProgressCallback? onProgress,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
-      _logger.info('Starting PDF export', data: {
-        'note_id': note.id,
-        'note_title': note.title,
-      });
+      _logger.info(
+        'Starting PDF export',
+        data: {'note_id': note.id, 'note_title': note.title},
+      );
 
       _analytics.startTiming('export_pdf');
-      
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.preparing,
-        current: 0,
-        total: 100,
-        currentOperation: 'Preparing PDF export...',
-      ));
+
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.preparing,
+          current: 0,
+          total: 100,
+          currentOperation: 'Preparing PDF export...',
+        ),
+      );
 
       // Parse note content to blocks
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.parsing,
-        current: 10,
-        total: 100,
-        currentOperation: 'Parsing note content...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.parsing,
+          current: 10,
+          total: 100,
+          currentOperation: 'Parsing note content...',
+        ),
+      );
+
       final blocks = parseMarkdownToBlocks(note.body);
-      
+
       // Create PDF document
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.rendering,
-        current: 30,
-        total: 100,
-        currentOperation: 'Creating PDF document...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.rendering,
+          current: 30,
+          total: 100,
+          currentOperation: 'Creating PDF document...',
+        ),
+      );
+
       final pdf = pw.Document();
-      
+
       // Load fonts with timeout and fallback
-      final fontRegular = await _loadPdfFont('OpenSans-Regular', pw.Font.helvetica());
-      final fontBold = await _loadPdfFont('OpenSans-Bold', pw.Font.helveticaBold());
-      final fontItalic = await _loadPdfFont('OpenSans-Italic', pw.Font.helveticaOblique());
-      final fontMono = await _loadPdfFont('RobotoMono-Regular', pw.Font.courier());
+      final fontRegular = await _loadPdfFont(
+        'OpenSans-Regular',
+        pw.Font.helvetica(),
+      );
+      final fontBold = await _loadPdfFont(
+        'OpenSans-Bold',
+        pw.Font.helveticaBold(),
+      );
+      final fontItalic = await _loadPdfFont(
+        'OpenSans-Italic',
+        pw.Font.helveticaOblique(),
+      );
+      final fontMono = await _loadPdfFont(
+        'RobotoMono-Regular',
+        pw.Font.courier(),
+      );
 
       // Build PDF content
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.processing,
-        current: 50,
-        total: 100,
-        currentOperation: 'Processing blocks...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.processing,
+          current: 50,
+          total: 100,
+          currentOperation: 'Processing blocks...',
+        ),
+      );
+
       final pdfWidgets = await _buildPdfContent(
-        note, 
-        blocks, 
+        note,
+        blocks,
         options,
         fontRegular: fontRegular,
         fontBold: fontBold,
         fontItalic: fontItalic,
         fontMono: fontMono,
         onProgress: (progress) {
-          onProgress?.call(ExportProgress(
-            phase: ExportPhase.processing,
-            current: 50 + (progress * 20).round(),
-            total: 100,
-            currentOperation: 'Processing block ${progress * blocks.length}/${blocks.length}...',
-          ));
+          onProgress?.call(
+            ExportProgress(
+              phase: ExportPhase.processing,
+              current: 50 + (progress * 20).round(),
+              total: 100,
+              currentOperation:
+                  'Processing block ${progress * blocks.length}/${blocks.length}...',
+            ),
+          );
         },
       );
 
@@ -353,19 +400,23 @@ class ExportService {
           pageFormat: options.pageSize ?? PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(40),
           build: (context) => pdfWidgets,
-          header: options.includeMetadata ? (context) => _buildPdfHeader(note, options) : null,
+          header: options.includeMetadata
+              ? (context) => _buildPdfHeader(note, options)
+              : null,
           footer: options.includeMetadata ? _buildPdfFooter : null,
         ),
       );
 
       // Save PDF
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.saving,
-        current: 90,
-        total: 100,
-        currentOperation: 'Saving PDF file...',
-      ));
-      
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.saving,
+          current: 90,
+          total: 100,
+          currentOperation: 'Saving PDF file...',
+        ),
+      );
+
       final pdfBytes = await pdf.save();
       final file = await _saveBytesToFile(
         bytes: pdfBytes,
@@ -373,12 +424,14 @@ class ExportService {
         format: ExportFormat.pdf,
       );
 
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.completed,
-        current: 100,
-        total: 100,
-        currentOperation: 'PDF export completed',
-      ));
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.completed,
+          current: 100,
+          total: 100,
+          currentOperation: 'PDF export completed',
+        ),
+      );
 
       final result = ExportResult.success(
         file: file,
@@ -391,28 +444,34 @@ class ExportService {
         },
       );
 
-      _analytics.endTiming('export_pdf', properties: {
-        'success': true,
-        'file_size': result.fileSize,
-        'processing_time_ms': stopwatch.elapsedMilliseconds,
-        'pages_count': 1, // Estimate
-      });
+      _analytics.endTiming(
+        'export_pdf',
+        properties: {
+          'success': true,
+          'file_size': result.fileSize,
+          'processing_time_ms': stopwatch.elapsedMilliseconds,
+          'pages_count': 1, // Estimate
+        },
+      );
 
-      _analytics.featureUsed('note_exported', properties: {
-        'format': 'pdf',
-        'blocks_count': blocks.length,
-      });
+      _analytics.featureUsed(
+        'note_exported',
+        properties: {'format': 'pdf', 'blocks_count': blocks.length},
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('PDF export failed', error: e, stackTrace: stackTrace, data: {
-        'note_id': note.id,
-      });
+      _logger.error(
+        'PDF export failed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'note_id': note.id},
+      );
 
-      _analytics.endTiming('export_pdf', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming(
+        'export_pdf',
+        properties: {'success': false, 'error': e.toString()},
+      );
 
       return ExportResult.failure(
         error: 'Failed to export to PDF: $e',
@@ -430,35 +489,41 @@ class ExportService {
     ExportProgressCallback? onProgress,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       _analytics.startTiming('export_html');
-      
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.preparing,
-        current: 0,
-        total: 100,
-        currentOperation: 'Preparing HTML export...',
-      ));
+
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.preparing,
+          current: 0,
+          total: 100,
+          currentOperation: 'Preparing HTML export...',
+        ),
+      );
 
       final blocks = parseMarkdownToBlocks(note.body);
-      
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.processing,
-        current: 50,
-        total: 100,
-        currentOperation: 'Building HTML content...',
-      ));
-      
+
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.processing,
+          current: 50,
+          total: 100,
+          currentOperation: 'Building HTML content...',
+        ),
+      );
+
       final htmlContent = await _buildHtmlContent(note, blocks, options);
-      
-      onProgress?.call(const ExportProgress(
-        phase: ExportPhase.saving,
-        current: 90,
-        total: 100,
-        currentOperation: 'Saving HTML file...',
-      ));
-      
+
+      onProgress?.call(
+        const ExportProgress(
+          phase: ExportPhase.saving,
+          current: 90,
+          total: 100,
+          currentOperation: 'Saving HTML file...',
+        ),
+      );
+
       final file = await _saveToFile(
         content: htmlContent,
         filename: _generateFilename(note.title, ExportFormat.html),
@@ -471,17 +536,17 @@ class ExportService {
         format: ExportFormat.html,
       );
 
-      _analytics.endTiming('export_html', properties: {
-        'success': true,
-        'file_size': result.fileSize,
-      });
+      _analytics.endTiming(
+        'export_html',
+        properties: {'success': true, 'file_size': result.fileSize},
+      );
 
       return result;
     } catch (e) {
-      _analytics.endTiming('export_html', properties: {
-        'success': false,
-        'error': e.toString(),
-      });
+      _analytics.endTiming(
+        'export_html',
+        properties: {'success': false, 'error': e.toString()},
+      );
 
       return ExportResult.failure(
         error: 'Failed to export to HTML: $e',
@@ -500,12 +565,12 @@ class ExportService {
         text: 'Shared from Duru Notes',
         subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
       );
-      
-      _analytics.featureUsed('export_shared', properties: {
-        'format': format.name,
-        'file_size': file.lengthSync(),
-      });
-      
+
+      _analytics.featureUsed(
+        'export_shared',
+        properties: {'format': format.name, 'file_size': file.lengthSync()},
+      );
+
       return result.status == ShareResultStatus.success;
     } catch (e) {
       _logger.error('Failed to share exported file', error: e);
@@ -517,11 +582,12 @@ class ExportService {
   Future<bool> openExportedFile(File file) async {
     try {
       final result = await OpenFile.open(file.path);
-      
-      _analytics.featureUsed('export_opened', properties: {
-        'file_size': file.lengthSync(),
-      });
-      
+
+      _analytics.featureUsed(
+        'export_opened',
+        properties: {'file_size': file.lengthSync()},
+      );
+
       return result.type == ResultType.done;
     } catch (e) {
       _logger.error('Failed to open exported file', error: e);
@@ -533,10 +599,10 @@ class ExportService {
   Duration getEstimatedExportTime(LocalNote note, ExportFormat format) {
     final contentLength = note.body.length;
     final blocks = parseMarkdownToBlocks(note.body);
-    
+
     // Base time calculations
     var baseSeconds = 1;
-    
+
     switch (format) {
       case ExportFormat.markdown:
       case ExportFormat.txt:
@@ -548,11 +614,11 @@ class ExportService {
       case ExportFormat.docx:
         baseSeconds = 8;
     }
-    
+
     // Add time based on content size
     final sizeMultiplier = (contentLength / 1000).ceil();
     final blockMultiplier = (blocks.length / 10).ceil();
-    
+
     final totalSeconds = baseSeconds + sizeMultiplier + blockMultiplier;
     return Duration(seconds: totalSeconds.clamp(1, 60));
   }
@@ -564,23 +630,23 @@ class ExportService {
     final sanitizedTitle = title.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
     final filename = sanitizedTitle.isNotEmpty ? sanitizedTitle : 'note';
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    
+
     return '${filename}_$timestamp.${format.extension}';
   }
 
   Future<String> _buildMarkdownContent(
-    LocalNote note, 
-    List<NoteBlock> blocks, 
+    LocalNote note,
+    List<NoteBlock> blocks,
     ExportOptions options,
   ) async {
     final buffer = StringBuffer();
-    
+
     // Add title
     if (note.title.isNotEmpty) {
       buffer.writeln('# ${note.title}');
       buffer.writeln();
     }
-    
+
     // Add metadata if requested
     if (options.includeMetadata) {
       buffer.writeln('---');
@@ -595,11 +661,11 @@ class ExportService {
       buffer.writeln('---');
       buffer.writeln();
     }
-    
+
     // Convert blocks back to markdown
     final markdownBody = blocksToMarkdown(blocks);
     buffer.write(markdownBody);
-    
+
     return buffer.toString();
   }
 
@@ -614,7 +680,7 @@ class ExportService {
     Function(double)? onProgress,
   }) async {
     final widgets = <pw.Widget>[];
-    
+
     // Add title
     if (note.title.isNotEmpty) {
       widgets.add(
@@ -629,18 +695,18 @@ class ExportService {
       );
       widgets.add(pw.SizedBox(height: 20));
     }
-    
+
     // Add metadata if requested
     if (options.includeMetadata) {
       widgets.add(_buildPdfMetadata(note, options, fontRegular));
       widgets.add(pw.SizedBox(height: 20));
     }
-    
+
     // Process blocks
     for (var i = 0; i < blocks.length; i++) {
       final block = blocks[i];
       onProgress?.call(i / blocks.length);
-      
+
       final widget = await _buildPdfBlock(
         block,
         fontRegular: fontRegular,
@@ -648,17 +714,21 @@ class ExportService {
         fontItalic: fontItalic,
         fontMono: fontMono,
       );
-      
+
       if (widget != null) {
         widgets.add(widget);
         widgets.add(pw.SizedBox(height: 8));
       }
     }
-    
+
     return widgets;
   }
 
-  pw.Widget _buildPdfMetadata(LocalNote note, ExportOptions options, pw.Font font) {
+  pw.Widget _buildPdfMetadata(
+    LocalNote note,
+    ExportOptions options,
+    pw.Font font,
+  ) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -669,12 +739,24 @@ class ExportService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           if (options.includeTimestamps) ...[
-            pw.Text('Created: ${_formatDate(note.updatedAt ?? DateTime.now())}', style: pw.TextStyle(font: font, fontSize: 10)),
-            pw.Text('Updated: ${_formatDate(note.updatedAt)}', style: pw.TextStyle(font: font, fontSize: 10)),
+            pw.Text(
+              'Created: ${_formatDate(note.updatedAt ?? DateTime.now())}',
+              style: pw.TextStyle(font: font, fontSize: 10),
+            ),
+            pw.Text(
+              'Updated: ${_formatDate(note.updatedAt)}',
+              style: pw.TextStyle(font: font, fontSize: 10),
+            ),
           ],
           if (options.authorName != null)
-            pw.Text('Author: ${options.authorName}', style: pw.TextStyle(font: font, fontSize: 10)),
-          pw.Text('Exported: ${_formatDate(DateTime.now())}', style: pw.TextStyle(font: font, fontSize: 10)),
+            pw.Text(
+              'Author: ${options.authorName}',
+              style: pw.TextStyle(font: font, fontSize: 10),
+            ),
+          pw.Text(
+            'Exported: ${_formatDate(DateTime.now())}',
+            style: pw.TextStyle(font: font, fontSize: 10),
+          ),
         ],
       ),
     );
@@ -715,25 +797,25 @@ class ExportService {
           block.data,
           style: pw.TextStyle(font: fontRegular, fontSize: _defaultFontSize),
         );
-        
+
       case NoteBlockType.heading1:
         return pw.Text(
           block.data,
           style: pw.TextStyle(font: fontBold, fontSize: _headingFontSize),
         );
-        
+
       case NoteBlockType.heading2:
         return pw.Text(
           block.data,
           style: pw.TextStyle(font: fontBold, fontSize: _headingFontSize - 2),
         );
-        
+
       case NoteBlockType.heading3:
         return pw.Text(
           block.data,
           style: pw.TextStyle(font: fontBold, fontSize: _headingFontSize - 4),
         );
-        
+
       case NoteBlockType.code:
         return pw.Container(
           padding: const pw.EdgeInsets.all(12),
@@ -746,7 +828,7 @@ class ExportService {
             style: pw.TextStyle(font: fontMono, fontSize: _defaultFontSize - 1),
           ),
         );
-        
+
       case NoteBlockType.quote:
         return pw.Container(
           padding: const pw.EdgeInsets.only(left: 16, top: 8, bottom: 8),
@@ -760,7 +842,7 @@ class ExportService {
             style: pw.TextStyle(font: fontItalic, fontSize: _defaultFontSize),
           ),
         );
-        
+
       case NoteBlockType.bulletList:
         return pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -769,12 +851,15 @@ class ExportService {
             pw.Expanded(
               child: pw.Text(
                 block.data,
-                style: pw.TextStyle(font: fontRegular, fontSize: _defaultFontSize),
+                style: pw.TextStyle(
+                  font: fontRegular,
+                  fontSize: _defaultFontSize,
+                ),
               ),
             ),
           ],
         );
-        
+
       case NoteBlockType.numberedList:
         return pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -783,17 +868,20 @@ class ExportService {
             pw.Expanded(
               child: pw.Text(
                 block.data,
-                style: pw.TextStyle(font: fontRegular, fontSize: _defaultFontSize),
+                style: pw.TextStyle(
+                  font: fontRegular,
+                  fontSize: _defaultFontSize,
+                ),
               ),
             ),
           ],
         );
-        
+
       case NoteBlockType.todo:
         final parts = block.data.split(':');
         final isCompleted = parts.length > 1 && parts[0] == 'completed';
         final text = parts.length > 1 ? parts.skip(1).join(':') : block.data;
-        
+
         return pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -809,7 +897,10 @@ class ExportService {
                   ? pw.Center(
                       child: pw.Text(
                         '✓',
-                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.white),
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.white,
+                        ),
                       ),
                     )
                   : null,
@@ -820,13 +911,15 @@ class ExportService {
                 style: pw.TextStyle(
                   font: fontRegular,
                   fontSize: _defaultFontSize,
-                  decoration: isCompleted ? pw.TextDecoration.lineThrough : null,
+                  decoration: isCompleted
+                      ? pw.TextDecoration.lineThrough
+                      : null,
                 ),
               ),
             ),
           ],
         );
-        
+
       default:
         return pw.Text(
           block.data,
@@ -836,54 +929,64 @@ class ExportService {
   }
 
   Future<String> _buildHtmlContent(
-    LocalNote note, 
-    List<NoteBlock> blocks, 
+    LocalNote note,
+    List<NoteBlock> blocks,
     ExportOptions options,
   ) async {
     final buffer = StringBuffer();
-    
+
     // HTML header
     buffer.writeln('<!DOCTYPE html>');
     buffer.writeln('<html lang="en">');
     buffer.writeln('<head>');
     buffer.writeln('<meta charset="UTF-8">');
-    buffer.writeln('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-    buffer.writeln('<title>${_escapeHtml(note.title.isNotEmpty ? note.title : 'Note')}</title>');
+    buffer.writeln(
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+    );
+    buffer.writeln(
+      '<title>${_escapeHtml(note.title.isNotEmpty ? note.title : 'Note')}</title>',
+    );
     buffer.writeln('<style>');
     buffer.writeln(_getHtmlStyles());
     buffer.writeln('</style>');
     buffer.writeln('</head>');
     buffer.writeln('<body>');
-    
+
     // Content
     if (note.title.isNotEmpty) {
       buffer.writeln('<h1>${_escapeHtml(note.title)}</h1>');
     }
-    
+
     if (options.includeMetadata) {
       buffer.writeln('<div class="metadata">');
       if (options.includeTimestamps) {
-        buffer.writeln('<p><strong>Created:</strong> ${_formatDate(note.updatedAt ?? DateTime.now())}</p>');
-        buffer.writeln('<p><strong>Updated:</strong> ${_formatDate(note.updatedAt)}</p>');
+        buffer.writeln(
+          '<p><strong>Created:</strong> ${_formatDate(note.updatedAt ?? DateTime.now())}</p>',
+        );
+        buffer.writeln(
+          '<p><strong>Updated:</strong> ${_formatDate(note.updatedAt)}</p>',
+        );
       }
-      buffer.writeln('<p><strong>Exported:</strong> ${_formatDate(DateTime.now())}</p>');
+      buffer.writeln(
+        '<p><strong>Exported:</strong> ${_formatDate(DateTime.now())}</p>',
+      );
       buffer.writeln('</div>');
     }
-    
+
     // Convert blocks to HTML
     for (final block in blocks) {
       buffer.writeln(_blockToHtml(block));
     }
-    
+
     buffer.writeln('</body>');
     buffer.writeln('</html>');
-    
+
     return buffer.toString();
   }
 
   String _blockToHtml(NoteBlock block) {
     final escapedData = _escapeHtml(block.data);
-    
+
     switch (block.type) {
       case NoteBlockType.paragraph:
         return '<p>$escapedData</p>';
@@ -967,19 +1070,21 @@ class ExportService {
     // Create temporary file for sharing
     final tempDir = await getTemporaryDirectory();
     final file = File(path.join(tempDir.path, filename));
-    
+
     await file.writeAsString(content);
-    
+
     // Also save to app documents for file sharing (iOS)
     try {
       final documentsDir = await getApplicationDocumentsDirectory();
-      final documentsFile = File(path.join(documentsDir.path, 'exports', filename));
+      final documentsFile = File(
+        path.join(documentsDir.path, 'exports', filename),
+      );
       await documentsFile.parent.create(recursive: true);
       await documentsFile.writeAsString(content);
     } catch (e) {
       _logger.error('Failed to save to documents directory', error: e);
     }
-    
+
     return file;
   }
 
@@ -991,19 +1096,21 @@ class ExportService {
     // Create temporary file for sharing
     final tempDir = await getTemporaryDirectory();
     final file = File(path.join(tempDir.path, filename));
-    
+
     await file.writeAsBytes(bytes);
-    
+
     // Also save to app documents for file sharing (iOS)
     try {
       final documentsDir = await getApplicationDocumentsDirectory();
-      final documentsFile = File(path.join(documentsDir.path, 'exports', filename));
+      final documentsFile = File(
+        path.join(documentsDir.path, 'exports', filename),
+      );
       await documentsFile.parent.create(recursive: true);
       await documentsFile.writeAsBytes(bytes);
     } catch (e) {
       _logger.error('Failed to save to documents directory', error: e);
     }
-    
+
     return file;
   }
 
@@ -1016,12 +1123,12 @@ class ExportService {
         return pw.Font.ttf(fontData);
       } catch (e) {
         // Asset fonts not available, try Google Fonts
-        _logger.debug('Asset font not found, trying Google Fonts', data: {
-          'font': fontName,
-          'error': e.toString(),
-        });
+        _logger.debug(
+          'Asset font not found, trying Google Fonts',
+          data: {'font': fontName, 'error': e.toString()},
+        );
       }
-      
+
       // Fallback to Google Fonts with timeout
       switch (fontName) {
         case 'OpenSans-Regular':
@@ -1048,10 +1155,11 @@ class ExportService {
           return fallbackFont;
       }
     } catch (e) {
-      _logger.error('Failed to load font, using fallback', error: e, data: {
-        'font': fontName,
-        'fallback': fallbackFont.toString(),
-      });
+      _logger.error(
+        'Failed to load font, using fallback',
+        error: e,
+        data: {'font': fontName, 'fallback': fallbackFont.toString()},
+      );
       return fallbackFont;
     }
   }
@@ -1064,13 +1172,16 @@ class ExportService {
         text: 'Exported from Duru Notes',
         subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
       );
-      
-      _analytics.featureUsed('export_shared', properties: {
-        'format': format.name,
-        'file_size': file.lengthSync(),
-        'success': result.status == ShareResultStatus.success,
-      });
-      
+
+      _analytics.featureUsed(
+        'export_shared',
+        properties: {
+          'format': format.name,
+          'file_size': file.lengthSync(),
+          'success': result.status == ShareResultStatus.success,
+        },
+      );
+
       return result.status == ShareResultStatus.success;
     } catch (e) {
       _logger.error('Failed to share exported file', error: e);

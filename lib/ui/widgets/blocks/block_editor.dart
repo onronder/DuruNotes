@@ -12,7 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Advanced block-based note editor
 class BlockEditor extends ConsumerStatefulWidget {
   const BlockEditor({
-    required this.blocks, required this.onBlocksChanged, super.key,
+    required this.blocks,
+    required this.onBlocksChanged,
+    super.key,
     this.focusedBlockIndex,
     this.onBlockFocusChanged,
   });
@@ -37,7 +39,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     super.initState();
     _blocks = List.from(widget.blocks);
     _focusedBlockIndex = widget.focusedBlockIndex;
-    
+
     // Ensure at least one block exists
     if (_blocks.isEmpty) {
       _blocks.add(createParagraphBlock(''));
@@ -81,7 +83,9 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       setState(() {
         _blocks.removeAt(index);
         if (_focusedBlockIndex != null && _focusedBlockIndex! >= index) {
-          _focusedBlockIndex = _focusedBlockIndex! > 0 ? _focusedBlockIndex! - 1 : 0;
+          _focusedBlockIndex = _focusedBlockIndex! > 0
+              ? _focusedBlockIndex! - 1
+              : 0;
         }
       });
       _updateBlocks();
@@ -89,8 +93,10 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
   }
 
   void _moveBlock(int fromIndex, int toIndex) {
-    if (fromIndex >= 0 && fromIndex < _blocks.length && 
-        toIndex >= 0 && toIndex < _blocks.length) {
+    if (fromIndex >= 0 &&
+        fromIndex < _blocks.length &&
+        toIndex >= 0 &&
+        toIndex < _blocks.length) {
       setState(() {
         final block = _blocks.removeAt(fromIndex);
         _blocks.insert(toIndex, block);
@@ -122,10 +128,10 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
 
   void _addBlockOfType(NoteBlockType type) {
     if (_blockSelectorIndex == null) return;
-    
+
     final index = _blockSelectorIndex! + 1;
     NoteBlock newBlock;
-    
+
     switch (type) {
       case NoteBlockType.paragraph:
         newBlock = createParagraphBlock('');
@@ -144,13 +150,16 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       case NoteBlockType.code:
         newBlock = createCodeBlock('');
       case NoteBlockType.table:
-        newBlock = const NoteBlock(type: NoteBlockType.table, data: 'Header 1|Header 2\nCell 1|Cell 2');
+        newBlock = const NoteBlock(
+          type: NoteBlockType.table,
+          data: 'Header 1|Header 2\nCell 1|Cell 2',
+        );
       case NoteBlockType.quote:
         newBlock = const NoteBlock(type: NoteBlockType.quote, data: '');
       case NoteBlockType.attachment:
         newBlock = const NoteBlock(type: NoteBlockType.attachment, data: '');
     }
-    
+
     _insertBlock(index, newBlock);
     _hideBlockSelector();
   }
@@ -163,7 +172,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           children: [
             // Block Editor Toolbar
             _buildEditorToolbar(),
-            
+
             // Blocks List
             Expanded(
               child: ListView.builder(
@@ -176,10 +185,9 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             ),
           ],
         ),
-        
+
         // Block Selector Overlay
-        if (_showBlockSelector)
-          _buildBlockSelectorOverlay(),
+        if (_showBlockSelector) _buildBlockSelectorOverlay(),
       ],
     );
   }
@@ -200,38 +208,38 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             onPressed: () => _showBlockSelectorAt(_blocks.length - 1),
             tooltip: 'Add Block',
           ),
-          
+
           // Quick Format Buttons
           IconButton(
             icon: const Icon(Icons.title),
             onPressed: () => _addBlockOfType(NoteBlockType.heading1),
             tooltip: 'Add Heading',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.format_list_bulleted),
             onPressed: () => _addBlockOfType(NoteBlockType.bulletList),
             tooltip: 'Add Bullet List',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.check_box),
             onPressed: () => _addBlockOfType(NoteBlockType.todo),
             tooltip: 'Add Todo',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.code),
             onPressed: () => _addBlockOfType(NoteBlockType.code),
             tooltip: 'Add Code Block',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.table_chart),
             onPressed: () => _addBlockOfType(NoteBlockType.table),
             tooltip: 'Add Table',
           ),
-          
+
           IconButton(
             icon: const Icon(Icons.link),
             onPressed: _showLinkDialog,
@@ -245,7 +253,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
   Widget _buildBlockWidget(int index) {
     final block = _blocks[index];
     final isFocused = _focusedBlockIndex == index;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -263,12 +271,14 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
                   child: Icon(
                     Icons.drag_indicator,
                     size: 16,
-                    color: isFocused ? Theme.of(context).primaryColor : Colors.grey,
+                    color: isFocused
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
                   ),
                 ),
-                
+
                 const SizedBox(height: 4),
-                
+
                 // Add Block Button
                 GestureDetector(
                   onTap: () => _showBlockSelectorAt(index),
@@ -281,12 +291,10 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
               ],
             ),
           ),
-          
+
           // Block Content
-          Expanded(
-            child: _buildBlockContent(block, index, isFocused),
-          ),
-          
+          Expanded(child: _buildBlockContent(block, index, isFocused)),
+
           // Block Menu
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, size: 16, color: Colors.grey.shade400),
@@ -352,7 +360,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
           onNewLine: () => _insertBlock(index + 1, createParagraphBlock('')),
         );
-        
+
       case NoteBlockType.heading1:
       case NoteBlockType.heading2:
       case NoteBlockType.heading3:
@@ -363,7 +371,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
           onNewLine: () => _insertBlock(index + 1, createParagraphBlock('')),
         );
-        
+
       case NoteBlockType.bulletList:
       case NoteBlockType.numberedList:
         return ListBlockWidget(
@@ -373,7 +381,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
           onNewLine: () => _insertBlock(index + 1, createParagraphBlock('')),
         );
-        
+
       case NoteBlockType.todo:
         return TodoBlockWidget(
           block: block,
@@ -382,7 +390,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
           onNewLine: () => _insertBlock(index + 1, createTodoBlock('')),
         );
-        
+
       case NoteBlockType.code:
         return CodeBlockWidget(
           block: block,
@@ -390,7 +398,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onChanged: (newBlock) => _updateBlock(index, newBlock),
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
         );
-        
+
       case NoteBlockType.table:
         return TableBlockWidget(
           block: block,
@@ -398,7 +406,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onChanged: (newBlock) => _updateBlock(index, newBlock),
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,
         );
-        
+
       case NoteBlockType.quote:
         return ParagraphBlockWidget(
           block: block,
@@ -408,7 +416,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           onNewLine: () => _insertBlock(index + 1, createParagraphBlock('')),
           isQuote: true,
         );
-        
+
       default:
         return ParagraphBlockWidget(
           block: block,
@@ -438,7 +446,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       child: GestureDetector(
         onTap: _hideBlockSelector,
         child: ColoredBox(
-          color: Theme.of(context).colorScheme.scrim.withOpacity(0.54),
+          color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.54),
           child: Center(
             child: Container(
               width: 300,
@@ -456,7 +464,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 16),
-                  
+
                   _buildBlockTypeGrid(),
                 ],
               ),
@@ -469,18 +477,50 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
 
   Widget _buildBlockTypeGrid() {
     final blockTypes = [
-      {'type': NoteBlockType.paragraph, 'icon': Icons.subject, 'label': 'Paragraph'},
-      {'type': NoteBlockType.heading1, 'icon': Icons.title, 'label': 'Heading 1'},
-      {'type': NoteBlockType.heading2, 'icon': Icons.title, 'label': 'Heading 2'},
-      {'type': NoteBlockType.heading3, 'icon': Icons.title, 'label': 'Heading 3'},
-      {'type': NoteBlockType.bulletList, 'icon': Icons.format_list_bulleted, 'label': 'Bullet List'},
-      {'type': NoteBlockType.numberedList, 'icon': Icons.format_list_numbered, 'label': 'Numbered List'},
+      {
+        'type': NoteBlockType.paragraph,
+        'icon': Icons.subject,
+        'label': 'Paragraph',
+      },
+      {
+        'type': NoteBlockType.heading1,
+        'icon': Icons.title,
+        'label': 'Heading 1',
+      },
+      {
+        'type': NoteBlockType.heading2,
+        'icon': Icons.title,
+        'label': 'Heading 2',
+      },
+      {
+        'type': NoteBlockType.heading3,
+        'icon': Icons.title,
+        'label': 'Heading 3',
+      },
+      {
+        'type': NoteBlockType.bulletList,
+        'icon': Icons.format_list_bulleted,
+        'label': 'Bullet List',
+      },
+      {
+        'type': NoteBlockType.numberedList,
+        'icon': Icons.format_list_numbered,
+        'label': 'Numbered List',
+      },
       {'type': NoteBlockType.todo, 'icon': Icons.check_box, 'label': 'Todo'},
       {'type': NoteBlockType.code, 'icon': Icons.code, 'label': 'Code'},
-      {'type': NoteBlockType.table, 'icon': Icons.table_chart, 'label': 'Table'},
-      {'type': NoteBlockType.quote, 'icon': Icons.format_quote, 'label': 'Quote'},
+      {
+        'type': NoteBlockType.table,
+        'icon': Icons.table_chart,
+        'label': 'Table',
+      },
+      {
+        'type': NoteBlockType.quote,
+        'icon': Icons.format_quote,
+        'label': 'Quote',
+      },
     ];
-    
+
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

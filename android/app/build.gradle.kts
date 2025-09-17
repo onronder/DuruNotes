@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.duru_notes_app"
+    namespace = "com.fittechs.duruNotesApp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -67,7 +67,8 @@ android {
         debug {
             isDebuggable = true
             isMinifyEnabled = false
-            applicationIdSuffix = ".debug"
+            // Remove debug suffix to match google-services.json
+            applicationIdSuffix = ""
         }
         
         release {
@@ -90,6 +91,10 @@ dependencies {
     // Required for some plugins
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.core:core-ktx:1.12.0")
+    
+    // Fix Sentry UI tracking
+    implementation("io.sentry:sentry-android:7.3.0")
+    implementation("io.sentry:sentry-android-fragment:7.3.0")
 }
 
 flutter {

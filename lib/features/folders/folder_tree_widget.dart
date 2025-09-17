@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Example widget showing folder hierarchy with navigation
 class FolderTreeWidget extends ConsumerStatefulWidget {
@@ -21,18 +21,18 @@ class FolderTreeWidget extends ConsumerStatefulWidget {
 
 class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   final Set<String> _expandedFolders = {};
-  bool _showCreateDialog = false;
+  final bool _showCreateDialog = false;
   String? _parentFolderForCreate;
 
   @override
   Widget build(BuildContext context) {
     final folderRepo = ref.watch(folderRepositoryProvider);
-    
+
     return Column(
       children: [
         // Header with create button
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               const Icon(Icons.folder_outlined, size: 20),
@@ -51,7 +51,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           ),
         ),
         const Divider(height: 1),
-        
+
         // Inbox (unfiled notes)
         ListTile(
           leading: const Icon(Icons.inbox, size: 20),
@@ -59,17 +59,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           selected: widget.selectedFolderId == null,
           onTap: () => widget.onFolderSelected?.call(null),
           trailing: StreamBuilder<List<LocalNote>>(
-            stream: folderRepo.watchNotesInFolder(
-              folderId: null,
-              sort: const FolderSortSpec(),
-            ),
+            stream: folderRepo.watchNotesInFolder(sort: const FolderSortSpec()),
             builder: (context, snapshot) {
               final count = snapshot.data?.length ?? 0;
               if (count == 0) return const SizedBox.shrink();
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -80,16 +77,16 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             },
           ),
         ),
-        
+
         // Folder tree
         Expanded(
           child: StreamBuilder<List<LocalFolder>>(
-            stream: folderRepo.watchFolders(parentId: null),
+            stream: folderRepo.watchFolders(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               final rootFolders = snapshot.data!;
               if (rootFolders.isEmpty) {
                 return Center(
@@ -112,7 +109,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 itemCount: rootFolders.length,
                 itemBuilder: (context, index) {
@@ -130,7 +127,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     final folderRepo = ref.watch(folderRepositoryProvider);
     final isExpanded = _expandedFolders.contains(folder.id);
     final isSelected = widget.selectedFolderId == folder.id;
-    
+
     return Column(
       children: [
         ListTile(
@@ -139,13 +136,13 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             child: Icon(
               isExpanded ? Icons.folder_open : Icons.folder,
               size: 20,
-              color: folder.color != null 
+              color: folder.color != null
                   ? Color(int.parse(folder.color!.replaceFirst('#', '0xff')))
                   : null,
             ),
           ),
           title: Text(folder.name),
-          subtitle: folder.description.isNotEmpty 
+          subtitle: folder.description.isNotEmpty
               ? Text(
                   folder.description,
                   maxLines: 1,
@@ -166,9 +163,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                   final count = snapshot.data ?? 0;
                   if (count == 0) return const SizedBox.shrink();
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -182,13 +184,13 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
               StreamBuilder<List<LocalFolder>>(
                 stream: folderRepo.watchFolders(parentId: folder.id),
                 builder: (context, snapshot) {
-                  final hasChildren = (snapshot.data?.isNotEmpty ?? false);
+                  final hasChildren = snapshot.data?.isNotEmpty ?? false;
                   if (!hasChildren) return const SizedBox(width: 24);
-                  
+
                   return IconButton(
                     icon: Icon(
-                      isExpanded 
-                          ? Icons.keyboard_arrow_down 
+                      isExpanded
+                          ? Icons.keyboard_arrow_down
                           : Icons.keyboard_arrow_right,
                       size: 20,
                     ),
@@ -262,9 +264,9 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             builder: (context, snapshot) {
               final children = snapshot.data ?? [];
               return Column(
-                children: children.map((child) => 
-                  _buildFolderTile(child, depth + 1)
-                ).toList(),
+                children: children
+                    .map((child) => _buildFolderTile(child, depth + 1))
+                    .toList(),
               );
             },
           ),
@@ -274,7 +276,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
   void _handleFolderAction(String action, LocalFolder folder) {
     final folderRepo = ref.read(folderRepositoryProvider);
-    
+
     switch (action) {
       case 'create_subfolder':
         _showCreateFolderDialog(folder.id);
@@ -294,7 +296,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   void _showCreateFolderDialog(String? parentId) {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -349,16 +351,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
   void _showRenameFolderDialog(LocalFolder folder) {
     final controller = TextEditingController(text: folder.name);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename Folder'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Folder name',
-          ),
+          decoration: const InputDecoration(labelText: 'Folder name'),
           autofocus: true,
         ),
         actions: [
@@ -368,7 +368,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           ),
           FilledButton(
             onPressed: () async {
-              if (controller.text.isNotEmpty && controller.text != folder.name) {
+              if (controller.text.isNotEmpty &&
+                  controller.text != folder.name) {
                 final folderRepo = ref.read(folderRepositoryProvider);
                 await folderRepo.renameFolder(
                   folderId: folder.id,

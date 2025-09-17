@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// A draggable note item that can be dropped on folders
 class DraggableNoteItem extends ConsumerStatefulWidget {
   const DraggableNoteItem({
-    required this.note, required this.child, super.key,
+    required this.note,
+    required this.child,
+    super.key,
     this.onDragStarted,
     this.onDragEnd,
     this.onDroppedOnFolder,
@@ -37,14 +39,10 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+
+    _scaleAnimation = Tween<double>(begin: 1, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -65,10 +63,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
         builder: (context, child) {
           return Transform.scale(
             scale: 0.95,
-            child: Opacity(
-              opacity: 0.7,
-              child: widget.child,
-            ),
+            child: Opacity(opacity: 0.7, child: widget.child),
           );
         },
       ),
@@ -97,7 +92,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
 
   Widget _buildFeedback(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Material(
       elevation: 8,
       borderRadius: BorderRadius.circular(12),
@@ -108,7 +103,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: theme.colorScheme.primary.withOpacity(0.5),
+            color: theme.colorScheme.primary.withValues(alpha: 0.5),
             width: 2,
           ),
         ),
@@ -118,15 +113,13 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.note,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
+                Icon(Icons.note, color: theme.colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.note.title.isEmpty ? 'Untitled Note' : widget.note.title,
+                    widget.note.title.isEmpty
+                        ? 'Untitled Note'
+                        : widget.note.title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -174,7 +167,9 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
 /// A folder drop target that accepts note drops
 class FolderDropTarget extends ConsumerStatefulWidget {
   const FolderDropTarget({
-    required this.folder, required this.child, super.key,
+    required this.folder,
+    required this.child,
+    super.key,
     this.onNoteDropped,
     this.enabled = true,
   });
@@ -201,14 +196,10 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
-    _highlightAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+
+    _highlightAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -247,19 +238,18 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
         return AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
-            return Container(
+            return DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: _isHovered
-                    ? Border.all(
-                        color: theme.colorScheme.primary,
-                        width: 2,
-                      )
+                    ? Border.all(color: theme.colorScheme.primary, width: 2)
                     : null,
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.3,
+                          ),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -326,7 +316,9 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
 /// A batch drag and drop component for multiple notes
 class BatchNoteDragDrop extends ConsumerStatefulWidget {
   const BatchNoteDragDrop({
-    required this.selectedNotes, required this.child, super.key,
+    required this.selectedNotes,
+    required this.child,
+    super.key,
     this.onNotesDropped,
     this.enabled = true,
   });
@@ -352,14 +344,10 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1,
-      end: 1.03,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+
+    _scaleAnimation = Tween<double>(begin: 1, end: 1.03).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -377,10 +365,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
     return LongPressDraggable<List<LocalNote>>(
       data: widget.selectedNotes,
       feedback: _buildBatchFeedback(context),
-      childWhenDragging: Opacity(
-        opacity: 0.7,
-        child: widget.child,
-      ),
+      childWhenDragging: Opacity(opacity: 0.7, child: widget.child),
       onDragStarted: () {
         _animationController.forward();
         HapticFeedback.mediumImpact();
@@ -403,7 +388,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
   Widget _buildBatchFeedback(BuildContext context) {
     final theme = Theme.of(context);
     final noteCount = widget.selectedNotes.length;
-    
+
     return Material(
       elevation: 12,
       borderRadius: BorderRadius.circular(16),
@@ -413,13 +398,10 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: theme.colorScheme.primary,
-            width: 2,
-          ),
+          border: Border.all(color: theme.colorScheme.primary, width: 2),
           gradient: LinearGradient(
             colors: [
-              theme.colorScheme.primaryContainer.withOpacity(0.1),
+              theme.colorScheme.primaryContainer.withValues(alpha: 0.1),
               theme.colorScheme.surface,
             ],
             begin: Alignment.topLeft,
@@ -466,9 +448,9 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Note previews
             SizedBox(
               height: 80,
@@ -482,7 +464,8 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -511,7 +494,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                 },
               ),
             ),
-            
+
             if (widget.selectedNotes.length > 3) ...[
               const SizedBox(height: 8),
               Text(
@@ -522,14 +505,16 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                 ),
               ),
             ],
-            
+
             const SizedBox(height: 16),
-            
+
             // Instructions
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -562,15 +547,19 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
 /// Enhanced folder drop target for batch operations
 class BatchFolderDropTarget extends FolderDropTarget {
   const BatchFolderDropTarget({
-    required super.folder, required super.child, super.key,
+    required super.folder,
+    required super.child,
+    super.key,
     this.onBatchNotesDropped,
     super.enabled = true,
   }) : super(onNoteDropped: null);
 
-  final Function(List<LocalNote> notes, LocalFolder? folder)? onBatchNotesDropped;
+  final Function(List<LocalNote> notes, LocalFolder? folder)?
+  onBatchNotesDropped;
 
   @override
-  ConsumerState<FolderDropTarget> createState() => _BatchFolderDropTargetState();
+  ConsumerState<FolderDropTarget> createState() =>
+      _BatchFolderDropTargetState();
 }
 
 class _BatchFolderDropTargetState extends _FolderDropTargetState {
@@ -582,13 +571,16 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
       children: [
         // Single note drop target
         super.build(context),
-        
+
         // Batch notes drop target
         DragTarget<List<LocalNote>>(
           onWillAcceptWithDetails: (details) => details.data.isNotEmpty,
           onAcceptWithDetails: (details) {
             HapticFeedback.lightImpact();
-            (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(details.data, widget.folder);
+            (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(
+              details.data,
+              widget.folder,
+            );
             _animationController.reverse();
           },
           onMove: (_) {

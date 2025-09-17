@@ -1,8 +1,10 @@
 import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:duru_notes/providers.dart';
 
 /// Events emitted by the notes realtime service
 enum NotesRealtimeEvent {
@@ -16,52 +18,55 @@ enum NotesRealtimeEvent {
 /// Realtime service for notes and folders updates
 /// Provides instant updates for main notes list
 class NotesRealtimeService extends ChangeNotifier {
+  // Exponential backoff
+
+  NotesRealtimeService({required SupabaseClient supabase, required Ref ref})
+    : _supabase = supabase,
+      _ref = ref;
   final SupabaseClient _supabase;
   final Ref _ref;
+  final AppLogger _logger = LoggerFactory.instance;
   RealtimeChannel? _channel;
   bool _isSubscribed = false;
   bool _disposed = false;
-  
+
   // Event deduplication
   final Set<String> _processedEventIds = {};
   static const int _maxProcessedIds = 100;
-  
+
   // Debounce timer for provider invalidation
   Timer? _debounceTimer;
   static const Duration _debounceDuration = Duration(milliseconds: 500);
-  
+
   // Stream controller for list refresh events
-  final _listRefreshController = StreamController<NotesRealtimeEvent>.broadcast();
-  Stream<NotesRealtimeEvent> get listRefreshStream => _listRefreshController.stream;
-  
+  final _listRefreshController =
+      StreamController<NotesRealtimeEvent>.broadcast();
+  Stream<NotesRealtimeEvent> get listRefreshStream =>
+      _listRefreshController.stream;
+
   // Exponential backoff for reconnection
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
-  static const List<int> _backoffDelays = [1, 2, 4, 8, 16, 30]; // Exponential backoff
-  
-  NotesRealtimeService({
-    required SupabaseClient supabase,
-    required Ref ref,
-  }) : _supabase = supabase, _ref = ref;
-  
+  static const List<int> _backoffDelays = [1, 2, 4, 8, 16, 30];
+
   bool get isSubscribed => _isSubscribed;
-  
+
   /// Start realtime subscription for notes changes
   Future<void> start() async {
     if (_disposed) {
-      debugPrint('[NotesRealtime] Cannot start: service is disposed');
+      _logger.debug(' Cannot start: service is disposed');
       return;
     }
     await stop(); // Clean up any existing subscription
-    
+
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
-      debugPrint('[NotesRealtime] Cannot start: no authenticated user');
+      _logger.debug(' Cannot start: no authenticated user');
       return;
     }
-    
-    debugPrint('[NotesRealtime] Starting realtime subscription for user: $userId');
-    
+
+    _logger.debug(' Starting realtime subscription for user: $userId');
+
     try {
       // Create channel for notes and note_folders changes
       _channel = _supabase
@@ -88,7 +93,7 @@ class NotesRealtimeService extends ChangeNotifier {
             ),
             callback: _handleFolderChange,
           );
-      
+
       // Subscribe to the channel
       _channel!.subscribe((status, error) {
         if (status == RealtimeSubscribeStatus.subscribed) {
@@ -98,27 +103,27 @@ class NotesRealtimeService extends ChangeNotifier {
           if (!_disposed) {
             notifyListeners();
           }
-          debugPrint('[NotesRealtime] Subscription active');
-        } else if (status == RealtimeSubscribeStatus.closed || 
-                   status == RealtimeSubscribeStatus.channelError) {
+          _logger.debug(' Subscription active');
+        } else if (status == RealtimeSubscribeStatus.closed ||
+            status == RealtimeSubscribeStatus.channelError) {
           _isSubscribed = false;
           if (!_disposed) {
             notifyListeners();
-            debugPrint('[NotesRealtime] Subscription lost: $status, error: $error');
+            _logger.debug(' Subscription lost: $status, error: $error');
             // Schedule reconnect with exponential backoff
             _scheduleReconnect();
           }
         }
       });
     } catch (e) {
-      debugPrint('[NotesRealtime] Failed to setup subscription: $e');
+      _logger.debug(' Failed to setup subscription: $e');
       _isSubscribed = false;
       if (!_disposed) {
         notifyListeners();
       }
     }
   }
-  
+
   /// Stop realtime subscription
   Future<void> stop() async {
     _cancelReconnectTimer();
@@ -133,37 +138,37 @@ class NotesRealtimeService extends ChangeNotifier {
     if (!_disposed) {
       notifyListeners();
     }
-    debugPrint('[NotesRealtime] Subscription stopped');
+    _logger.debug(' Subscription stopped');
   }
-  
+
   /// Handle notes table changes
   void _handleNotesChange(PostgresChangePayload payload) {
     try {
       final eventType = payload.eventType;
-      final record = eventType == PostgresChangeEvent.delete 
-          ? payload.oldRecord 
+      final record = eventType == PostgresChangeEvent.delete
+          ? payload.oldRecord
           : payload.newRecord;
       final id = record['id'] as String?;
-      
+
       if (id == null) {
-        debugPrint('[NotesRealtime] Change missing ID');
+        _logger.debug(' Change missing ID');
         return;
       }
-      
+
       // Create unique event key for deduplication
       final eventKey = '${eventType.name}_$id';
-      
+
       // Deduplicate events
       if (_processedEventIds.contains(eventKey)) {
-        debugPrint('[NotesRealtime] Duplicate event: $eventKey');
+        _logger.debug(' Duplicate event: $eventKey');
         return;
       }
-      
+
       _processedEventIds.add(eventKey);
       _pruneProcessedIds();
-      
-      debugPrint('[NotesRealtime] Note ${eventType.name}: $id');
-      
+
+      _logger.debug(' Note ${eventType.name}: $id');
+
       // Emit specific event type
       NotesRealtimeEvent event;
       switch (eventType) {
@@ -179,134 +184,137 @@ class NotesRealtimeService extends ChangeNotifier {
         default:
           event = NotesRealtimeEvent.listChanged;
       }
-      
+
       _listRefreshController.add(event);
       _listRefreshController.add(NotesRealtimeEvent.listChanged);
-      
+
       // Debounce provider invalidation
       _scheduleProviderInvalidation();
-      
+
       // Notify listeners
       if (!_disposed) {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('[NotesRealtime] Error handling notes change: $e');
+      _logger.debug(' Error handling notes change: $e');
     }
   }
-  
+
   /// Handle note_folders table changes
   void _handleFolderChange(PostgresChangePayload payload) {
     try {
       final eventType = payload.eventType;
-      final record = eventType == PostgresChangeEvent.delete 
-          ? payload.oldRecord 
+      final record = eventType == PostgresChangeEvent.delete
+          ? payload.oldRecord
           : payload.newRecord;
       final noteId = record['note_id'] as String?;
-      
+
       if (noteId == null) {
-        debugPrint('[NotesRealtime] Folder change missing note_id');
+        _logger.debug(' Folder change missing note_id');
         return;
       }
-      
+
       // Create unique event key for deduplication
       final eventKey = 'folder_${eventType.name}_$noteId';
-      
+
       // Deduplicate events
       if (_processedEventIds.contains(eventKey)) {
-        debugPrint('[NotesRealtime] Duplicate folder event: $eventKey');
+        _logger.debug(' Duplicate folder event: $eventKey');
         return;
       }
-      
+
       _processedEventIds.add(eventKey);
       _pruneProcessedIds();
-      
-      debugPrint('[NotesRealtime] Folder ${eventType.name} for note: $noteId');
-      
+
+      _logger.debug(' Folder ${eventType.name} for note: $noteId');
+
       // Emit folder changed event
       _listRefreshController.add(NotesRealtimeEvent.folderChanged);
       _listRefreshController.add(NotesRealtimeEvent.listChanged);
-      
+
       // Debounce provider invalidation
       _scheduleProviderInvalidation();
-      
+
       // Notify listeners
       if (!_disposed) {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('[NotesRealtime] Error handling folder change: $e');
+      _logger.debug(' Error handling folder change: $e');
     }
   }
-  
+
   /// Schedule provider invalidation with debouncing
   void _scheduleProviderInvalidation() {
     _cancelDebounceTimer();
-    
+
     _debounceTimer = Timer(_debounceDuration, () {
       if (!_disposed) {
         try {
           // Invalidate notes providers to trigger refresh
-          debugPrint('[NotesRealtime] Invalidating notes providers');
-          
+          _logger.debug(' Invalidating notes providers');
+
           // Invalidate the filtered notes provider to refresh the list
           _ref.invalidate(filteredNotesProvider);
-          
+
           // Also refresh the notes page
           _ref.read(notesPageProvider.notifier).refresh();
         } catch (e) {
-          debugPrint('[NotesRealtime] Error invalidating providers: $e');
+          _logger.debug(' Error invalidating providers: $e');
         }
       }
     });
   }
-  
+
   /// Cancel debounce timer
   void _cancelDebounceTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
   }
-  
+
   /// Schedule reconnection with exponential backoff
   void _scheduleReconnect() {
     if (_disposed || (_reconnectTimer?.isActive ?? false)) {
       return; // Service disposed or already scheduled
     }
-    
-    final delayIndex = _reconnectAttempts < _backoffDelays.length 
-        ? _reconnectAttempts 
+
+    final delayIndex = _reconnectAttempts < _backoffDelays.length
+        ? _reconnectAttempts
         : _backoffDelays.length - 1;
     final delaySeconds = _backoffDelays[delayIndex];
-    
-    debugPrint('[NotesRealtime] Scheduling reconnect in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
-    
+
+    _logger.debug(
+      ' Scheduling reconnect in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})',
+    );
+
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_disposed && !_isSubscribed && _supabase.auth.currentUser != null) {
         _reconnectAttempts++;
-        debugPrint('[NotesRealtime] Attempting to reconnect...');
+        _logger.debug(' Attempting to reconnect...');
         start();
       }
     });
   }
-  
+
   /// Cancel any pending reconnect timer
   void _cancelReconnectTimer() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
   }
-  
+
   /// Prune processed IDs to prevent memory growth
   void _pruneProcessedIds() {
     if (_processedEventIds.length > _maxProcessedIds) {
       // Keep only the most recent IDs
-      final toKeep = _processedEventIds.toList()
+      final toKeep = _processedEventIds
+          .toList()
           .skip(_processedEventIds.length - (_maxProcessedIds ~/ 2))
           .toSet();
       _processedEventIds.clear();
       _processedEventIds.addAll(toKeep);
     }
   }
-  
+
   @override
   void dispose() {
     _disposed = true;

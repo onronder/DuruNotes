@@ -1,9 +1,14 @@
+import 'package:duru_notes/core/animation_config.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
+/// Component for picking a folder from the hierarchy
 class FolderPicker extends ConsumerStatefulWidget {
   const FolderPicker({
     super.key,
@@ -11,14 +16,14 @@ class FolderPicker extends ConsumerStatefulWidget {
     this.onFolderSelected,
     this.showCreateOption = true,
     this.showUnfiledOption = true,
-    this.title = 'Select Folder',
+    this.title,
   });
 
   final String? selectedFolderId;
-  final Function(String? folderId)? onFolderSelected;
+  final ValueChanged<String?>? onFolderSelected;
   final bool showCreateOption;
   final bool showUnfiledOption;
-  final String title;
+  final String? title;
 
   @override
   ConsumerState<FolderPicker> createState() => _FolderPickerState();
@@ -26,7 +31,7 @@ class FolderPicker extends ConsumerStatefulWidget {
 
 class _FolderPickerState extends ConsumerState<FolderPicker> {
   final _searchController = TextEditingController();
-  final _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -54,81 +59,57 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               // Drag handle
               Container(
-                width: 32,
+                width: 40,
                 height: 4,
-                margin: const EdgeInsets.only(top: 8),
+                margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              
-              // Header
+
+              // Title
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.folder_outlined,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      widget.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  widget.title ?? AppLocalizations.of(context).selectFolder,
+                  style: theme.textTheme.titleLarge,
                 ),
               ),
 
               // Search bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SearchBar(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
                   controller: _searchController,
-                  hintText: 'Search folders...',
-                  leading: const Icon(Icons.search),
-                  trailing: _searchController.text.isNotEmpty
-                      ? [
-                          IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              ref.read(folderHierarchyProvider.notifier).clearSearch();
-                            },
-                            icon: const Icon(Icons.clear),
-                          ),
-                        ]
-                      : null,
-                  onChanged: (query) {
-                    ref.read(folderHierarchyProvider.notifier).updateSearchQuery(query);
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context).searchFolders,
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  onChanged: (value) {
+                    ref
+                        .read(folderHierarchyProvider.notifier)
+                        .updateSearchQuery(value);
                   },
                 ),
               ),
-
-              const SizedBox(height: 16),
 
               // Folder list
               Expanded(
@@ -136,12 +117,123 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
                     ? const Center(child: CircularProgressIndicator())
                     : hierarchyState.error != null
                         ? _buildErrorState(theme, hierarchyState.error!)
-                        : _buildFolderList(theme, visibleNodes, unfiledCount),
+                        : _buildFolderList(
+                            theme,
+                            visibleNodes,
+                            unfiledCount,
+                            scrollController,
+                          ),
               ),
+
+              // Actions
+              if (widget.showCreateOption)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildCreateFolderButton(theme),
+                ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFolderList(
+    ThemeData theme,
+    List<FolderTreeNode> nodes,
+    AsyncValue<int> unfiledCount,
+    ScrollController scrollController,
+  ) {
+    if (nodes.isEmpty && !widget.showUnfiledOption) {
+      return _buildEmptyState(theme);
+    }
+
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        // Unfiled option
+        if (widget.showUnfiledOption)
+          unfiledCount.when(
+            data: (count) => _buildUnfiledOption(theme, count),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+
+        // Folder tree
+        ...nodes.map((node) => _buildFolderItem(theme, node)),
+      ],
+    );
+  }
+
+  Widget _buildUnfiledOption(ThemeData theme, int count) {
+    final isSelected = widget.selectedFolderId == null;
+
+    return Card(
+      elevation: isSelected ? 2 : 0,
+      color: isSelected
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surface,
+      child: ListTile(
+        leading: Icon(
+          Icons.folder_off_outlined,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
+        ),
+        title: Text(
+          AppLocalizations.of(context).unfiled,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : null,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurface,
+          ),
+        ),
+        trailing: count > 0
+            ? Chip(
+                label: Text(count.toString()),
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              )
+            : null,
+        selected: isSelected,
+        selectedTileColor: theme.colorScheme.primaryContainer.withValues(
+          alpha: 0.3,
+        ),
+        onTap: () {
+          widget.onFolderSelected?.call(null);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.folder_off,
+            size: 64,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context).noFoldersFound,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppLocalizations.of(context).createYourFirstFolder,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -152,14 +244,14 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
         children: [
           Icon(
             Icons.error_outline,
-            size: 48,
+            size: 64,
             color: theme.colorScheme.error,
           ),
           const SizedBox(height: 16),
           Text(
-            'Error loading folders',
+            AppLocalizations.of(context).errorLoadingFolders,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface,
+              color: theme.colorScheme.error,
             ),
           ),
           const SizedBox(height: 8),
@@ -171,142 +263,42 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          FilledButton(
+          FilledButton.tonal(
             onPressed: () {
               ref.read(folderHierarchyProvider.notifier).loadFolders();
             },
-            child: const Text('Retry'),
+            child: Text(AppLocalizations.of(context).retry),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFolderList(ThemeData theme, List<FolderTreeNode> visibleNodes, AsyncValue<int> unfiledCount) {
-    // Debug: Print the number of visible nodes
-    print('FolderPicker: Building folder list with ${visibleNodes.length} visible nodes');
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.only(bottom: 16),
-      itemCount: _getItemCount(visibleNodes, unfiledCount),
-      itemBuilder: (context, index) {
-        // Unfiled option
-        if (widget.showUnfiledOption && index == 0) {
-          return _buildUnfiledOption(theme, unfiledCount);
-        }
-
-        // Create new folder option
-        final createOptionIndex = widget.showUnfiledOption ? 1 : 0;
-        if (widget.showCreateOption && index == createOptionIndex) {
-          return _buildCreateFolderOption(theme);
-        }
-
-        // Divider after special options
-        final dividerIndex = (widget.showUnfiledOption ? 1 : 0) + (widget.showCreateOption ? 1 : 0);
-        if (index == dividerIndex && visibleNodes.isNotEmpty) {
-          return const Divider(height: 1);
-        }
-
-        // Folder items
-        final nodeIndex = index - dividerIndex - (visibleNodes.isNotEmpty ? 1 : 0);
-        if (nodeIndex >= 0 && nodeIndex < visibleNodes.length) {
-          return _buildFolderItem(theme, visibleNodes[nodeIndex]);
-        }
-
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  int _getItemCount(List<FolderTreeNode> visibleNodes, AsyncValue<int> unfiledCount) {
-    var count = visibleNodes.length;
-    if (widget.showUnfiledOption) count++;
-    if (widget.showCreateOption) count++;
-    if (visibleNodes.isNotEmpty && (widget.showUnfiledOption || widget.showCreateOption)) {
-      count++; // divider
-    }
-    return count;
-  }
-
-  Widget _buildUnfiledOption(ThemeData theme, AsyncValue<int> unfiledCount) {
-    final isSelected = widget.selectedFolderId == null;
-    
-    return ListTile(
-      leading: Icon(
-        Icons.note_outlined,
-        color: isSelected 
-            ? theme.colorScheme.primary 
-            : theme.colorScheme.onSurfaceVariant,
+  Widget _buildCreateFolderButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: _showCreateFolderDialog,
+        icon: const Icon(Icons.create_new_folder),
+        label: Text(AppLocalizations.of(context).createNewFolder),
       ),
-      title: Text(
-        'Unfiled Notes',
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: isSelected 
-              ? theme.colorScheme.primary 
-              : theme.colorScheme.onSurface,
-          fontWeight: isSelected ? FontWeight.w600 : null,
-        ),
-      ),
-      trailing: unfiledCount.when(
-        data: (count) => count > 0 
-            ? Chip(
-                label: Text(count.toString()),
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                labelStyle: theme.textTheme.labelSmall,
-              )
-            : null,
-        loading: () => const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (_, __) => null,
-      ),
-      selected: isSelected,
-      selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),
-      onTap: () {
-        widget.onFolderSelected?.call(null);
-        Navigator.of(context).pop();
-      },
-    );
-  }
-
-  Widget _buildCreateFolderOption(ThemeData theme) {
-    return ListTile(
-      leading: Icon(
-        Icons.create_new_folder_outlined,
-        color: theme.colorScheme.primary,
-      ),
-      title: Text(
-        'Create New Folder',
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      onTap: () {
-        Navigator.of(context).pop();
-        _showCreateFolderDialog();
-      },
     );
   }
 
   Widget _buildFolderItem(ThemeData theme, FolderTreeNode node) {
     final isSelected = widget.selectedFolderId == node.folder.id;
     final indentWidth = node.level * 24.0;
-    
+
     return ListTile(
-      contentPadding: EdgeInsets.only(
-        left: 16 + indentWidth,
-        right: 16,
-      ),
+      contentPadding: EdgeInsets.only(left: 16 + indentWidth, right: 16),
       leading: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (node.hasChildren)
             IconButton(
               onPressed: () {
-                ref.read(folderHierarchyProvider.notifier)
+                ref
+                    .read(folderHierarchyProvider.notifier)
                     .toggleExpansion(node.folder.id);
               },
               icon: Icon(
@@ -322,8 +314,10 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
             const SizedBox(width: 24),
           Icon(
             FolderIconHelpers.getFolderIcon(node.folder.icon),
-            color: FolderIconHelpers.getFolderColor(node.folder.color) ?? (isSelected 
-                    ? theme.colorScheme.primary 
+            color:
+                FolderIconHelpers.getFolderColor(node.folder.color) ??
+                (isSelected
+                    ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant),
             size: 20,
           ),
@@ -332,8 +326,8 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
       title: Text(
         node.folder.name,
         style: theme.textTheme.bodyLarge?.copyWith(
-          color: isSelected 
-              ? theme.colorScheme.primary 
+          color: isSelected
+              ? theme.colorScheme.primary
               : theme.colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : null,
         ),
@@ -346,7 +340,9 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
             )
           : null,
       selected: isSelected,
-      selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),
+      selectedTileColor: theme.colorScheme.primaryContainer.withValues(
+        alpha: 0.3,
+      ),
       onTap: () {
         widget.onFolderSelected?.call(node.folder.id);
         Navigator.of(context).pop();
@@ -354,111 +350,16 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
     );
   }
 
-  void _showCreateFolderDialog() {
-    showDialog(
+  void _showCreateFolderDialog() async {
+    final result = await showDialog<LocalFolder>(
       context: context,
       builder: (context) => const CreateFolderDialog(),
     );
-  }
-}
-
-class CreateFolderDialog extends ConsumerStatefulWidget {
-  const CreateFolderDialog({super.key});
-
-  @override
-  ConsumerState<CreateFolderDialog> createState() => _CreateFolderDialogState();
-}
-
-class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog> {
-  final _nameController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _isCreating = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Create New Folder'),
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            hintText: 'Enter folder name',
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Folder name is required';
-            }
-            return null;
-          },
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _createFolder(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isCreating ? null : _createFolder,
-          child: _isCreating
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Create'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _createFolder() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isCreating = true);
-
-    try {
-      final folderId = await ref.read(folderProvider.notifier).createFolder(
-        name: _nameController.text.trim(),
-      );
-
-      if (folderId != null) {
-        // Refresh all folder-related providers
-        ref.read(folderHierarchyProvider.notifier).loadFolders();
-        ref.invalidate(rootFoldersProvider);
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Folder "${_nameController.text.trim()}" created'),
-              behavior: SnackBarBehavior.fixed,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create folder'),
-              behavior: SnackBarBehavior.fixed,
-            ),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isCreating = false);
-      }
+    
+    if (result != null && mounted) {
+      // Refresh folder hierarchy
+      ref.read(folderHierarchyProvider.notifier).refresh();
+      ref.invalidate(rootFoldersProvider);
     }
   }
 }

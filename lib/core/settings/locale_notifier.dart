@@ -22,7 +22,7 @@ class LocaleNotifier extends StateNotifier<Locale?> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final localeCode = prefs.getString(_localeKey);
-      
+
       if (localeCode != null) {
         final locale = Locale(localeCode);
         if (supportedLocales.contains(locale)) {
@@ -39,13 +39,13 @@ class LocaleNotifier extends StateNotifier<Locale?> {
   Future<void> setLocale(Locale? locale) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       if (locale == null) {
         await prefs.remove(_localeKey);
       } else {
         await prefs.setString(_localeKey, locale.languageCode);
       }
-      
+
       state = locale;
     } catch (e) {
       // Handle error silently - locale change will fail but won't crash
@@ -65,7 +65,7 @@ extension LocaleExtension on Locale {
         return languageCode.toUpperCase();
     }
   }
-  
+
   /// Flag emoji for the locale
   String get flagEmoji {
     switch (languageCode) {

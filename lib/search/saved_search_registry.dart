@@ -4,6 +4,14 @@ import 'package:flutter/material.dart';
 enum SavedSearchKey { attachments, emailNotes, webNotes, inbox }
 
 class SavedSearchPreset {
+  const SavedSearchPreset({
+    required this.key,
+    required this.label,
+    required this.icon,
+    this.queryToken,
+    this.tag,
+    this.folderName,
+  });
   final SavedSearchKey key;
   final String label;
   final IconData icon;
@@ -16,15 +24,6 @@ class SavedSearchPreset {
 
   /// Fallback: folder display name to resolve via IncomingMailFolderManager
   final String? folderName;
-
-  const SavedSearchPreset({
-    required this.key,
-    required this.label,
-    required this.icon,
-    this.queryToken,
-    this.tag,
-    this.folderName,
-  });
 }
 
 class SavedSearchRegistry {
@@ -37,23 +36,25 @@ class SavedSearchRegistry {
       key: SavedSearchKey.attachments,
       label: 'Attachments',
       icon: Icons.attach_file,
-      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Attachment',
     ),
     SavedSearchPreset(
       key: SavedSearchKey.emailNotes,
       label: 'Email Notes',
       icon: Icons.email,
-      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Email',
     ),
     SavedSearchPreset(
       key: SavedSearchKey.webNotes,
       label: 'Web Clips',
       icon: Icons.language,
-      queryToken: null,  // Disabled to force tag-based routing
       tag: 'Web',
     ),
-    // Inbox removed - using the inbox icon in AppBar instead
+    SavedSearchPreset(
+      key: SavedSearchKey.inbox,
+      label: 'Inbox',
+      icon: Icons.inbox,
+      folderName: kIncomingMailFolderName,
+    ),
   ];
 }

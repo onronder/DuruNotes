@@ -1,25 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Filter state for the bottom sheet
 class FilterState {
-  final Set<String> includeTags;
-  final Set<String> excludeTags;
-  final bool pinnedOnly;
-  final NoteSortSpec sortSpec;
-  
   const FilterState({
     this.includeTags = const {},
     this.excludeTags = const {},
     this.pinnedOnly = false,
     this.sortSpec = const NoteSortSpec(),
   });
-  
+  final Set<String> includeTags;
+  final Set<String> excludeTags;
+  final bool pinnedOnly;
+  final NoteSortSpec sortSpec;
+
   FilterState copyWith({
     Set<String>? includeTags,
     Set<String>? excludeTags,
@@ -33,14 +32,14 @@ class FilterState {
       sortSpec: sortSpec ?? this.sortSpec,
     );
   }
-  
+
   bool get hasActiveFilters {
-    return includeTags.isNotEmpty || 
-           excludeTags.isNotEmpty || 
-           pinnedOnly ||
-           sortSpec != const NoteSortSpec();
+    return includeTags.isNotEmpty ||
+        excludeTags.isNotEmpty ||
+        pinnedOnly ||
+        sortSpec != const NoteSortSpec();
   }
-  
+
   SearchQuery toSearchQuery({String? keywords}) {
     return SearchQuery(
       keywords: keywords ?? '',
@@ -53,31 +52,28 @@ class FilterState {
 
 /// Bottom sheet for advanced filters
 class FiltersBottomSheet extends ConsumerStatefulWidget {
-  final FilterState? initialState;
-  final Function(FilterState) onApply;
-  
   const FiltersBottomSheet({
+    required this.onApply,
     super.key,
     this.initialState,
-    required this.onApply,
   });
-  
+  final FilterState? initialState;
+  final Function(FilterState) onApply;
+
   static Future<void> show(
     BuildContext context, {
-    FilterState? initialState,
     required Function(FilterState) onApply,
+    FilterState? initialState,
   }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => FiltersBottomSheet(
-        initialState: initialState,
-        onApply: onApply,
-      ),
+      builder: (context) =>
+          FiltersBottomSheet(initialState: initialState, onApply: onApply),
     );
   }
-  
+
   @override
   ConsumerState<FiltersBottomSheet> createState() => _FiltersBottomSheetState();
 }
@@ -90,7 +86,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
   List<TagCount> _allTags = [];
   List<TagCount> _filteredTags = [];
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
@@ -98,14 +94,14 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
     _tabController = TabController(length: 2, vsync: this);
     _loadTags();
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadTags() async {
     try {
       final db = ref.read(appDbProvider);
@@ -123,7 +119,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
       }
     }
   }
-  
+
   void _filterTags(String query) {
     setState(() {
       if (query.isEmpty) {
@@ -136,7 +132,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
       }
     });
   }
-  
+
   void _toggleIncludeTag(String tag) {
     setState(() {
       final newSet = Set<String>.from(_filterState.includeTags);
@@ -152,7 +148,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
       _filterState = _filterState.copyWith(includeTags: newSet);
     });
   }
-  
+
   void _toggleExcludeTag(String tag) {
     setState(() {
       final newSet = Set<String>.from(_filterState.excludeTags);
@@ -168,26 +164,27 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
       _filterState = _filterState.copyWith(excludeTags: newSet);
     });
   }
-  
+
   void _clearAll() {
     setState(() {
       _filterState = const FilterState();
     });
     HapticFeedback.lightImpact();
   }
-  
+
   void _apply() {
     widget.onApply(_filterState);
     HapticFeedback.mediumImpact();
     Navigator.pop(context);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final hasChanges = _filterState != (widget.initialState ?? const FilterState());
-    
+    final hasChanges =
+        _filterState != (widget.initialState ?? const FilterState());
+
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.75,
@@ -205,20 +202,17 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Title
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                Icon(
-                  Icons.filter_list_rounded,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.filter_list_rounded, color: colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
                   'Advanced Filters',
@@ -235,9 +229,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
               ],
             ),
           ),
-          
+
           const Divider(height: 1),
-          
+
           // Content
           Flexible(
             child: SingleChildScrollView(
@@ -250,11 +244,11 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                     title: const Text('Pinned notes only'),
                     subtitle: const Text('Show only pinned notes'),
                     secondary: Icon(
-                      _filterState.pinnedOnly 
-                          ? Icons.push_pin 
+                      _filterState.pinnedOnly
+                          ? Icons.push_pin
                           : Icons.push_pin_outlined,
-                      color: _filterState.pinnedOnly 
-                          ? colorScheme.primary 
+                      color: _filterState.pinnedOnly
+                          ? colorScheme.primary
                           : null,
                     ),
                     value: _filterState.pinnedOnly,
@@ -265,12 +259,15 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       HapticFeedback.selectionClick();
                     },
                   ),
-                  
+
                   const Divider(indent: 16, endIndent: 16),
-                  
+
                   // Sort options
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Text(
                       'Sort by',
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -278,7 +275,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       ),
                     ),
                   ),
-                  
+
                   ...SortPreferencesService.getAllSortOptions().map((spec) {
                     return RadioListTile<NoteSortSpec>(
                       value: spec,
@@ -286,7 +283,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       onChanged: (value) {
                         if (value != null) {
                           setState(() {
-                            _filterState = _filterState.copyWith(sortSpec: value);
+                            _filterState = _filterState.copyWith(
+                              sortSpec: value,
+                            );
                           });
                           HapticFeedback.selectionClick();
                         }
@@ -295,12 +294,15 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       dense: true,
                     );
                   }),
-                  
+
                   const Divider(indent: 16, endIndent: 16),
-                  
+
                   // Tags section with tabs
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Text(
                       'Filter by tags',
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -308,10 +310,13 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       ),
                     ),
                   ),
-                  
+
                   // Search box for tags
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: TextField(
                       controller: _searchController,
                       onChanged: _filterTags,
@@ -328,7 +333,8 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                               )
                             : null,
                         filled: true,
-                        fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                        fillColor: colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.3),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -340,7 +346,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       ),
                     ),
                   ),
-                  
+
                   // Tab bar for include/exclude
                   TabBar(
                     controller: _tabController,
@@ -409,7 +415,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                     labelPadding: const EdgeInsets.symmetric(horizontal: 24),
                     indicatorSize: TabBarIndicatorSize.tab,
                   ),
-                  
+
                   // Tab content
                   SizedBox(
                     height: 200,
@@ -439,7 +445,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
               ),
             ),
           ),
-          
+
           // Action buttons
           Container(
             padding: const EdgeInsets.all(20),
@@ -447,7 +453,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
               color: colorScheme.surface,
               border: Border(
                 top: BorderSide(
-                  color: colorScheme.outlineVariant.withOpacity(0.2),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -480,7 +486,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
       ),
     );
   }
-  
+
   Widget _buildTagList({
     required List<TagCount> tags,
     required Set<String> selectedTags,
@@ -489,11 +495,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
     required Color color,
   }) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (tags.isEmpty) {
       return Center(
         child: Text(
@@ -504,14 +508,14 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
         ),
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: tags.length,
       itemBuilder: (context, index) {
         final tag = tags[index];
         final isSelected = selectedTags.contains(tag.tag);
-        
+
         return CheckboxListTile(
           value: isSelected,
           onChanged: (_) => onToggle(tag.tag),

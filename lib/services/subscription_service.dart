@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Comprehensive subscription management service using Adapty
 class SubscriptionService {
-  
   SubscriptionService({
     required AppLogger logger,
     required AnalyticsService analytics,
@@ -19,29 +18,32 @@ class SubscriptionService {
   Future<bool> hasPremiumAccess() async {
     try {
       final profile = await Adapty().getProfile();
-      
+
       // Check for active premium subscription
       final hasAccess = profile.accessLevels['premium']?.isActive ?? false;
-      
+
       _logger.info('Premium access check: $hasAccess');
-      
+
       // Track subscription status
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'subscription_check': true,
-        'has_premium': hasAccess,
-        'access_level': hasAccess ? 'premium' : 'free',
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {
+          'subscription_check': true,
+          'has_premium': hasAccess,
+          'access_level': hasAccess ? 'premium' : 'free',
+        },
+      );
+
       return hasAccess;
-      
     } catch (e) {
       _logger.error('Failed to check premium access: $e');
-      
+
       // Track error
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'subscription_check_error': e.toString(),
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {'subscription_check_error': e.toString()},
+      );
+
       return false; // Default to free access on error
     }
   }
@@ -50,11 +52,10 @@ class SubscriptionService {
   Future<AdaptyProfile?> getUserProfile() async {
     try {
       final profile = await Adapty().getProfile();
-      
+
       _logger.info('Retrieved user profile successfully');
-      
+
       return profile;
-      
     } catch (e) {
       _logger.error('Failed to get user profile: $e');
       return null;
@@ -76,10 +77,13 @@ class SubscriptionService {
       return false;
     } catch (e) {
       _logger.error('Failed to present paywall: $e');
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'paywall_error': e.toString(),
-        'placement_id': placementId,
-      });
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {
+          'paywall_error': e.toString(),
+          'placement_id': placementId,
+        },
+      );
       return false;
     }
   }
@@ -89,37 +93,37 @@ class SubscriptionService {
   // Future<bool> _handlePurchase(AdaptyPaywallProduct product) async {
   //   try {
   //     _logger.info('Processing purchase for product: ${product.vendorProductId}');
-  //     
+  //
   //     // Make purchase
   //     await Adapty().makePurchase(product: product);
   //     // In v3, purchase result may not include profile; fetch profile to confirm
   //     final profile = await Adapty().getProfile();
   //     if (profile.accessLevels['premium']?.isActive == true) {
   //       _logger.info('Purchase successful - premium access granted');
-  //       
+  //
   //       // Track successful purchase
   //       _analytics.event(AnalyticsEvents.noteCreate, properties: {
   //         'purchase_successful': true,
   //         'product_id': product.vendorProductId,
   //         'premium_granted': true,
   //       });
-  //       
+  //
   //       return true;
   //     } else {
   //       _logger.warning('Purchase completed but premium access not granted');
   //       return false;
   //     }
-  //     
+  //
   //   } catch (e) {
   //     _logger.error('Purchase failed: $e');
-  //     
+  //
   //     // Track purchase failure
   //     _analytics.event(AnalyticsEvents.noteCreate, properties: {
   //       'purchase_failed': true,
   //       'product_id': product.vendorProductId,
   //       'error': e.toString(),
   //     });
-  //     
+  //
   //     return false;
   //   }
   // }
@@ -128,30 +132,32 @@ class SubscriptionService {
   Future<bool> restorePurchases() async {
     try {
       _logger.info('Restoring purchases...');
-      
+
       final profile = await Adapty().restorePurchases();
-      
+
       final hasAccess = profile.accessLevels['premium']?.isActive ?? false;
-      
+
       _logger.info('Purchases restored - premium access: $hasAccess');
-      
+
       // Track restore
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'purchases_restored': true,
-        'premium_access_restored': hasAccess,
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {
+          'purchases_restored': true,
+          'premium_access_restored': hasAccess,
+        },
+      );
+
       return hasAccess;
-      
     } catch (e) {
       _logger.error('Failed to restore purchases: $e');
-      
+
       // Track restore failure
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'restore_failed': true,
-        'error': e.toString(),
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {'restore_failed': true, 'error': e.toString()},
+      );
+
       return false;
     }
   }
@@ -165,11 +171,12 @@ class SubscriptionService {
       );
       // Fetch products for the paywall using current API
       final products = await Adapty().getPaywallProducts(paywall: paywall);
-      
-      _logger.info('Retrieved ${products.length} products for placement: $placementId');
-      
+
+      _logger.info(
+        'Retrieved ${products.length} products for placement: $placementId',
+      );
+
       return products;
-      
     } catch (e) {
       _logger.error('Failed to get products: $e');
       return [];
@@ -180,15 +187,17 @@ class SubscriptionService {
   Future<void> identifyUser(String userId) async {
     try {
       await Adapty().identify(userId);
-      
+
       _logger.info('User identified: $userId');
-      
+
       // Track user identification
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'user_identified': true,
-        'user_id_provided': userId.isNotEmpty,
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {
+          'user_identified': true,
+          'user_id_provided': userId.isNotEmpty,
+        },
+      );
     } catch (e) {
       _logger.error('Failed to identify user: $e');
     }
@@ -198,32 +207,37 @@ class SubscriptionService {
   Future<void> setUserAttributes(Map<String, String> attributes) async {
     try {
       final builder = AdaptyProfileParametersBuilder();
-      
+
       // Custom attributes API changed in recent versions; skip for now to ensure build
       await Adapty().updateProfile(builder.build());
-      
+
       _logger.info('User attributes updated: ${attributes.keys.join(', ')}');
-      
+
       // Track attribute update
-      _analytics.event(AnalyticsEvents.noteCreate, properties: {
-        'user_attributes_updated': true,
-        'attributes_count': attributes.length,
-      });
-      
+      _analytics.event(
+        AnalyticsEvents.noteCreate,
+        properties: {
+          'user_attributes_updated': true,
+          'attributes_count': attributes.length,
+        },
+      );
     } catch (e) {
       _logger.error('Failed to set user attributes: $e');
     }
   }
 
   /// Check for promotional offers
-  Future<List<AdaptyPaywallProduct>> getPromotionalOffers(String placementId) async {
+  Future<List<AdaptyPaywallProduct>> getPromotionalOffers(
+    String placementId,
+  ) async {
     try {
       final products = await getProducts(placementId);
-      
+
       // New SDK may expose offers differently; return all products for now
-      _logger.info('Returning ${products.length} products (promotional offer filter disabled)');
+      _logger.info(
+        'Returning ${products.length} products (promotional offer filter disabled)',
+      );
       return products;
-      
     } catch (e) {
       _logger.error('Failed to get promotional offers: $e');
       return [];

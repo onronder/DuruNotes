@@ -51,7 +51,7 @@ class SmartFoldersWidget extends ConsumerWidget {
 
   Widget _buildErrorWidget(BuildContext context, WidgetRef ref, String error) {
     final theme = Theme.of(context);
-    
+
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
@@ -59,16 +59,9 @@ class SmartFoldersWidget extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
-            Text(
-              'Smart Folders Error',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Smart Folders Error', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               error,
@@ -91,7 +84,7 @@ class SmartFoldersWidget extends ConsumerWidget {
 
   Widget _buildEmptyWidget(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    
+
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
@@ -147,9 +140,9 @@ class SmartFoldersWidget extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'Smart Folders',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const Spacer(),
               IconButton(
@@ -160,7 +153,7 @@ class SmartFoldersWidget extends ConsumerWidget {
             ],
           ),
         ),
-        
+
         SizedBox(
           height: 120,
           child: ListView.builder(
@@ -171,7 +164,7 @@ class SmartFoldersWidget extends ConsumerWidget {
               final folder = state.folders[index];
               final notes = state.folderContents[folder.id] ?? [];
               final stats = state.folderStats[folder.id];
-              
+
               return _SmartFolderCard(
                 folder: folder,
                 noteCount: notes.length,
@@ -202,13 +195,14 @@ class SmartFoldersWidget extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'Smart Folders',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const Spacer(),
               TextButton.icon(
-                onPressed: () => ref.read(smartFoldersProvider.notifier).refreshAllFolders(),
+                onPressed: () =>
+                    ref.read(smartFoldersProvider.notifier).refreshAllFolders(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Refresh'),
               ),
@@ -221,11 +215,10 @@ class SmartFoldersWidget extends ConsumerWidget {
             ],
           ),
         ),
-        
+
         // Loading indicator
-        if (state.isLoading)
-          const LinearProgressIndicator(),
-        
+        if (state.isLoading) const LinearProgressIndicator(),
+
         // Folder list
         Expanded(
           child: ListView.builder(
@@ -234,7 +227,7 @@ class SmartFoldersWidget extends ConsumerWidget {
               final folder = state.folders[index];
               final notes = state.folderContents[folder.id] ?? [];
               final stats = state.folderStats[folder.id];
-              
+
               return _SmartFolderTile(
                 folder: folder,
                 notes: notes,
@@ -251,15 +244,15 @@ class SmartFoldersWidget extends ConsumerWidget {
   }
 
   void _showCreateSmartFolder(BuildContext context, WidgetRef ref) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SmartFolderCreator(),
-      ),
-    ).then((config) {
-      if (config != null && config is SmartFolderConfig) {
-        ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
-      }
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(builder: (context) => const SmartFolderCreator()),
+        )
+        .then((config) {
+          if (config != null && config is SmartFolderConfig) {
+            ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
+          }
+        });
   }
 
   void _showFolderActions(
@@ -272,15 +265,20 @@ class SmartFoldersWidget extends ConsumerWidget {
       builder: (context) => _SmartFolderActionsSheet(
         folder: folder,
         onEdit: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => SmartFolderCreator(initialConfig: folder),
-            ),
-          ).then((config) {
-            if (config != null && config is SmartFolderConfig) {
-              ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
-            }
-          });
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SmartFolderCreator(initialConfig: folder),
+                ),
+              )
+              .then((config) {
+                if (config != null && config is SmartFolderConfig) {
+                  ref
+                      .read(smartFoldersProvider.notifier)
+                      .saveSmartFolder(config);
+                }
+              });
         },
         onDuplicate: () {
           _showDuplicateDialog(context, ref, folder);
@@ -305,7 +303,7 @@ class SmartFoldersWidget extends ConsumerWidget {
     SmartFolderConfig folder,
   ) {
     final controller = TextEditingController(text: '${folder.name} Copy');
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -325,7 +323,8 @@ class SmartFoldersWidget extends ConsumerWidget {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(smartFoldersProvider.notifier)
+              ref
+                  .read(smartFoldersProvider.notifier)
                   .duplicateSmartFolder(folder.id, controller.text.trim());
             },
             child: const Text('Duplicate'),
@@ -353,7 +352,9 @@ class SmartFoldersWidget extends ConsumerWidget {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(smartFoldersProvider.notifier).deleteSmartFolder(folder.id);
+              ref
+                  .read(smartFoldersProvider.notifier)
+                  .deleteSmartFolder(folder.id);
             },
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
@@ -403,7 +404,7 @@ class _SmartFolderCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: color.withOpacity(0.2),
+                    backgroundColor: color.withValues(alpha: 0.2),
                     child: Icon(icon, color: color, size: 18),
                   ),
                   const Spacer(),
@@ -415,9 +416,9 @@ class _SmartFolderCard extends StatelessWidget {
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               Text(
                 folder.name,
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -426,9 +427,9 @@ class _SmartFolderCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               const Spacer(),
-              
+
               Row(
                 children: [
                   Text(
@@ -495,7 +496,7 @@ class _SmartFolderTile extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: color.withOpacity(0.2),
+                    backgroundColor: color.withValues(alpha: 0.2),
                     child: Icon(icon, color: color, size: 20),
                   ),
                   const SizedBox(width: 12),
@@ -520,9 +521,12 @@ class _SmartFolderTile extends StatelessWidget {
                   ),
                   if (stats != null && stats!.totalNotes > 0) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.2),
+                        color: color.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -536,7 +540,7 @@ class _SmartFolderTile extends StatelessWidget {
                   ],
                 ],
               ),
-              
+
               // Recent notes preview
               if (notes.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -547,7 +551,10 @@ class _SmartFolderTile extends StatelessWidget {
                       onTap: () => onNoteTap?.call(note),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         child: Row(
                           children: [
                             Icon(
@@ -576,13 +583,16 @@ class _SmartFolderTile extends StatelessWidget {
                     ),
                   );
                 }),
-                
+
                 if (notes.length > 3) ...[
                   const SizedBox(height: 4),
                   InkWell(
                     onTap: onTap,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       child: Text(
                         'View ${notes.length - 3} more notes...',
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -604,7 +614,7 @@ class _SmartFolderTile extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays}d ago';
     } else if (difference.inHours > 0) {
@@ -646,7 +656,7 @@ class _SmartFolderActionsSheet extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: color.withOpacity(0.2),
+                backgroundColor: color.withValues(alpha: 0.2),
                 child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
@@ -671,9 +681,9 @@ class _SmartFolderActionsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Actions
           ListTile(
             leading: const Icon(Icons.edit),
@@ -701,7 +711,10 @@ class _SmartFolderActionsSheet extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.delete, color: theme.colorScheme.error),
-            title: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+            title: Text(
+              'Delete',
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
             onTap: () {
               Navigator.of(context).pop();
               onDelete?.call();

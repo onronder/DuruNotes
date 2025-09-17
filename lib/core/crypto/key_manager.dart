@@ -6,12 +6,14 @@ import 'package:duru_notes/services/account_key_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class KeyManager {
-  KeyManager({FlutterSecureStorage? storage, AccountKeyService? accountKeyService})
-    : _storage = storage ?? const FlutterSecureStorage(),
-      _accountKeyService = accountKeyService ?? AccountKeyService();
+  KeyManager({
+    FlutterSecureStorage? storage,
+    AccountKeyService? accountKeyService,
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _accountKeyService = accountKeyService ?? AccountKeyService();
   KeyManager.inMemory()
-      : _storage = null,
-        _accountKeyService = AccountKeyService();
+    : _storage = null,
+      _accountKeyService = AccountKeyService();
 
   final FlutterSecureStorage? _storage;
   final Map<String, String> _mem = {};

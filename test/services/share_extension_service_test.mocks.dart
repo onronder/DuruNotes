@@ -246,14 +246,14 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
   @override
   _i7.Future<List<_i2.LocalNote>> queryNotesByTags({
     required List<String>? anyTags,
-    List<String>? noneTags = const [],
     required _i2.SortSpec? sort,
+    List<String>? noneTags = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#queryNotesByTags, [], {
               #anyTags: anyTags,
-              #noneTags: noneTags,
               #sort: sort,
+              #noneTags: noneTags,
             }),
             returnValue: _i7.Future<List<_i2.LocalNote>>.value(
               <_i2.LocalNote>[],
@@ -294,10 +294,46 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
           as _i7.Future<_i2.LocalNote?>);
 
   @override
-  _i7.Future<_i2.LocalNote?> createOrUpdate({
-    String? id,
+  _i7.Future<_i2.LocalNote?> getNoteById(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#getNoteById, [id]),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
+          )
+          as _i7.Future<_i2.LocalNote?>);
+
+  @override
+  _i7.Future<_i2.LocalNote?> createNote({
     required String? title,
     required String? body,
+    String? folderId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createNote, [], {
+              #title: title,
+              #body: body,
+              #folderId: folderId,
+            }),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
+          )
+          as _i7.Future<_i2.LocalNote?>);
+
+  @override
+  _i7.Future<_i2.LocalNote?> updateNote(
+    String? id, {
+    required String? title,
+    required String? body,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateNote, [id], {#title: title, #body: body}),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
+          )
+          as _i7.Future<_i2.LocalNote?>);
+
+  @override
+  _i7.Future<_i2.LocalNote?> createOrUpdate({
+    required String? title,
+    required String? body,
+    String? id,
     DateTime? updatedAt,
     Set<String>? tags = const {},
     List<Map<String, String?>>? links = const [],
@@ -307,9 +343,9 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdate, [], {
-              #id: id,
               #title: title,
               #body: body,
+              #id: id,
               #updatedAt: updatedAt,
               #tags: tags,
               #links: links,
@@ -434,8 +470,8 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
 
   @override
   _i7.Future<String> createOrUpdateFolder({
-    String? id,
     required String? name,
+    String? id,
     String? parentId,
     String? color,
     String? icon,
@@ -444,8 +480,8 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdateFolder, [], {
-              #id: id,
               #name: name,
+              #id: id,
               #parentId: parentId,
               #color: color,
               #icon: icon,
@@ -456,8 +492,8 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
               _i8.dummyValue<String>(
                 this,
                 Invocation.method(#createOrUpdateFolder, [], {
-                  #id: id,
                   #name: name,
+                  #id: id,
                   #parentId: parentId,
                   #color: color,
                   #icon: icon,
@@ -569,6 +605,23 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
   _i7.Future<void> removeNoteFromFolder(String? noteId) =>
       (super.noSuchMethod(
             Invocation.method(#removeNoteFromFolder, [noteId]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<Map<String, int>> getFolderNoteCounts() =>
+      (super.noSuchMethod(
+            Invocation.method(#getFolderNoteCounts, []),
+            returnValue: _i7.Future<Map<String, int>>.value(<String, int>{}),
+          )
+          as _i7.Future<Map<String, int>>);
+
+  @override
+  _i7.Future<void> ensureFolderIntegrity() =>
+      (super.noSuchMethod(
+            Invocation.method(#ensureFolderIntegrity, []),
             returnValue: _i7.Future<void>.value(),
             returnValueForMissingStub: _i7.Future<void>.value(),
           )

@@ -1,4 +1,3 @@
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,10 +54,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
     _bodyController = TextEditingController(text: widget.initialBody ?? '');
-    
+
     _titleController.addListener(_onTextChanged);
     _bodyController.addListener(_onTextChanged);
-    
+
     if (widget.noteId != null) {
       _loadNote();
     }
@@ -79,13 +78,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   Future<void> _loadNote() async {
     if (widget.noteId == null) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final repository = ref.read(notesRepositoryProvider);
       final note = await repository.getNoteById(widget.noteId!);
-      
+
       if (note != null && mounted) {
         setState(() {
           _note = note;
@@ -96,9 +95,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading note: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading note: $e')));
       }
     } finally {
       if (mounted) {
@@ -110,26 +109,22 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   Future<void> _saveNote() async {
     final title = _titleController.text.trim();
     final body = _bodyController.text.trim();
-    
+
     if (title.isEmpty && body.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Note cannot be empty')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Note cannot be empty')));
       return;
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final repository = ref.read(notesRepositoryProvider);
-      
+
       if (_note != null) {
         // Update existing note
-        await repository.updateNote(
-          _note!.id,
-          title: title,
-          body: body,
-        );
+        await repository.updateNote(_note!.id, title: title, body: body);
       } else {
         // Create new note
         await repository.createNote(
@@ -138,19 +133,19 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           folderId: widget.folderId,
         );
       }
-      
+
       setState(() => _hasChanges = false);
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Note saved')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Note saved')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving note: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving note: $e')));
       }
     } finally {
       if (mounted) {
@@ -161,7 +156,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   Future<bool> _onWillPop() async {
     if (!_hasChanges) return true;
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -184,7 +179,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         ],
       ),
     );
-    
+
     return result ?? false;
   }
 
@@ -226,7 +221,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Delete Note'),
-                        content: const Text('Are you sure you want to delete this note?'),
+                        content: const Text(
+                          'Are you sure you want to delete this note?',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
@@ -239,8 +236,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                         ],
                       ),
                     );
-                    
-                    if (confirm == true && _note != null) {
+
+                    if (confirm ?? false && _note != null) {
                       final repository = ref.read(notesRepositoryProvider);
                       await repository.deleteNote(_note!.id);
                       if (mounted) {
@@ -248,11 +245,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                       }
                     }
                     break;
-                    
+
                   case 'share':
                     // Implement share functionality
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Share feature coming soon')),
+                      const SnackBar(
+                        content: Text('Share feature coming soon'),
+                      ),
                     );
                     break;
                 }
@@ -263,7 +262,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         body: _isLoading && _note == null
             ? const Center(child: CircularProgressIndicator())
             : Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
                     TextField(
@@ -273,7 +272,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                         border: InputBorder.none,
                       ),
                       style: Theme.of(context).textTheme.headlineSmall,
-                      maxLines: 1,
                     ),
                     const Divider(),
                     Expanded(

@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "lint": {
+    "files": {
+      "include": ["./"],
+      "exclude": []
+    },
+    "rules": {
+      "tags": ["recommended"],
+      "include": [
+        "no-unused-vars",
+        "no-explicit-any",
+        "explicit-function-return-type"
+      ]
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": ["./"],
+      "exclude": []
+    },
+    "options": {
+      "useTabs": false,
+      "lineWidth": 100,
+      "indentWidth": 2,
+      "singleQuote": true,
+      "proseWrap": "preserve"
+    }
+  },
+  "test": {
+    "files": {
+      "include": ["*_test.ts"],
+      "exclude": []
+    }
+  }
+}

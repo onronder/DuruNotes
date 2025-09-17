@@ -1,24 +1,27 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:flutter/foundation.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 /// Notification action types
-enum NotificationAction {
-  open,
-  reply,
-  markAsRead,
-  dismiss,
-  custom,
-}
+enum NotificationAction { open, reply, markAsRead, dismiss, custom }
 
 /// Notification payload data
 class NotificationPayload {
@@ -32,15 +35,6 @@ class NotificationPayload {
     this.deepLink,
     this.imageUrl,
   });
-
-  final String eventId;
-  final String eventType;
-  final String title;
-  final String body;
-  final Map<String, dynamic> data;
-  final NotificationAction? action;
-  final String? deepLink;
-  final String? imageUrl;
 
   factory NotificationPayload.fromJson(Map<String, dynamic> json) {
     return NotificationPayload(
@@ -60,16 +54,25 @@ class NotificationPayload {
     );
   }
 
+  final String eventId;
+  final String eventType;
+  final String title;
+  final String body;
+  final Map<String, dynamic> data;
+  final NotificationAction? action;
+  final String? deepLink;
+  final String? imageUrl;
+
   Map<String, dynamic> toJson() => {
-        'event_id': eventId,
-        'event_type': eventType,
-        'title': title,
-        'body': body,
-        'data': data,
-        'action': action?.name,
-        'deep_link': deepLink,
-        'image_url': imageUrl,
-      };
+    'event_id': eventId,
+    'event_type': eventType,
+    'title': title,
+    'body': body,
+    'data': data,
+    'action': action?.name,
+    'deep_link': deepLink,
+    'image_url': imageUrl,
+  };
 }
 
 /// Service for handling push notifications and displaying them
@@ -78,9 +81,9 @@ class NotificationHandlerService {
     SupabaseClient? client,
     AppLogger? logger,
     PushNotificationService? pushService,
-  })  : _client = client ?? Supabase.instance.client,
-        _logger = logger ?? LoggerFactory.instance,
-        _pushService = pushService ?? PushNotificationService();
+  }) : _client = client ?? Supabase.instance.client,
+       _logger = logger ?? LoggerFactory.instance,
+       _pushService = pushService ?? PushNotificationService();
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -146,7 +149,9 @@ class NotificationHandlerService {
   /// Initialize local notifications plugin
   Future<void> _initializeLocalNotifications() async {
     // Android initialization settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
 
     // iOS initialization settings
     const iosSettings = DarwinInitializationSettings(
@@ -166,7 +171,8 @@ class NotificationHandlerService {
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _handleNotificationResponse,
-      onDidReceiveBackgroundNotificationResponse: _handleBackgroundNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse:
+          _handleBackgroundNotificationResponse,
     );
 
     // Create notification channels for Android
@@ -178,7 +184,9 @@ class NotificationHandlerService {
   /// Create Android notification channels
   Future<void> _createNotificationChannels() async {
     final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
     if (androidPlugin == null) return;
 
@@ -188,8 +196,6 @@ class NotificationHandlerService {
       _defaultChannelName,
       description: 'General app notifications',
       importance: Importance.high,
-      enableVibration: true,
-      playSound: true,
     );
 
     // Email channel
@@ -198,9 +204,6 @@ class NotificationHandlerService {
       _emailChannelName,
       description: 'Notifications for new emails',
       importance: Importance.high,
-      enableVibration: true,
-      playSound: true,
-      showBadge: true,
     );
 
     // Reminder channel
@@ -209,8 +212,6 @@ class NotificationHandlerService {
       _reminderChannelName,
       description: 'Note reminders',
       importance: Importance.max,
-      enableVibration: true,
-      playSound: true,
       enableLights: true,
     );
 
@@ -233,12 +234,13 @@ class NotificationHandlerService {
     );
 
     // Handle message opened app (when app was in background)
-    _backgroundMessageSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
-      _handleMessageOpenedApp,
-      onError: (error) {
-        _logger.error('Error in message opened app stream: $error');
-      },
-    );
+    _backgroundMessageSubscription = FirebaseMessaging.onMessageOpenedApp
+        .listen(
+          _handleMessageOpenedApp,
+          onError: (error) {
+            _logger.error('Error in message opened app stream: $error');
+          },
+        );
 
     // Check if app was opened from a notification
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -280,7 +282,7 @@ class NotificationHandlerService {
     _logger.info('App opened from notification: ${message.messageId}');
 
     final payload = _parseRemoteMessage(message);
-    
+
     // Emit tap event
     _notificationTapSubject.add(payload);
 
@@ -297,10 +299,10 @@ class NotificationHandlerService {
     _logger.info('App launched from notification: ${message.messageId}');
 
     final payload = _parseRemoteMessage(message);
-    
+
     // Delay to ensure app is ready
     await Future.delayed(const Duration(seconds: 1));
-    
+
     // Emit tap event
     _notificationTapSubject.add(payload);
 
@@ -318,16 +320,20 @@ class NotificationHandlerService {
   /// Parse RemoteMessage to NotificationPayload
   NotificationPayload _parseRemoteMessage(RemoteMessage message) {
     final data = message.data;
-    
+
     return NotificationPayload(
       eventId: (data['event_id'] as String?) ?? '',
       eventType: (data['event_type'] as String?) ?? '',
-      title: message.notification?.title ?? (data['title'] as String?) ?? 'Notification',
+      title:
+          message.notification?.title ??
+          (data['title'] as String?) ??
+          'Notification',
       body: message.notification?.body ?? (data['body'] as String?) ?? '',
       data: data,
       deepLink: data['deep_link'] as String?,
-      imageUrl: message.notification?.android?.imageUrl ?? 
-                message.notification?.apple?.imageUrl,
+      imageUrl:
+          message.notification?.android?.imageUrl ??
+          message.notification?.apple?.imageUrl,
     );
   }
 
@@ -335,7 +341,7 @@ class NotificationHandlerService {
   Future<void> _showLocalNotification(NotificationPayload payload) async {
     try {
       // Select channel based on event type
-      String channelId = _defaultChannelId;
+      var channelId = _defaultChannelId;
       if (payload.eventType == 'email_received') {
         channelId = _emailChannelId;
       } else if (payload.eventType == 'reminder_due') {
@@ -349,11 +355,8 @@ class NotificationHandlerService {
         channelDescription: _getChannelDescription(channelId),
         importance: Importance.high,
         priority: Priority.high,
-        showWhen: true,
         when: DateTime.now().millisecondsSinceEpoch,
-        enableVibration: true,
         enableLights: true,
-        playSound: true,
         styleInformation: BigTextStyleInformation(
           payload.body,
           contentTitle: payload.title,
@@ -442,10 +445,7 @@ class NotificationHandlerService {
       eventType: payload.eventType,
       title: payload.title,
       body: payload.body,
-      data: {
-        ...payload.data,
-        'action_id': actionId,
-      },
+      data: {...payload.data, 'action_id': actionId},
       action: _parseAction(actionId),
       deepLink: payload.deepLink,
     );
@@ -493,7 +493,8 @@ class NotificationHandlerService {
       // Check event-specific preferences
       final eventPrefs = response['event_preferences'] as Map<String, dynamic>?;
       if (eventPrefs != null && eventPrefs.containsKey(payload.eventType)) {
-        final eventEnabled = (eventPrefs[payload.eventType]['enabled'] as bool?) ?? true;
+        final eventEnabled =
+            (eventPrefs[payload.eventType]['enabled'] as bool?) ?? true;
         if (!eventEnabled) {
           return false;
         }
@@ -504,13 +505,13 @@ class NotificationHandlerService {
         final now = DateTime.now();
         final startTime = response['quiet_hours_start'] as String?;
         final endTime = response['quiet_hours_end'] as String?;
-        
+
         if (startTime != null && endTime != null) {
           // Parse times and check if in quiet hours
           final start = _parseTime(startTime);
           final end = _parseTime(endTime);
           final currentMinutes = now.hour * 60 + now.minute;
-          
+
           if (currentMinutes >= start && currentMinutes <= end) {
             return false; // In quiet hours
           }
@@ -540,10 +541,10 @@ class NotificationHandlerService {
   int _parseTime(String time) {
     final parts = time.split(':');
     if (parts.length != 2) return 0;
-    
+
     final hours = int.tryParse(parts[0]) ?? 0;
     final minutes = int.tryParse(parts[1]) ?? 0;
-    
+
     return hours * 60 + minutes;
   }
 
@@ -556,11 +557,14 @@ class NotificationHandlerService {
     try {
       if (eventId.isEmpty) return;
 
-      await _client.from('notification_deliveries').update({
-        'status': status,
-        '${status}_at': DateTime.now().toIso8601String(),
-        if (metadata != null) 'provider_response': metadata,
-      }).eq('event_id', eventId);
+      await _client
+          .from('notification_deliveries')
+          .update({
+            'status': status,
+            '${status}_at': DateTime.now().toIso8601String(),
+            if (metadata != null) 'provider_response': metadata,
+          })
+          .eq('event_id', eventId);
     } catch (e) {
       _logger.error('Failed to update delivery status: $e');
     }
@@ -570,7 +574,7 @@ class NotificationHandlerService {
   Future<void> _loadPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Load any cached preferences
       // This can be used for offline support
     } catch (e) {
@@ -667,9 +671,9 @@ class NotificationHandlerService {
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if needed
   // Note: This runs in an isolate, so we need minimal processing here
-  
-  print('Background message received: ${message.messageId}');
-  
+
+  debugPrint('Background message received: ${message.messageId}');
+
   // You can store the message for later processing or show a notification
   // But keep this handler lightweight
 }
@@ -678,5 +682,5 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 @pragma('vm:entry-point')
 void _handleBackgroundNotificationResponse(NotificationResponse response) {
   // Handle notification actions in background
-  print('Background notification response: ${response.actionId}');
+  debugPrint('Background notification response: ${response.actionId}');
 }

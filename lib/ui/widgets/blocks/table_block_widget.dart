@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 
 class TableBlockWidget extends StatefulWidget {
   const TableBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    super.key,
   });
 
   final NoteBlock block;
@@ -30,7 +34,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
   @override
   void didUpdateWidget(TableBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _disposeControllers();
       _parseTableData();
@@ -51,22 +55,26 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
       _rows = lines.skip(1).map((line) => line.split('|')).toList();
     } else {
       _headers = ['Header 1', 'Header 2'];
-      _rows = [['Cell 1', 'Cell 2']];
+      _rows = [
+        ['Cell 1', 'Cell 2'],
+      ];
     }
   }
 
   void _initializeControllers() {
     _controllers = [];
-    
+
     // Header controllers
-    final headerControllers = _headers.map((header) => 
-        TextEditingController(text: header)).toList();
+    final headerControllers = _headers
+        .map((header) => TextEditingController(text: header))
+        .toList();
     _controllers.add(headerControllers);
-    
+
     // Row controllers
     for (final row in _rows) {
-      final rowControllers = row.map((cell) => 
-          TextEditingController(text: cell)).toList();
+      final rowControllers = row
+          .map((cell) => TextEditingController(text: cell))
+          .toList();
       _controllers.add(rowControllers);
     }
   }
@@ -82,17 +90,19 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
   void _updateTable() {
     // Update headers
     _headers = _controllers[0].map((c) => c.text).toList();
-    
+
     // Update rows
-    _rows = _controllers.skip(1).map((row) => 
-        row.map((c) => c.text).toList()).toList();
-    
+    _rows = _controllers
+        .skip(1)
+        .map((row) => row.map((c) => c.text).toList())
+        .toList();
+
     // Create table data string
     final tableData = [
       _headers.join('|'),
       ..._rows.map((row) => row.join('|')),
     ].join('\n');
-    
+
     final newBlock = widget.block.copyWith(data: tableData);
     widget.onChanged(newBlock);
   }
@@ -103,7 +113,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
       for (var i = 0; i < _rows.length; i++) {
         _rows[i].add('New Cell');
       }
-      
+
       // Add controllers
       _controllers[0].add(TextEditingController(text: 'New Header'));
       for (var i = 1; i < _controllers.length; i++) {
@@ -117,10 +127,11 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     setState(() {
       final newRow = List.filled(_headers.length, 'New Cell');
       _rows.add(newRow);
-      
+
       // Add controllers
-      final rowControllers = newRow.map((cell) => 
-          TextEditingController(text: cell)).toList();
+      final rowControllers = newRow
+          .map((cell) => TextEditingController(text: cell))
+          .toList();
       _controllers.add(rowControllers);
     });
     _updateTable();
@@ -135,7 +146,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
             _rows[i].removeAt(columnIndex);
           }
         }
-        
+
         // Remove controllers
         _controllers[0][columnIndex].dispose();
         _controllers[0].removeAt(columnIndex);
@@ -154,7 +165,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     if (_rows.length > 1) {
       setState(() {
         _rows.removeAt(rowIndex);
-        
+
         // Remove controllers (rowIndex + 1 because index 0 is headers)
         final controllersIndex = rowIndex + 1;
         for (final controller in _controllers[controllersIndex]) {
@@ -188,10 +199,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
             ),
             child: Row(
               children: [
-                Text(
-                  'Table',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+                Text('Table', style: Theme.of(context).textTheme.titleSmall),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.add, size: 16),
@@ -206,7 +214,7 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
               ],
             ),
           ),
-          
+
           // Table Content
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -245,7 +253,8 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
                           SizedBox(
                             width: 100,
                             child: TextField(
-                              controller: _controllers[controllerIndex][colIndex],
+                              controller:
+                                  _controllers[controllerIndex][colIndex],
                               onChanged: (_) => _updateTable(),
                               decoration: const InputDecoration(
                                 border: InputBorder.none,

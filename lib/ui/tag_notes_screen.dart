@@ -1,16 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Screen that displays notes filtered by a specific tag
 class TagNotesScreen extends ConsumerStatefulWidget {
+  const TagNotesScreen({required this.tag, super.key});
   final String tag;
-
-  const TagNotesScreen({
-    super.key,
-    required this.tag,
-  });
 
   @override
   ConsumerState<TagNotesScreen> createState() => _TagNotesScreenState();
@@ -33,11 +29,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       final notes = await repo.queryNotesByTags(
         anyTags: [widget.tag],
         noneTags: [],
-        sort: const SortSpec(
-          sortBy: SortBy.updatedAt,
-          ascending: false,
-          pinnedFirst: true,
-        ),
+        sort: const SortSpec(),
       );
       if (mounted) {
         setState(() {
@@ -48,9 +40,9 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load notes: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load notes: $e')));
       }
     }
   }
@@ -63,11 +55,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(
-              Icons.tag,
-              size: 20,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.tag, size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text(widget.tag),
           ],
@@ -76,8 +64,8 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-              ? _buildEmptyState(context)
-              : _buildNotesList(context),
+          ? _buildEmptyState(context)
+          : _buildNotesList(context),
     );
   }
 
@@ -91,7 +79,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
           Icon(
             Icons.note_alt_outlined,
             size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -104,7 +92,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
           Text(
             'Notes tagged with #${widget.tag} will appear here',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -155,7 +143,9 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
                 Text(
                   _formatDate(note.updatedAt),
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.7,
+                    ),
                   ),
                 ),
               ],

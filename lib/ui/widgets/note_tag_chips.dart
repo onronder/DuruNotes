@@ -1,23 +1,21 @@
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
 
 /// Widget to display and manage tags for a note
 class NoteTagChips extends ConsumerStatefulWidget {
-  final String noteId;
-  final List<String> initialTags;
-  final Function(List<String>)? onTagsChanged;
-  final bool editable;
-
   const NoteTagChips({
-    super.key,
     required this.noteId,
+    super.key,
     this.initialTags = const [],
     this.onTagsChanged,
     this.editable = true,
   });
+  final String noteId;
+  final List<String> initialTags;
+  final Function(List<String>)? onTagsChanged;
+  final bool editable;
 
   @override
   ConsumerState<NoteTagChips> createState() => _NoteTagChipsState();
@@ -65,9 +63,9 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
 
     setState(() {
       _suggestions = _availableTags
-          .where((tag) => 
-              tag.toLowerCase().contains(input) && 
-              !_tags.contains(tag))
+          .where(
+            (tag) => tag.toLowerCase().contains(input) && !_tags.contains(tag),
+          )
           .take(5)
           .toList();
     });
@@ -89,7 +87,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     // Update in database
     final repo = ref.read(notesRepositoryProvider);
     await repo.addTag(noteId: widget.noteId, tag: normalizedTag);
-    
+
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();
 
@@ -105,7 +103,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     // Update in database
     final repo = ref.read(notesRepositoryProvider);
     await repo.removeTag(noteId: widget.noteId, tag: tag);
-    
+
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();
   }
@@ -137,7 +135,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
             margin: const EdgeInsets.only(top: 8),
             padding: const EdgeInsets.symmetric(vertical: 4),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -160,9 +158,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
                         const SizedBox(width: 8),
                         Text(
                           suggestion,
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -179,14 +175,10 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     return Chip(
       label: Text(tag),
       deleteIcon: widget.editable
-          ? Icon(
-              Icons.close,
-              size: 18,
-              color: colorScheme.onSecondaryContainer,
-            )
+          ? Icon(Icons.close, size: 18, color: colorScheme.onSecondaryContainer)
           : null,
       onDeleted: widget.editable ? () => _removeTag(tag) : null,
-      backgroundColor: colorScheme.secondaryContainer.withOpacity(0.7),
+      backgroundColor: colorScheme.secondaryContainer.withValues(alpha: 0.7),
       labelStyle: TextStyle(
         color: colorScheme.onSecondaryContainer,
         fontSize: 13,
@@ -198,17 +190,10 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
 
   Widget _buildAddTagButton(ColorScheme colorScheme) {
     return ActionChip(
-      avatar: Icon(
-        Icons.add,
-        size: 18,
-        color: colorScheme.primary,
-      ),
+      avatar: Icon(Icons.add, size: 18, color: colorScheme.primary),
       label: Text(
         'Tag',
-        style: TextStyle(
-          color: colorScheme.primary,
-          fontSize: 13,
-        ),
+        style: TextStyle(color: colorScheme.primary, fontSize: 13),
       ),
       onPressed: () {
         setState(() => _isAddingTag = true);
@@ -216,10 +201,8 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
           _tagFocusNode.requestFocus();
         });
       },
-      backgroundColor: colorScheme.primary.withOpacity(0.1),
-      side: BorderSide(
-        color: colorScheme.primary.withOpacity(0.3),
-      ),
+      backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+      side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.3)),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
     );
@@ -230,11 +213,9 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
       width: 120,
       height: 32,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.primary.withOpacity(0.5),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -266,10 +247,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
           IconButton(
             icon: const Icon(Icons.close, size: 16),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 24,
-              minHeight: 24,
-            ),
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             onPressed: () {
               setState(() {
                 _isAddingTag = false;
@@ -286,22 +264,21 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
 
 /// Compact version of tag chips for list views
 class CompactTagChips extends StatelessWidget {
-  final List<String> tags;
-  final int maxTags;
-  final Function(String)? onTagTap;
-
   const CompactTagChips({
-    super.key,
     required this.tags,
+    super.key,
     this.maxTags = 3,
     this.onTagTap,
   });
+  final List<String> tags;
+  final int maxTags;
+  final Function(String)? onTagTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final displayTags = tags.take(maxTags).toList();
     final remaining = tags.length - displayTags.length;
 
@@ -309,28 +286,30 @@ class CompactTagChips extends StatelessWidget {
       spacing: 4,
       runSpacing: 4,
       children: [
-        ...displayTags.map((tag) => GestureDetector(
-          onTap: onTagTap != null ? () => onTagTap!(tag) : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '#$tag',
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSecondaryContainer,
+        ...displayTags.map(
+          (tag) => GestureDetector(
+            onTap: onTagTap != null ? () => onTagTap!(tag) : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '#$tag',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSecondaryContainer,
+                ),
               ),
             ),
           ),
-        )),
+        ),
         if (remaining > 0)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: colorScheme.tertiaryContainer.withOpacity(0.5),
+              color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

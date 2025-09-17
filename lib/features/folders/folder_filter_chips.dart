@@ -1,16 +1,16 @@
+import 'package:duru_notes/core/accessibility_utils.dart';
+import 'package:duru_notes/core/animation_config.dart';
+import 'package:duru_notes/core/debounce_utils.dart';
+import 'package:duru_notes/core/haptic_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
-import 'package:duru_notes/core/haptic_utils.dart';
-import 'package:duru_notes/core/animation_config.dart';
-import 'package:duru_notes/core/accessibility_utils.dart';
-import 'package:duru_notes/core/debounce_utils.dart';
 
 /// Material 3 filter chips for folder navigation
 class FolderFilterChips extends ConsumerStatefulWidget {
@@ -54,20 +54,20 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    
+
     // Auto-scroll to selected chip when selection changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSelectedChip();
     });
-    
+
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, -1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _slideController,
-        curve: Curves.easeOutCubic,
-      )),
+      position: Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _slideController,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
       child: Container(
         height: AccessibilityUtils.minTouchTarget + 12, // 44dp + padding
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -76,32 +76,38 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
             final currentFolder = ref.watch(currentFolderProvider);
             final rootFoldersAsync = ref.watch(rootFoldersProvider);
             final unfiledCountAsync = ref.watch(unfiledNotesCountProvider);
-            
+
             // Debounce UI updates to animation frame
             DebounceUtils.debounceFrame('folder_chips_update', () {
               if (mounted) setState(() {});
             });
-            
+
             return ListView(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
               padding: widget.padding,
               physics: const ClampingScrollPhysics(),
               children: [
-                // All Notes chip
-                _FilterChip(
+                // All Notes chip - Now a drop target for unfiling notes
+                _AllNotesDropTarget(
                   label: l10n.notesListTitle,
                   icon: Icons.notes,
-                  isSelected: currentFolder == null,
+                  isSelected: currentFolder == null && !ref.watch(isInboxFilterActiveProvider),
                   onSelected: () {
                     HapticUtils.selection();
                     // Clear folder filter by updating current folder to null
                     widget.onFolderSelected?.call(null);
+                    ref.read(isInboxFilterActiveProvider.notifier).state = false;
                   },
                 ),
-                
+
                 const SizedBox(width: 8),
-                
+
+                // Inbox preset chip - Shows incoming mail folder with live count
+                _InboxPresetChip(),
+
+                const SizedBox(width: 8),
+
                 // Unfiled Notes chip
                 unfiledCountAsync.when(
                   data: (count) => count > 0
@@ -119,9 +125,9 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                   loading: () => const SizedBox(width: 8),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-                
+
                 const SizedBox(width: 8),
-                
+
                 // Root folders
                 rootFoldersAsync.when(
                   data: (folders) => Row(
@@ -138,10 +144,10 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                       );
                     }).toList(),
                   ),
-                  loading: () => _SkeletonChips(),
+                  loading: _SkeletonChips.new,
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-                
+
                 // Browse all folders chip
                 _FilterChip(
                   label: l10n.allFolders,
@@ -149,7 +155,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                   isSelected: false,
                   onSelected: _showFolderPicker,
                 ),
-                
+
                 // New Folder chip (trailing)
                 if (widget.showCreateOption) ...[
                   const SizedBox(width: 8),
@@ -189,7 +195,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
           ),
-          child: _CreateFolderSheet(),
+          child: const _CreateFolderSheet(),
         );
       },
     );
@@ -200,7 +206,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
       context,
       selectedFolderId: ref.read(currentFolderProvider)?.id,
     );
-    
+
     if (selectedFolder != null && mounted) {
       widget.onFolderSelected?.call(selectedFolder);
     } else if (selectedFolder == null && mounted) {
@@ -229,61 +235,63 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final semanticLabel = count != null 
+    final semanticLabel = count != null
         ? '$label, $count items, ${isSelected ? "Selected" : "Not selected"}'
         : '$label, ${isSelected ? "Selected" : "Not selected"}';
-    
+
     return AccessibilityUtils.semanticChip(
       label: semanticLabel,
       selected: isSelected,
       onTap: onSelected,
       child: FilterChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          Text(label),
-          if (count != null) ...[
-            const SizedBox(width: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? colorScheme.onSecondaryContainer.withOpacity(0.2)
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                count.toString(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? colorScheme.onSecondaryContainer
+                  : colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Text(label),
+            if (count != null) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? colorScheme.onSecondaryContainer.withValues(alpha: 0.2)
+                      : colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isSelected
+                        ? colorScheme.onSecondaryContainer
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
+        selected: isSelected,
+        onSelected: (_) {
+          HapticUtils.selection();
+          onSelected();
+          AccessibilityUtils.announce(context, '$label selected');
+        },
+        backgroundColor: colorScheme.surface,
+        selectedColor: colorScheme.secondaryContainer,
+        side: BorderSide(
+          color: isSelected ? Colors.transparent : colorScheme.outline,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
-      selected: isSelected,
-      onSelected: (_) {
-        HapticUtils.selection();
-        onSelected();
-        AccessibilityUtils.announce(context, '$label selected');
-      },
-      backgroundColor: colorScheme.surface,
-      selectedColor: colorScheme.secondaryContainer,
-      side: BorderSide(
-        color: isSelected ? Colors.transparent : colorScheme.outline,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-    ),
     );
   }
 }
@@ -309,16 +317,19 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     // Get note count for this folder
     return FutureBuilder<int>(
-      future: ref.read(notesRepositoryProvider).db.countNotesInFolder(widget.folder.id),
+      future: ref
+          .read(notesRepositoryProvider)
+          .db
+          .countNotesInFolder(widget.folder.id),
       builder: (context, snapshot) {
         final noteCount = snapshot.data ?? 0;
         final semanticLabel = noteCount > 0
             ? '${widget.folder.name} folder, $noteCount notes, ${widget.isSelected ? "Selected" : "Not selected"}'
             : '${widget.folder.name} folder, ${widget.isSelected ? "Selected" : "Not selected"}';
-        
+
         return AccessibilityUtils.semanticChip(
           label: semanticLabel,
           selected: widget.isSelected,
@@ -326,73 +337,92 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
           child: GestureDetector(
             onLongPress: () => _showFolderActions(context, l10n),
             child: FilterChip(
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: FolderIconHelpers.getFolderColor(widget.folder.color) ?? colorScheme.primary,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
-                    FolderIconHelpers.getFolderIcon(widget.folder.icon),
-                    size: 12,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(widget.folder.name),
-                if (noteCount > 0) ...[
-                  const SizedBox(width: 4),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
-                      color: widget.isSelected 
-                          ? colorScheme.onSecondaryContainer.withOpacity(0.2)
-                          : colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      color:
+                          FolderIconHelpers.getFolderColor(
+                            widget.folder.color,
+                          ) ??
+                          colorScheme.primary,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(
-                      noteCount.toString(),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: widget.isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                    child: Icon(
+                      FolderIconHelpers.getFolderIcon(widget.folder.icon),
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(widget.folder.name),
+                  if (noteCount > 0) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widget.isSelected
+                            ? colorScheme.onSecondaryContainer.withValues(
+                                alpha: 0.2,
+                              )
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        noteCount.toString(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: widget.isSelected
+                              ? colorScheme.onSecondaryContainer
+                              : colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
+              selected: widget.isSelected,
+              onSelected: (_) {
+                HapticUtils.selection();
+                widget.onSelected();
+                AccessibilityUtils.announce(
+                  context,
+                  '${widget.folder.name} folder selected',
+                );
+              },
+              backgroundColor: colorScheme.surface,
+              selectedColor: colorScheme.secondaryContainer,
+              side: BorderSide(
+                color: widget.isSelected
+                    ? Colors.transparent
+                    : colorScheme.outline,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              tooltip: widget.folder.name,
             ),
-            selected: widget.isSelected,
-            onSelected: (_) {
-              HapticUtils.selection();
-              widget.onSelected();
-              AccessibilityUtils.announce(context, '${widget.folder.name} folder selected');
-            },
-            backgroundColor: colorScheme.surface,
-            selectedColor: colorScheme.secondaryContainer,
-            side: BorderSide(
-              color: widget.isSelected ? Colors.transparent : colorScheme.outline,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            tooltip: widget.folder.name,
-          ),
           ),
         );
       },
     );
   }
 
-  Future<void> _showFolderActions(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _showFolderActions(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     // Haptic feedback
     await HapticUtils.selection();
-    
+
     if (!mounted) return;
-    
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -410,13 +440,18 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               // Folder name header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   widget.folder.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -465,9 +500,12 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     );
   }
 
-  Future<void> _renameFolder(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _renameFolder(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     final controller = TextEditingController(text: widget.folder.name);
-    
+
     final newName = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
@@ -501,20 +539,26 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                       setState(() => errorText = l10n.folderNameEmpty);
                       return;
                     }
-                    
+
                     // Check for duplicate name among siblings
                     final siblings = widget.folder.parentId != null
-                        ? await ref.read(folderRepositoryProvider).db.getChildFolders(widget.folder.parentId!)
-                        : await ref.read(folderRepositoryProvider).db.getRootFolders();
+                        ? await ref
+                              .read(folderRepositoryProvider)
+                              .db
+                              .getChildFolders(widget.folder.parentId!)
+                        : await ref
+                              .read(folderRepositoryProvider)
+                              .db
+                              .getRootFolders();
                     final isDuplicate = siblings.any(
-                      (f) => f.id != widget.folder.id && f.name == name
+                      (f) => f.id != widget.folder.id && f.name == name,
                     );
-                    
+
                     if (isDuplicate) {
                       setState(() => errorText = l10n.folderNameDuplicate);
                       return;
                     }
-                    
+
                     Navigator.pop(dialogContext, name);
                   },
                   child: Text(l10n.rename),
@@ -525,16 +569,15 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         );
       },
     );
-    
+
     if (newName != null && newName != widget.folder.name) {
       try {
-        await ref.read(folderRepositoryProvider).renameFolder(
-          folderId: widget.folder.id,
-          newName: newName,
-        );
-        
+        await ref
+            .read(folderRepositoryProvider)
+            .renameFolder(folderId: widget.folder.id, newName: newName);
+
         await HapticUtils.success();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -555,7 +598,7 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         }
       }
     }
-    
+
     controller.dispose();
   }
 
@@ -581,16 +624,19 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         );
       },
     );
-    
-    if (selectedParentId != null && selectedParentId != widget.folder.parentId) {
+
+    if (selectedParentId != null &&
+        selectedParentId != widget.folder.parentId) {
       try {
-        await ref.read(folderRepositoryProvider).moveFolder(
-          folderId: widget.folder.id,
-          newParentId: selectedParentId == 'root' ? null : selectedParentId,
-        );
-        
+        await ref
+            .read(folderRepositoryProvider)
+            .moveFolder(
+              folderId: widget.folder.id,
+              newParentId: selectedParentId == 'root' ? null : selectedParentId,
+            );
+
         await HapticUtils.success();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -603,9 +649,11 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().contains('descendant') 
-                  ? l10n.cannotMoveToDescendant 
-                  : l10n.errorMovingFolder),
+              content: Text(
+                e.toString().contains('descendant')
+                    ? l10n.cannotMoveToDescendant
+                    : l10n.errorMovingFolder,
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               behavior: SnackBarBehavior.floating,
             ),
@@ -615,7 +663,10 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     }
   }
 
-  Future<void> _deleteFolder(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _deleteFolder(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -638,24 +689,23 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         );
       },
     );
-    
-    if (confirmed == true) {
+
+    if (confirmed ?? false) {
       try {
         final currentFolder = ref.read(currentFolderProvider);
         final wasSelected = currentFolder?.id == widget.folder.id;
-        
-        await ref.read(folderRepositoryProvider).deleteFolder(
-          folderId: widget.folder.id,
-          moveNotesToInbox: true,
-        );
-        
+
+        await ref
+            .read(folderRepositoryProvider)
+            .deleteFolder(folderId: widget.folder.id);
+
         await HapticUtils.success();
-        
+
         if (wasSelected) {
           // Auto-select "All Notes" if deleted folder was selected
           ref.read(currentFolderProvider.notifier).clearCurrentFolder();
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -694,37 +744,28 @@ class _ActionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return AccessibilityUtils.semanticButton(
       label: label,
       hint: 'Double tap to $label',
       onTap: onPressed,
       child: ActionChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(color: colorScheme.primary),
-          ),
-        ],
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: colorScheme.primary),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: colorScheme.primary)),
+          ],
+        ),
+        onPressed: () {
+          HapticUtils.tap();
+          onPressed();
+        },
+        backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
-      onPressed: () {
-        HapticUtils.tap();
-        onPressed();
-      },
-      backgroundColor: colorScheme.primaryContainer.withOpacity(0.3),
-      side: BorderSide(color: colorScheme.primary.withOpacity(0.5)),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-    ),
     );
   }
 }
@@ -747,18 +788,18 @@ class FolderBreadcrumb extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (currentFolder == null) return const SizedBox.shrink();
-    
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: FutureBuilder<List<LocalFolder>>(
         future: _buildBreadcrumbPath(ref, currentFolder!),
         builder: (context, snapshot) {
           final path = snapshot.data ?? [currentFolder!];
-          
+
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -769,9 +810,14 @@ class FolderBreadcrumb extends ConsumerWidget {
                   GestureDetector(
                     onTap: () => onFolderTap?.call(null),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -793,7 +839,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                       ),
                     ),
                   ),
-                
+
                 // Path separator
                 if (showHomeIcon && path.isNotEmpty) ...[
                   const SizedBox(width: 4),
@@ -804,24 +850,30 @@ class FolderBreadcrumb extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                 ],
-                
+
                 // Folder path
                 ...path.asMap().entries.map((entry) {
                   final index = entry.key;
                   final folder = entry.value;
                   final isLast = index == path.length - 1;
-                  
+
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
                         onTap: () => onFolderTap?.call(folder),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: isLast 
-                                ? colorScheme.primaryContainer.withOpacity(0.5)
-                                : colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            color: isLast
+                                ? colorScheme.primaryContainer.withValues(
+                                    alpha: 0.5,
+                                  )
+                                : colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -831,7 +883,11 @@ class FolderBreadcrumb extends ConsumerWidget {
                                 width: 14,
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: FolderIconHelpers.getFolderColor(folder.color) ?? colorScheme.primary,
+                                  color:
+                                      FolderIconHelpers.getFolderColor(
+                                        folder.color,
+                                      ) ??
+                                      colorScheme.primary,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                                 child: Icon(
@@ -844,17 +900,19 @@ class FolderBreadcrumb extends ConsumerWidget {
                               Text(
                                 folder.name,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: isLast 
+                                  color: isLast
                                       ? colorScheme.onPrimaryContainer
                                       : colorScheme.onSurfaceVariant,
-                                  fontWeight: isLast ? FontWeight.w600 : FontWeight.w400,
+                                  fontWeight: isLast
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      
+
                       // Separator (if not last)
                       if (!isLast) ...[
                         const SizedBox(width: 4),
@@ -876,10 +934,13 @@ class FolderBreadcrumb extends ConsumerWidget {
     );
   }
 
-  Future<List<LocalFolder>> _buildBreadcrumbPath(WidgetRef ref, LocalFolder folder) async {
+  Future<List<LocalFolder>> _buildBreadcrumbPath(
+    WidgetRef ref,
+    LocalFolder folder,
+  ) async {
     final repository = ref.read(notesRepositoryProvider);
     final path = <LocalFolder>[];
-    
+
     LocalFolder? current = folder;
     while (current != null) {
       path.insert(0, current);
@@ -889,7 +950,7 @@ class FolderBreadcrumb extends ConsumerWidget {
         break;
       }
     }
-    
+
     return path;
   }
 }
@@ -918,7 +979,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -933,16 +994,13 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             // Title
-            Text(
-              l10n.createNewFolder,
-              style: theme.textTheme.titleLarge,
-            ),
+            Text(l10n.createNewFolder, style: theme.textTheme.titleLarge),
             const SizedBox(height: 24),
             // Name field
             TextField(
@@ -965,16 +1023,16 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
             Consumer(
               builder: (context, ref, child) {
                 final rootFoldersAsync = ref.watch(rootFoldersProvider);
-                
+
                 return rootFoldersAsync.when(
                   data: (folders) {
                     final allFolders = <LocalFolder?>[
                       null, // Root option
                       ...folders,
                     ];
-                    
+
                     return DropdownButtonFormField<String?>(
-                      value: _selectedParentId,
+                      initialValue: _selectedParentId,
                       decoration: InputDecoration(
                         labelText: l10n.parentFolder,
                         prefixIcon: const Icon(Icons.folder_open),
@@ -990,11 +1048,17 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                                   width: 16,
                                   height: 16,
                                   decoration: BoxDecoration(
-                                    color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                                    color:
+                                        FolderIconHelpers.getFolderColor(
+                                          folder.color,
+                                        ) ??
+                                        theme.colorScheme.primary,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Icon(
-                                    FolderIconHelpers.getFolderIcon(folder.icon),
+                                    FolderIconHelpers.getFolderIcon(
+                                      folder.icon,
+                                    ),
                                     size: 12,
                                     color: Colors.white,
                                   ),
@@ -1028,7 +1092,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: _isCreating ? null : _createFolder,
-                  icon: _isCreating 
+                  icon: _isCreating
                       ? const SizedBox(
                           width: 16,
                           height: 16,
@@ -1048,22 +1112,25 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
   Future<void> _createFolder() async {
     final l10n = AppLocalizations.of(context);
     final name = _nameController.text.trim();
-    
+
     if (name.isEmpty) {
       setState(() => _errorText = l10n.folderNameEmpty);
       return;
     }
-    
+
     setState(() => _isCreating = true);
-    
+
     try {
       // Check for duplicate name among siblings
       final siblings = _selectedParentId != null
-          ? await ref.read(folderRepositoryProvider).db.getChildFolders(_selectedParentId!)
+          ? await ref
+                .read(folderRepositoryProvider)
+                .db
+                .getChildFolders(_selectedParentId!)
           : await ref.read(folderRepositoryProvider).db.getRootFolders();
-      
+
       final isDuplicate = siblings.any((f) => f.name == name);
-      
+
       if (isDuplicate) {
         setState(() {
           _errorText = l10n.folderNameDuplicate;
@@ -1071,15 +1138,14 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
         });
         return;
       }
-      
+
       // Create the folder
-      await ref.read(folderRepositoryProvider).createFolder(
-        name: name,
-        parentId: _selectedParentId,
-      );
-      
+      await ref
+          .read(folderRepositoryProvider)
+          .createFolder(name: name, parentId: _selectedParentId);
+
       await HapticFeedback.mediumImpact();
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1112,7 +1178,7 @@ class _ParentFolderPicker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    
+
     return Column(
       children: [
         // Handle bar
@@ -1121,7 +1187,7 @@ class _ParentFolderPicker extends ConsumerWidget {
           height: 4,
           margin: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.outline.withOpacity(0.3),
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -1141,12 +1207,12 @@ class _ParentFolderPicker extends ConsumerWidget {
           child: Consumer(
             builder: (context, ref, child) {
               final foldersAsync = ref.watch(rootFoldersProvider);
-              
+
               return foldersAsync.when(
                 data: (folders) {
                   // Filter out current folder and its descendants
                   final availableFolders = _filterAvailableFolders(folders);
-                  
+
                   return ListView(
                     controller: scrollController,
                     children: [
@@ -1165,7 +1231,11 @@ class _ParentFolderPicker extends ConsumerWidget {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                              color:
+                                  FolderIconHelpers.getFolderColor(
+                                    folder.color,
+                                  ) ??
+                                  theme.colorScheme.primary,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Icon(
@@ -1207,7 +1277,8 @@ class _SkeletonChips extends StatefulWidget {
   State<_SkeletonChips> createState() => _SkeletonChipsState();
 }
 
-class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProviderStateMixin {
+class _SkeletonChipsState extends State<_SkeletonChips>
+    with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
   late Animation<double> _shimmerAnimation;
 
@@ -1218,14 +1289,10 @@ class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProvide
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
-    
-    _shimmerAnimation = Tween<double>(
-      begin: -1.0,
-      end: 2.0,
-    ).animate(CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.linear,
-    ));
+
+    _shimmerAnimation = Tween<double>(begin: -1, end: 2).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
+    );
   }
 
   @override
@@ -1238,7 +1305,7 @@ class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProvide
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Row(
       children: List.generate(4, (index) {
         final widths = [80.0, 90.0, 75.0, 85.0];
@@ -1254,16 +1321,22 @@ class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProvide
                   borderRadius: BorderRadius.circular(20),
                   gradient: LinearGradient(
                     colors: [
-                      colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                      colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                      colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
+                      colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
+                      colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
                     ],
                     stops: const [0.0, 0.5, 1.0],
                     begin: Alignment(-1.0 + _shimmerAnimation.value * 2, 0),
                     end: Alignment(1.0 + _shimmerAnimation.value * 2, 0),
                   ),
                   border: Border.all(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               );
@@ -1274,3 +1347,336 @@ class _SkeletonChipsState extends State<_SkeletonChips> with SingleTickerProvide
     );
   }
 }
+
+/// All Notes chip that accepts drag and drop to unfile notes
+class _AllNotesDropTarget extends ConsumerStatefulWidget {
+  const _AllNotesDropTarget({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onSelected;
+
+  @override
+  ConsumerState<_AllNotesDropTarget> createState() => _AllNotesDropTargetState();
+}
+
+class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _highlightController;
+  late Animation<double> _highlightAnimation;
+  bool _isDragOver = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _highlightController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _highlightAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _highlightController,
+      curve: Curves.easeOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _highlightController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleNoteDrop(LocalNote note) async {
+    final repository = ref.read(notesRepositoryProvider);
+    final undoService = ref.read(undoRedoServiceProvider);
+    final l10n = AppLocalizations.of(context);
+    
+    // Get current folder info before unfiling
+    final currentFolder = await repository.getFolderForNote(note.id);
+    
+    // Record the operation for undo
+    undoService.recordNoteFolderChange(
+      noteId: note.id,
+      noteTitle: note.title,
+      previousFolderId: currentFolder?.id,
+      previousFolderName: currentFolder?.name,
+      newFolderId: null,
+      newFolderName: null,
+    );
+    
+    // Remove note from folder (unfile it)
+    await repository.removeNoteFromFolder(note.id);
+    
+    // Show snackbar with undo action
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.noteUnfiled ?? 'Note unfiled'),
+          action: SnackBarAction(
+            label: l10n.undo ?? 'Undo',
+            onPressed: () async {
+              await undoService.undo();
+              // Refresh the UI
+              ref.invalidate(folderProvider);
+              ref.invalidate(unfiledNotesCountProvider);
+            },
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+    
+    // Refresh counts
+    ref.invalidate(unfiledNotesCountProvider);
+    ref.invalidate(folderProvider);
+  }
+
+  Future<void> _handleBatchDrop(List<LocalNote> notes) async {
+    final repository = ref.read(notesRepositoryProvider);
+    final undoService = ref.read(undoRedoServiceProvider);
+    final l10n = AppLocalizations.of(context);
+    
+    // Collect previous folder info for all notes
+    final previousFolderIds = <String, String?>{};
+    for (final note in notes) {
+      final folder = await repository.getFolderForNote(note.id);
+      previousFolderIds[note.id] = folder?.id;
+    }
+    
+    // Record batch operation for undo
+    undoService.recordBatchFolderChange(
+      noteIds: notes.map((n) => n.id).toList(),
+      previousFolderIds: previousFolderIds,
+      newFolderId: null,
+      newFolderName: null,
+    );
+    
+    // Unfile all notes
+    for (final note in notes) {
+      await repository.removeNoteFromFolder(note.id);
+    }
+    
+    // Show snackbar with undo action
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${notes.length} notes unfiled'),
+          action: SnackBarAction(
+            label: l10n.undo ?? 'Undo',
+            onPressed: () async {
+              await undoService.undo();
+              // Refresh the UI
+              ref.invalidate(folderProvider);
+              ref.invalidate(unfiledNotesCountProvider);
+            },
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+    
+    // Refresh counts
+    ref.invalidate(unfiledNotesCountProvider);
+    ref.invalidate(folderProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return DragTarget<dynamic>(
+      onWillAcceptWithDetails: (details) {
+        // Accept both single notes and batch selections
+        return details.data is LocalNote || details.data is List<LocalNote>;
+      },
+      onAcceptWithDetails: (details) async {
+        HapticFeedback.mediumImpact();
+        
+        if (details.data is LocalNote) {
+          await _handleNoteDrop(details.data as LocalNote);
+        } else if (details.data is List<LocalNote>) {
+          await _handleBatchDrop(details.data as List<LocalNote>);
+        }
+        
+        setState(() => _isDragOver = false);
+        _highlightController.reverse();
+      },
+      onMove: (_) {
+        if (!_isDragOver) {
+          setState(() => _isDragOver = true);
+          _highlightController.forward();
+          HapticFeedback.selectionClick();
+        }
+      },
+      onLeave: (_) {
+        setState(() => _isDragOver = false);
+        _highlightController.reverse();
+      },
+      builder: (context, candidateData, rejectedData) {
+        return AnimatedBuilder(
+          animation: _highlightAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: 1.0 + (_highlightAnimation.value * 0.05),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: _isDragOver
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: FilterChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        size: 16,
+                        color: widget.isSelected || _isDragOver
+                            ? colorScheme.onSecondaryContainer
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(widget.label),
+                      if (_isDragOver) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.file_download_outlined,
+                          size: 14,
+                          color: colorScheme.primary,
+                        ),
+                      ],
+                    ],
+                  ),
+                  selected: widget.isSelected || _isDragOver,
+                  onSelected: (_) => widget.onSelected(),
+                  backgroundColor: _isDragOver
+                      ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+                      : colorScheme.surface,
+                  selectedColor: _isDragOver
+                      ? colorScheme.primaryContainer
+                      : colorScheme.secondaryContainer,
+                  side: BorderSide(
+                    color: _isDragOver
+                        ? colorScheme.primary
+                        : widget.isSelected
+                            ? Colors.transparent
+                            : colorScheme.outline,
+                    width: _isDragOver ? 2 : 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Inbox preset chip showing incoming mail folder
+class _InboxPresetChip extends ConsumerWidget {
+  const _InboxPresetChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final isActive = ref.watch(isInboxFilterActiveProvider);
+    
+    return FutureBuilder<String?>(
+      future: _getIncomingMailFolderId(ref),
+      builder: (context, folderSnapshot) {
+        if (!folderSnapshot.hasData || folderSnapshot.data == null) {
+          return const SizedBox.shrink();
+        }
+        
+        final folderId = folderSnapshot.data!;
+        
+        return FutureBuilder<int>(
+          future: ref.read(notesRepositoryProvider).db.countNotesInFolder(folderId),
+          builder: (context, countSnapshot) {
+            final count = countSnapshot.data ?? 0;
+            
+            // Only show if there are notes in inbox
+            if (count == 0 && !isActive) {
+              return const SizedBox.shrink();
+            }
+            
+            return _FilterChip(
+              label: l10n.inbox ?? 'Inbox',
+              icon: Icons.inbox,
+              count: count > 0 ? count : null,
+              isSelected: isActive,
+              onSelected: () async {
+                HapticUtils.selection();
+                
+                // Toggle inbox filter
+                ref.read(isInboxFilterActiveProvider.notifier).state = !isActive;
+                
+                if (!isActive) {
+                  // Activate inbox filter - show only notes in incoming mail folder
+                  final folder = await ref.read(notesRepositoryProvider).getFolder(folderId);
+                  if (folder != null) {
+                    ref.read(currentFolderProvider.notifier).state = folder;
+                  }
+                } else {
+                  // Deactivate inbox filter
+                  ref.read(currentFolderProvider.notifier).state = null;
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Future<String?> _getIncomingMailFolderId(WidgetRef ref) async {
+    try {
+      final repository = ref.read(notesRepositoryProvider);
+      final folders = await repository.listFolders();
+      
+      // Look for "Incoming Mail" folder
+      final incomingMailFolder = folders.firstWhere(
+        (f) => f.name.toLowerCase() == 'incoming mail' && !f.deleted,
+        orElse: () => LocalFolder(
+          id: '',
+          name: '',
+          path: '',
+          color: '',
+          icon: '',
+          description: '',
+          sortOrder: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deleted: true,
+        ),
+      );
+      
+      return incomingMailFolder.id.isNotEmpty ? incomingMailFolder.id : null;
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+/// Provider to track if inbox filter is active
+final isInboxFilterActiveProvider = StateProvider<bool>((ref) => false);

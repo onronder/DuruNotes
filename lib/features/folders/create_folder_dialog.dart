@@ -6,30 +6,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Material 3 dialog for creating new folders with customization options
+/// 
+/// This is the single source of truth for folder creation dialogs.
+/// Supports multiple use cases:
+/// - Creating root folders (parentFolder/parentId = null)
+/// - Creating subfolders (with parent specified)
+/// - Pre-filling folder name (initialName)
 class CreateFolderDialog extends ConsumerStatefulWidget {
   const CreateFolderDialog({
     super.key,
     this.parentFolder,
+    this.parentId,
     this.initialName = '',
   });
 
+  /// Parent folder object (if available)
   final LocalFolder? parentFolder;
+  
+  /// Parent folder ID (alternative to parentFolder)
+  final String? parentId;
+  
+  /// Initial name to pre-fill
   final String initialName;
 
   @override
   ConsumerState<CreateFolderDialog> createState() => _CreateFolderDialogState();
 }
 
-class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog> 
+class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _nameFocusNode = FocusNode();
-  
+
   late AnimationController _scaleController;
   late AnimationController _slideController;
-  
+
   LocalFolder? _selectedParent;
   Color _selectedColor = Colors.blue;
   IconData _selectedIcon = Icons.folder;
@@ -77,6 +90,11 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
     _nameController.text = widget.initialName;
     _selectedParent = widget.parentFolder;
     
+    // If parentId is provided but parentFolder is not, load the folder
+    if (widget.parentId != null && widget.parentFolder == null) {
+      _loadParentFolder(widget.parentId!);
+    }
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -85,10 +103,10 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _scaleController.forward();
     _slideController.forward();
-    
+
     // Auto-focus name field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _nameFocusNode.requestFocus();
@@ -105,22 +123,37 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
     super.dispose();
   }
 
+  Future<void> _loadParentFolder(String parentId) async {
+    try {
+      final folder = await ref.read(notesRepositoryProvider).getFolder(parentId);
+      if (mounted && folder != null) {
+        setState(() {
+          _selectedParent = folder;
+        });
+      }
+    } catch (e) {
+      // Silently fail - parent will remain null
+    }
+  }
+
   Future<void> _createFolder() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isCreating = true;
     });
-    
+
     try {
-      final folderId = await ref.read(folderProvider.notifier).createFolder(
-        name: _nameController.text.trim(),
-        parentId: _selectedParent?.id,
-        color: _selectedColor.value.toRadixString(16),
-        icon: _selectedIcon.codePoint.toString(),
-        description: _descriptionController.text.trim(),
-      );
-      
+      final folderId = await ref
+          .read(folderProvider.notifier)
+          .createFolder(
+            name: _nameController.text.trim(),
+            parentId: _selectedParent?.id,
+            color: _selectedColor.value.toRadixString(16),
+            icon: _selectedIcon.codePoint.toString(),
+            description: _descriptionController.text.trim(),
+          );
+
       if (folderId != null && mounted) {
         // Create a LocalFolder object to return
         final newFolder = LocalFolder(
@@ -136,7 +169,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
           updatedAt: DateTime.now(),
           deleted: false,
         );
-        
+
         Navigator.of(context).pop(newFolder);
       }
     } catch (e) {
@@ -164,7 +197,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
       title: AppLocalizations.of(context).selectParentFolder,
       showCreateOption: false,
     );
-    
+
     if (mounted) {
       setState(() {
         _selectedParent = selectedFolder;
@@ -177,20 +210,20 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return ScaleTransition(
       scale: CurvedAnimation(
         parent: _scaleController,
         curve: Curves.easeOutBack,
       ),
       child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.3),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: _slideController,
-          curve: Curves.easeOutCubic,
-        )),
+        position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: _slideController,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
         child: AlertDialog(
           backgroundColor: colorScheme.surface,
           surfaceTintColor: colorScheme.surfaceTint,
@@ -203,14 +236,10 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _selectedColor.withOpacity(0.2),
+                  color: _selectedColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  _selectedIcon,
-                  color: _selectedColor,
-                  size: 20,
-                ),
+                child: Icon(_selectedIcon, color: _selectedColor, size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -252,9 +281,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                     },
                     onFieldSubmitted: (_) => _createFolder(),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Parent folder selection
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -275,9 +304,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Color selection
                   Text(
                     l10n.folderColor,
@@ -309,7 +338,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: color.withOpacity(0.4),
+                                      color: color.withValues(alpha: 0.4),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -327,9 +356,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                       );
                     }).toList(),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Icon selection
                   Text(
                     l10n.folderIcon,
@@ -341,30 +370,28 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                   SizedBox(
                     height: 120,
                     child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 8,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 8,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
                       itemCount: _folderIcons.length,
                       itemBuilder: (context, index) {
                         final icon = _folderIcons[index];
                         final isSelected = icon == _selectedIcon;
-                        
+
                         return GestureDetector(
                           onTap: () => setState(() => _selectedIcon = icon),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? _selectedColor.withOpacity(0.2)
+                                  ? _selectedColor.withValues(alpha: 0.2)
                                   : colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                               border: isSelected
-                                  ? Border.all(
-                                      color: _selectedColor,
-                                      width: 2,
-                                    )
+                                  ? Border.all(color: _selectedColor, width: 2)
                                   : null,
                             ),
                             child: Icon(
@@ -379,9 +406,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                       },
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Description (optional)
                   TextFormField(
                     controller: _descriptionController,

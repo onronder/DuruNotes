@@ -17,29 +17,31 @@ class ShareExtensionService {
     required AttachmentService attachmentService,
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _notesRepository = notesRepository,
-        _attachmentService = attachmentService,
-        _logger = logger,
-        _analytics = analytics;
+  }) : _notesRepository = notesRepository,
+       _attachmentService = attachmentService,
+       _logger = logger,
+       _analytics = analytics;
   final NotesRepository _notesRepository;
   final AttachmentService _attachmentService;
   final AppLogger _logger;
   final AnalyticsService _analytics;
 
-  static const MethodChannel _channel = MethodChannel('com.fittechs.durunotes/share_extension');
+  static const MethodChannel _channel = MethodChannel(
+    'com.fittechs.durunotes/share_extension',
+  );
 
   /// Initialize share extension handling
   Future<void> initialize() async {
     try {
       // Set up method channel for iOS
       _channel.setMethodCallHandler(_handleMethodCall);
-      
+
       // Set up Android sharing intent listener
       _initializeAndroidSharing();
-      
+
       // Process any pending shared items on app launch
       await _processSharedItemsOnLaunch();
-      
+
       _logger.info('Share extension service initialized');
     } catch (e) {
       _logger.error('Failed to initialize share extension service', error: e);
@@ -65,7 +67,7 @@ class ShareExtensionService {
   void _initializeAndroidSharing() {
     // Listen for incoming media (files, images, text, etc.)
     ReceiveSharingIntent.instance.getMediaStream().listen(
-      (List<SharedMediaFile> files) {
+      (files) {
         for (final file in files) {
           _handleSharedMedia([file]);
         }
@@ -76,7 +78,7 @@ class ShareExtensionService {
     );
 
     // Handle any media that caused the app to start
-    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> files) {
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
       if (files.isNotEmpty) {
         for (final file in files) {
           _handleSharedMedia([file]);
@@ -129,23 +131,26 @@ class ShareExtensionService {
   /// Handle shared text content
   Future<void> _handleSharedText(String sharedText) async {
     try {
-      _analytics.event('share_extension.text_received', properties: {
-        'content_length': sharedText.length,
-        'platform': Platform.operatingSystem,
-      });
+      _analytics.event(
+        'share_extension.text_received',
+        properties: {
+          'content_length': sharedText.length,
+          'platform': Platform.operatingSystem,
+        },
+      );
 
       final title = _generateTitleFromText(sharedText);
-      
+
       await _createNoteFromSharedContent(
         title: title,
         content: sharedText,
         type: 'text',
       );
 
-      _logger.info('Successfully processed shared text', data: {
-        'title': title,
-        'content_length': sharedText.length,
-      });
+      _logger.info(
+        'Successfully processed shared text',
+        data: {'title': title, 'content_length': sharedText.length},
+      );
     } catch (e) {
       _logger.error('Failed to handle shared text', error: e);
     }
@@ -154,15 +159,19 @@ class ShareExtensionService {
   /// Handle shared URL content
   Future<void> _handleSharedUrl(String sharedUrl) async {
     try {
-      _analytics.event('share_extension.url_received', properties: {
-        'url_length': sharedUrl.length,
-        'platform': Platform.operatingSystem,
-      });
+      _analytics.event(
+        'share_extension.url_received',
+        properties: {
+          'url_length': sharedUrl.length,
+          'platform': Platform.operatingSystem,
+        },
+      );
 
       final uri = Uri.tryParse(sharedUrl);
       final title = uri?.host ?? 'Shared Link';
-      
-      final noteContent = '''# $title
+
+      final noteContent =
+          '''# $title
 
 **Link**: $sharedUrl
 
@@ -175,10 +184,10 @@ class ShareExtensionService {
         type: 'url',
       );
 
-      _logger.info('Successfully processed shared URL', data: {
-        'title': title,
-        'url': sharedUrl,
-      });
+      _logger.info(
+        'Successfully processed shared URL',
+        data: {'title': title, 'url': sharedUrl},
+      );
     } catch (e) {
       _logger.error('Failed to handle shared URL', error: e);
     }
@@ -187,10 +196,13 @@ class ShareExtensionService {
   /// Handle shared media files
   Future<void> _handleSharedMedia(List<SharedMediaFile> sharedFiles) async {
     try {
-      _analytics.event('share_extension.media_received', properties: {
-        'file_count': sharedFiles.length,
-        'platform': Platform.operatingSystem,
-      });
+      _analytics.event(
+        'share_extension.media_received',
+        properties: {
+          'file_count': sharedFiles.length,
+          'platform': Platform.operatingSystem,
+        },
+      );
 
       for (final mediaFile in sharedFiles) {
         // Handle different content types based on SharedMediaType
@@ -209,9 +221,10 @@ class ShareExtensionService {
         }
       }
 
-      _logger.info('Successfully processed shared media', data: {
-        'file_count': sharedFiles.length,
-      });
+      _logger.info(
+        'Successfully processed shared media',
+        data: {'file_count': sharedFiles.length},
+      );
     } catch (e) {
       _logger.error('Failed to handle shared media', error: e);
     }
@@ -222,7 +235,7 @@ class ShareExtensionService {
     for (final item in items) {
       try {
         final type = item['type'] as String?;
-        
+
         switch (type) {
           case 'text':
             await _processSharedTextItem(item);
@@ -243,7 +256,7 @@ class ShareExtensionService {
   Future<void> _processSharedTextItem(Map<String, dynamic> item) async {
     final title = item['title'] as String? ?? 'Shared Text';
     final content = item['content'] as String? ?? '';
-    
+
     if (content.isNotEmpty) {
       await _createNoteFromSharedContent(
         title: title,
@@ -258,9 +271,10 @@ class ShareExtensionService {
     final title = item['title'] as String? ?? 'Shared Link';
     final url = item['url'] as String? ?? '';
     final content = item['content'] as String? ?? url;
-    
+
     if (url.isNotEmpty) {
-      final noteContent = '''# $title
+      final noteContent =
+          '''# $title
 
 **Link**: $url
 
@@ -282,21 +296,23 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
     final title = item['title'] as String? ?? 'Shared Image';
     final imagePath = item['imagePath'] as String?;
     final imageSize = item['imageSize'] as int? ?? 0;
-    
+
     if (imagePath != null) {
       try {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
-          
+
           // Upload image as attachment
           final attachment = await _attachmentService.uploadFromBytes(
             bytes: imageBytes,
-            filename: 'shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            filename:
+                'shared_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
           );
-          
+
           final url = attachment?.url ?? '';
-          final noteContent = '''# $title
+          final noteContent =
+              '''# $title
 
 ![Shared Image]($url)
 
@@ -309,13 +325,13 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
             content: noteContent,
             type: 'image',
           );
-          
+
           // Clean up temporary image file
           await imageFile.delete();
         }
       } catch (e) {
         _logger.error('Failed to process shared image', error: e);
-        
+
         // Fallback: create note without image
         await _createNoteFromSharedContent(
           title: title,
@@ -334,16 +350,17 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
       final fileName = mediaFile.path.split('/').last;
       final fileBytes = await file.readAsBytes();
-      
+
       if (mediaFile.type == SharedMediaType.image) {
         // Handle shared image
         final attachment = await _attachmentService.uploadFromBytes(
           bytes: fileBytes,
           filename: fileName,
         );
-        
+
         final url = attachment?.url ?? '';
-        final noteContent = '''# Shared Image
+        final noteContent =
+            '''# Shared Image
 
 ![$fileName]($url)
 
@@ -361,9 +378,10 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
           bytes: fileBytes,
           filename: fileName,
         );
-        
+
         final url = attachment?.url ?? '';
-        final noteContent = '''# Shared File: $fileName
+        final noteContent =
+            '''# Shared File: $fileName
 
 [Download $fileName]($url)
 
@@ -391,19 +409,33 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
     try {
       // Add appropriate tags based on content type
       final tags = <String>[];
-      String bodyWithTags = content;
-      
+      final tagSet = <String>{}; // PRODUCTION FIX: Tags for database storage
+      var bodyWithTags = content;
+
       // Check if this is an attachment-type content
-      if (type == 'image' || type == 'android_image' || 
-          type == 'android_file' || type == 'image_error') {
+      if (type == 'image' ||
+          type == 'android_image' ||
+          type == 'android_file' ||
+          type == 'image_error') {
         tags.add('#Attachment');
+        tagSet.add('attachment'); // PRODUCTION FIX: Normalized tag for DB
       }
-      
+
+      // PRODUCTION FIX: Extract any hashtags from the content
+      final hashtagRegex = RegExp(r'#(\w+)');
+      final matches = hashtagRegex.allMatches(content);
+      for (final match in matches) {
+        final tag = match.group(1);
+        if (tag != null) {
+          tagSet.add(tag.toLowerCase());
+        }
+      }
+
       // Append tags to body if any
       if (tags.isNotEmpty) {
         bodyWithTags = '$content\n\n${tags.join(' ')}';
       }
-      
+
       // Create metadata for the note
       final metadata = <String, dynamic>{
         'source': 'share_extension',
@@ -411,26 +443,30 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
         'platform': Platform.operatingSystem,
         if (tags.isNotEmpty) 'tags': tags.map((t) => t.substring(1)).toList(),
       };
-      
+
       final noteId = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
+        tags:
+            tagSet, // PRODUCTION FIX: Pass tags to be stored in note_tags table
         metadataJson: metadata,
       );
 
-      _analytics.event('share_extension.note_created', properties: {
-        'note_id': noteId,
-        'content_type': type,
-        'title_length': title.length,
-        'content_length': content.length,
-        'platform': Platform.operatingSystem,
-      });
+      _analytics.event(
+        'share_extension.note_created',
+        properties: {
+          'note_id': noteId,
+          'content_type': type,
+          'title_length': title.length,
+          'content_length': content.length,
+          'platform': Platform.operatingSystem,
+        },
+      );
 
-      _logger.info('Created note from shared content', data: {
-        'note_id': noteId,
-        'title': title,
-        'type': type,
-      });
+      _logger.info(
+        'Created note from shared content',
+        data: {'note_id': noteId, 'title': title, 'type': type},
+      );
     } catch (e) {
       _logger.error('Failed to create note from shared content', error: e);
       rethrow;
@@ -441,13 +477,13 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
   String _generateTitleFromText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return 'Shared Note';
-    
+
     // Use first line or first 50 characters as title
     final firstLine = trimmed.split('\n').first.trim();
     if (firstLine.length <= 50) {
       return firstLine;
     }
-    
+
     return '${firstLine.substring(0, 47)}...';
   }
 
@@ -467,12 +503,12 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
 
 /// Shared item data structure
 class SharedItem {
-
   const SharedItem({
     required this.type,
     required this.title,
     required this.content,
-    required this.timestamp, this.imagePath,
+    required this.timestamp,
+    this.imagePath,
     this.url,
     this.fileSize,
   });

@@ -226,10 +226,7 @@ enum RuleField {
           RuleOperator.between,
         ];
       case bool:
-        return [
-          RuleOperator.equals,
-          RuleOperator.notEquals,
-        ];
+        return [RuleOperator.equals, RuleOperator.notEquals];
       default:
         return [RuleOperator.equals];
     }
@@ -237,7 +234,8 @@ enum RuleField {
 }
 
 /// A single rule condition for a smart folder
-class SmartFolderRule { // For 'between' operator
+class SmartFolderRule {
+  // For 'between' operator
 
   const SmartFolderRule({
     required this.id,
@@ -289,7 +287,6 @@ class SmartFolderRule { // For 'between' operator
 
 /// Smart folder configuration
 class SmartFolderConfig {
-
   const SmartFolderConfig({
     required this.id,
     required this.name,

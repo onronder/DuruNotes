@@ -5,11 +5,13 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/notification_handler_service.dart';
+import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
-import 'package:duru_notes/ui/notes_list_screen.dart';
 import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
 import 'package:duru_notes/ui/note_edit_screen.dart';
+import 'package:duru_notes/ui/notes_list_screen.dart';
+import 'package:duru_notes/ui/widgets/offline_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,11 +19,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Main application widget with authentication flow
 class App extends ConsumerWidget {
-
-  const App({
-    super.key,
-    this.navigatorKey,
-  });
+  const App({super.key, this.navigatorKey});
   final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
@@ -31,8 +29,11 @@ class App extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     const generatedSupportedLocales = AppLocalizations.supportedLocales;
     // If a saved locale isn't generated, fall back to system
-    final effectiveLocale = (locale != null &&
-            generatedSupportedLocales.any((l) => l.languageCode == locale.languageCode))
+    final effectiveLocale =
+        (locale != null &&
+            generatedSupportedLocales.any(
+              (l) => l.languageCode == locale.languageCode,
+            ))
         ? locale
         : null;
 
@@ -50,7 +51,7 @@ class App extends ConsumerWidget {
       supportedLocales: generatedSupportedLocales,
       theme: DuruMaterial3Theme.lightTheme,
       darkTheme: DuruMaterial3Theme.darkTheme,
-      home: AuthWrapper(navigatorKey: navigatorKey),
+      home: OfflineIndicator(child: AuthWrapper(navigatorKey: navigatorKey)),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -61,7 +62,8 @@ class UnlockPassphraseView extends ConsumerStatefulWidget {
   final VoidCallback onUnlocked;
 
   @override
-  ConsumerState<UnlockPassphraseView> createState() => _UnlockPassphraseViewState();
+  ConsumerState<UnlockPassphraseView> createState() =>
+      _UnlockPassphraseViewState();
 }
 
 class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
@@ -78,9 +80,11 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
     if (_isUnlocking || _controller.text.isEmpty) return;
 
     setState(() => _isUnlocking = true);
-    
+
     try {
-      final ok = await ref.read(accountKeyServiceProvider).unlockAmkWithPassphrase(_controller.text);
+      final ok = await ref
+          .read(accountKeyServiceProvider)
+          .unlockAmkWithPassphrase(_controller.text);
       if (ok) {
         widget.onUnlocked();
       } else {
@@ -96,10 +100,7 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -121,7 +122,10 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Unlock Encryption', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Unlock Encryption',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _controller,
@@ -136,21 +140,25 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _isUnlocking ? null : _handleUnlock,
-                  child: _isUnlocking 
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Unlock'),
+                  child: _isUnlocking
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Unlock'),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: _isUnlocking ? null : () async {
-                    // Clear the AMK before signing out
-                    await ref.read(accountKeyServiceProvider).clearLocalAmk();
-                    await Supabase.instance.client.auth.signOut();
-                  },
+                  onPressed: _isUnlocking
+                      ? null
+                      : () async {
+                          // Clear the AMK before signing out
+                          await ref
+                              .read(accountKeyServiceProvider)
+                              .clearLocalAmk();
+                          await Supabase.instance.client.auth.signOut();
+                        },
                   child: const Text('Sign out'),
                 ),
               ],
@@ -165,18 +173,20 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
 /// Wrapper that handles authentication state
 class AuthWrapper extends ConsumerStatefulWidget {
   const AuthWrapper({super.key, this.navigatorKey});
-  
+
   final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
   ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingObserver {
+class _AuthWrapperState extends ConsumerState<AuthWrapper>
+    with WidgetsBindingObserver {
   bool _hasTriggeredInitialSync = false;
   ClipperInboxService? _clipperService;
   NotificationHandlerService? _notificationHandler;
   StreamSubscription<NotificationPayload>? _notificationTapSubscription;
+  QuickCaptureService? _quickCaptureService;
 
   @override
   void initState() {
@@ -196,7 +206,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     // Trigger sync when app resumes from background (if in automatic mode)
     if (state == AppLifecycleState.resumed) {
       _performAppResumeSync();
@@ -207,24 +217,24 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   Future<void> _performAppResumeSync() async {
     // Guard: skip if not authenticated yet
     if (Supabase.instance.client.auth.currentUser == null) return;
-    
+
     // Check if widget is still mounted
     if (!mounted) return;
 
     final syncModeNotifier = ref.read(syncModeProvider.notifier);
     await syncModeNotifier.performInitialSyncIfAuto();
-    
+
     // Check mounted after async operation
     if (!mounted) return;
-    
+
     if (ref.read(syncModeProvider) == SyncMode.automatic) {
       await ref.read(notesPageProvider.notifier).refresh();
-      
+
       // Load additional pages if there are more notes
       while (ref.read(hasMoreNotesProvider)) {
         await ref.read(notesPageProvider.notifier).loadMore();
       }
-      
+
       // Refresh folders as well
       await ref.read(folderHierarchyProvider.notifier).loadFolders();
     }
@@ -247,10 +257,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
                   SizedBox(height: 24),
                   Text(
                     'Loading Duru Notes...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -260,7 +267,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
 
         // Check if user is authenticated
         final session = snapshot.hasData ? snapshot.data!.session : null;
-        
+
         if (session != null) {
           // Check if AMK is present locally
           // For new signups, retry a few times as provisioning might still be in progress
@@ -276,13 +283,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
                       children: [
                         CircularProgressIndicator(),
                         SizedBox(height: 16),
-                        Text('Initializing encryption...')
+                        Text('Initializing encryption...'),
                       ],
                     ),
                   ),
                 );
               }
-              
+
               // If no AMK found after retries, show unlock screen
               if (amkSnap.data != true) {
                 // Show unlock screen for existing users on new devices
@@ -293,23 +300,28 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
                   },
                 );
               }
-              
-          // User is authenticated and AMK is available - show main app
-          _maybePerformInitialSync();
-          
-          // Initialize folder update listener
-          ref.watch(folderUpdateListenerProvider);
-          
-          // Register push token for authenticated users
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            debugPrint('🔔 Attempting push token registration after authentication...');
-            _registerPushTokenInBackground();
-            
-            // Initialize notification handler service
-            _initializeNotificationHandler();
-          });
-          
-          return const NotesListScreen();
+
+              // User is authenticated and AMK is available - show main app
+              _maybePerformInitialSync();
+
+              // Initialize folder update listener
+              ref.watch(folderUpdateListenerProvider);
+
+              // Register push token for authenticated users
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                debugPrint(
+                  '🔔 Attempting push token registration after authentication...',
+                );
+                _registerPushTokenInBackground();
+
+                // Initialize notification handler service
+                _initializeNotificationHandler();
+                
+                // Initialize quick capture service for widgets
+                _initializeQuickCaptureService();
+              });
+
+              return const NotesListScreen();
             },
           );
         } else {
@@ -317,13 +329,17 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           _hasTriggeredInitialSync = false; // Reset flag when logged out
           _clipperService?.stop(); // Stop the clipper service when logged out
           _clipperService = null;
-          
+
           // Clean up notification handler when logged out
           _notificationTapSubscription?.cancel();
           _notificationTapSubscription = null;
           _notificationHandler?.dispose();
           _notificationHandler = null;
           
+          // Clean up quick capture service when logged out
+          _quickCaptureService?.dispose();
+          _quickCaptureService = null;
+
           return const AuthScreen();
         }
       },
@@ -334,12 +350,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
   void _maybePerformInitialSync() {
     if (!_hasTriggeredInitialSync) {
       _hasTriggeredInitialSync = true;
-      
+
       // Use a post-frame callback to ensure providers are ready
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         // Check if widget is still mounted before using ref
         if (!mounted) return;
-        
+
         // Start the clipper inbox service after authentication
         try {
           _clipperService = ref.read(clipperInboxServiceProvider);
@@ -348,27 +364,27 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           // Log but don't fail - clipper service is optional
           debugPrint('Failed to start clipper inbox service: $e');
         }
-        
+
         // Check mounted again after async operation
         if (!mounted) return;
-        
+
         final syncModeNotifier = ref.read(syncModeProvider.notifier);
         await syncModeNotifier.performInitialSyncIfAuto();
-        
+
         // Check mounted before continuing
         if (!mounted) return;
-        
+
         // Refresh notes if auto-sync ran
         if (ref.read(syncModeProvider) == SyncMode.automatic) {
           await ref.read(notesPageProvider.notifier).refresh();
-          
+
           // Also load folders after sync
           await ref.read(folderHierarchyProvider.notifier).loadFolders();
         }
 
         // Check mounted before final operations
         if (!mounted) return;
-        
+
         // Production-grade boot sync: if this device has no local notes yet, force a full pull once
         try {
           final db = ref.read(appDbProvider);
@@ -376,14 +392,19 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           if (existing.isEmpty) {
             // Check mounted before long-running operations
             if (!mounted) return;
-            
+
             final syncService = ref.read(syncServiceProvider);
-            await syncService.syncWithRetry();
-            
+            final syncResult = await syncService.sync();
+
+            // Handle sync result silently - errors are already logged by SyncService
+            syncResult.onFailure((error) {
+              // Could show a user notification here if needed
+            });
+
             // Final mounted check
             if (!mounted) return;
             await ref.read(notesPageProvider.notifier).refresh();
-            
+
             // Load folders after initial sync
             await ref.read(folderHierarchyProvider.notifier).loadFolders();
           }
@@ -393,27 +414,27 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       });
     }
   }
-  
+
   /// Check for AMK with retries to handle timing issues after signup
   Future<bool> _checkForAmkWithRetry() async {
     const maxRetries = 3;
     const retryDelay = Duration(milliseconds: 500);
-    
+
     for (var i = 0; i < maxRetries; i++) {
       final amk = await ref.read(accountKeyServiceProvider).getLocalAmk();
       if (amk != null) {
         return true;
       }
-      
+
       // Don't delay on the last attempt
       if (i < maxRetries - 1) {
         await Future<void>.delayed(retryDelay);
       }
     }
-    
+
     return false;
   }
-  
+
   Future<void> _registerPushTokenInBackground() async {
     // Register push token in background to not block UI
     debugPrint('🔔 Starting push token registration...');
@@ -435,41 +456,55 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
       debugPrint('Stack trace: $stack');
     }
   }
-  
+
   Future<void> _initializeNotificationHandler() async {
     try {
       debugPrint('🔔 Initializing notification handler service...');
-      
+
       // Get the notification handler service
       _notificationHandler = ref.read(notificationHandlerServiceProvider);
-      
+
       // Initialize the service (sets up Firebase message handlers)
       await _notificationHandler!.initialize();
-      
+
       // Subscribe to notification tap events for navigation
-      _notificationTapSubscription = _notificationHandler!.onNotificationTap.listen(
-        (payload) => _handleNotificationTap(payload),
-      );
-      
+      _notificationTapSubscription = _notificationHandler!.onNotificationTap
+          .listen(_handleNotificationTap);
+
       debugPrint('✅ Notification handler service initialized successfully');
     } catch (e, stack) {
       debugPrint('❌ Failed to initialize notification handler: $e');
       debugPrint('Stack trace: $stack');
     }
   }
-  
+
+  void _initializeQuickCaptureService() {
+    try {
+      final service = ref.read(quickCaptureServiceProvider);
+      if (service != null) {
+        _quickCaptureService = service;
+        debugPrint('✅ Quick Capture Service initialized');
+      } else {
+        debugPrint('⚠️ Quick Capture Service is null');
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Failed to initialize Quick Capture Service: $e');
+      debugPrint('Stack trace: $stack');
+    }
+  }
+
   void _handleNotificationTap(NotificationPayload payload) {
     debugPrint('📱 Handling notification tap: ${payload.eventType}');
-    
+
     // Get the navigator from the global key if available
     final navigatorKey = widget.navigatorKey;
     if (navigatorKey?.currentState == null) {
       debugPrint('⚠️ Navigator not available, cannot navigate');
       return;
     }
-    
+
     final navigator = navigatorKey!.currentState!;
-    
+
     // Navigate based on event type
     switch (payload.eventType) {
       case 'email_received':
@@ -480,7 +515,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           ),
         );
         break;
-        
+
       case 'web_clip_saved':
         // Navigate to the web clip note if we have a note ID
         final noteId = payload.data['note_id'] as String?;
@@ -491,7 +526,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           debugPrint('📝 Web clip saved, returning to notes list');
         }
         break;
-        
+
       case 'note_shared':
         // Navigate to the shared note
         final noteId = payload.data['note_id'] as String?;
@@ -500,7 +535,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           _navigateToNote(navigator, noteId);
         }
         break;
-        
+
       case 'reminder_due':
         // Navigate to the note with the reminder
         final noteId = payload.data['note_id'] as String?;
@@ -509,18 +544,18 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> with WidgetsBindingOb
           _navigateToNote(navigator, noteId);
         }
         break;
-        
+
       default:
         debugPrint('⚠️ Unknown notification event type: ${payload.eventType}');
     }
   }
-  
+
   Future<void> _navigateToNote(NavigatorState navigator, String noteId) async {
     try {
       // Load the note from the repository
       final repo = ref.read(notesRepositoryProvider);
       final note = await repo.getNoteById(noteId);
-      
+
       if (note != null) {
         navigator.push(
           MaterialPageRoute(

@@ -1,5 +1,4 @@
 import 'package:duru_notes/providers.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -46,20 +45,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           email: email,
           password: password,
         );
-        
+
         // Get the user ID from the signup response or current auth state
-        final uid = signUpRes.user?.id ?? Supabase.instance.client.auth.currentUser?.id;
+        final uid =
+            signUpRes.user?.id ?? Supabase.instance.client.auth.currentUser?.id;
         if (uid != null) {
           // Provision AMK with passphrase, passing the user ID explicitly
           final passphrase = _passphraseController.text;
           final svc = ref.read(accountKeyServiceProvider);
           await svc.provisionAmkForUser(passphrase: passphrase, userId: uid);
-          
+
           // Mark that this is a new signup in a way that AuthWrapper can detect
           // This prevents showing the unlock screen for new users
           // The AMK is already stored locally during provisioning
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -75,17 +75,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
         // Let AuthWrapper in app.dart handle the unlock screen
         // This prevents duplicate unlock prompts
-        
+
         // Register push token after successful login
         _registerPushTokenInBackground();
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString()),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+          SnackBar(
+            content: Text(error.toString()),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -109,7 +109,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: SafeArea(
@@ -129,7 +129,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.2),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
@@ -271,7 +273,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 FilledButton(
                   onPressed: _isLoading ? null : _authenticate,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A9FD8), // Consistent blue color
+                    backgroundColor: const Color(
+                      0xFF4A9FD8,
+                    ), // Consistent blue color
                     foregroundColor: Colors.white, // White text
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -316,7 +320,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -362,11 +367,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _FeatureItem extends StatelessWidget {
-
-  const _FeatureItem({
-    required this.icon,
-    required this.text,
-  });
+  const _FeatureItem({required this.icon, required this.text});
   final IconData icon;
   final String text;
 
@@ -376,11 +377,7 @@ class _FeatureItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(
-            icon, 
-            size: 16, 
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

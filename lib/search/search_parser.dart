@@ -3,18 +3,6 @@ import 'package:flutter/foundation.dart';
 /// Result of parsing a search query
 @immutable
 class SearchQuery {
-  final String keywords;
-  final List<String> includeTags;
-  final List<String> excludeTags;
-  final String? folderName;
-  final bool hasAttachment;
-  final String? attachmentType;
-  final String? attachmentFilename;
-  final bool fromEmail;
-  final bool fromWeb;
-  final bool isPinned;
-  final Map<String, dynamic> rawFilters;
-
   const SearchQuery({
     this.keywords = '',
     this.includeTags = const [],
@@ -29,7 +17,36 @@ class SearchQuery {
     this.rawFilters = const {},
   });
 
-  bool get hasFilters => 
+  factory SearchQuery.fromJson(Map<String, dynamic> json) {
+    return SearchQuery(
+      keywords: json['keywords'] as String? ?? '',
+      includeTags:
+          (json['includeTags'] as List<dynamic>?)?.cast<String>() ?? [],
+      excludeTags:
+          (json['excludeTags'] as List<dynamic>?)?.cast<String>() ?? [],
+      folderName: json['folderName'] as String?,
+      hasAttachment: json['hasAttachment'] as bool? ?? false,
+      attachmentType: json['attachmentType'] as String?,
+      attachmentFilename: json['attachmentFilename'] as String?,
+      fromEmail: json['fromEmail'] as bool? ?? false,
+      fromWeb: json['fromWeb'] as bool? ?? false,
+      isPinned: json['isPinned'] as bool? ?? false,
+      rawFilters: json['rawFilters'] as Map<String, dynamic>? ?? {},
+    );
+  }
+  final String keywords;
+  final List<String> includeTags;
+  final List<String> excludeTags;
+  final String? folderName;
+  final bool hasAttachment;
+  final String? attachmentType;
+  final String? attachmentFilename;
+  final bool fromEmail;
+  final bool fromWeb;
+  final bool isPinned;
+  final Map<String, dynamic> rawFilters;
+
+  bool get hasFilters =>
       includeTags.isNotEmpty ||
       excludeTags.isNotEmpty ||
       folderName != null ||
@@ -83,22 +100,6 @@ class SearchQuery {
       'rawFilters': rawFilters,
     };
   }
-
-  factory SearchQuery.fromJson(Map<String, dynamic> json) {
-    return SearchQuery(
-      keywords: json['keywords'] as String? ?? '',
-      includeTags: (json['includeTags'] as List<dynamic>?)?.cast<String>() ?? [],
-      excludeTags: (json['excludeTags'] as List<dynamic>?)?.cast<String>() ?? [],
-      folderName: json['folderName'] as String?,
-      hasAttachment: json['hasAttachment'] as bool? ?? false,
-      attachmentType: json['attachmentType'] as String?,
-      attachmentFilename: json['attachmentFilename'] as String?,
-      fromEmail: json['fromEmail'] as bool? ?? false,
-      fromWeb: json['fromWeb'] as bool? ?? false,
-      isPinned: json['isPinned'] as bool? ?? false,
-      rawFilters: json['rawFilters'] as Map<String, dynamic>? ?? {},
-    );
-  }
 }
 
 /// Parser for search queries with special tokens
@@ -114,16 +115,16 @@ class SearchParser {
     final excludeTags = <String>[];
     final keywords = <String>[];
     String? folderName;
-    bool hasAttachment = false;
+    var hasAttachment = false;
     String? attachmentType;
     String? attachmentFilename;
-    bool fromEmail = false;
-    bool fromWeb = false;
-    bool isPinned = false;
+    var fromEmail = false;
+    var fromWeb = false;
+    var isPinned = false;
 
     // Split query into tokens, preserving quoted strings
     final parts = _tokenize(query);
-    
+
     for (final part in parts) {
       final trimmed = part.trim();
       if (trimmed.isEmpty) continue;
@@ -134,7 +135,7 @@ class SearchParser {
         if (tag.isNotEmpty) {
           includeTags.add(tag.toLowerCase());
         }
-      } 
+      }
       // Check for excluded tag tokens
       else if (trimmed.startsWith('-#')) {
         final tag = trimmed.substring(2).trim();
@@ -145,28 +146,29 @@ class SearchParser {
       // Check for folder filter
       else if (trimmed.startsWith('folder:')) {
         folderName = trimmed.substring(7).trim();
-        if (folderName!.startsWith('"') && folderName!.endsWith('"')) {
-          folderName = folderName!.substring(1, folderName!.length - 1);
+        if (folderName.startsWith('"') && folderName.endsWith('"')) {
+          folderName = folderName.substring(1, folderName.length - 1);
         }
       }
       // Check for attachment filters
       else if (trimmed == 'has:attachment') {
         hasAttachment = true;
-      }
-      else if (trimmed.startsWith('type:')) {
+      } else if (trimmed.startsWith('type:')) {
         attachmentType = trimmed.substring(5).trim();
-      }
-      else if (trimmed.startsWith('filename:')) {
+      } else if (trimmed.startsWith('filename:')) {
         attachmentFilename = trimmed.substring(9).trim();
-        if (attachmentFilename!.startsWith('"') && attachmentFilename!.endsWith('"')) {
-          attachmentFilename = attachmentFilename!.substring(1, attachmentFilename!.length - 1);
+        if (attachmentFilename.startsWith('"') &&
+            attachmentFilename.endsWith('"')) {
+          attachmentFilename = attachmentFilename.substring(
+            1,
+            attachmentFilename.length - 1,
+          );
         }
       }
       // Check for source filters
       else if (trimmed == 'from:email') {
         fromEmail = true;
-      }
-      else if (trimmed == 'from:web') {
+      } else if (trimmed == 'from:web') {
         fromWeb = true;
       }
       // Check for pinned filter
@@ -190,9 +192,7 @@ class SearchParser {
       fromEmail: fromEmail,
       fromWeb: fromWeb,
       isPinned: isPinned,
-      rawFilters: {
-        'originalQuery': query,
-      },
+      rawFilters: {'originalQuery': query},
     );
   }
 
@@ -200,10 +200,10 @@ class SearchParser {
   static List<String> _tokenize(String query) {
     final tokens = <String>[];
     final buffer = StringBuffer();
-    bool inQuotes = false;
-    bool escaped = false;
+    var inQuotes = false;
+    var escaped = false;
 
-    for (int i = 0; i < query.length; i++) {
+    for (var i = 0; i < query.length; i++) {
       final char = query[i];
 
       if (escaped) {
@@ -212,7 +212,7 @@ class SearchParser {
         continue;
       }
 
-      if (char == '\\') {
+      if (char == r'\') {
         escaped = true;
         continue;
       }
@@ -319,7 +319,10 @@ class SearchParser {
   }
 
   /// Get tag suggestions for autocomplete
-  static List<String> getTagSuggestions(String input, List<String> availableTags) {
+  static List<String> getTagSuggestions(
+    String input,
+    List<String> availableTags,
+  ) {
     if (input.isEmpty || !input.startsWith('#')) {
       return [];
     }

@@ -9,7 +9,7 @@ import 'package:geofence_service/geofence_service.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 
 /// Service responsible for managing location-based (geofence) reminders.
-/// 
+///
 /// This service handles:
 /// - Setting up and managing geofences for location-based reminders
 /// - Triggering notifications when users enter geofenced areas
@@ -20,11 +20,11 @@ class GeofenceReminderService {
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
-  
+
   static const String _locationChannelId = 'location_reminders';
   static const String _locationChannelName = 'Location Reminders';
   static const String _locationChannelDescription = 'Location-based reminders';
-  
+
   GeofenceService? _geofenceService;
   bool _initialized = false;
 
@@ -34,16 +34,19 @@ class GeofenceReminderService {
   /// Initialize the geofence service and set up notification channels
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     try {
       await _createLocationNotificationChannel();
       await _initializeGeofenceService();
       _initialized = true;
-      
+
       logger.info('GeofenceReminderService initialized');
     } catch (e, stack) {
-      logger.error('Failed to initialize GeofenceReminderService', 
-          error: e, stackTrace: stack);
+      logger.error(
+        'Failed to initialize GeofenceReminderService',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -56,9 +59,11 @@ class GeofenceReminderService {
       description: _locationChannelDescription,
       importance: Importance.high,
     );
-    
+
     await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(locationChannel);
   }
 
@@ -75,8 +80,11 @@ class GeofenceReminderService {
         geofenceRadiusSortType: GeofenceRadiusSortType.DESC,
       );
     } catch (e, stack) {
-      logger.error('Failed to initialize geofence service', 
-          error: e, stackTrace: stack);
+      logger.error(
+        'Failed to initialize geofence service',
+        error: e,
+        stackTrace: stack,
+      );
       // Don't throw - app can work without geofencing
     }
   }
@@ -84,36 +92,40 @@ class GeofenceReminderService {
   /// Check if location permissions are granted
   Future<bool> hasLocationPermissions() async {
     final permission = await geo.Geolocator.checkPermission();
-    return permission == geo.LocationPermission.whileInUse || 
-           permission == geo.LocationPermission.always;
+    return permission == geo.LocationPermission.whileInUse ||
+        permission == geo.LocationPermission.always;
   }
 
   /// Request location permissions for geofencing
   Future<bool> requestLocationPermissions() async {
     try {
       var permission = await geo.Geolocator.checkPermission();
-      
+
       if (permission == geo.LocationPermission.denied) {
         permission = await geo.Geolocator.requestPermission();
       }
-      
+
       if (permission == geo.LocationPermission.deniedForever) {
         analytics.event('location.permission_denied_forever');
         return false;
       }
-      
-      final granted = permission == geo.LocationPermission.whileInUse || 
-                     permission == geo.LocationPermission.always;
-      
+
+      final granted =
+          permission == geo.LocationPermission.whileInUse ||
+          permission == geo.LocationPermission.always;
+
       analytics.event(
         granted ? 'location.permission_granted' : 'location.permission_denied',
         properties: {'permission_type': permission.name},
       );
-      
+
       return granted;
     } catch (e, stack) {
-      logger.error('Failed to request location permissions', 
-          error: e, stackTrace: stack);
+      logger.error(
+        'Failed to request location permissions',
+        error: e,
+        stackTrace: stack,
+      );
       return false;
     }
   }
@@ -133,14 +145,14 @@ class GeofenceReminderService {
     if (!_initialized) {
       throw StateError('GeofenceReminderService not initialized');
     }
-    
+
     try {
       // Check location permissions
       if (!await hasLocationPermissions()) {
         logger.warn('Cannot create location reminder - missing permissions');
         return null;
       }
-      
+
       // Create reminder in database
       final reminderId = await _db.createReminder(
         NoteRemindersCompanion.insert(
@@ -156,25 +168,37 @@ class GeofenceReminderService {
           notificationBody: Value(customNotificationBody),
         ),
       );
-      
+
       // Set up geofence
-      await _setupGeofence(reminderId, latitude, longitude, radius, title, body);
-      
-      analytics.event(AnalyticsEvents.reminderSet, properties: {
-        'type': 'location',
-        'radius_meters': radius.round(),
-        'has_location_name': locationName != null,
-      });
-      
+      await _setupGeofence(
+        reminderId,
+        latitude,
+        longitude,
+        radius,
+        title,
+        body,
+      );
+
+      analytics.event(
+        AnalyticsEvents.reminderSet,
+        properties: {
+          'type': 'location',
+          'radius_meters': radius.round(),
+          'has_location_name': locationName != null,
+        },
+      );
+
       return reminderId;
-      
     } catch (e, stack) {
-      logger.error('Failed to create location reminder', 
-          error: e, stackTrace: stack);
-      analytics.event('reminder.create_error', properties: {
-        'type': 'location',
-        'error': e.toString(),
-      });
+      logger.error(
+        'Failed to create location reminder',
+        error: e,
+        stackTrace: stack,
+      );
+      analytics.event(
+        'reminder.create_error',
+        properties: {'type': 'location', 'error': e.toString()},
+      );
       return null;
     }
   }
@@ -189,22 +213,19 @@ class GeofenceReminderService {
     String body,
   ) async {
     if (_geofenceService == null) return;
-    
+
     final geofence = Geofence(
       id: 'reminder_$reminderId',
       latitude: latitude,
       longitude: longitude,
-      radius: [
-        GeofenceRadius(id: 'radius_$reminderId', length: radius),
-      ],
+      radius: [GeofenceRadius(id: 'radius_$reminderId', length: radius)],
     );
-    
+
     try {
       _geofenceService!.addGeofence(geofence);
-      
+
       // TODO: Set up geofence callback - API may have changed
       // _geofenceService!.addGeofenceStatusChanged(_onGeofenceStatusChanged);
-      
     } catch (e, stack) {
       logger.error('Failed to setup geofence', error: e, stackTrace: stack);
     }
@@ -224,7 +245,7 @@ class GeofenceReminderService {
   //     if (geofenceId.startsWith('reminder_')) {
   //       final reminderIdStr = geofenceId.substring('reminder_'.length);
   //       final reminderId = int.tryParse(reminderIdStr);
-  //       
+  //
   //       if (reminderId != null) {
   //         await triggerLocationReminder(reminderId);
   //       }
@@ -237,21 +258,23 @@ class GeofenceReminderService {
     try {
       final reminder = await _db.getReminderById(reminderId);
       if (reminder == null || !reminder.isActive) return;
-      
+
       // Show notification
       await _showLocationNotification(reminder);
-      
+
       // Mark as triggered
       await _db.markReminderTriggered(reminderId);
-      
-      analytics.event('reminder.triggered', properties: {
-        'type': 'location',
-        'reminder_id': reminderId,
-      });
-      
+
+      analytics.event(
+        'reminder.triggered',
+        properties: {'type': 'location', 'reminder_id': reminderId},
+      );
     } catch (e, stack) {
-      logger.error('Failed to trigger location reminder', 
-          error: e, stackTrace: stack);
+      logger.error(
+        'Failed to trigger location reminder',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -263,12 +286,13 @@ class GeofenceReminderService {
         'reminderId': reminder.id,
         'type': 'location',
       });
-      
+
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
-      final body = reminder.notificationBody ?? 
+      final body =
+          reminder.notificationBody ??
           "You're near $locationText - ${reminder.title}";
-      
+
       await _plugin.show(
         notificationId,
         title,
@@ -291,10 +315,12 @@ class GeofenceReminderService {
         ),
         payload: payload,
       );
-      
     } catch (e, stack) {
-      logger.error('Failed to show location notification', 
-          error: e, stackTrace: stack);
+      logger.error(
+        'Failed to show location notification',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -312,7 +338,7 @@ class GeofenceReminderService {
   /// Remove a geofence for a reminder
   Future<void> removeGeofence(int reminderId) async {
     if (_geofenceService == null) return;
-    
+
     try {
       // TODO: Fix geofence removal when API is stable
       logger.info('Geofence removal requested for reminder $reminderId');
@@ -330,12 +356,16 @@ class GeofenceReminderService {
   /// Get all active geofences
   Future<List<Geofence>> getActiveGeofences() async {
     if (_geofenceService == null) return [];
-    
+
     try {
       // TODO: Fix geofence listing when API is stable
       return <Geofence>[];
     } catch (e, stack) {
-      logger.error('Failed to get active geofences', error: e, stackTrace: stack);
+      logger.error(
+        'Failed to get active geofences',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }

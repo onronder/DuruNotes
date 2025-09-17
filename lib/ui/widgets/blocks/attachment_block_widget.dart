@@ -3,7 +3,7 @@ import 'package:duru_notes/ui/widgets/attachment_image.dart';
 import 'package:flutter/material.dart';
 
 /// Widget for rendering and editing attachment blocks.
-/// 
+///
 /// This widget handles:
 /// - File attachment display with appropriate icons
 /// - Image preview capabilities with caching
@@ -12,15 +12,18 @@ import 'package:flutter/material.dart';
 /// - Block deletion functionality
 class AttachmentBlockWidget extends StatelessWidget {
   const AttachmentBlockWidget({
-    required this.block, required this.onChanged, required this.onDelete, super.key,
+    required this.block,
+    required this.onChanged,
+    required this.onDelete,
+    super.key,
   });
 
   /// The attachment block being edited
   final NoteBlock block;
-  
+
   /// Callback when the block content changes
   final ValueChanged<NoteBlock> onChanged;
-  
+
   /// Callback when the block should be deleted
   final VoidCallback onDelete;
 
@@ -44,13 +47,13 @@ class AttachmentBlockWidget extends StatelessWidget {
         children: [
           // Attachment header with file info and actions
           _buildAttachmentHeader(context),
-          
+
           // Preview content
           if (_isImageFile(_attachmentData['filename']!))
             _buildImagePreview(context)
           else
             _buildFilePreview(context),
-          
+
           // Action buttons
           _buildActionButtons(context),
         ],
@@ -74,12 +77,12 @@ class AttachmentBlockWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _attachmentData['filename']!.isNotEmpty 
-                      ? _attachmentData['filename']! 
+                  _attachmentData['filename']!.isNotEmpty
+                      ? _attachmentData['filename']!
                       : 'Untitled attachment',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -87,7 +90,9 @@ class AttachmentBlockWidget extends StatelessWidget {
                   Text(
                     _getFileTypeAndSize(_attachmentData['filename']!),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
               ],
@@ -139,13 +144,17 @@ class AttachmentBlockWidget extends StatelessWidget {
               Icon(
                 _getFileIcon(_attachmentData['filename']!),
                 size: 32,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 4),
               Text(
                 _getFileExtension(_attachmentData['filename']!).toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -168,7 +177,7 @@ class AttachmentBlockWidget extends StatelessWidget {
             label: const Text('Edit'),
           ),
           const SizedBox(width: 8),
-          
+
           // View/Download button
           if (_attachmentData['path']?.isNotEmpty ?? false)
             TextButton.icon(
@@ -176,9 +185,9 @@ class AttachmentBlockWidget extends StatelessWidget {
               icon: const Icon(Icons.open_in_new, size: 16),
               label: const Text('View'),
             ),
-          
+
           const Spacer(),
-          
+
           // Replace button
           OutlinedButton.icon(
             onPressed: () => _replaceAttachment(context),
@@ -191,9 +200,13 @@ class AttachmentBlockWidget extends StatelessWidget {
   }
 
   Future<void> _editAttachment(BuildContext context) async {
-    final filenameController = TextEditingController(text: _attachmentData['filename']);
-    final urlController = TextEditingController(text: _attachmentData['path'] ?? '');
-    
+    final filenameController = TextEditingController(
+      text: _attachmentData['filename'],
+    );
+    final urlController = TextEditingController(
+      text: _attachmentData['path'] ?? '',
+    );
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,28 +244,30 @@ class AttachmentBlockWidget extends StatelessWidget {
         ],
       ),
     );
-    
+
     if (result ?? false) {
       // Update the attachment data
-      final updatedData = '${_attachmentData['filename']}|${urlController.text}|${_attachmentData['size']}|${_attachmentData['mimeType']}';
+      final updatedData =
+          '${_attachmentData['filename']}|${urlController.text}|${_attachmentData['size']}|${_attachmentData['mimeType']}';
       final updated = block.copyWith(data: updatedData);
       onChanged(updated);
       /* TODO: Implement proper attachment update
       */
     }
-    
+
     filenameController.dispose();
     urlController.dispose();
   }
 
   void _viewAttachment(BuildContext context) {
     if (_attachmentData['path']?.isEmpty ?? false) return;
-    
+
     if (_isImageFile(_attachmentData['filename']!)) {
       // Show image in full screen
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => AttachmentViewer(url: _attachmentData['path'] ?? ''),
+          builder: (context) =>
+              AttachmentViewer(url: _attachmentData['path'] ?? ''),
         ),
       );
     } else {
@@ -273,7 +288,7 @@ class AttachmentBlockWidget extends StatelessWidget {
 
   Future<void> _replaceAttachment(BuildContext context) async {
     // final service = AttachmentService();
-    
+
     // Show loading dialog
     showDialog<void>(
       context: context,
@@ -291,22 +306,23 @@ class AttachmentBlockWidget extends StatelessWidget {
     try {
       // TODO: Implement file picker and upload functionality
       // final newAttachment = await service.pickAndUpload();
-      
+
       // Dismiss loading dialog
       if (context.mounted) {
         Navigator.of(context).pop();
       }
-      
+
       // For now, just show placeholder behavior
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Attachment replacement will be implemented soon')),
+        const SnackBar(
+          content: Text('Attachment replacement will be implemented soon'),
+        ),
       );
-      
+
       // if (newAttachment != null && context.mounted) {
       //   final updatedBlock = block.copyWith(data: newAttachment);
       //   onChanged(updatedBlock);
       // }
-      
     } catch (e) {
       // Dismiss loading dialog
       if (context.mounted) {
@@ -379,13 +395,14 @@ class AttachmentBlockWidget extends StatelessWidget {
 /// Widget for compact attachment display in previews.
 class AttachmentBlockPreview extends StatelessWidget {
   const AttachmentBlockPreview({
-    required this.attachmentData, super.key,
+    required this.attachmentData,
+    super.key,
     this.showPreview = true,
   });
 
   /// The attachment data to display
   final Map<String, String> attachmentData;
-  
+
   /// Whether to show image previews
   final bool showPreview;
 
@@ -404,8 +421,8 @@ class AttachmentBlockPreview extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                attachmentData['filename']?.isNotEmpty ?? false 
-                    ? attachmentData['filename']! 
+                attachmentData['filename']?.isNotEmpty ?? false
+                    ? attachmentData['filename']!
                     : 'Attachment',
                 style: Theme.of(context).textTheme.bodySmall,
                 maxLines: 1,

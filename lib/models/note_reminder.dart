@@ -1,13 +1,17 @@
-import 'package:duru_notes/data/local/app_db.dart' show RecurrencePattern, ReminderType;
+import 'package:duru_notes/data/local/app_db.dart'
+    show RecurrencePattern, ReminderType;
 
 /// Domain model representing a note reminder with all its properties.
 class NoteReminder {
-
   const NoteReminder({
     required this.id,
     required this.noteId,
     required this.title,
-    required this.type, required this.scheduledTime, required this.createdAt, required this.updatedAt, this.body,
+    required this.type,
+    required this.scheduledTime,
+    required this.createdAt,
+    required this.updatedAt,
+    this.body,
     this.remindAt,
     this.isCompleted = false,
     this.isSnoozed = false,
@@ -131,28 +135,28 @@ class NoteReminder {
 
   @override
   int get hashCode => Object.hashAll([
-        id,
-        noteId,
-        title,
-        body,
-        type,
-        scheduledTime,
-        remindAt,
-        isCompleted,
-        isSnoozed,
-        snoozedUntil,
-        isActive,
-        recurrencePattern,
-        recurrenceInterval,
-        recurrenceEndDate,
-        latitude,
-        longitude,
-        radius,
-        locationName,
-        notificationTitle,
-        notificationBody,
-        timeZone,
-        createdAt,
-        updatedAt,
-      ]);
+    id,
+    noteId,
+    title,
+    body,
+    type,
+    scheduledTime,
+    remindAt,
+    isCompleted,
+    isSnoozed,
+    snoozedUntil,
+    isActive,
+    recurrencePattern,
+    recurrenceInterval,
+    recurrenceEndDate,
+    latitude,
+    longitude,
+    radius,
+    locationName,
+    notificationTitle,
+    notificationBody,
+    timeZone,
+    createdAt,
+    updatedAt,
+  ]);
 }

@@ -1,20 +1,21 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/task_service.dart';
-import 'package:flutter/foundation.dart';
 
 /// Service for syncing tasks between note content and task database
 class NoteTaskSyncService {
   NoteTaskSyncService({
     required AppDb database,
     required TaskService taskService,
-  })  : _db = database,
-        _taskService = taskService;
+  }) : _db = database,
+       _taskService = taskService;
 
   final AppDb _db;
   final TaskService _taskService;
+  final AppLogger _logger = LoggerFactory.instance;
   final Map<String, StreamSubscription<LocalNote?>> _noteSubscriptions = {};
 
   /// Initialize task sync for a note
@@ -23,9 +24,7 @@ class NoteTaskSyncService {
     await _noteSubscriptions[noteId]?.cancel();
 
     // Watch for note changes
-    _noteSubscriptions[noteId] = _db
-        .watchNote(noteId)
-        .listen((LocalNote? note) async {
+    _noteSubscriptions[noteId] = _db.watchNote(noteId).listen((note) async {
       if (note != null) {
         await syncTasksForNote(noteId, note.body);
       }
@@ -49,7 +48,7 @@ class NoteTaskSyncService {
     try {
       await _db.syncTasksWithNoteContent(noteId, noteContent);
     } catch (e) {
-      debugPrint('Error syncing tasks for note $noteId: $e');
+      _logger.debug('Error syncing tasks for note $noteId: $e');
     }
   }
 
@@ -75,7 +74,8 @@ class NoteTaskSyncService {
         final line = lines[i];
         final trimmedLine = line.trim();
 
-        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        if (trimmedLine.startsWith('- [ ]') ||
+            trimmedLine.startsWith('- [x]')) {
           if (position == task.position) {
             // Found the task line, update it
             final content = trimmedLine.substring(5).trim();
@@ -99,7 +99,7 @@ class NoteTaskSyncService {
         );
       }
     } catch (e) {
-      debugPrint('Error updating note content for task: $e');
+      _logger.debug('Error updating note content for task: $e');
     }
   }
 
@@ -137,7 +137,7 @@ class NoteTaskSyncService {
       // Sync tasks after adding
       await syncTasksForNote(noteId, updatedContent);
     } catch (e) {
-      debugPrint('Error adding task to note: $e');
+      _logger.debug('Error adding task to note: $e');
     }
   }
 
@@ -160,7 +160,8 @@ class NoteTaskSyncService {
       for (var i = 0; i < lines.length; i++) {
         final trimmedLine = lines[i].trim();
 
-        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        if (trimmedLine.startsWith('- [ ]') ||
+            trimmedLine.startsWith('- [x]')) {
           if (position == task.position) {
             lineToRemove = i;
             break;
@@ -172,7 +173,7 @@ class NoteTaskSyncService {
       if (lineToRemove >= 0) {
         lines.removeAt(lineToRemove);
         final updatedContent = lines.join('\n');
-        
+
         await _db.updateNote(
           noteId,
           LocalNotesCompanion(
@@ -185,7 +186,7 @@ class NoteTaskSyncService {
         await _taskService.deleteTask(taskId);
       }
     } catch (e) {
-      debugPrint('Error removing task from note: $e');
+      _logger.debug('Error removing task from note: $e');
     }
   }
 
@@ -209,7 +210,8 @@ class NoteTaskSyncService {
         final line = lines[i];
         final trimmedLine = line.trim();
 
-        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        if (trimmedLine.startsWith('- [ ]') ||
+            trimmedLine.startsWith('- [x]')) {
           if (position == task.position) {
             final isCompleted = trimmedLine.startsWith('- [x]');
             final prefix = line.substring(0, line.indexOf('-'));
@@ -230,12 +232,9 @@ class NoteTaskSyncService {
       );
 
       // Update task in database
-      await _taskService.updateTask(
-        taskId: taskId,
-        content: newContent,
-      );
+      await _taskService.updateTask(taskId: taskId, content: newContent);
     } catch (e) {
-      debugPrint('Error updating task in note: $e');
+      _logger.debug('Error updating task in note: $e');
     }
   }
 
@@ -257,7 +256,8 @@ class NoteTaskSyncService {
       // Extract task lines
       for (var i = 0; i < lines.length; i++) {
         final trimmedLine = lines[i].trim();
-        if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+        if (trimmedLine.startsWith('- [ ]') ||
+            trimmedLine.startsWith('- [x]')) {
           taskLines[position] = lines[i];
           lines[i] = '___TASK_PLACEHOLDER_${position}___';
           position++;
@@ -271,7 +271,7 @@ class NoteTaskSyncService {
         final newPosition = entry.value;
         final task = tasks.firstWhere((t) => t.id == taskId);
         final oldPosition = task.position;
-        
+
         if (taskLines.containsKey(oldPosition)) {
           reorderedTaskLines[newPosition] = taskLines[oldPosition]!;
         }
@@ -300,7 +300,7 @@ class NoteTaskSyncService {
       // Update task positions in database
       await _taskService.updateTaskPositions(newPositions);
     } catch (e) {
-      debugPrint('Error reordering tasks in note: $e');
+      _logger.debug('Error reordering tasks in note: $e');
     }
   }
 
@@ -312,27 +312,31 @@ class NoteTaskSyncService {
 
     for (final line in lines) {
       final trimmedLine = line.trim();
-      
+
       if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
         final isCompleted = trimmedLine.startsWith('- [x]');
         final taskContent = trimmedLine.substring(5).trim();
-        
+
         if (taskContent.isNotEmpty) {
           // Parse due date if present (format: - [ ] Task @due(2024-12-25))
           DateTime? dueDate;
           var cleanContent = taskContent;
-          
-          final dueDateMatch = RegExp(r'@due\((\d{4}-\d{2}-\d{2})\)').firstMatch(taskContent);
+
+          final dueDateMatch = RegExp(
+            r'@due\((\d{4}-\d{2}-\d{2})\)',
+          ).firstMatch(taskContent);
           if (dueDateMatch != null) {
             try {
               dueDate = DateTime.parse(dueDateMatch.group(1)!);
-              cleanContent = taskContent.replaceAll(dueDateMatch.group(0)!, '').trim();
+              cleanContent = taskContent
+                  .replaceAll(dueDateMatch.group(0)!, '')
+                  .trim();
             } catch (_) {}
           }
 
           // Parse priority if present (format: - [ ] Task !high)
-          TaskPriority priority = TaskPriority.medium;
-          
+          var priority = TaskPriority.medium;
+
           if (cleanContent.contains('!urgent')) {
             priority = TaskPriority.urgent;
             cleanContent = cleanContent.replaceAll('!urgent', '').trim();
@@ -344,14 +348,16 @@ class NoteTaskSyncService {
             cleanContent = cleanContent.replaceAll('!low', '').trim();
           }
 
-          tasks.add(TaskInfo(
-            content: cleanContent,
-            isCompleted: isCompleted,
-            position: position,
-            dueDate: dueDate,
-            priority: priority,
-          ));
-          
+          tasks.add(
+            TaskInfo(
+              content: cleanContent,
+              isCompleted: isCompleted,
+              position: position,
+              dueDate: dueDate,
+              priority: priority,
+            ),
+          );
+
           position++;
         }
       }

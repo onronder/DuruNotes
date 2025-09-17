@@ -1,0 +1,539 @@
+{
+  "@@locale": "tr",
+  "notesListTitle": "Notlarım",
+  "@notesListTitle": {
+    "description": "Title for the notes list screen"
+  },
+  "createNewNote": "Yeni Not Oluştur",
+  "@createNewNote": {
+    "description": "Button to create a new note"
+  },
+  "searchNotes": "Notlarda Ara",
+  "@searchNotes": {
+    "description": "Search bar placeholder"
+  },
+  "noNotesYet": "Henüz not yok",
+  "@noNotesYet": {
+    "description": "Empty state message"
+  },
+  "deleteNote": "Notu Sil",
+  "@deleteNote": {
+    "description": "Delete note action"
+  },
+  "confirmDelete": "Silmeyi Onayla",
+  "@confirmDelete": {
+    "description": "Confirm deletion dialog title"
+  },
+  "deleteNoteMessage": "Bu notu silmek istediğinizden emin misiniz?",
+  "@deleteNoteMessage": {
+    "description": "Delete confirmation message"
+  },
+  "cancel": "İptal",
+  "@cancel": {
+    "description": "Cancel action"
+  },
+  "delete": "Sil",
+  "@delete": {
+    "description": "Delete action"
+  },
+  "save": "Kaydet",
+  "@save": {
+    "description": "Save action"
+  },
+  "edit": "Düzenle",
+  "@edit": {
+    "description": "Edit action"
+  },
+  "share": "Paylaş",
+  "@share": {
+    "description": "Share action"
+  },
+  "settings": "Ayarlar",
+  "@settings": {
+    "description": "Settings screen title"
+  },
+  "darkMode": "Karanlık Mod",
+  "@darkMode": {
+    "description": "Dark mode setting"
+  },
+  "language": "Dil",
+  "@language": {
+    "description": "Language setting"
+  },
+  "about": "Hakkında",
+  "@about": {
+    "description": "About section"
+  },
+  "version": "Sürüm",
+  "@version": {
+    "description": "Version label"
+  },
+  "noteUpdated": "Not güncellendi",
+  "@noteUpdated": {
+    "description": "Note updated message"
+  },
+  "noteCreated": "Not oluşturuldu",
+  "@noteCreated": {
+    "description": "Note created message"
+  },
+  "noteDeleted": "Not silindi",
+  "@noteDeleted": {
+    "description": "Note deleted message"
+  },
+  "error": "Hata",
+  "@error": {
+    "description": "Error title"
+  },
+  "retry": "Tekrar Dene",
+  "@retry": {
+    "description": "Retry action"
+  },
+  "noInternetConnection": "İnternet bağlantısı yok",
+  "@noInternetConnection": {
+    "description": "No internet connection message"
+  },
+  "offlineMode": "Çevrimdışı Mod",
+  "@offlineMode": {
+    "description": "Offline mode indicator"
+  },
+  "syncing": "Senkronize ediliyor",
+  "@syncing": {
+    "description": "Syncing status"
+  },
+  "syncComplete": "Senkronizasyon tamamlandı",
+  "@syncComplete": {
+    "description": "Sync complete message"
+  },
+  "syncFailed": "Senkronizasyon başarısız",
+  "@syncFailed": {
+    "description": "Sync failed message"
+  },
+  "signIn": "Giriş Yap",
+  "@signIn": {
+    "description": "Sign in action"
+  },
+  "signOut": "Çıkış Yap",
+  "@signOut": {
+    "description": "Sign out action"
+  },
+  "email": "E-posta",
+  "@email": {
+    "description": "Email field label"
+  },
+  "password": "Şifre",
+  "@password": {
+    "description": "Password field label"
+  },
+  "forgotPassword": "Şifremi Unuttum",
+  "@forgotPassword": {
+    "description": "Forgot password link"
+  },
+  "signUp": "Kayıt Ol",
+  "@signUp": {
+    "description": "Sign up action"
+  },
+  "alreadyHaveAccount": "Zaten hesabınız var mı?",
+  "@alreadyHaveAccount": {
+    "description": "Already have account message"
+  },
+  "dontHaveAccount": "Hesabınız yok mu?",
+  "@dontHaveAccount": {
+    "description": "Don't have account message"
+  },
+  "welcomeBack": "Tekrar Hoş Geldiniz",
+  "@welcomeBack": {
+    "description": "Welcome back message"
+  },
+  "createAccount": "Hesap Oluştur",
+  "@createAccount": {
+    "description": "Create account title"
+  },
+  "inbox": "Gelen Kutusu",
+  "@inbox": {
+    "description": "Inbox title"
+  },
+  "emailInbox": "E-posta Gelen Kutusu",
+  "@emailInbox": {
+    "description": "Email inbox title"
+  },
+  "webClips": "Web Klipleri",
+  "@webClips": {
+    "description": "Web clips title"
+  },
+  "convertToNote": "Nota Dönüştür",
+  "@convertToNote": {
+    "description": "Convert to note action"
+  },
+  "deleteItem": "Öğeyi Sil",
+  "@deleteItem": {
+    "description": "Delete item action"
+  },
+  "emptyInbox": "Gelen kutusu boş",
+  "@emptyInbox": {
+    "description": "Empty inbox message"
+  },
+  "tasks": "Görevler",
+  "@tasks": {
+    "description": "Tasks title"
+  },
+  "createTask": "Görev Oluştur",
+  "@createTask": {
+    "description": "Create task action"
+  },
+  "taskTitle": "Görev Başlığı",
+  "@taskTitle": {
+    "description": "Task title field"
+  },
+  "taskDescription": "Görev Açıklaması",
+  "@taskDescription": {
+    "description": "Task description field"
+  },
+  "dueDate": "Bitiş Tarihi",
+  "@dueDate": {
+    "description": "Due date field"
+  },
+  "priority": "Öncelik",
+  "@priority": {
+    "description": "Priority field"
+  },
+  "highPriority": "Yüksek Öncelik",
+  "@highPriority": {
+    "description": "High priority label"
+  },
+  "mediumPriority": "Orta Öncelik",
+  "@mediumPriority": {
+    "description": "Medium priority label"
+  },
+  "lowPriority": "Düşük Öncelik",
+  "@lowPriority": {
+    "description": "Low priority label"
+  },
+  "completed": "Tamamlandı",
+  "@completed": {
+    "description": "Completed status"
+  },
+  "pending": "Beklemede",
+  "@pending": {
+    "description": "Pending status"
+  },
+  "overdue": "Gecikmiş",
+  "@overdue": {
+    "description": "Overdue status"
+  },
+  "today": "Bugün",
+  "@today": {
+    "description": "Today label"
+  },
+  "tomorrow": "Yarın",
+  "@tomorrow": {
+    "description": "Tomorrow label"
+  },
+  "thisWeek": "Bu Hafta",
+  "@thisWeek": {
+    "description": "This week label"
+  },
+  "folders": "Klasörler",
+  "@folders": {
+    "description": "Folders title"
+  },
+  "createFolder": "Klasör Oluştur",
+  "@createFolder": {
+    "description": "Create folder action"
+  },
+  "folderName": "Klasör Adı",
+  "@folderName": {
+    "description": "Folder name field"
+  },
+  "moveToFolder": "Klasöre Taşı",
+  "@moveToFolder": {
+    "description": "Move to folder action"
+  },
+  "tags": "Etiketler",
+  "@tags": {
+    "description": "Tags title"
+  },
+  "addTag": "Etiket Ekle",
+  "@addTag": {
+    "description": "Add tag action"
+  },
+  "filterByTag": "Etikete Göre Filtrele",
+  "@filterByTag": {
+    "description": "Filter by tag action"
+  },
+  "sortBy": "Sıralama",
+  "@sortBy": {
+    "description": "Sort by label"
+  },
+  "dateCreated": "Oluşturulma Tarihi",
+  "@dateCreated": {
+    "description": "Date created sort option"
+  },
+  "dateModified": "Değiştirilme Tarihi",
+  "@dateModified": {
+    "description": "Date modified sort option"
+  },
+  "alphabetical": "Alfabetik",
+  "@alphabetical": {
+    "description": "Alphabetical sort option"
+  },
+  "gridView": "Izgara Görünümü",
+  "@gridView": {
+    "description": "Grid view option"
+  },
+  "listView": "Liste Görünümü",
+  "@listView": {
+    "description": "List view option"
+  },
+  "pinNote": "Notu Sabitle",
+  "@pinNote": {
+    "description": "Pin note action"
+  },
+  "unpinNote": "Sabitlemeyi Kaldır",
+  "@unpinNote": {
+    "description": "Unpin note action"
+  },
+  "pinnedNotes": "Sabitlenmiş Notlar",
+  "@pinnedNotes": {
+    "description": "Pinned notes section"
+  },
+  "allNotes": "Tüm Notlar",
+  "@allNotes": {
+    "description": "All notes section"
+  },
+  "searchResults": "Arama Sonuçları",
+  "@searchResults": {
+    "description": "Search results title"
+  },
+  "noResultsFound": "Sonuç bulunamadı",
+  "@noResultsFound": {
+    "description": "No results found message"
+  },
+  "tryDifferentKeywords": "Farklı anahtar kelimeler deneyin",
+  "@tryDifferentKeywords": {
+    "description": "Try different keywords suggestion"
+  },
+  "attachments": "Ekler",
+  "@attachments": {
+    "description": "Attachments label"
+  },
+  "addAttachment": "Ek Ekle",
+  "@addAttachment": {
+    "description": "Add attachment action"
+  },
+  "viewAttachment": "Eki Görüntüle",
+  "@viewAttachment": {
+    "description": "View attachment action"
+  },
+  "downloadAttachment": "Eki İndir",
+  "@downloadAttachment": {
+    "description": "Download attachment action"
+  },
+  "export": "Dışa Aktar",
+  "@export": {
+    "description": "Export action"
+  },
+  "import": "İçe Aktar",
+  "@import": {
+    "description": "Import action"
+  },
+  "exportNotes": "Notları Dışa Aktar",
+  "@exportNotes": {
+    "description": "Export notes title"
+  },
+  "importNotes": "Notları İçe Aktar",
+  "@importNotes": {
+    "description": "Import notes title"
+  },
+  "selectFormat": "Format Seçin",
+  "@selectFormat": {
+    "description": "Select format prompt"
+  },
+  "markdown": "Markdown",
+  "@markdown": {
+    "description": "Markdown format"
+  },
+  "plainText": "Düz Metin",
+  "@plainText": {
+    "description": "Plain text format"
+  },
+  "json": "JSON",
+  "@json": {
+    "description": "JSON format"
+  },
+  "confirmAction": "İşlemi Onayla",
+  "@confirmAction": {
+    "description": "Confirm action title"
+  },
+  "areYouSure": "Emin misiniz?",
+  "@areYouSure": {
+    "description": "Are you sure prompt"
+  },
+  "yes": "Evet",
+  "@yes": {
+    "description": "Yes option"
+  },
+  "no": "Hayır",
+  "@no": {
+    "description": "No option"
+  },
+  "loading": "Yükleniyor",
+  "@loading": {
+    "description": "Loading message"
+  },
+  "pleaseWait": "Lütfen bekleyin",
+  "@pleaseWait": {
+    "description": "Please wait message"
+  },
+  "processingRequest": "İstek işleniyor",
+  "@processingRequest": {
+    "description": "Processing request message"
+  },
+  "success": "Başarılı",
+  "@success": {
+    "description": "Success message"
+  },
+  "failed": "Başarısız",
+  "@failed": {
+    "description": "Failed message"
+  },
+  "warning": "Uyarı",
+  "@warning": {
+    "description": "Warning title"
+  },
+  "info": "Bilgi",
+  "@info": {
+    "description": "Info title"
+  },
+  "help": "Yardım",
+  "@help": {
+    "description": "Help title"
+  },
+  "support": "Destek",
+  "@support": {
+    "description": "Support title"
+  },
+  "feedback": "Geri Bildirim",
+  "@feedback": {
+    "description": "Feedback title"
+  },
+  "reportBug": "Hata Bildir",
+  "@reportBug": {
+    "description": "Report bug action"
+  },
+  "featureRequest": "Özellik İsteği",
+  "@featureRequest": {
+    "description": "Feature request action"
+  },
+  "privacyPolicy": "Gizlilik Politikası",
+  "@privacyPolicy": {
+    "description": "Privacy policy link"
+  },
+  "termsOfService": "Kullanım Koşulları",
+  "@termsOfService": {
+    "description": "Terms of service link"
+  },
+  "notifications": "Bildirimler",
+  "@notifications": {
+    "description": "Notifications title"
+  },
+  "enableNotifications": "Bildirimleri Etkinleştir",
+  "@enableNotifications": {
+    "description": "Enable notifications option"
+  },
+  "notificationSettings": "Bildirim Ayarları",
+  "@notificationSettings": {
+    "description": "Notification settings title"
+  },
+  "backup": "Yedekleme",
+  "@backup": {
+    "description": "Backup title"
+  },
+  "restore": "Geri Yükle",
+  "@restore": {
+    "description": "Restore action"
+  },
+  "lastBackup": "Son Yedekleme",
+  "@lastBackup": {
+    "description": "Last backup label"
+  },
+  "autoBackup": "Otomatik Yedekleme",
+  "@autoBackup": {
+    "description": "Auto backup option"
+  },
+  "security": "Güvenlik",
+  "@security": {
+    "description": "Security title"
+  },
+  "encryption": "Şifreleme",
+  "@encryption": {
+    "description": "Encryption option"
+  },
+  "biometricAuth": "Biyometrik Kimlik Doğrulama",
+  "@biometricAuth": {
+    "description": "Biometric auth option"
+  },
+  "changePassword": "Şifre Değiştir",
+  "@changePassword": {
+    "description": "Change password action"
+  },
+  "accountSettings": "Hesap Ayarları",
+  "@accountSettings": {
+    "description": "Account settings title"
+  },
+  "profile": "Profil",
+  "@profile": {
+    "description": "Profile title"
+  },
+  "editProfile": "Profili Düzenle",
+  "@editProfile": {
+    "description": "Edit profile action"
+  },
+  "username": "Kullanıcı Adı",
+  "@username": {
+    "description": "Username field"
+  },
+  "fullName": "Ad Soyad",
+  "@fullName": {
+    "description": "Full name field"
+  },
+  "bio": "Biyografi",
+  "@bio": {
+    "description": "Bio field"
+  },
+  "theme": "Tema",
+  "@theme": {
+    "description": "Theme title"
+  },
+  "lightTheme": "Açık Tema",
+  "@lightTheme": {
+    "description": "Light theme option"
+  },
+  "darkTheme": "Koyu Tema",
+  "@darkTheme": {
+    "description": "Dark theme option"
+  },
+  "systemTheme": "Sistem Teması",
+  "@systemTheme": {
+    "description": "System theme option"
+  },
+  "fontSize": "Yazı Boyutu",
+  "@fontSize": {
+    "description": "Font size setting"
+  },
+  "small": "Küçük",
+  "@small": {
+    "description": "Small size"
+  },
+  "medium": "Orta",
+  "@medium": {
+    "description": "Medium size"
+  },
+  "large": "Büyük",
+  "@large": {
+    "description": "Large size"
+  },
+  "extraLarge": "Çok Büyük",
+  "@extraLarge": {
+    "description": "Extra large size"
+  }
+}

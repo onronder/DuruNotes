@@ -1,9 +1,10 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 class FolderHierarchyWidget extends ConsumerStatefulWidget {
   const FolderHierarchyWidget({
@@ -22,7 +23,8 @@ class FolderHierarchyWidget extends ConsumerStatefulWidget {
   final double? maxHeight;
 
   @override
-  ConsumerState<FolderHierarchyWidget> createState() => _FolderHierarchyWidgetState();
+  ConsumerState<FolderHierarchyWidget> createState() =>
+      _FolderHierarchyWidgetState();
 }
 
 class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
@@ -44,7 +46,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
     final folderOperationState = ref.watch(folderProvider);
 
     return Container(
-      constraints: widget.maxHeight != null 
+      constraints: widget.maxHeight != null
           ? BoxConstraints(maxHeight: widget.maxHeight!)
           : null,
       child: Column(
@@ -52,15 +54,15 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
         children: [
           if (widget.showSearchBar) _buildSearchBar(theme),
           if (widget.showActions) _buildActionBar(theme),
-          
+
           Expanded(
             child: hierarchyState.isLoading && visibleNodes.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : hierarchyState.error != null
-                    ? _buildErrorState(theme, hierarchyState.error!)
-                    : visibleNodes.isEmpty
-                        ? _buildEmptyState(theme)
-                        : _buildHierarchyList(theme, visibleNodes),
+                ? _buildErrorState(theme, hierarchyState.error!)
+                : visibleNodes.isEmpty
+                ? _buildEmptyState(theme)
+                : _buildHierarchyList(theme, visibleNodes),
           ),
 
           if (folderOperationState.isLoading) _buildLoadingIndicator(theme),
@@ -147,11 +149,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               'Error loading folders',
@@ -219,7 +217,10 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
     );
   }
 
-  Widget _buildHierarchyList(ThemeData theme, List<FolderTreeNode> visibleNodes) {
+  Widget _buildHierarchyList(
+    ThemeData theme,
+    List<FolderTreeNode> visibleNodes,
+  ) {
     return ListView.builder(
       controller: _scrollController,
       itemCount: visibleNodes.length,
@@ -246,7 +247,9 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
         ),
         decoration: isSelected
             ? BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
               )
             : null,
@@ -256,7 +259,8 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
             if (node.hasChildren)
               IconButton(
                 onPressed: () {
-                  ref.read(folderHierarchyProvider.notifier)
+                  ref
+                      .read(folderHierarchyProvider.notifier)
                       .toggleExpansion(node.folder.id);
                 },
                 icon: Icon(
@@ -276,7 +280,9 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
               margin: const EdgeInsets.only(right: 12),
               child: Icon(
                 FolderIconHelpers.getFolderIcon(node.folder.icon),
-                color: FolderIconHelpers.getFolderColor(node.folder.color) ?? (isSelected
+                color:
+                    FolderIconHelpers.getFolderColor(node.folder.color) ??
+                    (isSelected
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant),
                 size: 20,
@@ -331,17 +337,19 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
   }
 
   Widget _buildLoadingIndicator(ThemeData theme) {
-    return const SizedBox(
-      height: 4,
-      child: LinearProgressIndicator(),
-    );
+    return const SizedBox(height: 4, child: LinearProgressIndicator());
   }
 
-  void _showCreateFolderDialog([String? parentId]) {
-    showDialog(
+  void _showCreateFolderDialog([String? parentId]) async {
+    final result = await showDialog<LocalFolder>(
       context: context,
       builder: (context) => CreateFolderDialog(parentId: parentId),
     );
+    
+    if (result != null && mounted) {
+      // Refresh folder hierarchy
+      ref.read(folderHierarchyProvider.notifier).refresh();
+    }
   }
 
   void _showFolderContextMenu(LocalFolder folder) {
@@ -373,7 +381,9 @@ class FolderContextMenu extends ConsumerWidget {
               children: [
                 Icon(
                   FolderIconHelpers.getFolderIcon(folder.icon),
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
+                      theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -433,28 +443,44 @@ class FolderContextMenu extends ConsumerWidget {
     );
   }
 
-  void _showCreateSubfolderDialog(BuildContext context, WidgetRef ref, String parentId) {
+  void _showCreateSubfolderDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String parentId,
+  ) {
     showDialog(
       context: context,
       builder: (context) => CreateFolderDialog(parentId: parentId),
     );
   }
 
-  void _showEditFolderDialog(BuildContext context, WidgetRef ref, LocalFolder folder) {
+  void _showEditFolderDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LocalFolder folder,
+  ) {
     // TODO: Implement edit folder dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit folder coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Edit folder coming soon')));
   }
 
-  void _showMoveFolderDialog(BuildContext context, WidgetRef ref, LocalFolder folder) {
+  void _showMoveFolderDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LocalFolder folder,
+  ) {
     // TODO: Implement move folder dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Move folder coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Move folder coming soon')));
   }
 
-  void _showDeleteConfirmDialog(BuildContext context, WidgetRef ref, LocalFolder folder) {
+  void _showDeleteConfirmDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LocalFolder folder,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -470,9 +496,13 @@ class FolderContextMenu extends ConsumerWidget {
           FilledButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
+              final success = await ref
+                  .read(folderProvider.notifier)
+                  .deleteFolder(folder.id);
               if (success) {
-                ref.read(folderHierarchyProvider.notifier).removeFolder(folder.id);
+                ref
+                    .read(folderHierarchyProvider.notifier)
+                    .removeFolder(folder.id);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -500,145 +530,5 @@ class FolderContextMenu extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-class CreateFolderDialog extends ConsumerStatefulWidget {
-  const CreateFolderDialog({super.key, this.parentId});
-
-  final String? parentId;
-
-  @override
-  ConsumerState<CreateFolderDialog> createState() => _CreateFolderDialogState();
-}
-
-class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog> {
-  final _nameController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _isCreating = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final parentFolder = widget.parentId != null
-        ? ref.read(folderHierarchyProvider).getFolderById(widget.parentId!)
-        : null;
-
-    return AlertDialog(
-      title: Text(parentFolder != null ? 'Create Subfolder' : 'Create Folder'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (parentFolder != null) ...[
-            Text(
-              'Parent folder:',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  FolderIconHelpers.getFolderIcon(parentFolder.icon),
-                  size: 16,
-                  color: FolderIconHelpers.getFolderColor(parentFolder.color) ?? theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    parentFolder.name,
-                    style: theme.textTheme.bodyMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-          Form(
-            key: _formKey,
-            child: TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Folder Name',
-                hintText: 'Enter folder name',
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Folder name is required';
-                }
-                return null;
-              },
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _createFolder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isCreating ? null : _createFolder,
-          child: _isCreating
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Create'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _createFolder() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isCreating = true);
-
-    try {
-      final folderId = await ref.read(folderProvider.notifier).createFolder(
-        name: _nameController.text.trim(),
-        parentId: widget.parentId,
-      );
-
-      if (folderId != null) {
-        await ref.read(folderHierarchyProvider.notifier).loadFolders();
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Folder "${_nameController.text.trim()}" created'),
-              behavior: SnackBarBehavior.fixed,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create folder'),
-              behavior: SnackBarBehavior.fixed,
-            ),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isCreating = false);
-      }
-    }
   }
 }

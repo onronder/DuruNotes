@@ -1,10 +1,10 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 
 /// A draggable and droppable folder tree widget
 class DraggableFolderTree extends ConsumerStatefulWidget {
@@ -19,14 +19,16 @@ class DraggableFolderTree extends ConsumerStatefulWidget {
   });
 
   final Function(LocalFolder folder)? onFolderSelected;
-  final Function(String folderId, String? newParentId, int newPosition)? onFolderMoved;
+  final Function(String folderId, String? newParentId, int newPosition)?
+  onFolderMoved;
   final String? selectedFolderId;
   final bool showSearch;
   final bool allowReordering;
   final bool showNoteCount;
 
   @override
-  ConsumerState<DraggableFolderTree> createState() => _DraggableFolderTreeState();
+  ConsumerState<DraggableFolderTree> createState() =>
+      _DraggableFolderTreeState();
 }
 
 class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
@@ -34,7 +36,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   final _scrollController = ScrollController();
   late AnimationController _dragAnimationController;
   late AnimationController _dropAnimationController;
-  
+
   String? _draggedFolderId;
   String? _dropTargetId;
   Offset? _dragOffset;
@@ -65,23 +67,28 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   Widget build(BuildContext context) {
     final hierarchyState = ref.watch(folderHierarchyProvider);
     final visibleNodes = ref.watch(visibleFolderNodesProvider);
-    
+
     return Column(
       children: [
         if (widget.showSearch) _buildSearchBar(),
-        
+
         Expanded(
           child: Stack(
             children: [
               // Main folder tree
-              if (hierarchyState.isLoading && visibleNodes.isEmpty) const Center(child: CircularProgressIndicator()) else hierarchyState.error != null
-                      ? _buildErrorState(hierarchyState.error!)
-                      : visibleNodes.isEmpty
-                          ? _buildEmptyState()
-                          : _buildFolderTree(visibleNodes),
-              
+              if (hierarchyState.isLoading && visibleNodes.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else
+                hierarchyState.error != null
+                    ? _buildErrorState(hierarchyState.error!)
+                    : visibleNodes.isEmpty
+                    ? _buildEmptyState()
+                    : _buildFolderTree(visibleNodes),
+
               // Drag overlay
-              if (_isDragging && _draggedFolderId != null && _dragOffset != null)
+              if (_isDragging &&
+                  _draggedFolderId != null &&
+                  _dragOffset != null)
                 _buildDragOverlay(),
             ],
           ),
@@ -103,8 +110,9 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
           Consumer(
             builder: (context, ref, child) {
               final hierarchyState = ref.watch(folderHierarchyProvider);
-              if (hierarchyState.searchQuery.isEmpty) return const SizedBox.shrink();
-              
+              if (hierarchyState.searchQuery.isEmpty)
+                return const SizedBox.shrink();
+
               return IconButton(
                 onPressed: () {
                   ref.read(folderHierarchyProvider.notifier).clearSearch();
@@ -187,7 +195,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   Widget _buildFolderTree(List<FolderTreeNode> nodes) {
     return ReorderableListView.builder(
       scrollController: _scrollController,
-      onReorder: (int oldIndex, int newIndex) {
+      onReorder: (oldIndex, newIndex) {
         if (widget.allowReordering) {
           _onReorder(oldIndex, newIndex);
         }
@@ -207,7 +215,8 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
           allowReordering: widget.allowReordering,
           onTap: () => widget.onFolderSelected?.call(node.folder),
           onExpansionToggle: () {
-            ref.read(folderHierarchyProvider.notifier)
+            ref
+                .read(folderHierarchyProvider.notifier)
                 .toggleExpansion(node.folder.id);
           },
           onDragStarted: _onDragStarted,
@@ -222,9 +231,10 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   }
 
   Widget _buildDragOverlay() {
-    final draggedFolder = ref.read(folderHierarchyProvider)
+    final draggedFolder = ref
+        .read(folderHierarchyProvider)
         .getFolderById(_draggedFolderId!);
-    
+
     if (draggedFolder == null) return const SizedBox.shrink();
 
     return Positioned(
@@ -249,16 +259,18 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
             children: [
               Icon(
                 FolderIconHelpers.getFolderIcon(draggedFolder.icon),
-                color: FolderIconHelpers.getFolderColor(draggedFolder.color) ?? Theme.of(context).colorScheme.primary,
+                color:
+                    FolderIconHelpers.getFolderColor(draggedFolder.color) ??
+                    Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   draggedFolder.name,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -271,13 +283,14 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
 
   void _onReorder(int oldIndex, int newIndex) {
     if (!widget.allowReordering) return;
-    
+
     final visibleNodes = ref.read(visibleFolderNodesProvider);
-    if (oldIndex >= visibleNodes.length || newIndex >= visibleNodes.length) return;
+    if (oldIndex >= visibleNodes.length || newIndex >= visibleNodes.length)
+      return;
 
     // Haptic feedback
     HapticFeedback.lightImpact();
-    
+
     final folder = visibleNodes[oldIndex].folder;
     widget.onFolderMoved?.call(folder.id, folder.parentId, newIndex);
   }
@@ -287,7 +300,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
       _draggedFolderId = folderId;
       _isDragging = true;
     });
-    
+
     _dragAnimationController.forward();
     HapticFeedback.mediumImpact();
   }
@@ -305,7 +318,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
       _isDragging = false;
       _dragOffset = null;
     });
-    
+
     _dragAnimationController.reverse();
     _dropAnimationController.forward().then((_) {
       _dropAnimationController.reset();
@@ -314,7 +327,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
 
   void _onAcceptDrop(String draggedFolderId, String targetFolderId) {
     if (draggedFolderId == targetFolderId) return;
-    
+
     // Prevent dropping a folder into its own descendant
     if (_isDescendant(draggedFolderId, targetFolderId)) {
       HapticFeedback.heavyImpact();
@@ -326,7 +339,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
       );
       return;
     }
-    
+
     HapticFeedback.lightImpact();
     widget.onFolderMoved?.call(draggedFolderId, targetFolderId, 0);
   }
@@ -346,20 +359,27 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   bool _isDescendant(String ancestorId, String descendantId) {
     final hierarchyState = ref.read(folderHierarchyProvider);
     String? currentId = descendantId;
-    
+
     while (currentId != null) {
       if (currentId == ancestorId) return true;
       final folder = hierarchyState.getFolderById(currentId);
       currentId = folder?.parentId;
     }
-    
+
     return false;
   }
 }
 
 class _DraggableFolderItem extends StatefulWidget {
   const _DraggableFolderItem({
-    required this.node, required this.index, required this.isSelected, required this.isDragTarget, required this.isDragging, required this.showNoteCount, required this.allowReordering, super.key,
+    required this.node,
+    required this.index,
+    required this.isSelected,
+    required this.isDragTarget,
+    required this.isDragging,
+    required this.showNoteCount,
+    required this.allowReordering,
+    super.key,
     this.onTap,
     this.onExpansionToggle,
     this.onDragStarted,
@@ -403,22 +423,14 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
-    _elevationAnimation = Tween<double>(
-      begin: 0,
-      end: 8,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+
+    _scaleAnimation = Tween<double>(begin: 1, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    _elevationAnimation = Tween<double>(begin: 0, end: 8).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -430,7 +442,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
   @override
   void didUpdateWidget(_DraggableFolderItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.isDragging && !oldWidget.isDragging) {
       _animationController.forward();
     } else if (!widget.isDragging && oldWidget.isDragging) {
@@ -457,16 +469,13 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: widget.isSelected
-                    ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
                     : widget.isDragTarget
-                        ? theme.colorScheme.primaryContainer.withOpacity(0.1)
-                        : null,
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.1)
+                    : null,
                 borderRadius: BorderRadius.circular(12),
                 border: widget.isDragTarget
-                    ? Border.all(
-                        color: theme.colorScheme.primary,
-                        width: 2,
-                      )
+                    ? Border.all(color: theme.colorScheme.primary, width: 2)
                     : null,
               ),
               child: InkWell(
@@ -488,10 +497,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                           child: AnimatedRotation(
                             turns: widget.node.isExpanded ? 0.25 : 0.0,
                             duration: const Duration(milliseconds: 200),
-                            child: const Icon(
-                              Icons.chevron_right,
-                              size: 20,
-                            ),
+                            child: const Icon(Icons.chevron_right, size: 20),
                           ),
                         )
                       else
@@ -502,7 +508,9 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                       // Folder icon
                       Icon(
                         FolderIconHelpers.getFolderIcon(folder.icon),
-                        color: FolderIconHelpers.getFolderColor(folder.color) ?? (widget.isSelected
+                        color:
+                            FolderIconHelpers.getFolderColor(folder.color) ??
+                            (widget.isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.onSurfaceVariant),
                         size: 20,
@@ -518,8 +526,8 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                             color: widget.isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.onSurface,
-                            fontWeight: widget.isSelected 
-                                ? FontWeight.w600 
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w600
                                 : FontWeight.normal,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -585,7 +593,9 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
               children: [
                 Icon(
                   FolderIconHelpers.getFolderIcon(folder.icon),
-                  color: FolderIconHelpers.getFolderColor(folder.color) ?? theme.colorScheme.primary,
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
+                      theme.colorScheme.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -602,10 +612,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
             ),
           ),
         ),
-        childWhenDragging: Opacity(
-          opacity: 0.5,
-          child: child,
-        ),
+        childWhenDragging: Opacity(opacity: 0.5, child: child),
         onDragStarted: () => widget.onDragStarted?.call(folder.id),
         onDragUpdate: widget.onDragUpdate,
         onDragEnd: (_) => widget.onDragEnd?.call(),

@@ -8,11 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Repository for task synchronization
 class TaskRepository {
-  TaskRepository({
-    required AppDb database,
-    required SupabaseClient supabase,
-  })  : _db = database,
-        _supabase = supabase;
+  TaskRepository({required AppDb database, required SupabaseClient supabase})
+    : _db = database,
+      _supabase = supabase;
 
   final AppDb _db;
   final SupabaseClient _supabase;
@@ -22,7 +20,7 @@ class TaskRepository {
     try {
       // Get all local tasks that need syncing
       final localTasks = await _db.select(_db.noteTasks).get();
-      
+
       // Get user ID
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
@@ -69,9 +67,7 @@ class TaskRepository {
         'user_id': _supabase.auth.currentUser!.id,
       };
 
-      await _supabase
-          .from('note_tasks')
-          .upsert(taskData, onConflict: 'id');
+      await _supabase.from('note_tasks').upsert(taskData, onConflict: 'id');
     } catch (e) {
       debugPrint('Error uploading task ${task.id}: $e');
       // Add to pending operations for retry
@@ -111,7 +107,9 @@ class TaskRepository {
         content: taskData['content'] as String,
         contentHash: taskData['content_hash'] as String,
         status: Value(TaskStatus.values[(taskData['status'] as int?) ?? 0]),
-        priority: Value(TaskPriority.values[(taskData['priority'] as int?) ?? 1]),
+        priority: Value(
+          TaskPriority.values[(taskData['priority'] as int?) ?? 1],
+        ),
         dueDate: taskData['due_date'] != null
             ? Value(DateTime.parse(taskData['due_date'] as String))
             : const Value.absent(),
@@ -138,16 +136,12 @@ class TaskRepository {
   }
 
   /// Add a pending operation for a task
-  Future<void> _addPendingTaskOperation(
-    NoteTask task,
-    String operation,
-  ) async {
-    final payload = {
-      'task': task.toJson(),
-      'operation': operation,
-    };
+  Future<void> _addPendingTaskOperation(NoteTask task, String operation) async {
+    final payload = {'task': task.toJson(), 'operation': operation};
 
-    await _db.into(_db.pendingOps).insert(
+    await _db
+        .into(_db.pendingOps)
+        .insert(
           PendingOpsCompanion.insert(
             entityId: task.id,
             kind: 'task_$operation',
@@ -159,14 +153,16 @@ class TaskRepository {
   /// Process pending task operations
   Future<void> _processPendingTaskOperations() async {
     final pendingOps = await _db.select(_db.pendingOps).get();
-    final taskOps = pendingOps.where((op) => op.kind.startsWith('task_')).toList();
+    final taskOps = pendingOps
+        .where((op) => op.kind.startsWith('task_'))
+        .toList();
 
     for (final op in taskOps) {
       try {
         if (op.payload != null) {
           final payload = jsonDecode(op.payload!) as Map<String, dynamic>;
           final taskData = payload['task'] as Map<String, dynamic>;
-          
+
           switch (op.kind) {
             case 'task_upsert':
               await _uploadTaskData(taskData);
@@ -178,8 +174,9 @@ class TaskRepository {
         }
 
         // Remove pending operation after successful processing
-        await (_db.delete(_db.pendingOps)..where((o) => o.id.equals(op.id)))
-            .go();
+        await (_db.delete(
+          _db.pendingOps,
+        )..where((o) => o.id.equals(op.id))).go();
       } catch (e) {
         debugPrint('Error processing pending operation ${op.id}: $e');
       }
@@ -255,17 +252,16 @@ class TaskRepository {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return null;
 
-    return _supabase
-        .from('note_tasks')
-        .stream(primaryKey: ['id'])
-        .listen((data) {
-          for (final task in data) {
-            if (task['note_id'] == noteId && task['user_id'] == userId) {
-              onTaskUpdate(task);
-              _saveTaskLocally(task);
-            }
-          }
-        });
+    return _supabase.from('note_tasks').stream(primaryKey: ['id']).listen((
+      data,
+    ) {
+      for (final task in data) {
+        if (task['note_id'] == noteId && task['user_id'] == userId) {
+          onTaskUpdate(task);
+          _saveTaskLocally(task);
+        }
+      }
+    });
   }
 }
 

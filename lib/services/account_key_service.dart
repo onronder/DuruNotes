@@ -19,9 +19,9 @@ class AccountKeyService {
     FlutterSecureStorage? storage,
     AppLogger? logger,
     SupabaseClient? client,
-  })  : _storage = storage ?? const FlutterSecureStorage(),
-        _logger = logger ?? LoggerFactory.instance,
-        _client = client ?? Supabase.instance.client;
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _logger = logger ?? LoggerFactory.instance,
+       _client = client ?? Supabase.instance.client;
 
   static const String _amkKeyPrefix = 'amk:';
   static const String _amkMetaPrefix = 'amk_meta:';
@@ -57,13 +57,19 @@ class AccountKeyService {
   }
 
   /// Derive a wrapping key from passphrase (placeholder PBKDF2-HMAC-SHA256)
-  Future<SecretKey> _deriveWrappingKey(String passphrase, Uint8List salt) async {
+  Future<SecretKey> _deriveWrappingKey(
+    String passphrase,
+    Uint8List salt,
+  ) async {
     final pbkdf2 = Pbkdf2(
       macAlgorithm: Hmac.sha256(),
       iterations: 150000,
       bits: 256,
     );
-    return pbkdf2.deriveKey(secretKey: SecretKey(utf8.encode(passphrase)), nonce: salt);
+    return pbkdf2.deriveKey(
+      secretKey: SecretKey(utf8.encode(passphrase)),
+      nonce: salt,
+    );
   }
 
   /// Wrap AMK with passphrase-derived key using XChaCha20-Poly1305
@@ -93,7 +99,10 @@ class AccountKeyService {
   }
 
   /// On first signup: generate AMK and upload wrapped to user_keys
-  Future<void> provisionAmkForUser({required String passphrase, String? userId}) async {
+  Future<void> provisionAmkForUser({
+    required String passphrase,
+    String? userId,
+  }) async {
     final uid = userId ?? _client.auth.currentUser?.id;
     if (uid == null) throw StateError('Not authenticated');
 
@@ -112,9 +121,10 @@ class AccountKeyService {
       });
     } catch (e) {
       // If user_keys table isn't initialized yet, proceed with local-only AMK
-      _logger.warning('Remote user_keys not initialized; using local-only AMK', data: {
-        'error': e.toString(),
-      });
+      _logger.warning(
+        'Remote user_keys not initialized; using local-only AMK',
+        data: {'error': e.toString()},
+      );
       // Do not rethrow; app can function locally and sync plaintext-free data won't decrypt cross-device
     }
 
@@ -133,7 +143,7 @@ class AccountKeyService {
       _logger.warning('Cannot unlock AMK: no authenticated user');
       return false;
     }
-    
+
     // First check if AMK is already present locally
     // This can happen if the unlock screen appears due to timing issues after signup
     final existingAmk = await getLocalAmk(userId: uid);
@@ -141,7 +151,7 @@ class AccountKeyService {
       _logger.info('AMK already present locally for user $uid');
       return true;
     }
-    
+
     // Try to fetch from server
     dynamic res;
     try {
@@ -152,7 +162,9 @@ class AccountKeyService {
           .maybeSingle();
     } catch (e) {
       // Table missing or other schema error => provision new AMK
-      if (e.toString().contains("Could not find the table 'public.user_keys'")) {
+      if (e.toString().contains(
+        "Could not find the table 'public.user_keys'",
+      )) {
         _logger.warning('user_keys table not found, provisioning new AMK');
         await provisionAmkForUser(passphrase: passphrase, userId: uid);
         return true;
@@ -160,10 +172,12 @@ class AccountKeyService {
       _logger.error('Failed to fetch user_keys', data: {'error': e.toString()});
       rethrow;
     }
-    
+
     if (res == null) {
       // No AMK on server yet for this user: create one using provided passphrase
-      _logger.info('No AMK found on server for user $uid, provisioning new one');
+      _logger.info(
+        'No AMK found on server for user $uid, provisioning new one',
+      );
       await provisionAmkForUser(passphrase: passphrase, userId: uid);
       return true;
     }
@@ -172,10 +186,13 @@ class AccountKeyService {
     final dynamic kdfRaw = res['kdf_params'];
 
     // Debug logging for troubleshooting
-    _logger.info('Attempting to unlock AMK for user $uid', data: {
-      'wrapped_key_type': wrapped.runtimeType.toString(),
-      'kdf_params_type': kdfRaw.runtimeType.toString(),
-    });
+    _logger.info(
+      'Attempting to unlock AMK for user $uid',
+      data: {
+        'wrapped_key_type': wrapped.runtimeType.toString(),
+        'kdf_params_type': kdfRaw.runtimeType.toString(),
+      },
+    );
 
     // Parse kdf_params regardless of shape (Map or JSON string)
     late final Map<String, dynamic> params;
@@ -192,11 +209,17 @@ class AccountKeyService {
       throw StateError('Missing salt_b64 in kdf_params');
     }
     final salt = base64Decode(saltB64);
-    _logger.info('Deriving wrapping key', data: {
-      'passphrase_length': passphrase.length,
-      'salt_length': salt.length,
-    });
-    final wrapping = await _deriveWrappingKey(passphrase, Uint8List.fromList(salt));
+    _logger.info(
+      'Deriving wrapping key',
+      data: {
+        'passphrase_length': passphrase.length,
+        'salt_length': salt.length,
+      },
+    );
+    final wrapping = await _deriveWrappingKey(
+      passphrase,
+      Uint8List.fromList(salt),
+    );
 
     // Convert wrapped_key from base64 string or other formats to bytes
     Uint8List wrappedBytes;
@@ -218,7 +241,10 @@ class AccountKeyService {
       _logger.info('AMK successfully unlocked and stored for user $uid');
       return true;
     } catch (e) {
-      _logger.error('Failed to unwrap AMK - incorrect passphrase?', data: {'error': e.toString()});
+      _logger.error(
+        'Failed to unwrap AMK - incorrect passphrase?',
+        data: {'error': e.toString()},
+      );
       return false;
     }
   }
@@ -258,7 +284,11 @@ class AccountKeyService {
   }
 
   /// Change passphrase: fetch current wrapped AMK (or local AMK), re-wrap with new passphrase, update remote and local metadata
-  Future<void> changePassphrase({required String oldPassphrase, required String newPassphrase, String? userId}) async {
+  Future<void> changePassphrase({
+    required String oldPassphrase,
+    required String newPassphrase,
+    String? userId,
+  }) async {
     final uid = userId ?? _client.auth.currentUser?.id;
     if (uid == null) throw StateError('Not authenticated');
 
@@ -280,14 +310,17 @@ class AccountKeyService {
       final wrapped = res['wrapped_key'] as dynamic;
       final params = (res['kdf_params'] as Map).cast<String, dynamic>();
       final salt = base64Decode(params['salt_b64'] as String);
-      final wrappingOld = await _deriveWrappingKey(oldPassphrase, Uint8List.fromList(salt));
+      final wrappingOld = await _deriveWrappingKey(
+        oldPassphrase,
+        Uint8List.fromList(salt),
+      );
       final wrappedBytes = wrapped is Uint8List
           ? wrapped
           : wrapped is List<int>
-              ? Uint8List.fromList(wrapped)
-              : wrapped is List<dynamic>
-                  ? Uint8List.fromList(wrapped.cast<int>())
-                  : _bytesFromDb(wrapped);
+          ? Uint8List.fromList(wrapped)
+          : wrapped is List<dynamic>
+          ? Uint8List.fromList(wrapped.cast<int>())
+          : _bytesFromDb(wrapped);
       amk = await _unwrapAmk(wrappedBytes, wrappingOld);
     }
 
@@ -305,7 +338,10 @@ class AccountKeyService {
         'kdf_params': {'iterations': 150000, 'salt_b64': base64Encode(newSalt)},
       });
     } catch (e) {
-      _logger.warning('Failed to upsert user_keys during passphrase change', data: {'error': e.toString()});
+      _logger.warning(
+        'Failed to upsert user_keys during passphrase change',
+        data: {'error': e.toString()},
+      );
       // Continue to update local store even if remote fails
     }
 
@@ -320,7 +356,10 @@ class AccountKeyService {
 
   /// Scan local notes/folders encrypted with legacy device key and enqueue rewrap by scheduling upserts
   /// Returns number of entities queued for rewrap
-  Future<int> migrateLegacyContentAndEnqueue({required AppDb db, required NotesRepository repo}) async {
+  Future<int> migrateLegacyContentAndEnqueue({
+    required AppDb db,
+    required NotesRepository repo,
+  }) async {
     var queued = 0;
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return 0;
@@ -346,5 +385,3 @@ class AccountKeyService {
     return queued;
   }
 }
-
-

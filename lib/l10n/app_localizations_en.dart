@@ -816,6 +816,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cannot move folder to its own descendant';
 
   @override
+  String get selectFolder => 'Select Folder';
+
+  @override
+  String get unfiled => 'Unfiled';
+
+  @override
+  String get createYourFirstFolder => 'Create your first folder';
+
+  @override
   String get expandAll => 'Expand All';
 
   @override
@@ -883,4 +892,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get finalizing => 'Finalizing';
+
+  @override
+  String get attachments => 'Attachments';
+
+  @override
+  String get dateModified => 'Date Modified';
+
+  @override
+  String get highPriority => 'High Priority';
+
+  @override
+  String get lowPriority => 'Low Priority';
+
+  @override
+  String get mediumPriority => 'Medium Priority';
+
+  @override
+  String get noTitle => 'No Title';
+
+  @override
+  String get overdue => 'Overdue';
+
+  @override
+  String get pinnedNotes => 'Pinned Notes';
+
+  @override
+  String get pinNote => 'Pin Note';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get tomorrow => 'Tomorrow';
+
+  @override
+  String get unpinNote => 'Unpin Note';
 }

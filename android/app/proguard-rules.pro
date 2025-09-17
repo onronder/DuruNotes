@@ -29,3 +29,24 @@
 
 # Sentry
 -keep class io.sentry.** { *; }
+-keepattributes LineNumberTable,SourceFile
+-dontwarn io.sentry.android.fragment.**
+
+# Fix Unsafe API warnings
+-dontwarn sun.misc.Unsafe
+-dontwarn sun.misc.**
+
+# Keep Flutter plugins
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+
+# Prevent stripping of native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep annotation classes
+-keepattributes *Annotation*
+
+# Prevent obfuscation of Flutter's generated plugin registrant
+-keep class io.flutter.plugins.GeneratedPluginRegistrant { *; }

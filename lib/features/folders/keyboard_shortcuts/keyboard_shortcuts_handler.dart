@@ -9,41 +9,85 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class KeyboardShortcuts {
   // Selection shortcuts
   static const selectAll = SingleActivator(LogicalKeyboardKey.keyA, meta: true);
-  static const selectNone = SingleActivator(LogicalKeyboardKey.keyD, meta: true);
-  static const invertSelection = SingleActivator(LogicalKeyboardKey.keyI, meta: true);
-  
+  static const selectNone = SingleActivator(
+    LogicalKeyboardKey.keyD,
+    meta: true,
+  );
+  static const invertSelection = SingleActivator(
+    LogicalKeyboardKey.keyI,
+    meta: true,
+  );
+
   // Navigation shortcuts
   static const expandAll = SingleActivator(LogicalKeyboardKey.keyE, meta: true);
-  static const collapseAll = SingleActivator(LogicalKeyboardKey.keyW, meta: true);
+  static const collapseAll = SingleActivator(
+    LogicalKeyboardKey.keyW,
+    meta: true,
+  );
   static const nextFolder = SingleActivator(LogicalKeyboardKey.arrowDown);
   static const previousFolder = SingleActivator(LogicalKeyboardKey.arrowUp);
-  
+
   // Action shortcuts
   static const deleteSelected = SingleActivator(LogicalKeyboardKey.delete);
-  static const deleteSelectedAlt = SingleActivator(LogicalKeyboardKey.backspace, meta: true);
-  static const moveToFolder = SingleActivator(LogicalKeyboardKey.keyM, meta: true);
-  static const createFolder = SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true);
-  static const refreshFolders = SingleActivator(LogicalKeyboardKey.keyR, meta: true);
-  
+  static const deleteSelectedAlt = SingleActivator(
+    LogicalKeyboardKey.backspace,
+    meta: true,
+  );
+  static const moveToFolder = SingleActivator(
+    LogicalKeyboardKey.keyM,
+    meta: true,
+  );
+  static const createFolder = SingleActivator(
+    LogicalKeyboardKey.keyN,
+    meta: true,
+    shift: true,
+  );
+  static const refreshFolders = SingleActivator(
+    LogicalKeyboardKey.keyR,
+    meta: true,
+  );
+
   // Search shortcuts
-  static const searchFolders = SingleActivator(LogicalKeyboardKey.keyF, meta: true);
+  static const searchFolders = SingleActivator(
+    LogicalKeyboardKey.keyF,
+    meta: true,
+  );
   static const clearSearch = SingleActivator(LogicalKeyboardKey.escape);
-  
+
   // Batch operation shortcuts
-  static const archiveSelected = SingleActivator(LogicalKeyboardKey.keyA, meta: true, shift: true);
-  static const favoriteSelected = SingleActivator(LogicalKeyboardKey.keyS, meta: true);
-  static const shareSelected = SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true);
-  static const exportSelected = SingleActivator(LogicalKeyboardKey.keyE, meta: true, shift: true);
-  
+  static const archiveSelected = SingleActivator(
+    LogicalKeyboardKey.keyA,
+    meta: true,
+    shift: true,
+  );
+  static const favoriteSelected = SingleActivator(
+    LogicalKeyboardKey.keyS,
+    meta: true,
+  );
+  static const shareSelected = SingleActivator(
+    LogicalKeyboardKey.keyS,
+    meta: true,
+    shift: true,
+  );
+  static const exportSelected = SingleActivator(
+    LogicalKeyboardKey.keyE,
+    meta: true,
+    shift: true,
+  );
+
   // Quick folder access (1-9)
-  static List<SingleActivator> get quickFolderShortcuts => List.generate(9, (index) =>
-      SingleActivator(LogicalKeyboardKey(0x00000031 + index), meta: true)); // 1-9 keys
+  static List<SingleActivator> get quickFolderShortcuts => List.generate(
+    9,
+    (index) =>
+        SingleActivator(LogicalKeyboardKey(0x00000031 + index), meta: true),
+  ); // 1-9 keys
 }
 
 /// Widget that handles keyboard shortcuts for folder operations
 class KeyboardShortcutsHandler extends ConsumerStatefulWidget {
   const KeyboardShortcutsHandler({
-    required this.child, super.key,
+    required this.child,
+    super.key,
     this.focusNode,
   });
 
@@ -51,10 +95,12 @@ class KeyboardShortcutsHandler extends ConsumerStatefulWidget {
   final FocusNode? focusNode;
 
   @override
-  ConsumerState<KeyboardShortcutsHandler> createState() => _KeyboardShortcutsHandlerState();
+  ConsumerState<KeyboardShortcutsHandler> createState() =>
+      _KeyboardShortcutsHandlerState();
 }
 
-class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHandler> {
+class _KeyboardShortcutsHandlerState
+    extends ConsumerState<KeyboardShortcutsHandler> {
   late FocusNode _focusNode;
   final Map<SingleActivator, Intent> _shortcuts = {};
 
@@ -75,38 +121,47 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 
   void _setupShortcuts() {
     _shortcuts.clear();
-    
+
     // Selection shortcuts
     _shortcuts[KeyboardShortcuts.selectAll] = const _SelectAllIntent();
     _shortcuts[KeyboardShortcuts.selectNone] = const _SelectNoneIntent();
-    _shortcuts[KeyboardShortcuts.invertSelection] = const _InvertSelectionIntent();
-    
+    _shortcuts[KeyboardShortcuts.invertSelection] =
+        const _InvertSelectionIntent();
+
     // Navigation shortcuts
     _shortcuts[KeyboardShortcuts.expandAll] = const _ExpandAllIntent();
     _shortcuts[KeyboardShortcuts.collapseAll] = const _CollapseAllIntent();
     _shortcuts[KeyboardShortcuts.nextFolder] = const _NextFolderIntent();
-    _shortcuts[KeyboardShortcuts.previousFolder] = const _PreviousFolderIntent();
-    
+    _shortcuts[KeyboardShortcuts.previousFolder] =
+        const _PreviousFolderIntent();
+
     // Action shortcuts
-    _shortcuts[KeyboardShortcuts.deleteSelected] = const _DeleteSelectedIntent();
-    _shortcuts[KeyboardShortcuts.deleteSelectedAlt] = const _DeleteSelectedIntent();
+    _shortcuts[KeyboardShortcuts.deleteSelected] =
+        const _DeleteSelectedIntent();
+    _shortcuts[KeyboardShortcuts.deleteSelectedAlt] =
+        const _DeleteSelectedIntent();
     _shortcuts[KeyboardShortcuts.moveToFolder] = const _MoveToFolderIntent();
     _shortcuts[KeyboardShortcuts.createFolder] = const _CreateFolderIntent();
-    _shortcuts[KeyboardShortcuts.refreshFolders] = const _RefreshFoldersIntent();
-    
+    _shortcuts[KeyboardShortcuts.refreshFolders] =
+        const _RefreshFoldersIntent();
+
     // Search shortcuts
     _shortcuts[KeyboardShortcuts.searchFolders] = const _SearchFoldersIntent();
     _shortcuts[KeyboardShortcuts.clearSearch] = const _ClearSearchIntent();
-    
+
     // Batch operation shortcuts
-    _shortcuts[KeyboardShortcuts.archiveSelected] = const _ArchiveSelectedIntent();
-    _shortcuts[KeyboardShortcuts.favoriteSelected] = const _FavoriteSelectedIntent();
+    _shortcuts[KeyboardShortcuts.archiveSelected] =
+        const _ArchiveSelectedIntent();
+    _shortcuts[KeyboardShortcuts.favoriteSelected] =
+        const _FavoriteSelectedIntent();
     _shortcuts[KeyboardShortcuts.shareSelected] = const _ShareSelectedIntent();
-    _shortcuts[KeyboardShortcuts.exportSelected] = const _ExportSelectedIntent();
-    
+    _shortcuts[KeyboardShortcuts.exportSelected] =
+        const _ExportSelectedIntent();
+
     // Quick folder access shortcuts (1-9)
     for (var i = 0; i < KeyboardShortcuts.quickFolderShortcuts.length; i++) {
-      _shortcuts[KeyboardShortcuts.quickFolderShortcuts[i]] = _QuickFolderAccessIntent(i);
+      _shortcuts[KeyboardShortcuts.quickFolderShortcuts[i]] =
+          _QuickFolderAccessIntent(i);
     }
   }
 
@@ -119,10 +174,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
         shortcuts: _shortcuts,
         child: Actions(
           actions: _buildActions(),
-          child: Focus(
-            autofocus: true,
-            child: widget.child,
-          ),
+          child: Focus(autofocus: true, child: widget.child),
         ),
       ),
     );
@@ -130,23 +182,57 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 
   Map<Type, Action<Intent>> _buildActions() {
     return {
-      _SelectAllIntent: CallbackAction<_SelectAllIntent>(onInvoke: (_) => _selectAll()),
-      _SelectNoneIntent: CallbackAction<_SelectNoneIntent>(onInvoke: (_) => _selectNone()),
-      _InvertSelectionIntent: CallbackAction<_InvertSelectionIntent>(onInvoke: (_) => _invertSelection()),
-      _ExpandAllIntent: CallbackAction<_ExpandAllIntent>(onInvoke: (_) => _expandAll()),
-      _CollapseAllIntent: CallbackAction<_CollapseAllIntent>(onInvoke: (_) => _collapseAll()),
-      _NextFolderIntent: CallbackAction<_NextFolderIntent>(onInvoke: (_) => _nextFolder()),
-      _PreviousFolderIntent: CallbackAction<_PreviousFolderIntent>(onInvoke: (_) => _previousFolder()),
-      _DeleteSelectedIntent: CallbackAction<_DeleteSelectedIntent>(onInvoke: (_) => _deleteSelected()),
-      _MoveToFolderIntent: CallbackAction<_MoveToFolderIntent>(onInvoke: (_) => _moveToFolder()),
-      _CreateFolderIntent: CallbackAction<_CreateFolderIntent>(onInvoke: (_) => _createFolder()),
-      _RefreshFoldersIntent: CallbackAction<_RefreshFoldersIntent>(onInvoke: (_) => _refreshFolders()),
-      _SearchFoldersIntent: CallbackAction<_SearchFoldersIntent>(onInvoke: (_) => _searchFolders()),
-      _ClearSearchIntent: CallbackAction<_ClearSearchIntent>(onInvoke: (_) => _clearSearch()),
-      _ArchiveSelectedIntent: CallbackAction<_ArchiveSelectedIntent>(onInvoke: (_) => _archiveSelected()),
-      _FavoriteSelectedIntent: CallbackAction<_FavoriteSelectedIntent>(onInvoke: (_) => _favoriteSelected()),
-      _ShareSelectedIntent: CallbackAction<_ShareSelectedIntent>(onInvoke: (_) => _shareSelected()),
-      _ExportSelectedIntent: CallbackAction<_ExportSelectedIntent>(onInvoke: (_) => _exportSelected()),
+      _SelectAllIntent: CallbackAction<_SelectAllIntent>(
+        onInvoke: (_) => _selectAll(),
+      ),
+      _SelectNoneIntent: CallbackAction<_SelectNoneIntent>(
+        onInvoke: (_) => _selectNone(),
+      ),
+      _InvertSelectionIntent: CallbackAction<_InvertSelectionIntent>(
+        onInvoke: (_) => _invertSelection(),
+      ),
+      _ExpandAllIntent: CallbackAction<_ExpandAllIntent>(
+        onInvoke: (_) => _expandAll(),
+      ),
+      _CollapseAllIntent: CallbackAction<_CollapseAllIntent>(
+        onInvoke: (_) => _collapseAll(),
+      ),
+      _NextFolderIntent: CallbackAction<_NextFolderIntent>(
+        onInvoke: (_) => _nextFolder(),
+      ),
+      _PreviousFolderIntent: CallbackAction<_PreviousFolderIntent>(
+        onInvoke: (_) => _previousFolder(),
+      ),
+      _DeleteSelectedIntent: CallbackAction<_DeleteSelectedIntent>(
+        onInvoke: (_) => _deleteSelected(),
+      ),
+      _MoveToFolderIntent: CallbackAction<_MoveToFolderIntent>(
+        onInvoke: (_) => _moveToFolder(),
+      ),
+      _CreateFolderIntent: CallbackAction<_CreateFolderIntent>(
+        onInvoke: (_) => _createFolder(),
+      ),
+      _RefreshFoldersIntent: CallbackAction<_RefreshFoldersIntent>(
+        onInvoke: (_) => _refreshFolders(),
+      ),
+      _SearchFoldersIntent: CallbackAction<_SearchFoldersIntent>(
+        onInvoke: (_) => _searchFolders(),
+      ),
+      _ClearSearchIntent: CallbackAction<_ClearSearchIntent>(
+        onInvoke: (_) => _clearSearch(),
+      ),
+      _ArchiveSelectedIntent: CallbackAction<_ArchiveSelectedIntent>(
+        onInvoke: (_) => _archiveSelected(),
+      ),
+      _FavoriteSelectedIntent: CallbackAction<_FavoriteSelectedIntent>(
+        onInvoke: (_) => _favoriteSelected(),
+      ),
+      _ShareSelectedIntent: CallbackAction<_ShareSelectedIntent>(
+        onInvoke: (_) => _shareSelected(),
+      ),
+      _ExportSelectedIntent: CallbackAction<_ExportSelectedIntent>(
+        onInvoke: (_) => _exportSelected(),
+      ),
       _QuickFolderAccessIntent: CallbackAction<_QuickFolderAccessIntent>(
         onInvoke: (intent) => _quickFolderAccess(intent.index),
       ),
@@ -158,14 +244,14 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
     final allNotes = ref.read(currentNotesProvider);
     final allIds = allNotes.map((note) => note.id).toList();
     ref.read(batchSelectionProvider.notifier).selectAll(allIds);
-    
+
     _showShortcutFeedback('Selected all notes');
     HapticFeedback.selectionClick();
   }
 
   void _selectNone() {
     ref.read(batchSelectionProvider.notifier).clearSelection();
-    
+
     _showShortcutFeedback('Cleared selection');
     HapticFeedback.selectionClick();
   }
@@ -174,7 +260,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
     final allNotes = ref.read(currentNotesProvider);
     final allIds = allNotes.map((note) => note.id).toList();
     ref.read(batchSelectionProvider.notifier).invertSelection(allIds);
-    
+
     _showShortcutFeedback('Inverted selection');
     HapticFeedback.selectionClick();
   }
@@ -182,14 +268,14 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   // Navigation actions
   void _expandAll() {
     ref.read(folderHierarchyProvider.notifier).expandAll();
-    
+
     _showShortcutFeedback('Expanded all folders');
     HapticFeedback.lightImpact();
   }
 
   void _collapseAll() {
     ref.read(folderHierarchyProvider.notifier).collapseAll();
-    
+
     _showShortcutFeedback('Collapsed all folders');
     HapticFeedback.lightImpact();
   }
@@ -210,14 +296,14 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   void _deleteSelected() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
+
     _confirmDelete();
   }
 
   void _moveToFolder() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
+
     _showFolderPicker();
   }
 
@@ -229,7 +315,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 
   void _refreshFolders() {
     ref.read(folderHierarchyProvider.notifier).loadFolders();
-    
+
     _showShortcutFeedback('Refreshing folders...');
     HapticFeedback.lightImpact();
   }
@@ -243,7 +329,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 
   void _clearSearch() {
     ref.read(folderHierarchyProvider.notifier).clearSearch();
-    
+
     _showShortcutFeedback('Cleared search');
     HapticFeedback.selectionClick();
   }
@@ -252,7 +338,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   void _archiveSelected() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
+
     ref.read(batchOperationsProvider.notifier).toggleArchiveSelectedNotes(true);
     _showShortcutFeedback('Archived selected notes');
   }
@@ -260,15 +346,17 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   void _favoriteSelected() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
-    ref.read(batchOperationsProvider.notifier).toggleFavoriteSelectedNotes(true);
+
+    ref
+        .read(batchOperationsProvider.notifier)
+        .toggleFavoriteSelectedNotes(true);
     _showShortcutFeedback('Favorited selected notes');
   }
 
   void _shareSelected() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
+
     ref.read(batchOperationsProvider.notifier).shareSelectedNotes();
     _showShortcutFeedback('Sharing selected notes...');
   }
@@ -276,7 +364,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   void _exportSelected() {
     final selectionState = ref.read(batchSelectionProvider);
     if (!selectionState.hasSelection) return;
-    
+
     _showExportOptions();
   }
 
@@ -293,7 +381,7 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
   // Helper methods
   void _confirmDelete() {
     final count = ref.read(batchSelectionProvider).selectedCount;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -324,9 +412,12 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
       context: context,
       isScrollControlled: true,
       builder: (context) => FolderPicker(
-        title: 'Move ${ref.read(batchSelectionProvider).selectedCount} notes to...',
+        title:
+            'Move ${ref.read(batchSelectionProvider).selectedCount} notes to...',
         onFolderSelected: (folderId) {
-          ref.read(batchOperationsProvider.notifier).moveNotesToFolder(folderId);
+          ref
+              .read(batchOperationsProvider.notifier)
+              .moveNotesToFolder(folderId);
         },
       ),
     );
@@ -346,7 +437,9 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
               trailing: const Text('⌘⇧M'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('markdown');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('markdown');
               },
             ),
             ListTile(
@@ -355,7 +448,9 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
               trailing: const Text('⌘⇧P'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('pdf');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('pdf');
               },
             ),
             ListTile(
@@ -364,7 +459,9 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
               trailing: const Text('⌘⇧J'),
               onTap: () {
                 Navigator.of(context).pop();
-                ref.read(batchOperationsProvider.notifier).exportSelectedNotes('json');
+                ref
+                    .read(batchOperationsProvider.notifier)
+                    .exportSelectedNotes('json');
               },
             ),
           ],
@@ -375,20 +472,14 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 
   void _showShortcutFeedback(String message) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         duration: const Duration(milliseconds: 1500),
         behavior: SnackBarBehavior.fixed,
-        margin: const EdgeInsets.only(
-          bottom: 100,
-          left: 16,
-          right: 16,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: Theme.of(context).colorScheme.inverseSurface,
       ),
     );
@@ -402,24 +493,75 @@ class _KeyboardShortcutsHandlerState extends ConsumerState<KeyboardShortcutsHand
 // }
 
 // Specific intent types for better action handling
-class _SelectAllIntent extends Intent { const _SelectAllIntent(); }
-class _SelectNoneIntent extends Intent { const _SelectNoneIntent(); }
-class _InvertSelectionIntent extends Intent { const _InvertSelectionIntent(); }
-class _ExpandAllIntent extends Intent { const _ExpandAllIntent(); }
-class _CollapseAllIntent extends Intent { const _CollapseAllIntent(); }
-class _NextFolderIntent extends Intent { const _NextFolderIntent(); }
-class _PreviousFolderIntent extends Intent { const _PreviousFolderIntent(); }
-class _DeleteSelectedIntent extends Intent { const _DeleteSelectedIntent(); }
-class _MoveToFolderIntent extends Intent { const _MoveToFolderIntent(); }
-class _CreateFolderIntent extends Intent { const _CreateFolderIntent(); }
-class _RefreshFoldersIntent extends Intent { const _RefreshFoldersIntent(); }
-class _SearchFoldersIntent extends Intent { const _SearchFoldersIntent(); }
-class _ClearSearchIntent extends Intent { const _ClearSearchIntent(); }
-class _ArchiveSelectedIntent extends Intent { const _ArchiveSelectedIntent(); }
-class _FavoriteSelectedIntent extends Intent { const _FavoriteSelectedIntent(); }
-class _ShareSelectedIntent extends Intent { const _ShareSelectedIntent(); }
-class _ExportSelectedIntent extends Intent { const _ExportSelectedIntent(); }
-class _QuickFolderAccessIntent extends Intent { 
+class _SelectAllIntent extends Intent {
+  const _SelectAllIntent();
+}
+
+class _SelectNoneIntent extends Intent {
+  const _SelectNoneIntent();
+}
+
+class _InvertSelectionIntent extends Intent {
+  const _InvertSelectionIntent();
+}
+
+class _ExpandAllIntent extends Intent {
+  const _ExpandAllIntent();
+}
+
+class _CollapseAllIntent extends Intent {
+  const _CollapseAllIntent();
+}
+
+class _NextFolderIntent extends Intent {
+  const _NextFolderIntent();
+}
+
+class _PreviousFolderIntent extends Intent {
+  const _PreviousFolderIntent();
+}
+
+class _DeleteSelectedIntent extends Intent {
+  const _DeleteSelectedIntent();
+}
+
+class _MoveToFolderIntent extends Intent {
+  const _MoveToFolderIntent();
+}
+
+class _CreateFolderIntent extends Intent {
+  const _CreateFolderIntent();
+}
+
+class _RefreshFoldersIntent extends Intent {
+  const _RefreshFoldersIntent();
+}
+
+class _SearchFoldersIntent extends Intent {
+  const _SearchFoldersIntent();
+}
+
+class _ClearSearchIntent extends Intent {
+  const _ClearSearchIntent();
+}
+
+class _ArchiveSelectedIntent extends Intent {
+  const _ArchiveSelectedIntent();
+}
+
+class _FavoriteSelectedIntent extends Intent {
+  const _FavoriteSelectedIntent();
+}
+
+class _ShareSelectedIntent extends Intent {
+  const _ShareSelectedIntent();
+}
+
+class _ExportSelectedIntent extends Intent {
+  const _ExportSelectedIntent();
+}
+
+class _QuickFolderAccessIntent extends Intent {
   const _QuickFolderAccessIntent(this.index);
   final int index;
 }
@@ -431,7 +573,7 @@ class KeyboardShortcutsHelp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AlertDialog(
       title: const Text('Keyboard Shortcuts'),
       content: SizedBox(
@@ -440,57 +582,41 @@ class KeyboardShortcutsHelp extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildShortcutSection(
-                'Selection',
-                [
-                  const _ShortcutItem('Select All', '⌘A'),
-                  const _ShortcutItem('Clear Selection', '⌘D'),
-                  const _ShortcutItem('Invert Selection', '⌘I'),
-                ],
-                theme,
-              ),
-              
+              _buildShortcutSection('Selection', [
+                const _ShortcutItem('Select All', '⌘A'),
+                const _ShortcutItem('Clear Selection', '⌘D'),
+                const _ShortcutItem('Invert Selection', '⌘I'),
+              ], theme),
+
               const SizedBox(height: 16),
-              
-              _buildShortcutSection(
-                'Navigation',
-                [
-                  const _ShortcutItem('Expand All Folders', '⌘E'),
-                  const _ShortcutItem('Collapse All Folders', '⌘W'),
-                  const _ShortcutItem('Next Folder', '↓'),
-                  const _ShortcutItem('Previous Folder', '↑'),
-                  const _ShortcutItem('Quick Folder Access', '⌘1-9'),
-                ],
-                theme,
-              ),
-              
+
+              _buildShortcutSection('Navigation', [
+                const _ShortcutItem('Expand All Folders', '⌘E'),
+                const _ShortcutItem('Collapse All Folders', '⌘W'),
+                const _ShortcutItem('Next Folder', '↓'),
+                const _ShortcutItem('Previous Folder', '↑'),
+                const _ShortcutItem('Quick Folder Access', '⌘1-9'),
+              ], theme),
+
               const SizedBox(height: 16),
-              
-              _buildShortcutSection(
-                'Actions',
-                [
-                  const _ShortcutItem('Delete Selected', 'Delete'),
-                  const _ShortcutItem('Move to Folder', '⌘M'),
-                  const _ShortcutItem('Create Folder', '⌘⇧N'),
-                  const _ShortcutItem('Refresh Folders', '⌘R'),
-                  const _ShortcutItem('Search Folders', '⌘F'),
-                  const _ShortcutItem('Clear Search', 'Esc'),
-                ],
-                theme,
-              ),
-              
+
+              _buildShortcutSection('Actions', [
+                const _ShortcutItem('Delete Selected', 'Delete'),
+                const _ShortcutItem('Move to Folder', '⌘M'),
+                const _ShortcutItem('Create Folder', '⌘⇧N'),
+                const _ShortcutItem('Refresh Folders', '⌘R'),
+                const _ShortcutItem('Search Folders', '⌘F'),
+                const _ShortcutItem('Clear Search', 'Esc'),
+              ], theme),
+
               const SizedBox(height: 16),
-              
-              _buildShortcutSection(
-                'Batch Operations',
-                [
-                  const _ShortcutItem('Archive Selected', '⌘⇧A'),
-                  const _ShortcutItem('Favorite Selected', '⌘S'),
-                  const _ShortcutItem('Share Selected', '⌘⇧S'),
-                  const _ShortcutItem('Export Selected', '⌘⇧E'),
-                ],
-                theme,
-              ),
+
+              _buildShortcutSection('Batch Operations', [
+                const _ShortcutItem('Archive Selected', '⌘⇧A'),
+                const _ShortcutItem('Favorite Selected', '⌘S'),
+                const _ShortcutItem('Share Selected', '⌘⇧S'),
+                const _ShortcutItem('Export Selected', '⌘⇧E'),
+              ], theme),
             ],
           ),
         ),
@@ -520,40 +646,44 @@ class KeyboardShortcutsHelp extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ...shortcuts.map((shortcut) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  shortcut.description,
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  shortcut.shortcut,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.bold,
+        ...shortcuts.map(
+          (shortcut) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    shortcut.description,
+                    style: theme.textTheme.bodyMedium,
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    shortcut.shortcut,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        )),
+        ),
       ],
     );
   }
 }
 
 class _ShortcutItem {
-
   const _ShortcutItem(this.description, this.shortcut);
   final String description;
   final String shortcut;

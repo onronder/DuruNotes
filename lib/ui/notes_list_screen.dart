@@ -2,34 +2,35 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/folders/create_folder_dialog.dart'
+    as folder_dialog;
 import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/theme/material3_theme.dart';
+import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
+import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:duru_notes/ui/help_screen.dart';
+import 'package:duru_notes/ui/inbox_badge_widget.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
-import 'package:duru_notes/ui/settings_screen.dart';
-import 'package:duru_notes/ui/widgets/folder_chip.dart';
-import 'package:duru_notes/ui/widgets/stats_card.dart';
-import 'package:duru_notes/search/saved_search_registry.dart';
-import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
-import 'package:duru_notes/ui/tag_notes_screen.dart';
 import 'package:duru_notes/ui/note_search_delegate.dart';
+import 'package:duru_notes/ui/settings_screen.dart';
+import 'package:duru_notes/ui/task_list_screen.dart';
+import 'package:duru_notes/ui/widgets/folder_chip.dart';
+import 'package:duru_notes/ui/widgets/note_source_icon.dart';
+import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
+import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
+import 'package:duru_notes/ui/widgets/stats_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
-import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
-import 'package:duru_notes/ui/widgets/note_source_icon.dart';
-import 'package:duru_notes/ui/task_list_screen.dart';
-import 'package:duru_notes/ui/inbox_badge_widget.dart';
 
 /// Redesigned notes list screen with Material 3 design and modern UX
 class NotesListScreen extends ConsumerStatefulWidget {
@@ -49,8 +50,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   late Animation<double> _fabAnimation;
   // late Animation<double> _headerSlideAnimation;  // Reserved for header slide animation
   late Animation<double> _headerFadeAnimation;
-  Animation<double> _headerHeightAnimation = const AlwaysStoppedAnimation<double>(1);
-  
+  Animation<double> _headerHeightAnimation =
+      const AlwaysStoppedAnimation<double>(1);
+
   bool _isFabExpanded = false;
   bool _isGridView = false;
   final Set<String> _selectedNoteIds = {};
@@ -62,7 +64,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     super.initState();
     // Listen for scroll to implement infinite loading and header collapse
     _scrollController.addListener(_onScroll);
-    
+
     // Initialize animations
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -76,7 +78,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _fabAnimation = CurvedAnimation(
       parent: _fabAnimationController,
       curve: Curves.easeInOut,
@@ -88,17 +90,19 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     //   parent: _headerAnimationController,
     //   curve: Curves.easeInOut,
     // ));
-    _headerFadeAnimation = Tween<double>(
-      begin: 1,
-      end: 0,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimationController,
-      curve: Curves.easeInOut,
-    ));
-    _headerHeightAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(parent: _headerAnimationController, curve: Curves.easeInOut),
+    _headerFadeAnimation = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: Curves.easeInOut,
+      ),
     );
-    
+    _headerHeightAnimation = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _headerAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
     // Start list animation
     _listAnimationController.forward();
   }
@@ -119,21 +123,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _scrollController.position.maxScrollExtent - 200) {
       final hasMore = ref.read(hasMoreNotesProvider);
       final isLoading = ref.read(notesLoadingProvider);
-      
+
       if (hasMore && !isLoading) {
         ref.read(notesPageProvider.notifier).loadMore();
       }
     }
-    
+
     // Handle header collapse/expand animation
     const collapseThreshold = 120.0;
     final shouldCollapse = _scrollController.offset > collapseThreshold;
-    
+
     if (shouldCollapse != _isHeaderCollapsed) {
       setState(() {
         _isHeaderCollapsed = shouldCollapse;
       });
-      
+
       if (shouldCollapse) {
         _headerAnimationController.forward();
       } else {
@@ -144,18 +148,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Initialize realtime services (only if authenticated)
-    final folderRealtime = ref.watch(folderRealtimeServiceProvider);
-    final notesRealtime = ref.watch(notesRealtimeServiceProvider);
-    
+    // Initialize unified realtime service (only if authenticated)
+    final unifiedRealtime = ref.watch(unifiedRealtimeServiceProvider);
+
     // Trigger early loading of folders for deterministic first paint
     ref.watch(rootFoldersProvider);
-    
+
     final user = Supabase.instance.client.auth.currentUser;
     final notesAsync = ref.watch(filteredNotesProvider);
     final hasMore = ref.watch(hasMoreNotesProvider);
     final l10n = AppLocalizations.of(context);
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: _buildModernAppBar(context, l10n),
@@ -164,37 +167,34 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           // Saved search chips with counts
           SavedSearchChips(
             onTap: (preset) => _handleSavedSearchTap(context, preset),
-            onCustomSearchTap: (search) => _handleCustomSavedSearchTap(context, search),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            onCustomSearchTap: (search) =>
+                _handleCustomSavedSearchTap(context, search),
             getTagCounts: () async {
               final db = ref.read(appDbProvider);
               final tags = await db.getTagsWithCounts();
-              return Map.fromEntries(
-                tags.map((t) => MapEntry(t.tag, t.count)),
-              );
+              return Map.fromEntries(tags.map((t) => MapEntry(t.tag, t.count)));
             },
             getFolderCount: (folderName) async {
               if (folderName == 'Incoming Mail') {
-                final folderId = await ref.read(incomingMailFolderManagerProvider)
+                final folderId = await ref
+                    .read(incomingMailFolderManagerProvider)
                     .ensureIncomingMailFolderId();
                 final db = ref.read(appDbProvider);
-                return await db.getNotesCountInFolder(folderId);
+                return db.getNotesCountInFolder(folderId);
               }
               return 0;
             },
             // Filter button removed - now always in AppBar
           ),
-          
+
           // User stats card with animation
           if (user != null) _buildUserStatsCard(context, user),
-          
+
           // Folder navigation
           _buildFolderNavigation(context),
-          
+
           // Notes list
-          Expanded(
-            child: _buildNotesContent(context, notesAsync, hasMore),
-          ),
+          Expanded(child: _buildNotesContent(context, notesAsync, hasMore)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -211,12 +211,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-  
-  PreferredSizeWidget _buildModernAppBar(BuildContext context, AppLocalizations l10n) {
+
+  PreferredSizeWidget _buildModernAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     return AppBar(
       backgroundColor: colorScheme.surface,
       foregroundColor: colorScheme.onSurface,
@@ -251,109 +254,111 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       actions: _isSelectionMode
           ? _buildSelectionActions()
           : [
-                  // Search toggle
-                  IconButton(
-                    icon: const Icon(Icons.search_rounded),
-                    onPressed: _enterSearch,
-                    tooltip: 'Search notes',
+              // Search toggle
+              IconButton(
+                icon: const Icon(Icons.search_rounded),
+                onPressed: _enterSearch,
+                tooltip: 'Search notes',
+              ),
+              // Inbox with badge
+              const InboxBadgeWidget(),
+              // Filter button - always visible in AppBar
+              _buildFilterButton(context),
+              // View toggle
+              IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    _isGridView
+                        ? Icons.view_list_rounded
+                        : Icons.grid_view_rounded,
+                    key: ValueKey(_isGridView),
                   ),
-                  // Inbox with badge
-                  const InboxBadgeWidget(),
-                  // Filter button - always visible in AppBar
-                  _buildFilterButton(context),
-                  // View toggle
-                  IconButton(
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-                        key: ValueKey(_isGridView),
-                      ),
+                ),
+                onPressed: _toggleViewMode,
+                tooltip: _isGridView ? 'List View' : 'Grid View',
+              ),
+              // Sort and more options
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded),
+                tooltip: 'More options',
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: _handleMenuSelection,
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'sort',
+                    child: ListTile(
+                      leading: Icon(Icons.sort_rounded),
+                      title: Text('Sort'),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    onPressed: _toggleViewMode,
-                    tooltip: _isGridView ? 'List View' : 'Grid View',
                   ),
-                  // Sort and more options
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded),
-                    tooltip: 'More options',
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'import',
+                    child: ListTile(
+                      leading: const Icon(Icons.upload_file_rounded),
+                      title: Text(l10n.importNotes),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    onSelected: _handleMenuSelection,
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'sort',
-                        child: ListTile(
-                          leading: Icon(Icons.sort_rounded),
-                          title: Text('Sort'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                  ),
+                  PopupMenuItem(
+                    value: 'export',
+                    child: ListTile(
+                      leading: const Icon(Icons.download_rounded),
+                      title: Text(l10n.exportNotes),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'tasks',
+                    child: ListTile(
+                      leading: Icon(Icons.task_alt_rounded),
+                      title: Text('Tasks & Reminders'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'settings',
+                    child: ListTile(
+                      leading: const Icon(Icons.settings_rounded),
+                      title: Text(l10n.settings),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'help',
+                    child: ListTile(
+                      leading: const Icon(Icons.help_outline_rounded),
+                      title: Text(l10n.help),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.logout_rounded,
+                        color: colorScheme.error,
                       ),
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        value: 'import',
-                        child: ListTile(
-                          leading: const Icon(Icons.upload_file_rounded),
-                          title: Text(l10n.importNotes),
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                      title: Text(
+                        l10n.signOut,
+                        style: TextStyle(color: colorScheme.error),
                       ),
-                      PopupMenuItem(
-                        value: 'export',
-                        child: ListTile(
-                          leading: const Icon(Icons.download_rounded),
-                          title: Text(l10n.exportNotes),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'tasks',
-                        child: ListTile(
-                          leading: Icon(Icons.task_alt_rounded),
-                          title: Text('Tasks & Reminders'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        value: 'settings',
-                        child: ListTile(
-                          leading: const Icon(Icons.settings_rounded),
-                          title: Text(l10n.settings),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'help',
-                        child: ListTile(
-                          leading: const Icon(Icons.help_outline_rounded),
-                          title: Text(l10n.help),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        value: 'logout',
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.logout_rounded,
-                            color: colorScheme.error,
-                          ),
-                          title: Text(
-                            l10n.signOut,
-                            style: TextStyle(color: colorScheme.error),
-                          ),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ],
-      );
+              ),
+            ],
+    );
   }
-  
+
   Widget _buildUserStatsCard(BuildContext context, User user) {
     return AnimatedBuilder(
       animation: _headerFadeAnimation,
@@ -369,13 +374,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     note.updatedAt.month == today.month &&
                     note.updatedAt.day == today.day;
               }).length;
-              
+
               final folderCountAsync = ref.watch(allFoldersCountProvider);
               final folderCount = folderCountAsync.maybeWhen(
                 data: (count) => count,
                 orElse: () => 0,
               );
-              
+
               return StatsCard(
                 greeting: _getGreeting(),
                 email: user.email ?? 'User',
@@ -428,7 +433,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             if (_isHeaderCollapsed)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: GestureDetector(
                   onTap: () {
                     setState(() => _isHeaderCollapsed = false);
@@ -438,9 +446,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Row(
@@ -459,16 +472,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ],
         );
       },
-          
     );
   }
-  
+
   Widget _buildFolderNavigation(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
         final foldersAsync = ref.watch(rootFoldersProvider);
         final currentFolder = ref.watch(currentFolderProvider);
-        
+
         return Container(
           height: 60,
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -477,42 +489,89 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // All Notes chip
-                FolderChip(
-                  label: 'All Notes',
-                  icon: Icons.note_rounded,
-                  isSelected: currentFolder == null,
-                  onTap: () {
-                    ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+                // All Notes chip with drop to unfiled support
+                FolderDropTarget(
+                  folder: null, // null represents unfiled
+                  onNoteDropped: (note, targetFolder) async {
+                    // Move note to unfiled (remove from any folder)
+                    try {
+                      await ref
+                          .read(noteFolderProvider.notifier)
+                          .removeNoteFromFolder(note.id);
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Moved note to Unfiled'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+
+                      // Refresh the view
+                      ref.invalidate(filteredNotesProvider);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to move note: $e'),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                          ),
+                        );
+                      }
+                    }
                   },
+                  child: FolderChip(
+                    label: 'All Notes',
+                    icon: Icons.note_rounded,
+                    isSelected: currentFolder == null,
+                    onTap: () {
+                      ref
+                          .read(currentFolderProvider.notifier)
+                          .setCurrentFolder(null);
+                    },
+                  ),
                 ),
-                
+
                 const SizedBox(width: 8),
-                
+
                 // Folder chips with drag-drop support
                 ...foldersAsync.when(
-                  data: (folders) => folders.map((folder) => 
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FolderDropTarget(
-                        folder: folder,
-                        onNoteDropped: _handleNoteDrop,
-                        child: FolderChip(
-                          label: folder.name,
-                          icon: FolderIconHelpers.getFolderIcon(folder.icon, fallback: Icons.folder_rounded),
-                          color: FolderIconHelpers.getFolderColor(folder.color),
-                          isSelected: currentFolder?.id == folder.id,
-                          onTap: () {
-                            ref.read(currentFolderProvider.notifier).setCurrentFolder(folder);
-                          },
+                  data: (folders) => folders
+                      .map(
+                        (folder) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FolderDropTarget(
+                            folder: folder,
+                            onNoteDropped: _handleNoteDrop,
+                            child: FolderChip(
+                              label: folder.name,
+                              icon: FolderIconHelpers.getFolderIcon(
+                                folder.icon,
+                                fallback: Icons.folder_rounded,
+                              ),
+                              color: FolderIconHelpers.getFolderColor(
+                                folder.color,
+                              ),
+                              isSelected: currentFolder?.id == folder.id,
+                              onTap: () {
+                                ref
+                                    .read(currentFolderProvider.notifier)
+                                    .setCurrentFolder(folder);
+                              },
+                              onLongPress: () =>
+                                  _showFolderActionsMenu(context, folder),
+                            ),
+                          ),
                         ),
-                      ),
-                    )
-                  ).toList(),
+                      )
+                      .toList(),
                   loading: () => _buildFolderSkeletons(context),
                   error: (_, __) => <Widget>[],
                 ),
-                
+
                 // Create folder chip
                 FolderChip(
                   label: 'New Folder',
@@ -526,35 +585,40 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       },
     );
   }
-  
-  Widget _buildNotesContent(BuildContext context, AsyncValue<List<LocalNote>> notesAsync, bool hasMore) {
+
+  Widget _buildNotesContent(
+    BuildContext context,
+    AsyncValue<List<LocalNote>> notesAsync,
+    bool hasMore,
+  ) {
     // Watch sort spec changes to trigger rebuilds
     ref.watch(currentSortSpecProvider);
-    
+
     return notesAsync.when(
       data: (notes) {
         final filteredNotes = notes;
-        
+
         if (filteredNotes.isEmpty) {
           return _buildEmptyState(context);
         }
-        
+
         final sortedNotes = _sortNotes(filteredNotes);
-        
+
         // Check if we have active filters - if so, don't show loader for more pages
         final filterState = ref.watch(filterStateProvider);
         final hasActiveFilters = filterState?.hasActiveFilters ?? false;
         final currentFolder = ref.watch(currentFolderProvider);
-        
+
         // Only show "load more" if we're not filtering AND there are actually more pages
-        final shouldShowLoadMore = !hasActiveFilters && currentFolder == null && hasMore;
-        
+        final shouldShowLoadMore =
+            !hasActiveFilters && currentFolder == null && hasMore;
+
         return RefreshIndicator(
           onRefresh: () async {
             HapticFeedback.mediumImpact();
             await ref.read(notesPageProvider.notifier).refresh();
             ref.invalidate(filteredNotesProvider);
-            
+
             // NEW: ensure folders refresh immediately
             // This also triggers rootFoldersProvider rebuild automatically
             await ref.read(folderHierarchyProvider.notifier).loadFolders();
@@ -563,13 +627,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             duration: const Duration(milliseconds: 300),
             child: _isGridView
                 ? _buildModernGridView(context, sortedNotes, shouldShowLoadMore)
-                : _buildModernListView(context, sortedNotes, shouldShowLoadMore),
+                : _buildModernListView(
+                    context,
+                    sortedNotes,
+                    shouldShowLoadMore,
+                  ),
           ),
         );
       },
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => _buildErrorState(context, error.toString()),
     );
   }
@@ -577,26 +643,61 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Widget _buildEmptyState(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
-    
+
     // Regular empty state
     return Center(
       child: SingleChildScrollView(
-        padding: EdgeInsets.only(top: isCompact ? 16 : 24, bottom: MediaQuery.of(context).padding.bottom + (isCompact ? 16 : 24)),
+        padding: EdgeInsets.only(
+          top: isCompact ? 16 : 24,
+          bottom: MediaQuery.of(context).padding.bottom + (isCompact ? 16 : 24),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.note_add_rounded, size: isCompact ? 48 : 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            Icon(
+              Icons.note_add_rounded,
+              size: isCompact ? 48 : 64,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
             SizedBox(height: isCompact ? 12 : 16),
-            Text(l10n.noNotesYet, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) - 2 : null), textAlign: TextAlign.center),
+            Text(
+              l10n.noNotesYet,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontSize: isCompact
+                    ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) -
+                          2
+                    : null,
+              ),
+              textAlign: TextAlign.center,
+            ),
             SizedBox(height: isCompact ? 6 : 8),
-            Text(l10n.tapToCreateFirstNote, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: isCompact ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) - 1 : null), textAlign: TextAlign.center),
+            Text(
+              l10n.tapToCreateFirstNote,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontSize: isCompact
+                    ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) -
+                          1
+                    : null,
+              ),
+              textAlign: TextAlign.center,
+            ),
             SizedBox(height: isCompact ? 16 : 24),
             FilledButton.icon(
               onPressed: () => _createNewNote(context),
               icon: const Icon(Icons.add_rounded),
-              label: Text(l10n.createFirstNote, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: isCompact ? 13 : null)),
+              label: Text(
+                l10n.createFirstNote,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontSize: isCompact ? 13 : null,
+                ),
+              ),
               style: FilledButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 16 : 22, vertical: isCompact ? 12 : 14),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 16 : 22,
+                  vertical: isCompact ? 12 : 14,
+                ),
                 minimumSize: const Size(0, 0),
               ),
             ),
@@ -605,11 +706,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ),
     );
   }
-  
+
   List<Widget> _buildFolderSkeletons(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Return a list of skeleton widgets that look like folder chips
     return List.generate(4, (index) {
       final widths = [80.0, 90.0, 75.0, 85.0];
@@ -620,26 +721,36 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           height: 32,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
             ),
           ),
         ),
       );
     });
   }
-  
+
   Widget _buildErrorState(BuildContext context, String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline_rounded, size: 64, color: Theme.of(context).colorScheme.error),
+          Icon(
+            Icons.error_outline_rounded,
+            size: 64,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 16),
-          Text('Something went wrong', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Something went wrong',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 8),
-          Text('Unable to load your notes. Please try again.', style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            'Unable to load your notes. Please try again.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () {
@@ -655,23 +766,27 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   // Removed _buildEmptyFolderState - handled by main empty state logic
 
-  Widget _buildModernNoteCard(BuildContext context, LocalNote note, {bool isGrid = false}) {
+  Widget _buildModernNoteCard(
+    BuildContext context,
+    LocalNote note, {
+    bool isGrid = false,
+  }) {
     // Use separate optimized design for grid view
     if (isGrid) {
       return _buildCompactGridCard(context, note);
     }
-    
+
     // List view card
     final isSelected = _selectedNoteIds.contains(note.id);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Get folder information
     final noteFolderState = ref.watch(noteFolderProvider);
     final folderId = noteFolderState.noteFolders[note.id];
     String? folderName;
     Color? folderColor;
-    
+
     if (folderId != null) {
       final foldersAsync = ref.watch(rootFoldersProvider);
       foldersAsync.whenData((folders) {
@@ -682,7 +797,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         }
       });
     }
-    
+
     return DraggableNoteItem(
       note: note,
       enabled: !_isSelectionMode,
@@ -701,16 +816,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       },
       child: Card(
         elevation: isSelected ? 3 : 0.5,
-        shadowColor: colorScheme.shadow.withOpacity(0.08),
-        color: isSelected 
-            ? colorScheme.primaryContainer.withOpacity(0.15)
+        shadowColor: colorScheme.shadow.withValues(alpha: 0.08),
+        color: isSelected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.15)
             : theme.customColors.noteCardBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isSelected 
-                ? colorScheme.primary.withOpacity(0.4)
-                : colorScheme.outlineVariant.withOpacity(0.2),
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.4)
+                : colorScheme.outlineVariant.withValues(alpha: 0.2),
             width: isSelected ? 1.5 : 0.5,
           ),
         ),
@@ -737,9 +852,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 Row(
                   children: [
                     Icon(
-                      _getNoteIcon(note), 
-                      size: 20, 
-                      color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.8),
+                      _getNoteIcon(note),
+                      size: 20,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.primary.withValues(alpha: 0.8),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -747,7 +864,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         note.title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? colorScheme.onPrimaryContainer : null,
+                          color: isSelected
+                              ? colorScheme.onPrimaryContainer
+                              : null,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -755,17 +874,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     ),
                     const SizedBox(width: 8),
                     // Pin toggle button
-                    _PinToggleButton(
-                      noteId: note.id,
-                      isPinned: note.isPinned,
-                      colorScheme: colorScheme,
-                    ),
+                    PinToggleButton(noteId: note.id, isPinned: note.isPinned),
                     const SizedBox(width: 4),
                     // Source icon positioned to the left of menu
                     NoteSourceIcon(
                       note: note,
                       size: 18,
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     PopupMenuButton<String>(
@@ -790,9 +907,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        const PopupMenuItem(value: 'move', child: Text('Move to folder')),
-                        const PopupMenuItem(value: 'share', child: Text('Share')),
-                        const PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
+                        const PopupMenuItem(
+                          value: 'move',
+                          child: Text('Move to folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: Text('Share'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: Text('Duplicate'),
+                        ),
                         const PopupMenuDivider(),
                         const PopupMenuItem(
                           value: 'delete',
@@ -808,8 +934,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          Icons.check, 
-                          color: colorScheme.onPrimary, 
+                          Icons.check,
+                          color: colorScheme.onPrimary,
                           size: 16,
                         ),
                       ),
@@ -819,8 +945,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 Text(
                   _generatePreview(note.body),
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isSelected 
-                        ? colorScheme.onPrimaryContainer.withOpacity(0.8) 
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
                         : colorScheme.onSurfaceVariant,
                     height: 1.4,
                   ),
@@ -834,13 +960,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     Icon(
                       Icons.schedule_outlined,
                       size: 12,
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(note.updatedAt),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                     // Small pin indicator in subtitle
@@ -849,7 +979,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       Icon(
                         Icons.push_pin,
                         size: 12,
-                        color: colorScheme.tertiary.withOpacity(0.7),
+                        color: colorScheme.tertiary.withValues(alpha: 0.7),
                       ),
                     ],
                     if (folderName != null) ...[
@@ -857,14 +987,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       Icon(
                         Icons.folder_outlined,
                         size: 12,
-                        color: folderColor?.withOpacity(0.7) ?? colorScheme.primary.withOpacity(0.6),
+                        color:
+                            folderColor?.withValues(alpha: 0.7) ??
+                            colorScheme.primary.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
                           folderName ?? '',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: folderColor?.withOpacity(0.8) ?? colorScheme.primary.withOpacity(0.7),
+                            color:
+                                folderColor?.withValues(alpha: 0.8) ??
+                                colorScheme.primary.withValues(alpha: 0.7),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -882,24 +1016,27 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ),
     );
   }
-  
+
   // New efficient grid card design
   Widget _buildCompactGridCard(BuildContext context, LocalNote note) {
     final isSelected = _selectedNoteIds.contains(note.id);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Card(
       elevation: isSelected ? 4 : 1,
-      shadowColor: colorScheme.shadow.withOpacity(0.1),
-      color: isSelected 
-          ? colorScheme.primaryContainer.withOpacity(0.3)
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
+      color: isSelected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.3)
           : theme.customColors.noteCardBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: isSelected 
-            ? BorderSide(color: colorScheme.primary.withOpacity(0.5), width: 1)
-            : BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3), width: 0.5),
+        side: isSelected
+            ? BorderSide(color: colorScheme.primary.withValues(alpha: 0.5))
+            : BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                width: 0.5,
+              ),
       ),
       child: InkWell(
         onTap: () {
@@ -938,7 +1075,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   NoteSourceIcon(
                     note: note,
                     size: 14,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   if (isSelected)
                     Padding(
@@ -969,7 +1106,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               Text(
                 _formatDate(note.updatedAt),
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   fontSize: 10,
                 ),
               ),
@@ -982,7 +1119,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   String _generatePreview(String body) {
     if (body.trim().isEmpty) return 'No content';
-    
+
     // Remove markdown formatting for preview
     final preview = body
         .replaceAll(RegExp('#+ '), '') // Remove headers
@@ -991,14 +1128,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         .replaceAll(RegExp('`(.*?)`'), r'$1') // Remove code
         .replaceAll(RegExp(r'\n+'), ' ') // Replace newlines with spaces
         .trim();
-    
+
     return preview.length > 100 ? '${preview.substring(0, 97)}...' : preview;
   }
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 7) {
       return '${date.day}/${date.month}/${date.year}';
     } else if (difference.inDays > 0) {
@@ -1025,9 +1162,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => ModernEditNoteScreen(
-          initialFolder: folder,
-        ),
+        builder: (context) => ModernEditNoteScreen(initialFolder: folder),
       ),
     );
   }
@@ -1050,7 +1185,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Note'),
-        content: Text('Are you sure you want to delete "${note.title.isNotEmpty ? note.title : 'Untitled'}"?'),
+        content: Text(
+          'Are you sure you want to delete "${note.title.isNotEmpty ? note.title : 'Untitled'}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1059,14 +1196,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              
+
               try {
                 final repo = ref.read(notesRepositoryProvider);
                 await repo.delete(note.id);
-                
+
                 // Refresh the notes list
                 await ref.read(notesPageProvider.notifier).refresh();
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1086,7 +1223,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 }
               }
             },
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -1137,7 +1277,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.description, color: Theme.of(context).colorScheme.primary),
+              leading: Icon(
+                Icons.description,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text('Markdown Files'),
               subtitle: const Text('Import single .md or .markdown files'),
               onTap: () {
@@ -1147,7 +1290,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.file_copy, color: Theme.of(context).colorScheme.tertiary),
+              leading: Icon(
+                Icons.file_copy,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
               title: const Text('Evernote Export'),
               subtitle: const Text('Import .enex files from Evernote'),
               onTap: () {
@@ -1157,7 +1303,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.folder, color: Theme.of(context).colorScheme.secondary),
+              leading: Icon(
+                Icons.folder,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
               title: const Text('Obsidian Vault'),
               subtitle: const Text('Import entire Obsidian vault folder'),
               onTap: () {
@@ -1241,10 +1390,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     ImportType type,
   ) async {
     final importService = ref.read(importServiceProvider);
-    
+
     // Show progress dialog
     final progressKey = GlobalKey<_ImportProgressDialogState>();
-    
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1253,36 +1402,38 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     try {
       final results = <ImportResult>[];
-      
+
       for (final file in files) {
         ImportResult result;
-        
+
         switch (type) {
           case ImportType.markdown:
             result = await importService.importMarkdown(
               file,
-              onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+              onProgress: (progress) =>
+                  progressKey.currentState?.updateProgress(progress),
             );
           case ImportType.enex:
             result = await importService.importEnex(
               file,
-              onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+              onProgress: (progress) =>
+                  progressKey.currentState?.updateProgress(progress),
             );
           case ImportType.obsidian:
             // This shouldn't happen for file-based imports
             throw Exception('Invalid import type for file');
         }
-        
+
         results.add(result);
       }
 
       // Close progress dialog
       if (context.mounted) {
         Navigator.pop(context);
-        
+
         // Show summary
         await _showImportSummary(context, results);
-        
+
         // Refresh notes list
         await ref.read(notesPageProvider.notifier).refresh();
       }
@@ -1299,10 +1450,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Directory directory,
   ) async {
     final importService = ref.read(importServiceProvider);
-    
+
     // Show progress dialog
     final progressKey = GlobalKey<_ImportProgressDialogState>();
-    
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1312,16 +1463,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     try {
       final result = await importService.importObsidian(
         directory,
-        onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+        onProgress: (progress) =>
+            progressKey.currentState?.updateProgress(progress),
       );
 
       // Close progress dialog
       if (context.mounted) {
         Navigator.pop(context);
-        
+
         // Show summary
         await _showImportSummary(context, [result]);
-        
+
         // Refresh notes list
         await ref.read(notesPageProvider.notifier).refresh();
       }
@@ -1351,7 +1503,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           children: [
             Icon(
               totalErrors == 0 ? Icons.check_circle : Icons.warning,
-              color: totalErrors == 0 ? Theme.of(context).colorScheme.tertiary : Theme.of(context).customColors.onWarningContainer,
+              color: totalErrors == 0
+                  ? Theme.of(context).colorScheme.tertiary
+                  : Theme.of(context).customColors.onWarningContainer,
             ),
             const SizedBox(width: 8),
             const Text('Import Complete'),
@@ -1370,7 +1524,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             Text('⏱️ Import took: ${totalDuration.inSeconds} seconds'),
             if (totalErrors > 0) ...[
               const SizedBox(height: 16),
-              const Text('Error details:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Error details:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 height: 150,
@@ -1379,13 +1536,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: results
                         .expand((r) => r.errors)
-                        .map((e) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                '• ${e.source}: ${e.message}',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ))
+                        .map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${e.source}: ${e.message}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -1405,9 +1564,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   void _showErrorDialog(BuildContext context, String message) {
     final isExportError = message.toLowerCase().contains('export');
-    final isPdfTimeout = message.contains('timed out') && message.contains('PDF');
-    final isNetworkError = message.contains('network') || message.contains('fonts');
-    
+    final isPdfTimeout =
+        message.contains('timed out') && message.contains('PDF');
+    final isNetworkError =
+        message.contains('network') || message.contains('fonts');
+
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1454,7 +1615,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 // Retry with Markdown format
                 final currentNotes = ref.read(currentNotesProvider);
                 if (currentNotes.isNotEmpty) {
-                  _exportNotes(context, [currentNotes.first], ExportFormat.markdown, ExportScope.latest);
+                  _exportNotes(
+                    context,
+                    [currentNotes.first],
+                    ExportFormat.markdown,
+                    ExportScope.latest,
+                  );
                 }
               },
               child: const Text('Try Markdown'),
@@ -1470,7 +1636,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   void _showExportDialog(BuildContext context) {
     final currentNotes = ref.read(currentNotesProvider);
-    
+
     if (currentNotes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1526,7 +1692,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.description, color: Theme.of(context).colorScheme.primary),
+              leading: Icon(
+                Icons.description,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text('Markdown'),
               subtitle: const Text('Export as .md files with full formatting'),
               onTap: () {
@@ -1536,7 +1705,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.picture_as_pdf, color: Theme.of(context).colorScheme.error),
+              leading: Icon(
+                Icons.picture_as_pdf,
+                color: Theme.of(context).colorScheme.error,
+              ),
               title: const Text('PDF'),
               subtitle: const Text('Export as PDF documents for sharing'),
               onTap: () {
@@ -1546,7 +1718,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.web, color: Theme.of(context).colorScheme.tertiary),
+              leading: Icon(
+                Icons.web,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
               title: const Text('HTML'),
               subtitle: const Text('Export as web pages with styling'),
               onTap: () {
@@ -1568,7 +1743,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   void _showExportScopeSelection(BuildContext context, ExportFormat format) {
     final currentNotes = ref.read(currentNotesProvider);
-    
+
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1577,7 +1752,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.note, color: Theme.of(context).colorScheme.primary),
+              leading: Icon(
+                Icons.note,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text('Export All Notes'),
               subtitle: Text('Export all ${currentNotes.length} notes'),
               onTap: () {
@@ -1587,7 +1765,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.star, color: Theme.of(context).customColors.onWarningContainer),
+              leading: Icon(
+                Icons.star,
+                color: Theme.of(context).customColors.onWarningContainer,
+              ),
               title: const Text('Export Recent Notes'),
               subtitle: const Text('Export notes from the last 30 days'),
               onTap: () {
@@ -1599,13 +1780,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             if (currentNotes.length > 10) ...[
               const Divider(),
               ListTile(
-                leading: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.secondary),
+                leading: Icon(
+                  Icons.filter_list,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 title: const Text('Export Latest 10'),
                 subtitle: const Text('Export the 10 most recent notes'),
                 onTap: () {
                   Navigator.pop(context);
                   final latestNotes = currentNotes.take(10).toList();
-                  _exportNotes(context, latestNotes, format, ExportScope.latest);
+                  _exportNotes(
+                    context,
+                    latestNotes,
+                    format,
+                    ExportScope.latest,
+                  );
                 },
               ),
             ],
@@ -1638,11 +1827,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     }
 
     final exportService = ref.read(exportServiceProvider);
-    
+
     // Show progress dialog with cancel functionality
     final progressKey = GlobalKey<_ExportProgressDialogState>();
     var isCancelled = false;
-    
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1665,56 +1854,64 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     try {
       final results = <ExportResult>[];
-      const exportOptions = ExportOptions(
-        
-      );
+      const exportOptions = ExportOptions();
 
       for (var i = 0; i < notes.length; i++) {
         // Check if export was cancelled
         if (isCancelled) {
           final logger = ref.read(loggerProvider);
-          logger.info('Export cancelled by user', data: {
-            'completed_notes': i,
-            'total_notes': notes.length,
-            'format': format.name,
-          });
+          logger.info(
+            'Export cancelled by user',
+            data: {
+              'completed_notes': i,
+              'total_notes': notes.length,
+              'format': format.name,
+            },
+          );
           return;
         }
-        
+
         final note = notes[i];
         progressKey.currentState?.updateCurrentNote(i + 1, note.title);
-        
+
         ExportResult result;
-        
+
         try {
           switch (format) {
             case ExportFormat.markdown:
               result = await exportService.exportToMarkdown(
                 note,
-                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+                onProgress: (progress) =>
+                    progressKey.currentState?.updateProgress(progress),
               );
             case ExportFormat.pdf:
-              result = await exportService.exportToPdf(
-                note,
-                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
-              ).timeout(
-                const Duration(minutes: 2),
-                onTimeout: () => ExportResult.failure(
-                  error: 'PDF export timed out. This may be due to network issues loading fonts.',
-                  errorCode: 'EXPORT_TIMEOUT',
-                  processingTime: const Duration(minutes: 2),
-                  format: ExportFormat.pdf,
-                ),
-              );
+              result = await exportService
+                  .exportToPdf(
+                    note,
+                    onProgress: (progress) =>
+                        progressKey.currentState?.updateProgress(progress),
+                  )
+                  .timeout(
+                    const Duration(minutes: 2),
+                    onTimeout: () => ExportResult.failure(
+                      error:
+                          'PDF export timed out. This may be due to network issues loading fonts.',
+                      errorCode: 'EXPORT_TIMEOUT',
+                      processingTime: const Duration(minutes: 2),
+                      format: ExportFormat.pdf,
+                    ),
+                  );
             case ExportFormat.html:
               result = await exportService.exportToHtml(
                 note,
-                onProgress: (progress) => progressKey.currentState?.updateProgress(progress),
+                onProgress: (progress) =>
+                    progressKey.currentState?.updateProgress(progress),
               );
             case ExportFormat.txt:
             case ExportFormat.docx:
               result = ExportResult.failure(
-                error: 'Export format ${format.displayName} not yet implemented',
+                error:
+                    'Export format ${format.displayName} not yet implemented',
                 errorCode: 'FORMAT_NOT_IMPLEMENTED',
                 processingTime: Duration.zero,
                 format: format,
@@ -1728,14 +1925,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             format: format,
           );
         }
-        
+
         results.add(result);
       }
 
       // Close progress dialog
       if (context.mounted) {
         Navigator.pop(context);
-        
+
         // Show export summary with share option
         await _showExportSummary(context, results, format, scope);
       }
@@ -1755,8 +1952,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   ) async {
     final successfulResults = results.where((r) => r.success).toList();
     final failedResults = results.where((r) => !r.success).toList();
-    final totalSize = successfulResults.fold<int>(0, (sum, r) => sum + (r.fileSize ?? 0));
-    
+    final totalSize = successfulResults.fold<int>(
+      0,
+      (sum, r) => sum + (r.fileSize ?? 0),
+    );
+
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1764,7 +1964,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           children: [
             Icon(
               failedResults.isEmpty ? Icons.check_circle : Icons.warning,
-              color: failedResults.isEmpty ? Theme.of(context).colorScheme.tertiary : Theme.of(context).customColors.onWarningContainer,
+              color: failedResults.isEmpty
+                  ? Theme.of(context).colorScheme.tertiary
+                  : Theme.of(context).customColors.onWarningContainer,
             ),
             const SizedBox(width: 8),
             const Text('Export Complete'),
@@ -1788,12 +1990,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ],
             if (successfulResults.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text('Files saved to Downloads folder', 
-                style: TextStyle(fontStyle: FontStyle.italic)),
+              const Text(
+                'Files saved to Downloads folder',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
             ],
             if (failedResults.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text('Failed exports:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Failed exports:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 height: 100,
@@ -1801,13 +2008,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: failedResults
-                        .map((r) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                '• ${r.error ?? 'Unknown error'}',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ))
+                        .map(
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${r.error ?? 'Unknown error'}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -1848,7 +2057,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   // Enhanced UX Helper Methods
-  
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return 'Good morning!';
@@ -1887,11 +2096,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   List<LocalNote> _sortNotes(List<LocalNote> notes) {
     final sorted = List<LocalNote>.from(notes);
     final sortSpec = ref.read(currentSortSpecProvider);
-    
+
     // Separate pinned and unpinned notes
     final pinnedNotes = sorted.where((n) => n.isPinned).toList();
     final unpinnedNotes = sorted.where((n) => !n.isPinned).toList();
-    
+
     // Sort each group separately
     void sortGroup(List<LocalNote> group) {
       switch (sortSpec.field) {
@@ -1917,20 +2126,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           }
       }
     }
-    
+
     sortGroup(pinnedNotes);
     sortGroup(unpinnedNotes);
-    
+
     // Return pinned notes first, then unpinned
     return [...pinnedNotes, ...unpinnedNotes];
   }
 
-  Widget _buildModernListView(BuildContext context, List<LocalNote> notes, bool hasMore) {
+  Widget _buildModernListView(
+    BuildContext context,
+    List<LocalNote> notes,
+    bool hasMore,
+  ) {
     // Separate pinned and unpinned notes for visual grouping
     final pinnedNotes = notes.where((n) => n.isPinned).toList();
     final unpinnedNotes = notes.where((n) => !n.isPinned).toList();
     final hasPinnedNotes = pinnedNotes.isNotEmpty;
-    
+
     return ListView.builder(
       key: const ValueKey('modern_list_view'),
       controller: _scrollController,
@@ -1943,25 +2156,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         if (index >= notes.length) {
           return const Padding(
             padding: EdgeInsets.all(24),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
-        
+
         final note = notes[index];
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.3, 0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(
-            parent: _listAnimationController,
-            curve: Interval(
-              math.max(0, (index - 3) / notes.length),
-              math.min(1, (index + 1) / notes.length),
-              curve: Curves.easeOutCubic,
-            ),
-          )),
+          position: Tween<Offset>(begin: const Offset(0.3, 0), end: Offset.zero)
+              .animate(
+                CurvedAnimation(
+                  parent: _listAnimationController,
+                  curve: Interval(
+                    math.max(0, (index - 3) / notes.length),
+                    math.min(1, (index + 1) / notes.length),
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+              ),
           child: FadeTransition(
             opacity: CurvedAnimation(
               parent: _listAnimationController,
@@ -1978,11 +2189,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Widget _buildModernGridView(BuildContext context, List<LocalNote> notes, bool hasMore) {
+  Widget _buildModernGridView(
+    BuildContext context,
+    List<LocalNote> notes,
+    bool hasMore,
+  ) {
     final screenWidth = MediaQuery.of(context).size.width;
     // More responsive grid: 2-4 columns based on screen width
     final crossAxisCount = screenWidth > 800 ? 4 : (screenWidth > 600 ? 3 : 2);
-    
+
     return GridView.builder(
       key: const ValueKey('modern_grid_view'),
       controller: _scrollController,
@@ -2001,11 +2216,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       itemCount: notes.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= notes.length) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
-        
+
         final note = notes[index];
         return ScaleTransition(
           scale: CurvedAnimation(
@@ -2024,7 +2237,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildModernFAB(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     if (_isSelectionMode) {
       // Show selection FAB
       return FloatingActionButton.extended(
@@ -2032,10 +2245,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         backgroundColor: colorScheme.tertiaryContainer,
         foregroundColor: colorScheme.onTertiaryContainer,
         icon: const Icon(Icons.folder_copy_rounded),
-        label: Text('Move ${_selectedNoteIds.length} note${_selectedNoteIds.length == 1 ? '' : 's'}'),
+        label: Text(
+          'Move ${_selectedNoteIds.length} note${_selectedNoteIds.length == 1 ? '' : 's'}',
+        ),
       );
     }
-    
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -2115,7 +2330,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     required VoidCallback onPressed,
   }) {
     final theme = Theme.of(context);
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -2123,7 +2338,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           elevation: 2,
-          shadowColor: theme.colorScheme.shadow.withOpacity(0.3),
+          shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.3),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Text(
@@ -2160,22 +2375,26 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     });
   }
 
-  
   void _enterSearch() => _showSearchScreen(context);
-  
-  Future<void> _showSearchScreen(BuildContext context, {String? initialQuery}) async {
+
+  Future<void> _showSearchScreen(
+    BuildContext context, {
+    String? initialQuery,
+  }) async {
     HapticFeedback.lightImpact();
-    
+
     // Get current notes for search
     final notesAsync = ref.read(filteredNotesProvider);
     final notes = notesAsync.maybeWhen(
       data: (notes) => notes,
       orElse: () => <LocalNote>[],
     );
-    
+
     // Get existing saved searches for duplicate checking
-    final existingSearches = await ref.read(notesRepositoryProvider).getSavedSearches();
-    
+    final existingSearches = await ref
+        .read(notesRepositoryProvider)
+        .getSavedSearches();
+
     // Create and show search delegate
     final delegate = NoteSearchDelegate(
       notes: notes,
@@ -2184,7 +2403,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       existingSavedSearches: existingSearches,
       resolveFolderIdByName: (name) async {
         if (name == 'Incoming Mail') {
-          return await ref.read(incomingMailFolderManagerProvider)
+          return ref
+              .read(incomingMailFolderManagerProvider)
               .ensureIncomingMailFolderId();
         }
         final db = ref.read(appDbProvider);
@@ -2197,14 +2417,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         return noteIds.toSet();
       },
     );
-    
-    final result = await showSearch(
-      context: context,
-      delegate: delegate,
-    );
-    
+
+    final result = await showSearch(context: context, delegate: delegate);
+
     // Handle search result if needed
-    if (result != null && result is LocalNote) {
+    if (result != null) {
       // Note was selected from search results
       if (!context.mounted) return;
       Navigator.of(context).push(
@@ -2214,27 +2431,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       );
     }
   }
-  
+
   void _toggleViewMode() {
     HapticFeedback.lightImpact();
     setState(() {
       _isGridView = !_isGridView;
     });
   }
-  
+
   Widget _buildFilterButton(BuildContext context) {
     final filterState = ref.watch(filterStateProvider);
     final hasActiveFilters = filterState?.hasActiveFilters ?? false;
-    
+
     return Stack(
       children: [
         IconButton(
           icon: Icon(
-            hasActiveFilters 
-                ? Icons.filter_list 
-                : Icons.filter_list_outlined,
-            color: hasActiveFilters 
-                ? Theme.of(context).colorScheme.primary 
+            hasActiveFilters ? Icons.filter_list : Icons.filter_list_outlined,
+            color: hasActiveFilters
+                ? Theme.of(context).colorScheme.primary
                 : null,
           ),
           onPressed: () => _showFilterSheet(context),
@@ -2256,27 +2471,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ],
     );
   }
-  
+
   Future<void> _showFilterSheet(BuildContext context) async {
     final currentFilter = ref.read(filterStateProvider);
     final currentSort = ref.read(currentSortSpecProvider);
-    
+
     await FiltersBottomSheet.show(
       context,
       initialState: currentFilter ?? FilterState(sortSpec: currentSort),
       onApply: (filterState) async {
         // Update filter state
         ref.read(filterStateProvider.notifier).state = filterState;
-        
+
         // Update sort spec if changed
         if (filterState.sortSpec != currentSort) {
-          await ref.read(currentSortSpecProvider.notifier)
+          await ref
+              .read(currentSortSpecProvider.notifier)
               .updateSortSpec(filterState.sortSpec);
         }
-        
+
         // Apply filters by refreshing the notes list
         _applyFilters(filterState);
-        
+
         // Show brief confirmation
         if (context.mounted && filterState.hasActiveFilters) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -2293,20 +2509,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       },
     );
   }
-  
+
   void _applyFilters(FilterState filterState) {
     // Force refresh of notes list with new filters
     ref.read(notesPageProvider.notifier).refresh();
-    
+
     // If filters are active, you might want to clear folder selection
     // to show filtered results from all folders
-    if (filterState.hasActiveFilters && 
-        (filterState.includeTags.isNotEmpty || filterState.excludeTags.isNotEmpty)) {
+    if (filterState.hasActiveFilters &&
+        (filterState.includeTags.isNotEmpty ||
+            filterState.excludeTags.isNotEmpty)) {
       // Optionally clear folder selection to show all filtered results
       // ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
     }
   }
-  
+
   void _handleMenuSelection(String value) {
     HapticFeedback.selectionClick();
     switch (value) {
@@ -2326,23 +2543,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _confirmLogout(context);
     }
   }
-  
+
   void _showSortDialog(BuildContext context) {
     final currentSort = ref.read(currentSortSpecProvider);
     final theme = Theme.of(context);
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          NoteSortSpec selectedSort = currentSort;
-          
+          var selectedSort = currentSort;
+
           return Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
             ),
             padding: const EdgeInsets.only(bottom: 20),
             child: SafeArea(
@@ -2357,7 +2576,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       height: 4,
                       margin: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -2379,7 +2598,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   ...SortPreferencesService.getAllSortOptions().map((spec) {
                     final isSelected = selectedSort == spec;
                     IconData icon;
-                    
+
                     // Choose icon based on sort field
                     switch (spec.field) {
                       case NoteSortField.title:
@@ -2390,7 +2609,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       default:
                         icon = Icons.update_rounded;
                     }
-                    
+
                     return RadioListTile<NoteSortSpec>(
                       value: spec,
                       groupValue: selectedSort,
@@ -2399,20 +2618,22 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                           setModalState(() {
                             selectedSort = value;
                           });
-                          
+
                           // Apply the sort preference
-                          await ref.read(currentSortSpecProvider.notifier).updateSortSpec(value);
-                          
+                          await ref
+                              .read(currentSortSpecProvider.notifier)
+                              .updateSortSpec(value);
+
                           // Haptic feedback
                           HapticFeedback.selectionClick();
-                          
+
                           // Force refresh the UI
                           setState(() {});
-                          
+
                           // Close the sheet
                           if (mounted) {
                             Navigator.pop(context);
-                            
+
                             // Show confirmation toast
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -2442,7 +2663,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ),
     );
   }
-  
+
   void _handleNoteDrop(LocalNote note, LocalFolder? targetFolder) {
     // Handle null case (drop to unfiled)
     if (targetFolder == null) {
@@ -2458,15 +2679,20 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     // Execute async operation without await since callback must be synchronous
     _performNoteDrop(note, targetFolder);
   }
-  
-  Future<void> _performNoteDrop(LocalNote note, LocalFolder targetFolder) async {
+
+  Future<void> _performNoteDrop(
+    LocalNote note,
+    LocalFolder targetFolder,
+  ) async {
     try {
       final repo = ref.read(notesRepositoryProvider);
+      final previousFolder = await repo.getFolderForNote(note.id);
       await repo.addNoteToFolder(note.id, targetFolder.id);
-      
+
       // Refresh the filtered notes
       ref.invalidate(filteredNotesProvider);
-      
+      await ref.read(folderHierarchyProvider.notifier).loadFolders();
+
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2478,8 +2704,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             action: SnackBarAction(
               label: 'Undo',
-              onPressed: () {
-                // TODO: Implement undo functionality
+              onPressed: () async {
+                if (previousFolder != null) {
+                  await repo.moveNoteToFolder(note.id, previousFolder.id);
+                } else {
+                  await repo.removeNoteFromFolder(note.id);
+                }
+                ref.invalidate(filteredNotesProvider);
+                await ref.read(folderHierarchyProvider.notifier).loadFolders();
               },
             ),
           ),
@@ -2598,8 +2830,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-              title: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              leading: Icon(
+                Icons.delete,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _deleteNote(note);
@@ -2634,7 +2872,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       context,
       MaterialPageRoute<void>(
         builder: (context) => const ModernEditNoteScreen(
-          initialBody: '## Checklist\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3',
+          initialBody:
+              '## Checklist\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3',
         ),
       ),
     );
@@ -2651,9 +2890,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Future<void> _shareSelectedNotes() async {
     // Implementation for sharing multiple notes
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sharing ${_selectedNoteIds.length} notes...'),
-      ),
+      SnackBar(content: Text('Sharing ${_selectedNoteIds.length} notes...')),
     );
     _exitSelectionMode();
   }
@@ -2672,7 +2909,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -2685,7 +2925,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       }
       await ref.read(notesPageProvider.notifier).refresh();
       _exitSelectionMode();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2699,7 +2939,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _showAddToFolderDialog() async {
     if (_selectedNoteIds.isEmpty) return;
-    
+
     // Show folder picker
     showModalBottomSheet(
       context: context,
@@ -2709,44 +2949,55 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         onFolderSelected: (folderId) async {
           var successCount = 0;
           var errorCount = 0;
-          
+
           for (final noteId in _selectedNoteIds) {
             try {
               if (folderId != null) {
-                await ref.read(noteFolderProvider.notifier).addNoteToFolder(noteId, folderId);
+                await ref
+                    .read(noteFolderProvider.notifier)
+                    .addNoteToFolder(noteId, folderId);
               } else {
-                await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(noteId);
+                await ref
+                    .read(noteFolderProvider.notifier)
+                    .removeNoteFromFolder(noteId);
               }
               successCount++;
             } catch (e) {
               errorCount++;
             }
           }
-          
+
           _exitSelectionMode();
-          
+
           if (mounted) {
             if (errorCount == 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(folderId != null 
-                      ? 'Moved $successCount notes to folder'
-                      : 'Moved $successCount notes to Unfiled'),
+                  content: Text(
+                    folderId != null
+                        ? 'Moved $successCount notes to folder'
+                        : 'Moved $successCount notes to Unfiled',
+                  ),
                   backgroundColor: Theme.of(context).colorScheme.tertiary,
                 ),
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('$successCount notes moved, $errorCount failed'),
-                  backgroundColor: Theme.of(context).customColors.warningContainer,
+                  content: Text(
+                    '$successCount notes moved, $errorCount failed',
+                  ),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).customColors.warningContainer,
                 ),
               );
             }
           }
-          
+
           // Refresh the current view
           await ref.read(notesPageProvider.notifier).refresh();
+          await ref.read(folderHierarchyProvider.notifier).loadFolders();
         },
       ),
     );
@@ -2754,25 +3005,293 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   // Remove the old _buildFilterChip method as we're using DuruFolderChip component
 
-  void _showFolderPicker(BuildContext context) {
+  void _showFolderActionsMenu(BuildContext context, LocalFolder folder) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
-      builder: (context) => FolderPicker(
-        title: 'Create Folder',
-        showUnfiledOption: false,
-        onFolderSelected: (folderId) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Folder functionality coming soon!'),
-                backgroundColor: Theme.of(context).colorScheme.primary,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      FolderIconHelpers.getFolderIcon(folder.icon),
+                      color: FolderIconHelpers.getFolderColor(folder.color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            folder.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (folder.description.isNotEmpty ?? false)
+                            Text(
+                              folder.description,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            );
-          }
-        },
+              const Divider(height: 1),
+              // Actions
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename Folder'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenameFolderDialog(context, folder);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: const Text('Move to Unfiled'),
+                subtitle: const Text(
+                  'Move all notes in this folder to Unfiled',
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _moveAllNotesToUnfiled(folder);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Delete Folder',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: const Text('Notes will be moved to Unfiled'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeleteFolder(context, folder);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRenameFolderDialog(BuildContext context, LocalFolder folder) {
+    final controller = TextEditingController(text: folder.name);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Folder'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Folder Name',
+            hintText: 'Enter new folder name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty && newName != folder.name) {
+                Navigator.pop(context);
+
+                try {
+                  await ref
+                      .read(folderProvider.notifier)
+                      .updateFolder(id: folder.id, name: newName);
+
+                  // Refresh folders
+                  ref.invalidate(rootFoldersProvider);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Renamed folder to "$newName"'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to rename folder: $e'),
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    );
+                  }
+                }
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Rename'),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _moveAllNotesToUnfiled(LocalFolder folder) async {
+    try {
+      // Get all notes in this folder
+      final repo = ref.read(notesRepositoryProvider);
+      final notes = await repo.getNotesInFolder(folder.id);
+
+      if (notes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No notes in this folder')),
+          );
+        }
+        return;
+      }
+
+      // Move each note to unfiled
+      var movedCount = 0;
+      for (final note in notes) {
+        try {
+          await ref
+              .read(noteFolderProvider.notifier)
+              .removeNoteFromFolder(note.id);
+          movedCount++;
+        } catch (e) {
+          // Continue with other notes
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Moved $movedCount notes to Unfiled'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+
+      // Refresh the view
+      ref.invalidate(filteredNotesProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to move notes: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _confirmDeleteFolder(BuildContext context, LocalFolder folder) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Folder?'),
+        content: Text(
+          'Are you sure you want to delete "${folder.name}"? All notes will be moved to Unfiled.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              try {
+                // Move notes to unfiled first
+                await _moveAllNotesToUnfiled(folder);
+
+                // Delete the folder
+                await ref.read(folderProvider.notifier).deleteFolder(folder.id);
+
+                // Clear selection if this was the selected folder
+                if (ref.read(currentFolderProvider)?.id == folder.id) {
+                  ref
+                      .read(currentFolderProvider.notifier)
+                      .setCurrentFolder(null);
+                }
+
+                // Refresh folders
+                ref.invalidate(rootFoldersProvider);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Deleted folder "${folder.name}"'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete folder: $e'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showFolderPicker(BuildContext context) async {
+    // Show the create folder dialog directly
+    final newFolder = await showDialog<LocalFolder>(
+      context: context,
+      builder: (context) => const folder_dialog.CreateFolderDialog(),
+    );
+
+    if (newFolder != null && mounted) {
+      // Select the newly created folder
+      ref.read(currentFolderProvider.notifier).setCurrentFolder(newFolder);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Created folder: ${newFolder.name}'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          action: SnackBarAction(
+            label: 'View All',
+            onPressed: () {
+              // Clear folder selection to show all notes
+              ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+            },
+          ),
+        ),
+      );
+
+      // Refresh the folders list
+      ref.invalidate(rootFoldersProvider);
+    }
   }
 
   Future<void> _showAddToFolderForSingleNote(LocalNote note) async {
@@ -2785,20 +3304,27 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         onFolderSelected: (folderId) async {
           try {
             if (folderId != null) {
-              await ref.read(noteFolderProvider.notifier).addNoteToFolder(note.id, folderId);
+              await ref
+                  .read(noteFolderProvider.notifier)
+                  .addNoteToFolder(note.id, folderId);
             } else {
-              await ref.read(noteFolderProvider.notifier).removeNoteFromFolder(note.id);
+              await ref
+                  .read(noteFolderProvider.notifier)
+                  .removeNoteFromFolder(note.id);
             }
-            
+
             // Refresh the filtered notes
             ref.invalidate(filteredNotesProvider);
-            
+            await ref.read(folderHierarchyProvider.notifier).loadFolders();
+
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(folderId != null 
-                      ? 'Note moved to folder' 
-                      : 'Note moved to Unfiled'),
+                  content: Text(
+                    folderId != null
+                        ? 'Note moved to folder'
+                        : 'Note moved to Unfiled',
+                  ),
                   behavior: SnackBarBehavior.fixed,
                 ),
               );
@@ -2820,18 +3346,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _duplicateNote(LocalNote note) async {
     final repo = ref.read(notesRepositoryProvider);
-    await repo.createOrUpdate(
-      title: '${note.title} (Copy)',
-      body: note.body,
-    );
+    await repo.createOrUpdate(title: '${note.title} (Copy)', body: note.body);
     await ref.read(notesPageProvider.notifier).refresh();
-    
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Note duplicated'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Note duplicated')));
     }
   }
 
@@ -2844,7 +3365,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Future<void> _shareExportedFiles(List<ExportResult> results, ExportFormat format) async {
+  Future<void> _shareExportedFiles(
+    List<ExportResult> results,
+    ExportFormat format,
+  ) async {
     try {
       final exportService = ref.read(exportServiceProvider);
       final successfulFiles = results
@@ -2858,8 +3382,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       }
 
       // Share the first file (or could implement multi-file sharing)
-      final shared = await exportService.shareFile(successfulFiles.first, format);
-      
+      final shared = await exportService.shareFile(
+        successfulFiles.first,
+        format,
+      );
+
       if (!shared) {
         _showErrorDialog(context, 'Failed to share exported file');
       }
@@ -2872,7 +3399,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Files are saved in app Documents folder. Use "Share Files" to access them.'),
+          content: const Text(
+            'Files are saved in app Documents folder. Use "Share Files" to access them.',
+          ),
           backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
@@ -2884,27 +3413,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _showHelpScreen(BuildContext context) {
     Navigator.push<void>(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const HelpScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const HelpScreen()),
     );
   }
 
   void _showTasksScreen(BuildContext context) {
     Navigator.push<void>(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const TaskListScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const TaskListScreen()),
     );
   }
 
   void _showSettingsDialog(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SettingsScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
   }
 
   void _confirmLogout(BuildContext context) {
@@ -2938,56 +3461,72 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               // Finally sign out from Supabase
               await Supabase.instance.client.auth.signOut();
             },
-            child: Text('Sign Out', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(
+              'Sign Out',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
     );
   }
-  
-  void _handleSavedSearchTap(BuildContext context, SavedSearchPreset preset) async {
+
+  Future<void> _handleSavedSearchTap(
+    BuildContext context,
+    SavedSearchPreset preset,
+  ) async {
     HapticFeedback.selectionClick();
-    
+
+    // PRODUCTION FIX: Use in-place filtering instead of navigation
     // Logic order exactly as specified in requirements:
     // 1. Check for tag first
     if (preset.tag != null) {
-      // Map SavedSearchKey to string for the database method
-      String? savedSearchKey;
-      switch (preset.key) {
-        case SavedSearchKey.attachments:
-          savedSearchKey = 'attachments';
-          break;
-        case SavedSearchKey.emailNotes:
-          savedSearchKey = 'emailNotes';
-          break;
-        case SavedSearchKey.webNotes:
-          savedSearchKey = 'webNotes';
-          break;
-        case SavedSearchKey.inbox:
-          // Inbox uses folder selection, not tag-based search
-          savedSearchKey = null;
-          break;
+      // Toggle tag filter in the current view
+      final currentFilter =
+          ref.read(filterStateProvider) ?? const FilterState();
+      final normalizedTag = preset.tag!.toLowerCase();
+
+      // Check if this tag is already active
+      if (currentFilter.includeTags.contains(normalizedTag)) {
+        // Remove the tag filter (toggle off)
+        ref.read(filterStateProvider.notifier).state = currentFilter.copyWith(
+          includeTags: currentFilter.includeTags
+              .where((t) => t != normalizedTag)
+              .toSet(),
+        );
+      } else {
+        // Add the tag filter (toggle on)
+        ref.read(filterStateProvider.notifier).state = currentFilter.copyWith(
+          includeTags: {...currentFilter.includeTags, normalizedTag},
+        );
       }
-      
-      // Push TagNotesScreen with authoritative search key
-      await       Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TagNotesScreen(
-            tag: preset.tag!,
-          ),
-        ),
-      );
+
+      // Clear folder selection when using tag filter
+      ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+
+      // Track analytics
+      ref
+          .read(analyticsProvider)
+          .event(
+            'saved_search.tag_filter',
+            properties: {
+              'tag': preset.tag,
+              'key': preset.key.name,
+              'action': currentFilter.includeTags.contains(normalizedTag)
+                  ? 'remove'
+                  : 'add',
+            },
+          );
       return;
     }
-    
+
     // 2. Check for folder name second
     if (preset.folderName != null) {
       try {
         // Resolve "Incoming Mail" folder id and select it using the SAME provider the folder chips use
         final folderManager = ref.read(incomingMailFolderManagerProvider);
         final folderId = await folderManager.ensureIncomingMailFolderId();
-        
+
         // Get all folders from repository to find the folder object
         final repository = ref.read(notesRepositoryProvider);
         final allFolders = await repository.listFolders();
@@ -2996,7 +3535,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           orElse: () => LocalFolder(
             id: folderId,
             name: preset.folderName!,
-            parentId: null,
             path: '/${preset.folderName}',
             color: '#2196F3',
             icon: '📧',
@@ -3007,7 +3545,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             deleted: false,
           ),
         );
-        
+
         // Use the same call used by Folder chips
         ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
         return;
@@ -3021,7 +3559,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         return;
       }
     }
-    
+
     // 3. Safety fallback if nothing matched
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3029,24 +3567,26 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       );
     }
   }
-  
-  void _handleCustomSavedSearchTap(BuildContext context, SavedSearch search) async {
+
+  Future<void> _handleCustomSavedSearchTap(
+    BuildContext context,
+    SavedSearch search,
+  ) async {
     HapticFeedback.selectionClick();
-    
+
     // Update usage statistics
-    await ref.read(notesRepositoryProvider).db.updateSavedSearchUsage(search.id);
-    
+    await ref
+        .read(notesRepositoryProvider)
+        .db
+        .updateSavedSearchUsage(search.id);
+
     // Open search with the saved query
     await _showSearchScreen(context, initialQuery: search.query);
   }
 }
 
 /// Enum for import types
-enum ImportType {
-  markdown,
-  enex,
-  obsidian,
-}
+enum ImportType { markdown, enex, obsidian }
 
 /// Enum for export scope
 enum ExportScope {
@@ -3080,7 +3620,7 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final progress = _currentProgress;
-    
+
     return AlertDialog(
       title: const Row(
         children: [
@@ -3106,7 +3646,9 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: progress.progress,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
             ),
           ] else ...[
             const Text('Initializing import...'),
@@ -3121,9 +3663,10 @@ class _ImportProgressDialogState extends State<_ImportProgressDialog> {
 
 /// Progress dialog widget for export operations
 class _ExportProgressDialog extends StatefulWidget {
-
   const _ExportProgressDialog({
-    required this.totalNotes, required this.format, super.key,
+    required this.totalNotes,
+    required this.format,
+    super.key,
     this.onCancel,
   });
   final int totalNotes;
@@ -3166,13 +3709,13 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final progress = _currentProgress;
-    final overallProgress = widget.totalNotes > 0 
-        ? (_currentNoteIndex / widget.totalNotes) 
+    final overallProgress = widget.totalNotes > 0
+        ? (_currentNoteIndex / widget.totalNotes)
         : 0.0;
-    
+
     // Calculate estimated time remaining
     final estimatedTimeRemaining = _calculateEstimatedTime();
-    
+
     return AlertDialog(
       title: Row(
         children: [
@@ -3182,9 +3725,7 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text('Exporting to ${widget.format.displayName}'),
-          ),
+          Expanded(child: Text('Exporting to ${widget.format.displayName}')),
         ],
       ),
       content: Column(
@@ -3223,7 +3764,9 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: progress.percentage / 100,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
             ),
           ] else ...[
             const Text('Initializing export...'),
@@ -3234,22 +3777,19 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
       ),
       actions: [
         if (widget.onCancel != null)
-          TextButton(
-            onPressed: widget.onCancel,
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: widget.onCancel, child: const Text('Cancel')),
       ],
     );
   }
 
   String? _calculateEstimatedTime() {
     if (_currentNoteIndex == 0 || widget.totalNotes <= 1) return null;
-    
+
     final elapsed = DateTime.now().difference(_startTime ?? DateTime.now());
     final avgTimePerNote = elapsed.inSeconds / _currentNoteIndex;
     final remainingNotes = widget.totalNotes - _currentNoteIndex;
     final estimatedSeconds = (avgTimePerNote * remainingNotes).round();
-    
+
     if (estimatedSeconds < 60) {
       return '${estimatedSeconds}s';
     } else {
@@ -3257,107 +3797,5 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
       final seconds = estimatedSeconds % 60;
       return '${minutes}m ${seconds}s';
     }
-  }
-}
-
-/// Pin toggle button widget with debouncing
-class _PinToggleButton extends ConsumerStatefulWidget {
-  const _PinToggleButton({
-    required this.noteId,
-    required this.isPinned,
-    required this.colorScheme,
-  });
-
-  final String noteId;
-  final bool isPinned;
-  final ColorScheme colorScheme;
-
-  @override
-  ConsumerState<_PinToggleButton> createState() => _PinToggleButtonState();
-}
-
-class _PinToggleButtonState extends ConsumerState<_PinToggleButton> {
-  static final Map<String, DateTime> _lastToggle = {};
-  static const _debounceMs = 300;
-  bool _isToggling = false;
-
-  Future<void> _togglePin() async {
-    // Debounce check
-    final lastToggle = _lastToggle[widget.noteId];
-    if (lastToggle != null) {
-      final elapsed = DateTime.now().difference(lastToggle).inMilliseconds;
-      if (elapsed < _debounceMs) {
-        return; // Ignore rapid taps
-      }
-    }
-
-    // Update debounce tracker
-    _lastToggle[widget.noteId] = DateTime.now();
-
-    // Prevent concurrent toggles
-    if (_isToggling) return;
-    
-    setState(() => _isToggling = true);
-
-    try {
-      // Haptic feedback
-      await HapticFeedback.mediumImpact();
-
-      // Toggle pin state
-      final notesRepo = ref.read(notesRepositoryProvider);
-      await notesRepo.setNotePin(widget.noteId, !widget.isPinned);
-
-      // Refresh the notes list to show the note in its new sorted position
-      ref.invalidate(filteredNotesProvider);
-      ref.invalidate(currentNotesProvider);
-      
-      // Show snackbar
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.isPinned ? 'Unpinned' : 'Pinned'),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to update pin status'),
-            backgroundColor: widget.colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isToggling = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(
-        widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-        size: 20,
-        color: widget.isPinned 
-            ? widget.colorScheme.primary 
-            : widget.colorScheme.onSurfaceVariant.withOpacity(0.6),
-      ),
-      onPressed: _isToggling ? null : _togglePin,
-      tooltip: widget.isPinned ? 'Unpin' : 'Pin',
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(
-        minWidth: 32,
-        minHeight: 32,
-      ),
-    );
   }
 }

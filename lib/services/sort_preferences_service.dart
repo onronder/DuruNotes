@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Sorting options for notes
@@ -29,9 +29,6 @@ class NoteSortSpec {
     this.direction = SortDirection.desc,
   });
 
-  final NoteSortField field;
-  final SortDirection direction;
-
   /// Create from stored preference string
   factory NoteSortSpec.fromString(String? value) {
     if (value == null || value.isEmpty) {
@@ -56,7 +53,11 @@ class NoteSortSpec {
     return NoteSortSpec(field: field, direction: direction);
   }
 
+  final NoteSortField field;
+  final SortDirection direction;
+
   /// Convert to string for storage
+  @override
   String toString() => '${field.value}:${direction.value}';
 
   /// Get human-readable label
@@ -97,6 +98,7 @@ class NoteSortSpec {
 
 /// Service for managing sort preferences per folder
 class SortPreferencesService {
+  final AppLogger _logger = LoggerFactory.instance;
   static const String _keyPrefix = 'prefs.sort.folder.';
   static const String _allNotesKey = 'all';
 
@@ -108,7 +110,7 @@ class SortPreferencesService {
       final value = prefs.getString(key);
       return NoteSortSpec.fromString(value);
     } catch (e) {
-      debugPrint('Error loading sort preference: $e');
+      _logger.debug('Error loading sort preference: $e');
       return const NoteSortSpec(); // Return default on error
     }
   }
@@ -120,7 +122,7 @@ class SortPreferencesService {
       final key = _buildKey(folderId);
       return await prefs.setString(key, sort.toString());
     } catch (e) {
-      debugPrint('Error saving sort preference: $e');
+      _logger.debug('Error saving sort preference: $e');
       return false;
     }
   }
@@ -132,7 +134,7 @@ class SortPreferencesService {
       final key = _buildKey(folderId);
       return await prefs.remove(key);
     } catch (e) {
-      debugPrint('Error removing sort preference: $e');
+      _logger.debug('Error removing sort preference: $e');
       return false;
     }
   }
@@ -142,14 +144,14 @@ class SortPreferencesService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys().where((key) => key.startsWith(_keyPrefix));
-      
+
       for (final key in keys) {
         await prefs.remove(key);
       }
-      
+
       return true;
     } catch (e) {
-      debugPrint('Error clearing sort preferences: $e');
+      _logger.debug('Error clearing sort preferences: $e');
       return false;
     }
   }
@@ -163,14 +165,20 @@ class SortPreferencesService {
   static List<NoteSortSpec> getAllSortOptions() {
     return [
       // Modified (default)
-      const NoteSortSpec(field: NoteSortField.updatedAt, direction: SortDirection.desc),
-      const NoteSortSpec(field: NoteSortField.updatedAt, direction: SortDirection.asc),
+      const NoteSortSpec(),
+      const NoteSortSpec(direction: SortDirection.asc),
       // Created
-      const NoteSortSpec(field: NoteSortField.createdAt, direction: SortDirection.desc),
-      const NoteSortSpec(field: NoteSortField.createdAt, direction: SortDirection.asc),
+      const NoteSortSpec(field: NoteSortField.createdAt),
+      const NoteSortSpec(
+        field: NoteSortField.createdAt,
+        direction: SortDirection.asc,
+      ),
       // Title
-      const NoteSortSpec(field: NoteSortField.title, direction: SortDirection.asc),
-      const NoteSortSpec(field: NoteSortField.title, direction: SortDirection.desc),
+      const NoteSortSpec(
+        field: NoteSortField.title,
+        direction: SortDirection.asc,
+      ),
+      const NoteSortSpec(field: NoteSortField.title),
     ];
   }
 }

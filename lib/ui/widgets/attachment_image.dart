@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 /// Shows a graceful placeholder and a SnackBar on load error.
 class AttachmentImage extends StatelessWidget {
   const AttachmentImage({
-    super.key,
     required this.url,
+    super.key,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -50,11 +50,7 @@ class AttachmentImage extends StatelessWidget {
       width: width,
       height: height ?? 160,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: const Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-        ),
-      ),
+      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
     );
   }
 
@@ -80,7 +76,9 @@ class AttachmentImage extends StatelessWidget {
           Icon(
             Icons.broken_image_outlined,
             size: 48,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 8),
           Text(
@@ -98,11 +96,7 @@ class AttachmentImage extends StatelessWidget {
 
 /// Thumbnail variant optimized for list views
 class AttachmentThumbnail extends StatelessWidget {
-  const AttachmentThumbnail({
-    super.key,
-    required this.url,
-    this.size = 60,
-  });
+  const AttachmentThumbnail({required this.url, super.key, this.size = 60});
 
   final String url;
   final double size;
@@ -121,11 +115,7 @@ class AttachmentThumbnail extends StatelessWidget {
 
 /// Full-size attachment viewer with caching
 class AttachmentViewer extends StatelessWidget {
-  const AttachmentViewer({
-    super.key,
-    required this.url,
-    this.title,
-  });
+  const AttachmentViewer({required this.url, super.key, this.title});
 
   final String url;
   final String? title;
@@ -135,22 +125,19 @@ class AttachmentViewer extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(title ?? 'Attachment'),
-        backgroundColor: Theme.of(context).brightness == Brightness.dark 
-            ? Theme.of(context).colorScheme.surface 
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface
             : const Color(0xFF0F1E2E),
         foregroundColor: Colors.white,
       ),
-      backgroundColor: Theme.of(context).brightness == Brightness.dark 
-          ? Theme.of(context).colorScheme.surface 
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.surface
           : const Color(0xFF0F1E2E),
       body: Center(
         child: InteractiveViewer(
           minScale: 0.5,
           maxScale: 3,
-          child: AttachmentImage(
-            url: url,
-            fit: BoxFit.contain,
-          ),
+          child: AttachmentImage(url: url, fit: BoxFit.contain),
         ),
       ),
     );

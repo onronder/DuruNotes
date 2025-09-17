@@ -1,15 +1,13 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for managing tasks
 class TaskService {
-  TaskService({
-    required AppDb database,
-  }) : _db = database;
+  TaskService({required AppDb database}) : _db = database;
 
   final AppDb _db;
   final _uuid = const Uuid();
@@ -37,7 +35,9 @@ class TaskService {
         priority: Value(priority),
         dueDate: Value(dueDate),
         parentTaskId: Value(parentTaskId),
-        labels: labels != null ? Value(labels.toString()) : const Value.absent(),
+        labels: labels != null
+            ? Value(labels.toString())
+            : const Value.absent(),
         notes: Value(notes),
         estimatedMinutes: Value(estimatedMinutes),
       ),
@@ -63,15 +63,24 @@ class TaskService {
     final updates = NoteTasksCompanion(
       content: content != null ? Value(content) : const Value.absent(),
       contentHash: content != null
-          ? Value(stableTaskHash((await _db.getTaskById(taskId))?.noteId ?? '', content))
+          ? Value(
+              stableTaskHash(
+                (await _db.getTaskById(taskId))?.noteId ?? '',
+                content,
+              ),
+            )
           : const Value.absent(),
       status: status != null ? Value(status) : const Value.absent(),
       priority: priority != null ? Value(priority) : const Value.absent(),
       dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
       labels: labels != null ? Value(labels.toString()) : const Value.absent(),
       notes: notes != null ? Value(notes) : const Value.absent(),
-      estimatedMinutes: estimatedMinutes != null ? Value(estimatedMinutes) : const Value.absent(),
-      actualMinutes: actualMinutes != null ? Value(actualMinutes) : const Value.absent(),
+      estimatedMinutes: estimatedMinutes != null
+          ? Value(estimatedMinutes)
+          : const Value.absent(),
+      actualMinutes: actualMinutes != null
+          ? Value(actualMinutes)
+          : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     );
 
@@ -169,7 +178,10 @@ class TaskService {
   }
 
   /// Sync tasks with note content
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {
     await _db.syncTasksWithNoteContent(noteId, noteContent);
   }
 

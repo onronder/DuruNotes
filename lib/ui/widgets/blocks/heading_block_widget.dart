@@ -4,7 +4,12 @@ import 'package:flutter/services.dart';
 
 class HeadingBlockWidget extends StatefulWidget {
   const HeadingBlockWidget({
-    required this.block, required this.isFocused, required this.onChanged, required this.onFocusChanged, required this.onNewLine, super.key,
+    required this.block,
+    required this.isFocused,
+    required this.onChanged,
+    required this.onFocusChanged,
+    required this.onNewLine,
+    super.key,
   });
 
   final NoteBlock block;
@@ -26,7 +31,7 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
     super.initState();
     _controller = TextEditingController(text: widget.block.data);
     _focusNode = FocusNode();
-    
+
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
     });
@@ -41,11 +46,11 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
   @override
   void didUpdateWidget(HeadingBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.block.data != oldWidget.block.data) {
       _controller.text = widget.block.data;
     }
-    
+
     if (widget.isFocused && !oldWidget.isFocused) {
       _focusNode.requestFocus();
     }
@@ -77,22 +82,25 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
     switch (widget.block.type) {
       case NoteBlockType.heading1:
         return theme.textTheme.headlineLarge?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.primaryColor,
-        ) ?? const TextStyle(fontSize: 32, fontWeight: FontWeight.bold);
-        
+              fontWeight: FontWeight.bold,
+              color: theme.primaryColor,
+            ) ??
+            const TextStyle(fontSize: 32, fontWeight: FontWeight.bold);
+
       case NoteBlockType.heading2:
         return theme.textTheme.headlineMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.primaryColor,
-        ) ?? const TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
-        
+              fontWeight: FontWeight.bold,
+              color: theme.primaryColor,
+            ) ??
+            const TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
+
       case NoteBlockType.heading3:
         return theme.textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.primaryColor,
-        ) ?? const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-        
+              fontWeight: FontWeight.bold,
+              color: theme.primaryColor,
+            ) ??
+            const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+
       default:
         return theme.textTheme.bodyLarge ?? const TextStyle();
     }
@@ -123,12 +131,16 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
             height: 24,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Center(
               child: Text(
-                'H${widget.block.type == NoteBlockType.heading1 ? '1' : widget.block.type == NoteBlockType.heading2 ? '2' : '3'}',
+                'H${widget.block.type == NoteBlockType.heading1
+                    ? '1'
+                    : widget.block.type == NoteBlockType.heading2
+                    ? '2'
+                    : '3'}',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
@@ -137,7 +149,7 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
               ),
             ),
           ),
-          
+
           // Heading Text Field
           Expanded(
             child: Focus(
@@ -163,13 +175,10 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
               ),
             ),
           ),
-          
+
           // Heading Level Selector
           PopupMenuButton<NoteBlockType>(
-            icon: Icon(
-              Icons.arrow_drop_down,
-              color: Colors.grey.shade400,
-            ),
+            icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade400),
             onSelected: (newType) {
               final newBlock = widget.block.copyWith(type: newType);
               widget.onChanged(newBlock);
