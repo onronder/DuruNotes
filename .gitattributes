@@ -1,0 +1,2 @@
+ios/Flutter/Flutter.xcframework/**/* filter=lfs diff=lfs merge=lfs -text
+ios/Flutter.framework filter=lfs diff=lfs merge=lfs -text

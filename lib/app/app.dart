@@ -5,7 +5,6 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/notification_handler_service.dart';
-import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
@@ -186,7 +185,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   ClipperInboxService? _clipperService;
   NotificationHandlerService? _notificationHandler;
   StreamSubscription<NotificationPayload>? _notificationTapSubscription;
-  QuickCaptureService? _quickCaptureService;
 
   @override
   void initState() {
@@ -317,8 +315,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                 // Initialize notification handler service
                 _initializeNotificationHandler();
                 
-                // Initialize quick capture service for widgets
-                _initializeQuickCaptureService();
               });
 
               return const NotesListScreen();
@@ -336,9 +332,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           _notificationHandler?.dispose();
           _notificationHandler = null;
           
-          // Clean up quick capture service when logged out
-          _quickCaptureService?.dispose();
-          _quickCaptureService = null;
 
           return const AuthScreen();
         }
@@ -478,20 +471,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     }
   }
 
-  void _initializeQuickCaptureService() {
-    try {
-      final service = ref.read(quickCaptureServiceProvider);
-      if (service != null) {
-        _quickCaptureService = service;
-        debugPrint('✅ Quick Capture Service initialized');
-      } else {
-        debugPrint('⚠️ Quick Capture Service is null');
-      }
-    } catch (e, stack) {
-      debugPrint('❌ Failed to initialize Quick Capture Service: $e');
-      debugPrint('Stack trace: $stack');
-    }
-  }
 
   void _handleNotificationTap(NotificationPayload payload) {
     debugPrint('📱 Handling notification tap: ${payload.eventType}');

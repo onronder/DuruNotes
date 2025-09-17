@@ -34,7 +34,6 @@ import 'package:duru_notes/services/note_task_sync_service.dart';
 import 'package:duru_notes/services/notes_realtime_service.dart';
 import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
-import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/services/sync/folder_remote_api.dart';
@@ -485,54 +484,6 @@ final inboxManagementServiceProvider = Provider<InboxManagementService>((ref) {
   );
 });
 
-/// Quick Capture Service provider for home screen widgets
-final quickCaptureServiceProvider = Provider<QuickCaptureService?>((ref) {
-  // Watch auth state to properly manage lifecycle
-  final authStateAsync = ref.watch(authStateChangesProvider);
-  
-  return authStateAsync.when(
-    data: (authState) {
-      // Return null if not authenticated
-      if (authState.session == null) {
-        debugPrint('[Providers] No session - quick capture service not created');
-        return null;
-      }
-      
-      final service = QuickCaptureService(
-        notesRepository: ref.watch(notesRepositoryProvider),
-        attachmentService: ref.watch(attachmentServiceProvider),
-        folderManager: ref.watch(incomingMailFolderManagerProvider),
-        analytics: ref.watch(analyticsProvider),
-        logger: ref.watch(loggerProvider),
-      );
-      
-      // Initialize the service
-      service.initialize().catchError((error) {
-        ref.watch(loggerProvider).error(
-          'Failed to initialize QuickCaptureService',
-          error: error,
-        );
-      });
-      
-      // Clean up on disposal
-      ref.onDispose(() {
-        debugPrint('[Providers] Disposing quick capture service');
-        service.dispose();
-      });
-      
-      return service;
-    },
-    loading: () => null,
-    error: (error, stack) {
-      ref.watch(loggerProvider).error(
-        'Error in auth state for QuickCaptureService',
-        error: error,
-        stackTrace: stack,
-      );
-      return null;
-    },
-  );
-});
 
 /// Unified Realtime Service - Single source of truth for all realtime subscriptions
 /// This replaces individual realtime services to reduce database load

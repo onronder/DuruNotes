@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "259019439896",
+    "project_id": "durunotes",
+    "storage_bucket": "durunotes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259019439896:android:2ea0fc35a3cc360bbce86d",
+        "android_client_info": {
+          "package_name": "com.fittechs.duruNotesApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJ-1t6xUe0w7FMMV04tWGSmLnAQuC5M_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
