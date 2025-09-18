@@ -2,7 +2,9 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Material 3 dialog for creating new folders with customization options
@@ -47,6 +49,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
   Color _selectedColor = Colors.blue;
   IconData _selectedIcon = Icons.folder;
   bool _isCreating = false;
+  DateTime? _lastCreateAttempt;
 
   // Predefined folder colors
   static const List<Color> _folderColors = [
@@ -137,55 +140,115 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
   }
 
   Future<void> _createFolder() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Prevent multiple simultaneous calls and debounce rapid taps
+    final now = DateTime.now();
+    if (_isCreating || 
+        !_formKey.currentState!.validate() ||
+        (_lastCreateAttempt != null && 
+         now.difference(_lastCreateAttempt!).inMilliseconds < 1000)) {
+      return;
+    }
 
+    // Set loading state and disable UI immediately
     setState(() {
       _isCreating = true;
+      _lastCreateAttempt = now;
     });
 
     try {
-      final folderId = await ref
-          .read(folderProvider.notifier)
-          .createFolder(
-            name: _nameController.text.trim(),
-            parentId: _selectedParent?.id,
-            color: _selectedColor.value.toRadixString(16),
-            icon: _selectedIcon.codePoint.toString(),
-            description: _descriptionController.text.trim(),
-          );
+      // Store the folder data
+      final folderName = _nameController.text.trim();
+      final parentId = _selectedParent?.id;
+      final color = _selectedColor.value.toRadixString(16);
+      final icon = _selectedIcon.codePoint.toString();
+      final description = _descriptionController.text.trim();
+      
+      if (kDebugMode) {
+        debugPrint('🔄 Creating folder: "$folderName" with parent: $parentId');
+      }
 
-      if (folderId != null && mounted) {
-        // Create a LocalFolder object to return
-        final newFolder = LocalFolder(
-          id: folderId,
-          name: _nameController.text.trim(),
-          parentId: _selectedParent?.id,
-          path: '', // Will be calculated by repository
+      // Create the actual folder and wait for the real ID
+      final realFolderId = await ref.read(folderProvider.notifier).createFolder(
+        name: folderName,
+        parentId: parentId,
+        color: color,
+        icon: icon,
+        description: description,
+      );
+
+      // Only proceed if widget is still mounted
+      if (!mounted) return;
+
+      if (realFolderId != null) {
+        if (kDebugMode) {
+          debugPrint('✅ Folder created successfully with ID: $realFolderId');
+        }
+        
+        // Get the actual folder from the repository to ensure we have the correct data
+        final realFolder = await ref.read(notesRepositoryProvider).getFolder(realFolderId);
+        
+        final folderToReturn = realFolder ?? LocalFolder(
+          id: realFolderId,
+          name: folderName,
+          parentId: parentId,
+          path: '',
           sortOrder: 0,
-          color: _selectedColor.value.toRadixString(16),
-          icon: _selectedIcon.codePoint.toString(),
-          description: _descriptionController.text.trim(),
+          color: color,
+          icon: icon,
+          description: description,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           deleted: false,
         );
 
-        Navigator.of(context).pop(newFolder);
+        // Success: Provide haptic feedback and close dialog
+        await HapticFeedback.lightImpact();
+        
+        // Add small delay for better UX (show success state briefly)
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (mounted) {
+          Navigator.of(context).pop(folderToReturn);
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('❌ Failed to create folder - null ID returned');
+        }
+        
+        // Failed to create folder - reset state and show error
+        setState(() {
+          _isCreating = false;
+        });
+        
+        if (mounted) {
+          await HapticFeedback.heavyImpact(); // Error feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to create folder'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create folder: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+      if (kDebugMode) {
+        debugPrint('❌ Exception during folder creation: $e');
       }
-    } finally {
+      
+      // Error occurred - reset state and show error
       if (mounted) {
         setState(() {
           _isCreating = false;
         });
+        
+        await HapticFeedback.heavyImpact(); // Error feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create folder: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -211,20 +274,22 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    return ScaleTransition(
-      scale: CurvedAnimation(
-        parent: _scaleController,
-        curve: Curves.easeOutBack,
-      ),
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: _slideController,
-                curve: Curves.easeOutCubic,
+    return PopScope(
+      canPop: !_isCreating, // Prevent back navigation during creation
+      child: ScaleTransition(
+        scale: CurvedAnimation(
+          parent: _scaleController,
+          curve: Curves.easeOutBack,
+        ),
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+              .animate(
+                CurvedAnimation(
+                  parent: _slideController,
+                  curve: Curves.easeOutCubic,
+                ),
               ),
-            ),
-        child: AlertDialog(
+          child: AlertDialog(
           backgroundColor: colorScheme.surface,
           surfaceTintColor: colorScheme.surfaceTint,
           shape: RoundedRectangleBorder(
@@ -252,14 +317,16 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 300, maxWidth: 400),
+          content: SizedBox(
+            width: 400,
+            height: 450,
             child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // Folder name
                   TextFormField(
                     controller: _nameController,
@@ -277,9 +344,25 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                       if (value?.trim().isEmpty ?? true) {
                         return l10n.folderNameRequired;
                       }
+                      
+                      final trimmed = value!.trim();
+                      if (trimmed.length > 50) {
+                        return 'Folder name is too long (max 50 characters)';
+                      }
+                      
+                      // Check for invalid characters
+                      final invalidChars = RegExp(r'[<>:"/\\|?*]');
+                      if (invalidChars.hasMatch(trimmed)) {
+                        return 'Folder name contains invalid characters';
+                      }
+                      
                       return null;
                     },
-                    onFieldSubmitted: (_) => _createFolder(),
+                    onFieldSubmitted: (_) {
+                      if (!_isCreating) {
+                        _createFolder();
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -367,44 +450,36 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    height: 120,
-                    child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 8,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _folderIcons.map((icon) {
+                      final isSelected = icon == _selectedIcon;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIcon = icon),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? _selectedColor.withValues(alpha: 0.2)
+                                : colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isSelected
+                                ? Border.all(color: _selectedColor, width: 2)
+                                : null,
                           ),
-                      itemCount: _folderIcons.length,
-                      itemBuilder: (context, index) {
-                        final icon = _folderIcons[index];
-                        final isSelected = icon == _selectedIcon;
-
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedIcon = icon),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? _selectedColor.withValues(alpha: 0.2)
-                                  : colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(8),
-                              border: isSelected
-                                  ? Border.all(color: _selectedColor, width: 2)
-                                  : null,
-                            ),
-                            child: Icon(
-                              icon,
-                              color: isSelected
-                                  ? _selectedColor
-                                  : colorScheme.onSurfaceVariant,
-                              size: 16,
-                            ),
+                          child: Icon(
+                            icon,
+                            color: isSelected
+                                ? _selectedColor
+                                : colorScheme.onSurfaceVariant,
+                            size: 20,
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    }).toList(),
                   ),
 
                   const SizedBox(height: 16),
@@ -424,8 +499,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                     textCapitalization: TextCapitalization.sentences,
                   ),
                 ],
+                  ),
+                ),
               ),
-            ),
           ),
           actions: [
             TextButton(
@@ -435,19 +511,34 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
             FilledButton(
               onPressed: _isCreating ? null : _createFolder,
               child: _isCreating
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colorScheme.onPrimary,
-                      ),
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.onPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Creating...'),
+                      ],
                     )
-                  : Text(l10n.create),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add, size: 18),
+                        const SizedBox(width: 4),
+                        Text(l10n.create),
+                      ],
+                    ),
             ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

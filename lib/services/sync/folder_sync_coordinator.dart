@@ -47,6 +47,8 @@ class FolderSyncCoordinator {
     final tempId = _generateTempId();
 
     try {
+      logger.info('🚀 FolderSyncCoordinator: Starting folder creation - name: $name, parentId: $parentId, operationId: $operationId');
+
       // Start audit
       audit.startOperation(
         operationId,
@@ -56,6 +58,7 @@ class FolderSyncCoordinator {
       );
 
       // Create locally first
+      logger.info('📝 FolderSyncCoordinator: Creating local folder');
       final localFolder = await repository.createLocalFolder(
         name: name,
         parentId: parentId,
@@ -65,8 +68,11 @@ class FolderSyncCoordinator {
       );
 
       if (localFolder == null) {
+        logger.error('❌ FolderSyncCoordinator: createLocalFolder returned null');
         throw Exception('Failed to create local folder');
       }
+
+      logger.info('✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}');
 
       // Queue for sync
       _pendingOperations[localFolder.id] = FolderOperation.create(
@@ -74,16 +80,23 @@ class FolderSyncCoordinator {
         timestamp: DateTime.now(),
       );
 
-      // Sync to remote
-      await _syncFolderToRemote(localFolder, operationId);
-
-      // Complete audit
-      audit.completeOperation(
-        operationId,
-        FolderSyncEventType.createCompleted,
-        localFolder.id,
-        name,
-      );
+      // Try to sync to remote, but don't fail if it doesn't work
+      try {
+        await _syncFolderToRemote(localFolder, operationId);
+        logger.info('📤 FolderSyncCoordinator: Successfully synced to remote');
+        
+        // Complete audit for successful sync
+        audit.completeOperation(
+          operationId,
+          FolderSyncEventType.createCompleted,
+          localFolder.id,
+          name,
+        );
+      } catch (e) {
+        logger.warning('⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $e');
+        // Don't fail the entire operation - folder was created locally
+        // Remote sync will be retried later via pending operations
+      }
 
       return localFolder.id;
     } on Exception catch (e, stack) {

@@ -6,6 +6,7 @@ import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
 import 'package:duru_notes/core/monitoring/sentry_config.dart';
+import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -26,11 +27,15 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Initialize environment configuration
+    // Initialize environment configuration first
     await EnvironmentConfig.initialize();
 
     // Initialize logger configuration
     LoggerConfig.initialize();
+
+    // Initialize logger instance early
+    LoggerFactory.initialize();
+    logger = LoggerFactory.instance;
 
     // Initialize Android optimizations
     await AndroidOptimizations.initialize();
@@ -53,8 +58,10 @@ Future<void> main() async {
       throw Exception('Invalid environment configuration');
     }
 
-    // Initialize Firebase before Supabase
-    await Firebase.initializeApp();
+    // Initialize Firebase with proper options
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     if (EnvironmentConfig.current.debugMode) {
       debugPrint('✅ Firebase initialized successfully');
     }
@@ -65,8 +72,11 @@ Future<void> main() async {
       anonKey: EnvironmentConfig.current.supabaseAnonKey,
       debug: EnvironmentConfig.current.debugMode,
     );
+    if (EnvironmentConfig.current.debugMode) {
+      debugPrint('✅ Supabase initialized successfully');
+    }
 
-    // Initialize services
+    // Initialize remaining services
     await _initializeServices();
 
     if (EnvironmentConfig.current.debugMode) {
@@ -105,24 +115,22 @@ Future<void> main() async {
 
 /// Initialize all services
 Future<void> _initializeServices() async {
-  // Initialize logger
-  LoggerFactory.initialize();
-  logger = LoggerFactory.instance;
-
+  // Logger already initialized in main()
+  
   // Initialize analytics
   AnalyticsFactory.initialize();
   analytics = AnalyticsFactory.instance;
 
-  // Initialize Adapty SDK with full production configuration
+  // Initialize Adapty SDK with optimized configuration
   try {
-    // Set log level for development/production
+    // Set log level - use warning level in debug to reduce verbosity
     await Adapty().setLogLevel(
       EnvironmentConfig.current.debugMode
-          ? AdaptyLogLevel.verbose
+          ? AdaptyLogLevel.warn  // Changed from verbose to reduce logging
           : AdaptyLogLevel.error,
     );
 
-    // Activate Adapty with comprehensive configuration
+    // Activate Adapty with optimized configuration
     await Adapty().activate(
       configuration:
           AdaptyConfiguration(
@@ -131,16 +139,16 @@ Future<void> _initializeServices() async {
             // Activate AdaptyUI for Paywall Builder support
             ..withActivateUI(true)
             // Privacy-compliant configuration
-            ..withAppleIdfaCollectionDisabled(false) // Enable for analytics
+            ..withAppleIdfaCollectionDisabled(true) // Disable to reduce tracking calls
             ..withIpAddressCollectionDisabled(
-              false,
-            ) // Enable for fraud prevention
-            // Media cache configuration for paywalls
+              true,
+            ) // Disable to reduce network calls
+            // Optimized media cache configuration
             ..withMediaCacheConfiguration(
               const AdaptyUIMediaCacheConfiguration(
-                memoryStorageTotalCostLimit: 100 * 1024 * 1024, // 100 MB
-                memoryStorageCountLimit: 2147483647, // Max int value
-                diskStorageSizeLimit: 100 * 1024 * 1024, // 100 MB
+                memoryStorageTotalCostLimit: 50 * 1024 * 1024, // Reduced to 50 MB
+                memoryStorageCountLimit: 100, // Reduced from max int
+                diskStorageSizeLimit: 50 * 1024 * 1024, // Reduced to 50 MB
               ),
             ),
     );

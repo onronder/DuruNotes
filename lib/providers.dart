@@ -725,7 +725,7 @@ final analyticsSettingsProvider =
 /// Folder state provider for CRUD operations
 final folderProvider =
     StateNotifierProvider<FolderNotifier, FolderOperationState>((ref) {
-      final repo = ref.watch(notesRepositoryProvider);
+      final repo = ref.watch(folderRepositoryProvider);
       final syncCoordinator = ref.watch(folderSyncCoordinatorProvider);
       return FolderNotifier(repo, syncCoordinator);
     });

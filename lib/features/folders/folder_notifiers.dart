@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -398,7 +399,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
   FolderNotifier(this._repository, this._syncCoordinator)
     : super(const FolderOperationState());
 
-  final NotesRepository _repository;
+  final FolderRepository _repository;
   final FolderSyncCoordinator _syncCoordinator;
 
   /// Create a new folder
@@ -485,7 +486,7 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     try {
       state = state.copyWith(isUpdating: true);
 
-      await _repository.moveFolder(folderId, newParentId);
+      await _repository.moveFolder(folderId: folderId, newParentId: newParentId);
 
       state = state.copyWith(isUpdating: false);
       return true;
