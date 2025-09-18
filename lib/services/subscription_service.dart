@@ -13,26 +13,38 @@ class SubscriptionService {
        _analytics = analytics;
   final AppLogger _logger;
   final AnalyticsService _analytics;
+  
+  // Cache for profile to reduce API calls
+  AdaptyProfile? _cachedProfile;
+  DateTime? _cacheTime;
+  static const _cacheValidityDuration = Duration(minutes: 5);
 
-  /// Check if user has premium subscription
+  /// Check if user has premium subscription with caching
   Future<bool> hasPremiumAccess() async {
     try {
-      final profile = await Adapty().getProfile();
+      // Use cached profile if available
+      final profile = await getUserProfile();
+      
+      if (profile == null) {
+        return false;
+      }
 
       // Check for active premium subscription
       final hasAccess = profile.accessLevels['premium']?.isActive ?? false;
 
-      _logger.info('Premium access check: $hasAccess');
+      _logger.info('Premium access check: $hasAccess (cached)');
 
-      // Track subscription status
-      _analytics.event(
-        AnalyticsEvents.noteCreate,
-        properties: {
-          'subscription_check': true,
-          'has_premium': hasAccess,
-          'access_level': hasAccess ? 'premium' : 'free',
-        },
-      );
+      // Only track analytics occasionally, not on every check
+      if (_cacheTime == DateTime.now()) {  // Only on fresh fetch
+        _analytics.event(
+          AnalyticsEvents.noteCreate,
+          properties: {
+            'subscription_check': true,
+            'has_premium': hasAccess,
+            'access_level': hasAccess ? 'premium' : 'free',
+          },
+        );
+      }
 
       return hasAccess;
     } catch (e) {
@@ -48,18 +60,39 @@ class SubscriptionService {
     }
   }
 
-  /// Get current user profile
-  Future<AdaptyProfile?> getUserProfile() async {
+  /// Get current user profile with caching
+  Future<AdaptyProfile?> getUserProfile({bool forceRefresh = false}) async {
     try {
-      final profile = await Adapty().getProfile();
+      // Check if we have a valid cached profile
+      if (!forceRefresh && 
+          _cachedProfile != null && 
+          _cacheTime != null &&
+          DateTime.now().difference(_cacheTime!) < _cacheValidityDuration) {
+        _logger.info('Returning cached user profile');
+        return _cachedProfile;
+      }
 
-      _logger.info('Retrieved user profile successfully');
+      // Fetch fresh profile
+      final profile = await Adapty().getProfile();
+      
+      // Update cache
+      _cachedProfile = profile;
+      _cacheTime = DateTime.now();
+
+      _logger.info('Retrieved and cached user profile successfully');
 
       return profile;
     } catch (e) {
       _logger.error('Failed to get user profile: $e');
-      return null;
+      // Return cached profile if available, even if expired
+      return _cachedProfile;
     }
+  }
+  
+  /// Clear profile cache (call on logout)
+  void clearCache() {
+    _cachedProfile = null;
+    _cacheTime = null;
   }
 
   /// Present paywall for subscription upgrade (temporarily no-op UI to ensure build)

@@ -529,6 +529,12 @@ class UnifiedRealtimeService extends ChangeNotifier {
   /// Dispose of the service and clean up resources
   @override
   void dispose() {
+    // Prevent double disposal
+    if (_disposed) {
+      _logger.warning('Service already disposed, skipping');
+      return;
+    }
+    
     _logger.info('Disposing service');
     _disposed = true;
 
@@ -542,11 +548,11 @@ class UnifiedRealtimeService extends ChangeNotifier {
     _cancelReconnectTimer();
     _cancelAllDebounceTimers();
 
-    // Close stream controllers
-    _notesController.close();
-    _foldersController.close();
-    _inboxController.close();
-    _tasksController.close();
+    // Close stream controllers if not already closed
+    if (!_notesController.isClosed) _notesController.close();
+    if (!_foldersController.isClosed) _foldersController.close();
+    if (!_inboxController.isClosed) _inboxController.close();
+    if (!_tasksController.isClosed) _tasksController.close();
 
     super.dispose();
   }

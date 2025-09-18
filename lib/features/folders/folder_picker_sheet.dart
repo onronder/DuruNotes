@@ -334,16 +334,31 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
   }
 
   Future<void> _showCreateFolderDialog() async {
-    final result = await showDialog<LocalFolder>(
-      context: context,
-      builder: (context) => const CreateFolderDialog(),
-    );
+    try {
+      final result = await showDialog<LocalFolder>(
+        context: context,
+        barrierDismissible: false, // Prevent accidental dismissal during creation
+        builder: (context) => const CreateFolderDialog(),
+      );
 
-    if (result != null && mounted) {
-      // Refresh folder hierarchy
-      ref.read(folderHierarchyProvider.notifier).loadFolders();
-      // Return the newly created folder
-      Navigator.of(context).pop(result);
+      if (result != null && mounted) {
+        // Refresh folder hierarchy to show the new folder
+        ref.read(folderHierarchyProvider.notifier).loadFolders();
+        
+        // Close this picker sheet and return the newly created folder
+        Navigator.of(context).pop(result);
+      }
+    } catch (e) {
+      // Handle any errors from the create dialog
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating folder: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 }

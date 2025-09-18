@@ -87,16 +87,22 @@ class FolderRepository {
       final folderId = id ?? _uuid.v4();
       final now = DateTime.now();
 
+      debugPrint('🔧 Creating local folder: name="$name", parentId=$parentId');
+
       // Generate path
       String path;
       if (parentId != null) {
+        debugPrint('🔍 Looking up parent folder: $parentId');
         final parent = await db.getFolderById(parentId);
         if (parent == null) {
-          throw Exception('Parent folder not found');
+          debugPrint('❌ Parent folder not found: $parentId');
+          throw Exception('Parent folder not found: $parentId');
         }
         path = '${parent.path}/$name';
+        debugPrint('📁 Generated path with parent: $path');
       } else {
         path = '/$name';
+        debugPrint('📁 Generated root path: $path');
       }
 
       // Get max sort order for siblings
@@ -106,6 +112,8 @@ class FolderRepository {
       final maxOrder = siblings.isEmpty
           ? 0
           : siblings.map((f) => f.sortOrder).reduce((a, b) => a > b ? a : b);
+
+      debugPrint('📊 Found ${siblings.length} siblings, max order: $maxOrder');
 
       final folder = LocalFolder(
         id: folderId,
@@ -121,12 +129,15 @@ class FolderRepository {
         deleted: false,
       );
 
+      debugPrint('💾 Upserting folder to database...');
       await db.upsertFolder(folder);
       _folderUpdates.add(null);
 
+      debugPrint('✅ Local folder created successfully: ${folder.id}');
       return folder;
-    } catch (e) {
-      debugPrint('Failed to create local folder: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Failed to create local folder: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
