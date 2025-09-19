@@ -5,6 +5,7 @@ import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide SortBy;
 import 'package:uuid/uuid.dart';
@@ -262,6 +263,7 @@ class NotesRepository {
       deleted: false,
       encryptedMetadata: metadata.isNotEmpty ? jsonEncode(metadata) : null,
       isPinned: finalPinState,
+      noteType: NoteKind.note, // Regular note, not a template
     );
 
     await db.upsertNote(note);
@@ -279,7 +281,7 @@ class NotesRepository {
 
   Future<List<LocalNote>> getRecentlyViewedNotes({int limit = 5}) async {
     return (db.select(db.localNotes)
-          ..where((n) => n.deleted.equals(false))
+          ..where((n) => n.deleted.equals(false) & n.noteType.equals(0))  // Filter out templates
           ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)])
           ..limit(limit))
         .get();
@@ -287,7 +289,7 @@ class NotesRepository {
 
   Future<List<LocalNote>> localNotes() async {
     return (db.select(db.localNotes)
-          ..where((note) => note.deleted.equals(false))
+          ..where((note) => note.deleted.equals(false) & note.noteType.equals(0))  // Filter out templates
           ..orderBy([
             // Order by pin status first (pinned notes at top)
             (note) => OrderingTerm.desc(note.isPinned),
@@ -301,7 +303,7 @@ class NotesRepository {
   /// FIXED: Now respects pin ordering - pinned notes always appear first
   Future<List<LocalNote>> listAfter(DateTime? cursor, {int limit = 20}) async {
     final query = db.select(db.localNotes)
-      ..where((n) => n.deleted.equals(false));
+      ..where((n) => n.deleted.equals(false) & n.noteType.equals(0));  // Filter out templates
 
     if (cursor != null) {
       query.where((n) => n.updatedAt.isSmallerThanValue(cursor));
@@ -378,6 +380,101 @@ class NotesRepository {
 
   /// Delete method (compatibility)
   Future<void> delete(String id) => deleteNote(id);
+
+  // ----------------------
+  // Template Management
+  // ----------------------
+
+  /// List all templates (notes with noteType = NoteKind.template)
+  Future<List<LocalNote>> listTemplates() async {
+    return (db.select(db.localNotes)
+      ..where((t) => t.deleted.equals(false) & t.noteType.equals(1))
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+      .get();
+  }
+
+  /// Create a new template with offline-first pattern
+  Future<LocalNote?> createTemplate({
+    required String title,
+    required String body,
+    List<String> tags = const [],
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final id = _uuid.v4();
+      final now = DateTime.now();
+      
+      debugPrint('🔄 Creating template: "$title"');
+      
+      final template = LocalNote(
+        id: id,
+        title: title,
+        body: body,
+        noteType: NoteKind.template, // Use enum value
+        deleted: false,
+        isPinned: false,
+        updatedAt: now,
+        encryptedMetadata: metadata != null ? jsonEncode(metadata) : null,
+      );
+
+      await db.upsertNote(template);
+      if (tags.isNotEmpty) {
+        await db.replaceTagsForNote(id, tags.toSet());
+      }
+      await db.enqueue(id, 'upsert_note');
+      
+      debugPrint('✅ Template created locally: $id');
+      return template;
+    } catch (e) {
+      debugPrint('❌ Failed to create template: $e');
+      return null;
+    }
+  }
+
+  /// Create a new note from a template with metadata tracking
+  Future<LocalNote?> createNoteFromTemplate(String templateId) async {
+    try {
+      debugPrint('🔄 Creating note from template: $templateId');
+      
+      final template = await getNote(templateId);
+      if (template == null || template.noteType != NoteKind.template) {
+        throw StateError('Template not found: $templateId');
+      }
+
+      final tags = await getTagsForNote(templateId);
+      final newId = _uuid.v4();
+      final now = DateTime.now();
+
+      final metadata = {
+        'source': 'template',
+        'sourceTemplateId': templateId,
+        'sourceTemplateTitle': template.title,
+      };
+
+      final note = LocalNote(
+        id: newId,
+        title: template.title,
+        body: template.body,
+        noteType: NoteKind.note, // Use enum value
+        deleted: false,
+        isPinned: false,
+        updatedAt: now,
+        encryptedMetadata: jsonEncode(metadata),
+      );
+
+      await db.upsertNote(note);
+      if (tags.isNotEmpty) {
+        await db.replaceTagsForNote(newId, tags.toSet());
+      }
+      await db.enqueue(newId, 'upsert_note');
+
+      debugPrint('✅ Note created from template: $newId');
+      return note;
+    } catch (e) {
+      debugPrint('❌ Failed to create note from template: $e');
+      return null;
+    }
+  }
 
   // ----------------------
   // Folder Management (Delegating to FolderRepository patterns)
@@ -518,7 +615,8 @@ class NotesRepository {
               db.noteFolders.noteId.equalsExp(db.localNotes.id),
             ),
           ])
-          ..where(db.localNotes.deleted.equals(false))
+          ..where(db.localNotes.deleted.equals(false) & 
+                  db.localNotes.noteType.equals(0))  // Filter out templates
           ..where(db.noteFolders.noteId.isNull());
 
     return query.map((row) => row.readTable(db.localNotes)).get();
@@ -651,7 +749,7 @@ class NotesRepository {
   /// List all notes (compatibility)
   Future<List<LocalNote>> list({int? limit}) async {
     final query = db.select(db.localNotes)
-      ..where((n) => n.deleted.equals(false))
+      ..where((n) => n.deleted.equals(false) & n.noteType.equals(0))  // Filter out templates
       ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)]);
 
     if (limit != null) {
@@ -674,7 +772,7 @@ class NotesRepository {
     SortSpec? sort,
   }) {
     final query = db.select(db.localNotes)
-      ..where((note) => note.deleted.equals(false));
+      ..where((note) => note.deleted.equals(false) & note.noteType.equals(0));  // Filter out templates
 
     // Handle folder filter
     if (folderId != null && folderId.isNotEmpty) {
@@ -777,6 +875,8 @@ class NotesRepository {
                 .toList(),
             'isPinned': n.isPinned,
             'updatedAt': n.updatedAt.toIso8601String(),
+            // Add noteType for template support
+            'noteType': n.noteType == NoteKind.template ? 'template' : 'note',
           };
 
           if (n.encryptedMetadata != null) {
@@ -804,7 +904,8 @@ class NotesRepository {
           );
 
           processedIds.add(op.id);
-          debugPrint('✅ Pushed note: ${n.id}');
+          final noteTypeStr = n.noteType == NoteKind.template ? 'template' : 'note';
+          debugPrint('✅ Pushed $noteTypeStr: ${n.id} [type=${n.noteType.index}]');
         } else if (op.kind == 'delete_note') {
           // Soft delete via upsert
           await api.upsertEncryptedNote(
@@ -870,7 +971,11 @@ class NotesRepository {
         final deleted = (r['deleted'] as bool?) ?? false;
 
         if (deleted) {
-          // Mark as deleted locally
+          // Mark as deleted locally (preserve noteType if existing)
+          final existing = await (db.select(
+            db.localNotes,
+          )..where((n) => n.id.equals(id))).getSingleOrNull();
+          
           await db.upsertNote(
             LocalNote(
               id: id,
@@ -879,10 +984,12 @@ class NotesRepository {
               updatedAt: DateTime.now(),
               deleted: true,
               isPinned: false,
+              noteType: existing?.noteType ?? NoteKind.note,
             ),
           );
           deletedCount++;
-          debugPrint('🗑️ Marked note as deleted: $id');
+          final typeStr = existing?.noteType == NoteKind.template ? 'template' : 'note';
+          debugPrint('🗑️ Marked $typeStr as deleted: $id');
           continue;
         }
 
@@ -918,6 +1025,7 @@ class NotesRepository {
         List<String> tags;
         List<Map<String, dynamic>> links;
         bool isPinned;
+        NoteKind noteType;
         Map<String, dynamic> metadata;
 
         try {
@@ -931,6 +1039,15 @@ class NotesRepository {
           links =
               (propsJson['links'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           isPinned = propsJson['isPinned'] as bool? ?? false;
+          
+          // Extract noteType from encrypted props (with backward compatibility)
+          final kindStr = propsJson['noteType'] as String?;
+          noteType = kindStr == 'template' ? NoteKind.template : NoteKind.note;
+          if (kindStr != null) {
+            debugPrint('🔍 Decrypted note type: "$kindStr" => ${noteType.name} for $id');
+          } else {
+            debugPrint('📝 No noteType in props for $id, defaulting to regular note');
+          }
 
           // Extract metadata
           metadata = Map<String, dynamic>.from(propsJson);
@@ -939,6 +1056,7 @@ class NotesRepository {
           metadata.remove('links');
           metadata.remove('isPinned');
           metadata.remove('updatedAt');
+          metadata.remove('noteType'); // Remove from metadata to avoid duplication
         } catch (e) {
           // Fallback: try as plain text for body
           try {
@@ -950,13 +1068,16 @@ class NotesRepository {
             tags = [];
             links = [];
             isPinned = false;
+            noteType = NoteKind.note; // Default to regular note
             metadata = {};
+            debugPrint('⚠️ Using plain text fallback for $id, defaulting to regular note');
           } catch (_) {
             debugPrint('⚠️ Could not decrypt body for note $id, using empty');
             body = '';
             tags = [];
             links = [];
             isPinned = false;
+            noteType = NoteKind.note; // Default to regular note
             metadata = {};
           }
         }
@@ -973,7 +1094,7 @@ class NotesRepository {
           continue;
         }
 
-        // Upsert the note
+        // Upsert the note with correct type
         await db.upsertNote(
           LocalNote(
             id: id,
@@ -985,8 +1106,12 @@ class NotesRepository {
                 ? jsonEncode(metadata)
                 : null,
             isPinned: isPinned,
+            noteType: noteType, // Preserve template/note type from sync
           ),
         );
+        
+        final typeStr = noteType == NoteKind.template ? 'template' : 'note';
+        debugPrint('📝 Synced $typeStr: $id [${title.substring(0, title.length.clamp(0, 30))}...]');
 
         // Update tags
         await db.replaceTagsForNote(id, tags.toSet());
@@ -1004,31 +1129,52 @@ class NotesRepository {
               .toList(),
         );
 
-        // Reindex for search
-        await _indexer.indexNote(
-          LocalNote(
-            id: id,
-            title: title,
-            body: body,
-            updatedAt: updatedAt,
-            deleted: false,
-            encryptedMetadata: metadata.isNotEmpty
-                ? jsonEncode(metadata)
-                : null,
-            isPinned: isPinned,
-          ),
-        );
+        // Reindex for search (only for regular notes, not templates)
+        if (noteType == NoteKind.note) {
+          await _indexer.indexNote(
+            LocalNote(
+              id: id,
+              title: title,
+              body: body,
+              updatedAt: updatedAt,
+              deleted: false,
+              encryptedMetadata: metadata.isNotEmpty
+                  ? jsonEncode(metadata)
+                  : null,
+              isPinned: isPinned,
+              noteType: noteType,
+            ),
+          );
+        } else {
+          debugPrint('🔍 Skipped indexing template: $id');
+        }
 
         updatedCount++;
-        debugPrint('✅ Updated note: $id');
       } on Object catch (e) {
         debugPrint('❌ Failed to process note during pull: $e');
       }
     }
 
-    debugPrint(
-      '📊 Pull complete: $updatedCount updated, $deletedCount deleted, $skippedCount skipped',
-    );
+    // Count templates vs notes for better visibility (with error handling)
+    try {
+      final templates = await (db.select(db.localNotes)
+        ..where((t) => t.deleted.equals(false) & t.noteType.equals(1)))
+        .get();
+      final notes = await (db.select(db.localNotes)
+        ..where((t) => t.deleted.equals(false) & t.noteType.equals(0)))
+        .get();
+      
+      debugPrint(
+        '📊 Pull complete: $updatedCount updated, $deletedCount deleted, $skippedCount skipped | '
+        '📄 Notes: ${notes.length}, 📋 Templates: ${templates.length}',
+      );
+    } catch (e) {
+      // Fallback if template counting fails (e.g., older DB schema)
+      debugPrint(
+        '📊 Pull complete: $updatedCount updated, $deletedCount deleted, $skippedCount skipped',
+      );
+      debugPrint('⚠️ Could not count templates: $e');
+    }
 
     // Now pull folders
     await _pullFolders(since);

@@ -8,7 +8,7 @@ import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
-import 'package:duru_notes/ui/note_edit_screen.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/ui/notes_list_screen.dart';
 import 'package:duru_notes/ui/widgets/offline_indicator.dart';
 import 'package:flutter/material.dart';
@@ -538,7 +538,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       if (note != null) {
         navigator.push(
           MaterialPageRoute(
-            builder: (context) => NoteEditScreen(
+            builder: (context) => ModernEditNoteScreen(
               noteId: note.id,
               initialTitle: note.title,
               initialBody: note.body,

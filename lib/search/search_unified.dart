@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/search/search_parser.dart';
 
 /// Unified search service that combines FTS, folder, and tag filtering in one SQL pass
@@ -91,7 +92,7 @@ class UnifiedSearchService {
         .get();
 
     // Map rows to LocalNote objects
-    return rows.map((row) {
+    return rows.map<LocalNote>((row) {
       // Map the row data to a LocalNote
       return LocalNote(
         id: row.read<String>('id'),
@@ -101,6 +102,7 @@ class UnifiedSearchService {
         updatedAt: row.read<DateTime>('updated_at'),
         deleted: row.read<bool>('deleted'),
         isPinned: row.read<bool>('is_pinned'),
+        noteType: NoteKind.note, // Default to regular note
       );
     }).toList();
   }

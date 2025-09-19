@@ -26,6 +26,7 @@ import 'package:duru_notes/ui/widgets/note_source_icon.dart';
 import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
 import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
 import 'package:duru_notes/ui/widgets/stats_card.dart';
+import 'package:duru_notes/ui/widgets/template_picker_sheet.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -197,17 +198,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           Expanded(child: _buildNotesContent(context, notesAsync, hasMore)),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ModernEditNoteScreen(),
-            ),
-          );
-        },
-        tooltip: 'Create New Note',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _buildFab(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -2235,7 +2226,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Widget _buildModernFAB(BuildContext context) {
+  Widget _buildFab(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     if (_isSelectionMode) {
@@ -2266,6 +2257,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                _buildModernMiniFAB(
+                  icon: Icons.description_rounded,
+                  label: 'From Template',
+                  color: colorScheme.tertiaryContainer,
+                  onPressed: () {
+                    _toggleFab();
+                    _showTemplatePicker();
+                  },
+                ),
+                const SizedBox(height: 12),
                 _buildModernMiniFAB(
                   icon: Icons.checklist_rounded,
                   label: 'Checklist',
@@ -2877,6 +2878,69 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ),
       ),
     );
+  }
+
+  void _showTemplatePicker() {
+    HapticFeedback.lightImpact();
+    showTemplatePickerSheet(
+      context: context,
+      onTemplateSelected: (String? templateId) async {
+        Navigator.pop(context);
+        if (templateId == null) {
+          // Blank note selected
+          _createNewNote(context);
+        } else {
+          await _createNoteFromTemplate(templateId);
+        }
+      },
+    );
+  }
+
+  Future<void> _createNoteFromTemplate(String templateId) async {
+    try {
+      final repository = ref.read(notesRepositoryProvider);
+      final analytics = ref.read(analyticsProvider);
+      
+      // Create note from template
+      final newNote = await repository.createNoteFromTemplate(templateId);
+      
+      if (newNote != null && mounted) {
+        // Track analytics
+        analytics.event('template_used', properties: {
+          'template_id': templateId,
+          'note_id': newNote.id,
+        });
+        
+        // Navigate to edit screen
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => ModernEditNoteScreen(
+              noteId: newNote.id,
+              initialTitle: newNote.title,
+              initialBody: newNote.body,
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create note from template'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error creating note from template: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _shareNote(LocalNote note) async {
