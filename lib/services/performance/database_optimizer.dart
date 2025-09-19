@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart'; // Import appDbProvider from here
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -347,9 +348,4 @@ final databaseOptimizerProvider = Provider<DatabaseOptimizer>((ref) {
 final databaseStatisticsProvider = FutureProvider<DatabaseStatistics>((ref) async {
   final optimizer = ref.watch(databaseOptimizerProvider);
   return optimizer._gatherStatistics();
-});
-
-/// Provider for app database
-final appDbProvider = Provider<AppDb>((ref) {
-  return AppDb();
 });
