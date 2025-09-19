@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart' hide NoteReminder;
 import 'package:duru_notes/models/note_reminder.dart';
+import 'package:duru_notes/providers.dart'; // Import appDbProvider from here
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
 import 'package:duru_notes/services/reminders/recurring_reminder_service.dart';
@@ -240,12 +241,10 @@ class ReminderCoordinator {
 /// Provider for `ReminderCoordinator`
 final reminderCoordinatorProvider = Provider<ReminderCoordinator>((ref) {
   final plugin = FlutterLocalNotificationsPlugin();
+  // Import the appDbProvider from providers.dart to avoid creating multiple instances
   final db = ref.read(appDbProvider);
   return ReminderCoordinator(plugin, db);
 });
 
 // Note: Use advancedReminderServiceProvider from advanced_reminder_service.dart
 // This provider is deprecated - use reminderCoordinatorProvider directly
-
-/// Provider for the local database (Drift AppDb instance)
-final appDbProvider = Provider<AppDb>((ref) => AppDb());

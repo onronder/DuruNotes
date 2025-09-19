@@ -162,8 +162,11 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
             action: SnackBarAction(
               label: 'View',
               onPressed: () {
-                // Refresh the task list
-                setState(() {});
+                // Check if widget is still mounted before calling setState
+                if (mounted) {
+                  // Refresh the task list
+                  setState(() {});
+                }
               },
             ),
           ),
