@@ -535,5 +535,35 @@
   "extraLarge": "Çok Büyük",
   "@extraLarge": {
     "description": "Extra large size"
-  }
+  },
+  
+  "@_TEMPLATES": {},
+  "templatePickerTitle": "Şablon Seçin",
+  "templatePickerSubtitle": "Şablonla veya boş notla başlayın",
+  "blankNoteOption": "Boş Not",
+  "blankNoteDescription": "Boş bir notla başla",
+  "noTemplatesTitle": "Henüz Şablon Yok",
+  "noTemplatesDescription": "Sık kullandığınız yapıları tekrar kullanmak için ilk şablonunuzu oluşturun",
+  "templatesSection": "ŞABLONLAR",
+  "saveAsTemplate": "Şablon Olarak Kaydet",
+  "fromTemplate": "Şablondan",
+  "templateSaved": "Şablon kaydedildi: {title}",
+  "@templateSaved": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "failedToSaveTemplate": "Şablon kaydedilemedi",
+  "cannotSaveEmptyTemplate": "Boş not şablon olarak kaydedilemez",
+  "editTemplate": "Şablonu Düzenle",
+  "deleteTemplate": "Şablonu Sil",
+  "confirmDeleteTemplate": "Bu şablon silinsin mi?",
+  "confirmDeleteTemplateMessage": "Bu şablon kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+  "templateDeleted": "Şablon silindi",
+  "editingTemplate": "Şablon Düzenleniyor",
+  "templateOptions": "Şablon Seçenekleri",
+  "defaultTemplate": "Varsayılan",
+  "customTemplate": "Özel",
+  "useTemplate": "Şablonu Kullan",
+  "manageTemplates": "Şablonları Yönet"
 }

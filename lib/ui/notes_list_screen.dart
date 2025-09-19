@@ -2257,13 +2257,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildModernMiniFAB(
-                  icon: Icons.description_rounded,
-                  label: 'From Template',
-                  color: colorScheme.tertiaryContainer,
-                  onPressed: () {
-                    _toggleFab();
-                    _showTemplatePicker();
+                Consumer(
+                  builder: (context, ref, child) {
+                    final templatesAsync = ref.watch(templateListProvider);
+                    final templateCount = templatesAsync.maybeWhen(
+                      data: (templates) => templates.length,
+                      orElse: () => 0,
+                    );
+                    
+                    return _buildModernMiniFAB(
+                      icon: Icons.dashboard_customize_rounded,
+                      label: templateCount > 0
+                          ? '${AppLocalizations.of(context).fromTemplate} ($templateCount)'
+                          : AppLocalizations.of(context).fromTemplate,
+                      color: colorScheme.tertiaryContainer,
+                      onPressed: () {
+                        _toggleFab();
+                        _showTemplatePicker();
+                      },
+                    );
                   },
                 ),
                 const SizedBox(height: 12),
@@ -2898,18 +2910,37 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _createNoteFromTemplate(String templateId) async {
     try {
-      final repository = ref.read(notesRepositoryProvider);
+      final templateRepository = ref.read(templateRepositoryProvider);
+      final notesRepository = ref.read(notesRepositoryProvider);
       final analytics = ref.read(analyticsProvider);
       
-      // Create note from template
-      final newNote = await repository.createNoteFromTemplate(templateId);
+      // Get the template
+      final template = await templateRepository.getTemplate(templateId);
+      if (template == null) {
+        throw StateError('Template not found');
+      }
+      
+      // Create note data from template
+      final noteData = templateRepository.createNoteFromTemplate(template);
+      
+      // Create the actual note
+      final newNote = await notesRepository.createOrUpdate(
+        title: noteData['title'] as String,
+        body: noteData['body'] as String,
+        tags: List<String>.from(noteData['tags'] as List).toSet(),
+      );
       
       if (newNote != null && mounted) {
         // Track analytics
         analytics.event('template_used', properties: {
           'template_id': templateId,
           'note_id': newNote.id,
+          'template_title': template.title,
+          'is_system': template.isSystem,
         });
+        
+        // Track template usage in repository
+        templateRepository.trackTemplateUsage(templateId);
         
         // Navigate to edit screen
         await Navigator.push<void>(

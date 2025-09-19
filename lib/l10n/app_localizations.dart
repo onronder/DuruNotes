@@ -1801,6 +1801,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unpin Note'**
   String get unpinNote;
+
+  /// No description provided for @templatePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Template'**
+  String get templatePickerTitle;
+
+  /// No description provided for @templatePickerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with a template or blank note'**
+  String get templatePickerSubtitle;
+
+  /// No description provided for @blankNoteOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank Note'**
+  String get blankNoteOption;
+
+  /// No description provided for @blankNoteDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with an empty note'**
+  String get blankNoteDescription;
+
+  /// No description provided for @noTemplatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Templates Yet'**
+  String get noTemplatesTitle;
+
+  /// No description provided for @noTemplatesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first template to reuse common note structures'**
+  String get noTemplatesDescription;
+
+  /// No description provided for @templatesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'TEMPLATES'**
+  String get templatesSection;
+
+  /// No description provided for @saveAsTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as Template'**
+  String get saveAsTemplate;
+
+  /// No description provided for @fromTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'From Template'**
+  String get fromTemplate;
+
+  /// No description provided for @templateSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Template saved: {title}'**
+  String templateSaved(String title);
+
+  /// No description provided for @failedToSaveTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save as template'**
+  String get failedToSaveTemplate;
+
+  /// No description provided for @cannotSaveEmptyTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot save empty note as template'**
+  String get cannotSaveEmptyTemplate;
+
+  /// No description provided for @editTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Template'**
+  String get editTemplate;
+
+  /// No description provided for @deleteTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Template'**
+  String get deleteTemplate;
+
+  /// No description provided for @confirmDeleteTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this template?'**
+  String get confirmDeleteTemplate;
+
+  /// No description provided for @confirmDeleteTemplateMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This template will be permanently deleted. This action cannot be undone.'**
+  String get confirmDeleteTemplateMessage;
+
+  /// No description provided for @templateDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Template deleted'**
+  String get templateDeleted;
+
+  /// No description provided for @editingTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing Template'**
+  String get editingTemplate;
+
+  /// No description provided for @templateOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Template Options'**
+  String get templateOptions;
+
+  /// No description provided for @defaultTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultTemplate;
+
+  /// No description provided for @customTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get customTemplate;
+
+  /// No description provided for @useTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Template'**
+  String get useTemplate;
+
+  /// No description provided for @manageTemplates.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Templates'**
+  String get manageTemplates;
 }
 
 class _AppLocalizationsDelegate

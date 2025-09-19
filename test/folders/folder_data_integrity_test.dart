@@ -1,4 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,6 +41,7 @@ void main() {
         id: 'note-1',
         title: 'Specs',
         body: 'Design doc',
+        noteType: NoteKind.note,
         updatedAt: now,
         deleted: false,
         isPinned: false,
@@ -72,6 +74,7 @@ void main() {
         id: 'note-2',
         title: 'Old Note',
         body: 'Legacy content',
+        noteType: NoteKind.note,
         updatedAt: now,
         deleted: false,
         isPinned: false,

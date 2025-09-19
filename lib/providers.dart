@@ -16,6 +16,7 @@ import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/repository/sync_service.dart';
 import 'package:duru_notes/repository/task_repository.dart';
+import 'package:duru_notes/repository/template_repository.dart';
 import 'package:duru_notes/search/search_service.dart';
 import 'package:duru_notes/services/account_key_service.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
@@ -91,18 +92,27 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 });
 
 /// Template list provider - fetches all templates
-final templateListProvider = FutureProvider<List<LocalNote>>((ref) async {
-  final repository = ref.watch(notesRepositoryProvider);
-  return repository.listTemplates();
+final templateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+  final repository = ref.watch(templateRepositoryProvider);
+  return repository.getAllTemplates();
 });
 
 /// Template list stream provider - real-time updates
-final templateListStreamProvider = StreamProvider<List<LocalNote>>((ref) async* {
+final templateListStreamProvider = StreamProvider<List<LocalTemplate>>((ref) async* {
   final db = ref.watch(appDbProvider);
-  yield* (db.select(db.localNotes)
-        ..where((t) => t.deleted.equals(false) & t.noteType.equals(1))
-        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-      .watch();
+  yield* db.select(db.localTemplates).watch();
+});
+
+/// System templates only
+final systemTemplateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+  final repository = ref.watch(templateRepositoryProvider);
+  return repository.getSystemTemplates();
+});
+
+/// User templates only  
+final userTemplateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+  final repository = ref.watch(templateRepositoryProvider);
+  return repository.getUserTemplates();
 });
 
 /// Folder repository provider
@@ -355,6 +365,12 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
   }
 
   return TaskRepository(database: database, supabase: client);
+});
+
+/// Template repository provider
+final templateRepositoryProvider = Provider<TemplateRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  return TemplateRepository(db: db);
 });
 
 /// Note-task sync service provider

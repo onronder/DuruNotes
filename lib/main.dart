@@ -9,7 +9,6 @@ import 'package:duru_notes/core/monitoring/sentry_config.dart';
 import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/template_initialization_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -207,9 +206,6 @@ class _AppWithShareExtensionState
   Future<void> _initializeServices() async {
     // Initialize share extension
     await _initializeShareExtension();
-    
-    // Initialize default templates for new users
-    await _initializeTemplates();
   }
 
   Future<void> _initializeShareExtension() async {
@@ -220,32 +216,6 @@ class _AppWithShareExtensionState
       logger.info('Share extension service initialized successfully');
     } catch (e) {
       logger.error('Failed to initialize share extension service: $e');
-    }
-  }
-  
-  Future<void> _initializeTemplates() async {
-    try {
-      final notesRepository = ref.read(notesRepositoryProvider);
-      
-      // Check if user already has templates
-      final existingTemplates = await notesRepository.listTemplates();
-      
-      if (existingTemplates.isEmpty) {
-        logger.info('Initializing default templates for new user...');
-        
-        // Import our template initialization service
-        final templateService = TemplateInitializationService(
-          notesRepository: notesRepository,
-        );
-        
-        await templateService.initializeDefaultTemplates();
-        logger.info('Default templates initialized');
-      } else {
-        logger.info('User already has ${existingTemplates.length} templates');
-      }
-    } catch (e) {
-      logger.error('Failed to initialize templates: $e');
-      // Non-critical error, continue without templates
     }
   }
 

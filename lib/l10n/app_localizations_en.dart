@@ -931,4 +931,77 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unpinNote => 'Unpin Note';
+
+  @override
+  String get templatePickerTitle => 'Choose a Template';
+
+  @override
+  String get templatePickerSubtitle => 'Start with a template or blank note';
+
+  @override
+  String get blankNoteOption => 'Blank Note';
+
+  @override
+  String get blankNoteDescription => 'Start with an empty note';
+
+  @override
+  String get noTemplatesTitle => 'No Templates Yet';
+
+  @override
+  String get noTemplatesDescription =>
+      'Create your first template to reuse common note structures';
+
+  @override
+  String get templatesSection => 'TEMPLATES';
+
+  @override
+  String get saveAsTemplate => 'Save as Template';
+
+  @override
+  String get fromTemplate => 'From Template';
+
+  @override
+  String templateSaved(String title) {
+    return 'Template saved: $title';
+  }
+
+  @override
+  String get failedToSaveTemplate => 'Failed to save as template';
+
+  @override
+  String get cannotSaveEmptyTemplate => 'Cannot save empty note as template';
+
+  @override
+  String get editTemplate => 'Edit Template';
+
+  @override
+  String get deleteTemplate => 'Delete Template';
+
+  @override
+  String get confirmDeleteTemplate => 'Delete this template?';
+
+  @override
+  String get confirmDeleteTemplateMessage =>
+      'This template will be permanently deleted. This action cannot be undone.';
+
+  @override
+  String get templateDeleted => 'Template deleted';
+
+  @override
+  String get editingTemplate => 'Editing Template';
+
+  @override
+  String get templateOptions => 'Template Options';
+
+  @override
+  String get defaultTemplate => 'Default';
+
+  @override
+  String get customTemplate => 'Custom';
+
+  @override
+  String get useTemplate => 'Use Template';
+
+  @override
+  String get manageTemplates => 'Manage Templates';
 }
