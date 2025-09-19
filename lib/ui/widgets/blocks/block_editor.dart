@@ -15,12 +15,14 @@ class BlockEditor extends ConsumerStatefulWidget {
     required this.blocks,
     required this.onBlocksChanged,
     super.key,
+    this.noteId,
     this.focusedBlockIndex,
     this.onBlockFocusChanged,
   });
 
   final List<NoteBlock> blocks;
   final Function(List<NoteBlock>) onBlocksChanged;
+  final String? noteId;
   final int? focusedBlockIndex;
   final Function(int?)? onBlockFocusChanged;
 
@@ -29,6 +31,17 @@ class BlockEditor extends ConsumerStatefulWidget {
 }
 
 class _BlockEditorState extends ConsumerState<BlockEditor> {
+  
+  /// Calculate the position of a todo block among all todo blocks
+  int _getTodoPosition(int blockIndex) {
+    var todoPosition = 0;
+    for (var i = 0; i < blockIndex; i++) {
+      if (widget.blocks[i].type == NoteBlockType.todo) {
+        todoPosition++;
+      }
+    }
+    return todoPosition;
+  }
   late List<NoteBlock> _blocks;
   int? _focusedBlockIndex;
   bool _showBlockSelector = false;
@@ -385,6 +398,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       case NoteBlockType.todo:
         return TodoBlockWidget(
           block: block,
+          noteId: widget.noteId,
+          position: _getTodoPosition(index),
           isFocused: isFocused,
           onChanged: (newBlock) => _updateBlock(index, newBlock),
           onFocusChanged: (focused) => focused ? _focusBlock(index) : null,

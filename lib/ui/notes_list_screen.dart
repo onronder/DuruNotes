@@ -21,6 +21,7 @@ import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/ui/note_search_delegate.dart';
 import 'package:duru_notes/ui/settings_screen.dart';
 import 'package:duru_notes/ui/task_list_screen.dart';
+import 'package:duru_notes/ui/productivity_analytics_screen.dart';
 import 'package:duru_notes/ui/widgets/folder_chip.dart';
 import 'package:duru_notes/ui/widgets/note_source_icon.dart';
 import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
@@ -309,6 +310,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     child: ListTile(
                       leading: Icon(Icons.task_alt_rounded),
                       title: Text('Tasks & Reminders'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'analytics',
+                    child: ListTile(
+                      leading: Icon(Icons.analytics_rounded),
+                      title: Text('Productivity Analytics'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -2548,6 +2557,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _showExportDialog(context);
       case 'tasks':
         _showTasksScreen(context);
+      case 'analytics':
+        _showAnalyticsScreen(context);
       case 'settings':
         _showSettingsDialog(context);
       case 'help':
@@ -3516,6 +3527,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(builder: (context) => const TaskListScreen()),
+    );
+  }
+
+  void _showAnalyticsScreen(BuildContext context) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(builder: (context) => const ProductivityAnalyticsScreen()),
     );
   }
 

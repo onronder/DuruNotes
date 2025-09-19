@@ -244,10 +244,8 @@ final reminderCoordinatorProvider = Provider<ReminderCoordinator>((ref) {
   return ReminderCoordinator(plugin, db);
 });
 
-/// Advanced reminder service provider (aliases to [ReminderCoordinator] for compatibility)
-final advancedReminderServiceProvider = Provider<ReminderCoordinator>((ref) {
-  return ref.read(reminderCoordinatorProvider);
-});
+// Note: Use advancedReminderServiceProvider from advanced_reminder_service.dart
+// This provider is deprecated - use reminderCoordinatorProvider directly
 
 /// Provider for the local database (Drift AppDb instance)
 final appDbProvider = Provider<AppDb>((ref) => AppDb());

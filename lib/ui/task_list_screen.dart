@@ -1,9 +1,17 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
+import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
+import 'package:duru_notes/ui/widgets/task_group_header.dart';
+import 'package:duru_notes/ui/widgets/task_item_widget.dart';
+import 'package:duru_notes/ui/widgets/task_time_tracker_widget.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+// Using TaskViewMode from enhanced_task_list_screen.dart
 
 /// Task list screen for managing all tasks
 class TaskListScreen extends ConsumerStatefulWidget {
@@ -16,14 +24,13 @@ class TaskListScreen extends ConsumerStatefulWidget {
 class _TaskListScreenState extends ConsumerState<TaskListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  TaskFilter _currentFilter = TaskFilter.all;
-  TaskSortBy _sortBy = TaskSortBy.dueDate;
+  TaskViewMode _viewMode = TaskViewMode.grouped;
   bool _showCompleted = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -40,66 +47,42 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'All Tasks'),
-            Tab(text: 'By Date'),
+            Tab(text: 'Smart Groups'),
             Tab(text: 'Calendar'),
           ],
         ),
         actions: [
-          // Filter menu
-          PopupMenuButton<TaskFilter>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (filter) => setState(() => _currentFilter = filter),
+          // View mode toggle
+          PopupMenuButton<TaskViewMode>(
+            icon: const Icon(Icons.view_list),
+            onSelected: (mode) => setState(() => _viewMode = mode),
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: TaskFilter.all,
-                child: Text('All Tasks'),
+                value: TaskViewMode.grouped,
+                child: Row(
+                  children: [
+                    Icon(Icons.group_work, size: 18),
+                    SizedBox(width: 8),
+                    Text('Smart Groups'),
+                  ],
+                ),
               ),
               const PopupMenuItem(
-                value: TaskFilter.today,
-                child: Text('Today'),
-              ),
-              const PopupMenuItem(
-                value: TaskFilter.week,
-                child: Text('This Week'),
-              ),
-              const PopupMenuItem(
-                value: TaskFilter.overdue,
-                child: Text('Overdue'),
-              ),
-              const PopupMenuItem(
-                value: TaskFilter.highPriority,
-                child: Text('High Priority'),
-              ),
-            ],
-          ),
-          // Sort menu
-          PopupMenuButton<TaskSortBy>(
-            icon: const Icon(Icons.sort),
-            onSelected: (sort) => setState(() => _sortBy = sort),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: TaskSortBy.dueDate,
-                child: Text('Due Date'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortBy.priority,
-                child: Text('Priority'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortBy.created,
-                child: Text('Created Date'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortBy.alphabetical,
-                child: Text('Alphabetical'),
+                value: TaskViewMode.list,
+                child: Row(
+                  children: [
+                    Icon(Icons.list, size: 18),
+                    SizedBox(width: 8),
+                    Text('Simple List'),
+                  ],
+                ),
               ),
             ],
           ),
           // Toggle completed
           IconButton(
             icon: Icon(
-              _showCompleted ? Icons.check_box : Icons.check_box_outline_blank,
+              _showCompleted ? Icons.visibility_off : Icons.visibility,
             ),
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
@@ -109,27 +92,96 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _TaskListView(
-            filter: _currentFilter,
-            sortBy: _sortBy,
+          EnhancedTaskListView(
+            viewMode: _viewMode,
             showCompleted: _showCompleted,
           ),
-          _TasksByDateView(showCompleted: _showCompleted),
           _TaskCalendarView(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateTaskDialog(context),
+        onPressed: () => _showCreateStandaloneTaskDialog(context),
         icon: const Icon(Icons.add),
         label: const Text('New Task'),
       ),
     );
   }
 
-  Future<void> _showCreateTaskDialog(BuildContext context) async {
+  Future<void> _showCreateStandaloneTaskDialog(BuildContext context) async {
+    final result = await showDialog<TaskMetadata>(
+      context: context,
+      builder: (context) => TaskMetadataDialog(
+        taskContent: '',
+        onSave: (metadata) => Navigator.of(context).pop(metadata),
+      ),
+    );
+
+    if (result != null) {
+      await _createStandaloneTask(result);
+    }
+  }
+
+  Future<void> _createStandaloneTask(TaskMetadata metadata) async {
+    try {
+      final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
+      
+      // Create a standalone task (not tied to any note)
+      final taskId = await enhancedTaskService.createTask(
+        noteId: '', // Empty string for standalone tasks
+        content: metadata.taskContent, // Use the task content from metadata
+        priority: metadata.priority,
+        dueDate: metadata.dueDate,
+        labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+        notes: metadata.notes,
+        estimatedMinutes: metadata.estimatedMinutes,
+        createReminder: metadata.hasReminder && metadata.reminderTime != null,
+      );
+      
+      // Set up custom reminder time if different from due date
+      if (metadata.hasReminder && metadata.reminderTime != null && 
+          metadata.reminderTime != metadata.dueDate && taskId.isNotEmpty) {
+        try {
+          // Get the created task to update its reminder
+          final db = ref.read(appDbProvider);
+          final task = await db.getTaskById(taskId);
+          if (task != null) {
+            final reminderBridge = ref.read(taskReminderBridgeProvider);
+            await reminderBridge.updateTaskReminder(task);
+          }
+        } catch (e) {
+          debugPrint('Failed to update reminder time: $e');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(metadata.hasReminder 
+              ? 'Task created with reminder' 
+              : 'Task created successfully'),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () {
+                // Refresh the task list
+                setState(() {});
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating task: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showCreateTaskDialog() async {
     final contentController = TextEditingController();
     DateTime? selectedDate;
-    var selectedPriority = TaskPriority.medium;
+    TaskPriority selectedPriority = TaskPriority.medium;
 
     await showDialog(
       context: context,
