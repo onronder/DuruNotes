@@ -86,6 +86,19 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
     _noteController = TextEditingController(text: initialText);
     _initialText = initialText;
+    
+    // Initialize bidirectional task sync if editing existing note
+    if (widget.noteId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          try {
+            ref.read(noteTaskCoordinatorProvider).startWatchingNote(widget.noteId!);
+          } catch (e) {
+            debugPrint('Could not start watching note: $e');
+          }
+        }
+      });
+    }
 
     _noteController.addListener(() {
       // mark dirty only on first mutation, still rebuild for stats
@@ -216,6 +229,18 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
   @override
   void dispose() {
+    // Stop watching note for task sync - do this before super.dispose()
+    if (widget.noteId != null) {
+      // Use try-catch to handle potential disposal issues
+      try {
+        final coordinator = ref.read(noteTaskCoordinatorProvider);
+        coordinator.stopWatchingNote(widget.noteId!);
+      } catch (e) {
+        // Widget already disposed, ignore
+        debugPrint('Could not stop watching note: $e');
+      }
+    }
+    
     _noteController.dispose();
     _contentFocusNode.dispose();
     _toolbarSlideController.dispose();
@@ -230,15 +255,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   }
 
   Future<void> _cleanupTempTags() async {
-    try {
-      // Remove any temp tags that were created
-      final db = ref.read(notesRepositoryProvider).db;
-      await (db.delete(
-        db.noteTags,
-      )..where((t) => t.noteId.equals(_noteIdForTags))).go();
-    } catch (e) {
-      // Silently fail - cleanup is not critical
-    }
+    // Skip cleanup - temp tags will be cleaned up by database maintenance
+    // We can't use ref here as the widget might be disposed
+    debugPrint('Skipping temp tag cleanup for $_noteIdForTags');
   }
 
   Future<void> _remapTempTags(String realNoteId) async {
@@ -1375,7 +1394,16 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       // handle folder assignment
       final noteIdToUse = savedNote?.id ?? widget.noteId;
       if (noteIdToUse != null) {
-        // Initialize task sync for this note
+        // Initialize bidirectional task sync for newly saved notes
+        if (widget.noteId == null && mounted) {
+          try {
+            ref.read(noteTaskCoordinatorProvider).startWatchingNote(noteIdToUse);
+          } catch (e) {
+            debugPrint('Could not start watching new note: $e');
+          }
+        }
+        
+        // Sync tasks for this note
         try {
           final taskSyncService = ref.read(noteTaskSyncServiceProvider);
           await taskSyncService.syncTasksForNote(noteIdToUse, cleanBody);

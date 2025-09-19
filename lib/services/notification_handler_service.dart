@@ -21,7 +21,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
 /// Notification action types
-enum NotificationAction { open, reply, markAsRead, dismiss, custom }
+enum NotificationAction { 
+  open, 
+  reply, 
+  markAsRead, 
+  dismiss, 
+  custom,
+  // Task-specific actions
+  completeTask,
+  snoozeTask,
+  openTask,
+}
 
 /// Notification payload data
 class NotificationPayload {
@@ -462,6 +472,13 @@ class NotificationHandlerService {
         return NotificationAction.markAsRead;
       case 'dismiss':
         return NotificationAction.dismiss;
+      case 'complete_task':
+        return NotificationAction.completeTask;
+      case 'snooze_task_15':
+      case 'snooze_task_1h':
+        return NotificationAction.snoozeTask;
+      case 'open_task':
+        return NotificationAction.openTask;
       default:
         return NotificationAction.custom;
     }

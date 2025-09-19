@@ -42,6 +42,16 @@ import 'package:duru_notes/services/sync/folder_remote_api.dart';
 import 'package:duru_notes/services/sync/folder_sync_audit.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/services/enhanced_task_service.dart';
+import 'package:duru_notes/services/task_reminder_bridge.dart';
+import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
+import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
+import 'package:duru_notes/services/note_task_coordinator.dart';
+import 'package:duru_notes/services/task_analytics_service.dart';
+import 'package:duru_notes/services/productivity_goals_service.dart';
+import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
+import 'package:duru_notes/services/advanced_reminder_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:duru_notes/services/unified_realtime_service.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
@@ -897,4 +907,121 @@ final undoRedoServiceProvider = ChangeNotifierProvider<UndoRedoService>((ref) {
     repository: repository,
     userId: userId,
   );
+});
+
+/// Provider for watching tasks for a specific note
+final noteTasksProvider = StreamProvider.family<List<NoteTask>, String>((ref, noteId) {
+  final taskService = ref.watch(taskServiceProvider);
+  return taskService.watchTasksForNote(noteId);
+});
+
+/// Provider for getting a specific task by ID
+final taskByIdProvider = FutureProvider.family<NoteTask?, String>((ref, taskId) async {
+  final db = ref.watch(appDbProvider);
+  return db.getTaskById(taskId);
+});
+
+/// Task reminder bridge provider
+final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
+  final reminderCoordinator = ref.watch(reminderCoordinatorProvider);
+  final advancedReminderService = ref.watch(advancedReminderServiceProvider);
+  final taskService = ref.watch(taskServiceProvider);
+  final database = ref.watch(appDbProvider);
+  final notificationPlugin = FlutterLocalNotificationsPlugin();
+
+  final bridge = TaskReminderBridge(
+    reminderCoordinator: reminderCoordinator,
+    advancedReminderService: advancedReminderService,
+    taskService: taskService,
+    database: database,
+    notificationPlugin: notificationPlugin,
+  );
+
+  ref.onDispose(bridge.dispose);
+  return bridge;
+});
+
+/// Enhanced task service provider with reminder integration
+final enhancedTaskServiceProvider = Provider<EnhancedTaskService>((ref) {
+  final database = ref.watch(appDbProvider);
+  final reminderBridge = ref.watch(taskReminderBridgeProvider);
+
+  final service = EnhancedTaskService(
+    database: database,
+    reminderBridge: reminderBridge,
+  );
+
+  // Set bidirectional sync after creation to avoid circular dependency
+  final bidirectionalSync = ref.watch(bidirectionalTaskSyncServiceProvider);
+  service.setBidirectionalSync(bidirectionalSync);
+
+  return service;
+});
+
+/// Bidirectional task sync service provider
+final bidirectionalTaskSyncServiceProvider = Provider<BidirectionalTaskSyncService>((ref) {
+  final database = ref.watch(appDbProvider);
+  
+  // Create service without enhanced task service to avoid circular dependency
+  // EnhancedTaskService will be passed when needed
+  return BidirectionalTaskSyncService(
+    database: database,
+    taskService: ref.watch(taskServiceProvider),
+  );
+});
+
+/// Note-task coordinator provider for managing bidirectional sync
+final noteTaskCoordinatorProvider = Provider<NoteTaskCoordinator>((ref) {
+  final database = ref.watch(appDbProvider);
+  final bidirectionalSync = ref.watch(bidirectionalTaskSyncServiceProvider);
+  
+  final coordinator = NoteTaskCoordinator(
+    database: database,
+    bidirectionalSync: bidirectionalSync,
+  );
+
+  ref.onDispose(coordinator.dispose);
+  return coordinator;
+});
+
+/// Hierarchical task sync service provider
+final hierarchicalTaskSyncServiceProvider = Provider<HierarchicalTaskSyncService>((ref) {
+  final database = ref.watch(appDbProvider);
+  final enhancedTaskService = ref.watch(enhancedTaskServiceProvider);
+
+  return HierarchicalTaskSyncService(
+    database: database,
+    enhancedTaskService: enhancedTaskService,
+  );
+});
+
+/// Task analytics service provider
+final taskAnalyticsServiceProvider = Provider<TaskAnalyticsService>((ref) {
+  final database = ref.watch(appDbProvider);
+  return TaskAnalyticsService(database: database);
+});
+
+/// Productivity goals service provider
+final productivityGoalsServiceProvider = Provider<ProductivityGoalsService>((ref) {
+  final database = ref.watch(appDbProvider);
+  final analyticsService = ref.watch(taskAnalyticsServiceProvider);
+  
+  return ProductivityGoalsService(
+    database: database,
+    analyticsService: analyticsService,
+  );
+});
+
+/// Stream provider for active productivity goals
+final activeGoalsProvider = StreamProvider<List<ProductivityGoal>>((ref) async* {
+  final goalsService = ref.watch(productivityGoalsServiceProvider);
+  
+  // Initial load
+  yield await goalsService.getActiveGoals();
+  
+  // Update every minute to refresh progress
+  yield* Stream.periodic(const Duration(minutes: 1), (_) async {
+    await goalsService.updateAllGoalProgress();
+    return goalsService.getActiveGoals();
+  }).asyncMap((future) => future);
 });

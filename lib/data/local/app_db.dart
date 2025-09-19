@@ -1441,6 +1441,14 @@ class AppDb extends _$AppDb {
   }
 
   /// Get completed tasks
+  /// Get all tasks for the current user
+  Future<List<NoteTask>> getAllTasks() {
+    return (select(noteTasks)
+          ..where((t) => t.deleted.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
+  }
+
   Future<List<NoteTask>> getCompletedTasks({DateTime? since, int? limit}) {
     final query = select(noteTasks)
       ..where(

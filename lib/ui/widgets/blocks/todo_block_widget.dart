@@ -1,10 +1,17 @@
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
+import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TodoBlockWidget extends StatefulWidget {
+class TodoBlockWidget extends ConsumerStatefulWidget {
   const TodoBlockWidget({
     required this.block,
+    required this.noteId,
+    required this.position,
     required this.isFocused,
     required this.onChanged,
     required this.onFocusChanged,
@@ -13,20 +20,23 @@ class TodoBlockWidget extends StatefulWidget {
   });
 
   final NoteBlock block;
+  final String? noteId;
+  final int position;
   final bool isFocused;
   final Function(NoteBlock) onChanged;
   final Function(bool) onFocusChanged;
   final VoidCallback onNewLine;
 
   @override
-  State<TodoBlockWidget> createState() => _TodoBlockWidgetState();
+  ConsumerState<TodoBlockWidget> createState() => _TodoBlockWidgetState();
 }
 
-class _TodoBlockWidgetState extends State<TodoBlockWidget> {
+class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   late bool _isCompleted;
   late String _text;
+  NoteTask? _task;
 
   @override
   void initState() {
@@ -43,6 +53,11 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _focusNode.requestFocus();
       });
+    }
+
+    // Load task data if noteId is available
+    if (widget.noteId != null) {
+      _loadTaskData();
     }
   }
 
@@ -78,6 +93,26 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
     }
   }
 
+  Future<void> _loadTaskData() async {
+    if (widget.noteId == null) return;
+    
+    try {
+      final tasks = await ref.read(appDbProvider).getTasksForNote(widget.noteId!);
+      final matchingTask = tasks.where((task) => 
+        task.position == widget.position && 
+        task.content.trim() == _text.trim()
+      ).firstOrNull;
+      
+      if (mounted) {
+        setState(() {
+          _task = matchingTask;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading task data: $e');
+    }
+  }
+
   void _updateTodo() {
     final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:$_text';
     final newBlock = widget.block.copyWith(data: todoData);
@@ -89,11 +124,93 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
     _updateTodo();
   }
 
-  void _toggleCompleted() {
+  void _toggleCompleted() async {
     setState(() {
       _isCompleted = !_isCompleted;
     });
     _updateTodo();
+
+    // Update task in database if it exists
+    if (widget.noteId != null && _task != null) {
+      try {
+        final syncService = ref.read(noteTaskSyncServiceProvider);
+        await syncService.updateNoteContentForTask(
+          noteId: widget.noteId!,
+          taskId: _task!.id,
+          isCompleted: _isCompleted,
+        );
+      } catch (e) {
+        debugPrint('Error updating task completion: $e');
+      }
+    }
+  }
+
+  void _showTaskMetadataDialog() async {
+    if (widget.noteId == null) return;
+
+    final result = await showDialog<TaskMetadata>(
+      context: context,
+      builder: (context) => TaskMetadataDialog(
+        task: _task,
+        taskContent: _text,
+        onSave: (metadata) => Navigator.of(context).pop(metadata),
+      ),
+    );
+
+    if (result != null) {
+      await _saveTaskMetadata(result);
+    }
+  }
+
+  Future<void> _saveTaskMetadata(TaskMetadata metadata) async {
+    if (widget.noteId == null) return;
+
+    try {
+      final taskService = ref.read(enhancedTaskServiceProvider);
+      final syncService = ref.read(noteTaskSyncServiceProvider);
+
+      if (_task == null) {
+        // Create new task
+        final taskId = await taskService.createTask(
+          noteId: widget.noteId!,
+          content: _text,
+          priority: metadata.priority,
+          dueDate: metadata.dueDate,
+          labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+          notes: metadata.notes,
+          estimatedMinutes: metadata.estimatedMinutes,
+        );
+
+        // Reload task data
+        await _loadTaskData();
+      } else {
+        // Update existing task
+        await taskService.updateTask(
+          taskId: _task!.id,
+          priority: metadata.priority,
+          dueDate: metadata.dueDate,
+          labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+          notes: metadata.notes,
+          estimatedMinutes: metadata.estimatedMinutes,
+        );
+
+        // Reload task data
+        await _loadTaskData();
+      }
+
+      // Handle reminders if needed
+      if (metadata.hasReminder && metadata.reminderTime != null) {
+        // TODO: Integrate with reminder service
+      }
+
+    } catch (e) {
+      debugPrint('Error saving task metadata: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving task: $e')),
+        );
+      }
+    }
   }
 
   void _handleKeyEvent(KeyEvent event) {
@@ -107,120 +224,109 @@ class _TodoBlockWidgetState extends State<TodoBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Checkbox
-          Padding(
-            padding: const EdgeInsets.only(top: 12, right: 8),
-            child: GestureDetector(
-              onTap: _toggleCompleted,
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _isCompleted
-                        ? Theme.of(context).primaryColor
-                        : Colors.grey.shade400,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                  color: _isCompleted
-                      ? Theme.of(context).primaryColor
-                      : Colors.transparent,
-                ),
-                child: _isCompleted
-                    ? const Icon(Icons.check, size: 14, color: Colors.white)
-                    : null,
-              ),
-            ),
-          ),
-
-          // Todo Text
-          Expanded(
-            child: Focus(
-              onKeyEvent: (node, event) {
-                _handleKeyEvent(event);
-                return KeyEventResult.ignored;
-              },
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                onChanged: (_) => _handleTextChanged(),
-                decoration: const InputDecoration(
-                  hintText: 'Todo item...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Checkbox with long-press support
+              Padding(
+                padding: const EdgeInsets.only(top: 12, right: 8),
+                child: GestureDetector(
+                  onTap: _toggleCompleted,
+                  onLongPress: widget.noteId != null ? _showTaskMetadataDialog : null,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _isCompleted
+                            ? theme.primaryColor
+                            : Colors.grey.shade400,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      color: _isCompleted
+                          ? theme.primaryColor
+                          : Colors.transparent,
+                    ),
+                    child: _isCompleted
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : null,
                   ),
                 ),
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  decoration: _isCompleted
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  color: _isCompleted ? Colors.grey.shade500 : null,
-                ),
-                maxLines: null,
-                textInputAction: TextInputAction.newline,
               ),
-            ),
-          ),
 
-          // Priority Selector
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.flag_outlined,
-              size: 16,
-              color: Colors.grey.shade400,
-            ),
-            onSelected: (priority) {
-              // TODO: Implement priority handling
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'high',
-                child: Row(
+              // Todo Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.flag, color: Colors.red, size: 16),
-                    SizedBox(width: 8),
-                    Text('High Priority'),
+                    Focus(
+                      onKeyEvent: (node, event) {
+                        _handleKeyEvent(event);
+                        return KeyEventResult.ignored;
+                      },
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        onChanged: (_) => _handleTextChanged(),
+                        decoration: const InputDecoration(
+                          hintText: 'Todo item...',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          decoration: _isCompleted
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          color: _isCompleted ? Colors.grey.shade500 : null,
+                        ),
+                        maxLines: null,
+                        textInputAction: TextInputAction.newline,
+                      ),
+                    ),
+                    
+                    // Task indicators
+                    if (_task != null) ...[
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: TaskIndicatorsWidget(
+                          task: _task!,
+                          compact: true,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const PopupMenuItem(
-                value: 'medium',
-                child: Row(
-                  children: [
-                    Icon(Icons.flag, color: Colors.orange, size: 16),
-                    SizedBox(width: 8),
-                    Text('Medium Priority'),
-                  ],
+
+              // More options button
+              if (widget.noteId != null)
+                IconButton(
+                  icon: Icon(
+                    Icons.more_horiz,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
+                  onPressed: _showTaskMetadataDialog,
+                  tooltip: 'Task options',
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'low',
-                child: Row(
-                  children: [
-                    Icon(Icons.flag, color: Colors.green, size: 16),
-                    SizedBox(width: 8),
-                    Text('Low Priority'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'none',
-                child: Row(
-                  children: [
-                    Icon(Icons.flag_outlined, color: Colors.grey, size: 16),
-                    SizedBox(width: 8),
-                    Text('No Priority'),
-                  ],
-                ),
-              ),
             ],
           ),
         ],

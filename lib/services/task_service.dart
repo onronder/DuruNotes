@@ -59,6 +59,8 @@ class TaskService {
     String? notes,
     int? estimatedMinutes,
     int? actualMinutes,
+    int? reminderId,
+    String? parentTaskId,
   }) async {
     final updates = NoteTasksCompanion(
       content: content != null ? Value(content) : const Value.absent(),
@@ -81,6 +83,8 @@ class TaskService {
       actualMinutes: actualMinutes != null
           ? Value(actualMinutes)
           : const Value.absent(),
+      reminderId: reminderId != null ? Value(reminderId) : const Value.absent(),
+      parentTaskId: parentTaskId != null ? Value(parentTaskId) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     );
 
