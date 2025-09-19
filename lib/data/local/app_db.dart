@@ -1,18 +1,14 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
-import 'package:duru_notes/core/utils/hash_utils.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
+
+import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
 
@@ -30,6 +26,7 @@ class LocalNotes extends Table {
   BoolColumn get isPinned => boolean().withDefault(
     const Constant(false),
   )(); // For pinning notes to top
+  IntColumn get noteType => intEnum<NoteKind>().withDefault(const Constant(0))(); // 0=note, 1=template
 
   @override
   Set<Column> get primaryKey => {id};
@@ -353,7 +350,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -378,10 +375,10 @@ class AppDb extends _$AppDb {
       await _createTaskIndexes();
       await _createSavedSearchIndexes();
 
-      // Seed existing data to FTS
+      // Seed existing data to FTS (exclude templates)
       await customStatement(
         'INSERT INTO fts_notes(id, title, body, folder_path) '
-        'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0',
+        'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0 AND note_type = 0',
       );
     },
     onUpgrade: (m, from, to) async {
@@ -399,7 +396,7 @@ class AppDb extends _$AppDb {
         await customStatement('DELETE FROM fts_notes');
         await customStatement(
           'INSERT INTO fts_notes(id, title, body) '
-          'SELECT id, title, body FROM local_notes WHERE deleted = 0',
+          'SELECT id, title, body FROM local_notes WHERE deleted = 0 AND note_type = 0',
         );
       }
       if (from < 4) {
@@ -460,8 +457,16 @@ class AppDb extends _$AppDb {
         // Backfill content_hash for any existing tasks with stable hash
         await _backfillTaskContentHash();
       }
+      if (from < 10) {
+        // Version 10: Add noteType column to support templates
+        await m.addColumn(localNotes, localNotes.noteType);
+      }
     },
   );
+
+  /// Helper to check if a note is visible (not deleted and not a template)
+  Expression<bool> noteIsVisible(LocalNotes t) => 
+      t.deleted.equals(false) & t.noteType.equals(0);
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -520,7 +525,7 @@ class AppDb extends _$AppDb {
   }
 
   Future<void> _createFtsTriggers() async {
-    // INSERT -> Add to FTS (if not deleted) with folder_path
+    // INSERT -> Add to FTS (if not deleted and not a template) with folder_path
     await customStatement('''
       CREATE TRIGGER IF NOT EXISTS trg_local_notes_ai
       AFTER INSERT ON local_notes
@@ -533,11 +538,11 @@ class AppDb extends _$AppDb {
           (SELECT path FROM local_folders lf 
            JOIN note_folders nf ON nf.folder_id = lf.id 
            WHERE nf.note_id = NEW.id)
-        WHERE NEW.deleted = 0;
+        WHERE NEW.deleted = 0 AND NEW.note_type = 0;
       END;
     ''');
 
-    // UPDATE -> Update FTS with folder_path
+    // UPDATE -> Update FTS with folder_path (exclude templates)
     await customStatement('''
       CREATE TRIGGER IF NOT EXISTS trg_local_notes_au
       AFTER UPDATE ON local_notes
@@ -551,7 +556,7 @@ class AppDb extends _$AppDb {
           (SELECT path FROM local_folders lf 
            JOIN note_folders nf ON nf.folder_id = lf.id 
            WHERE nf.note_id = NEW.id)
-        WHERE NEW.deleted = 0;
+        WHERE NEW.deleted = 0 AND NEW.note_type = 0;
       END;
     ''');
 
@@ -575,7 +580,7 @@ class AppDb extends _$AppDb {
     final q = query.trim();
     if (q.isEmpty) {
       return (select(localNotes)
-            ..where((t) => t.deleted.equals(false))
+            ..where((t) => noteIsVisible(t))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
             ..limit(limit))
           .get();
@@ -587,7 +592,7 @@ class AppDb extends _$AppDb {
     return (select(localNotes)
           ..where(
             (t) =>
-                t.deleted.equals(false) &
+                noteIsVisible(t) &
                 (t.title.like(startsWith) | t.title.like(wordStart)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.title)])
@@ -597,7 +602,7 @@ class AppDb extends _$AppDb {
 
   Future<List<LocalNote>> allNotes() =>
       (select(localNotes)
-            ..where((t) => t.deleted.equals(false))
+            ..where((t) => noteIsVisible(t))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
           .get();
 
@@ -607,7 +612,7 @@ class AppDb extends _$AppDb {
     required DateTime? cursor,
     required int limit,
   }) {
-    final query = select(localNotes)..where((t) => t.deleted.equals(false));
+    final query = select(localNotes)..where((t) => noteIsVisible(t));
 
     // If cursor is provided, get notes older than cursor
     if (cursor != null) {
@@ -627,7 +632,7 @@ class AppDb extends _$AppDb {
     required int offset,
   }) =>
       (select(localNotes)
-            ..where((t) => t.deleted.equals(false))
+            ..where((t) => noteIsVisible(t))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
             ..limit(limit, offset: offset))
           .get();
@@ -635,7 +640,7 @@ class AppDb extends _$AppDb {
   /// Get all notes with pinned notes first
   Future<List<LocalNote>> allNotesWithPinned() =>
       (select(localNotes)
-            ..where((t) => t.deleted.equals(false))
+            ..where((t) => noteIsVisible(t))
             ..orderBy([
               (t) => OrderingTerm.desc(t.isPinned),
               (t) => OrderingTerm.desc(t.updatedAt),
@@ -645,7 +650,7 @@ class AppDb extends _$AppDb {
   /// Get pinned notes only
   Future<List<LocalNote>> getPinnedNotes() =>
       (select(localNotes)
-            ..where((t) => t.deleted.equals(false) & t.isPinned.equals(true))
+            ..where((t) => noteIsVisible(t) & t.isPinned.equals(true))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
           .get();
 
@@ -688,7 +693,7 @@ class AppDb extends _$AppDb {
             noteFolders.noteId.equalsExp(localNotes.id),
           ),
         ])..where(
-          localNotes.deleted.equals(false) &
+          noteIsVisible(localNotes) &
               noteFolders.folderId.equals(folderId),
         );
 
@@ -759,7 +764,7 @@ class AppDb extends _$AppDb {
   Future<Set<String>> getLocalActiveNoteIds() async {
     final rows = await (select(
       localNotes,
-    )..where((t) => t.deleted.equals(false))).get();
+    )..where((t) => noteIsVisible(t))).get();
     return rows.map((e) => e.id).toSet();
   }
 
@@ -817,7 +822,7 @@ class AppDb extends _$AppDb {
       SELECT DISTINCT t.tag AS tag
       FROM note_tags t
       JOIN local_notes n ON n.id = t.note_id
-      WHERE n.deleted = 0
+      WHERE n.deleted = 0 AND n.note_type = 0
       ORDER BY LOWER(t.tag) ASC
       ''',
       readsFrom: {noteTags, localNotes},
@@ -833,7 +838,7 @@ class AppDb extends _$AppDb {
       SELECT nt.tag AS tag, COUNT(*) AS count
       FROM note_tags nt
       JOIN local_notes n ON n.id = nt.note_id
-      WHERE n.deleted = 0
+      WHERE n.deleted = 0 AND n.note_type = 0
       GROUP BY nt.tag
       ORDER BY count DESC, tag ASC
       ''',
@@ -890,7 +895,7 @@ class AppDb extends _$AppDb {
     final tagsAny = anyTags.map((t) => t.trim().toLowerCase()).toList();
     final tagsNone = noneTags.map((t) => t.trim().toLowerCase()).toList();
 
-    final q = select(localNotes)..where((n) => n.deleted.equals(false));
+    final q = select(localNotes)..where((n) => noteIsVisible(n));
 
     if (tagsAny.isNotEmpty) {
       final sub = selectOnly(noteTags)
@@ -958,7 +963,7 @@ class AppDb extends _$AppDb {
       SELECT DISTINCT t.tag AS tag
       FROM note_tags t
       JOIN local_notes n ON n.id = t.note_id
-      WHERE n.deleted = 0 AND t.tag LIKE ?
+      WHERE n.deleted = 0 AND n.note_type = 0 AND t.tag LIKE ?
       ORDER BY t.tag ASC
       LIMIT 20
       ''',
@@ -978,7 +983,7 @@ class AppDb extends _$AppDb {
       SELECT n.*
       FROM local_notes n
       JOIN note_tags t ON n.id = t.note_id
-      WHERE n.deleted = 0 AND t.tag = ?
+      WHERE n.deleted = 0 AND n.note_type = 0 AND t.tag = ?
       ORDER BY n.is_pinned DESC, n.updated_at DESC
       ''',
       variables: [Variable(normalizedTag)],
@@ -1041,7 +1046,7 @@ class AppDb extends _$AppDb {
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
-          WHERE n.deleted = 0 AND (
+          WHERE n.deleted = 0 AND n.note_type = 0 AND (
             -- Has attachment tag (case-insensitive)
             LOWER(t.tag) = 'attachment'
             -- Or has attachments in metadata
@@ -1058,7 +1063,7 @@ class AppDb extends _$AppDb {
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
-          WHERE n.deleted = 0 AND (
+          WHERE n.deleted = 0 AND n.note_type = 0 AND (
             -- Has email tag (case-insensitive)
             LOWER(t.tag) = 'email'
             -- Or has email source in metadata (with or without spaces in JSON)
@@ -1075,7 +1080,7 @@ class AppDb extends _$AppDb {
           SELECT DISTINCT n.*
           FROM local_notes n
           LEFT JOIN note_tags t ON n.id = t.note_id
-          WHERE n.deleted = 0 AND (
+          WHERE n.deleted = 0 AND n.note_type = 0 AND (
             -- Has web tag (case-insensitive)
             LOWER(t.tag) = 'web'
             -- Or has web source in metadata (with or without spaces in JSON)
@@ -1206,7 +1211,7 @@ class AppDb extends _$AppDb {
       if (ids.isEmpty) return const <LocalNote>[];
 
       return (select(localNotes)
-            ..where((t) => t.deleted.equals(false) & t.id.isIn(ids))
+            ..where((t) => noteIsVisible(t) & t.id.isIn(ids))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
           .get();
     }
@@ -1220,7 +1225,7 @@ class AppDb extends _$AppDb {
         SELECT n.*
         FROM local_notes n
         JOIN fts_notes f ON n.id = f.id
-        WHERE n.deleted = 0
+        WHERE n.deleted = 0 AND n.note_type = 0
           AND f MATCH ?
         ORDER BY n.updated_at DESC
         ''',
@@ -1235,7 +1240,7 @@ class AppDb extends _$AppDb {
       return (select(localNotes)
             ..where(
               (t) =>
-                  t.deleted.equals(false) &
+                  noteIsVisible(t) &
                   (t.title.like(needle) | t.body.like(needle)),
             )
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
@@ -1620,12 +1625,12 @@ class AppDb extends _$AppDb {
     return query.get();
   }
 
-  /// Clean up reminders for deleted notes
+  /// Clean up reminders for deleted notes or templates
   Future<void> cleanupOrphanedReminders() async {
     await customStatement('''
       DELETE FROM note_reminders 
       WHERE note_id NOT IN (
-        SELECT id FROM local_notes WHERE deleted = 0
+        SELECT id FROM local_notes WHERE deleted = 0 AND note_type = 0
       )
     ''');
   }
@@ -1700,7 +1705,7 @@ class AppDb extends _$AppDb {
     // Extract tasks from existing notes that have checkboxes
     final notes = await (select(
       localNotes,
-    )..where((n) => n.deleted.equals(false))).get();
+    )..where((n) => noteIsVisible(n))).get();
 
     for (final note in notes) {
       // Parse note body for checkbox patterns
@@ -1776,12 +1781,12 @@ class AppDb extends _$AppDb {
     // Recreate FTS triggers with folder support
     await _createFtsTriggers();
 
-    // Repopulate FTS with existing data (no folders initially)
+    // Repopulate FTS with existing data (no folders initially, exclude templates)
     await customStatement('''
       INSERT INTO fts_notes(id, title, body, folder_path)
       SELECT id, title, body, '' 
       FROM local_notes 
-      WHERE deleted = 0
+      WHERE deleted = 0 AND note_type = 0
     ''');
   }
 
@@ -1946,7 +1951,7 @@ class AppDb extends _$AppDb {
             noteFolders.noteId.equalsExp(localNotes.id),
           ),
         ])..where(
-          localNotes.deleted.equals(false) &
+          noteIsVisible(localNotes) &
               noteFolders.folderId.equals(folderId),
         );
 
@@ -1977,7 +1982,7 @@ class AppDb extends _$AppDb {
                   localNotes.id.equalsExp(noteFolders.noteId),
                 ),
               ])
-              ..where(localNotes.deleted.equals(false))
+              ..where(noteIsVisible(localNotes))
               ..addColumns([folderIdColumn, countColumn])
               ..groupBy([folderIdColumn]))
             .get();
@@ -2030,7 +2035,7 @@ class AppDb extends _$AppDb {
   Future<List<LocalNote>> getUnfiledNotes({int? limit, DateTime? cursor}) {
     final query = select(localNotes).join([
       leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
-    ])..where(localNotes.deleted.equals(false) & noteFolders.noteId.isNull());
+    ])..where(noteIsVisible(localNotes) & noteFolders.noteId.isNull());
 
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
@@ -2141,7 +2146,7 @@ class AppDb extends _$AppDb {
   Future<Set<String>> getActiveNoteIds() async {
     final notes = await (select(
       localNotes,
-    )..where((n) => n.deleted.equals(false))).get();
+    )..where((n) => noteIsVisible(n))).get();
     return notes.map((n) => n.id).toSet();
   }
 

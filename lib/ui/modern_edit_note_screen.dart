@@ -401,20 +401,27 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,  // Prevent overflow
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.noteId == null ? 'New Note' : 'Edit Note',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
+                      Flexible(
+                        child: Text(
+                          widget.noteId == null ? 'New Note' : 'Edit Note',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (_hasChanges)
-                        Text(
-                          'Editing...',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            'Editing...',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                     ],
@@ -471,6 +478,38 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                             child: _buildSaveButton(theme, colorScheme),
                           );
                         },
+                      ),
+
+                      const SizedBox(width: 4),
+
+                      // More options menu
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          size: 20,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: 'More options',
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onSelected: (value) async {
+                          if (value == 'save_as_template') {
+                            await _saveAsTemplate();
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          const PopupMenuItem<String>(
+                            value: 'save_as_template',
+                            child: Row(
+                              children: [
+                                Icon(Icons.description_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('Save as Template'),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1369,6 +1408,56 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       Navigator.of(context).pop(); // go back to list
     } catch (e) {
       _showErrorSnack('Save failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveAsTemplate() async {
+    if (_isLoading) return;
+
+    final raw = _noteController.text;
+    final parts = _splitTitleBody(raw);
+
+    final cleanTitle = _stripMarkdownHeading(parts.title).trim();
+    final cleanBody = parts.body;
+
+    if (cleanTitle.isEmpty && cleanBody.trim().isEmpty) {
+      _showErrorSnack('Cannot save empty note as template');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Get the repository
+      final repository = ref.read(notesRepositoryProvider);
+      
+      // Create the template
+      final template = await repository.createTemplate(
+        title: cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
+        body: cleanBody,
+        tags: _currentTags,
+        metadata: {
+          'createdFrom': widget.noteId ?? 'new_note',
+          'createdAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      if (template == null) {
+        throw Exception('Failed to create template');
+      }
+
+      if (!mounted) return;
+      
+      // Show success message
+      _showInfoSnack('Template saved: ${template.title}');
+      
+      // Optional: Navigate back or stay for further editing
+      // Navigator.of(context).pop();
+      
+    } catch (e) {
+      _showErrorSnack('Failed to save as template: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

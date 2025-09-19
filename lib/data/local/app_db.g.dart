@@ -92,6 +92,16 @@ class $LocalNotesTable extends LocalNotes
     defaultValue: const Constant(false),
   );
   @override
+  late final GeneratedColumnWithTypeConverter<NoteKind, int> noteType =
+      GeneratedColumn<int>(
+        'note_type',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      ).withConverter<NoteKind>($LocalNotesTable.$converternoteType);
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     title,
@@ -100,6 +110,7 @@ class $LocalNotesTable extends LocalNotes
     deleted,
     encryptedMetadata,
     isPinned,
+    noteType,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -196,6 +207,12 @@ class $LocalNotesTable extends LocalNotes
         DriftSqlType.bool,
         data['${effectivePrefix}is_pinned'],
       )!,
+      noteType: $LocalNotesTable.$converternoteType.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}note_type'],
+        )!,
+      ),
     );
   }
 
@@ -203,6 +220,9 @@ class $LocalNotesTable extends LocalNotes
   $LocalNotesTable createAlias(String alias) {
     return $LocalNotesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<NoteKind, int, int> $converternoteType =
+      const EnumIndexConverter<NoteKind>(NoteKind.values);
 }
 
 class LocalNote extends DataClass implements Insertable<LocalNote> {
@@ -213,6 +233,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
   final bool deleted;
   final String? encryptedMetadata;
   final bool isPinned;
+  final NoteKind noteType;
   const LocalNote({
     required this.id,
     required this.title,
@@ -221,6 +242,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     required this.deleted,
     this.encryptedMetadata,
     required this.isPinned,
+    required this.noteType,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -234,6 +256,11 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       map['encrypted_metadata'] = Variable<String>(encryptedMetadata);
     }
     map['is_pinned'] = Variable<bool>(isPinned);
+    {
+      map['note_type'] = Variable<int>(
+        $LocalNotesTable.$converternoteType.toSql(noteType),
+      );
+    }
     return map;
   }
 
@@ -248,6 +275,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ? const Value.absent()
           : Value(encryptedMetadata),
       isPinned: Value(isPinned),
+      noteType: Value(noteType),
     );
   }
 
@@ -266,6 +294,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
         json['encryptedMetadata'],
       ),
       isPinned: serializer.fromJson<bool>(json['isPinned']),
+      noteType: $LocalNotesTable.$converternoteType.fromJson(
+        serializer.fromJson<int>(json['noteType']),
+      ),
     );
   }
   @override
@@ -279,6 +310,9 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       'deleted': serializer.toJson<bool>(deleted),
       'encryptedMetadata': serializer.toJson<String?>(encryptedMetadata),
       'isPinned': serializer.toJson<bool>(isPinned),
+      'noteType': serializer.toJson<int>(
+        $LocalNotesTable.$converternoteType.toJson(noteType),
+      ),
     };
   }
 
@@ -290,6 +324,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     bool? deleted,
     Value<String?> encryptedMetadata = const Value.absent(),
     bool? isPinned,
+    NoteKind? noteType,
   }) => LocalNote(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -300,6 +335,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
         ? encryptedMetadata.value
         : this.encryptedMetadata,
     isPinned: isPinned ?? this.isPinned,
+    noteType: noteType ?? this.noteType,
   );
   LocalNote copyWithCompanion(LocalNotesCompanion data) {
     return LocalNote(
@@ -312,6 +348,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ? data.encryptedMetadata.value
           : this.encryptedMetadata,
       isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
+      noteType: data.noteType.present ? data.noteType.value : this.noteType,
     );
   }
 
@@ -324,7 +361,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
           ..write('encryptedMetadata: $encryptedMetadata, ')
-          ..write('isPinned: $isPinned')
+          ..write('isPinned: $isPinned, ')
+          ..write('noteType: $noteType')
           ..write(')'))
         .toString();
   }
@@ -338,6 +376,7 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     deleted,
     encryptedMetadata,
     isPinned,
+    noteType,
   );
   @override
   bool operator ==(Object other) =>
@@ -349,7 +388,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           other.updatedAt == this.updatedAt &&
           other.deleted == this.deleted &&
           other.encryptedMetadata == this.encryptedMetadata &&
-          other.isPinned == this.isPinned);
+          other.isPinned == this.isPinned &&
+          other.noteType == this.noteType);
 }
 
 class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
@@ -360,6 +400,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
   final Value<bool> deleted;
   final Value<String?> encryptedMetadata;
   final Value<bool> isPinned;
+  final Value<NoteKind> noteType;
   final Value<int> rowid;
   const LocalNotesCompanion({
     this.id = const Value.absent(),
@@ -369,6 +410,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.deleted = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
     this.isPinned = const Value.absent(),
+    this.noteType = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalNotesCompanion.insert({
@@ -379,6 +421,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.deleted = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
     this.isPinned = const Value.absent(),
+    this.noteType = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        updatedAt = Value(updatedAt);
@@ -390,6 +433,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Expression<bool>? deleted,
     Expression<String>? encryptedMetadata,
     Expression<bool>? isPinned,
+    Expression<int>? noteType,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -400,6 +444,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       if (deleted != null) 'deleted': deleted,
       if (encryptedMetadata != null) 'encrypted_metadata': encryptedMetadata,
       if (isPinned != null) 'is_pinned': isPinned,
+      if (noteType != null) 'note_type': noteType,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -412,6 +457,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Value<bool>? deleted,
     Value<String?>? encryptedMetadata,
     Value<bool>? isPinned,
+    Value<NoteKind>? noteType,
     Value<int>? rowid,
   }) {
     return LocalNotesCompanion(
@@ -422,6 +468,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       deleted: deleted ?? this.deleted,
       encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
       isPinned: isPinned ?? this.isPinned,
+      noteType: noteType ?? this.noteType,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -450,6 +497,11 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     if (isPinned.present) {
       map['is_pinned'] = Variable<bool>(isPinned.value);
     }
+    if (noteType.present) {
+      map['note_type'] = Variable<int>(
+        $LocalNotesTable.$converternoteType.toSql(noteType.value),
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -466,6 +518,7 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
           ..write('deleted: $deleted, ')
           ..write('encryptedMetadata: $encryptedMetadata, ')
           ..write('isPinned: $isPinned, ')
+          ..write('noteType: $noteType, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5435,6 +5488,7 @@ typedef $$LocalNotesTableCreateCompanionBuilder =
       Value<bool> deleted,
       Value<String?> encryptedMetadata,
       Value<bool> isPinned,
+      Value<NoteKind> noteType,
       Value<int> rowid,
     });
 typedef $$LocalNotesTableUpdateCompanionBuilder =
@@ -5446,6 +5500,7 @@ typedef $$LocalNotesTableUpdateCompanionBuilder =
       Value<bool> deleted,
       Value<String?> encryptedMetadata,
       Value<bool> isPinned,
+      Value<NoteKind> noteType,
       Value<int> rowid,
     });
 
@@ -5492,6 +5547,12 @@ class $$LocalNotesTableFilterComposer
     column: $table.isPinned,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<NoteKind, NoteKind, int> get noteType =>
+      $composableBuilder(
+        column: $table.noteType,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 }
 
 class $$LocalNotesTableOrderingComposer
@@ -5537,6 +5598,11 @@ class $$LocalNotesTableOrderingComposer
     column: $table.isPinned,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get noteType => $composableBuilder(
+    column: $table.noteType,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalNotesTableAnnotationComposer
@@ -5570,6 +5636,9 @@ class $$LocalNotesTableAnnotationComposer
 
   GeneratedColumn<bool> get isPinned =>
       $composableBuilder(column: $table.isPinned, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<NoteKind, int> get noteType =>
+      $composableBuilder(column: $table.noteType, builder: (column) => column);
 }
 
 class $$LocalNotesTableTableManager
@@ -5607,6 +5676,7 @@ class $$LocalNotesTableTableManager
                 Value<bool> deleted = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
+                Value<NoteKind> noteType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion(
                 id: id,
@@ -5616,6 +5686,7 @@ class $$LocalNotesTableTableManager
                 deleted: deleted,
                 encryptedMetadata: encryptedMetadata,
                 isPinned: isPinned,
+                noteType: noteType,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5627,6 +5698,7 @@ class $$LocalNotesTableTableManager
                 Value<bool> deleted = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
+                Value<NoteKind> noteType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalNotesCompanion.insert(
                 id: id,
@@ -5636,6 +5708,7 @@ class $$LocalNotesTableTableManager
                 deleted: deleted,
                 encryptedMetadata: encryptedMetadata,
                 isPinned: isPinned,
+                noteType: noteType,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

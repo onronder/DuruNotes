@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
@@ -87,6 +88,21 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   final api = SupabaseNoteApi(client);
 
   return NotesRepository(db: db, crypto: crypto, api: api, client: client);
+});
+
+/// Template list provider - fetches all templates
+final templateListProvider = FutureProvider<List<LocalNote>>((ref) async {
+  final repository = ref.watch(notesRepositoryProvider);
+  return repository.listTemplates();
+});
+
+/// Template list stream provider - real-time updates
+final templateListStreamProvider = StreamProvider<List<LocalNote>>((ref) async* {
+  final db = ref.watch(appDbProvider);
+  yield* (db.select(db.localNotes)
+        ..where((t) => t.deleted.equals(false) & t.noteType.equals(1))
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+      .watch();
 });
 
 /// Folder repository provider

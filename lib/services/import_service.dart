@@ -6,6 +6,7 @@ import 'package:duru_notes/core/parser/note_block_parser.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1032,6 +1033,7 @@ class ImportService {
         updatedAt: updatedAt ?? DateTime.now(),
         deleted: false,
         isPinned: false,
+        noteType: NoteKind.note,
       );
 
       // Index for search
