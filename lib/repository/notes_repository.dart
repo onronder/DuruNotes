@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
@@ -425,7 +426,20 @@ class NotesRepository {
       
       debugPrint('✅ Template created locally: $id');
       return template;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Use AppLogger for proper error tracking
+      final logger = LoggerFactory.instance;
+      logger.error('Failed to create template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'title': title,
+          'bodyLength': body.length,
+          'tagsCount': tags.length,
+          'hasMetadata': metadata != null,
+        }
+      );
+      
       debugPrint('❌ Failed to create template: $e');
       return null;
     }
@@ -470,9 +484,55 @@ class NotesRepository {
 
       debugPrint('✅ Note created from template: $newId');
       return note;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Use AppLogger for proper error tracking
+      final logger = LoggerFactory.instance;
+      logger.error('Failed to create note from template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'templateId': templateId,
+          'errorType': e.runtimeType.toString(),
+        }
+      );
+      
       debugPrint('❌ Failed to create note from template: $e');
       return null;
+    }
+  }
+
+  /// Delete a template (soft delete with sync)
+  Future<bool> deleteTemplate(String templateId) async {
+    try {
+      debugPrint('🗑️ Deleting template: $templateId');
+      
+      // Verify it's actually a template
+      final template = await getNote(templateId);
+      if (template == null || template.noteType != NoteKind.template) {
+        throw StateError('Not a template: $templateId');
+      }
+      
+      // Mark as deleted locally (soft delete)
+      await updateLocalNote(templateId, deleted: true);
+      
+      // Queue for remote deletion
+      await db.enqueue(templateId, 'delete_note');
+      
+      debugPrint('✅ Template deleted: $templateId');
+      return true;
+      
+    } catch (e, stackTrace) {
+      final logger = LoggerFactory.instance;
+      logger.error('Failed to delete template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'templateId': templateId,
+        }
+      );
+      
+      debugPrint('❌ Failed to delete template: $e');
+      return false;
     }
   }
 

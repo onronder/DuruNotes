@@ -523,5 +523,35 @@
   "tags": "Tags",
   "today": "Today",
   "tomorrow": "Tomorrow",
-  "unpinNote": "Unpin Note"
+  "unpinNote": "Unpin Note",
+  
+  "@_TEMPLATES": {},
+  "templatePickerTitle": "Choose a Template",
+  "templatePickerSubtitle": "Start with a template or blank note",
+  "blankNoteOption": "Blank Note",
+  "blankNoteDescription": "Start with an empty note",
+  "noTemplatesTitle": "No Templates Yet",
+  "noTemplatesDescription": "Create your first template to reuse common note structures",
+  "templatesSection": "TEMPLATES",
+  "saveAsTemplate": "Save as Template",
+  "fromTemplate": "From Template",
+  "templateSaved": "Template saved: {title}",
+  "@templateSaved": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "failedToSaveTemplate": "Failed to save as template",
+  "cannotSaveEmptyTemplate": "Cannot save empty note as template",
+  "editTemplate": "Edit Template",
+  "deleteTemplate": "Delete Template",
+  "confirmDeleteTemplate": "Delete this template?",
+  "confirmDeleteTemplateMessage": "This template will be permanently deleted. This action cannot be undone.",
+  "templateDeleted": "Template deleted",
+  "editingTemplate": "Editing Template",
+  "templateOptions": "Template Options",
+  "defaultTemplate": "Default",
+  "customTemplate": "Custom",
+  "useTemplate": "Use Template",
+  "manageTemplates": "Manage Templates"
 }

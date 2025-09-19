@@ -330,6 +330,49 @@ class SavedSearches extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Templates table for note templates (system and user-defined)
+@DataClassName('LocalTemplate')
+class LocalTemplates extends Table {
+  /// Unique identifier for the template
+  TextColumn get id => text()();
+
+  /// Template title
+  TextColumn get title => text()();
+
+  /// Template body/content
+  TextColumn get body => text()();
+
+  /// Associated tags (JSON array)
+  TextColumn get tags => text().withDefault(const Constant('[]'))();
+
+  /// Whether this is a system template (true) or user-created (false)
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+
+  /// Template category (work, personal, meeting, etc.)
+  TextColumn get category => text()();
+
+  /// Short description for the template
+  TextColumn get description => text()();
+
+  /// Icon identifier for UI display
+  TextColumn get icon => text()();
+
+  /// Display order in template picker
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// Additional metadata (JSON)
+  TextColumn get metadata => text().nullable()();
+
+  /// Creation timestamp
+  DateTimeColumn get createdAt => dateTime()();
+
+  /// Last modification timestamp
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// ----------------------
 /// Database
 /// ----------------------
@@ -344,13 +387,14 @@ class SavedSearches extends Table {
     LocalFolders,
     NoteFolders,
     SavedSearches,
+    LocalTemplates,
   ],
 )
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -460,6 +504,13 @@ class AppDb extends _$AppDb {
       if (from < 10) {
         // Version 10: Add noteType column to support templates
         await m.addColumn(localNotes, localNotes.noteType);
+      }
+      if (from < 11) {
+        // Version 11: Add proper templates table (separate from notes)
+        await m.createTable(localTemplates);
+        
+        // Initialize system templates
+        await _initializeSystemTemplates();
       }
     },
   );
@@ -2331,9 +2382,315 @@ class AppDb extends _$AppDb {
   /// Get pinned saved searches
   Future<List<SavedSearch>> getPinnedSavedSearches() {
     return (select(savedSearches)
-          ..where((s) => s.isPinned.equals(true))
-          ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
-        .get();
+        ..where((s) => s.isPinned.equals(true))
+        ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
+      .get();
+  }
+
+  // ----------------------
+  // Template Management
+  // ----------------------
+  
+  /// Get all templates (system and user)
+  Future<List<LocalTemplate>> getAllTemplates() {
+    return select(localTemplates).get();
+  }
+  
+  /// Get system templates only
+  Future<List<LocalTemplate>> getSystemTemplates() {
+    return (select(localTemplates)
+      ..where((t) => t.isSystem.equals(true))
+      ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+      .get();
+  }
+  
+  /// Get user templates only
+  Future<List<LocalTemplate>> getUserTemplates() {
+    return (select(localTemplates)
+      ..where((t) => t.isSystem.equals(false))
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+      .get();
+  }
+  
+  /// Get template by ID
+  Future<LocalTemplate?> getTemplate(String id) {
+    return (select(localTemplates)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+  
+  /// Insert or update template
+  Future<void> upsertTemplate(LocalTemplate template) async {
+    await into(localTemplates).insertOnConflictUpdate(template);
+  }
+  
+  /// Delete user template (system templates cannot be deleted)
+  Future<bool> deleteTemplate(String id) async {
+    final template = await getTemplate(id);
+    if (template == null || template.isSystem) {
+      return false; // Cannot delete system templates
+    }
+    
+    final deleted = await (delete(localTemplates)..where((t) => t.id.equals(id))).go();
+    return deleted > 0;
+  }
+  
+  /// Initialize system templates (called on first launch and upgrades)
+  Future<void> _initializeSystemTemplates() async {
+    final now = DateTime.now();
+    
+    final systemTemplates = [
+      LocalTemplate(
+        id: 'system_meeting_notes',
+        title: '📝 Meeting Notes',
+        body: '''# Meeting Notes
+**Date:** [Date]
+**Time:** [Time]
+**Attendees:** [Names]
+
+## Agenda
+- [ ] Item 1
+- [ ] Item 2
+- [ ] Item 3
+
+## Discussion Points
+
+### Topic 1
+- Key points discussed
+- Decisions made
+
+### Topic 2
+- Key points discussed
+- Decisions made
+
+## Action Items
+| Task | Owner | Due Date |
+|------|-------|----------|
+| | | |
+
+## Next Steps
+- 
+
+## Follow-up Meeting
+- Date: 
+- Time: ''',
+        tags: '["meeting", "work"]',
+        isSystem: true,
+        category: 'meeting',
+        description: 'Structured template for meeting notes with agenda and action items',
+        icon: 'meeting_room',
+        sortOrder: 1,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      LocalTemplate(
+        id: 'system_daily_standup',
+        title: '✅ Daily Standup',
+        body: '''# Daily Standup - [Date]
+
+## Yesterday
+- Completed:
+  - 
+- Challenges:
+  - 
+
+## Today
+- [ ] Task 1
+- [ ] Task 2
+- [ ] Task 3
+
+## Blockers
+- None
+
+## Notes
+- ''',
+        tags: '["daily", "standup", "work"]',
+        isSystem: true,
+        category: 'work',
+        description: 'Daily standup template for agile teams',
+        icon: 'today',
+        sortOrder: 2,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      LocalTemplate(
+        id: 'system_project_planning',
+        title: '💡 Project Planning',
+        body: '''# Project: [Name]
+
+## Overview
+Brief description of the project and its goals.
+
+## Problem Statement
+What problem are we solving?
+
+## Proposed Solution
+How will we solve this problem?
+
+## Key Features
+1. **Feature 1**
+   - Description
+   - User benefit
+   
+2. **Feature 2**
+   - Description
+   - User benefit
+
+3. **Feature 3**
+   - Description
+   - User benefit
+
+## Technical Requirements
+- Platform: 
+- Technology stack: 
+- APIs needed: 
+- Database requirements: 
+
+## Timeline
+| Phase | Duration | Deliverables |
+|-------|----------|--------------|
+| Research | | |
+| Design | | |
+| Development | | |
+| Testing | | |
+| Launch | | |
+
+## Success Metrics
+- [ ] Metric 1
+- [ ] Metric 2
+- [ ] Metric 3
+
+## Risks & Mitigations
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| | | |
+
+## Next Steps
+1. 
+2. 
+3. ''',
+        tags: '["project", "planning", "ideas"]',
+        isSystem: true,
+        category: 'planning',
+        description: 'Comprehensive project planning template',
+        icon: 'rocket_launch',
+        sortOrder: 3,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      LocalTemplate(
+        id: 'system_book_notes',
+        title: '📚 Book Notes',
+        body: '''# Book: [Title]
+**Author:** [Name]
+**Started:** [Date]
+**Finished:** [Date]
+**Rating:** ⭐⭐⭐⭐⭐
+
+## Summary
+Brief overview of the book's main ideas.
+
+## Key Takeaways
+1. **Takeaway 1**
+   - Why it matters
+   
+2. **Takeaway 2**
+   - Why it matters
+   
+3. **Takeaway 3**
+   - Why it matters
+
+## Favorite Quotes
+> "Quote 1" - Page [X]
+
+> "Quote 2" - Page [X]
+
+> "Quote 3" - Page [X]
+
+## Personal Reflections
+How does this book relate to my life/work?
+
+What will I do differently after reading this?
+
+## Action Items
+- [ ] Apply concept X to my work
+- [ ] Research more about Y
+- [ ] Share insight Z with team
+
+## Related Books
+- 
+- ''',
+        tags: '["reading", "books", "learning"]',
+        isSystem: true,
+        category: 'education',
+        description: 'Template for capturing insights from books',
+        icon: 'menu_book',
+        sortOrder: 4,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      LocalTemplate(
+        id: 'system_weekly_review',
+        title: '🎯 Weekly Review',
+        body: '''# Weekly Review - Week of [Date]
+
+## Wins This Week 🎉
+- 
+- 
+- 
+
+## Challenges Faced 💪
+- 
+- 
+- 
+
+## Goals Completed ✅
+- [ ] Goal 1
+- [ ] Goal 2
+- [ ] Goal 3
+
+## Goals for Next Week 🎯
+- [ ] 
+- [ ] 
+- [ ] 
+
+## Key Learnings 📚
+1. 
+2. 
+3. 
+
+## Gratitude 🙏
+Three things I'm grateful for this week:
+1. 
+2. 
+3. 
+
+## Areas for Improvement 📈
+- 
+- 
+
+## Priority Focus for Next Week
+Main focus: 
+
+## Notes & Reflections''',
+        tags: '["review", "weekly", "personal"]',
+        isSystem: true,
+        category: 'review',
+        description: 'Weekly review template for personal reflection',
+        icon: 'calendar_view_week',
+        sortOrder: 5,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ];
+    
+    // Insert system templates
+    for (final template in systemTemplates) {
+      await into(localTemplates).insertOnConflictUpdate(template);
+    }
   }
 }
 

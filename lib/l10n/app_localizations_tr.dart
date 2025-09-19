@@ -931,4 +931,77 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get unpinNote => 'Sabitlemeyi Kaldır';
+
+  @override
+  String get templatePickerTitle => 'Şablon Seçin';
+
+  @override
+  String get templatePickerSubtitle => 'Şablonla veya boş notla başlayın';
+
+  @override
+  String get blankNoteOption => 'Boş Not';
+
+  @override
+  String get blankNoteDescription => 'Boş bir notla başla';
+
+  @override
+  String get noTemplatesTitle => 'Henüz Şablon Yok';
+
+  @override
+  String get noTemplatesDescription =>
+      'Sık kullandığınız yapıları tekrar kullanmak için ilk şablonunuzu oluşturun';
+
+  @override
+  String get templatesSection => 'ŞABLONLAR';
+
+  @override
+  String get saveAsTemplate => 'Şablon Olarak Kaydet';
+
+  @override
+  String get fromTemplate => 'Şablondan';
+
+  @override
+  String templateSaved(String title) {
+    return 'Şablon kaydedildi: $title';
+  }
+
+  @override
+  String get failedToSaveTemplate => 'Şablon kaydedilemedi';
+
+  @override
+  String get cannotSaveEmptyTemplate => 'Boş not şablon olarak kaydedilemez';
+
+  @override
+  String get editTemplate => 'Şablonu Düzenle';
+
+  @override
+  String get deleteTemplate => 'Şablonu Sil';
+
+  @override
+  String get confirmDeleteTemplate => 'Bu şablon silinsin mi?';
+
+  @override
+  String get confirmDeleteTemplateMessage =>
+      'Bu şablon kalıcı olarak silinecek. Bu işlem geri alınamaz.';
+
+  @override
+  String get templateDeleted => 'Şablon silindi';
+
+  @override
+  String get editingTemplate => 'Şablon Düzenleniyor';
+
+  @override
+  String get templateOptions => 'Şablon Seçenekleri';
+
+  @override
+  String get defaultTemplate => 'Varsayılan';
+
+  @override
+  String get customTemplate => 'Özel';
+
+  @override
+  String get useTemplate => 'Şablonu Kullan';
+
+  @override
+  String get manageTemplates => 'Şablonları Yönet';
 }

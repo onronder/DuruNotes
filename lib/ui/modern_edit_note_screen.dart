@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/formatting/markdown_commands.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
@@ -24,12 +26,14 @@ class ModernEditNoteScreen extends ConsumerStatefulWidget {
     this.initialTitle,
     this.initialBody,
     this.initialFolder,
+    this.isEditingTemplate = false,
   });
 
   final String? noteId;
   final String? initialTitle;
   final String? initialBody;
   final LocalFolder? initialFolder;
+  final bool isEditingTemplate;
 
   @override
   ConsumerState<ModernEditNoteScreen> createState() =>
@@ -406,7 +410,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                     children: [
                       Flexible(
                         child: Text(
-                          widget.noteId == null ? 'New Note' : 'Edit Note',
+                          widget.isEditingTemplate
+                              ? AppLocalizations.of(context).editingTemplate
+                              : (widget.noteId == null ? 'New Note' : 'Edit Note'),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
@@ -499,16 +505,17 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           }
                         },
                         itemBuilder: (BuildContext context) => [
-                          const PopupMenuItem<String>(
-                            value: 'save_as_template',
-                            child: Row(
-                              children: [
-                                Icon(Icons.description_rounded, size: 20),
-                                SizedBox(width: 12),
-                                Text('Save as Template'),
-                              ],
+                          if (!widget.isEditingTemplate)
+                            PopupMenuItem<String>(
+                              value: 'save_as_template',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.dashboard_customize_rounded, size: 20),
+                                  SizedBox(width: 12),
+                                  Text(AppLocalizations.of(context).saveAsTemplate),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -1423,21 +1430,24 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     final cleanBody = parts.body;
 
     if (cleanTitle.isEmpty && cleanBody.trim().isEmpty) {
-      _showErrorSnack('Cannot save empty note as template');
+      _showErrorSnack(AppLocalizations.of(context).cannotSaveEmptyTemplate);
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // Get the repository
-      final repository = ref.read(notesRepositoryProvider);
+      // Get the template repository
+      final templateRepository = ref.read(templateRepositoryProvider);
       
-      // Create the template
-      final template = await repository.createTemplate(
+      // Create the user template
+      final template = await templateRepository.createUserTemplate(
         title: cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
         body: cleanBody,
         tags: _currentTags,
+        category: 'personal',
+        description: 'Template created from note',
+        icon: 'description',
         metadata: {
           'createdFrom': widget.noteId ?? 'new_note',
           'createdAt': DateTime.now().toIso8601String(),
@@ -1448,16 +1458,38 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         throw Exception('Failed to create template');
       }
 
+      // Track analytics event
+      final analytics = ref.read(analyticsProvider);
+      analytics.event('template_saved', properties: {
+        'template_id': template.id,
+        'source_note_id': widget.noteId ?? 'new_note',
+        'tags_count': _currentTags.length,
+        'has_body': cleanBody.isNotEmpty,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
       if (!mounted) return;
       
       // Show success message
-      _showInfoSnack('Template saved: ${template.title}');
+      _showInfoSnack(AppLocalizations.of(context).templateSaved(template.title));
       
       // Optional: Navigate back or stay for further editing
       // Navigator.of(context).pop();
       
-    } catch (e) {
-      _showErrorSnack('Failed to save as template: $e');
+    } catch (e, stackTrace) {
+      // Log error to monitoring
+      final logger = LoggerFactory.instance;
+      logger.error('Failed to save template', 
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'noteId': widget.noteId,
+          'title': cleanTitle,
+          'bodyLength': cleanBody.length,
+        }
+      );
+      
+      _showErrorSnack(AppLocalizations.of(context).failedToSaveTemplate);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

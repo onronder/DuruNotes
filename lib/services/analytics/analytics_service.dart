@@ -17,6 +17,14 @@ class AnalyticsEvents {
   static const String notesRefreshed = 'notes_refreshed';
   static const String notesLoadMore = 'notes_load_more';
 
+  // Template events
+  static const String templateSaved = 'template_saved';
+  static const String templateUsed = 'template_used';
+  static const String templateDeleted = 'template_deleted';
+  static const String templateEdited = 'template_edited';
+  static const String templatePickerOpened = 'template_picker_opened';
+  static const String templatePickerCancelled = 'template_picker_cancelled';
+
   // Search and navigation
   static const String searchPerformed = 'search_performed';
   static const String searchResults = 'search_results';
@@ -86,6 +94,13 @@ class AnalyticsProperties {
   static const String reminderType = 'reminder_type';
   static const String reminderTime = 'reminder_time';
   static const String snoozeReason = 'snooze_reason';
+
+  // Template properties
+  static const String templateId = 'template_id';
+  static const String templateTitle = 'template_title';
+  static const String sourceNoteId = 'source_note_id';
+  static const String isDefaultTemplate = 'is_default_template';
+  static const String templateCount = 'template_count';
 }
 
 /// Analytics service interface and default implementation

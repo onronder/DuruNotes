@@ -441,6 +441,50 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
           as _i7.Future<void>);
 
   @override
+  _i7.Future<List<_i2.LocalNote>> listTemplates() =>
+      (super.noSuchMethod(
+            Invocation.method(#listTemplates, []),
+            returnValue: _i7.Future<List<_i2.LocalNote>>.value(
+              <_i2.LocalNote>[],
+            ),
+          )
+          as _i7.Future<List<_i2.LocalNote>>);
+
+  @override
+  _i7.Future<_i2.LocalNote?> createTemplate({
+    required String? title,
+    required String? body,
+    List<String>? tags = const [],
+    Map<String, dynamic>? metadata,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createTemplate, [], {
+              #title: title,
+              #body: body,
+              #tags: tags,
+              #metadata: metadata,
+            }),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
+          )
+          as _i7.Future<_i2.LocalNote?>);
+
+  @override
+  _i7.Future<_i2.LocalNote?> createNoteFromTemplate(String? templateId) =>
+      (super.noSuchMethod(
+            Invocation.method(#createNoteFromTemplate, [templateId]),
+            returnValue: _i7.Future<_i2.LocalNote?>.value(),
+          )
+          as _i7.Future<_i2.LocalNote?>);
+
+  @override
+  _i7.Future<bool> deleteTemplate(String? templateId) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteTemplate, [templateId]),
+            returnValue: _i7.Future<bool>.value(false),
+          )
+          as _i7.Future<bool>);
+
+  @override
   _i7.Future<_i2.LocalFolder?> getFolder(String? id) =>
       (super.noSuchMethod(
             Invocation.method(#getFolder, [id]),
