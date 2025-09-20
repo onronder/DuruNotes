@@ -1,5 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_time_tracker_widget.dart';
 import 'package:flutter/material.dart';
@@ -7,19 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 /// Enhanced task item widget with actions and time tracking
+/// Uses UnifiedTaskService for all operations - no VoidCallback usage
 class TaskItemWithActions extends ConsumerStatefulWidget {
   const TaskItemWithActions({
     super.key,
     required this.task,
-    this.onToggle,
-    this.onEdit,
-    this.onDelete,
   });
 
   final NoteTask task;
-  final VoidCallback? onToggle;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
 
   @override
   ConsumerState<TaskItemWithActions> createState() => _TaskItemWithActionsState();
@@ -29,17 +25,12 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
   bool _isExpanded = false;
 
   Future<void> _toggleTaskStatus() async {
-    try {
-      final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
-      await enhancedTaskService.toggleTaskStatus(widget.task.id);
-      widget.onToggle?.call();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating task: $e')),
-        );
-      }
-    }
+    final unifiedService = ref.read(unifiedTaskServiceProvider);
+    final newStatus = widget.task.status == TaskStatus.completed 
+      ? TaskStatus.open 
+      : TaskStatus.completed;
+    
+    await unifiedService.onStatusChanged(widget.task.id, newStatus);
   }
 
   Future<void> _editTask() async {
@@ -54,32 +45,56 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
 
     if (result != null) {
       try {
-        final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
-        await enhancedTaskService.updateTask(
+        final unifiedService = ref.read(unifiedTaskServiceProvider);
+        final appDb = ref.read(appDbProvider);
+        
+        // Update task priority
+        if (result.priority != widget.task.priority) {
+          await unifiedService.onPriorityChanged(widget.task.id, result.priority);
+        }
+        
+        // Update due date
+        if (result.dueDate != widget.task.dueDate) {
+          await unifiedService.onDueDateChanged(widget.task.id, result.dueDate);
+        }
+        
+        // Update other fields through the service
+        await unifiedService.updateTask(
           taskId: widget.task.id,
-          content: widget.task.content, // Keep existing content
+          content: widget.task.content,
           priority: result.priority,
           dueDate: result.dueDate,
           estimatedMinutes: result.estimatedMinutes,
+          labels: result.labels,
           notes: result.notes,
-          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
         );
         
-        // Update reminder if changed
-        if (result.hasReminder && result.reminderTime != null) {
-          // Get the updated task to refresh reminder
-          final db = ref.read(appDbProvider);
-          final updatedTask = await db.getTaskById(widget.task.id);
-          if (updatedTask != null) {
-            final reminderBridge = ref.read(taskReminderBridgeProvider);
-            await reminderBridge.updateTaskReminder(updatedTask);
+        // Handle reminder changes
+        if (result.hasReminder && result.reminderTime != null && result.dueDate != null) {
+          final reminderBridge = ref.read(taskReminderBridgeProvider);
+          
+          if (widget.task.reminderId == null) {
+            // Create new reminder
+            final updatedTask = await appDb.getTaskById(widget.task.id);
+            if (updatedTask != null) {
+              final duration = result.dueDate!.difference(result.reminderTime!);
+              await reminderBridge.createTaskReminder(
+                task: updatedTask,
+                beforeDueDate: duration.abs(),
+              );
+            }
+          } else {
+            // Update existing reminder
+            final updatedTask = await appDb.getTaskById(widget.task.id);
+            if (updatedTask != null) {
+              await reminderBridge.updateTaskReminder(updatedTask);
+            }
           }
         } else if (!result.hasReminder && widget.task.reminderId != null) {
+          // Cancel existing reminder
           final reminderBridge = ref.read(taskReminderBridgeProvider);
-          await reminderBridge.cancelTaskReminder(widget.task.id);
+          await reminderBridge.cancelTaskReminder(widget.task);
         }
-        
-        widget.onEdit?.call();
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,9 +135,8 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
 
     if (confirm == true) {
       try {
-        final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
-        await enhancedTaskService.deleteTask(widget.task.id);
-        widget.onDelete?.call();
+        final unifiedService = ref.read(unifiedTaskServiceProvider);
+        await unifiedService.onDeleted(widget.task.id);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -144,6 +158,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final task = widget.task;
+    final unifiedService = ref.watch(unifiedTaskServiceProvider);
     
     final isCompleted = task.status == TaskStatus.completed;
     final isOverdue = task.dueDate != null && 
@@ -369,7 +384,10 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: TaskTimeTrackerWidget(
                 task: task,
-                onTimeUpdated: widget.onEdit,
+                onTimeUpdated: () {
+                  // Time update is handled through the service
+                  setState(() {}); // Just refresh UI
+                },
               ),
             ),
         ],
@@ -377,3 +395,4 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
     );
   }
 }
+

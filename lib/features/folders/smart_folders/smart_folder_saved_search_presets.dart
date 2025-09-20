@@ -1,8 +1,7 @@
 // lib/features/folders/smart_folders/smart_folder_saved_search_presets.dart
-import 'dart:convert';
-
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
+import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,144 +9,102 @@ import 'package:uuid/uuid.dart';
 class SmartFolderSavedSearchPresets {
   static const _uuid = Uuid();
 
+  /// Convert a SavedSearchPreset to SmartFolderConfig
+  static SmartFolderConfig _convertToSmartFolder(SavedSearchPreset preset) {
+    // Use the centralized ID generation from SavedSearchRegistry
+    final id = SavedSearchRegistry.keyToId(preset.key);
+    
+    // Determine tag value for rules
+    final tagValue = preset.tag != null ? '#${preset.tag}' : null;
+    
+    // Determine color based on preset
+    Color color;
+    switch (preset.key) {
+      case SavedSearchKey.attachments:
+        color = Colors.orange;
+        break;
+      case SavedSearchKey.emailNotes:
+        color = Colors.blue;
+        break;
+      case SavedSearchKey.webNotes:
+        color = Colors.green;
+        break;
+      case SavedSearchKey.inbox:
+        color = Colors.purple;
+        break;
+    }
+    
+    // Create rules only if we have a tag (inbox uses folder-based filtering)
+    final rules = tagValue != null
+        ? [
+            SmartFolderRule(
+              id: _uuid.v4(),
+              field: RuleField.content,
+              operator: RuleOperator.contains,
+              value: tagValue,
+            ),
+          ]
+        : <SmartFolderRule>[];
+    
+    return SmartFolderConfig(
+      id: id,
+      name: preset.label,
+      type: SmartFolderType.custom,
+      rules: rules,
+      customIcon: preset.icon,
+      customColor: color,
+      maxResults: 200,
+    );
+  }
+
   /// Get predefined smart folders for saved searches
   static List<SmartFolderConfig> getSavedSearchPresets() {
-    return [
-      attachmentsSmartFolder,
-      emailNotesSmartFolder,
-      webClipsSmartFolder,
-      // Note: Inbox folder is handled differently as it's folder-based, not rule-based
-    ];
+    // Use SavedSearchRegistry as the single source of truth
+    // Filter out inbox since it's folder-based, not rule-based
+    return SavedSearchRegistry.presets
+        .where((preset) => preset.key != SavedSearchKey.inbox)
+        .map(_convertToSmartFolder)
+        .toList();
   }
 
-  /// Attachments Smart Folder
-  static final attachmentsSmartFolder = SmartFolderConfig(
-    id: 'saved_search_attachments',
-    name: 'Attachments',
-    type: SmartFolderType.custom,
-    rules: [
-      SmartFolderRule(
-        id: _uuid.v4(),
-        field: RuleField.content,
-        operator: RuleOperator.contains,
-        value: '#Attachment',
-      ),
-    ],
-    customIcon: Icons.attach_file,
-    customColor: Colors.orange,
-    maxResults: 200,
-  );
+  /// Get smart folder by preset key
+  static SmartFolderConfig? getSmartFolderByKey(SavedSearchKey key) {
+    final preset = SavedSearchRegistry.presets
+        .firstWhere((p) => p.key == key, orElse: () => throw StateError('Preset not found'));
+    if (key == SavedSearchKey.inbox) {
+      // Inbox is handled differently as it's folder-based
+      return null;
+    }
+    return _convertToSmartFolder(preset);
+  }
 
-  /// Email Notes Smart Folder
-  static final emailNotesSmartFolder = SmartFolderConfig(
-    id: 'saved_search_email',
-    name: 'Email Notes',
-    type: SmartFolderType.custom,
-    rules: [
-      SmartFolderRule(
-        id: _uuid.v4(),
-        field: RuleField.content,
-        operator: RuleOperator.contains,
-        value: '#Email',
-      ),
-    ],
-    customIcon: Icons.email,
-    customColor: Colors.blue,
-    maxResults: 200,
-  );
-
-  /// Web Clips Smart Folder
-  static final webClipsSmartFolder = SmartFolderConfig(
-    id: 'saved_search_web',
-    name: 'Web Clips',
-    type: SmartFolderType.custom,
-    rules: [
-      SmartFolderRule(
-        id: _uuid.v4(),
-        field: RuleField.content,
-        operator: RuleOperator.contains,
-        value: '#Web',
-      ),
-    ],
-    customIcon: Icons.language,
-    customColor: Colors.green,
-    maxResults: 200,
-  );
+  /// Cached smart folders for performance
+  static final attachmentsSmartFolder = getSmartFolderByKey(SavedSearchKey.attachments)!;
+  static final emailNotesSmartFolder = getSmartFolderByKey(SavedSearchKey.emailNotes)!;
+  static final webClipsSmartFolder = getSmartFolderByKey(SavedSearchKey.webNotes)!;
 
   /// Check if a note matches saved search criteria (with metadata support)
-  /// This is a more accurate evaluation than the basic rule engine
+  /// This delegates to the centralized detection logic in AppDb
   static bool evaluateNoteForSavedSearch(LocalNote note, String presetId) {
-    switch (presetId) {
-      case 'saved_search_attachments':
-        return _hasAttachments(note);
+    // Convert string ID to enum key using the bridging utility
+    final key = SavedSearchRegistry.idToKey(presetId);
+    if (key == null) return false;
+    
+    // Use centralized detection functions from AppDb to avoid duplication
+    switch (key) {
+      case SavedSearchKey.attachments:
+        return AppDb.noteHasAttachments(note);
 
-      case 'saved_search_email':
-        return _isEmailNote(note);
+      case SavedSearchKey.emailNotes:
+        return AppDb.noteIsFromEmail(note);
 
-      case 'saved_search_web':
-        return _isWebClip(note);
+      case SavedSearchKey.webNotes:
+        return AppDb.noteIsFromWeb(note);
 
-      default:
+      case SavedSearchKey.inbox:
+        // Inbox is folder-based, not tag-based
         return false;
     }
-  }
-
-  /// Check if note has attachments
-  static bool _hasAttachments(LocalNote note) {
-    // First check metadata
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        final attachments = meta['attachments'];
-        if (attachments != null) {
-          final count = attachments['count'] as int?;
-          if (count != null && count > 0) {
-            return true;
-          }
-        }
-      } catch (e) {
-        // Fallback to tag check
-      }
-    }
-
-    // Fallback: check for #Attachment tag
-    return note.body.contains('#Attachment');
-  }
-
-  /// Check if note is from email
-  static bool _isEmailNote(LocalNote note) {
-    // First check metadata source
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        if (meta['source'] == 'email_in' || meta['source'] == 'email_inbox') {
-          return true;
-        }
-      } catch (e) {
-        // Fallback to tag check
-      }
-    }
-
-    // Fallback: check for #Email tag
-    return note.body.contains('#Email');
-  }
-
-  /// Check if note is a web clip
-  static bool _isWebClip(LocalNote note) {
-    // First check metadata source
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        if (meta['source'] == 'web') {
-          return true;
-        }
-      } catch (e) {
-        // Fallback to tag check
-      }
-    }
-
-    // Fallback: check for #Web tag
-    return note.body.contains('#Web');
   }
 }
 

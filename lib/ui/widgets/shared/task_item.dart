@@ -1,33 +1,29 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 /// Shared task item widget with accessibility support
-class TaskItem extends StatelessWidget {
+/// Uses UnifiedTaskService for all operations - no VoidCallback usage
+class TaskItem extends ConsumerWidget {
   const TaskItem({
     required this.task,
-    required this.onTap,
-    required this.onToggleComplete,
     super.key,
-    this.onEdit,
-    this.onDelete,
     this.showNoteInfo = false,
   });
 
   final NoteTask task;
-  final VoidCallback onTap;
-  final ValueChanged<bool> onToggleComplete;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
   final bool showNoteInfo;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
+    final unifiedService = ref.watch(unifiedTaskServiceProvider);
 
     // Determine priority color
     final priorityColor = _getPriorityColor(task.priority, colorScheme);
@@ -78,7 +74,7 @@ class TaskItem extends StatelessWidget {
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
-            onTap();
+            unifiedService.onEdit(task.id);
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -91,9 +87,12 @@ class TaskItem extends StatelessWidget {
                   excludeSemantics: true,
                   child: Checkbox(
                     value: isCompleted,
-                    onChanged: (value) {
+                    onChanged: (value) async {
                       HapticFeedback.lightImpact();
-                      onToggleComplete(value ?? false);
+                      await unifiedService.onStatusChanged(
+                        task.id,
+                        value! ? TaskStatus.completed : TaskStatus.open,
+                      );
                     },
                     activeColor: colorScheme.primary,
                     shape: RoundedRectangleBorder(
@@ -110,8 +109,8 @@ class TaskItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Title
-                    Text(
-                      task.content,
+                      Text(
+                        task.content,
                         style: theme.textTheme.titleMedium?.copyWith(
                           decoration: isCompleted
                               ? TextDecoration.lineThrough
@@ -164,7 +163,7 @@ class TaskItem extends StatelessWidget {
                             ),
 
                           // Note info
-                          if (showNoteInfo && task.noteId != null)
+                          if (showNoteInfo && task.noteId != 'standalone')
                             _buildNoteChip(context, colorScheme),
                         ],
                       ),
@@ -173,59 +172,76 @@ class TaskItem extends StatelessWidget {
                 ),
 
                 // Actions menu
-                if (onEdit != null || onDelete != null)
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 20,
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                    tooltip: 'More actions',
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          onEdit?.call();
-                          break;
-                        case 'delete':
-                          onDelete?.call();
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (onEdit != null)
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_outlined, size: 20),
-                              const SizedBox(width: 12),
-                              Text(l10n.edit),
-                            ],
-                          ),
-                        ),
-                      if (onDelete != null)
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.delete_outline,
-                                size: 20,
-                                color: Colors.red,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                l10n.delete,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 20,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
+                  tooltip: 'More actions',
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'edit':
+                        unifiedService.onEdit(task.id);
+                        break;
+                      case 'delete':
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text(l10n.delete),
+                            content: const Text('Are you sure you want to delete this task?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: Text(l10n.delete),
+                              ),
+                            ],
+                          ),
+                        );
+                        
+                        if (confirmed == true) {
+                          await unifiedService.onDeleted(task.id);
+                        }
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 20),
+                          const SizedBox(width: 12),
+                          Text(l10n.edit),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            l10n.delete,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -375,3 +391,4 @@ class TaskItem extends StatelessWidget {
     }
   }
 }
+

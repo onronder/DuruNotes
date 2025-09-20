@@ -31,6 +31,46 @@ class SavedSearchRegistry {
   /// Your inventory shows "Incoming Mail" as the folder name.
   static const String kIncomingMailFolderName = 'Incoming Mail';
 
+  /// Convert SavedSearchKey enum to string ID for smart folders
+  static String keyToId(SavedSearchKey key) {
+    return 'saved_search_${key.name}';
+  }
+
+  /// Convert string ID back to SavedSearchKey enum
+  static SavedSearchKey? idToKey(String id) {
+    if (!id.startsWith('saved_search_')) return null;
+    
+    final keyName = id.substring('saved_search_'.length);
+    try {
+      return SavedSearchKey.values.firstWhere(
+        (key) => key.name == keyName,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get preset by ID string
+  static SavedSearchPreset? getPresetById(String id) {
+    final key = idToKey(id);
+    if (key == null) return null;
+    
+    try {
+      return presets.firstWhere((preset) => preset.key == key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get preset by enum key
+  static SavedSearchPreset? getPresetByKey(SavedSearchKey key) {
+    try {
+      return presets.firstWhere((preset) => preset.key == key);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static const List<SavedSearchPreset> presets = [
     SavedSearchPreset(
       key: SavedSearchKey.attachments,

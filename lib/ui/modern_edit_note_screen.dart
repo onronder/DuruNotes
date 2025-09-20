@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/formatting/markdown_commands.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -27,6 +28,8 @@ class ModernEditNoteScreen extends ConsumerStatefulWidget {
     this.initialBody,
     this.initialFolder,
     this.isEditingTemplate = false,
+    this.highlightTaskId,
+    this.highlightTaskContent,
   });
 
   final String? noteId;
@@ -34,6 +37,8 @@ class ModernEditNoteScreen extends ConsumerStatefulWidget {
   final String? initialBody;
   final LocalFolder? initialFolder;
   final bool isEditingTemplate;
+  final String? highlightTaskId;
+  final String? highlightTaskContent;
 
   @override
   ConsumerState<ModernEditNoteScreen> createState() =>
@@ -87,14 +92,22 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     _noteController = TextEditingController(text: initialText);
     _initialText = initialText;
     
-    // Initialize bidirectional task sync if editing existing note
-    if (widget.noteId != null) {
+    // Highlight task if specified
+    if (widget.highlightTaskId != null || widget.highlightTaskContent != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        _highlightTask();
+      });
+    }
+    
+    // Initialize bidirectional task sync for existing notes
+    if (widget.noteId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) {
           try {
+            // Use only bidirectional sync - legacy sync is deprecated
             ref.read(noteTaskCoordinatorProvider).startWatchingNote(widget.noteId!);
           } catch (e) {
-            debugPrint('Could not start watching note: $e');
+            debugPrint('Could not start task sync: $e');
           }
         }
       });
@@ -113,18 +126,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       }
     });
 
-    // Initialize task sync if editing existing note with tasks
-    if (widget.noteId != null &&
-        (initialBody.contains('- [ ]') || initialBody.contains('- [x]'))) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        try {
-          final taskSyncService = ref.read(noteTaskSyncServiceProvider);
-          await taskSyncService.syncTasksForNote(widget.noteId!, initialBody);
-        } catch (e) {
-          debugPrint('Failed to initialize task sync: $e');
-        }
-      });
-    }
+    // REMOVED: Legacy task sync - now handled by bidirectional sync above
+    // The noteTaskCoordinatorProvider.startWatchingNote() call at line 95
+    // already handles initial sync via initializeBidirectionalSync()
 
     // Animation setup for toolbar slide with Material-3 timing
     _toolbarSlideController = AnimationController(
@@ -227,28 +231,81 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     }
   }
 
-  @override
-  void dispose() {
-    // Stop watching note for task sync - do this before super.dispose()
-    if (widget.noteId != null) {
-      // Use try-catch to handle potential disposal issues
-      try {
-        final coordinator = ref.read(noteTaskCoordinatorProvider);
-        coordinator.stopWatchingNote(widget.noteId!);
-      } catch (e) {
-        // Widget already disposed, ignore
-        debugPrint('Could not stop watching note: $e');
+  /// Highlight the specified task in the note
+  void _highlightTask() {
+    if (widget.highlightTaskContent == null) return;
+    
+    final text = _noteController.text;
+    final searchPattern = widget.highlightTaskContent!;
+    
+    // Find the task in the text
+    final taskIndex = text.indexOf(searchPattern);
+    if (taskIndex != -1) {
+      // Set selection to highlight the task
+      _noteController.selection = TextSelection(
+        baseOffset: taskIndex,
+        extentOffset: taskIndex + searchPattern.length,
+      );
+      
+      // Ensure the text field is focused
+      _contentFocusNode.requestFocus();
+      
+      // Show a visual indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Opened from task reminder'),
+                ),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
       }
     }
-    
+  }
+  
+  @override
+  void dispose() {
+    // Dispose controllers first
     _noteController.dispose();
     _contentFocusNode.dispose();
     _toolbarSlideController.dispose();
     _saveButtonController.dispose();
 
+    // Stop watching note for task sync - do this after controllers but before super.dispose()
+    if (widget.noteId != null) {
+      // Schedule the cleanup for the next frame to avoid using ref during disposal
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          // Check if the widget is still mounted before using ref
+          if (context.owner != null) {
+            final coordinator = ref.read(noteTaskCoordinatorProvider);
+            coordinator.stopWatchingNote(widget.noteId!);
+          }
+        } catch (e) {
+          // Widget already disposed or provider not available, ignore
+          debugPrint('Could not stop watching note: $e');
+        }
+      });
+    }
+
     // Clean up temp tags if note was discarded
     if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
-      _cleanupTempTags();
+      // Schedule cleanup for next frame to avoid ref usage during disposal
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _cleanupTempTags();
+      });
     }
 
     super.dispose();
@@ -1394,21 +1451,14 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       // handle folder assignment
       final noteIdToUse = savedNote?.id ?? widget.noteId;
       if (noteIdToUse != null) {
-        // Initialize bidirectional task sync for newly saved notes
+        // Initialize task sync for newly saved notes
         if (widget.noteId == null && mounted) {
           try {
+            // Use only bidirectional sync - legacy sync is deprecated
             ref.read(noteTaskCoordinatorProvider).startWatchingNote(noteIdToUse);
           } catch (e) {
-            debugPrint('Could not start watching new note: $e');
+            debugPrint('Could not start task sync for new note: $e');
           }
-        }
-        
-        // Sync tasks for this note
-        try {
-          final taskSyncService = ref.read(noteTaskSyncServiceProvider);
-          await taskSyncService.syncTasksForNote(noteIdToUse, cleanBody);
-        } catch (e) {
-          debugPrint('Failed to sync tasks: $e');
         }
         if (_selectedFolder != null) {
           await ref

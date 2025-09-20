@@ -4,9 +4,15 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/main.dart' show navigatorKey;
+import 'package:duru_notes/services/deep_link_service.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
+import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
+import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
+import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -35,12 +41,24 @@ class TaskReminderBridge {
   static const String _taskChannelId = 'task_reminders';
   static const String _taskChannelName = 'Task Reminders';
   static const String _taskChannelDescription = 'Reminders for your tasks';
+  
+  // Retry configuration
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 1);
 
   bool _initialized = false;
+  
+  // Store pending deep link if app is not ready
+  Map<String, dynamic>? _pendingDeepLink;
 
   /// Initialize the bridge service and create task notification channel
   Future<void> initialize() async {
     if (_initialized) return;
+    
+    // Process any pending deep link
+    if (_pendingDeepLink != null && navigatorKey.currentContext != null) {
+      _processPendingDeepLink();
+    }
 
     try {
       // Create dedicated notification channel for tasks
@@ -77,52 +95,70 @@ class TaskReminderBridge {
 
     await initialize();
 
-    try {
-      // Calculate reminder time (default 1 hour before due date)
-      final reminderTime = task.dueDate!.subtract(
-        beforeDueDate ?? const Duration(hours: 1),
-      );
+    // Calculate reminder time (default 1 hour before due date)
+    final reminderTime = task.dueDate!.subtract(
+      beforeDueDate ?? const Duration(hours: 1),
+    );
 
-      // Don't create reminders for past times
-      if (reminderTime.isBefore(DateTime.now())) {
-        _logger.debug('Skipping past reminder time for task ${task.id}');
-        return null;
-      }
-
-      // Create the reminder
-      final reminderId = await _reminderCoordinator.createTimeReminder(
-        noteId: task.noteId,
-        title: _formatTaskReminderTitle(task),
-        body: _formatTaskReminderBody(task),
-        remindAtUtc: reminderTime,
-        customNotificationTitle: _formatTaskNotificationTitle(task),
-        customNotificationBody: _formatTaskNotificationBody(task),
-      );
-
-      if (reminderId != null) {
-        // Update task with reminder ID
-        await _taskService.updateTask(
-          taskId: task.id,
-          // Note: We need to add reminderId parameter to updateTask method
-        );
-
-        _logger.info('Created task reminder', data: {
-          'taskId': task.id,
-          'reminderId': reminderId,
-          'reminderTime': reminderTime.toIso8601String(),
-        });
-      }
-
-      return reminderId;
-    } catch (e, stack) {
-      _logger.error(
-        'Failed to create task reminder',
-        error: e,
-        stackTrace: stack,
-        data: {'taskId': task.id},
-      );
+    // Don't create reminders for past times
+    if (reminderTime.isBefore(DateTime.now())) {
+      _logger.debug('Skipping past reminder time for task ${task.id}');
       return null;
     }
+
+    // Retry logic for transient failures
+    int attempts = 0;
+    while (attempts < _maxRetries) {
+      try {
+        // Create the reminder
+        final reminderId = await _reminderCoordinator.createTimeReminder(
+          noteId: task.noteId,
+          title: _formatTaskReminderTitle(task),
+          body: _formatTaskReminderBody(task),
+          remindAtUtc: reminderTime,
+          customNotificationTitle: _formatTaskNotificationTitle(task),
+          customNotificationBody: _formatTaskNotificationBody(task),
+        );
+
+        if (reminderId != null) {
+          // Update task with reminder ID
+          await _taskService.updateTask(
+            taskId: task.id,
+            reminderId: reminderId,
+          );
+
+          _logger.info('Created and linked task reminder', data: {
+            'taskId': task.id,
+            'reminderId': reminderId,
+            'reminderTime': reminderTime.toIso8601String(),
+            'attempts': attempts + 1,
+          });
+        }
+
+        return reminderId;
+      } catch (e, stack) {
+        attempts++;
+        if (attempts >= _maxRetries) {
+          _logger.error(
+            'Failed to create task reminder after $attempts attempts',
+            error: e,
+            stackTrace: stack,
+            data: {'taskId': task.id},
+          );
+          return null;
+        }
+        
+        // Wait before retry with exponential backoff
+        await Future.delayed(_retryDelay * attempts);
+        _logger.warning('Retrying task reminder creation', data: {
+          'taskId': task.id,
+          'attempt': attempts,
+          'error': e.toString(),
+        });
+      }
+    }
+    
+    return null;
   }
 
   /// Update task reminder when task changes
@@ -137,7 +173,15 @@ class TaskReminderBridge {
 
       // Create new reminder if task has due date and is not completed
       if (task.dueDate != null && task.status != TaskStatus.completed) {
-        await createTaskReminder(task: task);
+        final newReminderId = await createTaskReminder(task: task);
+        
+        // Update task with new reminder ID
+        if (newReminderId != null) {
+          await _taskService.updateTask(
+            taskId: task.id,
+            reminderId: newReminderId,
+          );
+        }
       }
 
       _logger.debug('Updated task reminder', data: {'taskId': task.id});
@@ -158,6 +202,12 @@ class TaskReminderBridge {
     try {
       await _advancedReminderService.deleteReminder(task.reminderId!);
       
+      // Clear reminder ID from task
+      await _taskService.updateTask(
+        taskId: task.id,
+        clearReminderId: true,
+      );
+      
       _logger.info('Cancelled task reminder', data: {
         'taskId': task.id,
         'reminderId': task.reminderId,
@@ -172,7 +222,7 @@ class TaskReminderBridge {
     }
   }
 
-  /// Snooze a task reminder
+  /// Snooze a task reminder with limit checking
   Future<void> snoozeTaskReminder({
     required NoteTask task,
     required Duration snoozeDuration,
@@ -180,46 +230,142 @@ class TaskReminderBridge {
     if (task.reminderId == null || task.dueDate == null) return;
 
     try {
-      // Cancel current reminder
-      await cancelTaskReminder(task);
-
-      // Create new reminder with snooze time
-      final newReminderTime = DateTime.now().add(snoozeDuration);
-      
-      // Don't snooze past the due date
-      final effectiveReminderTime = newReminderTime.isBefore(task.dueDate!)
-          ? newReminderTime
-          : task.dueDate!.subtract(const Duration(minutes: 5));
-
-      final newReminderId = await _reminderCoordinator.createTimeReminder(
-        noteId: task.noteId,
-        title: _formatTaskReminderTitle(task, isSnoozed: true),
-        body: _formatTaskReminderBody(task),
-        remindAtUtc: effectiveReminderTime,
-        customNotificationTitle: _formatTaskNotificationTitle(task, isSnoozed: true),
-        customNotificationBody: _formatTaskNotificationBody(task),
-      );
-
-      if (newReminderId != null) {
-        // Update task with new reminder ID
-        await _taskService.updateTask(
-          taskId: task.id,
-          // Note: Need to add reminderId parameter to updateTask
-        );
+      // Get the reminder to check snooze count
+      final reminder = await _db.getReminderById(task.reminderId!);
+      if (reminder == null) {
+        _logger.warning('Reminder not found for task ${task.id}');
+        return;
       }
-
-      _logger.info('Snoozed task reminder', data: {
-        'taskId': task.id,
-        'oldReminderId': task.reminderId,
-        'newReminderId': newReminderId,
-        'snoozeMinutes': snoozeDuration.inMinutes,
-      });
+      
+      // Check snooze limit using SnoozeReminderService
+      final snoozeService = _reminderCoordinator.snoozeService;
+      
+      // Convert duration to SnoozeDuration enum
+      final snoozeDurationEnum = _durationToSnoozeDuration(snoozeDuration);
+      
+      // Use the snooze service for consistent snooze handling
+      final success = await snoozeService.snoozeReminder(
+        task.reminderId!,
+        snoozeDurationEnum,
+      );
+      
+      if (!success) {
+        // Max snooze limit reached or other error
+        _logger.warning('Could not snooze task reminder', data: {
+          'taskId': task.id,
+          'reminderId': task.reminderId,
+          'reason': 'Snooze limit reached or error',
+        });
+        
+        // Notify user via notification
+        await _notifyMaxSnoozeReached(task);
+        return;
+      }
+      
+      // Get the updated reminder to get new snooze time
+      final updatedReminder = await _db.getReminderById(task.reminderId!);
+      if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
+        _logger.info('Snoozed task reminder via SnoozeService', data: {
+          'taskId': task.id,
+          'reminderId': task.reminderId,
+          'duration': snoozeDuration.inMinutes,
+          'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
+          'snoozeCount': updatedReminder.snoozeCount,
+        });
+      }
     } catch (e, stack) {
       _logger.error(
         'Failed to snooze task reminder',
         error: e,
         stackTrace: stack,
         data: {'taskId': task.id},
+      );
+    }
+  }
+  
+  /// Convert Duration to SnoozeDuration enum
+  SnoozeDuration _durationToSnoozeDuration(Duration duration) {
+    if (duration.inMinutes <= 5) return SnoozeDuration.fiveMinutes;
+    if (duration.inMinutes <= 10) return SnoozeDuration.tenMinutes;
+    if (duration.inMinutes <= 15) return SnoozeDuration.fifteenMinutes;
+    if (duration.inMinutes <= 30) return SnoozeDuration.thirtyMinutes;
+    if (duration.inHours <= 1) return SnoozeDuration.oneHour;
+    if (duration.inHours <= 2) return SnoozeDuration.twoHours;
+    return SnoozeDuration.tomorrow;
+  }
+  
+  /// Snooze task to tomorrow morning with smart scheduling
+  Future<void> _snoozeTaskTomorrow(NoteTask task) async {
+    try {
+      // Calculate tomorrow morning (9 AM by default)
+      final tomorrow = _calculateTomorrowMorning();
+      final duration = tomorrow.difference(DateTime.now());
+      
+      await snoozeTaskReminder(
+        task: task,
+        snoozeDuration: duration,
+      );
+      
+      _logger.info('Snoozed task to tomorrow morning', data: {
+        'taskId': task.id,
+        'scheduledTime': tomorrow.toIso8601String(),
+      });
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to snooze task to tomorrow',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': task.id},
+      );
+    }
+  }
+  
+  /// Calculate smart time for tomorrow morning
+  DateTime _calculateTomorrowMorning() {
+    final now = DateTime.now();
+    var tomorrow = DateTime(now.year, now.month, now.day + 1, 9, 0); // 9 AM tomorrow
+    
+    // If it's already past 10 PM, schedule for 10 AM instead of 9 AM
+    if (now.hour >= 22) {
+      tomorrow = tomorrow.add(const Duration(hours: 1));
+    }
+    
+    // If it's weekend, schedule for 10 AM instead of 9 AM
+    if (tomorrow.weekday == DateTime.saturday || tomorrow.weekday == DateTime.sunday) {
+      tomorrow = tomorrow.add(const Duration(hours: 1));
+    }
+    
+    return tomorrow;
+  }
+  
+  /// Notify user that max snooze limit has been reached
+  Future<void> _notifyMaxSnoozeReached(NoteTask task) async {
+    try {
+      await _notificationPlugin.show(
+        task.id.hashCode + 1000, // Different ID to avoid conflict
+        '⚠️ Snooze Limit Reached',
+        'Task "${task.content}" has been snoozed 5 times. Please complete or reschedule it.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _taskChannelId,
+            _taskChannelName,
+            channelDescription: _taskChannelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            color: const Color(0xFFFF9800), // Orange for warning
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to show max snooze notification',
+        error: e,
+        stackTrace: stack,
       );
     }
   }
@@ -243,10 +389,28 @@ class TaskReminderBridge {
         case 'complete_task':
           await _completeTaskFromNotification(task);
           break;
+        case 'snooze_task_5':
+          await snoozeTaskReminder(
+            task: task,
+            snoozeDuration: const Duration(minutes: 5),
+          );
+          break;
+        case 'snooze_task_10':
+          await snoozeTaskReminder(
+            task: task,
+            snoozeDuration: const Duration(minutes: 10),
+          );
+          break;
         case 'snooze_task_15':
           await snoozeTaskReminder(
             task: task,
             snoozeDuration: const Duration(minutes: 15),
+          );
+          break;
+        case 'snooze_task_30':
+          await snoozeTaskReminder(
+            task: task,
+            snoozeDuration: const Duration(minutes: 30),
           );
           break;
         case 'snooze_task_1h':
@@ -254,6 +418,15 @@ class TaskReminderBridge {
             task: task,
             snoozeDuration: const Duration(hours: 1),
           );
+          break;
+        case 'snooze_task_2h':
+          await snoozeTaskReminder(
+            task: task,
+            snoozeDuration: const Duration(hours: 2),
+          );
+          break;
+        case 'snooze_task_tomorrow':
+          await _snoozeTaskTomorrow(task);
           break;
         case 'open_task':
           await _handleOpenTaskFromNotification(taskId, noteId);
@@ -289,18 +462,84 @@ class TaskReminderBridge {
     }
   }
 
+  /// Process pending deep link when app becomes ready
+  Future<void> _processPendingDeepLink() async {
+    if (_pendingDeepLink == null) return;
+    
+    final pending = _pendingDeepLink!;
+    _pendingDeepLink = null; // Clear it
+    
+    try {
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        // Navigate directly without DeepLinkService
+        final data = pending;
+        final type = data['type'] as String?;
+        
+        if (type == 'task' || type == 'task_reminder') {
+          final taskId = data['taskId'] as String?;
+          if (taskId != null) {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const EnhancedTaskListScreen(),
+              ),
+            );
+          }
+        }
+        
+        _logger.info('Processed pending deep link', data: pending);
+      }
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to process pending deep link',
+        error: e,
+        stackTrace: stack,
+        data: pending,
+      );
+    }
+  }
+  
   /// Handle opening task from notification (deep linking)
   Future<void> _handleOpenTaskFromNotification(String taskId, String? noteId) async {
     try {
-      // This would typically trigger app navigation
-      // Implementation depends on your navigation/deep linking setup
       _logger.info('Opening task from notification', data: {
         'taskId': taskId,
         'noteId': noteId,
       });
 
-      // TODO: Implement deep linking navigation
-      // This could emit an event that the main app listens to
+      // Get the navigator context from the global key
+      final context = navigatorKey.currentContext;
+      
+      if (context != null) {
+        // Navigate directly to task or note
+        if (taskId != null) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const EnhancedTaskListScreen(),
+            ),
+          );
+        } else if (noteId != null) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ModernEditNoteScreen(
+                noteId: noteId,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Store for later if app not ready
+        _pendingDeepLink = {
+          'type': 'task_reminder',
+          'taskId': taskId,
+          'noteId': noteId,
+        };
+        
+        _logger.info('Stored pending deep link for later', data: {
+          'taskId': taskId,
+          'noteId': noteId,
+        });
+      }
     } catch (e, stack) {
       _logger.error(
         'Failed to open task from notification',

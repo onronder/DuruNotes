@@ -1,42 +1,31 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// TreeView-like widget for displaying hierarchical tasks
-class TaskTreeWidget extends StatefulWidget {
+/// TreeView-like widget for displaying hierarchical tasks using UnifiedTaskService
+/// No VoidCallback usage - all actions go through the unified service
+class TaskTreeWidget extends ConsumerStatefulWidget {
   const TaskTreeWidget({
     super.key,
     required this.rootNodes,
-    required this.onTaskToggle,
-    required this.onTaskEdit,
-    required this.onTaskDelete,
-    this.onTaskMove,
-    this.onOpenNote,
     this.showProgress = true,
     this.maxDepth = 5,
   });
 
   final List<TaskHierarchyNode> rootNodes;
-  final Function(NoteTask) onTaskToggle;
-  final Function(NoteTask) onTaskEdit;
-  final Function(NoteTask) onTaskDelete;
-  final Function(NoteTask, String?)? onTaskMove;
-  final Function(NoteTask)? onOpenNote;
   final bool showProgress;
   final int maxDepth;
 
   @override
-  State<TaskTreeWidget> createState() => _TaskTreeWidgetState();
+  ConsumerState<TaskTreeWidget> createState() => _TaskTreeWidgetState();
 }
 
-class _TaskTreeWidgetState extends State<TaskTreeWidget> {
+class _TaskTreeWidgetState extends ConsumerState<TaskTreeWidget> {
   final Set<String> _expandedNodes = <String>{};
-  final HierarchicalTaskSyncService _hierarchyService = HierarchicalTaskSyncService(
-    database: AppDb(), // This would need proper injection
-    enhancedTaskService: EnhancedTaskService(database: AppDb(), reminderBridge: null as dynamic),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +54,7 @@ class _TaskTreeWidgetState extends State<TaskTreeWidget> {
           maxDepth: widget.maxDepth,
           isExpanded: _expandedNodes.contains(widget.rootNodes[index].task.id),
           onToggleExpanded: () => _toggleExpanded(widget.rootNodes[index].task.id),
-          onTaskToggle: widget.onTaskToggle,
-          onTaskEdit: widget.onTaskEdit,
-          onTaskDelete: widget.onTaskDelete,
-          onTaskMove: widget.onTaskMove,
-          onOpenNote: widget.onOpenNote,
           showProgress: widget.showProgress,
-          hierarchyService: _hierarchyService,
         );
       },
     );
@@ -88,8 +71,8 @@ class _TaskTreeWidgetState extends State<TaskTreeWidget> {
   }
 }
 
-/// Individual task node widget in the tree
-class TaskTreeNodeWidget extends StatelessWidget {
+/// Individual task node widget in the tree using UnifiedTaskService
+class TaskTreeNodeWidget extends ConsumerWidget {
   const TaskTreeNodeWidget({
     super.key,
     required this.node,
@@ -97,12 +80,6 @@ class TaskTreeNodeWidget extends StatelessWidget {
     required this.maxDepth,
     required this.isExpanded,
     required this.onToggleExpanded,
-    required this.onTaskToggle,
-    required this.onTaskEdit,
-    required this.onTaskDelete,
-    required this.hierarchyService,
-    this.onTaskMove,
-    this.onOpenNote,
     this.showProgress = true,
   });
 
@@ -110,26 +87,25 @@ class TaskTreeNodeWidget extends StatelessWidget {
   final int depth;
   final int maxDepth;
   final bool isExpanded;
-  final VoidCallback onToggleExpanded;
-  final Function(NoteTask) onTaskToggle;
-  final Function(NoteTask) onTaskEdit;
-  final Function(NoteTask) onTaskDelete;
-  final Function(NoteTask, String?)? onTaskMove;
-  final Function(NoteTask)? onOpenNote;
+  final void Function() onToggleExpanded;
   final bool showProgress;
-  final HierarchicalTaskSyncService hierarchyService;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final task = node.task;
     final isCompleted = task.status == TaskStatus.completed;
     final hasChildren = node.children.isNotEmpty;
+    final unifiedService = ref.watch(unifiedTaskServiceProvider);
 
     // Calculate progress if this is a parent task
     TaskProgress? progress;
     if (hasChildren && showProgress) {
+      final hierarchyService = HierarchicalTaskSyncService(
+        database: ref.watch(appDbProvider),
+        enhancedTaskService: ref.watch(enhancedTaskServiceProvider),
+      );
       progress = hierarchyService.calculateTaskProgress(node);
     }
 
@@ -145,8 +121,8 @@ class TaskTreeNodeWidget extends StatelessWidget {
             color: _getTaskBackgroundColor(colorScheme, depth),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => onTaskEdit(task),
-              onLongPress: () => _showTaskActions(context),
+              onTap: () => unifiedService.onEdit(task.id),
+              onLongPress: () => _showTaskActions(context, ref),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
@@ -174,9 +150,12 @@ class TaskTreeNodeWidget extends StatelessWidget {
 
                     // Task checkbox
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         HapticFeedback.lightImpact();
-                        onTaskToggle(task);
+                        await unifiedService.onStatusChanged(
+                          task.id,
+                          isCompleted ? TaskStatus.open : TaskStatus.completed,
+                        );
                       },
                       child: Container(
                         width: 22,
@@ -262,9 +241,9 @@ class TaskTreeNodeWidget extends StatelessWidget {
                                 ),
                               
                               // Source note indicator
-                              if (task.noteId != 'standalone' && onOpenNote != null)
+                              if (task.noteId != 'standalone')
                                 GestureDetector(
-                                  onTap: () => onOpenNote!(task),
+                                  onTap: () => _openSourceNote(context, ref, task),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     margin: const EdgeInsets.only(left: 4),
@@ -306,7 +285,7 @@ class TaskTreeNodeWidget extends StatelessWidget {
                         size: 18,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                      onSelected: (action) => _handleAction(context, action),
+                      onSelected: (action) => _handleAction(context, ref, action),
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'edit',
@@ -376,48 +355,52 @@ class TaskTreeNodeWidget extends StatelessWidget {
             node: child,
             depth: depth + 1,
             maxDepth: maxDepth,
-            isExpanded: _isNodeExpanded(child.task.id),
-            onToggleExpanded: () => _toggleNodeExpanded(child.task.id),
-            onTaskToggle: onTaskToggle,
-            onTaskEdit: onTaskEdit,
-            onTaskDelete: onTaskDelete,
-            onTaskMove: onTaskMove,
-            onOpenNote: onOpenNote,
+            isExpanded: false, // Children start collapsed
+            onToggleExpanded: () {}, // Will be managed by parent
             showProgress: showProgress,
-            hierarchyService: hierarchyService,
           )),
       ],
     );
   }
 
-  void _showTaskActions(BuildContext context) {
+  void _showTaskActions(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
-    // This could show a bottom sheet with more actions
+    // Could show a bottom sheet with more actions
+    final unifiedService = ref.read(unifiedTaskServiceProvider);
+    unifiedService.onEdit(node.task.id);
   }
 
-  void _handleAction(BuildContext context, String action) {
+  void _handleAction(BuildContext context, WidgetRef ref, String action) {
+    final unifiedService = ref.read(unifiedTaskServiceProvider);
+    
     switch (action) {
       case 'edit':
-        onTaskEdit(node.task);
+        unifiedService.onEdit(node.task.id);
         break;
       case 'complete_all':
-        _completeAllSubtasks(context);
+        _completeAllSubtasks(context, ref);
         break;
       case 'expand_all':
         _expandAllSubtasks();
         break;
       case 'delete':
-        _confirmDelete(context);
+        _confirmDelete(context, ref);
         break;
       case 'delete_hierarchy':
-        _confirmDeleteHierarchy(context);
+        _confirmDeleteHierarchy(context, ref);
         break;
     }
   }
 
-  Future<void> _completeAllSubtasks(BuildContext context) async {
+  Future<void> _completeAllSubtasks(BuildContext context, WidgetRef ref) async {
     try {
+      final hierarchyService = HierarchicalTaskSyncService(
+        database: ref.read(appDbProvider),
+        enhancedTaskService: ref.read(enhancedTaskServiceProvider),
+      );
+      
       await hierarchyService.completeAllSubtasks(node.task.id);
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('All subtasks completed')),
@@ -438,7 +421,9 @@ class TaskTreeNodeWidget extends StatelessWidget {
     onToggleExpanded();
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final unifiedService = ref.read(unifiedTaskServiceProvider);
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -458,11 +443,11 @@ class TaskTreeNodeWidget extends StatelessWidget {
     );
 
     if (confirmed == true) {
-      onTaskDelete(node.task);
+      await unifiedService.onDeleted(node.task.id);
     }
   }
 
-  Future<void> _confirmDeleteHierarchy(BuildContext context) async {
+  Future<void> _confirmDeleteHierarchy(BuildContext context, WidgetRef ref) async {
     final totalTasks = 1 + node.getAllDescendants().length;
     
     final confirmed = await showDialog<bool>(
@@ -489,7 +474,13 @@ class TaskTreeNodeWidget extends StatelessWidget {
 
     if (confirmed == true) {
       try {
+        final hierarchyService = HierarchicalTaskSyncService(
+          database: ref.read(appDbProvider),
+          enhancedTaskService: ref.read(enhancedTaskServiceProvider),
+        );
+        
         await hierarchyService.deleteTaskHierarchy(node.task.id);
+        
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Deleted $totalTasks tasks')),
@@ -503,6 +494,11 @@ class TaskTreeNodeWidget extends StatelessWidget {
         }
       }
     }
+  }
+
+  void _openSourceNote(BuildContext context, WidgetRef ref, NoteTask task) {
+    if (task.noteId == 'standalone') return;
+    Navigator.of(context).pushNamed('/note', arguments: task.noteId);
   }
 
   Color _getTaskBackgroundColor(ColorScheme colorScheme, int depth) {
@@ -525,16 +521,6 @@ class TaskTreeNodeWidget extends StatelessWidget {
       case TaskPriority.urgent:
         return Colors.purple;
     }
-  }
-
-  bool _isNodeExpanded(String taskId) {
-    // This would need access to parent state
-    // Simplified for now
-    return false;
-  }
-
-  void _toggleNodeExpanded(String taskId) {
-    // This would need access to parent state
   }
 }
 

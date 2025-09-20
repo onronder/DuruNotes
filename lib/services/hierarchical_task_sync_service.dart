@@ -4,28 +4,26 @@ import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
-import 'package:duru_notes/services/note_task_sync_service.dart';
+// Legacy import removed - note_task_sync_service.dart deleted
 
 /// Enhanced task sync service with hierarchical task support
-class HierarchicalTaskSyncService extends NoteTaskSyncService {
+class HierarchicalTaskSyncService {
   HierarchicalTaskSyncService({
     required AppDb database,
     required EnhancedTaskService enhancedTaskService,
   }) : _enhancedTaskService = enhancedTaskService,
-       _database = database,
-       super(database: database, taskService: enhancedTaskService);
+       _database = database;
 
   final EnhancedTaskService _enhancedTaskService;
   final AppDb _database;
-  final AppLogger _logger = LoggerFactory.instance;
+  final AppLogger logger = LoggerFactory.instance;
 
-  @override
   Future<void> syncTasksForNote(String noteId, String noteContent) async {
     try {
       final hierarchicalTasks = extractHierarchicalTasksFromContent(noteContent);
       await _syncHierarchicalTasks(noteId, hierarchicalTasks);
     } catch (e) {
-      _logger.debug('Error syncing hierarchical tasks for note $noteId: $e');
+      logger.debug('Error syncing hierarchical tasks for note $noteId: $e');
     }
   }
 

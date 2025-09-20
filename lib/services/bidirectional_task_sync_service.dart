@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/monitoring/task_sync_metrics.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:intl/intl.dart';
@@ -27,22 +28,43 @@ class BidirectionalTaskSyncService {
   // Cache for line mappings
   final Map<String, TaskLineMapping> _lineMappingCache = {};
   
+  // Pending changes queue for robust sync
+  final Map<String, List<PendingChange>> _pendingChanges = {};
+  Timer? _debounceTimer;
+  
+  // Debounce delays
+  static const _defaultDebounceDelay = Duration(milliseconds: 500);
+  static const _criticalDebounceDelay = Duration(milliseconds: 100);
+  
   /// Initialize bidirectional sync for a note
   Future<void> initializeBidirectionalSync(String noteId) async {
     try {
-      // Initial sync from note to tasks
+      // Perform initial sync from note to tasks
       final note = await _db.getNote(noteId);
       if (note != null) {
+        // This creates any missing tasks with stable IDs based on content hash
         await syncFromNoteToTasks(noteId, note.body);
+        
+        // Count tasks for logging
+        final taskCount = await _db.getTasksForNote(noteId).then((tasks) => tasks.length);
+        
+        _logger.info('Initialized bidirectional sync for note', data: {
+          'noteId': noteId,
+          'taskCount': taskCount,
+          'hasCheckboxes': note.body.contains('- [ ]') || note.body.contains('- [x]'),
+        });
+      } else {
+        _logger.warning('Note not found for bidirectional sync initialization', data: {
+          'noteId': noteId
+        });
       }
-      
-      _logger.info('Initialized bidirectional sync for note', data: {'noteId': noteId});
     } catch (e, stack) {
       _logger.error('Failed to initialize bidirectional sync', 
         error: e, 
         stackTrace: stack,
         data: {'noteId': noteId}
       );
+      // Don't rethrow - allow note to open even if sync fails
     }
   }
   
@@ -54,14 +76,43 @@ class BidirectionalTaskSyncService {
       return;
     }
     
+    // Start metrics tracking
+    final syncId = TaskSyncMetrics.instance.startSync(
+      noteId: noteId,
+      syncType: 'note_to_tasks',
+      metadata: {
+        'hasCheckboxes': noteContent.contains('- [ ]') || noteContent.contains('- [x]'),
+      },
+    );
+    
     _activeSyncOperations.add(syncKey);
+    int taskCount = 0;
+    int duplicatesFound = 0;
+    
     try {
       // Parse tasks from note content with line tracking
       final taskMappings = _parseTasksWithLineTracking(noteId, noteContent);
+      taskCount = taskMappings.length;
       
       // Get existing tasks from database
       final existingTasks = await _db.getTasksForNote(noteId);
       final existingMap = {for (var task in existingTasks) task.id: task};
+      
+      // Check for potential duplicates
+      final contentHashes = <String>{};
+      for (final mapping in taskMappings) {
+        final hash = _generateStableTaskId(noteId, mapping.lineNumber, mapping.taskContent);
+        if (contentHashes.contains(hash)) {
+          duplicatesFound++;
+          TaskSyncMetrics.instance.recordDuplicate(
+            noteId: noteId,
+            taskId: mapping.taskId,
+            duplicateId: hash,
+            reason: 'Duplicate content hash in same note',
+          );
+        }
+        contentHashes.add(hash);
+      }
       
       // Update or create tasks
       for (final mapping in taskMappings) {
@@ -83,6 +134,30 @@ class BidirectionalTaskSyncService {
       // Update cache
       _updateLineMappingCache(noteId, taskMappings);
       
+      // Record success
+      TaskSyncMetrics.instance.endSync(
+        syncId: syncId,
+        success: true,
+        taskCount: taskCount,
+        duplicatesFound: duplicatesFound,
+      );
+      
+    } catch (e, stack) {
+      // Record failure
+      TaskSyncMetrics.instance.endSync(
+        syncId: syncId,
+        success: false,
+        taskCount: taskCount,
+        duplicatesFound: duplicatesFound,
+        error: e.toString(),
+      );
+      
+      _logger.error('Failed to sync from note to tasks',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
+      rethrow;
     } finally {
       _activeSyncOperations.remove(syncKey);
     }
@@ -167,8 +242,9 @@ class BidirectionalTaskSyncService {
       final taskInfo = _parseTaskLine(line);
       
       if (taskInfo != null) {
-        // Generate stable task ID based on note ID and content hash
-        final taskId = _generateStableTaskId(noteId, i, taskInfo.content);
+        // Use embedded ID if present, otherwise generate stable ID
+        final taskId = taskInfo.embeddedId ?? 
+                       _generateStableTaskId(noteId, i, taskInfo.content);
         
         mappings.add(TaskLineMapping(
           taskId: taskId,
@@ -198,7 +274,17 @@ class BidirectionalTaskSyncService {
     
     final indent = match.group(1)!;
     final isCompleted = match.group(2)!.toLowerCase() == 'x';
-    final content = match.group(3)!;
+    var content = match.group(3)!;
+    
+    // Extract embedded task ID if present
+    String? embeddedId;
+    final idRegex = RegExp(r'<!-- task-id:([a-f0-9\-]+) -->');
+    final idMatch = idRegex.firstMatch(content);
+    if (idMatch != null) {
+      embeddedId = idMatch.group(1);
+      // Remove ID comment from visible content
+      content = content.replaceAll(idMatch.group(0)!, '').trim();
+    }
     
     // Extract metadata from content
     final priority = _extractPriority(content);
@@ -211,6 +297,7 @@ class BidirectionalTaskSyncService {
       indentLevel: indent.length ~/ 2, // Assuming 2 spaces per indent
       priority: priority,
       dueDate: dueDate,
+      embeddedId: embeddedId,
     );
   }
   
@@ -268,6 +355,9 @@ class BidirectionalTaskSyncService {
       updatedLine += ' @${DateFormat('yyyy-MM-dd').format(dueDate)}';
     }
     
+    // Embed task ID to preserve identity across edits
+    updatedLine += ' <!-- task-id:${mapping.taskId} -->';
+    
     // Update the line
     lines[mapping.lineNumber] = updatedLine;
     
@@ -313,33 +403,129 @@ class BidirectionalTaskSyncService {
     return similarity >= 0.7;
   }
   
-  /// Sync a single task from mapping
+  /// Sync a single task from mapping with metadata preservation
   Future<void> _syncTaskFromMapping(
     TaskLineMapping mapping,
     Map<String, NoteTask> existingTasks,
   ) async {
-    final existingTask = existingTasks[mapping.taskId];
+    // Try multiple strategies to find the best match
+    final matchedTask = _findBestMatchForTask(mapping, existingTasks);
     
-    if (existingTask != null) {
-      // Update existing task if changed
-      if (_hasTaskChanged(existingTask, mapping)) {
-        await _taskService.updateTask(
-          taskId: mapping.taskId,
-          content: mapping.taskContent,
-          status: mapping.isCompleted ? TaskStatus.completed : TaskStatus.open,
-          priority: mapping.priority,
-          dueDate: mapping.dueDate,
-        );
+    if (matchedTask != null) {
+      // Update existing task if changed, preserving metadata
+      if (_hasTaskChanged(matchedTask, mapping)) {
+        await _updateTaskPreservingMetadata(matchedTask, mapping);
       }
     } else {
       // Create new task
       await _taskService.createTask(
         noteId: mapping.noteId,
         content: mapping.taskContent,
+        status: mapping.isCompleted ? TaskStatus.completed : TaskStatus.open,
         priority: mapping.priority ?? TaskPriority.medium,
         dueDate: mapping.dueDate,
+        position: mapping.lineNumber,
       );
     }
+  }
+  
+  /// Find the best matching task using multiple strategies
+  NoteTask? _findBestMatchForTask(
+    TaskLineMapping mapping,
+    Map<String, NoteTask> existingTasks,
+  ) {
+    // 1. Try exact ID match
+    if (existingTasks.containsKey(mapping.taskId)) {
+      return existingTasks[mapping.taskId];
+    }
+    
+    // 2. Try content + position matching
+    final candidates = <NoteTask, double>{};
+    
+    for (final task in existingTasks.values) {
+      double score = 0.0;
+      
+      // Position similarity (30% weight)
+      if (task.position == mapping.lineNumber) {
+        score += 0.3;
+      } else {
+        final positionDiff = (task.position - mapping.lineNumber).abs();
+        score += (0.3 / (1.0 + positionDiff));
+      }
+      
+      // Content similarity (70% weight)
+      final contentScore = calculateContentSimilarity(
+        task.content,
+        mapping.taskContent,
+      );
+      score += contentScore * 0.7;
+      
+      if (score > 0.6) { // Minimum threshold
+        candidates[task] = score;
+      }
+    }
+    
+    if (candidates.isEmpty) return null;
+    
+    // Return best match
+    final sorted = candidates.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    return sorted.first.key;
+  }
+  
+  /// Calculate content similarity between two strings
+  double calculateContentSimilarity(String s1, String s2) {
+    if (s1 == s2) return 1.0;
+    if (s1.isEmpty || s2.isEmpty) return 0.0;
+    
+    // Normalize strings
+    s1 = s1.toLowerCase().trim();
+    s2 = s2.toLowerCase().trim();
+    
+    // Simple word-based similarity
+    final words1 = s1.split(RegExp(r'\s+'));
+    final words2 = s2.split(RegExp(r'\s+'));
+    
+    if (words1.isEmpty || words2.isEmpty) return 0.0;
+    
+    // Count matching words
+    int matches = 0;
+    for (final word in words1) {
+      if (words2.contains(word)) matches++;
+    }
+    
+    // Calculate similarity as ratio of matches
+    final similarity = matches / words1.length;
+    return similarity;
+  }
+  
+  /// Update task while preserving metadata
+  Future<void> _updateTaskPreservingMetadata(
+    NoteTask existingTask,
+    TaskLineMapping mapping,
+  ) async {
+    await _taskService.updateTask(
+      taskId: existingTask.id,
+      content: mapping.taskContent,
+      status: mapping.isCompleted ? TaskStatus.completed : TaskStatus.open,
+      priority: mapping.priority ?? existingTask.priority,
+      dueDate: mapping.dueDate ?? existingTask.dueDate,
+      // Preserve metadata fields
+      labels: existingTask.labels != null 
+        ? {'labels': jsonDecode(existingTask.labels!)} 
+        : null,
+      notes: existingTask.notes,
+      estimatedMinutes: existingTask.estimatedMinutes,
+      actualMinutes: existingTask.actualMinutes,
+      reminderId: existingTask.reminderId,
+    );
+    
+    _logger.debug('Updated task preserving metadata', data: {
+      'taskId': existingTask.id,
+      'content': mapping.taskContent,
+      'preservedFields': ['labels', 'notes', 'estimatedMinutes', 'reminderId'],
+    });
   }
   
   /// Check if task has changed
@@ -466,7 +652,117 @@ class BidirectionalTaskSyncService {
   void clearCacheForNote(String noteId) {
     _lineMappingCache.removeWhere((key, value) => value.noteId == noteId);
   }
+  
+  /// Schedule sync with debouncing
+  void _scheduleSync(String noteId, {bool isCritical = false}) {
+    // Cancel existing timer
+    _debounceTimer?.cancel();
+    
+    // Use shorter delay for critical changes (like checkbox toggles)
+    final delay = isCritical ? _criticalDebounceDelay : _defaultDebounceDelay;
+    
+    _debounceTimer = Timer(delay, () async {
+      await _processPendingChanges(noteId);
+    });
+  }
+  
+  /// Process all pending changes for a note
+  Future<void> _processPendingChanges(String noteId) async {
+    final changes = _pendingChanges[noteId];
+    if (changes == null || changes.isEmpty) return;
+    
+    // Clear pending changes for this note
+    _pendingChanges[noteId] = [];
+    
+    // If another sync is active, queue these changes
+    if (_activeSyncOperations.contains('note_to_task_$noteId')) {
+      _pendingChanges[noteId] = changes;
+      _scheduleSync(noteId); // Reschedule
+      return;
+    }
+    
+    _activeSyncOperations.add('note_to_task_$noteId');
+    try {
+      // Get latest note content
+      final note = await _db.getNote(noteId);
+      if (note != null) {
+        // Apply all changes by doing a full sync
+        await syncFromNoteToTasks(noteId, note.body);
+      }
+    } finally {
+      _activeSyncOperations.remove('note_to_task_$noteId');
+      
+      // Check if more changes accumulated
+      if (_pendingChanges[noteId]?.isNotEmpty ?? false) {
+        _scheduleSync(noteId);
+      }
+    }
+  }
+  
+  /// Handle task toggle specifically for rapid changes
+  Future<void> handleTaskToggle({
+    required String taskId,
+    required String noteId,
+    required bool isCompleted,
+  }) async {
+    // Add to pending changes
+    _pendingChanges[noteId] ??= [];
+    _pendingChanges[noteId]!.add(
+      PendingChange(
+        type: ChangeType.toggle,
+        taskId: taskId,
+        isCompleted: isCompleted,
+        timestamp: DateTime.now(),
+      ),
+    );
+    
+    // Schedule with critical priority
+    _scheduleSync(noteId, isCritical: true);
+  }
+  
+  /// Force immediate sync (for note close)
+  Future<void> forceSyncForNote(String noteId) async {
+    // Cancel any pending debounced syncs
+    _debounceTimer?.cancel();
+    
+    // Process any pending changes immediately
+    if (_pendingChanges[noteId]?.isNotEmpty ?? false) {
+      await _processPendingChanges(noteId);
+    }
+    
+    // Do a final sync to ensure everything is up to date
+    final note = await _db.getNote(noteId);
+    if (note != null) {
+      await syncFromNoteToTasks(noteId, note.body);
+    }
+  }
+  
+  /// Cancel pending sync for a note
+  void cancelPendingSync(String noteId) {
+    _debounceTimer?.cancel();
+    _pendingChanges.remove(noteId);
+  }
 }
+
+/// Pending change for queue system
+class PendingChange {
+  final ChangeType type;
+  final String taskId;
+  final bool? isCompleted;
+  final String? content;
+  final DateTime timestamp;
+  
+  PendingChange({
+    required this.type,
+    required this.taskId,
+    this.isCompleted,
+    this.content,
+    required this.timestamp,
+  });
+}
+
+enum ChangeType { toggle, edit, create, delete }
+
 
 /// Task line mapping for tracking tasks in notes
 class TaskLineMapping {
@@ -503,6 +799,7 @@ class TaskInfo {
     required this.indentLevel,
     this.priority,
     this.dueDate,
+    this.embeddedId,
   });
   
   final String content;
@@ -510,4 +807,5 @@ class TaskInfo {
   final int indentLevel;
   final TaskPriority? priority;
   final DateTime? dueDate;
+  final String? embeddedId;  // Embedded task ID from note content
 }

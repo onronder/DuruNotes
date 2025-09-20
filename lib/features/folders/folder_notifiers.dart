@@ -177,18 +177,31 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
 
   /// Load all folders from repository
   Future<void> loadFolders() async {
+    // Check if notifier is still mounted
+    if (!mounted) return;
+    
     try {
       state = state.copyWith(isLoading: true);
       final folders = await _repository.listFolders();
+      
+      // Check again after async operation
+      if (!mounted) return;
+      
       final counts = await _repository.getFolderNoteCounts();
       await _repository.ensureFolderIntegrity();
+      
+      // Final check before updating state
+      if (!mounted) return;
+      
       state = state.copyWith(
         folders: folders,
         isLoading: false,
         noteCounts: counts,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
       if (kDebugMode) debugPrint('Error loading folders: $e');
     }
   }

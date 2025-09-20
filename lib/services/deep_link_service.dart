@@ -187,21 +187,28 @@ class DeepLinkService {
         _showNoteNotFoundMessage(context);
         return;
       }
-
-      // TODO: Implement task highlighting in note editor
-      // For now, just open the note
+      
+      // Get task details for highlighting
+      final db = _ref.read(appDbProvider);
+      final task = await db.getTaskById(taskId);
+      
+      // Open note with task highlighting
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ModernEditNoteScreen(
             noteId: note.id,
             initialTitle: note.title,
             initialBody: note.body,
+            highlightTaskId: taskId,
+            highlightTaskContent: task?.content,
           ),
         ),
       );
 
       // Show a toast indicating which task triggered the notification
-      _showTaskHighlightMessage(context, taskId);
+      if (task != null) {
+        _showTaskHighlightMessage(context, task.content);
+      }
     } catch (e, stack) {
       _logger.error(
         'Failed to open note with task highlight',
@@ -303,12 +310,28 @@ class DeepLinkService {
   }
 
   /// Show task highlight message
-  void _showTaskHighlightMessage(BuildContext context, String taskId) {
+  void _showTaskHighlightMessage(BuildContext context, String taskContent) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Opened from task reminder: ${taskId.substring(0, 8)}...'),
+        content: Row(
+          children: [
+            const Icon(Icons.task_alt, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Task: $taskContent',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }

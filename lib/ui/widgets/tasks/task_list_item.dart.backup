@@ -1,0 +1,143 @@
+// ignore_for_file: deprecated_member_use
+// TODO: Migrate to use NoteTask from app_db.dart instead of UiNoteTask
+import 'package:duru_notes/models/note_task.dart';
+import 'package:duru_notes/ui/widgets/tasks/base_task_widget.dart';
+import 'package:flutter/material.dart';
+
+/// Standard list item widget for displaying tasks
+class TaskListItem extends BaseTaskWidget {
+  final bool showDragHandle;
+  final VoidCallback? onLongPress;
+  
+  const TaskListItem({
+    super.key,
+    required super.task,
+    required super.callbacks,
+    super.isSelected,
+    super.showSubtasks,
+    super.indentLevel,
+    this.showDragHandle = false,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Card(
+      margin: EdgeInsets.only(
+        left: indentLevel * 16.0,
+        right: 8,
+        top: 4,
+        bottom: 4,
+      ),
+      elevation: isSelected ? 2 : 0,
+      color: isSelected
+          ? colorScheme.primaryContainer.withOpacity(0.3)
+          : null,
+      child: InkWell(
+        onTap: callbacks.onEdit,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          child: Row(
+            children: [
+              if (showDragHandle) ...[
+                Icon(
+                  Icons.drag_indicator,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+              ],
+              buildCheckbox(context),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: buildTaskContent(context)),
+                        if (task.priority != UiTaskPriority.none) ...[
+                          const SizedBox(width: 8),
+                          buildPriorityIndicator(context),
+                        ],
+                      ],
+                    ),
+                    if (task.dueDate != null || task.subtasks.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (task.dueDate != null) buildDueDateChip(context),
+                          if (task.dueDate != null && task.subtasks.isNotEmpty)
+                            const SizedBox(width: 8),
+                          if (task.subtasks.isNotEmpty)
+                            buildSubtaskIndicator(context),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (callbacks.onDelete != null) ...[
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'edit':
+                        callbacks.onEdit?.call();
+                        break;
+                      case 'duplicate':
+                        callbacks.onDuplicate?.call();
+                        break;
+                      case 'delete':
+                        callbacks.onDelete?.call();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit),
+                        title: Text('Edit'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    if (callbacks.onDuplicate != null)
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: ListTile(
+                          leading: Icon(Icons.content_copy),
+                          title: Text('Duplicate'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(Icons.delete, color: Colors.red),
+                        title: Text('Delete', style: TextStyle(color: Colors.red)),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

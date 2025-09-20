@@ -1,14 +1,11 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show Value;
-import 'package:duru_notes/core/utils/hash_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
+import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
 import 'package:duru_notes/services/task_service.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
-import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
 
 /// Enhanced task service with integrated reminder management
 class EnhancedTaskService extends TaskService {
@@ -34,40 +31,72 @@ class EnhancedTaskService extends TaskService {
   Future<String> createTask({
     required String noteId,
     required String content,
+    TaskStatus status = TaskStatus.open,
     TaskPriority priority = TaskPriority.medium,
     DateTime? dueDate,
     String? parentTaskId,
     Map<String, dynamic>? labels,
     String? notes,
     int? estimatedMinutes,
+    int? position,
     bool createReminder = true,
   }) async {
-    // Create the task using parent implementation
-    final taskId = await super.createTask(
-      noteId: noteId,
-      content: content,
-      priority: priority,
-      dueDate: dueDate,
-      parentTaskId: parentTaskId,
-      labels: labels,
-      notes: notes,
-      estimatedMinutes: estimatedMinutes,
-    );
-
-    // Create reminder if task has due date and reminders are enabled
+    // Use transaction for atomicity when creating task with reminder
     if (createReminder && dueDate != null) {
-      try {
-        final task = await _db.getTaskById(taskId);
-        if (task != null) {
-          await _reminderBridge.onTaskCreated(task);
-        }
-      } catch (e) {
-        // Don't fail task creation if reminder fails
-        debugPrint('Failed to create reminder for task $taskId: $e');
-      }
-    }
+      return await _db.transaction(() async {
+        // Create the task
+        final taskId = await super.createTask(
+          noteId: noteId,
+          content: content,
+          status: status,
+          priority: priority,
+          dueDate: dueDate,
+          parentTaskId: parentTaskId,
+          labels: labels,
+          notes: notes,
+          estimatedMinutes: estimatedMinutes,
+          position: position,
+        );
 
-    return taskId;
+        try {
+          final task = await _db.getTaskById(taskId);
+          if (task != null) {
+            // Create reminder and get its ID
+            final reminderId = await _reminderBridge.createTaskReminder(
+              task: task,
+              beforeDueDate: const Duration(hours: 1), // Default 1 hour before
+            );
+            
+            // Link reminder to task within the same transaction
+            if (reminderId != null) {
+              await super.updateTask(
+                taskId: taskId,
+                reminderId: reminderId,
+              );
+            }
+          }
+        } catch (e) {
+          // Log but don't fail the transaction - task is more important than reminder
+          debugPrint('Failed to create reminder for task $taskId: $e');
+        }
+
+        return taskId;
+      });
+    } else {
+      // No reminder needed, create task normally
+      return await super.createTask(
+        noteId: noteId,
+        content: content,
+        status: status,
+        priority: priority,
+        dueDate: dueDate,
+        parentTaskId: parentTaskId,
+        labels: labels,
+        notes: notes,
+        estimatedMinutes: estimatedMinutes,
+        position: position,
+      );
+    }
   }
 
   @override
@@ -84,6 +113,7 @@ class EnhancedTaskService extends TaskService {
     int? reminderId,
     String? parentTaskId,
     bool updateReminder = true,
+    bool clearReminderId = false,
   }) async {
     // Get old task for comparison
     final oldTask = await _db.getTaskById(taskId);
@@ -101,6 +131,7 @@ class EnhancedTaskService extends TaskService {
       actualMinutes: actualMinutes,
       reminderId: reminderId,
       parentTaskId: parentTaskId,
+      clearReminderId: clearReminderId,
     );
 
     // Sync changes back to note if bidirectional sync is enabled
@@ -240,10 +271,18 @@ class EnhancedTaskService extends TaskService {
       final task = await _db.getTaskById(taskId);
       if (task != null) {
         final reminderDuration = reminderTime.difference(dueDate);
-        await _reminderBridge.createTaskReminder(
+        final reminderId = await _reminderBridge.createTaskReminder(
           task: task,
           beforeDueDate: reminderDuration.isNegative ? Duration.zero : reminderDuration.abs(),
         );
+        
+        // Link reminder to task
+        if (reminderId != null) {
+          await updateTask(
+            taskId: taskId,
+            reminderId: reminderId,
+          );
+        }
       }
     } catch (e) {
       debugPrint('Failed to create custom reminder for task $taskId: $e');
