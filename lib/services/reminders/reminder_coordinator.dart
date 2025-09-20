@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart' hide NoteReminder;
-import 'package:duru_notes/models/note_reminder.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart'; // Import appDbProvider from here
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
@@ -22,14 +21,14 @@ class ReminderCoordinator {
   ReminderCoordinator(this._plugin, this._db) {
     _geofenceService = GeofenceReminderService(_plugin, _db);
     _recurringService = RecurringReminderService(_plugin, _db);
-    // _snoozeService = SnoozeReminderService(_plugin, _db);  // Reserved for snooze functionality
+    _snoozeService = SnoozeReminderService(_plugin, _db);
   }
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
   late final GeofenceReminderService _geofenceService;
   late final RecurringReminderService _recurringService;
-  // late final SnoozeReminderService _snoozeService;  // Reserved for snooze functionality
+  late final SnoozeReminderService _snoozeService;
 
   static const String _channelId = 'notes_reminders';
   static const String _channelName = 'Notes Reminders';
@@ -38,6 +37,9 @@ class ReminderCoordinator {
   bool _initialized = false;
   final AppLogger logger = LoggerFactory.instance;
   final AnalyticsService analytics = AnalyticsFactory.instance;
+  
+  /// Get the snooze service for external use
+  SnoozeReminderService get snoozeService => _snoozeService;
 
   /// Initialize all sub-services and notification channel
   Future<void> initialize() async {
@@ -189,34 +191,8 @@ class ReminderCoordinator {
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
     try {
       final dbReminders = await _db.getRemindersForNote(noteId);
-      // Convert database NoteReminder objects to domain NoteReminder objects
-      return dbReminders.map((r) {
-        return NoteReminder(
-          id: r.id,
-          noteId: r.noteId,
-          title: r.title,
-          body: r.body,
-          type: r.type,
-          scheduledTime: r.remindAt ?? DateTime.now(),
-          remindAt: r.remindAt,
-          isSnoozed:
-              r.snoozedUntil != null && r.snoozedUntil!.isAfter(DateTime.now()),
-          snoozedUntil: r.snoozedUntil,
-          isActive: r.isActive ?? true,
-          recurrencePattern: r.recurrencePattern,
-          recurrenceInterval: r.recurrenceInterval,
-          recurrenceEndDate: r.recurrenceEndDate,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          radius: r.radius,
-          locationName: r.locationName,
-          notificationTitle: r.notificationTitle,
-          notificationBody: r.notificationBody,
-          timeZone: r.timeZone,
-          createdAt: r.createdAt,
-          updatedAt: r.lastTriggered ?? r.createdAt,
-        );
-      }).toList();
+      // Return the database NoteReminder objects directly
+      return dbReminders;
     } catch (e, stack) {
       logger.error(
         'Failed to get reminders for note',

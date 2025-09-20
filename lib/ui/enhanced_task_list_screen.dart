@@ -111,7 +111,8 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
-        taskContent: 'New Task',
+        taskContent: '', // Start with empty, not "New Task"
+        isNewTask: true, // Flag to show appropriate placeholder
         onSave: (metadata) => Navigator.of(context).pop(metadata),
       ),
     );
@@ -125,20 +126,61 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
       
-      // Create a standalone task (not tied to any note)
-      await taskService.createTask(
+      // USE USER'S INPUT instead of hardcoded "New Task"
+      final taskContent = metadata.taskContent.trim();
+      
+      // Validate content
+      if (taskContent.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task title cannot be empty'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Create task with user's content
+      final taskId = await taskService.createTask(
         noteId: 'standalone', // Special identifier for standalone tasks
-        content: 'New Task', // Default content, user can edit
+        content: taskContent, // USE ACTUAL USER INPUT
         priority: metadata.priority,
         dueDate: metadata.dueDate,
         labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
         notes: metadata.notes,
         estimatedMinutes: metadata.estimatedMinutes,
+        createReminder: metadata.hasReminder && metadata.dueDate != null,
       );
+      
+      // Handle custom reminder time if specified
+      if (metadata.hasReminder && 
+          metadata.reminderTime != null && 
+          metadata.dueDate != null &&
+          metadata.reminderTime != metadata.dueDate) {
+        final task = await ref.read(appDbProvider).getTaskById(taskId);
+        if (task != null) {
+          final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+          await ref.read(taskReminderBridgeProvider).createTaskReminder(
+            task: task,
+            beforeDueDate: duration.abs(),
+          );
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task created successfully')),
+          SnackBar(
+            content: Text('Created task: $taskContent'),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () {
+                // Refresh the task list
+                setState(() {});
+              },
+            ),
+          ),
         );
       }
     } on Exception catch (e) {

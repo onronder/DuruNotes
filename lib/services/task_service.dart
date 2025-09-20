@@ -16,12 +16,14 @@ class TaskService {
   Future<String> createTask({
     required String noteId,
     required String content,
+    TaskStatus status = TaskStatus.open,
     TaskPriority priority = TaskPriority.medium,
     DateTime? dueDate,
     String? parentTaskId,
     Map<String, dynamic>? labels,
     String? notes,
     int? estimatedMinutes,
+    int? position,
   }) async {
     final taskId = _uuid.v4();
     final contentHash = stableTaskHash(noteId, content);
@@ -32,7 +34,9 @@ class TaskService {
         noteId: noteId,
         content: content,
         contentHash: contentHash,
+        status: Value(status),
         priority: Value(priority),
+        position: Value(position ?? 0),
         dueDate: Value(dueDate),
         parentTaskId: Value(parentTaskId),
         labels: labels != null
@@ -61,6 +65,7 @@ class TaskService {
     int? actualMinutes,
     int? reminderId,
     String? parentTaskId,
+    bool clearReminderId = false,
   }) async {
     final updates = NoteTasksCompanion(
       content: content != null ? Value(content) : const Value.absent(),
@@ -83,7 +88,9 @@ class TaskService {
       actualMinutes: actualMinutes != null
           ? Value(actualMinutes)
           : const Value.absent(),
-      reminderId: reminderId != null ? Value(reminderId) : const Value.absent(),
+      reminderId: clearReminderId 
+          ? Value<int?>(null) 
+          : (reminderId != null ? Value(reminderId) : const Value.absent()),
       parentTaskId: parentTaskId != null ? Value(parentTaskId) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     );

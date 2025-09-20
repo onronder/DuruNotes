@@ -1,6 +1,8 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
+import 'package:duru_notes/ui/dialogs/goals_dialog.dart';
 import 'package:duru_notes/ui/widgets/analytics/productivity_charts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +93,18 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
     }
   }
 
+  Future<void> _showGoalsDialog() async {
+    final result = await showDialog<ProductivityGoal>(
+      context: context,
+      builder: (context) => const GoalsDialog(),
+    );
+    
+    if (result != null && mounted) {
+      // Refresh analytics to show progress toward new goal
+      await _loadAnalytics();
+    }
+  }
+
   Future<void> _exportData() async {
     if (_analytics == null) return;
 
@@ -129,6 +143,11 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.flag),
+            onPressed: _showGoalsDialog,
+            tooltip: 'Set Goals',
+          ),
           IconButton(
             icon: const Icon(Icons.date_range),
             onPressed: _selectDateRange,

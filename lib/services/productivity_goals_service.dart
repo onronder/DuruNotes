@@ -3,8 +3,10 @@ import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for managing productivity goals and tracking progress
@@ -215,6 +217,9 @@ class ProductivityGoalsService {
 
       achievements.add(achievement);
       
+      // Send achievement notification
+      await _sendAchievementNotification(goal);
+      
       final updatedJson = jsonEncode(achievements.map((a) => a.toJson()).toList());
       await prefs.setString(_achievementsKey, updatedJson);
 
@@ -342,6 +347,98 @@ class ProductivityGoalsService {
     final goals = await getActiveGoals();
     goals.add(activeGoal);
     await saveGoals(goals);
+  }
+  
+  /// Send achievement notification
+  Future<void> _sendAchievementNotification(ProductivityGoal goal) async {
+    try {
+      final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      const androidDetails = AndroidNotificationDetails(
+        'goals_achievements',
+        'Goal Achievements',
+        channelDescription: 'Notifications for productivity goal achievements',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF4CAF50), // Green for success
+      );
+      
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      await flutterLocalNotificationsPlugin.show(
+        goal.id.hashCode,
+        '🎉 Goal Achieved!',
+        'You completed your goal: ${goal.title}',
+        notificationDetails,
+      );
+      
+      // Log analytics event
+      AnalyticsFactory.instance.event('goal.achieved', properties: {
+        'goal_type': goal.type.toString(),
+        'target_value': goal.targetValue,
+        'period': goal.period.toString(),
+      });
+    } catch (e, stack) {
+      _logger.error('Failed to send achievement notification', error: e, stackTrace: stack);
+    }
+  }
+  
+  /// Check and notify achievements periodically
+  Future<void> checkAndNotifyAchievements() async {
+    try {
+      await updateAllGoalProgress();
+    } catch (e, stack) {
+      _logger.error('Failed to check achievements', error: e, stackTrace: stack);
+    }
+  }
+  
+  /// Get goal progress
+  Future<double> getGoalProgress(String goalId) async {
+    try {
+      final goals = await getActiveGoals();
+      final goal = goals.firstWhere((g) => g.id == goalId);
+      return goal.currentValue / goal.targetValue;
+    } catch (e) {
+      return 0.0;
+    }
+  }
+  
+  /// Watch active goals stream
+  Stream<List<ProductivityGoal>> watchActiveGoals() {
+    // Create a stream controller
+    final controller = StreamController<List<ProductivityGoal>>.broadcast();
+    
+    // Initial load
+    getActiveGoals().then((goals) {
+      if (!controller.isClosed) {
+        controller.add(goals);
+      }
+    });
+    
+    // Periodic updates
+    Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (controller.isClosed) {
+        timer.cancel();
+        return;
+      }
+      
+      getActiveGoals().then((goals) {
+        if (!controller.isClosed) {
+          controller.add(goals);
+        }
+      });
+    });
+    
+    return controller.stream;
   }
 }
 

@@ -1308,6 +1308,12 @@ class AppDb extends _$AppDb {
     noteReminders,
   )..where((r) => r.noteId.equals(noteId) & r.isActive.equals(true))).get();
 
+  /// Get all active reminders
+  Future<List<NoteReminder>> getActiveReminders() => (select(noteReminders)
+    ..where((r) => r.isActive.equals(true))
+    ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]))
+    .get();
+
   /// Get a specific reminder by ID
   Future<NoteReminder?> getReminderById(int id) =>
       (select(noteReminders)..where((r) => r.id.equals(id))).getSingleOrNull();

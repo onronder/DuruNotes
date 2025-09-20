@@ -2,13 +2,16 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
+import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Enhanced todo block widget with hierarchical task support
+/// Uses UnifiedTaskService for all operations - no VoidCallback usage
 class HierarchicalTodoBlockWidget extends ConsumerStatefulWidget {
   const HierarchicalTodoBlockWidget({
     required this.block,
@@ -31,7 +34,7 @@ class HierarchicalTodoBlockWidget extends ConsumerStatefulWidget {
   final bool isFocused;
   final Function(NoteBlock) onChanged;
   final Function(bool) onFocusChanged;
-  final VoidCallback onNewLine;
+  final void Function() onNewLine;
   final Function(int) onIndentChanged;
   final String? parentTaskId;
 
@@ -110,7 +113,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     if (widget.noteId == null) return;
     
     try {
-      final tasks = await ref.read(appDbProvider).getTasksForNote(widget.noteId!);
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
+      final tasks = await unifiedService.getTasksForNote(widget.noteId!);
       final matchingTask = tasks.where((task) => 
         task.position == widget.position && 
         task.content.trim() == _text.trim()
@@ -179,8 +183,11 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     // Update task in database if it exists
     if (widget.noteId != null && _task != null) {
       try {
-        final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
-        await enhancedTaskService.toggleTaskStatus(_task!.id);
+        final unifiedService = ref.read(unifiedTaskServiceProvider);
+        await unifiedService.onStatusChanged(
+          _task!.id,
+          _isCompleted ? TaskStatus.completed : TaskStatus.open,
+        );
         
         // Reload progress after status change
         await _loadTaskProgress();
@@ -211,34 +218,72 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     if (widget.noteId == null) return;
 
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
+      final reminderBridge = ref.read(taskReminderBridgeProvider);
+      final appDb = ref.read(appDbProvider);
 
       if (_task == null) {
         // Create new task
-        await taskService.createTask(
+        final taskId = await unifiedService.createTask(
           noteId: widget.noteId!,
           content: _text,
           priority: metadata.priority,
           dueDate: metadata.dueDate,
           parentTaskId: widget.parentTaskId,
-          labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+          labels: metadata.labels,
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
-          createReminder: metadata.hasReminder,
         );
+        
+        // Add reminder if needed
+        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
+          final newTask = await appDb.getTaskById(taskId);
+          if (newTask != null) {
+            final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+            await reminderBridge.createTaskReminder(
+              task: newTask,
+              beforeDueDate: duration.abs(),
+            );
+          }
+        }
 
         await _loadTaskData();
       } else {
         // Update existing task
-        await taskService.updateTask(
-          taskId: _task!.id,
+        final oldTask = _task!;
+        
+        await unifiedService.updateTask(
+          taskId: oldTask.id,
           priority: metadata.priority,
           dueDate: metadata.dueDate,
-          labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+          labels: metadata.labels,
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
-          updateReminder: metadata.hasReminder,
         );
+        
+        // Handle reminder changes
+        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
+          if (oldTask.reminderId == null) {
+            // Create new reminder with custom time
+            final updatedTask = await appDb.getTaskById(oldTask.id);
+            if (updatedTask != null) {
+              final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+              await reminderBridge.createTaskReminder(
+                task: updatedTask,
+                beforeDueDate: duration.abs(),
+              );
+            }
+          } else {
+            // Update existing reminder
+            final updatedTask = await appDb.getTaskById(oldTask.id);
+            if (updatedTask != null) {
+              await reminderBridge.updateTaskReminder(updatedTask);
+            }
+          }
+        } else if (!metadata.hasReminder && oldTask.reminderId != null) {
+          // Cancel existing reminder
+          await reminderBridge.cancelTaskReminder(oldTask);
+        }
 
         await _loadTaskData();
       }
@@ -277,6 +322,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final hasChildren = _progress != null;
+    final unifiedService = ref.watch(unifiedTaskServiceProvider);
 
     return Container(
       margin: EdgeInsets.only(left: widget.indentLevel * 16.0),
@@ -466,7 +512,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                         size: 16,
                         color: Colors.grey.shade400,
                       ),
-                      onSelected: (action) => _handleAction(action),
+                      onSelected: (action) => _handleAction(action, unifiedService),
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'edit',
@@ -532,7 +578,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     );
   }
 
-  void _handleAction(String action) {
+  void _handleAction(String action, UnifiedTaskService unifiedService) {
     switch (action) {
       case 'edit':
         _showTaskMetadataDialog();
@@ -547,7 +593,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
         _deleteHierarchy();
         break;
       case 'delete':
-        _deleteTask();
+        _deleteTask(unifiedService);
         break;
     }
   }
@@ -634,7 +680,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
     }
   }
 
-  Future<void> _deleteTask() async {
+  Future<void> _deleteTask(UnifiedTaskService unifiedService) async {
     if (_task == null) return;
 
     final confirmed = await showDialog<bool>(
@@ -657,8 +703,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
 
     if (confirmed == true) {
       try {
-        final taskService = ref.read(enhancedTaskServiceProvider);
-        await taskService.deleteTask(_task!.id);
+        await unifiedService.onDeleted(_task!.id);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

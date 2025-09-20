@@ -67,7 +67,11 @@ class RealtimeSubscriptionException extends RealtimeException {
 /// This replaces NotesRealtimeService, InboxRealtimeService, FolderRealtimeService,
 /// and duplicate subscriptions in SyncService and ClipperInboxService
 class UnifiedRealtimeService extends ChangeNotifier {
-  UnifiedRealtimeService({
+  // Singleton instance tracking
+  static UnifiedRealtimeService? _instance;
+  static String? _currentUserId;
+  
+  UnifiedRealtimeService._internal({
     required SupabaseClient supabase,
     required this.userId,
     required AppLogger logger,
@@ -81,6 +85,29 @@ class UnifiedRealtimeService extends ChangeNotifier {
     _cleanupTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _cleanupProcessedIds();
     });
+  }
+  
+  /// Factory constructor ensures singleton per user
+  factory UnifiedRealtimeService({
+    required SupabaseClient supabase,
+    required String userId,
+    required AppLogger logger,
+    ConnectionManager? connectionManager,
+    FolderSyncCoordinator? folderSyncCoordinator,
+  }) {
+    // If user changed or no instance exists, create new one
+    if (_instance == null || _currentUserId != userId) {
+      _instance?.dispose();
+      _instance = UnifiedRealtimeService._internal(
+        supabase: supabase,
+        userId: userId,
+        logger: logger,
+        connectionManager: connectionManager,
+        folderSyncCoordinator: folderSyncCoordinator,
+      );
+      _currentUserId = userId;
+    }
+    return _instance!;
   }
 
   /// Factory constructor for creating with default dependencies
@@ -537,6 +564,12 @@ class UnifiedRealtimeService extends ChangeNotifier {
     
     _logger.info('Disposing service');
     _disposed = true;
+    
+    // Clear singleton reference if this is the current instance
+    if (_instance == this) {
+      _instance = null;
+      _currentUserId = null;
+    }
 
     // Stop subscription (fire and forget)
     stop().catchError((Object e) {

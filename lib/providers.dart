@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
+import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/core/settings/analytics_notifier.dart';
@@ -12,6 +13,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
+import 'package:duru_notes/providers/unified_reminder_provider.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/repository/sync_service.dart';
@@ -32,7 +34,6 @@ import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/services/inbox_realtime_service.dart';
 import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
-import 'package:duru_notes/services/note_task_sync_service.dart';
 import 'package:duru_notes/services/notes_realtime_service.dart';
 import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
@@ -44,6 +45,7 @@ import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
+import 'package:duru_notes/services/template_migration_service.dart';
 import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
 import 'package:duru_notes/services/note_task_coordinator.dart';
@@ -101,8 +103,20 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   return NotesRepository(db: db, crypto: crypto, api: api, client: client);
 });
 
-/// Template list provider - fetches all templates
+/// Template migration service provider
+final templateMigrationServiceProvider = Provider<TemplateMigrationService>((ref) {
+  final db = ref.watch(appDbProvider);
+  return TemplateMigrationService(db);
+});
+
+/// Template list provider - fetches all templates with migration
 final templateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+  // Run migration if needed
+  final migrationService = ref.watch(templateMigrationServiceProvider);
+  if (await migrationService.needsMigration()) {
+    await migrationService.migrateTemplates();
+  }
+  
   final repository = ref.watch(templateRepositoryProvider);
   return repository.getAllTemplates();
 });
@@ -199,6 +213,15 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       ref.invalidate(filteredNotesProvider);
       ref.read(notesPageProvider.notifier).refresh();
       debugPrint('[Sync] Notes providers refreshed after sync completion');
+      
+      // Run template migration after sync
+      final migrationService = ref.read(templateMigrationServiceProvider);
+      if (await migrationService.needsMigration()) {
+        debugPrint('[Sync] Running template migration...');
+        await migrationService.migrateTemplates();
+        ref.invalidate(templateListProvider);
+        debugPrint('[Sync] Template migration completed');
+      }
     } catch (e) {
       debugPrint('[Sync] Error refreshing after sync: $e');
     }
@@ -383,20 +406,7 @@ final templateRepositoryProvider = Provider<TemplateRepository>((ref) {
   return TemplateRepository(db: db);
 });
 
-/// Note-task sync service provider
-final noteTaskSyncServiceProvider = Provider<NoteTaskSyncService>((ref) {
-  final database = ref.watch(appDbProvider);
-  final taskService = ref.watch(taskServiceProvider);
-
-  final service = NoteTaskSyncService(
-    database: database,
-    taskService: taskService,
-  );
-
-  ref.onDispose(service.dispose);
-
-  return service;
-});
+// Legacy note-task sync service removed - using bidirectional sync only
 
 /// Account key service (AMK) provider
 final accountKeyServiceProvider = Provider<AccountKeyService>((ref) {
@@ -921,9 +931,17 @@ final taskByIdProvider = FutureProvider.family<NoteTask?, String>((ref, taskId) 
   return db.getTaskById(taskId);
 });
 
-/// Task reminder bridge provider
+/// Task reminder bridge provider with feature flag support
 final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
-  final reminderCoordinator = ref.watch(reminderCoordinatorProvider);
+  // Import the unified provider
+  // Note: Since the bridge expects specific types, we'll need to handle both cases
+  final featureFlags = FeatureFlags.instance;
+  
+  // Get the appropriate services based on feature flags
+  final reminderCoordinator = featureFlags.useUnifiedReminders
+      ? ref.watch(unifiedReminderCoordinatorProvider)
+      : ref.watch(reminderCoordinatorProvider);
+  
   final advancedReminderService = ref.watch(advancedReminderServiceProvider);
   final taskService = ref.watch(taskServiceProvider);
   final database = ref.watch(appDbProvider);

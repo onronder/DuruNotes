@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +35,80 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
   // Cache for preview generation to avoid repeated regex processing
   static final Map<String, String> _previewCache = <String, String>{};
+
+  /// Check if the query matches a saved search preset
+  SavedSearchPreset? _getMatchingPreset(String query) {
+    final lowerQuery = query.toLowerCase().trim();
+    
+    // Check for preset-specific queries
+    for (final preset in SavedSearchRegistry.presets) {
+      // Check by label
+      if (lowerQuery == preset.label.toLowerCase()) {
+        return preset;
+      }
+      
+      // Check by tag (if applicable)
+      if (preset.tag != null) {
+        if (lowerQuery == preset.tag!.toLowerCase() ||
+            lowerQuery == '#${preset.tag!.toLowerCase()}' ||
+            lowerQuery == 'tag:${preset.tag!.toLowerCase()}') {
+          return preset;
+        }
+      }
+      
+      // Check by common query patterns for each preset type
+      switch (preset.key) {
+        case SavedSearchKey.attachments:
+          if (lowerQuery == 'has:attachment' || 
+              lowerQuery == 'has:attachments' ||
+              lowerQuery == 'attachments') {
+            return preset;
+          }
+          break;
+        case SavedSearchKey.emailNotes:
+          if (lowerQuery == 'from:email' || 
+              lowerQuery == 'email' ||
+              lowerQuery == 'email notes') {
+            return preset;
+          }
+          break;
+        case SavedSearchKey.webNotes:
+          if (lowerQuery == 'from:web' || 
+              lowerQuery == 'web' ||
+              lowerQuery == 'web clips') {
+            return preset;
+          }
+          break;
+        case SavedSearchKey.inbox:
+          if (lowerQuery == 'inbox' ||
+              lowerQuery == 'folder:inbox') {
+            return preset;
+          }
+          break;
+      }
+    }
+    
+    return null;
+  }
+
+  /// Apply preset-based filtering using SavedSearchRegistry
+  List<LocalNote> _applyPresetFilter(List<LocalNote> notes, SavedSearchPreset preset) {
+    switch (preset.key) {
+      case SavedSearchKey.attachments:
+        return notes.where(AppDb.noteHasAttachments).toList();
+        
+      case SavedSearchKey.emailNotes:
+        return notes.where(AppDb.noteIsFromEmail).toList();
+        
+      case SavedSearchKey.webNotes:
+        return notes.where(AppDb.noteIsFromWeb).toList();
+        
+      case SavedSearchKey.inbox:
+        // Inbox is folder-based, needs special handling
+        // This would require folder filtering logic
+        return notes; // Return as-is for now, folder handling done elsewhere
+    }
+  }
 
   @override
   String? get searchFieldLabel => 'Search notes...';
@@ -84,6 +159,12 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
 
   Future<List<LocalNote>> _performSearchAsync(String query) async {
+    // First check if the query matches a saved search preset
+    final matchingPreset = _getMatchingPreset(query);
+    if (matchingPreset != null) {
+      return _applyPresetFilter(notes, matchingPreset);
+    }
+    
     // Parse the search query using SearchParser
     final searchQuery = SearchParser.parse(query);
 
@@ -159,6 +240,12 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   // Original implementation for backward compatibility
   Future<List<LocalNote>> _performSearchAsyncOriginal(String query) async {
     if (query.isEmpty) return [];
+
+    // First check if the query matches a saved search preset
+    final matchingPreset = _getMatchingPreset(query);
+    if (matchingPreset != null) {
+      return _applyPresetFilter(notes, matchingPreset);
+    }
 
     // Parse search tokens
     final filters = _parseSearchQuery(query);
@@ -236,6 +323,12 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   // Enhanced version with tag support via SearchParser
   List<LocalNote> _performSearch(String query) {
     if (query.isEmpty) return [];
+
+    // First check if the query matches a saved search preset
+    final matchingPreset = _getMatchingPreset(query);
+    if (matchingPreset != null) {
+      return _applyPresetFilter(notes, matchingPreset);
+    }
 
     // Parse search query using SearchParser
     final searchQuery = SearchParser.parse(query);
@@ -652,18 +745,52 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
       return buildResults(context);
     }
 
-    // Show recent notes when no query
+    // Show saved search presets and recent notes when no query
     final recentNotes = notes.take(5).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Show saved search presets
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Saved Searches',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 50,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: SavedSearchRegistry.presets.length,
+            itemBuilder: (context, index) {
+              final preset = SavedSearchRegistry.presets[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  avatar: Icon(preset.icon, size: 18),
+                  label: Text(preset.label),
+                  onPressed: () {
+                    query = preset.label;
+                    showResults(context);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Show recent notes
         Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
             'Recent Notes',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(

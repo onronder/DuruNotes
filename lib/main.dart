@@ -2,13 +2,16 @@ import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:duru_notes/app/app.dart';
 import 'package:duru_notes/core/android_optimizations.dart';
 import 'package:duru_notes/core/config/environment_config.dart';
+import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
 import 'package:duru_notes/core/monitoring/sentry_config.dart';
 import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/providers/feature_flagged_providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -117,6 +120,9 @@ Future<void> main() async {
 Future<void> _initializeServices() async {
   // Logger already initialized in main()
   
+  // Initialize feature flags
+  await _initializeFeatureFlags();
+  
   // Initialize analytics
   AnalyticsFactory.initialize();
   analytics = AnalyticsFactory.instance;
@@ -181,6 +187,44 @@ Future<void> _initializeServices() async {
   logger.info('Services initialized successfully');
 }
 
+/// Initialize feature flags
+Future<void> _initializeFeatureFlags() async {
+  try {
+    // Get feature flags instance
+    final featureFlags = FeatureFlags.instance;
+    
+    // Update from remote config if available
+    await featureFlags.updateFromRemoteConfig();
+    
+    // Log feature flag state for debugging
+    if (EnvironmentConfig.current.debugMode) {
+      FeatureFlaggedBlockFactory.logFeatureFlagState();
+      
+      debugPrint('Feature Flags initialized:');
+      debugPrint('- useUnifiedReminders: ${featureFlags.useUnifiedReminders}');
+      debugPrint('- useNewBlockEditor: ${featureFlags.useNewBlockEditor}');
+      debugPrint('- useRefactoredComponents: ${featureFlags.useRefactoredComponents}');
+      debugPrint('- useUnifiedPermissionManager: ${featureFlags.useUnifiedPermissionManager}');
+    }
+    
+    // Track feature flag initialization
+    analytics.event(
+      'feature_flags_initialized',
+      properties: {
+        'unified_reminders': featureFlags.useUnifiedReminders,
+        'new_block_editor': featureFlags.useNewBlockEditor,
+        'refactored_components': featureFlags.useRefactoredComponents,
+        'unified_permission_manager': featureFlags.useUnifiedPermissionManager,
+      },
+    );
+    
+    logger.info('Feature flags initialized successfully');
+  } catch (e) {
+    logger.error('Failed to initialize feature flags', error: e);
+    // Continue with defaults even if remote config fails
+  }
+}
+
 /// App wrapper that initializes share extension service
 class _AppWithShareExtension extends ConsumerStatefulWidget {
   const _AppWithShareExtension({required this.navigatorKey});
@@ -206,6 +250,19 @@ class _AppWithShareExtensionState
   Future<void> _initializeServices() async {
     // Initialize share extension
     await _initializeShareExtension();
+    
+    // Run template migration if needed
+    try {
+      final migrationService = ref.read(templateMigrationServiceProvider);
+      if (await migrationService.needsMigration()) {
+        debugPrint('[App] Running initial template migration...');
+        await migrationService.migrateTemplates();
+        ref.invalidate(templateListProvider);
+        debugPrint('[App] Template migration completed');
+      }
+    } catch (e) {
+      debugPrint('[App] Error running template migration: $e');
+    }
   }
 
   Future<void> _initializeShareExtension() async {

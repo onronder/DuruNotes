@@ -152,14 +152,36 @@ class PushNotificationService {
     try {
       // On iOS, we need to get APNs token first for physical devices
       if (Platform.isIOS && !kIsWeb) {
-        final apnsToken = await _messaging!.getAPNSToken();
+        // Try to get APNs token with retries
+        String? apnsToken;
+        int retries = 0;
+        const maxRetries = 5;
+        const retryDelay = Duration(seconds: 2);
+        
+        while (apnsToken == null && retries < maxRetries) {
+          apnsToken = await _messaging!.getAPNSToken();
+          if (apnsToken == null) {
+            _logger.warning('APNs token not available yet, attempt ${retries + 1}/$maxRetries');
+            if (retries < maxRetries - 1) {
+              await Future.delayed(retryDelay);
+            }
+            retries++;
+          }
+        }
+        
         if (apnsToken == null) {
-          _logger.warning('APNs token not available yet, FCM token may fail');
+          _logger.error('Failed to get APNs token after $maxRetries attempts');
+          // On simulator or if APNs is not configured, we can still try to get FCM token
+          // but it might fail
+        } else {
+          _logger.info('APNs token retrieved successfully');
         }
       }
 
       final token = await _messaging!.getToken();
-      _logger.info('Retrieved FCM token: ${token?.substring(0, 20)}...');
+      if (token != null) {
+        _logger.info('Retrieved FCM token: ${token.substring(0, 20)}...');
+      }
       return token;
     } catch (e) {
       _logger.error('Failed to get FCM token: $e');
