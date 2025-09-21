@@ -263,8 +263,8 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(
-                            0.1 * _highlightAnimation.value,
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1 * _highlightAnimation.value,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),

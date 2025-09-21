@@ -5,9 +5,7 @@ import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/providers/feature_flagged_providers.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,14 +49,13 @@ class _BootstrapHostState extends State<BootstrapHost> {
       builder: (context, snapshot) {
         // Always provide the same number of overrides to avoid Riverpod container error
         _navigatorKey ??= GlobalKey<NavigatorState>();
-        
+
         final overrides = <Override>[
           // Always override with either actual data or fallback
           bootstrapResultProvider.overrideWithValue(
-            snapshot.hasData && snapshot.data != null 
-              ? snapshot.data!
-              : _createFallbackBootstrapResult()
-          ),
+              snapshot.hasData && snapshot.data != null
+                  ? snapshot.data!
+                  : _createFallbackBootstrapResult()),
           navigatorKeyProvider.overrideWithValue(_navigatorKey!),
         ];
 
@@ -73,7 +70,7 @@ class _BootstrapHostState extends State<BootstrapHost> {
       },
     );
   }
-  
+
   BootstrapResult _createFallbackBootstrapResult() {
     return BootstrapResult(
       environment: EnvironmentConfig.fallback(),
@@ -284,7 +281,8 @@ class BootstrapFailureContent extends StatelessWidget {
                 const SizedBox(height: 8),
                 ...warnings.map(
                   (warning) => Card(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Text(warning),

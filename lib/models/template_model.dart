@@ -2,6 +2,7 @@
 ///
 /// Templates are blueprints for creating notes, not notes themselves.
 /// They exist separately from notes and generate new notes when used.
+library;
 
 class Template {
   Template({

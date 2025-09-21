@@ -4,8 +4,6 @@ import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
 
 /// Service responsible for managing recurring time-based reminders.
 ///
@@ -16,9 +14,9 @@ import 'package:timezone/timezone.dart' as tz;
 /// - Scheduling notifications for time-based reminders
 class RecurringReminderService extends BaseReminderService {
   RecurringReminderService(
-    FlutterLocalNotificationsPlugin plugin,
-    AppDb db,
-  ) : super(plugin, db);
+    super.plugin,
+    super.db,
+  );
 
   @override
   Future<int?> createReminder(ReminderConfig config) async {

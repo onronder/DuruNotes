@@ -1,10 +1,9 @@
 /// Unified reminder provider that switches between legacy and refactored implementations
 /// based on feature flags
+library;
 
 import 'package:duru_notes/core/feature_flags.dart';
-import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart'
     as legacy;

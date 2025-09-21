@@ -70,6 +70,8 @@ dependencies:
   firebase_messaging: ^16.0.1  # Firebase Cloud Messaging for push notifications
   provider: ^6.1.5+1
 
+  rxdart: any
+  stack_trace: any
 dev_dependencies:
   build_runner: ^2.7.2
   drift_dev: ^2.28.2
@@ -87,6 +89,11 @@ dev_dependencies:
   intl_utils: ^2.8.12
 
 # Configuration for flutter_launcher_icons package
+  riverpod: any
+  firebase_messaging_platform_interface: any
+  supabase: any
+  flutter_local_notifications_platform_interface: any
+  test: any
 flutter_launcher_icons:
   android: true
   ios: true

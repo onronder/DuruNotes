@@ -7,7 +7,6 @@ import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:geolocator/geolocator.dart' as geo;
 import 'package:permission_handler/permission_handler.dart' as ph;
 
 /// Permission types that can be requested

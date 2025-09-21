@@ -2,6 +2,7 @@
 ///
 /// This adapter provides a migration path for widgets currently using the
 /// deprecated UiNoteTask model to work with the actual database NoteTask model.
+library;
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_task.dart';

@@ -166,19 +166,22 @@ class EnvironmentConfigLoader {
         const String.fromEnvironment('SENTRY_DSN', defaultValue: ''));
     capture(
       'CRASH_REPORTING_ENABLED',
-      const String.fromEnvironment('CRASH_REPORTING_ENABLED',
-          defaultValue: ''),
+      const String.fromEnvironment('CRASH_REPORTING_ENABLED', defaultValue: ''),
     );
     capture('ANALYTICS_ENABLED',
         const String.fromEnvironment('ANALYTICS_ENABLED', defaultValue: ''));
-    capture('ANALYTICS_SAMPLING_RATE', const String.fromEnvironment(
-      'ANALYTICS_SAMPLING_RATE',
-      defaultValue: '',
-    ));
-    capture('SENTRY_TRACES_SAMPLE_RATE', const String.fromEnvironment(
-      'SENTRY_TRACES_SAMPLE_RATE',
-      defaultValue: '',
-    ));
+    capture(
+        'ANALYTICS_SAMPLING_RATE',
+        const String.fromEnvironment(
+          'ANALYTICS_SAMPLING_RATE',
+          defaultValue: '',
+        ));
+    capture(
+        'SENTRY_TRACES_SAMPLE_RATE',
+        const String.fromEnvironment(
+          'SENTRY_TRACES_SAMPLE_RATE',
+          defaultValue: '',
+        ));
     capture(
       'ENABLE_AUTO_SESSION_TRACKING',
       const String.fromEnvironment(
@@ -218,16 +221,14 @@ class EnvironmentConfigLoader {
       supabaseAnonKey: mutableEnv['SUPABASE_ANON_KEY'] ?? '',
       crashReportingEnabled:
           _boolFromEnv(mutableEnv, 'CRASH_REPORTING_ENABLED', false),
-      analyticsEnabled:
-          _boolFromEnv(mutableEnv, 'ANALYTICS_ENABLED', false),
+      analyticsEnabled: _boolFromEnv(mutableEnv, 'ANALYTICS_ENABLED', false),
       analyticsSamplingRate:
           _doubleFromEnv(mutableEnv, 'ANALYTICS_SAMPLING_RATE', 1.0),
       sentryTracesSampleRate:
           _doubleFromEnv(mutableEnv, 'SENTRY_TRACES_SAMPLE_RATE', 0.1),
       enableAutoSessionTracking:
           _boolFromEnv(mutableEnv, 'ENABLE_AUTO_SESSION_TRACKING', true),
-      sendDefaultPii:
-          _boolFromEnv(mutableEnv, 'SEND_DEFAULT_PII', false),
+      sendDefaultPii: _boolFromEnv(mutableEnv, 'SEND_DEFAULT_PII', false),
       debugMode: kDebugMode,
       sentryDsn: _sanitizeOptional(mutableEnv['SENTRY_DSN']),
       adaptyPublicApiKey:
@@ -235,11 +236,13 @@ class EnvironmentConfigLoader {
     );
 
     final usedFallback = !config.isValid;
-    final resolvedConfig =
-        usedFallback ? EnvironmentConfig.fallback(environment: environment) : config;
+    final resolvedConfig = usedFallback
+        ? EnvironmentConfig.fallback(environment: environment)
+        : config;
 
     if (usedFallback) {
-      warnings.add('Supabase credentials missing; falling back to empty config');
+      warnings
+          .add('Supabase credentials missing; falling back to empty config');
     }
 
     return EnvironmentLoadResult(
@@ -254,7 +257,8 @@ class EnvironmentConfigLoader {
     Map<String, String> env,
     String? flavorOverride,
   ) {
-    final flavor = flavorOverride?.toLowerCase() ?? env['FLAVOR']?.toLowerCase();
+    final flavor =
+        flavorOverride?.toLowerCase() ?? env['FLAVOR']?.toLowerCase();
     if (flavor != null && flavor.isNotEmpty) {
       switch (flavor) {
         case 'production':

@@ -296,7 +296,10 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         decoration: isFocused
             ? BoxDecoration(
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
                   width: 2,
                 ),
                 borderRadius: BorderRadius.circular(8),
@@ -312,7 +315,10 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
                   padding: const EdgeInsets.all(8.0),
                   child: Icon(
                     Icons.drag_indicator,
-                    color: Theme.of(context).iconTheme.color?.withOpacity(0.3),
+                    color: Theme.of(context)
+                        .iconTheme
+                        .color
+                        ?.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -393,7 +399,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: theme?.quoteBackgroundColor ??
-                Theme.of(context).colorScheme.surfaceVariant,
+                Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
             border: Border(
               left: BorderSide(
@@ -430,7 +436,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_vert,
-        color: Theme.of(context).iconTheme.color?.withOpacity(0.5),
+        color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.5),
       ),
       onSelected: (value) => _handleBlockAction(index, value),
       itemBuilder: (context) => [

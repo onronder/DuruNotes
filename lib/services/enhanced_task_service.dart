@@ -10,13 +10,12 @@ import 'package:flutter/foundation.dart';
 /// Enhanced task service with integrated reminder management
 class EnhancedTaskService extends TaskService {
   EnhancedTaskService({
-    required AppDb database,
+    required super.database,
     required TaskReminderBridge reminderBridge,
     BidirectionalTaskSyncService? bidirectionalSync,
   })  : _reminderBridge = reminderBridge,
         _db = database,
-        _bidirectionalSync = bidirectionalSync,
-        super(database: database);
+        _bidirectionalSync = bidirectionalSync;
 
   final TaskReminderBridge _reminderBridge;
   final AppDb _db;

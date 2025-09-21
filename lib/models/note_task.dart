@@ -10,6 +10,7 @@
 ///
 /// @deprecated Use the Drift-generated NoteTask model from 'package:duru_notes/data/local/app_db.dart' instead.
 /// For conversion between models, use TaskModelConverter from 'package:duru_notes/ui/widgets/tasks/task_model_converter.dart'.
+library;
 
 @Deprecated(
     'Use TaskStatus from app_db.dart instead. See TaskModelConverter for migration.')

@@ -348,7 +348,7 @@ class _HierarchicalTodoBlockWidgetState
                   margin: const EdgeInsets.only(right: 4, top: 12),
                   child: CustomPaint(
                     painter: HierarchyLinePainter(
-                      color: colorScheme.outline.withOpacity(0.3),
+                      color: colorScheme.outline.withValues(alpha: 0.3),
                       isLast: false, // This would need to be calculated
                     ),
                   ),
@@ -457,7 +457,7 @@ class _HierarchicalTodoBlockWidgetState
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: colorScheme.primaryContainer
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -818,7 +818,7 @@ class TaskProgressIndicator extends StatelessWidget {
       child: CircularProgressIndicator(
         value: progress.progressPercentage,
         strokeWidth: 2.0,
-        backgroundColor: theme.colorScheme.surfaceVariant,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
         valueColor: AlwaysStoppedAnimation<Color>(progressColor),
       ),
     );

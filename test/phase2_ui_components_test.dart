@@ -7,6 +7,7 @@
 /// - Analytics cards
 /// - Chart configuration
 /// - Settings patterns
+library;
 
 import 'package:duru_notes/models/local_folder.dart';
 import 'package:duru_notes/models/note_task.dart';

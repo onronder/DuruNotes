@@ -54,8 +54,7 @@ class AnalyticsFactory {
 
   /// Current analytics instance. A no-op implementation is returned until
   /// [initialize] completes successfully.
-  static AnalyticsService get instance =>
-      _instance ??= NoOpAnalytics();
+  static AnalyticsService get instance => _instance ??= NoOpAnalytics();
 
   /// Reset the cached instance (primarily for tests).
   static void reset() {

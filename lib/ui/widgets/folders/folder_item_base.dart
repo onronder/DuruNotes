@@ -80,8 +80,8 @@ abstract class BaseFolderItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: isSelected
-            ? colorScheme.primary.withOpacity(0.2)
-            : colorScheme.surfaceVariant,
+            ? colorScheme.primary.withValues(alpha: 0.2)
+            : colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -121,7 +121,10 @@ abstract class BaseFolderItem extends StatelessWidget {
       icon: Icon(
         Icons.more_vert,
         size: 18,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .onSurfaceVariant
+            .withValues(alpha: 0.5),
       ),
       padding: EdgeInsets.zero,
       onSelected: (value) {
@@ -212,8 +215,9 @@ class FolderListItem extends BaseFolderItem {
     return Container(
       margin: EdgeInsets.only(left: indentLevel * 16.0),
       decoration: BoxDecoration(
-        color:
-            isSelected ? colorScheme.primaryContainer.withOpacity(0.3) : null,
+        color: isSelected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : null,
         border: isSelected
             ? Border(
                 left: BorderSide(
@@ -277,8 +281,9 @@ class CompactFolderItem extends BaseFolderItem {
           bottom: 6,
         ),
         decoration: BoxDecoration(
-          color:
-              isSelected ? colorScheme.primaryContainer.withOpacity(0.3) : null,
+          color: isSelected
+              ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+              : null,
         ),
         child: Row(
           children: [
@@ -295,7 +300,7 @@ class CompactFolderItem extends BaseFolderItem {
               Text(
                 noteCount.toString(),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
             ],

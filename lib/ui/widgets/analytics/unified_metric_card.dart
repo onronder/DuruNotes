@@ -152,7 +152,7 @@ class UnifiedMetricCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: effectiveColor.withOpacity(0.1),
+                color: effectiveColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -329,7 +329,7 @@ class StreakCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: effectiveColor.withOpacity(0.1),
+                    color: effectiveColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -354,7 +354,7 @@ class StreakCard extends StatelessWidget {
                         'Best: $bestStreak days',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant
-                              .withOpacity(0.7),
+                              .withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -389,7 +389,8 @@ class StreakCard extends StatelessWidget {
                     Icons.local_fire_department,
                     color: currentStreak >= 7
                         ? Colors.orange
-                        : theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                        : theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.3),
                     size: 32,
                   ),
               ],
@@ -397,7 +398,7 @@ class StreakCard extends StatelessWidget {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: bestStreak > 0 ? currentStreak / bestStreak : 0,
-              backgroundColor: theme.colorScheme.surfaceVariant,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(effectiveColor),
             ),
           ],

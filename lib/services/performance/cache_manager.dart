@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
@@ -364,7 +363,7 @@ class LRUCache<K, V> {
   LRUCache({required this.maxSize});
 
   final int maxSize;
-  final _cache = LinkedHashMap<K, V>();
+  final _cache = <K, V>{};
 
   V? get(K key) {
     final value = _cache.remove(key);

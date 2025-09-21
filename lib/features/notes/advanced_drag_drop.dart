@@ -1,16 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/haptic_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/undo_redo_service.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Advanced drag-drop system with multi-touch support

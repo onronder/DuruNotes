@@ -131,7 +131,7 @@ class _CompactTaskWidget extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
               : Colors.transparent,
           border: isSelected
               ? Border(
@@ -166,7 +166,7 @@ class _CompactTaskWidget extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(
                   decoration: isCompleted ? TextDecoration.lineThrough : null,
                   color: isCompleted
-                      ? theme.colorScheme.onSurface.withOpacity(0.5)
+                      ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
                       : null,
                 ),
                 maxLines: 1,
@@ -211,7 +211,7 @@ class _CompactTaskWidget extends StatelessWidget {
       case UiTaskPriority.low:
         return Colors.grey;
       case UiTaskPriority.none:
-        return Colors.grey.withOpacity(0.5);
+        return Colors.grey.withValues(alpha: 0.5);
       default:
         return Colors.grey;
     }

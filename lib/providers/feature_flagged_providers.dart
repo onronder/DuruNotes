@@ -2,11 +2,10 @@
 ///
 /// This file contains providers that use feature flags to switch between
 /// legacy and refactored implementations of various services and UI components.
+library;
 
 import 'package:duru_notes/core/feature_flags.dart';
-import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart'

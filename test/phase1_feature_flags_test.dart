@@ -2,6 +2,8 @@
 ///
 /// This test validates that the feature flag system works correctly
 /// and that all Phase 1 flags are properly configured.
+library;
+
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:flutter_test/flutter_test.dart';
 

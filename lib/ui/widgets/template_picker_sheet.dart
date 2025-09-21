@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/template_repository.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

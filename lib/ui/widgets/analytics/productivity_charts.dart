@@ -44,7 +44,7 @@ class TaskCompletionChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: 1,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               strokeWidth: 1,
             ),
           ),
@@ -84,7 +84,7 @@ class TaskCompletionChart extends StatelessWidget {
           borderData: FlBorderData(
             show: true,
             border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
             ),
           ),
           lineBarsData: [
@@ -96,7 +96,7 @@ class TaskCompletionChart extends StatelessWidget {
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: colorScheme.primary.withOpacity(0.1),
+                color: colorScheme.primary.withValues(alpha: 0.1),
               ),
             ),
           ],
@@ -174,7 +174,7 @@ class TimeAccuracyChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: 0.2,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               strokeWidth: 1,
             ),
           ),
@@ -213,14 +213,15 @@ class TimeAccuracyChart extends StatelessWidget {
           ),
           borderData: FlBorderData(
             show: true,
-            border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+            border:
+                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
           ),
           lineBarsData: [
             // Ideal accuracy line (100%)
             LineChartBarData(
               spots: idealLine,
               isCurved: false,
-              color: Colors.green.withOpacity(0.5),
+              color: Colors.green.withValues(alpha: 0.5),
               barWidth: 2,
               dotData: const FlDotData(show: false),
               dashArray: [5, 5],
@@ -467,7 +468,7 @@ class HourlyProductivityChart extends StatelessWidget {
             BarChartRodData(
               toY: count.toDouble(),
               color: Color.lerp(
-                colorScheme.primary.withOpacity(0.3),
+                colorScheme.primary.withValues(alpha: 0.3),
                 colorScheme.primary,
                 intensity,
               ),
@@ -490,7 +491,7 @@ class HourlyProductivityChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: max(1, maxCount / 5).toDouble(),
             getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               strokeWidth: 1,
             ),
           ),
@@ -529,7 +530,8 @@ class HourlyProductivityChart extends StatelessWidget {
           ),
           borderData: FlBorderData(
             show: true,
-            border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+            border:
+                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
           ),
           maxY: maxCount.toDouble() + 1,
         ),
@@ -775,7 +777,7 @@ class WeeklyTrendsChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: max(1, maxTasks / 5).toDouble(),
             getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               strokeWidth: 1,
             ),
           ),
@@ -824,7 +826,8 @@ class WeeklyTrendsChart extends StatelessWidget {
           ),
           borderData: FlBorderData(
             show: true,
-            border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+            border:
+                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
           ),
           maxY: maxTasks.toDouble() + 2,
         ),
@@ -890,9 +893,9 @@ class ProductivityScoreGauge extends StatelessWidget {
             child: CircularProgressIndicator(
               value: 1.0,
               strokeWidth: 8,
-              backgroundColor: colorScheme.surfaceVariant,
+              backgroundColor: colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(
-                colorScheme.surfaceVariant,
+                colorScheme.surfaceContainerHighest,
               ),
             ),
           ),

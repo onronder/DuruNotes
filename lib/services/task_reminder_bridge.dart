@@ -1,16 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/deep_link_service.dart';
-import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
-import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -535,19 +530,11 @@ class TaskReminderBridge {
 
       if (context != null) {
         // Navigate directly to task or note
-        if (taskId != null) {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const EnhancedTaskListScreen(),
-            ),
-          );
-        } else if (noteId != null) {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ModernEditNoteScreen(noteId: noteId),
-            ),
-          );
-        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const EnhancedTaskListScreen(),
+          ),
+        );
       } else {
         // Store for later if app not ready
         _pendingDeepLink = {

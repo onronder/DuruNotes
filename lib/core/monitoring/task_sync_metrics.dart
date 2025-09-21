@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 
 /// Metrics collector for task synchronization

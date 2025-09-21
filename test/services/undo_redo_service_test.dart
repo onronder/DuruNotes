@@ -1,4 +1,3 @@
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:flutter_test/flutter_test.dart';

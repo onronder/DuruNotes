@@ -165,12 +165,15 @@ class _EmailAttachmentsSectionState extends State<EmailAttachmentsSection> {
     if (m == 'application/pdf') return Icons.picture_as_pdf_outlined;
     if (m.startsWith('audio/')) return Icons.audiotrack_outlined;
     if (m.startsWith('video/')) return Icons.videocam_outlined;
-    if (m.contains('zip') || m.contains('compressed'))
+    if (m.contains('zip') || m.contains('compressed')) {
       return Icons.archive_outlined;
-    if (m.contains('excel') || m.contains('spreadsheet') || m.contains('xls'))
+    }
+    if (m.contains('excel') || m.contains('spreadsheet') || m.contains('xls')) {
       return Icons.table_chart_outlined;
-    if (m.contains('word') || m.contains('document') || m.contains('doc'))
+    }
+    if (m.contains('word') || m.contains('document') || m.contains('doc')) {
       return Icons.description_outlined;
+    }
     return Icons.insert_drive_file_outlined;
   }
 }

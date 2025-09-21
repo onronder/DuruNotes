@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:flutter/material.dart';

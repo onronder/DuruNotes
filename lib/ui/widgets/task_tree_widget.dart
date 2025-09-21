@@ -235,7 +235,7 @@ class TaskTreeNodeWidget extends ConsumerWidget {
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: colorScheme.primaryContainer
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
@@ -258,7 +258,7 @@ class TaskTreeNodeWidget extends ConsumerWidget {
                                     margin: const EdgeInsets.only(left: 4),
                                     decoration: BoxDecoration(
                                       color: colorScheme.secondaryContainer
-                                          .withOpacity(0.5),
+                                          .withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
@@ -521,7 +521,8 @@ class TaskTreeNodeWidget extends ConsumerWidget {
       return colorScheme.surface;
     } else {
       final opacity = 0.05 + (depth * 0.02);
-      return colorScheme.primaryContainer.withOpacity(opacity.clamp(0.0, 0.2));
+      return colorScheme.primaryContainer
+          .withValues(alpha: opacity.clamp(0.0, 0.2));
     }
   }
 
@@ -567,7 +568,7 @@ class TaskProgressBar extends StatelessWidget {
           height: height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(height / 2),
-            color: colorScheme.surfaceVariant,
+            color: colorScheme.surfaceContainerHighest,
           ),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
@@ -625,7 +626,7 @@ class TaskHierarchySummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -743,7 +744,10 @@ class TaskDragHandle extends StatelessWidget {
       child: Icon(
         Icons.drag_handle,
         size: 16,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .onSurfaceVariant
+            .withValues(alpha: 0.5),
       ),
     );
   }

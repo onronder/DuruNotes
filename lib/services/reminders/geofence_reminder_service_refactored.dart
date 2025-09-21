@@ -4,10 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geofence_service/geofence_service.dart';
 import 'package:geolocator/geolocator.dart' as geo;
-import 'package:permission_handler/permission_handler.dart';
 
 /// Service responsible for managing location-based (geofence) reminders.
 ///
@@ -18,9 +16,9 @@ import 'package:permission_handler/permission_handler.dart';
 /// - Cleanup and disposal of geofence resources
 class GeofenceReminderService extends BaseReminderService {
   GeofenceReminderService(
-    FlutterLocalNotificationsPlugin plugin,
-    AppDb db,
-  ) : super(plugin, db);
+    super.plugin,
+    super.db,
+  );
 
   GeofenceService? _geofenceService;
   bool _geofenceInitialized = false;

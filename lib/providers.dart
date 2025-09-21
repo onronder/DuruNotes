@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';

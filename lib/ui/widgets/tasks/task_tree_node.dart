@@ -78,7 +78,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
             color: colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
             ),
           ),
           child: Material(
@@ -152,7 +152,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                                   ? TextDecoration.lineThrough
                                   : null,
                               color: task.status == UiTaskStatus.completed
-                                  ? colorScheme.onSurface.withOpacity(0.5)
+                                  ? colorScheme.onSurface.withValues(alpha: 0.5)
                                   : null,
                             ),
                           ),
@@ -183,7 +183,8 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                       icon: Icon(
                         Icons.more_vert,
                         size: 20,
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       onSelected: (value) {
                         switch (value) {
@@ -248,7 +249,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -277,7 +278,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -305,8 +306,10 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .secondaryContainer
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -415,7 +418,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
       case UiTaskPriority.low:
         return Colors.grey;
       case UiTaskPriority.none:
-        return Colors.grey.withOpacity(0.5);
+        return Colors.grey.withValues(alpha: 0.5);
     }
   }
 

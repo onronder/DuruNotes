@@ -2,7 +2,6 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
-import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -159,7 +158,7 @@ class CalendarTaskSheet extends ConsumerWidget {
           Icon(
             isToday ? Icons.today : Icons.calendar_today,
             size: 48,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -174,7 +173,7 @@ class CalendarTaskSheet extends ConsumerWidget {
                 ? 'Enjoy your free time or add a new task!'
                 : 'Tap the + button to add a task for this date.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -385,7 +384,7 @@ class CalendarTaskItem extends StatelessWidget {
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: colorScheme.secondaryContainer
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -613,7 +612,7 @@ class _CompletedTasksSectionState extends State<CompletedTasksSection>
                   Icon(
                     Icons.check_circle,
                     size: 16,
-                    color: Colors.green.withOpacity(0.7),
+                    color: Colors.green.withValues(alpha: 0.7),
                   ),
                 ],
               ),

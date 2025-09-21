@@ -205,7 +205,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                   decoration: BoxDecoration(
                     color: _isTracking
                         ? colorScheme.primary
-                        : colorScheme.surfaceVariant,
+                        : colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -254,7 +254,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                   const SizedBox(height: 4),
                   LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: colorScheme.surfaceVariant,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                     minHeight: 6,
                   ),
@@ -402,7 +402,7 @@ class CompactTimeTracker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -426,7 +426,7 @@ class CompactTimeTracker extends StatelessWidget {
             Text(
               '/ ${estimated}m',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],

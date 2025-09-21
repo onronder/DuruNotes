@@ -38,14 +38,15 @@ class SettingsTile extends StatelessWidget {
         ? colorScheme.error
         : enabled
             ? colorScheme.onSurface
-            : colorScheme.onSurface.withOpacity(0.5);
+            : colorScheme.onSurface.withValues(alpha: 0.5);
 
     return ListTile(
       enabled: enabled,
       leading: Icon(
         icon,
-        color:
-            enabled ? effectiveIconColor : effectiveIconColor.withOpacity(0.5),
+        color: enabled
+            ? effectiveIconColor
+            : effectiveIconColor.withValues(alpha: 0.5),
         size: 24,
       ),
       title: Text(
@@ -58,7 +59,7 @@ class SettingsTile extends StatelessWidget {
           ? Text(
               subtitle!,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: effectiveTextColor.withOpacity(0.7),
+                color: effectiveTextColor.withValues(alpha: 0.7),
               ),
             )
           : null,
@@ -66,7 +67,7 @@ class SettingsTile extends StatelessWidget {
           (onTap != null
               ? Icon(
                   Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 )
               : null),
       onTap: enabled ? onTap : null,
@@ -330,7 +331,7 @@ class SettingsNavigationTile extends StatelessWidget {
           ],
           Icon(
             Icons.chevron_right,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -410,7 +411,7 @@ class SettingsAccountHeader extends StatelessWidget {
                 Icon(
                   Icons.edit,
                   size: 20,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
             ],
           ),
@@ -457,7 +458,8 @@ class SettingsVersionFooter extends StatelessWidget {
             Text(
               versionText,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color:
+                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],

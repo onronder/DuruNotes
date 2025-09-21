@@ -3,7 +3,6 @@ import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 
 import 'base_reminder_service_test.mocks.dart';
 

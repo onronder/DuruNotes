@@ -106,7 +106,7 @@ class CalendarDayWidget extends StatelessWidget {
                         height: 4,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: indicatorColor?.withOpacity(0.6),
+                          color: indicatorColor?.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -118,7 +118,7 @@ class CalendarDayWidget extends StatelessWidget {
                         height: 3,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: indicatorColor?.withOpacity(0.4),
+                          color: indicatorColor?.withValues(alpha: 0.4),
                         ),
                       ),
                     ],
@@ -133,7 +133,7 @@ class CalendarDayWidget extends StatelessWidget {
                     incompleteTasks.length.toString(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontSize: 9,
-                      color: _getTextColor(colorScheme).withOpacity(0.8),
+                      color: _getTextColor(colorScheme).withValues(alpha: 0.8),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -143,7 +143,7 @@ class CalendarDayWidget extends StatelessWidget {
                   Icon(
                     Icons.check_circle,
                     size: 10,
-                    color: Colors.green.withOpacity(0.7),
+                    color: Colors.green.withValues(alpha: 0.7),
                   ),
               ],
             ],
@@ -159,7 +159,7 @@ class CalendarDayWidget extends StatelessWidget {
     } else if (isToday) {
       return colorScheme.primaryContainer;
     } else if (!isCurrentMonth) {
-      return colorScheme.surfaceVariant.withOpacity(0.3);
+      return colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
     }
     return null;
   }
@@ -180,7 +180,7 @@ class CalendarDayWidget extends StatelessWidget {
     } else if (isToday) {
       return colorScheme.onPrimaryContainer;
     } else if (!isCurrentMonth) {
-      return colorScheme.onSurfaceVariant.withOpacity(0.6);
+      return colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
     }
     return colorScheme.onSurface;
   }

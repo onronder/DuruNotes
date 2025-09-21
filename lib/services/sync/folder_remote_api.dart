@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -50,7 +48,7 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .eq('id', folderId)
           .maybeSingle();
 
-      return response as Map<String, dynamic>?;
+      return response;
     } catch (e, stack) {
       logger.error('Failed to fetch folder', error: e, stackTrace: stack);
       rethrow;

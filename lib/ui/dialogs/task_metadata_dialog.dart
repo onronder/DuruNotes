@@ -173,10 +173,7 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
 
     // Validate reminder time if reminder is enabled
     if (_hasReminder && _dueDate != null) {
-      if (_reminderTime == null) {
-        // Set default reminder time to 1 hour before due date
-        _reminderTime = _dueDate!.subtract(const Duration(hours: 1));
-      }
+      _reminderTime ??= _dueDate!.subtract(const Duration(hours: 1));
 
       // Validate reminder is before due date
       if (_reminderTime!.isAfter(_dueDate!)) {
@@ -265,7 +262,8 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                 errorText: _contentError,
                 prefixIcon: const Icon(Icons.task),
                 filled: true,
-                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor:
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -353,8 +351,8 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                             size: 16,
                             color: _getPriorityColor(priority),
                           ),
-                          selectedColor:
-                              _getPriorityColor(priority).withOpacity(0.2),
+                          selectedColor: _getPriorityColor(priority)
+                              .withValues(alpha: 0.2),
                         );
                       }).toList(),
                     ),
