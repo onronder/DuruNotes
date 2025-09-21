@@ -7,7 +7,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
 /// Collection of enhanced animations and visual effects
-/// 
+///
 /// Features:
 /// - Spring physics animations
 /// - Parallax scrolling
@@ -88,7 +88,7 @@ class _BouncyScaleTransitionState extends State<BouncyScaleTransition>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(
       begin: 0,
       end: 1,
@@ -96,7 +96,7 @@ class _BouncyScaleTransitionState extends State<BouncyScaleTransition>
       parent: _controller,
       curve: widget.curve,
     ));
-    
+
     Future.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
@@ -148,7 +148,7 @@ class ParallaxBackground extends StatelessWidget {
         final offset = scrollController.hasClients
             ? scrollController.offset * parallaxFactor
             : 0.0;
-        
+
         return Stack(
           children: [
             for (int i = 0; i < children.length; i++)
@@ -200,12 +200,12 @@ class _MorphingContainerState extends State<MorphingContainer>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     _animation = CurvedAnimation(
       parent: _controller,
       curve: widget.curve,
     );
-    
+
     _controller.forward();
   }
 
@@ -267,7 +267,7 @@ class GlassMorphicContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -346,7 +346,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
-    
+
     _animation = Tween<double>(
       begin: -1,
       end: 2,
@@ -365,9 +365,10 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = widget.baseColor ?? theme.colorScheme.surfaceContainerHighest;
+    final baseColor =
+        widget.baseColor ?? theme.colorScheme.surfaceContainerHighest;
     final highlightColor = widget.highlightColor ?? theme.colorScheme.surface;
-    
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -425,7 +426,7 @@ class _CustomRippleState extends State<CustomRipple>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  
+
   Offset? _tapPosition;
 
   @override
@@ -435,7 +436,7 @@ class _CustomRippleState extends State<CustomRipple>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(
       begin: 0,
       end: 1,
@@ -443,7 +444,7 @@ class _CustomRippleState extends State<CustomRipple>
       parent: _controller,
       curve: Curves.easeOut,
     ));
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.5,
       end: 0,
@@ -475,7 +476,7 @@ class _CustomRippleState extends State<CustomRipple>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final rippleColor = widget.color ?? theme.colorScheme.primary;
-    
+
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTap: _handleTap,
@@ -491,7 +492,8 @@ class _CustomRippleState extends State<CustomRipple>
                     painter: RipplePainter(
                       center: _tapPosition!,
                       radius: _scaleAnimation.value * 200,
-                      color: rippleColor.withValues(alpha: _fadeAnimation.value),
+                      color:
+                          rippleColor.withValues(alpha: _fadeAnimation.value),
                     ),
                   ),
                 );
@@ -520,7 +522,7 @@ class RipplePainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
-    
+
     canvas.drawCircle(center, radius, paint);
   }
 
@@ -571,7 +573,7 @@ class _StaggeredAnimationListState extends State<StaggeredAnimationList>
         duration: widget.duration,
         vsync: this,
       );
-      
+
       final animation = Tween<double>(
         begin: 0,
         end: 1,
@@ -579,7 +581,7 @@ class _StaggeredAnimationListState extends State<StaggeredAnimationList>
         parent: controller,
         curve: widget.curve,
       ));
-      
+
       _controllers.add(controller);
       _animations.add(animation);
     }
@@ -657,7 +659,7 @@ class _ExpandableFabState extends State<ExpandableFab>
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    
+
     _expandAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
@@ -675,13 +677,13 @@ class _ExpandableFabState extends State<ExpandableFab>
     setState(() {
       _isExpanded = !_isExpanded;
     });
-    
+
     if (_isExpanded) {
       _controller.forward();
     } else {
       _controller.reverse();
     }
-    
+
     HapticFeedback.lightImpact();
   }
 
@@ -706,17 +708,19 @@ class _ExpandableFabState extends State<ExpandableFab>
     final children = <Widget>[];
     final count = widget.children.length;
     final angleStep = math.pi / (count + 1);
-    
+
     for (int i = 0; i < count; i++) {
       final angle = angleStep * (i + 1);
-      
+
       children.add(
         AnimatedBuilder(
           animation: _expandAnimation,
           builder: (context, child) {
             return Positioned(
-              left: widget.distance - (widget.distance * math.cos(angle) * _expandAnimation.value),
-              top: widget.distance - (widget.distance * math.sin(angle) * _expandAnimation.value),
+              left: widget.distance -
+                  (widget.distance * math.cos(angle) * _expandAnimation.value),
+              top: widget.distance -
+                  (widget.distance * math.sin(angle) * _expandAnimation.value),
               child: Transform.scale(
                 scale: _expandAnimation.value,
                 child: Opacity(
@@ -730,7 +734,7 @@ class _ExpandableFabState extends State<ExpandableFab>
         ),
       );
     }
-    
+
     return children;
   }
 

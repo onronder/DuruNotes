@@ -11,13 +11,13 @@ import 'package:flutter/foundation.dart';
 /// - Sensitive data is never logged in production
 class LoggerConfig {
   /// Initializes the logger based on the current build mode and environment.
-  static void initialize() {
+  static void initialize(EnvironmentConfig config) {
     if (kReleaseMode) {
       // Production: Only warnings and errors, no sensitive data
       LoggerFactory.initialize(minLevel: LogLevel.warning);
 
       // In production, we could also send logs to a remote service
-      if (EnvironmentConfig.current.analyticsEnabled) {
+      if (config.analyticsEnabled) {
         _initializeRemoteLogging();
       }
     } else if (kProfileMode) {
@@ -34,7 +34,7 @@ class LoggerConfig {
       'Logger initialized',
       data: {
         'buildMode': _getBuildMode(),
-        'environment': EnvironmentConfig.current.currentEnvironment.name,
+        'environment': config.environment.name,
         'minLevel': _getMinLevel().name,
       },
     );

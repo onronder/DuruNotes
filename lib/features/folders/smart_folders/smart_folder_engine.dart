@@ -123,32 +123,32 @@ class SmartFolderEngine {
       case RuleOperator.contains:
         if (fieldValue is String && rule.value is String) {
           return fieldValue.toLowerCase().contains(
-            (rule.value as String).toLowerCase(),
-          );
+                (rule.value as String).toLowerCase(),
+              );
         }
         return false;
 
       case RuleOperator.notContains:
         if (fieldValue is String && rule.value is String) {
           return !fieldValue.toLowerCase().contains(
-            (rule.value as String).toLowerCase(),
-          );
+                (rule.value as String).toLowerCase(),
+              );
         }
         return true;
 
       case RuleOperator.startsWith:
         if (fieldValue is String && rule.value is String) {
           return fieldValue.toLowerCase().startsWith(
-            (rule.value as String).toLowerCase(),
-          );
+                (rule.value as String).toLowerCase(),
+              );
         }
         return false;
 
       case RuleOperator.endsWith:
         if (fieldValue is String && rule.value is String) {
           return fieldValue.toLowerCase().endsWith(
-            (rule.value as String).toLowerCase(),
-          );
+                (rule.value as String).toLowerCase(),
+              );
         }
         return false;
 
@@ -317,10 +317,8 @@ class SmartFolderStats {
     // Calculate total words
     var totalWords = 0;
     for (final note in notes) {
-      totalWords += note.body
-          .split(RegExp(r'\s+'))
-          .where((w) => w.isNotEmpty)
-          .length;
+      totalWords +=
+          note.body.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     }
 
     // Count attachments

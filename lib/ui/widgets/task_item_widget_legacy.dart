@@ -159,7 +159,7 @@ class TaskItemWidget extends StatelessWidget {
                                     compact: true,
                                   ),
                                 ),
-                                
+
                                 // Source note indicator
                                 if (showSourceNote && onOpenNote != null)
                                   _buildSourceNoteChip(context),
@@ -176,13 +176,15 @@ class TaskItemWidget extends StatelessWidget {
                           size: 20,
                           color: colorScheme.onSurfaceVariant,
                         ),
-                        onSelected: (action) => _handleQuickAction(context, action),
+                        onSelected: (action) =>
+                            _handleQuickAction(context, action),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, size: 18, color: colorScheme.primary),
+                                Icon(Icons.edit,
+                                    size: 18, color: colorScheme.primary),
                                 const SizedBox(width: 8),
                                 const Text('Edit'),
                               ],
@@ -193,7 +195,8 @@ class TaskItemWidget extends StatelessWidget {
                               value: 'open_note',
                               child: Row(
                                 children: [
-                                  Icon(Icons.note, size: 18, color: colorScheme.secondary),
+                                  Icon(Icons.note,
+                                      size: 18, color: colorScheme.secondary),
                                   const SizedBox(width: 8),
                                   const Text('Open Note'),
                                 ],
@@ -204,7 +207,8 @@ class TaskItemWidget extends StatelessWidget {
                               value: 'snooze',
                               child: Row(
                                 children: [
-                                  Icon(Icons.snooze, size: 18, color: Colors.orange),
+                                  Icon(Icons.snooze,
+                                      size: 18, color: Colors.orange),
                                   const SizedBox(width: 8),
                                   const Text('Snooze'),
                                 ],
@@ -226,7 +230,8 @@ class TaskItemWidget extends StatelessWidget {
                   ),
 
                   // Time tracking (if available)
-                  if (task.estimatedMinutes != null || task.actualMinutes != null) ...[
+                  if (task.estimatedMinutes != null ||
+                      task.actualMinutes != null) ...[
                     const SizedBox(height: 8),
                     _buildTimeTracking(context),
                   ],
@@ -276,7 +281,8 @@ class TaskItemWidget extends StatelessWidget {
   Widget _buildDueDateChip(BuildContext context, DateTime dueDate) {
     final theme = Theme.of(context);
     final now = DateTime.now();
-    final isOverdue = dueDate.isBefore(now) && task.status != TaskStatus.completed;
+    final isOverdue =
+        dueDate.isBefore(now) && task.status != TaskStatus.completed;
     final isToday = _isSameDay(dueDate, now);
     final isTomorrow = _isSameDay(dueDate, now.add(const Duration(days: 1)));
 
@@ -447,25 +453,26 @@ class TaskItemWidget extends StatelessWidget {
 
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: const Text('Are you sure you want to delete this task?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Task'),
+            content: const Text('Are you sure you want to delete this task?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                  onDelete();
+                },
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop(true);
-              onDelete();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _confirmDelete(BuildContext context) {
@@ -487,13 +494,13 @@ class TaskItemWidget extends StatelessWidget {
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   String _getRelativeTime(DateTime date, DateTime now) {
     final difference = date.difference(now);
-    
+
     if (difference.isNegative) {
       final absDiff = difference.abs();
       if (absDiff.inDays > 0) {
@@ -562,9 +569,9 @@ class _TaskQuickActionsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Task title
           Text(
             task.content,
@@ -574,9 +581,9 @@ class _TaskQuickActionsSheet extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Actions
           Wrap(
             spacing: 16,
@@ -590,7 +597,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                   onToggle();
                 },
               ),
-              
               _ActionChip(
                 icon: Icons.edit,
                 label: 'Edit',
@@ -599,7 +605,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                   onEdit();
                 },
               ),
-              
               if (onOpenNote != null)
                 _ActionChip(
                   icon: Icons.note,
@@ -609,7 +614,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                     onOpenNote!();
                   },
                 ),
-              
               if (onSnooze != null && !isCompleted)
                 _ActionChip(
                   icon: Icons.snooze,
@@ -619,7 +623,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                     onSnooze!();
                   },
                 ),
-              
               _ActionChip(
                 icon: Icons.delete,
                 label: 'Delete',
@@ -631,7 +634,7 @@ class _TaskQuickActionsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
         ],
       ),

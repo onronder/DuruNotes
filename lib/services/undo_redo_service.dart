@@ -149,7 +149,7 @@ class BatchFolderChangeOperation extends UndoableOperation {
         'newFolderId': newFolderId,
         'newFolderName': newFolderName,
       };
-  
+
   static BatchFolderChangeOperation? fromJson(Map<String, dynamic> json) {
     // Note: repository needs to be injected when restoring
     return null; // Will be handled by service
@@ -229,13 +229,15 @@ class UndoRedoService extends ChangeNotifier {
 
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
-  UndoableOperation? get lastUndoOperation => _undoStack.isNotEmpty ? _undoStack.last : null;
-  UndoableOperation? get lastRedoOperation => _redoStack.isNotEmpty ? _redoStack.last : null;
+  UndoableOperation? get lastUndoOperation =>
+      _undoStack.isNotEmpty ? _undoStack.last : null;
+  UndoableOperation? get lastRedoOperation =>
+      _redoStack.isNotEmpty ? _redoStack.last : null;
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     await _loadPersistedOperations();
-    
+
     // Start cleanup timer for expired operations
     _cleanupTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _cleanupExpiredOperations();
@@ -246,21 +248,21 @@ class UndoRedoService extends ChangeNotifier {
   void addOperation(UndoableOperation operation) {
     // Clear redo stack when new operation is added
     _redoStack.clear();
-    
+
     // Add to undo stack
     _undoStack.add(operation);
-    
+
     // Trim stack if it exceeds max size
     if (_undoStack.length > maxStackSize) {
       _undoStack.removeAt(0);
     }
-    
+
     // Persist to storage
     unawaited(_persistOperations());
-    
+
     // Notify listeners
     notifyListeners();
-    
+
     _logger.debug('Added undo operation: ${operation.description}');
   }
 
@@ -288,7 +290,7 @@ class UndoRedoService extends ChangeNotifier {
       repository: repository,
       expiresAt: DateTime.now().add(defaultExpiration),
     );
-    
+
     addOperation(operation);
   }
 
@@ -313,7 +315,7 @@ class UndoRedoService extends ChangeNotifier {
       repository: repository,
       expiresAt: DateTime.now().add(defaultExpiration),
     );
-    
+
     addOperation(operation);
   }
 
@@ -335,35 +337,35 @@ class UndoRedoService extends ChangeNotifier {
       repository: repository,
       expiresAt: DateTime.now().add(defaultExpiration),
     );
-    
+
     addOperation(operation);
   }
 
   /// Undo the last operation
   Future<bool> undo() async {
     if (!canUndo) return false;
-    
+
     final operation = _undoStack.removeLast();
-    
+
     // Check if operation has expired
     if (operation.isExpired) {
       _logger.debug('Operation expired: ${operation.description}');
       notifyListeners();
       return false;
     }
-    
+
     try {
       await operation.undo();
       _redoStack.add(operation);
-      
+
       // Trim redo stack if needed
       if (_redoStack.length > maxStackSize) {
         _redoStack.removeAt(0);
       }
-      
+
       await _persistOperations();
       notifyListeners();
-      
+
       _logger.debug('Undid operation: ${operation.description}');
       return true;
     } catch (e, stack) {
@@ -375,23 +377,23 @@ class UndoRedoService extends ChangeNotifier {
   /// Redo the last undone operation
   Future<bool> redo() async {
     if (!canRedo) return false;
-    
+
     final operation = _redoStack.removeLast();
-    
+
     // Check if operation has expired
     if (operation.isExpired) {
       _logger.debug('Operation expired: ${operation.description}');
       notifyListeners();
       return false;
     }
-    
+
     try {
       await operation.redo();
       _undoStack.add(operation);
-      
+
       await _persistOperations();
       notifyListeners();
-      
+
       _logger.debug('Redid operation: ${operation.description}');
       return true;
     } catch (e, stack) {
@@ -411,10 +413,10 @@ class UndoRedoService extends ChangeNotifier {
   /// Clean up expired operations
   void _cleanupExpiredOperations() {
     final now = DateTime.now();
-    
+
     _undoStack.removeWhere((op) => op.isExpired);
     _redoStack.removeWhere((op) => op.isExpired);
-    
+
     if (_undoStack.isEmpty || _redoStack.isEmpty) {
       notifyListeners();
     }
@@ -431,7 +433,7 @@ class UndoRedoService extends ChangeNotifier {
           .where((op) => !op.isExpired)
           .map((op) => op.toJson())
           .toList();
-      
+
       await _prefs?.setString(
         'undo_stack_$userId',
         jsonEncode(undoJson),
@@ -450,7 +452,7 @@ class UndoRedoService extends ChangeNotifier {
     try {
       final undoJson = _prefs?.getString('undo_stack_$userId');
       final redoJson = _prefs?.getString('redo_stack_$userId');
-      
+
       if (undoJson != null) {
         final undoList = jsonDecode(undoJson) as List;
         for (final json in undoList) {
@@ -460,7 +462,7 @@ class UndoRedoService extends ChangeNotifier {
           }
         }
       }
-      
+
       if (redoJson != null) {
         final redoList = jsonDecode(redoJson) as List;
         for (final json in redoList) {
@@ -470,7 +472,7 @@ class UndoRedoService extends ChangeNotifier {
           }
         }
       }
-      
+
       notifyListeners();
     } catch (e) {
       _logger.error('Failed to load persisted operations', error: e);
@@ -537,4 +539,3 @@ class UndoRedoService extends ChangeNotifier {
     super.dispose();
   }
 }
-

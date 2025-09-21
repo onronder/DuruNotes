@@ -1,5 +1,5 @@
 /// Template model for note templates (both system and user-defined)
-/// 
+///
 /// Templates are blueprints for creating notes, not notes themselves.
 /// They exist separately from notes and generate new notes when used.
 
@@ -102,9 +102,7 @@ class Template {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Template &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Template && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

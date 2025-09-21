@@ -404,6 +404,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorRecovery => '• Error recovery';
 
   @override
+  String get genericErrorTitle => 'Something went wrong';
+
+  @override
+  String get genericErrorMessage =>
+      'An unexpected error occurred. Please try again.';
+
+  @override
+  String get reportError => 'Report Error';
+
+  @override
+  String get errorReportSent =>
+      'Error report sent. Thank you for your feedback!';
+
+  @override
   String get contentSanitization => '• Content sanitization';
 
   @override

@@ -32,63 +32,51 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
   }
 
   @override
-  bool get useUnifiedReminders =>
-      (super.noSuchMethod(
-            Invocation.getter(#useUnifiedReminders),
-            returnValue: false,
-          )
-          as bool);
+  bool get useUnifiedReminders => (super.noSuchMethod(
+        Invocation.getter(#useUnifiedReminders),
+        returnValue: false,
+      ) as bool);
 
   @override
-  bool get useNewBlockEditor =>
-      (super.noSuchMethod(
-            Invocation.getter(#useNewBlockEditor),
-            returnValue: false,
-          )
-          as bool);
+  bool get useNewBlockEditor => (super.noSuchMethod(
+        Invocation.getter(#useNewBlockEditor),
+        returnValue: false,
+      ) as bool);
 
   @override
-  bool get useRefactoredComponents =>
-      (super.noSuchMethod(
-            Invocation.getter(#useRefactoredComponents),
-            returnValue: false,
-          )
-          as bool);
+  bool get useRefactoredComponents => (super.noSuchMethod(
+        Invocation.getter(#useRefactoredComponents),
+        returnValue: false,
+      ) as bool);
 
   @override
-  bool get useUnifiedPermissionManager =>
-      (super.noSuchMethod(
-            Invocation.getter(#useUnifiedPermissionManager),
-            returnValue: false,
-          )
-          as bool);
+  bool get useUnifiedPermissionManager => (super.noSuchMethod(
+        Invocation.getter(#useUnifiedPermissionManager),
+        returnValue: false,
+      ) as bool);
 
   @override
-  bool isEnabled(String? flagName) =>
-      (super.noSuchMethod(
-            Invocation.method(#isEnabled, [flagName]),
-            returnValue: false,
-          )
-          as bool);
+  bool isEnabled(String? flagName) => (super.noSuchMethod(
+        Invocation.method(#isEnabled, [flagName]),
+        returnValue: false,
+      ) as bool);
 
   @override
   void setOverride(String? flagName, bool? value) => super.noSuchMethod(
-    Invocation.method(#setOverride, [flagName, value]),
-    returnValueForMissingStub: null,
-  );
+        Invocation.method(#setOverride, [flagName, value]),
+        returnValueForMissingStub: null,
+      );
 
   @override
   void clearOverrides() => super.noSuchMethod(
-    Invocation.method(#clearOverrides, []),
-    returnValueForMissingStub: null,
-  );
+        Invocation.method(#clearOverrides, []),
+        returnValueForMissingStub: null,
+      );
 
   @override
-  _i3.Future<void> updateFromRemoteConfig() =>
-      (super.noSuchMethod(
-            Invocation.method(#updateFromRemoteConfig, []),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
+  _i3.Future<void> updateFromRemoteConfig() => (super.noSuchMethod(
+        Invocation.method(#updateFromRemoteConfig, []),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 }

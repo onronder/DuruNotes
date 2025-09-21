@@ -194,12 +194,12 @@ class AttachmentBlockData {
 
   @override
   int get hashCode => Object.hash(
-    fileName,
-    fileSize,
-    mimeType,
-    url,
-    localPath,
-    thumbnailUrl,
-    description,
-  );
+        fileName,
+        fileSize,
+        mimeType,
+        url,
+        localPath,
+        thumbnailUrl,
+        description,
+      );
 }

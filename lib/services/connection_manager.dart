@@ -181,9 +181,9 @@ class ConnectionManager {
           .then(request.completer.complete)
           .catchError(request.completer.completeError)
           .whenComplete(() {
-            _activeQueries--;
-            _processQueue(); // Process next in queue
-          });
+        _activeQueries--;
+        _processQueue(); // Process next in queue
+      });
     }
   }
 

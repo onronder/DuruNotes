@@ -67,9 +67,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       if (query.isEmpty) {
         _filteredTags = _tags;
       } else {
-        _filteredTags = _tags
-            .where((tc) => tc.tag.toLowerCase().contains(query))
-            .toList();
+        _filteredTags =
+            _tags.where((tc) => tc.tag.toLowerCase().contains(query)).toList();
       }
     });
   }
@@ -165,8 +164,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredTags.isEmpty
-          ? _buildEmptyState(context)
-          : _buildTagsList(context),
+              ? _buildEmptyState(context)
+              : _buildTagsList(context),
     );
   }
 
@@ -321,10 +320,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
   }
 
   Future<void> _showMergeDialog(String sourceTag) async {
-    final targetTags = _tags
-        .where((tc) => tc.tag != sourceTag)
-        .map((tc) => tc.tag)
-        .toList();
+    final targetTags =
+        _tags.where((tc) => tc.tag != sourceTag).map((tc) => tc.tag).toList();
 
     if (targetTags.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

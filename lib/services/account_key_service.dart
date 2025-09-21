@@ -19,9 +19,9 @@ class AccountKeyService {
     FlutterSecureStorage? storage,
     AppLogger? logger,
     SupabaseClient? client,
-  }) : _storage = storage ?? const FlutterSecureStorage(),
-       _logger = logger ?? LoggerFactory.instance,
-       _client = client ?? Supabase.instance.client;
+  })  : _storage = storage ?? const FlutterSecureStorage(),
+        _logger = logger ?? LoggerFactory.instance,
+        _client = client ?? Supabase.instance.client;
 
   static const String _amkKeyPrefix = 'amk:';
   static const String _amkMetaPrefix = 'amk_meta:';
@@ -163,8 +163,8 @@ class AccountKeyService {
     } catch (e) {
       // Table missing or other schema error => provision new AMK
       if (e.toString().contains(
-        "Could not find the table 'public.user_keys'",
-      )) {
+            "Could not find the table 'public.user_keys'",
+          )) {
         _logger.warning('user_keys table not found, provisioning new AMK');
         await provisionAmkForUser(passphrase: passphrase, userId: uid);
         return true;
@@ -317,10 +317,10 @@ class AccountKeyService {
       final wrappedBytes = wrapped is Uint8List
           ? wrapped
           : wrapped is List<int>
-          ? Uint8List.fromList(wrapped)
-          : wrapped is List<dynamic>
-          ? Uint8List.fromList(wrapped.cast<int>())
-          : _bytesFromDb(wrapped);
+              ? Uint8List.fromList(wrapped)
+              : wrapped is List<dynamic>
+                  ? Uint8List.fromList(wrapped.cast<int>())
+                  : _bytesFromDb(wrapped);
       amk = await _unwrapAmk(wrappedBytes, wrappingOld);
     }
 

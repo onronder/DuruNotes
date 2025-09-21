@@ -1,7 +1,8 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_model_converter.dart';
-import 'package:duru_notes/models/note_task.dart' show UiNoteTask, UiTaskStatus, UiTaskPriority;
+import 'package:duru_notes/models/note_task.dart'
+    show UiNoteTask, UiTaskStatus, UiTaskPriority;
 import 'package:flutter/material.dart';
 
 /// Fully migrated task list item widget
@@ -13,7 +14,7 @@ class TaskListItem extends StatelessWidget {
   final bool isSelected;
   final bool showSubtasks;
   final int indentLevel;
-  
+
   const TaskListItem({
     super.key,
     this.dbTask,
@@ -22,8 +23,9 @@ class TaskListItem extends StatelessWidget {
     this.isSelected = false,
     this.showSubtasks = true,
     this.indentLevel = 0,
-  }) : assert(dbTask != null || uiTask != null, 'Either dbTask or uiTask must be provided');
-  
+  }) : assert(dbTask != null || uiTask != null,
+            'Either dbTask or uiTask must be provided');
+
   @override
   Widget build(BuildContext context) {
     if (dbTask != null) {
@@ -35,12 +37,12 @@ class TaskListItem extends StatelessWidget {
       return _buildListItem(context, uiTask!);
     }
   }
-  
+
   Widget _buildListItem(BuildContext context, UiNoteTask task) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final taskId = task.id;
-    
+
     return Container(
       margin: EdgeInsets.only(
         left: indentLevel * 24.0,
@@ -70,7 +72,7 @@ class TaskListItem extends StatelessWidget {
                 // Checkbox
                 _buildCheckbox(context, task),
                 const SizedBox(width: 12),
-                
+
                 // Main content
                 Expanded(
                   child: Column(
@@ -88,9 +90,9 @@ class TaskListItem extends StatelessWidget {
                               : null,
                         ),
                       ),
-                      
+
                       // Meta information row
-                      if (task.dueDate != null || 
+                      if (task.dueDate != null ||
                           task.priority != UiTaskPriority.none ||
                           task.subtasks.isNotEmpty ||
                           task.tags.isNotEmpty) ...[
@@ -105,16 +107,16 @@ class TaskListItem extends StatelessWidget {
                               _buildDueDateChip(context, task),
                             if (task.subtasks.isNotEmpty)
                               _buildSubtaskIndicator(context, task),
-                            ...task.tags.take(3).map((tag) =>
-                              _buildTagChip(context, tag),
-                            ),
+                            ...task.tags.take(3).map(
+                                  (tag) => _buildTagChip(context, tag),
+                                ),
                           ],
                         ),
                       ],
                     ],
                   ),
                 ),
-                
+
                 // Actions menu
                 PopupMenuButton<String>(
                   icon: Icon(
@@ -167,7 +169,8 @@ class TaskListItem extends StatelessWidget {
                       value: 'delete',
                       child: ListTile(
                         leading: Icon(Icons.delete, color: Colors.red),
-                        title: Text('Delete', style: TextStyle(color: Colors.red)),
+                        title:
+                            Text('Delete', style: TextStyle(color: Colors.red)),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -180,11 +183,11 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildCheckbox(BuildContext context, UiNoteTask task) {
     final isCompleted = task.status == UiTaskStatus.completed;
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Checkbox(
       value: isCompleted,
       onChanged: (value) async {
@@ -200,11 +203,11 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildPriorityChip(BuildContext context, UiNoteTask task) {
     final color = _getPriorityColor(task.priority);
     final icon = _getPriorityIcon(task.priority);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -220,29 +223,30 @@ class TaskListItem extends StatelessWidget {
           Text(
             _getPriorityLabel(task.priority),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildDueDateChip(BuildContext context, UiNoteTask task) {
     if (task.dueDate == null) return const SizedBox.shrink();
-    
+
     final now = DateTime.now();
     final dueDate = task.dueDate!;
-    final isOverdue = dueDate.isBefore(now) && task.status != UiTaskStatus.completed;
+    final isOverdue =
+        dueDate.isBefore(now) && task.status != UiTaskStatus.completed;
     final isDueToday = _isSameDay(dueDate, now);
-    
+
     final color = isOverdue
         ? Colors.red
         : isDueToday
             ? Colors.orange
             : Theme.of(context).colorScheme.primary;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -258,25 +262,25 @@ class TaskListItem extends StatelessWidget {
           Text(
             _formatDate(dueDate, isOverdue, isDueToday),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildSubtaskIndicator(BuildContext context, UiNoteTask task) {
-    final completedCount = task.subtasks
-        .where((t) => t.status == UiTaskStatus.completed)
-        .length;
+    final completedCount =
+        task.subtasks.where((t) => t.status == UiTaskStatus.completed).length;
     final totalCount = task.subtasks.length;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color:
+            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -292,7 +296,7 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildTagChip(BuildContext context, String tag) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -306,7 +310,7 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   void _showPriorityDialog(BuildContext context, UiNoteTask task) {
     showDialog(
       context: context,
@@ -317,8 +321,10 @@ class TaskListItem extends StatelessWidget {
           children: TaskPriority.values.map((priority) {
             return ListTile(
               leading: Icon(
-                _getPriorityIcon(TaskModelConverter.dbPriorityToUiPriority(priority)),
-                color: _getPriorityColor(TaskModelConverter.dbPriorityToUiPriority(priority)),
+                _getPriorityIcon(
+                    TaskModelConverter.dbPriorityToUiPriority(priority)),
+                color: _getPriorityColor(
+                    TaskModelConverter.dbPriorityToUiPriority(priority)),
               ),
               title: Text(priority.name),
               onTap: () async {
@@ -331,7 +337,7 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   void _showDueDatePicker(BuildContext context, UiNoteTask task) async {
     final date = await showDatePicker(
       context: context,
@@ -339,12 +345,12 @@ class TaskListItem extends StatelessWidget {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (date != null) {
       await callbacks.onDueDateChanged(task.id, date);
     }
   }
-  
+
   void _confirmDelete(BuildContext context, String taskId) {
     showDialog(
       context: context,
@@ -367,7 +373,7 @@ class TaskListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Color _getPriorityColor(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:
@@ -382,7 +388,7 @@ class TaskListItem extends StatelessWidget {
         return Colors.grey.withOpacity(0.5);
     }
   }
-  
+
   IconData _getPriorityIcon(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:
@@ -397,7 +403,7 @@ class TaskListItem extends StatelessWidget {
         return Icons.radio_button_unchecked;
     }
   }
-  
+
   String _getPriorityLabel(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:
@@ -412,13 +418,13 @@ class TaskListItem extends StatelessWidget {
         return '';
     }
   }
-  
+
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
-  
+
   String _formatDate(DateTime date, bool isOverdue, bool isDueToday) {
     if (isOverdue) {
       final days = DateTime.now().difference(date).inDays;

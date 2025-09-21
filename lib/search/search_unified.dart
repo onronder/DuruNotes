@@ -18,12 +18,10 @@ class UnifiedSearchService {
     final vars = <Variable>[];
 
     // Normalize tags to lowercase for case-insensitive matching
-    final anyTags = query.includeTags
-        .map((t) => t.trim().toLowerCase())
-        .toList();
-    final noneTags = query.excludeTags
-        .map((t) => t.trim().toLowerCase())
-        .toList();
+    final anyTags =
+        query.includeTags.map((t) => t.trim().toLowerCase()).toList();
+    final noneTags =
+        query.excludeTags.map((t) => t.trim().toLowerCase()).toList();
 
     // Build FTS expression if keywords present
     String? ftsExpr;
@@ -79,17 +77,15 @@ class UnifiedSearchService {
     );
 
     // Execute the unified query
-    final rows = await db
-        .customSelect(
-          sql,
-          variables: vars,
-          readsFrom: {
-            db.localNotes,
-            if (folderId != null) db.noteFolders,
-            if (anyTags.isNotEmpty || noneTags.isNotEmpty) db.noteTags,
-          },
-        )
-        .get();
+    final rows = await db.customSelect(
+      sql,
+      variables: vars,
+      readsFrom: {
+        db.localNotes,
+        if (folderId != null) db.noteFolders,
+        if (anyTags.isNotEmpty || noneTags.isNotEmpty) db.noteTags,
+      },
+    ).get();
 
     // Map rows to LocalNote objects
     return rows.map<LocalNote>((row) {
@@ -253,11 +249,10 @@ class UnifiedSearchService {
   /// Find folder by name or path
   Future<LocalFolder?> _findFolderByName(String name) async {
     // Try exact name match first
-    final folder =
-        await (db.select(db.localFolders)
-              ..where((f) => f.deleted.equals(false))
-              ..where((f) => f.name.equals(name)))
-            .getSingleOrNull();
+    final folder = await (db.select(db.localFolders)
+          ..where((f) => f.deleted.equals(false))
+          ..where((f) => f.name.equals(name)))
+        .getSingleOrNull();
 
     if (folder != null) return folder;
 
@@ -316,9 +311,9 @@ class UnifiedSearchService {
       case SortBy.title:
         query.orderBy([
           (n) => OrderingTerm(
-            expression: n.title.lower(),
-            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-          ),
+                expression: n.title.lower(),
+                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+              ),
         ]);
         break;
       case SortBy.createdAt:
@@ -326,9 +321,9 @@ class UnifiedSearchService {
       default:
         query.orderBy([
           (n) => OrderingTerm(
-            expression: n.updatedAt,
-            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-          ),
+                expression: n.updatedAt,
+                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+              ),
         ]);
         break;
     }

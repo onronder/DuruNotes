@@ -9,6 +9,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';

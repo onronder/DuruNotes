@@ -146,9 +146,8 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePresets = SavedSearchRegistry.presets
-        .where(_shouldShowPreset)
-        .toList();
+    final visiblePresets =
+        SavedSearchRegistry.presets.where(_shouldShowPreset).toList();
 
     // Watch custom saved searches from database
     final customSearchesAsync = ref.watch(savedSearchesStreamProvider);

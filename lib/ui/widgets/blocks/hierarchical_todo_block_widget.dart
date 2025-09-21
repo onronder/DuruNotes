@@ -39,10 +39,12 @@ class HierarchicalTodoBlockWidget extends ConsumerStatefulWidget {
   final String? parentTaskId;
 
   @override
-  ConsumerState<HierarchicalTodoBlockWidget> createState() => _HierarchicalTodoBlockWidgetState();
+  ConsumerState<HierarchicalTodoBlockWidget> createState() =>
+      _HierarchicalTodoBlockWidgetState();
 }
 
-class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBlockWidget> {
+class _HierarchicalTodoBlockWidgetState
+    extends ConsumerState<HierarchicalTodoBlockWidget> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   late bool _isCompleted;
@@ -111,15 +113,16 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
 
   Future<void> _loadTaskData() async {
     if (widget.noteId == null) return;
-    
+
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final tasks = await unifiedService.getTasksForNote(widget.noteId!);
-      final matchingTask = tasks.where((task) => 
-        task.position == widget.position && 
-        task.content.trim() == _text.trim()
-      ).firstOrNull;
-      
+      final matchingTask = tasks
+          .where((task) =>
+              task.position == widget.position &&
+              task.content.trim() == _text.trim())
+          .firstOrNull;
+
       if (mounted) {
         setState(() {
           _task = matchingTask;
@@ -146,7 +149,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
 
       final hasChildren = await hierarchyService.hasSubtasks(_task!.id);
       if (hasChildren) {
-        final hierarchy = await hierarchyService.getTaskHierarchy(widget.noteId!);
+        final hierarchy =
+            await hierarchyService.getTaskHierarchy(widget.noteId!);
         final node = hierarchy
             .expand((root) => [root, ...root.getAllDescendants()])
             .where((node) => node.task.id == _task!.id)
@@ -188,7 +192,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
           _task!.id,
           _isCompleted ? TaskStatus.completed : TaskStatus.open,
         );
-        
+
         // Reload progress after status change
         await _loadTaskProgress();
       } catch (e) {
@@ -224,7 +228,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
 
       if (_task == null) {
         // Create new task
-        final taskId = await unifiedService.createTask(
+        final createdTask = await unifiedService.createTask(
           noteId: widget.noteId!,
           content: _text,
           priority: metadata.priority,
@@ -234,24 +238,23 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
-        
+
         // Add reminder if needed
-        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
-          final newTask = await appDb.getTaskById(taskId);
-          if (newTask != null) {
-            final duration = metadata.dueDate!.difference(metadata.reminderTime!);
-            await reminderBridge.createTaskReminder(
-              task: newTask,
-              beforeDueDate: duration.abs(),
-            );
-          }
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
+            metadata.dueDate != null) {
+          final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+          await reminderBridge.createTaskReminder(
+            task: createdTask,
+            beforeDueDate: duration.abs(),
+          );
         }
 
         await _loadTaskData();
       } else {
         // Update existing task
         final oldTask = _task!;
-        
+
         await unifiedService.updateTask(
           taskId: oldTask.id,
           priority: metadata.priority,
@@ -260,14 +263,17 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
-        
+
         // Handle reminder changes
-        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
+            metadata.dueDate != null) {
           if (oldTask.reminderId == null) {
             // Create new reminder with custom time
             final updatedTask = await appDb.getTaskById(oldTask.id);
             if (updatedTask != null) {
-              final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+              final duration =
+                  metadata.dueDate!.difference(metadata.reminderTime!);
               await reminderBridge.createTaskReminder(
                 task: updatedTask,
                 beforeDueDate: duration.abs(),
@@ -307,8 +313,9 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
       } else if (event.logicalKey == LogicalKeyboardKey.tab) {
         // Increase indent level
         widget.onIndentChanged(widget.indentLevel + 1);
-      } else if (event.logicalKey == LogicalKeyboardKey.tab && 
-                 HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shift)) {
+      } else if (event.logicalKey == LogicalKeyboardKey.tab &&
+          HardwareKeyboard.instance.logicalKeysPressed
+              .contains(LogicalKeyboardKey.shift)) {
         // Decrease indent level
         if (widget.indentLevel > 0) {
           widget.onIndentChanged(widget.indentLevel - 1);
@@ -352,21 +359,27 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
               Padding(
                 padding: const EdgeInsets.only(top: 12, right: 8),
                 child: GestureDetector(
+                  key: ValueKey(
+                    'hierarchical_todo_checkbox_${widget.position}_${widget.indentLevel}',
+                  ),
                   onTap: _toggleCompleted,
-                  onLongPress: widget.noteId != null ? _showTaskMetadataDialog : null,
+                  onLongPress:
+                      widget.noteId != null ? _showTaskMetadataDialog : null,
                   child: Container(
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: _isCompleted
-                            ? _getPriorityColor(_task?.priority ?? TaskPriority.medium)
+                            ? _getPriorityColor(
+                                _task?.priority ?? TaskPriority.medium)
                             : Colors.grey.shade400,
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(4),
                       color: _isCompleted
-                          ? _getPriorityColor(_task?.priority ?? TaskPriority.medium)
+                          ? _getPriorityColor(
+                              _task?.priority ?? TaskPriority.medium)
                           : Colors.transparent,
                     ),
                     child: _isCompleted
@@ -403,13 +416,14 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                               ? TextDecoration.lineThrough
                               : TextDecoration.none,
                           color: _isCompleted ? Colors.grey.shade500 : null,
-                          fontWeight: hasChildren ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight:
+                              hasChildren ? FontWeight.w600 : FontWeight.normal,
                         ),
                         maxLines: null,
                         textInputAction: TextInputAction.newline,
                       ),
                     ),
-                    
+
                     // Progress bar for parent tasks
                     if (_progress != null && hasChildren) ...[
                       const SizedBox(height: 6),
@@ -421,7 +435,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                         ),
                       ),
                     ],
-                    
+
                     // Task indicators
                     if (_task != null) ...[
                       const SizedBox(height: 4),
@@ -435,13 +449,15 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                                 compact: true,
                               ),
                             ),
-                            
+
                             // Subtask count indicator
                             if (hasChildren && _progress != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.primaryContainer.withOpacity(0.5),
+                                  color: colorScheme.primaryContainer
+                                      .withOpacity(0.5),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -476,7 +492,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                             size: 16,
                             color: Colors.grey.shade400,
                           ),
-                          onPressed: () => widget.onIndentChanged(widget.indentLevel - 1),
+                          onPressed: () =>
+                              widget.onIndentChanged(widget.indentLevel - 1),
                           tooltip: 'Decrease indent (Shift+Tab)',
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(
@@ -484,7 +501,7 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                             minHeight: 28,
                           ),
                         ),
-                      
+
                       // Increase indent
                       if (widget.indentLevel < 4) // Max 4 levels
                         IconButton(
@@ -493,7 +510,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                             size: 16,
                             color: Colors.grey.shade400,
                           ),
-                          onPressed: () => widget.onIndentChanged(widget.indentLevel + 1),
+                          onPressed: () =>
+                              widget.onIndentChanged(widget.indentLevel + 1),
                           tooltip: 'Increase indent (Tab)',
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(
@@ -512,7 +530,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                         size: 16,
                         color: Colors.grey.shade400,
                       ),
-                      onSelected: (action) => _handleAction(action, unifiedService),
+                      onSelected: (action) =>
+                          _handleAction(action, unifiedService),
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'edit',
@@ -549,7 +568,8 @@ class _HierarchicalTodoBlockWidgetState extends ConsumerState<HierarchicalTodoBl
                             value: 'delete_all',
                             child: Row(
                               children: [
-                                Icon(Icons.delete_sweep, size: 16, color: Colors.red),
+                                Icon(Icons.delete_sweep,
+                                    size: 16, color: Colors.red),
                                 SizedBox(width: 8),
                                 Text('Delete All'),
                               ],
@@ -752,7 +772,7 @@ class HierarchyLinePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final path = Path();
-    
+
     // Vertical line from top
     if (!isLast) {
       path.moveTo(size.width / 2, 0);
@@ -761,7 +781,7 @@ class HierarchyLinePainter extends CustomPainter {
       path.moveTo(size.width / 2, 0);
       path.lineTo(size.width / 2, size.height / 2);
     }
-    
+
     // Horizontal line to task
     path.moveTo(size.width / 2, size.height / 2);
     path.lineTo(size.width, size.height / 2);
@@ -789,9 +809,8 @@ class TaskProgressIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progressColor = progress.isFullyCompleted 
-        ? Colors.green 
-        : theme.colorScheme.primary;
+    final progressColor =
+        progress.isFullyCompleted ? Colors.green : theme.colorScheme.primary;
 
     return SizedBox(
       width: size,

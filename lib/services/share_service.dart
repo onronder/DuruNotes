@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -28,8 +29,8 @@ class ShareOptions {
 /// Service for sharing notes via various methods
 class ShareService {
   ShareService({AppLogger? logger, AnalyticsService? analytics})
-    : _logger = logger ?? LoggerFactory.instance,
-      _analytics = analytics ?? AnalyticsFactory.instance;
+      : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
@@ -43,8 +44,7 @@ class ShareService {
       _analytics.startTiming('share_note');
 
       final content = _formatNoteContent(note, options);
-      final subject =
-          options.customSubject ??
+      final subject = options.customSubject ??
           (note.title.isNotEmpty ? note.title : 'Shared Note');
 
       if (await _canUseNativeShare()) {

@@ -91,9 +91,8 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
   Future<void> _saveSmartFolders(List<SmartFolderConfig> folders) async {
     try {
       _prefs ??= await SharedPreferences.getInstance();
-      final foldersJson = folders
-          .map((folder) => jsonEncode(folder.toJson()))
-          .toList();
+      final foldersJson =
+          folders.map((folder) => jsonEncode(folder.toJson())).toList();
       await _prefs!.setStringList('smart_folders', foldersJson);
     } catch (e) {
       state = state.copyWith(error: 'Failed to save smart folders: $e');
@@ -232,9 +231,9 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
 /// Provider for smart folders state
 final smartFoldersProvider =
     StateNotifierProvider<SmartFoldersNotifier, SmartFoldersState>((ref) {
-      final engine = ref.watch(smartFolderEngineProvider);
-      return SmartFoldersNotifier(engine);
-    });
+  final engine = ref.watch(smartFolderEngineProvider);
+  return SmartFoldersNotifier(engine);
+});
 
 /// Provider for smart folder templates
 final smartFolderTemplatesProvider = Provider<List<SmartFolderConfig>>((ref) {
@@ -244,23 +243,23 @@ final smartFolderTemplatesProvider = Provider<List<SmartFolderConfig>>((ref) {
 /// Provider for notes in a specific smart folder
 final ProviderFamily<List<LocalNote>, String> smartFolderNotesProvider =
     Provider.family<List<LocalNote>, String>((ref, folderId) {
-      final smartFoldersState = ref.watch(smartFoldersProvider);
-      return smartFoldersState.folderContents[folderId] ?? [];
-    });
+  final smartFoldersState = ref.watch(smartFoldersProvider);
+  return smartFoldersState.folderContents[folderId] ?? [];
+});
 
 /// Provider for smart folder statistics
 final ProviderFamily<SmartFolderStats?, String> smartFolderStatsProvider =
     Provider.family<SmartFolderStats?, String>((ref, folderId) {
-      final smartFoldersState = ref.watch(smartFoldersProvider);
-      return smartFoldersState.folderStats[folderId];
-    });
+  final smartFoldersState = ref.watch(smartFoldersProvider);
+  return smartFoldersState.folderStats[folderId];
+});
 
 /// Provider for streaming smart folder notes
 final StreamProviderFamily<List<LocalNote>, String> smartFolderStreamProvider =
     StreamProvider.family<List<LocalNote>, String>((ref, folderId) {
-      final notifier = ref.watch(smartFoldersProvider.notifier);
-      return notifier.watchSmartFolder(folderId);
-    });
+  final notifier = ref.watch(smartFoldersProvider.notifier);
+  return notifier.watchSmartFolder(folderId);
+});
 
 /// Provider to check if smart folders feature is enabled
 final smartFoldersEnabledProvider = Provider<bool>((ref) {
@@ -271,13 +270,13 @@ final smartFoldersEnabledProvider = Provider<bool>((ref) {
 /// Provider for smart folder by ID
 final ProviderFamily<SmartFolderConfig?, String> smartFolderByIdProvider =
     Provider.family<SmartFolderConfig?, String>((ref, folderId) {
-      final smartFoldersState = ref.watch(smartFoldersProvider);
-      try {
-        return smartFoldersState.folders.firstWhere((f) => f.id == folderId);
-      } catch (e) {
-        return null;
-      }
-    });
+  final smartFoldersState = ref.watch(smartFoldersProvider);
+  try {
+    return smartFoldersState.folders.firstWhere((f) => f.id == folderId);
+  } catch (e) {
+    return null;
+  }
+});
 
 /// Provider for smart folder count
 final smartFolderCountProvider = Provider<int>((ref) {

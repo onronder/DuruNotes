@@ -76,8 +76,10 @@ class TaskCompletionChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
             show: true,
@@ -121,8 +123,8 @@ class TaskCompletionChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -204,8 +206,10 @@ class TimeAccuracyChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
             show: true,
@@ -272,8 +276,8 @@ class TimeAccuracyChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -308,7 +312,7 @@ class PriorityDistributionChart extends StatelessWidget {
     for (final entry in priorityDistribution.distribution.entries) {
       final priority = entry.key;
       final stats = entry.value;
-      
+
       if (stats.totalTasks > 0) {
         sections.add(
           PieChartSectionData(
@@ -393,8 +397,8 @@ class PriorityDistributionChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -455,7 +459,7 @@ class HourlyProductivityChart extends StatelessWidget {
     for (var hour = 0; hour < 24; hour++) {
       final count = hourlyDistribution[hour] ?? 0;
       final intensity = count / maxCount;
-      
+
       barGroups.add(
         BarChartGroupData(
           x: hour,
@@ -468,7 +472,8 @@ class HourlyProductivityChart extends StatelessWidget {
                 intensity,
               ),
               width: 12,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(2)),
             ),
           ],
         ),
@@ -517,8 +522,10 @@ class HourlyProductivityChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
             show: true,
@@ -546,8 +553,8 @@ class HourlyProductivityChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -661,7 +668,8 @@ class DeadlineAdherenceChart extends StatelessWidget {
     );
   }
 
-  Widget _buildLegendItem(String label, int count, Color color, ThemeData theme) {
+  Widget _buildLegendItem(
+      String label, int count, Color color, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -702,8 +710,8 @@ class DeadlineAdherenceChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -747,7 +755,8 @@ class WeeklyTrendsChart extends StatelessWidget {
               toY: week.tasksCompleted.toDouble(),
               color: colorScheme.primary,
               width: 20,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(4)),
             ),
           ],
         ),
@@ -808,8 +817,10 @@ class WeeklyTrendsChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(
             show: true,
@@ -837,8 +848,8 @@ class WeeklyTrendsChart extends StatelessWidget {
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
           ],
         ),
@@ -862,7 +873,7 @@ class ProductivityScoreGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final normalizedScore = score / 100.0;
     final scoreColor = _getScoreColor(score);
 

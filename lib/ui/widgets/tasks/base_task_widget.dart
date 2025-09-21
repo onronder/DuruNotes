@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 /// Task display modes for different contexts
 @Deprecated('Use TaskDisplayMode from task_widget_factory.dart instead')
 enum TaskDisplayMode {
-  list,     // Standard list view
-  tree,     // Hierarchical tree view
-  card,     // Card-based view
-  compact,  // Minimal compact view
+  list, // Standard list view
+  tree, // Hierarchical tree view
+  card, // Card-based view
+  compact, // Minimal compact view
 }
 
 /// Callbacks for task interactions
@@ -21,7 +21,7 @@ class TaskCallbacks {
   final VoidCallback? onDuplicate;
   final Function(UiTaskPriority)? onPriorityChanged;
   final Function(DateTime)? onDueDateChanged;
-  
+
   const TaskCallbacks({
     this.onToggle,
     this.onEdit,
@@ -33,15 +33,16 @@ class TaskCallbacks {
 }
 
 /// Base widget for all task display components
-/// 
+///
 /// @Deprecated Use the new task widgets with UnifiedTaskCallbacks instead:
 /// - TaskListItem for list views
-/// - TaskTreeNode for hierarchical views  
+/// - TaskTreeNode for hierarchical views
 /// - TaskCard for card views
 /// - TaskWidgetFactory to create any type
-/// 
+///
 /// This class uses the legacy TaskCallbacks which don't support proper task IDs.
-@Deprecated('Use TaskListItem, TaskTreeNode, or TaskCard with UnifiedTaskCallbacks instead. '
+@Deprecated(
+    'Use TaskListItem, TaskTreeNode, or TaskCard with UnifiedTaskCallbacks instead. '
     'This base class will be removed in the next major version.')
 abstract class BaseTaskWidget extends StatelessWidget {
   final UiNoteTask task;
@@ -49,7 +50,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
   final bool isSelected;
   final bool showSubtasks;
   final int indentLevel;
-  
+
   const BaseTaskWidget({
     super.key,
     required this.task,
@@ -60,15 +61,14 @@ abstract class BaseTaskWidget extends StatelessWidget {
   });
 
   // Shared UI components
-  
+
   /// Build the checkbox for task completion
   Widget buildCheckbox(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isCompleted = task.status == UiTaskStatus.completed;
-    final checkboxColor = isCompleted
-        ? getPriorityColor(task.priority)
-        : colorScheme.outline;
-    
+    final checkboxColor =
+        isCompleted ? getPriorityColor(task.priority) : colorScheme.outline;
+
     return GestureDetector(
       onTap: callbacks.onToggle,
       child: AnimatedContainer(
@@ -81,9 +81,8 @@ abstract class BaseTaskWidget extends StatelessWidget {
             width: 2,
           ),
           borderRadius: BorderRadius.circular(6),
-          color: isCompleted
-              ? checkboxColor.withOpacity(0.1)
-              : Colors.transparent,
+          color:
+              isCompleted ? checkboxColor.withOpacity(0.1) : Colors.transparent,
         ),
         child: isCompleted
             ? Icon(
@@ -95,16 +94,16 @@ abstract class BaseTaskWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Build priority indicator
   Widget buildPriorityIndicator(BuildContext context) {
     if (task.priority == UiTaskPriority.none) {
       return const SizedBox.shrink();
     }
-    
+
     final color = getPriorityColor(task.priority);
     final icon = getPriorityIcon(task.priority);
-    
+
     return Tooltip(
       message: getPriorityLabel(task.priority),
       child: Icon(
@@ -114,24 +113,24 @@ abstract class BaseTaskWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Build due date chip
   Widget buildDueDateChip(BuildContext context) {
     if (task.dueDate == null) {
       return const SizedBox.shrink();
     }
-    
+
     final theme = Theme.of(context);
     final now = DateTime.now();
     final dueDate = task.dueDate!;
-    final isOverdue = dueDate.isBefore(now) && 
-                      task.status != UiTaskStatus.completed;
+    final isOverdue =
+        dueDate.isBefore(now) && task.status != UiTaskStatus.completed;
     final isDueToday = _isSameDay(dueDate, now);
     final isDueTomorrow = _isSameDay(
       dueDate,
       now.add(const Duration(days: 1)),
     );
-    
+
     String label;
     if (isDueToday) {
       label = 'Today';
@@ -143,17 +142,17 @@ abstract class BaseTaskWidget extends StatelessWidget {
     } else {
       label = _formatDate(dueDate);
     }
-    
+
     final chipColor = isOverdue
         ? theme.colorScheme.error
         : isDueToday
             ? theme.colorScheme.primary
             : theme.colorScheme.surfaceVariant;
-    
+
     final textColor = isOverdue || isDueToday
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.onSurfaceVariant;
-    
+
     return GestureDetector(
       onTap: () => callbacks.onDueDateChanged?.call(dueDate),
       child: Container(
@@ -171,9 +170,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
             Icon(
               Icons.calendar_today,
               size: 12,
-              color: isOverdue || isDueToday
-                  ? textColor
-                  : chipColor,
+              color: isOverdue || isDueToday ? textColor : chipColor,
             ),
             const SizedBox(width: 4),
             Text(
@@ -190,37 +187,35 @@ abstract class BaseTaskWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   /// Build task content with strikethrough if completed
   Widget buildTaskContent(BuildContext context) {
     final theme = Theme.of(context);
     final isCompleted = task.status == UiTaskStatus.completed;
-    
+
     return Text(
       task.content,
       style: theme.textTheme.bodyLarge?.copyWith(
         decoration: isCompleted ? TextDecoration.lineThrough : null,
-        color: isCompleted
-            ? theme.colorScheme.onSurface.withOpacity(0.5)
-            : null,
+        color:
+            isCompleted ? theme.colorScheme.onSurface.withOpacity(0.5) : null,
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
   }
-  
+
   /// Build subtask indicator
   Widget buildSubtaskIndicator(BuildContext context) {
     if (task.subtasks.isEmpty) {
       return const SizedBox.shrink();
     }
-    
-    final completedCount = task.subtasks
-        .where((t) => t.status == UiTaskStatus.completed)
-        .length;
+
+    final completedCount =
+        task.subtasks.where((t) => t.status == UiTaskStatus.completed).length;
     final totalCount = task.subtasks.length;
     final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 8,
@@ -251,9 +246,9 @@ abstract class BaseTaskWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   // Helper methods
-  
+
   /// Get color for priority level
   Color getPriorityColor(UiTaskPriority priority) {
     switch (priority) {
@@ -269,7 +264,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
         return Colors.grey.withOpacity(0.5);
     }
   }
-  
+
   /// Get icon for priority level
   IconData getPriorityIcon(UiTaskPriority priority) {
     switch (priority) {
@@ -285,7 +280,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
         return Icons.radio_button_unchecked;
     }
   }
-  
+
   /// Get label for priority level
   String getPriorityLabel(UiTaskPriority priority) {
     switch (priority) {
@@ -301,31 +296,46 @@ abstract class BaseTaskWidget extends StatelessWidget {
         return 'No Priority';
     }
   }
-  
+
   /// Check if two dates are the same day
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
-  
+
   /// Format date for display
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = date.difference(now).inDays;
-    
+
     if (difference < 7) {
       // Within a week, show day name
       const dayNames = [
-        'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-        'Friday', 'Saturday', 'Sunday'
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
       ];
       return dayNames[date.weekday - 1];
     } else if (date.year == now.year) {
       // Same year, show month and day
       const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
       ];
       return '${monthNames[date.month - 1]} ${date.day}';
     } else {

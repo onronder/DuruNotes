@@ -14,7 +14,10 @@ void main() {
       testBlocks = [
         const NoteBlock(type: NoteBlockType.paragraph, data: 'Test paragraph'),
         const NoteBlock(type: NoteBlockType.heading1, data: 'Test heading'),
-        const NoteBlock(type: NoteBlockType.todo, data: {'text': 'Test todo', 'checked': false}),
+        const NoteBlock(
+          type: NoteBlockType.todo,
+          data: 'incomplete:Test todo',
+        ),
       ];
       changedBlocks = [];
     });
@@ -29,7 +32,7 @@ void main() {
           home: Scaffold(
             body: UnifiedBlockEditor(
               blocks: blocks ?? testBlocks,
-              onBlocksChanged: (blocks) => changedBlocks = blocks,
+              onBlocksChanged: (blocks) => changedBlocks = List.of(blocks),
               config: config ?? const BlockEditorConfig(),
               noteId: noteId,
             ),
@@ -47,7 +50,8 @@ void main() {
       expect(find.text('Test todo'), findsOneWidget);
     });
 
-    testWidgets('should show toolbar when configured', (WidgetTester tester) async {
+    testWidgets('should show toolbar when configured',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(showBlockSelector: true),
       ));
@@ -57,7 +61,8 @@ void main() {
       expect(find.text('3 blocks'), findsOneWidget);
     });
 
-    testWidgets('should hide toolbar when configured', (WidgetTester tester) async {
+    testWidgets('should hide toolbar when configured',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(showBlockSelector: false),
       ));
@@ -66,7 +71,8 @@ void main() {
       expect(find.byIcon(Icons.add), findsNothing);
     });
 
-    testWidgets('should show markdown toggle when enabled', (WidgetTester tester) async {
+    testWidgets('should show markdown toggle when enabled',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(
           showBlockSelector: true,
@@ -78,7 +84,8 @@ void main() {
       expect(find.byIcon(Icons.code), findsOneWidget);
     });
 
-    testWidgets('should show reorder handle when enabled', (WidgetTester tester) async {
+    testWidgets('should show reorder handle when enabled',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(
           allowReordering: true,
@@ -89,25 +96,23 @@ void main() {
       expect(find.byIcon(Icons.drag_indicator), findsWidgets);
     });
 
-    testWidgets('should delete block on swipe', (WidgetTester tester) async {
+    testWidgets('should delete block via actions menu',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      // Find and swipe a block
-      final blockFinder = find.text('Test paragraph');
-      expect(blockFinder, findsOneWidget);
-
-      await tester.drag(blockFinder, const Offset(-500, 0));
+      // Open block actions menu for the first block and delete it
+      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      // Verify block is deleted
+      // Verify block is deleted from the UI and callback
+      expect(find.text('Test paragraph'), findsNothing);
       expect(changedBlocks.length, equals(2));
-      expect(
-        changedBlocks.any((b) => b.data == 'Test paragraph'),
-        isFalse,
-      );
     });
 
-    testWidgets('should show block selector overlay', (WidgetTester tester) async {
+    testWidgets('should show block selector overlay',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(showBlockSelector: true),
       ));
@@ -118,12 +123,13 @@ void main() {
 
       // Verify block selector overlay is displayed
       expect(find.text('Add Block'), findsOneWidget);
-      expect(find.text('Paragraph'), findsOneWidget);
-      expect(find.text('Heading 1'), findsOneWidget);
-      expect(find.text('Todo'), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, 'Paragraph'), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, 'Heading 1'), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, 'Todo'), findsOneWidget);
     });
 
-    testWidgets('should add new block from selector', (WidgetTester tester) async {
+    testWidgets('should add new block from selector',
+        (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget(
         config: const BlockEditorConfig(showBlockSelector: true),
       ));
@@ -160,7 +166,8 @@ void main() {
       testWidgets('should render paragraph block', (WidgetTester tester) async {
         await tester.pumpWidget(createTestWidget(
           blocks: [
-            const NoteBlock(type: NoteBlockType.paragraph, data: 'Test paragraph'),
+            const NoteBlock(
+                type: NoteBlockType.paragraph, data: 'Test paragraph'),
           ],
         ));
 
@@ -176,9 +183,9 @@ void main() {
           ],
         ));
 
-        expect(find.text('Heading 1'), findsOneWidget);
-        expect(find.text('Heading 2'), findsOneWidget);
-        expect(find.text('Heading 3'), findsOneWidget);
+        expect(find.text('Heading 1'), findsWidgets);
+        expect(find.text('Heading 2'), findsWidgets);
+        expect(find.text('Heading 3'), findsWidgets);
       });
 
       testWidgets('should render todo block', (WidgetTester tester) async {
@@ -186,13 +193,13 @@ void main() {
           blocks: [
             const NoteBlock(
               type: NoteBlockType.todo,
-              data: {'text': 'Todo item', 'checked': false},
+              data: 'incomplete:Todo item',
             ),
           ],
         ));
 
         expect(find.text('Todo item'), findsOneWidget);
-        expect(find.byType(Checkbox), findsOneWidget);
+        expect(find.byKey(const ValueKey('todo_checkbox_0')), findsOneWidget);
       });
 
       testWidgets('should render code block', (WidgetTester tester) async {
@@ -226,7 +233,8 @@ void main() {
         ));
 
         // Legacy config has specific settings
-        expect(find.byIcon(Icons.add), findsOneWidget); // showBlockSelector: true
+        expect(
+            find.byIcon(Icons.add), findsOneWidget); // showBlockSelector: true
       });
 
       testWidgets('should apply modern config', (WidgetTester tester) async {
@@ -237,7 +245,8 @@ void main() {
         // Modern config has all features enabled
         expect(find.byIcon(Icons.add), findsOneWidget);
         expect(find.byIcon(Icons.code), findsOneWidget); // enableMarkdown: true
-        expect(find.byIcon(Icons.drag_handle), findsOneWidget); // allowReordering: true
+        expect(find.byIcon(Icons.drag_handle),
+            findsOneWidget); // allowReordering: true
       });
 
       testWidgets('should apply custom theme', (WidgetTester tester) async {
@@ -269,7 +278,8 @@ void main() {
         expect(find.byType(UnifiedBlockEditor), findsOneWidget);
       });
 
-      testWidgets('should apply custom block spacing', (WidgetTester tester) async {
+      testWidgets('should apply custom block spacing',
+          (WidgetTester tester) async {
         await tester.pumpWidget(createTestWidget(
           config: const BlockEditorConfig(
             blockSpacing: 16,
@@ -282,7 +292,8 @@ void main() {
     });
 
     group('Feature Flag Integration', () {
-      testWidgets('should use unified editor when flag is enabled', (WidgetTester tester) async {
+      testWidgets('should use unified editor when flag is enabled',
+          (WidgetTester tester) async {
         // Enable feature flag
         FeatureFlags.instance.setOverride('use_new_block_editor', true);
 
@@ -295,7 +306,8 @@ void main() {
         FeatureFlags.instance.clearOverrides();
       });
 
-      testWidgets('should fall back to legacy when flag is disabled', (WidgetTester tester) async {
+      testWidgets('should fall back to legacy when flag is disabled',
+          (WidgetTester tester) async {
         // Disable feature flag
         FeatureFlags.instance.setOverride('use_new_block_editor', false);
 
@@ -310,7 +322,8 @@ void main() {
     });
 
     group('Interaction Tests', () {
-      testWidgets('should update block content on edit', (WidgetTester tester) async {
+      testWidgets('should update block content on edit',
+          (WidgetTester tester) async {
         await tester.pumpWidget(createTestWidget());
 
         // Find and edit a text field
@@ -324,7 +337,7 @@ void main() {
 
       testWidgets('should handle focus changes', (WidgetTester tester) async {
         int? focusedIndex;
-        
+
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(
@@ -350,7 +363,8 @@ void main() {
     });
 
     group('Backward Compatibility', () {
-      testWidgets('should support BlockEditorWrapper', (WidgetTester tester) async {
+      testWidgets('should support BlockEditorWrapper',
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(

@@ -16,7 +16,7 @@ void main() {
   setUp(() {
     permissionManager = PermissionManager.instance;
     mockFeatureFlags = MockFeatureFlags();
-    
+
     // Clear cache before each test
     permissionManager.clearCache();
   });
@@ -26,7 +26,7 @@ void main() {
       test('should return same instance', () {
         final instance1 = PermissionManager.instance;
         final instance2 = PermissionManager.instance;
-        
+
         expect(instance1, same(instance2));
       });
     });
@@ -48,7 +48,8 @@ void main() {
     group('Permission Descriptions', () {
       test('should return correct description for each permission type', () {
         expect(
-          permissionManager.getPermissionDescription(PermissionType.notification),
+          permissionManager
+              .getPermissionDescription(PermissionType.notification),
           equals('Send you reminders and important updates'),
         );
         expect(
@@ -56,7 +57,8 @@ void main() {
           equals('Create location-based reminders'),
         );
         expect(
-          permissionManager.getPermissionDescription(PermissionType.locationAlways),
+          permissionManager
+              .getPermissionDescription(PermissionType.locationAlways),
           equals('Trigger reminders even when app is in background'),
         );
         expect(
@@ -115,10 +117,10 @@ void main() {
       test('should clear cache', () {
         // Add some permissions to cache by calling getStatus
         // (This would normally populate the cache)
-        
+
         // Clear cache
         permissionManager.clearCache();
-        
+
         // Verify cache is cleared (indirectly through behavior)
         expect(true, isTrue); // Cache clearing is internal
       });
@@ -162,7 +164,7 @@ void main() {
         // Request permission (this should notify observers)
         // Note: In a real test, we'd mock the permission handler
         // For now, we're testing the structure
-        
+
         // Clean up
         permissionManager.removeObserver(
           PermissionType.notification,
@@ -204,12 +206,13 @@ void main() {
     });
 
     group('Feature Flag Integration', () {
-      test('should use unified permission manager when flag is enabled', () async {
+      test('should use unified permission manager when flag is enabled',
+          () async {
         // This test verifies that the feature flag is checked
         // In a real test, we'd inject the feature flags dependency
-        
+
         when(mockFeatureFlags.useUnifiedPermissionManager).thenReturn(true);
-        
+
         // The permission manager should use the unified implementation
         // (verified through behavior in integration tests)
         expect(true, isTrue);
@@ -217,7 +220,7 @@ void main() {
 
       test('should fall back to legacy when flag is disabled', () async {
         when(mockFeatureFlags.useUnifiedPermissionManager).thenReturn(false);
-        
+
         // The permission manager should use the legacy implementation
         // (verified through behavior in integration tests)
         expect(true, isTrue);
@@ -229,19 +232,19 @@ void main() {
     test('should handle permission request flow', () async {
       // This would be an integration test with actual permission handlers
       // For unit tests, we're verifying the structure
-      
+
       // 1. Check initial status
       final initialStatus = await permissionManager.getStatus(
         PermissionType.notification,
       );
       expect(initialStatus, isA<PermissionStatus>());
-      
+
       // 2. Request permission
       final requestedStatus = await permissionManager.request(
         PermissionType.notification,
       );
       expect(requestedStatus, isA<PermissionStatus>());
-      
+
       // 3. Check if permission is granted
       final hasPermission = await permissionManager.hasPermission(
         PermissionType.notification,
@@ -252,13 +255,13 @@ void main() {
     test('should handle location permission escalation', () async {
       // Test requesting location always after basic location
       // This would require mocking the permission handler
-      
+
       // 1. Request basic location
       await permissionManager.request(PermissionType.location);
-      
+
       // 2. Request location always (should check basic first)
       await permissionManager.request(PermissionType.locationAlways);
-      
+
       // Verify the escalation logic
       expect(true, isTrue);
     });
@@ -266,9 +269,9 @@ void main() {
     test('should handle storage permission on Android 13+', () async {
       // Test that storage permission uses photos permission on Android 13+
       // This would require mocking device info and permission handler
-      
+
       await permissionManager.request(PermissionType.storage);
-      
+
       // Verify correct permission is requested based on Android version
       expect(true, isTrue);
     });

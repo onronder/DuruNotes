@@ -1,29 +1,14 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 
 /// Type of insight being generated
-enum InsightType {
-  pattern,
-  recommendation,
-  prediction,
-  achievement,
-  warning,
-}
+enum InsightType { pattern, recommendation, prediction, achievement, warning }
 
 /// Represents an AI-generated insight
 class Insight {
-  final String id;
-  final InsightType type;
-  final String title;
-  final String description;
-  final String? actionText;
-  final VoidCallback? action;
-  final DateTime generatedAt;
-  final Map<String, dynamic>? metadata;
-  
   Insight({
     required this.type,
     required this.title,
@@ -33,365 +18,284 @@ class Insight {
     this.metadata,
   })  : id = DateTime.now().millisecondsSinceEpoch.toString(),
         generatedAt = DateTime.now();
+
+  final String id;
+  final InsightType type;
+  final String title;
+  final String description;
+  final String? actionText;
+  final void Function()? action;
+  final DateTime generatedAt;
+  final Map<String, dynamic>? metadata;
 }
 
 /// Service for generating AI-powered insights from analytics
 class AIInsightsService {
   AIInsightsService();
-  
+
   final AppLogger _logger = LoggerFactory.instance;
-  
-  /// Generate insights from productivity analytics
-  Future<List<Insight>> generateInsights(ProductivityAnalytics analytics) async {
+
+  /// Generate high level insights from productivity analytics
+  Future<List<Insight>> generateInsights(
+    ProductivityAnalytics analytics,
+  ) async {
     final insights = <Insight>[];
-    
+
     try {
-      // Pattern detection insights
-      insights.addAll(await _detectPatterns(analytics));
-      
-      // Recommendation insights
-      insights.addAll(await _generateRecommendations(analytics));
-      
-      // Prediction insights
-      insights.addAll(await _generatePredictions(analytics));
-      
-      // Achievement insights
-      insights.addAll(await _checkAchievements(analytics));
-      
-      // Warning insights
-      insights.addAll(await _generateWarnings(analytics));
-      
-      _logger.info('Generated AI insights', data: {
-        'insightCount': insights.length,
-        'types': insights.map((i) => i.type.name).toSet().toList(),
-      });
+      _addPeakHourInsight(analytics, insights);
+      _addBestDayInsight(analytics, insights);
+      _addAveragePerDayInsight(analytics, insights);
+      _addTimeAccuracyInsight(analytics, insights);
+      _addPriorityBalanceInsight(analytics, insights);
+      _addDeadlineInsight(analytics, insights);
+      _addStreakInsight(analytics, insights);
+
+      _logger.info(
+        'Generated AI insights',
+        data: {
+          'insightCount': insights.length,
+          'types': insights.map((i) => i.type.name).toSet().toList(),
+        },
+      );
     } catch (e, stack) {
-      _logger.error('Failed to generate AI insights', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to generate AI insights',
+        error: e,
+        stackTrace: stack,
+      );
     }
-    
+
     return insights;
   }
-  
-  /// Detect patterns in productivity data
-  Future<List<Insight>> _detectPatterns(ProductivityAnalytics analytics) async {
-    final insights = <Insight>[];
-    
-    // Peak productivity hour detection
-    final hourlyDistribution = analytics.productivityTrends.hourlyDistribution;
-    if (hourlyDistribution.isNotEmpty) {
-      final peakHour = _findPeakHour(hourlyDistribution);
-      if (peakHour != null) {
-        insights.add(Insight(
-          type: InsightType.pattern,
-          title: 'Peak Productivity Time',
-          description: 'You complete most tasks around ${peakHour}:00. '
-              'Consider scheduling your most important work during this time for maximum efficiency.',
-          metadata: {'peakHour': peakHour},
-        ));
-      }
+
+  void _addPeakHourInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final peakHour = _findPeakHour(
+      analytics.productivityTrends.hourlyDistribution,
+    );
+    if (peakHour == null) {
+      return;
     }
-    
-    // Weekly pattern detection
-    final weeklyPattern = analytics.productivityTrends.weeklyPattern;
-    if (weeklyPattern.isNotEmpty) {
-      final bestDay = _findBestDayOfWeek(weeklyPattern);
-      if (bestDay != null) {
-        insights.add(Insight(
-          type: InsightType.pattern,
-          title: 'Most Productive Day',
-          description: 'You tend to be most productive on ${bestDay}s. '
-              'Plan challenging tasks for this day when your energy is highest.',
-          metadata: {'bestDay': bestDay},
-        ));
-      }
+
+    insights.add(
+      Insight(
+        type: InsightType.pattern,
+        title: 'Peak Productivity Time',
+        description:
+            'You complete most tasks around ${peakHour.toString().padLeft(2, '0')}:00. '
+            'Schedule important work for this window to take advantage of your focus.',
+        metadata: {'peakHour': peakHour},
+      ),
+    );
+  }
+
+  void _addBestDayInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final weekdayTotals = <int, int>{};
+    for (final daily in analytics.productivityTrends.dailyTrends) {
+      final weekday = daily.date.weekday;
+      weekdayTotals[weekday] =
+          (weekdayTotals[weekday] ?? 0) + daily.tasksCompleted;
     }
-    
-    // Task completion patterns
-    if (analytics.completionStats.averagePerDay > 0) {
-      final avgPerDay = analytics.completionStats.averagePerDay;
-      insights.add(Insight(
+
+    if (weekdayTotals.isEmpty) {
+      return;
+    }
+
+    final bestEntry = weekdayTotals.entries.reduce(
+      (a, b) => a.value >= b.value ? a : b,
+    );
+    if (bestEntry.value == 0) {
+      return;
+    }
+
+    insights.add(
+      Insight(
+        type: InsightType.pattern,
+        title: 'Most Productive Day',
+        description:
+            'You usually complete the most tasks on ${_weekdayLabel(bestEntry.key)}. '
+            'Plan challenging work for this day when your momentum is strongest.',
+        metadata: {'weekday': bestEntry.key, 'completedTasks': bestEntry.value},
+      ),
+    );
+  }
+
+  void _addAveragePerDayInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final avgPerDay = analytics.completionStats.averagePerDay;
+    if (avgPerDay <= 0) {
+      return;
+    }
+
+    insights.add(
+      Insight(
         type: InsightType.pattern,
         title: 'Daily Task Average',
-        description: 'You complete an average of ${avgPerDay.toStringAsFixed(1)} tasks per day. '
+        description:
+            'You complete an average of ${avgPerDay.toStringAsFixed(1)} tasks per day. '
             '${_getAverageMessage(avgPerDay)}',
         metadata: {'averagePerDay': avgPerDay},
-      ));
-    }
-    
-    return insights;
+      ),
+    );
   }
-  
-  /// Generate recommendations based on analytics
-  Future<List<Insight>> _generateRecommendations(ProductivityAnalytics analytics) async {
-    final insights = <Insight>[];
-    
-    // Time estimation accuracy recommendation
-    if (analytics.timeAccuracyStats.accuracyPercentage < 70) {
-      final accuracy = analytics.timeAccuracyStats.accuracyPercentage;
-      final tendency = analytics.timeAccuracyStats.averageDeviation > 0 
-          ? 'overestimate' : 'underestimate';
-      
-      insights.add(Insight(
+
+  void _addTimeAccuracyInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final stats = analytics.timeAccuracyStats;
+    if (stats.totalTasksWithTime == 0) {
+      return;
+    }
+
+    final accuracyPercent = (stats.overallAccuracy * 100).clamp(0.0, 100.0);
+    final tendency = stats.underEstimates > stats.overEstimates
+        ? 'underestimate'
+        : stats.overEstimates > stats.underEstimates
+            ? 'overestimate'
+            : 'vary';
+
+    insights.add(
+      Insight(
         type: InsightType.recommendation,
         title: 'Improve Time Estimates',
-        description: 'Your time estimates are off by ${(100 - accuracy).toStringAsFixed(0)}%. '
-            'You tend to $tendency task duration. Try breaking tasks into smaller chunks '
-            'for better accuracy.',
-        actionText: 'View Tips',
+        description:
+            'Your time estimates are accurate about ${accuracyPercent.toStringAsFixed(0)}% of the time. '
+            'You tend to $tendency task durations. Review past estimates to refine your planning.',
         metadata: {
-          'accuracy': accuracy,
-          'tendency': tendency,
+          'accuracyPercent': accuracyPercent,
+          'underEstimates': stats.underEstimates,
+          'overEstimates': stats.overEstimates,
         },
-      ));
+      ),
+    );
+  }
+
+  void _addPriorityBalanceInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final distribution = analytics.priorityDistribution.distribution;
+    if (distribution.isEmpty) {
+      return;
     }
-    
-    // Priority balance recommendation
-    final priorityDist = analytics.priorityDistribution;
-    final highPriorityRatio = priorityDist.highPriorityCount / 
-        (priorityDist.totalCount > 0 ? priorityDist.totalCount : 1);
-    
-    if (highPriorityRatio > 0.5) {
-      insights.add(Insight(
+
+    final totalTasks = distribution.values.fold<int>(
+      0,
+      (sum, stats) => sum + stats.totalTasks,
+    );
+    if (totalTasks == 0) {
+      return;
+    }
+
+    final highPriorityCount = distribution[TaskPriority.high]?.totalTasks ?? 0;
+    final ratio = highPriorityCount / totalTasks;
+
+    if (ratio <= 0.5) {
+      return;
+    }
+
+    insights.add(
+      Insight(
         type: InsightType.recommendation,
         title: 'Priority Balance',
-        description: 'Over ${(highPriorityRatio * 100).toStringAsFixed(0)}% of your tasks are marked as high priority. '
-            'Consider re-evaluating task priorities to focus on what truly matters.',
-        actionText: 'Review Priorities',
-        metadata: {'highPriorityRatio': highPriorityRatio},
-      ));
-    }
-    
-    // Deadline adherence recommendation
-    if (analytics.deadlineMetrics.onTimePercentage < 80) {
-      final onTimeRate = analytics.deadlineMetrics.onTimePercentage;
-      insights.add(Insight(
-        type: InsightType.recommendation,
-        title: 'Improve Deadline Management',
-        description: 'You meet deadlines ${onTimeRate.toStringAsFixed(0)}% of the time. '
-            'Try setting earlier personal deadlines to create buffer time.',
-        metadata: {'onTimeRate': onTimeRate},
-      ));
-    }
-    
-    return insights;
+        description:
+            'About ${(ratio * 100).toStringAsFixed(0)}% of your tasks are marked as high priority. '
+            'Consider re-evaluating priorities so the most critical work stands out.',
+        metadata: {'highPriorityRatio': ratio, 'totalTasks': totalTasks},
+      ),
+    );
   }
-  
-  /// Generate predictions based on trends
-  Future<List<Insight>> _generatePredictions(ProductivityAnalytics analytics) async {
-    final insights = <Insight>[];
-    
-    // Weekly completion prediction
-    final weeklyAverage = analytics.completionStats.averagePerDay * 7;
-    final predictedWeekly = _predictWeeklyCompletion(analytics);
-    
-    insights.add(Insight(
-      type: InsightType.prediction,
-      title: 'Weekly Forecast',
-      description: 'Based on your current patterns, you\'re likely to complete '
-          '${predictedWeekly.toStringAsFixed(0)} tasks this week. '
-          '${_getWeeklyPredictionMessage(predictedWeekly, weeklyAverage)}',
-      metadata: {
-        'predicted': predictedWeekly,
-        'average': weeklyAverage,
-      },
-    ));
-    
-    // Streak prediction
-    if (analytics.completionStats.currentStreak > 0) {
-      final streakPrediction = _predictStreakContinuation(analytics);
-      insights.add(Insight(
-        type: InsightType.prediction,
-        title: 'Streak Outlook',
-        description: 'You have a ${(streakPrediction * 100).toStringAsFixed(0)}% chance '
-            'of maintaining your ${analytics.completionStats.currentStreak}-day streak. '
-            '${_getStreakMessage(streakPrediction)}',
+
+  void _addDeadlineInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final metrics = analytics.deadlineMetrics;
+    if (metrics.totalTasksWithDeadlines == 0) {
+      return;
+    }
+
+    final onTimeRate = (metrics.adherenceRate * 100).clamp(0.0, 100.0);
+    if (onTimeRate >= 80) {
+      return;
+    }
+
+    insights.add(
+      Insight(
+        type: InsightType.warning,
+        title: 'Deadline Management',
+        description:
+            'You meet deadlines ${onTimeRate.toStringAsFixed(0)}% of the time. '
+            'Try scheduling earlier reminders or breaking work into smaller checkpoints.',
         metadata: {
-          'currentStreak': analytics.completionStats.currentStreak,
-          'probability': streakPrediction,
+          'onTimeRate': onTimeRate,
+          'totalWithDeadlines': metrics.totalTasksWithDeadlines,
         },
-      ));
-    }
-    
-    return insights;
+      ),
+    );
   }
-  
-  /// Check for notable achievements
-  Future<List<Insight>> _checkAchievements(ProductivityAnalytics analytics) async {
-    final insights = <Insight>[];
-    
-    // Streak achievement
-    if (analytics.completionStats.currentStreak >= analytics.completionStats.longestStreak &&
-        analytics.completionStats.currentStreak > 7) {
-      insights.add(Insight(
-        type: InsightType.achievement,
-        title: '🎉 New Streak Record!',
-        description: 'You\'ve maintained a ${analytics.completionStats.currentStreak}-day streak! '
-            'This is your longest streak ever. Keep up the amazing work!',
-        metadata: {'streak': analytics.completionStats.currentStreak},
-      ));
+
+  void _addStreakInsight(
+    ProductivityAnalytics analytics,
+    List<Insight> insights,
+  ) {
+    final streak = analytics.completionStats.currentStreak;
+    if (streak <= 0) {
+      return;
     }
-    
-    // Completion rate achievement
-    if (analytics.completionStats.completionRate > 0.9) {
-      insights.add(Insight(
+
+    insights.add(
+      Insight(
         type: InsightType.achievement,
-        title: '⭐ Outstanding Completion Rate',
-        description: 'You\'ve completed ${(analytics.completionStats.completionRate * 100).toStringAsFixed(0)}% '
-            'of your tasks! This is an exceptional achievement.',
-        metadata: {'completionRate': analytics.completionStats.completionRate},
-      ));
-    }
-    
-    // Perfect day achievement
-    final todayCompleted = analytics.completionStats.totalCompleted;
-    if (todayCompleted >= 10) {
-      insights.add(Insight(
-        type: InsightType.achievement,
-        title: '💪 Productivity Champion',
-        description: 'You\'ve completed $todayCompleted tasks recently! '
-            'You\'re in the top tier of productive users.',
-        metadata: {'tasksCompleted': todayCompleted},
-      ));
-    }
-    
-    return insights;
+        title: 'Completion Streak',
+        description: 'Great job! You are on a $streak day completion streak. '
+            'Complete at least one task today to keep it going.',
+        metadata: {'streak': streak},
+      ),
+    );
   }
-  
-  /// Generate warnings for potential issues
-  Future<List<Insight>> _generateWarnings(ProductivityAnalytics analytics) async {
-    final insights = <Insight>[];
-    
-    // Overdue tasks warning
-    if (analytics.deadlineMetrics.overdueCount > 5) {
-      insights.add(Insight(
-        type: InsightType.warning,
-        title: '⚠️ Overdue Tasks',
-        description: 'You have ${analytics.deadlineMetrics.overdueCount} overdue tasks. '
-            'Consider reviewing and updating their deadlines or priorities.',
-        actionText: 'Review Overdue',
-        metadata: {'overdueCount': analytics.deadlineMetrics.overdueCount},
-      ));
-    }
-    
-    // Declining productivity warning
-    final trend = analytics.productivityTrends.overallTrend;
-    if (trend < -0.2) {
-      insights.add(Insight(
-        type: InsightType.warning,
-        title: 'Productivity Decline',
-        description: 'Your task completion has decreased by ${(trend.abs() * 100).toStringAsFixed(0)}% '
-            'compared to last period. Consider reviewing your workload and priorities.',
-        metadata: {'trend': trend},
-      ));
-    }
-    
-    // Streak at risk warning
-    if (analytics.completionStats.currentStreak > 0 && 
-        analytics.completionStats.todayCompleted == 0) {
-      insights.add(Insight(
-        type: InsightType.warning,
-        title: '🔥 Streak at Risk',
-        description: 'Complete at least one task today to maintain your '
-            '${analytics.completionStats.currentStreak}-day streak!',
-        actionText: 'View Tasks',
-        metadata: {'currentStreak': analytics.completionStats.currentStreak},
-      ));
-    }
-    
-    return insights;
-  }
-  
-  // Helper methods
-  
+
   int? _findPeakHour(Map<int, int> hourlyDistribution) {
-    if (hourlyDistribution.isEmpty) return null;
-    
-    var maxHour = 0;
-    var maxCount = 0;
-    
-    hourlyDistribution.forEach((hour, count) {
-      if (count > maxCount) {
-        maxCount = count;
-        maxHour = hour;
-      }
-    });
-    
-    return maxCount > 0 ? maxHour : null;
+    if (hourlyDistribution.isEmpty) {
+      return null;
+    }
+
+    return hourlyDistribution.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
   }
-  
-  String? _findBestDayOfWeek(Map<int, double> weeklyPattern) {
-    if (weeklyPattern.isEmpty) return null;
-    
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    var maxDay = 0;
-    var maxValue = 0.0;
-    
-    weeklyPattern.forEach((day, value) {
-      if (value > maxValue) {
-        maxValue = value;
-        maxDay = day;
-      }
-    });
-    
-    return maxValue > 0 ? days[maxDay % 7] : null;
+
+  String _weekdayLabel(int weekday) {
+    const names = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    if (weekday < 1 || weekday > 7) {
+      return 'Unknown';
+    }
+    return names[weekday - 1];
   }
-  
+
   String _getAverageMessage(double avgPerDay) {
     if (avgPerDay < 3) {
-      return 'Focus on completing a few key tasks each day to build momentum.';
-    } else if (avgPerDay < 7) {
-      return 'You\'re maintaining a good pace. Keep it consistent!';
-    } else {
-      return 'You\'re highly productive! Make sure to maintain work-life balance.';
+      return 'Focus on finishing a few key tasks each day to build momentum.';
     }
-  }
-  
-  double _predictWeeklyCompletion(ProductivityAnalytics analytics) {
-    final baseAverage = analytics.completionStats.averagePerDay * 7;
-    final trend = analytics.productivityTrends.overallTrend;
-    
-    // Apply trend adjustment
-    return baseAverage * (1 + trend);
-  }
-  
-  double _predictStreakContinuation(ProductivityAnalytics analytics) {
-    final currentStreak = analytics.completionStats.currentStreak;
-    final longestStreak = analytics.completionStats.longestStreak;
-    final completionRate = analytics.completionStats.completionRate;
-    
-    // Simple probability model
-    var probability = completionRate;
-    
-    // Adjust based on current vs longest streak
-    if (currentStreak >= longestStreak) {
-      probability *= 0.9; // Harder to maintain record streaks
-    } else {
-      probability *= 1.1; // Easier to maintain shorter streaks
+    if (avgPerDay < 7) {
+      return 'You\'re maintaining a strong pace. Keep it consistent!';
     }
-    
-    return probability.clamp(0.0, 1.0);
-  }
-  
-  String _getWeeklyPredictionMessage(double predicted, double average) {
-    final difference = predicted - average;
-    if (difference.abs() < 1) {
-      return 'This is on par with your usual performance.';
-    } else if (difference > 0) {
-      return 'You\'re trending ${difference.toStringAsFixed(0)} tasks above average!';
-    } else {
-      return 'This is ${difference.abs().toStringAsFixed(0)} tasks below average. Consider what might be affecting your productivity.';
-    }
-  }
-  
-  String _getStreakMessage(double probability) {
-    if (probability > 0.8) {
-      return 'Keep doing what you\'re doing!';
-    } else if (probability > 0.5) {
-      return 'Stay focused to maintain your streak.';
-    } else {
-      return 'Your streak might be at risk. Make sure to complete at least one task today.';
-    }
+    return 'Your productivity is very high—remember to balance rest and focused work.';
   }
 }
-
-typedef VoidCallback = void Function();

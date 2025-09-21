@@ -9,8 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Repository for task synchronization
 class TaskRepository {
   TaskRepository({required AppDb database, required SupabaseClient supabase})
-    : _db = database,
-      _supabase = supabase;
+      : _db = database,
+        _supabase = supabase;
 
   final AppDb _db;
   final SupabaseClient _supabase;
@@ -139,9 +139,7 @@ class TaskRepository {
   Future<void> _addPendingTaskOperation(NoteTask task, String operation) async {
     final payload = {'task': task.toJson(), 'operation': operation};
 
-    await _db
-        .into(_db.pendingOps)
-        .insert(
+    await _db.into(_db.pendingOps).insert(
           PendingOpsCompanion.insert(
             entityId: task.id,
             kind: 'task_$operation',
@@ -153,9 +151,8 @@ class TaskRepository {
   /// Process pending task operations
   Future<void> _processPendingTaskOperations() async {
     final pendingOps = await _db.select(_db.pendingOps).get();
-    final taskOps = pendingOps
-        .where((op) => op.kind.startsWith('task_'))
-        .toList();
+    final taskOps =
+        pendingOps.where((op) => op.kind.startsWith('task_')).toList();
 
     for (final op in taskOps) {
       try {
@@ -176,7 +173,8 @@ class TaskRepository {
         // Remove pending operation after successful processing
         await (_db.delete(
           _db.pendingOps,
-        )..where((o) => o.id.equals(op.id))).go();
+        )..where((o) => o.id.equals(op.id)))
+            .go();
       } catch (e) {
         debugPrint('Error processing pending operation ${op.id}: $e');
       }
@@ -193,8 +191,7 @@ class TaskRepository {
   Future<void> _deleteTaskOnBackend(String taskId) async {
     await _supabase
         .from('note_tasks')
-        .update({'deleted': true})
-        .eq('id', taskId);
+        .update({'deleted': true}).eq('id', taskId);
   }
 
   /// Create a task

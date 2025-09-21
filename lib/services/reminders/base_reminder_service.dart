@@ -5,6 +5,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,16 +40,22 @@ class ReminderConfig {
   /// Convert to database companion for insertion
   NoteRemindersCompanion toCompanion(ReminderType reminderType) {
     return NoteRemindersCompanion.insert(
-      noteId: noteId,  // Required, passed directly
-      type: reminderType,  // Required, passed directly
+      noteId: noteId, // Required, passed directly
+      type: reminderType, // Required, passed directly
       title: Value(title),
       body: Value(body ?? ''),
       remindAt: Value(scheduledTime),
       recurrencePattern: Value(recurrencePattern),
       recurrenceInterval: Value(recurrenceInterval),
-      recurrenceEndDate: recurrenceEndDate != null ? Value(recurrenceEndDate) : const Value.absent(),
-      notificationTitle: customNotificationTitle != null ? Value(customNotificationTitle) : const Value.absent(),
-      notificationBody: customNotificationBody != null ? Value(customNotificationBody) : const Value.absent(),
+      recurrenceEndDate: recurrenceEndDate != null
+          ? Value(recurrenceEndDate)
+          : const Value.absent(),
+      notificationTitle: customNotificationTitle != null
+          ? Value(customNotificationTitle)
+          : const Value.absent(),
+      notificationBody: customNotificationBody != null
+          ? Value(customNotificationBody)
+          : const Value.absent(),
       // Metadata fields should be handled separately by specific services
       // (e.g., latitude, longitude for geofence reminders)
     );
@@ -75,12 +82,12 @@ class ReminderNotificationData {
 }
 
 /// Base class for all reminder services
-/// 
+///
 /// This class provides common functionality for different types of reminders
 /// including permission management, database operations, and analytics.
-/// 
+///
 /// Subclasses should override [createReminder] to implement specific logic.
-/// 
+///
 /// Example:
 /// ```dart
 /// class MyReminderService extends BaseReminderService {
@@ -105,7 +112,7 @@ abstract class BaseReminderService {
   static const String channelDescription = 'Reminders for your notes';
 
   // Common permission management
-  
+
   /// Request notification permissions based on platform
   Future<bool> requestNotificationPermissions() async {
     try {
@@ -114,7 +121,7 @@ abstract class BaseReminderService {
             .resolvePlatformSpecificImplementation<
                 IOSFlutterLocalNotificationsPlugin>()
             ?.requestPermissions(alert: true, badge: true, sound: true);
-        
+
         logger.info('iOS notification permission result: $result');
         analytics.event(
           'permission_requested',
@@ -128,7 +135,7 @@ abstract class BaseReminderService {
       } else {
         final status = await Permission.notification.request();
         final granted = status.isGranted;
-        
+
         logger.info('Android notification permission status: $status');
         analytics.event(
           'permission_requested',
@@ -182,14 +189,14 @@ abstract class BaseReminderService {
   Future<int?> createReminderInDb(NoteRemindersCompanion companion) async {
     try {
       analytics.startTiming('db_create_reminder');
-      
+
       final reminderId = await db.createReminder(companion);
-      
+
       analytics.endTiming(
         'db_create_reminder',
         properties: {'success': true},
       );
-      
+
       logger.info('Created reminder in database', data: {'id': reminderId});
       return reminderId;
     } catch (e, stack) {
@@ -210,15 +217,15 @@ abstract class BaseReminderService {
   Future<void> updateReminderStatus(int id, bool isActive) async {
     try {
       await db.updateReminder(
-        id, 
+        id,
         NoteRemindersCompanion(isActive: Value(isActive)),
       );
-      
+
       logger.info('Updated reminder status', data: {
         'id': id,
         'isActive': isActive,
       });
-      
+
       analytics.event(
         'reminder_status_updated',
         properties: {
@@ -316,7 +323,7 @@ abstract class BaseReminderService {
         'schedule_notification',
         properties: {'success': true},
       );
-      
+
       logger.info('Scheduled notification', data: {
         'id': data.id,
         'scheduledTime': data.scheduledTime.toIso8601String(),
@@ -328,7 +335,7 @@ abstract class BaseReminderService {
         stackTrace: stack,
         data: {'id': data.id},
       );
-      
+
       analytics.endTiming(
         'schedule_notification',
         properties: {'success': false, 'error': e.toString()},
@@ -341,7 +348,7 @@ abstract class BaseReminderService {
   Future<void> cancelNotification(int id) async {
     try {
       await plugin.cancel(id);
-      
+
       logger.info('Cancelled notification', data: {'id': id});
       analytics.event(
         'notification_cancelled',
@@ -389,22 +396,22 @@ abstract class BaseReminderService {
   // Template methods for subclasses
 
   /// Create a reminder with the given configuration
-  /// 
+  ///
   /// Subclasses must implement this method to provide specific reminder logic
   Future<int?> createReminder(ReminderConfig config);
 
   /// Cancel a reminder by ID
-  /// 
+  ///
   /// Default implementation cancels the notification and deactivates the reminder
   Future<void> cancelReminder(int id) async {
     await cancelNotification(id);
     await updateReminderStatus(id, false);
-    
+
     trackReminderEvent('reminder_cancelled', {'reminder_id': id});
   }
 
   /// Initialize the service
-  /// 
+  ///
   /// Subclasses can override to add specific initialization logic
   Future<void> initialize() async {
     // Create notification channel for Android
@@ -419,7 +426,7 @@ abstract class BaseReminderService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
-    
+
     logger.info('${runtimeType} initialized');
     analytics.event(
       'service_initialized',
@@ -428,7 +435,7 @@ abstract class BaseReminderService {
   }
 
   /// Clean up resources
-  /// 
+  ///
   /// Subclasses can override to add specific cleanup logic
   Future<void> dispose() async {
     logger.info('${runtimeType} disposed');

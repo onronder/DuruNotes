@@ -15,7 +15,7 @@ class MetricCardConfig {
   final EdgeInsetsGeometry padding;
   final bool showTrendIcon;
   final Widget? customContent;
-  
+
   const MetricCardConfig({
     required this.title,
     required this.value,
@@ -31,7 +31,7 @@ class MetricCardConfig {
     this.showTrendIcon = true,
     this.customContent,
   });
-  
+
   factory MetricCardConfig.simple({
     required String title,
     required String value,
@@ -47,7 +47,7 @@ class MetricCardConfig {
       subtitle: subtitle,
     );
   }
-  
+
   factory MetricCardConfig.withTrend({
     required String title,
     required String value,
@@ -70,12 +70,12 @@ class MetricCardConfig {
 /// Unified metric card widget for analytics displays
 class UnifiedMetricCard extends StatelessWidget {
   final MetricCardConfig config;
-  
+
   const UnifiedMetricCard({
     super.key,
     required this.config,
   });
-  
+
   factory UnifiedMetricCard.simple({
     required String title,
     required String value,
@@ -94,7 +94,7 @@ class UnifiedMetricCard extends StatelessWidget {
       ),
     );
   }
-  
+
   factory UnifiedMetricCard.withTrend({
     required String title,
     required String value,
@@ -121,7 +121,7 @@ class UnifiedMetricCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final effectiveColor = config.color ?? colorScheme.primary;
-    
+
     return Card(
       elevation: config.elevation,
       shape: RoundedRectangleBorder(
@@ -132,15 +132,16 @@ class UnifiedMetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(config.borderRadius),
         child: Padding(
           padding: config.padding,
-          child: config.customContent ?? _buildDefaultContent(context, effectiveColor),
+          child: config.customContent ??
+              _buildDefaultContent(context, effectiveColor),
         ),
       ),
     );
   }
-  
+
   Widget _buildDefaultContent(BuildContext context, Color effectiveColor) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -174,7 +175,7 @@ class UnifiedMetricCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        
+
         // Value
         Text(
           config.value,
@@ -183,7 +184,7 @@ class UnifiedMetricCard extends StatelessWidget {
             color: theme.colorScheme.onSurface,
           ),
         ),
-        
+
         // Subtitle or trend
         if (config.subtitle != null) ...[
           const SizedBox(height: 4),
@@ -194,7 +195,7 @@ class UnifiedMetricCard extends StatelessWidget {
             ),
           ),
         ],
-        
+
         if (config.trend != null) ...[
           const SizedBox(height: 8),
           _buildTrendIndicator(context, effectiveColor),
@@ -202,28 +203,28 @@ class UnifiedMetricCard extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildTrendIndicator(BuildContext context, Color effectiveColor) {
     final theme = Theme.of(context);
     final isPositive = config.trend! > 0;
     final isNeutral = config.trend! == 0;
-    
+
     final trendColor = isNeutral
         ? theme.colorScheme.onSurfaceVariant
         : isPositive
             ? Colors.green
             : Colors.red;
-    
+
     final trendIcon = isNeutral
         ? Icons.remove
         : isPositive
             ? Icons.trending_up
             : Icons.trending_down;
-    
+
     final trendText = isNeutral
         ? '0%'
         : '${isPositive ? '+' : ''}${config.trend!.toStringAsFixed(1)}%';
-    
+
     return Row(
       children: [
         if (config.showTrendIcon)
@@ -260,7 +261,7 @@ class QuickStatsWidget extends StatelessWidget {
   final int crossAxisCount;
   final double spacing;
   final double childAspectRatio;
-  
+
   const QuickStatsWidget({
     super.key,
     required this.metrics,
@@ -296,7 +297,7 @@ class StreakCard extends StatelessWidget {
   final IconData icon;
   final Color? color;
   final VoidCallback? onTap;
-  
+
   const StreakCard({
     super.key,
     required this.currentStreak,
@@ -311,7 +312,7 @@ class StreakCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final effectiveColor = color ?? theme.colorScheme.primary;
-    
+
     return UnifiedMetricCard(
       config: MetricCardConfig(
         title: title,
@@ -352,7 +353,8 @@ class StreakCard extends StatelessWidget {
                       Text(
                         'Best: $bestStreak days',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withOpacity(0.7),
                         ),
                       ),
                     ],

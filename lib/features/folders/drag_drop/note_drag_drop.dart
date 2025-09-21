@@ -555,7 +555,7 @@ class BatchFolderDropTarget extends FolderDropTarget {
   }) : super(onNoteDropped: null);
 
   final Function(List<LocalNote> notes, LocalFolder? folder)?
-  onBatchNotesDropped;
+      onBatchNotesDropped;
 
   @override
   ConsumerState<FolderDropTarget> createState() =>
@@ -578,9 +578,9 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
           onAcceptWithDetails: (details) {
             HapticFeedback.lightImpact();
             (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(
-              details.data,
-              widget.folder,
-            );
+                  details.data,
+                  widget.folder,
+                );
             _animationController.reverse();
           },
           onMove: (_) {

@@ -65,16 +65,14 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
     _controllers = [];
 
     // Header controllers
-    final headerControllers = _headers
-        .map((header) => TextEditingController(text: header))
-        .toList();
+    final headerControllers =
+        _headers.map((header) => TextEditingController(text: header)).toList();
     _controllers.add(headerControllers);
 
     // Row controllers
     for (final row in _rows) {
-      final rowControllers = row
-          .map((cell) => TextEditingController(text: cell))
-          .toList();
+      final rowControllers =
+          row.map((cell) => TextEditingController(text: cell)).toList();
       _controllers.add(rowControllers);
     }
   }
@@ -129,9 +127,8 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
       _rows.add(newRow);
 
       // Add controllers
-      final rowControllers = newRow
-          .map((cell) => TextEditingController(text: cell))
-          .toList();
+      final rowControllers =
+          newRow.map((cell) => TextEditingController(text: cell)).toList();
       _controllers.add(rowControllers);
     });
     _updateTable();
@@ -253,8 +250,8 @@ class _TableBlockWidgetState extends State<TableBlockWidget> {
                           SizedBox(
                             width: 100,
                             child: TextField(
-                              controller:
-                                  _controllers[controllerIndex][colIndex],
+                              controller: _controllers[controllerIndex]
+                                  [colIndex],
                               onChanged: (_) => _updateTable(),
                               decoration: const InputDecoration(
                                 border: InputBorder.none,

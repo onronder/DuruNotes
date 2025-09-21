@@ -30,7 +30,8 @@ class SnoozeReminderService extends BaseReminderService {
   Future<int?> createReminder(ReminderConfig config) async {
     // Snooze service doesn't create new reminders, it only modifies existing ones
     // This method is required by base class but not used
-    logger.warning('SnoozeReminderService.createReminder called but not implemented');
+    logger.warning(
+        'SnoozeReminderService.createReminder called but not implemented');
     return null;
   }
 
@@ -88,7 +89,9 @@ class SnoozeReminderService extends BaseReminderService {
       await scheduleNotification(ReminderNotificationData(
         id: reminderId,
         title: reminder.notificationTitle ?? reminder.title,
-        body: reminder.notificationBody ?? reminder.body ?? 'Tap to view your note',
+        body: reminder.notificationBody ??
+            reminder.body ??
+            'Tap to view your note',
         scheduledTime: snoozeUntil,
         payload: jsonEncode({
           'reminderId': reminderId,
@@ -210,7 +213,9 @@ class SnoozeReminderService extends BaseReminderService {
         await scheduleNotification(ReminderNotificationData(
           id: reminder.id,
           title: reminder.notificationTitle ?? reminder.title,
-          body: reminder.notificationBody ?? reminder.body ?? 'Tap to view your note',
+          body: reminder.notificationBody ??
+              reminder.body ??
+              'Tap to view your note',
           scheduledTime: reminder.snoozedUntil!,
           payload: jsonEncode({
             'reminderId': reminder.id,
@@ -277,22 +282,24 @@ class SnoozeReminderService extends BaseReminderService {
     try {
       // Get basic statistics from reminder data
       final allReminders = await db.getAllReminders();
-      final snoozedReminders = allReminders.where(
-        (r) => r.snoozedUntil != null && r.isActive,
-      ).toList();
+      final snoozedReminders = allReminders
+          .where(
+            (r) => r.snoozedUntil != null && r.isActive,
+          )
+          .toList();
       final totalSnoozeCount = snoozedReminders.fold<int>(
         0,
         (sum, r) => sum + r.snoozeCount,
       );
-      final avgSnoozeCount = snoozedReminders.isEmpty 
-          ? 0.0 
+      final avgSnoozeCount = snoozedReminders.isEmpty
+          ? 0.0
           : totalSnoozeCount / snoozedReminders.length;
-      
+
       final stats = {
         'total_snoozed': snoozedReminders.length,
         'average_snooze_count': avgSnoozeCount,
       };
-      
+
       return {
         'total_snoozed': stats['total_snoozed'] ?? 0,
         'average_snooze_count': stats['average_snooze_count'] ?? 0.0,

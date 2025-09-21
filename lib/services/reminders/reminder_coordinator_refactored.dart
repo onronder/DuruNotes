@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -10,16 +11,17 @@ import 'package:duru_notes/services/permission_manager.dart';
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service_refactored.dart';
 import 'package:duru_notes/services/reminders/recurring_reminder_service_refactored.dart';
-import 'package:duru_notes/services/reminders/snooze_reminder_service_refactored.dart' hide SnoozeDuration;
+import 'package:duru_notes/services/reminders/snooze_reminder_service_refactored.dart'
+    hide SnoozeDuration;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Unified coordinator for all reminder services
-/// 
+///
 /// This class manages the lifecycle and interactions between different reminder services:
 /// - [RecurringReminderService] for time-based and recurring reminders
-/// - [GeofenceReminderService] for location-based reminders  
+/// - [GeofenceReminderService] for location-based reminders
 /// - [SnoozeReminderService] for snooze functionality
-/// 
+///
 /// The coordinator uses feature flags to enable gradual rollout of the refactored services.
 class ReminderCoordinator {
   ReminderCoordinator(this._plugin, this._db) {
@@ -39,7 +41,7 @@ class ReminderCoordinator {
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
-  
+
   late final BaseReminderService _recurringService;
   late final BaseReminderService _geofenceService;
   late final BaseReminderService _snoozeService;
@@ -49,14 +51,15 @@ class ReminderCoordinator {
   final AnalyticsService analytics = AnalyticsFactory.instance;
   final FeatureFlags _featureFlags = FeatureFlags.instance;
   final PermissionManager _permissionManager = PermissionManager.instance;
-  
+
   /// Get the snooze service for external use
-  SnoozeReminderService get snoozeService => _snoozeService as SnoozeReminderService;
+  SnoozeReminderService get snoozeService =>
+      _snoozeService as SnoozeReminderService;
 
   /// Initialize all sub-services and notification channel
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     try {
       // Initialize all services
       await Future.wait([
@@ -64,10 +67,10 @@ class ReminderCoordinator {
         _geofenceService.initialize(),
         _snoozeService.initialize(),
       ]);
-      
+
       _initialized = true;
       logger.info('ReminderCoordinator initialized with unified services');
-      
+
       analytics.event(
         'app.feature_enabled',
         properties: {
@@ -89,7 +92,8 @@ class ReminderCoordinator {
 
   Future<bool> requestNotificationPermissions() async {
     if (_featureFlags.useUnifiedPermissionManager) {
-      final status = await _permissionManager.request(PermissionType.notification);
+      final status =
+          await _permissionManager.request(PermissionType.notification);
       return status == PermissionStatus.granted;
     } else {
       // Fall back to base service method
@@ -99,7 +103,8 @@ class ReminderCoordinator {
 
   Future<bool> hasNotificationPermissions() async {
     if (_featureFlags.useUnifiedPermissionManager) {
-      return await _permissionManager.hasPermission(PermissionType.notification);
+      return await _permissionManager
+          .hasPermission(PermissionType.notification);
     } else {
       // Fall back to base service method
       return await _recurringService.hasNotificationPermissions();
@@ -112,7 +117,8 @@ class ReminderCoordinator {
       return status == PermissionStatus.granted;
     } else {
       // Fall back to geofence service method
-      return await (_geofenceService as GeofenceReminderService).requestLocationPermissions();
+      return await (_geofenceService as GeofenceReminderService)
+          .requestLocationPermissions();
     }
   }
 
@@ -121,7 +127,8 @@ class ReminderCoordinator {
       return await _permissionManager.hasPermission(PermissionType.location);
     } else {
       // Fall back to geofence service method
-      return await (_geofenceService as GeofenceReminderService).hasLocationPermissions();
+      return await (_geofenceService as GeofenceReminderService)
+          .hasLocationPermissions();
     }
   }
 
@@ -148,12 +155,13 @@ class ReminderCoordinator {
     String? customNotificationBody,
   }) async {
     await initialize();
-    
+
     if (!await hasNotificationPermissions()) {
       logger.warning('Cannot create reminder - no notification permissions');
-      
+
       if (!await requestNotificationPermissions()) {
-        analytics.event('reminder.permission_denied', properties: {'type': 'time'});
+        analytics
+            .event('reminder.permission_denied', properties: {'type': 'time'});
         return null;
       }
     }
@@ -171,14 +179,14 @@ class ReminderCoordinator {
     );
 
     final reminderId = await _recurringService.createReminder(config);
-    
+
     if (reminderId != null) {
       logger.info('Created time reminder', data: {
         'id': reminderId,
         'recurrence': recurrence.name,
       });
     }
-    
+
     return reminderId;
   }
 
@@ -195,12 +203,14 @@ class ReminderCoordinator {
     String? customNotificationBody,
   }) async {
     await initialize();
-    
+
     if (!await hasLocationPermissions()) {
-      logger.warning('Cannot create location reminder - no location permissions');
-      
+      logger
+          .warning('Cannot create location reminder - no location permissions');
+
       if (!await requestLocationPermissions()) {
-        analytics.event('reminder.permission_denied', properties: {'type': 'location'});
+        analytics.event('reminder.permission_denied',
+            properties: {'type': 'location'});
         return null;
       }
     }
@@ -221,21 +231,21 @@ class ReminderCoordinator {
     );
 
     final reminderId = await _geofenceService.createReminder(config);
-    
+
     if (reminderId != null) {
       logger.info('Created location reminder', data: {
         'id': reminderId,
         'location': locationName ?? 'unnamed',
       });
     }
-    
+
     return reminderId;
   }
 
   /// Snooze an existing reminder
   Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
     await initialize();
-    
+
     if (!await hasNotificationPermissions()) {
       logger.warning('Cannot snooze reminder - no notification permissions');
       return false;
@@ -243,14 +253,14 @@ class ReminderCoordinator {
 
     final snoozed = await (_snoozeService as SnoozeReminderService)
         .snoozeReminder(reminderId, duration);
-    
+
     if (snoozed) {
       logger.info('Snoozed reminder', data: {
         'id': reminderId,
         'duration': duration.name,
       });
     }
-    
+
     return snoozed;
   }
 
@@ -289,7 +299,8 @@ class ReminderCoordinator {
       // Determine which service should handle the cancellation
       final reminder = await _db.getReminderById(reminderId);
       if (reminder == null) {
-        logger.warning('Cannot cancel reminder - not found', data: {'id': reminderId});
+        logger.warning('Cannot cancel reminder - not found',
+            data: {'id': reminderId});
         return;
       }
 
@@ -312,7 +323,7 @@ class ReminderCoordinator {
       }
 
       logger.info('Cancelled reminder', data: {'id': reminderId});
-      
+
       analytics.event('reminder.cancelled', properties: {
         'reminder_id': reminderId,
         'type': reminder.type.name,
@@ -331,11 +342,11 @@ class ReminderCoordinator {
   Future<void> cancelRemindersForNote(String noteId) async {
     try {
       final reminders = await getRemindersForNote(noteId);
-      
+
       for (final reminder in reminders) {
         await cancelReminder(reminder.id);
       }
-      
+
       if (reminders.isNotEmpty) {
         logger.info('Cancelled ${reminders.length} reminders for note', data: {
           'noteId': noteId,
@@ -354,16 +365,18 @@ class ReminderCoordinator {
   /// Process due reminders (called periodically)
   Future<void> processDueReminders() async {
     if (!_initialized) return;
-    
+
     try {
       // Process recurring reminders
       if (_recurringService is RecurringReminderService) {
-        await (_recurringService as RecurringReminderService).processDueReminders();
+        await (_recurringService as RecurringReminderService)
+            .processDueReminders();
       }
-      
+
       // Process snoozed reminders
       if (_snoozeService is SnoozeReminderService) {
-        await (_snoozeService as SnoozeReminderService).processSnoozedReminders();
+        await (_snoozeService as SnoozeReminderService)
+            .processSnoozedReminders();
       }
     } catch (e, stack) {
       logger.error(
@@ -377,12 +390,12 @@ class ReminderCoordinator {
   /// Handle notification tap
   Future<void> handleNotificationTap(String? payload) async {
     if (payload == null) return;
-    
+
     try {
       // Parse payload to determine action
       // This would typically navigate to the relevant note
       logger.info('Notification tapped', data: {'payload': payload});
-      
+
       analytics.event('notification.tapped', properties: {
         'payload': payload,
       });
@@ -403,7 +416,7 @@ class ReminderCoordinator {
         _geofenceService.dispose(),
         _snoozeService.dispose(),
       ]);
-      
+
       logger.info('ReminderCoordinator disposed');
     } catch (e) {
       logger.warning('Error disposing ReminderCoordinator: $e');
@@ -414,14 +427,17 @@ class ReminderCoordinator {
   Future<Map<String, dynamic>> getReminderStatistics() async {
     try {
       final active = await getActiveReminders();
-      final snoozeStats = await (_snoozeService as SnoozeReminderService).getSnoozeStats();
-      
+      final snoozeStats =
+          await (_snoozeService as SnoozeReminderService).getSnoozeStats();
+
       return {
         'total_active': active.length,
         'by_type': {
           'time': active.where((r) => r.type == ReminderType.time).length,
-          'recurring': active.where((r) => r.type == ReminderType.recurring).length,
-          'location': active.where((r) => r.type == ReminderType.location).length,
+          'recurring':
+              active.where((r) => r.type == ReminderType.recurring).length,
+          'location':
+              active.where((r) => r.type == ReminderType.location).length,
         },
         'snooze_stats': snoozeStats,
       };

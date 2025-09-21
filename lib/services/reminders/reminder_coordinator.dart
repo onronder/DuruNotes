@@ -4,6 +4,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart'; // Import appDbProvider from here
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
 import 'package:duru_notes/services/reminders/recurring_reminder_service.dart';
 import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
@@ -37,7 +38,7 @@ class ReminderCoordinator {
   bool _initialized = false;
   final AppLogger logger = LoggerFactory.instance;
   final AnalyticsService analytics = AnalyticsFactory.instance;
-  
+
   /// Get the snooze service for external use
   SnoozeReminderService get snoozeService => _snoozeService;
 
@@ -53,8 +54,7 @@ class ReminderCoordinator {
     );
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
     // Initialize geofence sub-service (recurring and snooze may initialize on demand)
@@ -82,8 +82,7 @@ class ReminderCoordinator {
       if (Platform.isIOS) {
         final result = await _plugin
             .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin
-            >()
+                IOSFlutterLocalNotificationsPlugin>()
             ?.requestPermissions(alert: true, badge: true, sound: true);
         return result ?? false;
       } else {

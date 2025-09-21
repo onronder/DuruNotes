@@ -162,9 +162,8 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.folder_outlined,
                           tooltip: 'Move to folder',
-                          onPressed: capabilities.canMove
-                              ? _showFolderPicker
-                              : null,
+                          onPressed:
+                              capabilities.canMove ? _showFolderPicker : null,
                           isLoading: operationsState.isLoading,
                         ),
 
@@ -174,9 +173,8 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.delete_outline,
                           tooltip: 'Delete notes',
-                          onPressed: capabilities.canDelete
-                              ? _confirmDelete
-                              : null,
+                          onPressed:
+                              capabilities.canDelete ? _confirmDelete : null,
                           isLoading: operationsState.isLoading,
                           isDestructive: true,
                         ),

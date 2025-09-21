@@ -210,7 +210,6 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
             children: [
               Icon(Icons.note_add, size: 20, color: Colors.grey.shade500),
               const SizedBox(width: 12),
-
               Expanded(
                 child: Text(
                   'Link to another note...',
@@ -220,7 +219,6 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                   ),
                 ),
               ),
-
               Icon(
                 Icons.arrow_forward_ios,
                 size: 12,
@@ -254,8 +252,8 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                 Text(
                   'Select a note to link',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.purple.shade700,
-                  ),
+                        color: Colors.purple.shade700,
+                      ),
                 ),
                 const Spacer(),
                 IconButton(

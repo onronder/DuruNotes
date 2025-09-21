@@ -34,9 +34,10 @@ class RecurringReminderService extends BaseReminderService {
       }
 
       // Validate recurrence parameters
-      if (config.recurrencePattern != RecurrencePattern.none && 
+      if (config.recurrencePattern != RecurrencePattern.none &&
           config.recurrenceInterval < 1) {
-        logger.warning('Invalid recurrence interval: ${config.recurrenceInterval}');
+        logger.warning(
+            'Invalid recurrence interval: ${config.recurrenceInterval}');
         trackReminderEvent('reminder_creation_failed', {
           'reason': 'invalid_interval',
           'type': 'recurring',
@@ -55,11 +56,12 @@ class RecurringReminderService extends BaseReminderService {
       }
 
       // Create reminder in database using base class method
-      final reminderType = config.recurrencePattern != RecurrencePattern.none 
-          ? ReminderType.recurring 
+      final reminderType = config.recurrencePattern != RecurrencePattern.none
+          ? ReminderType.recurring
           : ReminderType.time;
-      final reminderId = await createReminderInDb(config.toCompanion(reminderType));
-      
+      final reminderId =
+          await createReminderInDb(config.toCompanion(reminderType));
+
       if (reminderId == null) {
         return null;
       }
@@ -68,7 +70,9 @@ class RecurringReminderService extends BaseReminderService {
       await scheduleNotification(ReminderNotificationData(
         id: reminderId,
         title: config.customNotificationTitle ?? config.title,
-        body: config.customNotificationBody ?? config.body ?? 'Tap to view your note',
+        body: config.customNotificationBody ??
+            config.body ??
+            'Tap to view your note',
         scheduledTime: config.scheduledTime,
         payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
       ));
@@ -88,7 +92,8 @@ class RecurringReminderService extends BaseReminderService {
         'type': 'recurring',
         'has_recurrence': config.recurrencePattern != RecurrencePattern.none,
         'recurrence_pattern': config.recurrencePattern.name,
-        'hours_from_now': config.scheduledTime.difference(DateTime.now()).inHours,
+        'hours_from_now':
+            config.scheduledTime.difference(DateTime.now()).inHours,
       });
 
       trackFeatureUsage('recurring_reminder_created', properties: {
@@ -125,7 +130,8 @@ class RecurringReminderService extends BaseReminderService {
       // Check if we've exceeded the end date
       if (endDate != null && nextTime.isAfter(endDate)) {
         await updateReminderStatus(reminderId, false);
-        logger.info('Recurrence ended for reminder $reminderId - exceeded end date');
+        logger.info(
+            'Recurrence ended for reminder $reminderId - exceeded end date');
         return;
       }
 
@@ -141,7 +147,9 @@ class RecurringReminderService extends BaseReminderService {
         await scheduleNotification(ReminderNotificationData(
           id: reminderId,
           title: reminder.notificationTitle ?? reminder.title,
-          body: reminder.notificationBody ?? reminder.body ?? 'Tap to view your note',
+          body: reminder.notificationBody ??
+              reminder.body ??
+              'Tap to view your note',
           scheduledTime: nextTime,
           payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
         ));
@@ -162,7 +170,7 @@ class RecurringReminderService extends BaseReminderService {
     switch (pattern) {
       case RecurrencePattern.none:
         return null;
-        
+
       case RecurrencePattern.daily:
         return currentTime.add(Duration(days: interval));
 

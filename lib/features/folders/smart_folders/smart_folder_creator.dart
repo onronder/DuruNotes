@@ -85,9 +85,8 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     setState(() {
       _nameController.text = template.name;
       _selectedType = template.type;
-      _rules = template.rules
-          .map((r) => r.copyWith(id: const Uuid().v4()))
-          .toList();
+      _rules =
+          template.rules.map((r) => r.copyWith(id: const Uuid().v4())).toList();
       _combineWithAnd = template.combineWithAnd;
     });
   }
@@ -281,7 +280,6 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                     ),
                   ),
                 ),
-
                 SwitchListTile(
                   title: const Text('Auto Refresh'),
                   subtitle: const Text('Update folder contents automatically'),
@@ -290,7 +288,6 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                     setState(() => _autoRefresh = value);
                   },
                 ),
-
                 if (_autoRefresh)
                   ListTile(
                     title: const Text('Refresh Interval'),
@@ -319,7 +316,6 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                       ],
                     ),
                   ),
-
                 ListTile(
                   title: const Text('Custom Icon'),
                   subtitle: const Text('Choose a custom icon'),
@@ -333,7 +329,6 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
                   ),
                   onTap: _selectIcon,
                 ),
-
                 ListTile(
                   title: const Text('Custom Color'),
                   subtitle: const Text('Choose a custom color'),

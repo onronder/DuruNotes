@@ -11,12 +11,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Service for handling deep links from notifications to specific app content
+typedef Reader = T Function<T>(ProviderListenable<T> provider);
+
 class DeepLinkService {
   DeepLinkService({
-    required WidgetRef ref,
-  }) : _ref = ref;
+    required Reader read,
+  }) : _read = read;
 
-  final WidgetRef _ref;
+  final Reader _read;
   final AppLogger _logger = LoggerFactory.instance;
 
   /// Handle deep link from notification
@@ -78,7 +80,7 @@ class DeepLinkService {
     Map<String, dynamic> data,
   ) async {
     final noteId = data['noteId'] as String?;
-    
+
     if (noteId != null) {
       await _openNote(context, noteId);
     }
@@ -103,7 +105,7 @@ class DeepLinkService {
     Map<String, dynamic> data,
   ) async {
     final noteId = data['noteId'] as String?;
-    
+
     if (noteId != null) {
       await _openNote(context, noteId);
     }
@@ -116,7 +118,7 @@ class DeepLinkService {
     String? noteId,
   ) async {
     try {
-      final db = _ref.read(appDbProvider);
+      final db = _read(appDbProvider);
       final task = await db.getTaskById(taskId);
 
       if (task == null) {
@@ -145,7 +147,7 @@ class DeepLinkService {
   /// Open note editor
   Future<void> _openNote(BuildContext context, String noteId) async {
     try {
-      final notesRepo = _ref.read(notesRepositoryProvider);
+      final notesRepo = _read(notesRepositoryProvider);
       final note = await notesRepo.getNote(noteId);
 
       if (note == null) {
@@ -180,18 +182,18 @@ class DeepLinkService {
     String taskId,
   ) async {
     try {
-      final notesRepo = _ref.read(notesRepositoryProvider);
+      final notesRepo = _read(notesRepositoryProvider);
       final note = await notesRepo.getNote(noteId);
 
       if (note == null) {
         _showNoteNotFoundMessage(context);
         return;
       }
-      
+
       // Get task details for highlighting
-      final db = _ref.read(appDbProvider);
+      final db = _read(appDbProvider);
       final task = await db.getTaskById(taskId);
-      
+
       // Open note with task highlighting
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -269,7 +271,7 @@ class DeepLinkService {
     required String payload,
   }) async {
     try {
-      final enhancedTaskService = _ref.read(enhancedTaskServiceProvider);
+      final enhancedTaskService = _read(enhancedTaskServiceProvider);
       await enhancedTaskService.handleTaskNotificationAction(
         action: action,
         payload: payload,

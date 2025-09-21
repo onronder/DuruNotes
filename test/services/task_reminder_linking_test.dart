@@ -6,6 +6,7 @@ import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
+import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -18,6 +19,20 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 ])
 import 'task_reminder_linking_test.mocks.dart';
 
+class MockSnoozeReminderService extends Mock implements SnoozeReminderService {}
+
+class FakeSnoozeReminderService extends Fake implements SnoozeReminderService {
+  int? capturedReminderId;
+  SnoozeDuration? capturedDuration;
+
+  @override
+  Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
+    capturedReminderId = reminderId;
+    capturedDuration = duration;
+    return true;
+  }
+}
+
 void main() {
   late MockAppDb mockDb;
   late MockTaskReminderBridge mockReminderBridge;
@@ -26,6 +41,16 @@ void main() {
   setUp(() {
     mockDb = MockAppDb();
     mockReminderBridge = MockTaskReminderBridge();
+
+    when(mockDb.transaction<String>(
+      any,
+      requireNew: anyNamed('requireNew'),
+    )).thenAnswer((invocation) async {
+      final action =
+          invocation.positionalArguments.first as Future<String> Function();
+      return await action();
+    });
+
     enhancedTaskService = EnhancedTaskService(
       database: mockDb,
       reminderBridge: mockReminderBridge,
@@ -33,14 +58,14 @@ void main() {
   });
 
   group('Task Reminder Linking', () {
-    test('should link reminder ID to task when creating task with reminder', () async {
+    test('should link reminder ID to task when creating task with reminder',
+        () async {
       // Arrange
-      const taskId = 'test-task-123';
       const reminderId = 42;
       final dueDate = DateTime.now().add(const Duration(days: 1));
-      
-      final task = NoteTask(
-        id: taskId,
+
+      final taskTemplate = NoteTask(
+        id: 'template',
         noteId: 'note-123',
         content: 'Test task',
         status: TaskStatus.open,
@@ -53,11 +78,20 @@ void main() {
         deleted: false,
       );
 
+      var capturedTaskId = '';
+
       // Mock the database operations
-      when(mockDb.createTask(any)).thenAnswer((_) async {});
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
+      when(mockDb.createTask(any)).thenAnswer((invocation) async {
+        final companion =
+            invocation.positionalArguments.first as NoteTasksCompanion;
+        capturedTaskId = companion.id.value;
+      });
+      when(mockDb.getTaskById(any)).thenAnswer((invocation) async {
+        final id = invocation.positionalArguments.first as String;
+        return taskTemplate.copyWith(id: id);
+      });
       when(mockDb.updateTask(any, any)).thenAnswer((_) async {});
-      
+
       // Mock reminder creation
       when(mockReminderBridge.createTaskReminder(
         task: anyNamed('task'),
@@ -73,17 +107,19 @@ void main() {
       );
 
       // Assert
-      expect(resultTaskId, equals(taskId));
-      
+      expect(resultTaskId, isNotEmpty);
+      expect(resultTaskId, equals(capturedTaskId));
+
       // Verify reminder was created
       verify(mockReminderBridge.createTaskReminder(
         task: argThat(isA<NoteTask>(), named: 'task'),
-        beforeDueDate: argThat(equals(const Duration(hours: 1)), named: 'beforeDueDate'),
+        beforeDueDate:
+            argThat(equals(const Duration(hours: 1)), named: 'beforeDueDate'),
       )).called(1);
-      
+
       // Verify task was updated with reminder ID
       verify(mockDb.updateTask(
-        taskId,
+        capturedTaskId,
         argThat(
           isA<NoteTasksCompanion>().having(
             (c) => c.reminderId.value,
@@ -98,7 +134,7 @@ void main() {
       // Arrange
       const taskId = 'test-task-123';
       const reminderId = 42;
-      
+
       final task = NoteTask(
         id: taskId,
         noteId: 'note-123',
@@ -117,7 +153,7 @@ void main() {
       final mockAdvancedReminderService = MockAdvancedReminderService();
       final mockReminderCoordinator = MockReminderCoordinator();
       final mockNotificationPlugin = MockFlutterLocalNotificationsPlugin();
-      
+
       final reminderBridge = TaskReminderBridge(
         reminderCoordinator: mockReminderCoordinator,
         advancedReminderService: mockAdvancedReminderService,
@@ -136,7 +172,7 @@ void main() {
 
       // Assert
       verify(mockAdvancedReminderService.deleteReminder(reminderId)).called(1);
-      
+
       // Verify task was updated with cleared reminder ID
       verify(mockDb.updateTask(
         taskId,
@@ -152,7 +188,7 @@ void main() {
       const oldReminderId = 42;
       const newReminderId = 43;
       final dueDate = DateTime.now().add(const Duration(days: 1));
-      
+
       final task = NoteTask(
         id: taskId,
         noteId: 'note-123',
@@ -172,7 +208,7 @@ void main() {
       final mockAdvancedReminderService = MockAdvancedReminderService();
       final mockReminderCoordinator = MockReminderCoordinator();
       final mockNotificationPlugin = MockFlutterLocalNotificationsPlugin();
-      
+
       final reminderBridge = TaskReminderBridge(
         reminderCoordinator: mockReminderCoordinator,
         advancedReminderService: mockAdvancedReminderService,
@@ -182,17 +218,23 @@ void main() {
       );
 
       // Mock operations
-      when(mockAdvancedReminderService.deleteReminder(oldReminderId))
-          .thenAnswer((_) async {});
-      when(mockReminderCoordinator.createTimeReminder(
-        noteId: anyNamed('noteId'),
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-        remindAtUtc: anyNamed('remindAtUtc'),
-        customNotificationTitle: anyNamed('customNotificationTitle'),
-        customNotificationBody: anyNamed('customNotificationBody'),
-      )).thenAnswer((_) async => newReminderId);
-      when(mockDb.updateTask(any, any)).thenAnswer((_) async {});
+      final fakeSnoozeService = FakeSnoozeReminderService();
+      when(mockReminderCoordinator.snoozeService).thenReturn(fakeSnoozeService);
+      when(mockDb.getReminderById(oldReminderId))
+          .thenAnswer((_) async => NoteReminder(
+                id: oldReminderId,
+                noteId: task.noteId,
+                title: task.content,
+                body: task.content,
+                type: ReminderType.time,
+                remindAt: dueDate,
+                isActive: true,
+                recurrencePattern: RecurrencePattern.none,
+                recurrenceInterval: 1,
+                snoozeCount: 0,
+                createdAt: DateTime.now(),
+                triggerCount: 0,
+              ));
 
       // Act
       await reminderBridge.snoozeTaskReminder(
@@ -201,30 +243,18 @@ void main() {
       );
 
       // Assert
-      // Verify old reminder was cancelled
-      verify(mockAdvancedReminderService.deleteReminder(oldReminderId)).called(1);
-      
-      // Verify new reminder was created
-      verify(mockReminderCoordinator.createTimeReminder(
-        noteId: task.noteId,
+      expect(fakeSnoozeService.capturedReminderId, equals(oldReminderId));
+      expect(fakeSnoozeService.capturedDuration, SnoozeDuration.fifteenMinutes);
+      verifyNever(mockAdvancedReminderService.deleteReminder(any));
+      verifyNever(mockReminderCoordinator.createTimeReminder(
+        noteId: anyNamed('noteId'),
         title: anyNamed('title'),
         body: anyNamed('body'),
         remindAtUtc: anyNamed('remindAtUtc'),
         customNotificationTitle: anyNamed('customNotificationTitle'),
         customNotificationBody: anyNamed('customNotificationBody'),
-      )).called(1);
-      
-      // Verify task was updated with new reminder ID
-      verify(mockDb.updateTask(
-        taskId,
-        argThat(
-          isA<NoteTasksCompanion>().having(
-            (c) => c.reminderId.value,
-            'reminderId',
-            equals(newReminderId),
-          ),
-        ),
-      )).called(1);
+      ));
+      verifyNever(mockDb.updateTask(any, any));
     });
   });
 }

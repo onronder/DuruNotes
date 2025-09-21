@@ -175,7 +175,8 @@ class NotesRepository {
     required List<String> anyTags,
     required SortSpec sort,
     List<String> noneTags = const [],
-  }) => db.notesByTags(anyTags: anyTags, noneTags: noneTags, sort: sort);
+  }) =>
+      db.notesByTags(anyTags: anyTags, noneTags: noneTags, sort: sort);
 
   /// Search tags for autocomplete
   Future<List<String>> searchTags(String prefix) => db.searchTags(prefix);
@@ -184,7 +185,8 @@ class NotesRepository {
   Future<List<String>> getTagsForNote(String noteId) async {
     final tags = await (db.select(
       db.noteTags,
-    )..where((t) => t.noteId.equals(noteId))).get();
+    )..where((t) => t.noteId.equals(noteId)))
+        .get();
     return tags.map((t) => t.tag).toList();
   }
 
@@ -195,7 +197,8 @@ class NotesRepository {
   Future<LocalNote?> getLocalNoteById(String id) async {
     return (db.select(
       db.localNotes,
-    )..where((note) => note.id.equals(id))).getSingleOrNull();
+    )..where((note) => note.id.equals(id)))
+        .getSingleOrNull();
   }
 
   /// Get a note by ID (compatibility method)
@@ -282,7 +285,9 @@ class NotesRepository {
 
   Future<List<LocalNote>> getRecentlyViewedNotes({int limit = 5}) async {
     return (db.select(db.localNotes)
-          ..where((n) => n.deleted.equals(false) & n.noteType.equals(0))  // Filter out templates
+          ..where((n) =>
+              n.deleted.equals(false) &
+              n.noteType.equals(0)) // Filter out templates
           ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)])
           ..limit(limit))
         .get();
@@ -290,7 +295,9 @@ class NotesRepository {
 
   Future<List<LocalNote>> localNotes() async {
     return (db.select(db.localNotes)
-          ..where((note) => note.deleted.equals(false) & note.noteType.equals(0))  // Filter out templates
+          ..where((note) =>
+              note.deleted.equals(false) &
+              note.noteType.equals(0)) // Filter out templates
           ..orderBy([
             // Order by pin status first (pinned notes at top)
             (note) => OrderingTerm.desc(note.isPinned),
@@ -304,7 +311,9 @@ class NotesRepository {
   /// FIXED: Now respects pin ordering - pinned notes always appear first
   Future<List<LocalNote>> listAfter(DateTime? cursor, {int limit = 20}) async {
     final query = db.select(db.localNotes)
-      ..where((n) => n.deleted.equals(false) & n.noteType.equals(0));  // Filter out templates
+      ..where((n) =>
+          n.deleted.equals(false) &
+          n.noteType.equals(0)); // Filter out templates
 
     if (cursor != null) {
       query.where((n) => n.updatedAt.isSmallerThanValue(cursor));
@@ -336,7 +345,8 @@ class NotesRepository {
     // First, get the existing note
     final existing = await (db.select(
       db.localNotes,
-    )..where((note) => note.id.equals(id))).getSingleOrNull();
+    )..where((note) => note.id.equals(id)))
+        .getSingleOrNull();
 
     if (existing == null) {
       return;
@@ -389,9 +399,9 @@ class NotesRepository {
   /// List all templates (notes with noteType = NoteKind.template)
   Future<List<LocalNote>> listTemplates() async {
     return (db.select(db.localNotes)
-      ..where((t) => t.deleted.equals(false) & t.noteType.equals(1))
-      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-      .get();
+          ..where((t) => t.deleted.equals(false) & t.noteType.equals(1))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+        .get();
   }
 
   /// Create a new template with offline-first pattern
@@ -404,9 +414,9 @@ class NotesRepository {
     try {
       final id = _uuid.v4();
       final now = DateTime.now();
-      
+
       debugPrint('🔄 Creating template: "$title"');
-      
+
       final template = LocalNote(
         id: id,
         title: title,
@@ -423,23 +433,22 @@ class NotesRepository {
         await db.replaceTagsForNote(id, tags.toSet());
       }
       await db.enqueue(id, 'upsert_note');
-      
+
       debugPrint('✅ Template created locally: $id');
       return template;
     } catch (e, stackTrace) {
       // Use AppLogger for proper error tracking
       final logger = LoggerFactory.instance;
       logger.error('Failed to create template',
-        error: e,
-        stackTrace: stackTrace,
-        data: {
-          'title': title,
-          'bodyLength': body.length,
-          'tagsCount': tags.length,
-          'hasMetadata': metadata != null,
-        }
-      );
-      
+          error: e,
+          stackTrace: stackTrace,
+          data: {
+            'title': title,
+            'bodyLength': body.length,
+            'tagsCount': tags.length,
+            'hasMetadata': metadata != null,
+          });
+
       debugPrint('❌ Failed to create template: $e');
       return null;
     }
@@ -449,7 +458,7 @@ class NotesRepository {
   Future<LocalNote?> createNoteFromTemplate(String templateId) async {
     try {
       debugPrint('🔄 Creating note from template: $templateId');
-      
+
       final template = await getNote(templateId);
       if (template == null || template.noteType != NoteKind.template) {
         throw StateError('Template not found: $templateId');
@@ -488,14 +497,13 @@ class NotesRepository {
       // Use AppLogger for proper error tracking
       final logger = LoggerFactory.instance;
       logger.error('Failed to create note from template',
-        error: e,
-        stackTrace: stackTrace,
-        data: {
-          'templateId': templateId,
-          'errorType': e.runtimeType.toString(),
-        }
-      );
-      
+          error: e,
+          stackTrace: stackTrace,
+          data: {
+            'templateId': templateId,
+            'errorType': e.runtimeType.toString(),
+          });
+
       debugPrint('❌ Failed to create note from template: $e');
       return null;
     }
@@ -505,32 +513,30 @@ class NotesRepository {
   Future<bool> deleteTemplate(String templateId) async {
     try {
       debugPrint('🗑️ Deleting template: $templateId');
-      
+
       // Verify it's actually a template
       final template = await getNote(templateId);
       if (template == null || template.noteType != NoteKind.template) {
         throw StateError('Not a template: $templateId');
       }
-      
+
       // Mark as deleted locally (soft delete)
       await updateLocalNote(templateId, deleted: true);
-      
+
       // Queue for remote deletion
       await db.enqueue(templateId, 'delete_note');
-      
+
       debugPrint('✅ Template deleted: $templateId');
       return true;
-      
     } catch (e, stackTrace) {
       final logger = LoggerFactory.instance;
       logger.error('Failed to delete template',
-        error: e,
-        stackTrace: stackTrace,
-        data: {
-          'templateId': templateId,
-        }
-      );
-      
+          error: e,
+          stackTrace: stackTrace,
+          data: {
+            'templateId': templateId,
+          });
+
       debugPrint('❌ Failed to delete template: $e');
       return false;
     }
@@ -544,7 +550,8 @@ class NotesRepository {
   Future<LocalFolder?> getFolder(String id) async {
     return (db.select(
       db.localFolders,
-    )..where((f) => f.id.equals(id))).getSingleOrNull();
+    )..where((f) => f.id.equals(id)))
+        .getSingleOrNull();
   }
 
   /// List all folders
@@ -668,16 +675,15 @@ class NotesRepository {
 
   /// Get unfiled notes
   Future<List<LocalNote>> getUnfiledNotes() async {
-    final query =
-        db.select(db.localNotes).join([
-            leftOuterJoin(
-              db.noteFolders,
-              db.noteFolders.noteId.equalsExp(db.localNotes.id),
-            ),
-          ])
-          ..where(db.localNotes.deleted.equals(false) & 
-                  db.localNotes.noteType.equals(0))  // Filter out templates
-          ..where(db.noteFolders.noteId.isNull());
+    final query = db.select(db.localNotes).join([
+      leftOuterJoin(
+        db.noteFolders,
+        db.noteFolders.noteId.equalsExp(db.localNotes.id),
+      ),
+    ])
+      ..where(db.localNotes.deleted.equals(false) &
+          db.localNotes.noteType.equals(0)) // Filter out templates
+      ..where(db.noteFolders.noteId.isNull());
 
     return query.map((row) => row.readTable(db.localNotes)).get();
   }
@@ -717,7 +723,8 @@ class NotesRepository {
   Future<LocalFolder?> getFolderForNote(String noteId) async {
     final relation = await (db.select(
       db.noteFolders,
-    )..where((nf) => nf.noteId.equals(noteId))).getSingleOrNull();
+    )..where((nf) => nf.noteId.equals(noteId)))
+        .getSingleOrNull();
 
     if (relation == null) return null;
 
@@ -809,7 +816,9 @@ class NotesRepository {
   /// List all notes (compatibility)
   Future<List<LocalNote>> list({int? limit}) async {
     final query = db.select(db.localNotes)
-      ..where((n) => n.deleted.equals(false) & n.noteType.equals(0))  // Filter out templates
+      ..where((n) =>
+          n.deleted.equals(false) &
+          n.noteType.equals(0)) // Filter out templates
       ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)]);
 
     if (limit != null) {
@@ -832,7 +841,9 @@ class NotesRepository {
     SortSpec? sort,
   }) {
     final query = db.select(db.localNotes)
-      ..where((note) => note.deleted.equals(false) & note.noteType.equals(0));  // Filter out templates
+      ..where((note) =>
+          note.deleted.equals(false) &
+          note.noteType.equals(0)); // Filter out templates
 
     // Handle folder filter
     if (folderId != null && folderId.isNotEmpty) {
@@ -850,9 +861,8 @@ class NotesRepository {
 
     // Handle tag filters
     if (anyTags != null && anyTags.isNotEmpty) {
-      final normalizedTags = anyTags
-          .map((t) => t.trim().toLowerCase())
-          .toList();
+      final normalizedTags =
+          anyTags.map((t) => t.trim().toLowerCase()).toList();
       final tagSubQuery = db.selectOnly(db.noteTags)
         ..where(db.noteTags.tag.isIn(normalizedTags))
         ..addColumns([db.noteTags.noteId]);
@@ -860,9 +870,8 @@ class NotesRepository {
     }
 
     if (noneTags != null && noneTags.isNotEmpty) {
-      final normalizedTags = noneTags
-          .map((t) => t.trim().toLowerCase())
-          .toList();
+      final normalizedTags =
+          noneTags.map((t) => t.trim().toLowerCase()).toList();
       final excludeSubQuery = db.selectOnly(db.noteTags)
         ..where(db.noteTags.tag.isIn(normalizedTags))
         ..addColumns([db.noteTags.noteId]);
@@ -910,7 +919,8 @@ class NotesRepository {
         if (op.kind == 'upsert_note') {
           final n = await (db.select(
             db.localNotes,
-          )..where((t) => t.id.equals(op.entityId))).getSingleOrNull();
+          )..where((t) => t.id.equals(op.entityId)))
+              .getSingleOrNull();
 
           if (n == null) {
             processedIds.add(op.id);
@@ -964,8 +974,10 @@ class NotesRepository {
           );
 
           processedIds.add(op.id);
-          final noteTypeStr = n.noteType == NoteKind.template ? 'template' : 'note';
-          debugPrint('✅ Pushed $noteTypeStr: ${n.id} [type=${n.noteType.index}]');
+          final noteTypeStr =
+              n.noteType == NoteKind.template ? 'template' : 'note';
+          debugPrint(
+              '✅ Pushed $noteTypeStr: ${n.id} [type=${n.noteType.index}]');
         } else if (op.kind == 'delete_note') {
           // Soft delete via upsert
           await api.upsertEncryptedNote(
@@ -1034,8 +1046,9 @@ class NotesRepository {
           // Mark as deleted locally (preserve noteType if existing)
           final existing = await (db.select(
             db.localNotes,
-          )..where((n) => n.id.equals(id))).getSingleOrNull();
-          
+          )..where((n) => n.id.equals(id)))
+              .getSingleOrNull();
+
           await db.upsertNote(
             LocalNote(
               id: id,
@@ -1048,7 +1061,8 @@ class NotesRepository {
             ),
           );
           deletedCount++;
-          final typeStr = existing?.noteType == NoteKind.template ? 'template' : 'note';
+          final typeStr =
+              existing?.noteType == NoteKind.template ? 'template' : 'note';
           debugPrint('🗑️ Marked $typeStr as deleted: $id');
           continue;
         }
@@ -1099,14 +1113,16 @@ class NotesRepository {
           links =
               (propsJson['links'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           isPinned = propsJson['isPinned'] as bool? ?? false;
-          
+
           // Extract noteType from encrypted props (with backward compatibility)
           final kindStr = propsJson['noteType'] as String?;
           noteType = kindStr == 'template' ? NoteKind.template : NoteKind.note;
           if (kindStr != null) {
-            debugPrint('🔍 Decrypted note type: "$kindStr" => ${noteType.name} for $id');
+            debugPrint(
+                '🔍 Decrypted note type: "$kindStr" => ${noteType.name} for $id');
           } else {
-            debugPrint('📝 No noteType in props for $id, defaulting to regular note');
+            debugPrint(
+                '📝 No noteType in props for $id, defaulting to regular note');
           }
 
           // Extract metadata
@@ -1116,7 +1132,8 @@ class NotesRepository {
           metadata.remove('links');
           metadata.remove('isPinned');
           metadata.remove('updatedAt');
-          metadata.remove('noteType'); // Remove from metadata to avoid duplication
+          metadata
+              .remove('noteType'); // Remove from metadata to avoid duplication
         } catch (e) {
           // Fallback: try as plain text for body
           try {
@@ -1130,7 +1147,8 @@ class NotesRepository {
             isPinned = false;
             noteType = NoteKind.note; // Default to regular note
             metadata = {};
-            debugPrint('⚠️ Using plain text fallback for $id, defaulting to regular note');
+            debugPrint(
+                '⚠️ Using plain text fallback for $id, defaulting to regular note');
           } catch (_) {
             debugPrint('⚠️ Could not decrypt body for note $id, using empty');
             body = '';
@@ -1146,7 +1164,8 @@ class NotesRepository {
         // Check if we need to update
         final existing = await (db.select(
           db.localNotes,
-        )..where((n) => n.id.equals(id))).getSingleOrNull();
+        )..where((n) => n.id.equals(id)))
+            .getSingleOrNull();
 
         if (existing != null && existing.updatedAt.isAfter(updatedAt)) {
           skippedCount++;
@@ -1162,16 +1181,16 @@ class NotesRepository {
             body: body,
             updatedAt: updatedAt,
             deleted: false,
-            encryptedMetadata: metadata.isNotEmpty
-                ? jsonEncode(metadata)
-                : null,
+            encryptedMetadata:
+                metadata.isNotEmpty ? jsonEncode(metadata) : null,
             isPinned: isPinned,
             noteType: noteType, // Preserve template/note type from sync
           ),
         );
-        
+
         final typeStr = noteType == NoteKind.template ? 'template' : 'note';
-        debugPrint('📝 Synced $typeStr: $id [${title.substring(0, title.length.clamp(0, 30))}...]');
+        debugPrint(
+            '📝 Synced $typeStr: $id [${title.substring(0, title.length.clamp(0, 30))}...]');
 
         // Update tags
         await db.replaceTagsForNote(id, tags.toSet());
@@ -1198,9 +1217,8 @@ class NotesRepository {
               body: body,
               updatedAt: updatedAt,
               deleted: false,
-              encryptedMetadata: metadata.isNotEmpty
-                  ? jsonEncode(metadata)
-                  : null,
+              encryptedMetadata:
+                  metadata.isNotEmpty ? jsonEncode(metadata) : null,
               isPinned: isPinned,
               noteType: noteType,
             ),
@@ -1218,12 +1236,12 @@ class NotesRepository {
     // Count templates vs notes for better visibility (with error handling)
     try {
       final templates = await (db.select(db.localNotes)
-        ..where((t) => t.deleted.equals(false) & t.noteType.equals(1)))
-        .get();
+            ..where((t) => t.deleted.equals(false) & t.noteType.equals(1)))
+          .get();
       final notes = await (db.select(db.localNotes)
-        ..where((t) => t.deleted.equals(false) & t.noteType.equals(0)))
-        .get();
-      
+            ..where((t) => t.deleted.equals(false) & t.noteType.equals(0)))
+          .get();
+
       debugPrint(
         '📊 Pull complete: $updatedCount updated, $deletedCount deleted, $skippedCount skipped | '
         '📄 Notes: ${notes.length}, 📋 Templates: ${templates.length}',
@@ -1363,10 +1381,10 @@ class NotesRepository {
         final folderId = rel['folder_id'] as String;
 
         // Check if note exists locally
-        final noteExists =
-            await (db.select(
+        final noteExists = await (db.select(
               db.localNotes,
-            )..where((n) => n.id.equals(noteId))).getSingleOrNull() !=
+            )..where((n) => n.id.equals(noteId)))
+                .getSingleOrNull() !=
             null;
 
         if (noteExists) {
@@ -1382,14 +1400,16 @@ class NotesRepository {
   Future<Set<String>> _getNoteTags(String noteId) async {
     final tags = await (db.select(
       db.noteTags,
-    )..where((t) => t.noteId.equals(noteId))).get();
+    )..where((t) => t.noteId.equals(noteId)))
+        .get();
     return tags.map((t) => t.tag).toSet();
   }
 
   Future<List<NoteLink>> _getNoteLinks(String noteId) async {
     return (db.select(
       db.noteLinks,
-    )..where((l) => l.sourceId.equals(noteId))).get();
+    )..where((l) => l.sourceId.equals(noteId)))
+        .get();
   }
 
   /// Fetch remote active IDs (compatibility)
@@ -1442,11 +1462,10 @@ class NotesRepository {
   Future<DateTime?> getLastSyncTime() async {
     // For now, we'll use the most recent updated_at from local notes
     // In a production app, you might want to store this separately
-    final mostRecent =
-        await (db.select(db.localNotes)
-              ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)])
-              ..limit(1))
-            .getSingleOrNull();
+    final mostRecent = await (db.select(db.localNotes)
+          ..orderBy([(n) => OrderingTerm.desc(n.updatedAt)])
+          ..limit(1))
+        .getSingleOrNull();
 
     return mostRecent?.updatedAt;
   }

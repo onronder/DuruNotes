@@ -16,7 +16,7 @@ class PendingChange {
   final bool isCritical;
   final String? taskId;
   final bool? isCompleted;
-  
+
   PendingChange({
     required this.type,
     required this.content,
@@ -33,8 +33,8 @@ class NoteTaskCoordinator {
   NoteTaskCoordinator({
     required AppDb database,
     required BidirectionalTaskSyncService bidirectionalSync,
-  }) : _db = database,
-       _bidirectionalSync = bidirectionalSync;
+  })  : _db = database,
+        _bidirectionalSync = bidirectionalSync;
 
   final AppDb _db;
   final BidirectionalTaskSyncService _bidirectionalSync;
@@ -42,15 +42,15 @@ class NoteTaskCoordinator {
 
   // Track active note subscriptions
   final Map<String, StreamSubscription<LocalNote?>> _noteSubscriptions = {};
-  
+
   // Debounce timers to avoid excessive syncing
   final Map<String, Timer?> _debounceTimers = {};
   static const _defaultDebounceDelay = Duration(milliseconds: 500);
   static const _criticalDebounceDelay = Duration(milliseconds: 100);
-  
+
   // Track pending changes for each note
   final Map<String, List<PendingChange>> _pendingChanges = {};
-  
+
   // Track if a sync is in progress
   final Set<String> _syncInProgress = {};
 
@@ -70,13 +70,11 @@ class NoteTaskCoordinator {
         }
       });
 
-      _logger.info('Started watching note for task sync', data: {'noteId': noteId});
+      _logger.info('Started watching note for task sync',
+          data: {'noteId': noteId});
     } catch (e, stack) {
-      _logger.error('Failed to start watching note', 
-        error: e, 
-        stackTrace: stack,
-        data: {'noteId': noteId}
-      );
+      _logger.error('Failed to start watching note',
+          error: e, stackTrace: stack, data: {'noteId': noteId});
     }
   }
 
@@ -85,7 +83,7 @@ class NoteTaskCoordinator {
     try {
       // Force immediate sync of any pending changes
       await _forceSyncPendingChanges(noteId);
-      
+
       // Cancel subscription
       await _noteSubscriptions[noteId]?.cancel();
       _noteSubscriptions.remove(noteId);
@@ -93,7 +91,7 @@ class NoteTaskCoordinator {
       // Cancel any pending debounce timer
       _debounceTimers[noteId]?.cancel();
       _debounceTimers.remove(noteId);
-      
+
       // Clear pending changes
       _pendingChanges.remove(noteId);
       _syncInProgress.remove(noteId);
@@ -101,20 +99,17 @@ class NoteTaskCoordinator {
       // Clear cache
       _bidirectionalSync.clearCacheForNote(noteId);
 
-      _logger.info('Stopped watching note and synced final changes', 
-        data: {'noteId': noteId}
-      );
+      _logger.info('Stopped watching note and synced final changes',
+          data: {'noteId': noteId});
     } catch (e, stack) {
-      _logger.error('Error during final sync', 
-        error: e, 
-        stackTrace: stack,
-        data: {'noteId': noteId}
-      );
+      _logger.error('Error during final sync',
+          error: e, stackTrace: stack, data: {'noteId': noteId});
     }
   }
 
   /// Handle note content changes with debouncing
-  void _handleNoteChange(String noteId, String content, {bool isCritical = false}) {
+  void _handleNoteChange(String noteId, String content,
+      {bool isCritical = false}) {
     // Add to pending changes
     _pendingChanges[noteId] ??= [];
     _pendingChanges[noteId]!.add(
@@ -125,37 +120,37 @@ class NoteTaskCoordinator {
         isCritical: isCritical,
       ),
     );
-    
+
     // Cancel existing timer
     _debounceTimers[noteId]?.cancel();
 
     // Use shorter delay for critical changes (like checkbox toggles)
     final delay = isCritical ? _criticalDebounceDelay : _defaultDebounceDelay;
-    
+
     // Set new debounce timer
     _debounceTimers[noteId] = Timer(delay, () async {
       await _processPendingChanges(noteId);
     });
   }
-  
+
   /// Process all pending changes for a note
   Future<void> _processPendingChanges(String noteId) async {
     final changes = _pendingChanges[noteId];
     if (changes == null || changes.isEmpty) return;
-    
+
     // Get the latest change (most recent content)
     final latestChange = changes.last;
-    
+
     // Clear pending changes
     _pendingChanges[noteId] = [];
-    
+
     // If another sync is active, queue this one
     if (_syncInProgress.contains(noteId)) {
       _pendingChanges[noteId] = [latestChange];
       _scheduleSync(noteId, isCritical: latestChange.isCritical);
       return;
     }
-    
+
     // Start performance tracking
     final syncId = SyncPerformanceMetrics.instance.startSync(
       noteId: noteId,
@@ -166,13 +161,14 @@ class NoteTaskCoordinator {
       },
     );
     final timer = SyncTimer(syncId, SyncPerformanceMetrics.instance);
-    
+
     _syncInProgress.add(noteId);
     bool success = false;
     String? error;
-    
+
     try {
-      await _bidirectionalSync.syncFromNoteToTasks(noteId, latestChange.content);
+      await _bidirectionalSync.syncFromNoteToTasks(
+          noteId, latestChange.content);
       success = true;
       _logger.debug('Synced tasks from note change', data: {
         'noteId': noteId,
@@ -181,22 +177,19 @@ class NoteTaskCoordinator {
       });
     } catch (e, stack) {
       error = e.toString();
-      _logger.error('Failed to sync tasks from note', 
-        error: e, 
-        stackTrace: stack,
-        data: {'noteId': noteId}
-      );
+      _logger.error('Failed to sync tasks from note',
+          error: e, stackTrace: stack, data: {'noteId': noteId});
     } finally {
       _syncInProgress.remove(noteId);
       timer.stop(success: success, error: error);
-      
+
       // Check if more changes accumulated
       if (_pendingChanges[noteId]?.isNotEmpty ?? false) {
         _scheduleSync(noteId);
       }
     }
   }
-  
+
   /// Schedule a sync with appropriate delay
   void _scheduleSync(String noteId, {bool isCritical = false}) {
     _debounceTimers[noteId]?.cancel();
@@ -205,13 +198,13 @@ class NoteTaskCoordinator {
       await _processPendingChanges(noteId);
     });
   }
-  
+
   /// Force sync of any pending changes
   Future<void> _forceSyncPendingChanges(String noteId) async {
     // Cancel any pending debounced syncs
     _debounceTimers[noteId]?.cancel();
     _debounceTimers.remove(noteId);
-    
+
     // Process any pending changes immediately
     await _processPendingChanges(noteId);
   }
@@ -225,7 +218,7 @@ class NoteTaskCoordinator {
   }) async {
     // Track toggle for rapid toggle detection
     SyncPerformanceMetrics.instance.recordToggle(taskId);
-    
+
     // Add to pending changes with critical priority
     _pendingChanges[noteId] ??= [];
     _pendingChanges[noteId]!.add(
@@ -238,17 +231,17 @@ class NoteTaskCoordinator {
         isCompleted: isCompleted,
       ),
     );
-    
+
     // Schedule with critical priority
     _scheduleSync(noteId, isCritical: true);
-    
+
     _logger.debug('Scheduled critical sync for task toggle', data: {
       'noteId': noteId,
       'taskId': taskId,
       'isCompleted': isCompleted,
     });
   }
-  
+
   /// Manually trigger sync for a note
   Future<void> syncNote(String noteId) async {
     try {
@@ -258,11 +251,8 @@ class NoteTaskCoordinator {
         _logger.debug('Manually synced note tasks', data: {'noteId': noteId});
       }
     } catch (e, stack) {
-      _logger.error('Failed to manually sync note', 
-        error: e, 
-        stackTrace: stack,
-        data: {'noteId': noteId}
-      );
+      _logger.error('Failed to manually sync note',
+          error: e, stackTrace: stack, data: {'noteId': noteId});
     }
   }
 

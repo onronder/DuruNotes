@@ -28,11 +28,11 @@ class GeofenceReminderService extends BaseReminderService {
   @override
   Future<void> initialize() async {
     await super.initialize();
-    
+
     try {
       await _initializeGeofenceService();
       _geofenceInitialized = true;
-      
+
       logger.info('GeofenceReminderService fully initialized');
       trackFeatureUsage('geofence_service_initialized');
     } catch (e, stack) {
@@ -57,13 +57,11 @@ class GeofenceReminderService extends BaseReminderService {
         allowMockLocations: false,
         geofenceRadiusSortType: GeofenceRadiusSortType.DESC,
       );
-      
+
       // Set up geofence status change listener
       _geofenceService?.addGeofenceStatusChangeListener(
-        (geofence, radius, status, location) async => 
-          _onGeofenceStatusChanged(geofence, radius, status, location)
-      );
-      
+          (geofence, radius, status, location) async =>
+              _onGeofenceStatusChanged(geofence, radius, status, location));
     } catch (e, stack) {
       logger.error(
         'Failed to initialize geofence service',
@@ -159,19 +157,20 @@ class GeofenceReminderService extends BaseReminderService {
         latitude: Value(latitude),
         longitude: Value(longitude),
         radius: Value(radius),
-        locationName: locationName != null ? Value(locationName) : const Value.absent(),
-        notificationTitle: config.customNotificationTitle != null 
-            ? Value(config.customNotificationTitle) 
+        locationName:
+            locationName != null ? Value(locationName) : const Value.absent(),
+        notificationTitle: config.customNotificationTitle != null
+            ? Value(config.customNotificationTitle)
             : const Value.absent(),
-        notificationBody: config.customNotificationBody != null 
-            ? Value(config.customNotificationBody) 
+        notificationBody: config.customNotificationBody != null
+            ? Value(config.customNotificationBody)
             : const Value.absent(),
-        // Note: metadata from config is not stored directly, 
+        // Note: metadata from config is not stored directly,
         // location data is stored in specific fields
       );
 
       final reminderId = await createReminderInDb(companion);
-      
+
       if (reminderId == null) {
         return null;
       }

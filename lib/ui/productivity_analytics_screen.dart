@@ -14,10 +14,12 @@ class ProductivityAnalyticsScreen extends ConsumerStatefulWidget {
   const ProductivityAnalyticsScreen({super.key});
 
   @override
-  ConsumerState<ProductivityAnalyticsScreen> createState() => _ProductivityAnalyticsScreenState();
+  ConsumerState<ProductivityAnalyticsScreen> createState() =>
+      _ProductivityAnalyticsScreenState();
 }
 
-class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyticsScreen>
+class _ProductivityAnalyticsScreenState
+    extends ConsumerState<ProductivityAnalyticsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   DateTimeRange? _selectedDateRange;
@@ -29,14 +31,14 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    
+
     // Default to last 30 days
     final now = DateTime.now();
     _selectedDateRange = DateTimeRange(
       start: now.subtract(const Duration(days: 30)),
       end: now,
     );
-    
+
     _loadAnalytics();
   }
 
@@ -53,13 +55,14 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
 
     try {
       final analyticsService = ref.read(taskAnalyticsServiceProvider);
-      
+
       final analytics = await analyticsService.getProductivityAnalytics(
         startDate: _selectedDateRange!.start,
         endDate: _selectedDateRange!.end,
       );
-      
-      final insights = await analyticsService.getProductivityInsights(analytics);
+
+      final insights =
+          await analyticsService.getProductivityInsights(analytics);
 
       if (mounted) {
         setState(() {
@@ -98,7 +101,7 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
       context: context,
       builder: (context) => const GoalsDialog(),
     );
-    
+
     if (result != null && mounted) {
       // Refresh analytics to show progress toward new goal
       await _loadAnalytics();
@@ -111,10 +114,11 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
     try {
       final analyticsService = ref.read(taskAnalyticsServiceProvider);
       final csvData = await analyticsService.exportAnalyticsAsCSV(_analytics!);
-      
+
       await Share.share(
         csvData,
-        subject: 'Productivity Analytics - ${DateFormat.yMMMd().format(_selectedDateRange!.start)} to ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
+        subject:
+            'Productivity Analytics - ${DateFormat.yMMMd().format(_selectedDateRange!.start)} to ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
       );
     } catch (e) {
       if (mounted) {
@@ -239,7 +243,7 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
 
   Widget _buildOverviewTab() {
     final analytics = _analytics!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -257,13 +261,15 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
               AnalyticsSummaryCard(
                 title: 'Tasks Completed',
                 value: analytics.completionStats.totalCompleted.toString(),
-                subtitle: '${(analytics.completionStats.completionRate * 100).round()}% completion rate',
+                subtitle:
+                    '${(analytics.completionStats.completionRate * 100).round()}% completion rate',
                 icon: Icons.check_circle,
                 color: Colors.green,
               ),
               AnalyticsSummaryCard(
                 title: 'Average per Day',
-                value: analytics.completionStats.averagePerDay.toStringAsFixed(1),
+                value:
+                    analytics.completionStats.averagePerDay.toStringAsFixed(1),
                 subtitle: 'tasks completed daily',
                 icon: Icons.today,
                 color: Colors.blue,
@@ -277,7 +283,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
               ),
               AnalyticsSummaryCard(
                 title: 'Time Accuracy',
-                value: '${(analytics.timeAccuracyStats.overallAccuracy * 100).round()}%',
+                value:
+                    '${(analytics.timeAccuracyStats.overallAccuracy * 100).round()}%',
                 subtitle: 'estimation accuracy',
                 icon: Icons.timer,
                 color: Colors.purple,
@@ -299,7 +306,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
           // Priority distribution
           _buildChartSection(
             'Priority Distribution',
-            PriorityDistributionChart(priorityDistribution: analytics.priorityDistribution),
+            PriorityDistributionChart(
+                priorityDistribution: analytics.priorityDistribution),
           ),
         ],
       ),
@@ -308,7 +316,7 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
 
   Widget _buildTimeAnalysisTab() {
     final analytics = _analytics!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -320,7 +328,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
               Expanded(
                 child: AnalyticsSummaryCard(
                   title: 'Accurate Estimates',
-                  value: analytics.timeAccuracyStats.accurateEstimates.toString(),
+                  value:
+                      analytics.timeAccuracyStats.accurateEstimates.toString(),
                   subtitle: 'within 20% of actual',
                   icon: Icons.check,
                   color: Colors.green,
@@ -358,7 +367,7 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
 
   Widget _buildTrendsTab() {
     final analytics = _analytics!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -375,14 +384,15 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
                 Text(
                   'Productivity Score',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 Text(
-                  _getScoreDescription(analytics.productivityTrends.productivityScore),
+                  _getScoreDescription(
+                      analytics.productivityTrends.productivityScore),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -393,7 +403,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
           // Weekly trends
           _buildChartSection(
             'Weekly Productivity',
-            WeeklyTrendsChart(weeklyTrends: analytics.productivityTrends.weeklyTrends),
+            WeeklyTrendsChart(
+                weeklyTrends: analytics.productivityTrends.weeklyTrends),
           ),
 
           const SizedBox(height: 24),
@@ -401,7 +412,9 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
           // Hourly distribution
           _buildChartSection(
             'Most Productive Hours',
-            HourlyProductivityChart(hourlyDistribution: analytics.productivityTrends.hourlyDistribution),
+            HourlyProductivityChart(
+                hourlyDistribution:
+                    analytics.productivityTrends.hourlyDistribution),
           ),
 
           const SizedBox(height: 24),
@@ -418,7 +431,7 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
 
   Widget _buildInsightsTab() {
     final insights = _insights!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -442,16 +455,20 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
                       children: [
                         Text(
                           'Overall Productivity',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _getScoreDescription(insights.overallScore),
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
                       ],
                     ),
@@ -468,8 +485,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
             Text(
               'Key Insights',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
             ...insights.insights.map((insight) => _buildInsightCard(insight)),
@@ -482,11 +499,12 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
             Text(
               'Recommendations',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
-            ...insights.recommendations.map((recommendation) => _buildRecommendationCard(recommendation)),
+            ...insights.recommendations.map(
+                (recommendation) => _buildRecommendationCard(recommendation)),
           ],
         ],
       ),
@@ -500,8 +518,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
         Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 12),
         Card(
@@ -522,8 +540,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
         Text(
           'Time Breakdown by Priority',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 12),
         Card(
@@ -531,10 +549,11 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: analytics.priorityDistribution.distribution.entries.map((entry) {
+              children: analytics.priorityDistribution.distribution.entries
+                  .map((entry) {
                 final priority = entry.key;
                 final stats = entry.value;
-                
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -554,24 +573,33 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
                           children: [
                             Text(
                               _getPriorityLabel(priority),
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                             Text(
                               'Avg: ${stats.averageActualTime.toStringAsFixed(0)}m per task',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         '${stats.completedTasks} tasks',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                     ],
                   ),
@@ -625,7 +653,8 @@ class _ProductivityAnalyticsScreenState extends ConsumerState<ProductivityAnalyt
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: impactColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -798,7 +827,8 @@ class QuickAnalyticsWidget extends ConsumerWidget {
                     TextButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const ProductivityAnalyticsScreen(),
+                          builder: (context) =>
+                              const ProductivityAnalyticsScreen(),
                         ),
                       ),
                       child: const Text('View All'),
@@ -871,7 +901,7 @@ class QuickAnalyticsWidget extends ConsumerWidget {
   Future<ProductivityAnalytics> _getQuickAnalytics(WidgetRef ref) async {
     final analyticsService = ref.read(taskAnalyticsServiceProvider);
     final now = DateTime.now();
-    
+
     return analyticsService.getProductivityAnalytics(
       startDate: now.subtract(const Duration(days: 7)),
       endDate: now,

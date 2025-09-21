@@ -2,6 +2,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Global instances
@@ -57,11 +58,11 @@ class NotesPage {
 /// StateNotifier for managing paginated notes
 class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
   NotesPaginationNotifier(this._repo)
-    : super(
-        const AsyncValue.data(
-          NotesPage(items: [], hasMore: true, nextCursor: null),
-        ),
-      );
+      : super(
+          const AsyncValue.data(
+            NotesPage(items: [], hasMore: true, nextCursor: null),
+          ),
+        );
 
   final NotesRepository _repo;
   static const int _pageSize = 20;

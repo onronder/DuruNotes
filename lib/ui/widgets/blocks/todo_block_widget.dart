@@ -98,18 +98,19 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
 
   Future<void> _loadTaskData() async {
     if (widget.noteId == null) return;
-    
+
     try {
       // Check if widget is still mounted before using ref
       if (!mounted) return;
-      
+
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final tasks = await unifiedService.getTasksForNote(widget.noteId!);
-      final matchingTask = tasks.where((task) => 
-        task.position == widget.position && 
-        task.content.trim() == _text.trim()
-      ).firstOrNull;
-      
+      final matchingTask = tasks
+          .where((task) =>
+              task.position == widget.position &&
+              task.content.trim() == _text.trim())
+          .firstOrNull;
+
       if (mounted) {
         setState(() {
           _task = matchingTask;
@@ -138,7 +139,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       _isCompleted = !_isCompleted;
     });
     _updateTodo();
-    
+
     // Track the optimistic state
     final optimisticState = _isCompleted;
 
@@ -157,7 +158,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
             _isCompleted = previousState;
           });
           _updateTodo();
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to update task: $e'),
@@ -196,14 +197,11 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       final appDb = ref.read(appDbProvider);
 
       if (_task == null) {
-        // NEW TASK WITH CUSTOM REMINDER
-        String taskId;
-        
-        if (metadata.hasReminder && 
-            metadata.reminderTime != null && 
+        // NEW TASK WITH OPTIONAL REMINDER
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
             metadata.dueDate != null) {
-          // Create task with reminder
-          taskId = await unifiedService.createTask(
+          final createdTask = await unifiedService.createTask(
             noteId: widget.noteId!,
             content: _text,
             dueDate: metadata.dueDate,
@@ -212,19 +210,14 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
             notes: metadata.notes,
             estimatedMinutes: metadata.estimatedMinutes,
           );
-          
-          // Add reminder separately
-          final newTask = await appDb.getTaskById(taskId);
-          if (newTask != null && metadata.reminderTime != null) {
-            final duration = metadata.dueDate!.difference(metadata.reminderTime!);
-            await reminderBridge.createTaskReminder(
-              task: newTask,
-              beforeDueDate: duration.abs(),
-            );
-          }
+
+          final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+          await reminderBridge.createTaskReminder(
+            task: createdTask,
+            beforeDueDate: duration.abs(),
+          );
         } else {
-          // Create task without reminder
-          taskId = await unifiedService.createTask(
+          await unifiedService.createTask(
             noteId: widget.noteId!,
             content: _text,
             priority: metadata.priority,
@@ -240,7 +233,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       } else {
         // UPDATE EXISTING TASK
         final oldTask = _task!;
-        
+
         await unifiedService.updateTask(
           taskId: oldTask.id,
           priority: metadata.priority,
@@ -249,14 +242,17 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
-        
+
         // Handle reminder changes
-        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
+            metadata.dueDate != null) {
           if (oldTask.reminderId == null) {
             // Create new reminder
             final updatedTask = await appDb.getTaskById(oldTask.id);
             if (updatedTask != null) {
-              final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+              final duration =
+                  metadata.dueDate!.difference(metadata.reminderTime!);
               await reminderBridge.createTaskReminder(
                 task: updatedTask,
                 beforeDueDate: duration.abs(),
@@ -277,7 +273,6 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
         // Reload task data
         await _loadTaskData();
       }
-
     } catch (e) {
       debugPrint('Error saving task metadata: $e');
       if (mounted) {
@@ -314,8 +309,10 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
               Padding(
                 padding: const EdgeInsets.only(top: 12, right: 8),
                 child: GestureDetector(
+                  key: ValueKey('todo_checkbox_${widget.position}'),
                   onTap: _toggleCompleted,
-                  onLongPress: widget.noteId != null ? _showTaskMetadataDialog : null,
+                  onLongPress:
+                      widget.noteId != null ? _showTaskMetadataDialog : null,
                   child: Container(
                     width: 22,
                     height: 22,
@@ -370,7 +367,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
                         textInputAction: TextInputAction.newline,
                       ),
                     ),
-                    
+
                     // Task indicators
                     if (_task != null) ...[
                       const SizedBox(height: 4),

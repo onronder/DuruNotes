@@ -4,8 +4,8 @@ import 'package:duru_notes/services/clipper_inbox_service.dart';
 
 class CaptureNotesAdapter implements NotesCapturePort {
   CaptureNotesAdapter({required NotesRepository repository, required AppDb db})
-    : _repository = repository,
-      _db = db;
+      : _repository = repository,
+        _db = db;
   final NotesRepository _repository;
   final AppDb _db;
 

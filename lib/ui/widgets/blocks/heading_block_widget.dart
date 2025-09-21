@@ -136,11 +136,7 @@ class _HeadingBlockWidgetState extends State<HeadingBlockWidget> {
             ),
             child: Center(
               child: Text(
-                'H${widget.block.type == NoteBlockType.heading1
-                    ? '1'
-                    : widget.block.type == NoteBlockType.heading2
-                    ? '2'
-                    : '3'}',
+                'H${widget.block.type == NoteBlockType.heading1 ? '1' : widget.block.type == NoteBlockType.heading2 ? '2' : '3'}',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,

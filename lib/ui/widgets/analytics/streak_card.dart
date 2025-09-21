@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 class StreakCard extends StatelessWidget {
   final int currentStreak;
   final int longestStreak;
-  
+
   const StreakCard({
     super.key,
     required this.currentStreak,
     required this.longestStreak,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -86,7 +86,7 @@ class StreakCard extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildStreakItem(
     BuildContext context,
     String label,
@@ -95,7 +95,7 @@ class StreakCard extends StatelessWidget {
     bool isHighlighted,
   ) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -132,7 +132,7 @@ class StreakCard extends StatelessWidget {
       ),
     );
   }
-  
+
   String _getStreakMessage(int current, int longest) {
     if (current == 0) {
       return 'Start completing tasks to build your streak!';

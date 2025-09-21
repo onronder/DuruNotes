@@ -12,7 +12,7 @@ class TaskCard extends StatelessWidget {
   final UnifiedTaskCallbacks callbacks;
   final bool isSelected;
   final bool showSubtasks;
-  
+
   const TaskCard({
     super.key,
     this.dbTask,
@@ -20,7 +20,8 @@ class TaskCard extends StatelessWidget {
     required this.callbacks,
     this.isSelected = false,
     this.showSubtasks = true,
-  }) : assert(dbTask != null || legacyTask != null, 'Either dbTask or legacyTask must be provided');
+  }) : assert(dbTask != null || legacyTask != null,
+            'Either dbTask or legacyTask must be provided');
 
   @override
   Widget build(BuildContext context) {
@@ -34,11 +35,11 @@ class TaskCard extends StatelessWidget {
       return _buildCard(context, legacyTask!);
     }
   }
-  
+
   Widget _buildCard(BuildContext context, UiNoteTask task) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Card(
       elevation: isSelected ? 4 : 1,
       shape: RoundedRectangleBorder(
@@ -91,7 +92,8 @@ class TaskCard extends StatelessWidget {
                         ),
                         const PopupMenuItem(
                           value: 'delete',
-                          child: Text('Delete', style: TextStyle(color: Colors.red)),
+                          child: Text('Delete',
+                              style: TextStyle(color: Colors.red)),
                         ),
                       ],
                     ),
@@ -99,7 +101,7 @@ class TaskCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Task content
               Expanded(
                 child: Text(
@@ -116,7 +118,7 @@ class TaskCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              
+
               // Footer with due date and subtasks
               if (task.dueDate != null || task.subtasks.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -131,7 +133,7 @@ class TaskCard extends StatelessWidget {
                   ],
                 ),
               ],
-              
+
               // Tags if present
               if (task.tags.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -162,7 +164,7 @@ class TaskCard extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildCheckbox(BuildContext context, UiNoteTask task) {
     final status = task.status;
     return Checkbox(
@@ -173,12 +175,12 @@ class TaskCard extends StatelessWidget {
       },
     );
   }
-  
+
   Widget _buildPriorityIndicator(BuildContext context, UiNoteTask task) {
     final priority = task.priority;
     Color color;
     IconData icon;
-    
+
     switch (priority) {
       case UiTaskPriority.urgent:
         color = Colors.red;
@@ -198,20 +200,20 @@ class TaskCard extends StatelessWidget {
         icon = Icons.flag_outlined;
         break;
     }
-    
+
     return Icon(icon, size: 16, color: color);
   }
-  
+
   Widget _buildDueDateChip(BuildContext context, UiNoteTask task) {
     final dueDate = task.dueDate;
     if (dueDate == null) return const SizedBox.shrink();
-    
+
     final now = DateTime.now();
     final isOverdue = dueDate.isBefore(now);
-    final isDueToday = dueDate.year == now.year && 
-                       dueDate.month == now.month && 
-                       dueDate.day == now.day;
-    
+    final isDueToday = dueDate.year == now.year &&
+        dueDate.month == now.month &&
+        dueDate.day == now.day;
+
     return Chip(
       avatar: Icon(
         Icons.calendar_today,
@@ -225,22 +227,24 @@ class TaskCard extends StatelessWidget {
           color: isOverdue ? Colors.red : (isDueToday ? Colors.orange : null),
         ),
       ),
-      backgroundColor: isOverdue 
-          ? Colors.red.withOpacity(0.1) 
+      backgroundColor: isOverdue
+          ? Colors.red.withOpacity(0.1)
           : (isDueToday ? Colors.orange.withOpacity(0.1) : null),
     );
   }
-  
+
   Widget _buildSubtaskIndicator(BuildContext context, UiNoteTask task) {
     final subtasks = task.subtasks;
     if (subtasks.isEmpty) return const SizedBox.shrink();
-    
-    final completedCount = subtasks.where((t) => t.status == UiTaskStatus.completed).length;
-    
+
+    final completedCount =
+        subtasks.where((t) => t.status == UiTaskStatus.completed).length;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color:
+            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

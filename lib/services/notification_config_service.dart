@@ -4,12 +4,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// Service to configure notification actions and categories
 class NotificationConfigService {
   NotificationConfigService._();
-  
-  static final NotificationConfigService _instance = NotificationConfigService._();
+
+  static final NotificationConfigService _instance =
+      NotificationConfigService._();
   static NotificationConfigService get instance => _instance;
-  
+
   final AppLogger _logger = LoggerFactory.instance;
-  
+
   /// Configure notification initialization settings with actions
   InitializationSettings getInitializationSettings() {
     return InitializationSettings(
@@ -17,24 +18,24 @@ class NotificationConfigService {
       iOS: _getIOSSettings(),
     );
   }
-  
+
   /// Get Android initialization settings
   AndroidInitializationSettings _getAndroidSettings() {
     return const AndroidInitializationSettings('@mipmap/ic_launcher');
   }
-  
+
   /// Get iOS initialization settings with categories
   DarwinInitializationSettings _getIOSSettings() {
     return DarwinInitializationSettings(
       notificationCategories: _getIOSCategories(),
     );
   }
-  
+
   /// Define iOS notification categories and actions
   List<DarwinNotificationCategory> _getIOSCategories() {
     return [
       // Task reminder category with actions
-      const DarwinNotificationCategory(
+      DarwinNotificationCategory(
         'TASK_REMINDER',
         actions: [
           DarwinNotificationAction.plain(
@@ -72,9 +73,9 @@ class NotificationConfigService {
           DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
         },
       ),
-      
+
       // Note reminder category
-      const DarwinNotificationCategory(
+      DarwinNotificationCategory(
         'NOTE_REMINDER',
         actions: [
           DarwinNotificationAction.plain(
@@ -99,7 +100,7 @@ class NotificationConfigService {
       ),
     ];
   }
-  
+
   /// Get Android notification actions for task reminders
   List<AndroidNotificationAction> getTaskNotificationActions() {
     return const [
@@ -140,7 +141,7 @@ class NotificationConfigService {
       ),
     ];
   }
-  
+
   /// Handle notification response (when user taps notification or action)
   Future<void> handleNotificationResponse(
     NotificationResponse response,
@@ -150,16 +151,16 @@ class NotificationConfigService {
       _logger.info('Notification response received', data: {
         'actionId': response.actionId,
         'payload': response.payload,
-        'notificationResponseType': response.notificationResponseType.toString(),
+        'notificationResponseType':
+            response.notificationResponseType.toString(),
       });
-      
+
       // Get action ID (null for simple tap, string for action button)
       final action = response.actionId ?? 'tap';
       final payload = response.payload ?? '{}';
-      
+
       // Delegate to action handler
       await onAction(action, payload);
-      
     } catch (e, stack) {
       _logger.error(
         'Failed to handle notification response',

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -10,8 +11,8 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// Service for converting speech to text using the microphone.
 class VoiceTranscriptionService {
   VoiceTranscriptionService({AppLogger? logger, AnalyticsService? analytics})
-    : _logger = logger ?? LoggerFactory.instance,
-      _analytics = analytics ?? AnalyticsFactory.instance;
+      : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;

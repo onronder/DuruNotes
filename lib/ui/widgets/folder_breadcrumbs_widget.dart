@@ -140,8 +140,7 @@ class _BreadcrumbChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color:
-                    color ??
+                color: color ??
                     (isActive
                         ? colorScheme.primary
                         : colorScheme.onSurfaceVariant),
@@ -249,9 +248,8 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
                         child: Text(
                           folder.name,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: isLast
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                            fontWeight:
+                                isLast ? FontWeight.bold : FontWeight.normal,
                             color: isLast
                                 ? colorScheme.primary
                                 : colorScheme.onSurfaceVariant,

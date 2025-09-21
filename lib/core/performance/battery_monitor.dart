@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
-import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 /// Comprehensive battery monitoring service for tracking power consumption
 ///
@@ -55,9 +55,8 @@ class BatteryMonitor {
   /// Initialize battery monitoring
   Future<void> initialize() async {
     try {
-      final config = EnvironmentConfig.current;
-      if (!config.isPerformanceMonitoringEnabled) {
-        _logger.info('Battery monitoring disabled in configuration');
+      if (!kDebugMode) {
+        _logger.info('Battery monitoring disabled outside debug mode');
         return;
       }
 
@@ -464,11 +463,11 @@ class BatteryInfo {
   });
 
   factory BatteryInfo.unknown() => BatteryInfo(
-    level: 0,
-    state: BatteryState.unknown,
-    isInBatterySaveMode: false,
-    timestamp: DateTime.now(),
-  );
+        level: 0,
+        state: BatteryState.unknown,
+        isInBatterySaveMode: false,
+        timestamp: DateTime.now(),
+      );
   final int level;
   final BatteryState state;
   final bool isInBatterySaveMode;

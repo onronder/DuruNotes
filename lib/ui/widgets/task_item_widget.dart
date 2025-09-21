@@ -46,7 +46,7 @@ class TaskItemWidget extends ConsumerWidget {
           // Complete action
           HapticFeedback.mediumImpact();
           await unifiedService.onStatusChanged(
-            task.id, 
+            task.id,
             isCompleted ? TaskStatus.open : TaskStatus.completed,
           );
           return false; // Don't dismiss, just toggle
@@ -80,7 +80,9 @@ class TaskItemWidget extends ConsumerWidget {
                         onTap: () async {
                           await unifiedService.onStatusChanged(
                             task.id,
-                            isCompleted ? TaskStatus.open : TaskStatus.completed,
+                            isCompleted
+                                ? TaskStatus.open
+                                : TaskStatus.completed,
                           );
                         },
                         child: Container(
@@ -161,9 +163,10 @@ class TaskItemWidget extends ConsumerWidget {
                                     compact: true,
                                   ),
                                 ),
-                                
+
                                 // Source note indicator
-                                if (showSourceNote && task.noteId != 'standalone')
+                                if (showSourceNote &&
+                                    task.noteId != 'standalone')
                                   _buildSourceNoteChip(context, ref),
                               ],
                             ),
@@ -178,13 +181,15 @@ class TaskItemWidget extends ConsumerWidget {
                           size: 20,
                           color: colorScheme.onSurfaceVariant,
                         ),
-                        onSelected: (action) => _handleQuickAction(context, ref, action),
+                        onSelected: (action) =>
+                            _handleQuickAction(context, ref, action),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, size: 18, color: colorScheme.primary),
+                                Icon(Icons.edit,
+                                    size: 18, color: colorScheme.primary),
                                 const SizedBox(width: 8),
                                 const Text('Edit'),
                               ],
@@ -195,7 +200,8 @@ class TaskItemWidget extends ConsumerWidget {
                               value: 'open_note',
                               child: Row(
                                 children: [
-                                  Icon(Icons.note, size: 18, color: colorScheme.secondary),
+                                  Icon(Icons.note,
+                                      size: 18, color: colorScheme.secondary),
                                   const SizedBox(width: 8),
                                   const Text('Open Note'),
                                 ],
@@ -206,7 +212,8 @@ class TaskItemWidget extends ConsumerWidget {
                               value: 'snooze',
                               child: Row(
                                 children: [
-                                  Icon(Icons.snooze, size: 18, color: Colors.orange),
+                                  Icon(Icons.snooze,
+                                      size: 18, color: Colors.orange),
                                   const SizedBox(width: 8),
                                   const Text('Snooze'),
                                 ],
@@ -228,7 +235,8 @@ class TaskItemWidget extends ConsumerWidget {
                   ),
 
                   // Time tracking (if available)
-                  if (task.estimatedMinutes != null || task.actualMinutes != null) ...[
+                  if (task.estimatedMinutes != null ||
+                      task.actualMinutes != null) ...[
                     const SizedBox(height: 8),
                     _buildTimeTracking(context),
                   ],
@@ -278,7 +286,8 @@ class TaskItemWidget extends ConsumerWidget {
   Widget _buildDueDateChip(BuildContext context, DateTime dueDate) {
     final theme = Theme.of(context);
     final now = DateTime.now();
-    final isOverdue = dueDate.isBefore(now) && task.status != TaskStatus.completed;
+    final isOverdue =
+        dueDate.isBefore(now) && task.status != TaskStatus.completed;
     final isToday = _isSameDay(dueDate, now);
     final isTomorrow = _isSameDay(dueDate, now.add(const Duration(days: 1)));
 
@@ -419,7 +428,7 @@ class TaskItemWidget extends ConsumerWidget {
   void _showQuickActions(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
     final unifiedService = ref.read(unifiedTaskServiceProvider);
-    
+
     showModalBottomSheet(
       context: context,
       builder: (context) => _TaskQuickActionsSheet(
@@ -431,7 +440,7 @@ class TaskItemWidget extends ConsumerWidget {
 
   void _handleQuickAction(BuildContext context, WidgetRef ref, String action) {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
-    
+
     switch (action) {
       case 'edit':
         unifiedService.onEdit(task.id);
@@ -450,7 +459,7 @@ class TaskItemWidget extends ConsumerWidget {
 
   Future<void> _openSourceNote(BuildContext context, WidgetRef ref) async {
     if (task.noteId == 'standalone') return;
-    
+
     try {
       // Navigate to note - implementation depends on your navigation setup
       Navigator.of(context).pushNamed('/note', arguments: task.noteId);
@@ -466,48 +475,52 @@ class TaskItemWidget extends ConsumerWidget {
 
   Future<void> _snoozeTask(BuildContext context, WidgetRef ref) async {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
-    
+
     // Show snooze duration picker
     final duration = await showDialog<Duration>(
       context: context,
       builder: (context) => _SnoozeDurationDialog(),
     );
-    
+
     if (duration != null && task.dueDate != null) {
       final newDueDate = task.dueDate!.add(duration);
       await unifiedService.onDueDateChanged(task.id, newDueDate);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Task snoozed until ${DateFormat.MMMd().add_Hm().format(newDueDate)}')),
+          SnackBar(
+              content: Text(
+                  'Task snoozed until ${DateFormat.MMMd().add_Hm().format(newDueDate)}')),
         );
       }
     }
   }
 
-  Future<bool> _showDeleteConfirmation(BuildContext context, WidgetRef ref) async {
+  Future<bool> _showDeleteConfirmation(
+      BuildContext context, WidgetRef ref) async {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
-    
+
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: const Text('Are you sure you want to delete this task?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Task'),
+            content: const Text('Are you sure you want to delete this task?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.of(context).pop(true);
+                  await unifiedService.onDeleted(task.id);
+                },
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.of(context).pop(true);
-              await unifiedService.onDeleted(task.id);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref) {
@@ -529,13 +542,13 @@ class TaskItemWidget extends ConsumerWidget {
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   String _getRelativeTime(DateTime date, DateTime now) {
     final difference = date.difference(now);
-    
+
     if (difference.isNegative) {
       final absDiff = difference.abs();
       if (absDiff.inDays > 0) {
@@ -596,9 +609,9 @@ class _TaskQuickActionsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Task title
           Text(
             task.content,
@@ -608,9 +621,9 @@ class _TaskQuickActionsSheet extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Actions
           Wrap(
             spacing: 16,
@@ -627,7 +640,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                   );
                 },
               ),
-              
               _ActionChip(
                 icon: Icons.edit,
                 label: 'Edit',
@@ -636,17 +648,16 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                   unifiedService.onEdit(task.id);
                 },
               ),
-              
               if (task.noteId != 'standalone')
                 _ActionChip(
                   icon: Icons.note,
                   label: 'Open Note',
                   onTap: () {
                     Navigator.of(context).pop();
-                    Navigator.of(context).pushNamed('/note', arguments: task.noteId);
+                    Navigator.of(context)
+                        .pushNamed('/note', arguments: task.noteId);
                   },
                 ),
-              
               if (task.dueDate != null && !isCompleted)
                 _ActionChip(
                   icon: Icons.snooze,
@@ -656,7 +667,6 @@ class _TaskQuickActionsSheet extends StatelessWidget {
                     // Handle snooze
                   },
                 ),
-              
               _ActionChip(
                 icon: Icons.delete,
                 label: 'Delete',
@@ -668,7 +678,7 @@ class _TaskQuickActionsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
         ],
       ),

@@ -97,16 +97,15 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
               }
 
               final folders = snapshot.data!;
-              final rootFolders =
-                  folders
-                      .where((f) => f.parentId == null && !f.deleted)
-                      .toList()
-                    ..sort((a, b) {
-                      final orderCompare = a.sortOrder.compareTo(b.sortOrder);
-                      return orderCompare != 0
-                          ? orderCompare
-                          : a.name.compareTo(b.name);
-                    });
+              final rootFolders = folders
+                  .where((f) => f.parentId == null && !f.deleted)
+                  .toList()
+                ..sort((a, b) {
+                  final orderCompare = a.sortOrder.compareTo(b.sortOrder);
+                  return orderCompare != 0
+                      ? orderCompare
+                      : a.name.compareTo(b.name);
+                });
 
               return ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -256,8 +255,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 const SizedBox(width: 24),
               Icon(
                 _getFolderIcon(folder),
-                color:
-                    folderColor ??
+                color: folderColor ??
                     (isSelected ? theme.colorScheme.primary : null),
                 size: 20,
               ),
@@ -277,9 +275,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
               : Text(
                   folder.name,
                   style: TextStyle(
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                     color: isSelected ? theme.colorScheme.primary : null,
                   ),
                 ),
@@ -522,9 +519,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 title: const Text('Root'),
                 onTap: () => Navigator.pop(context, ''),
               ),
-              ...availableParents
-                  .skip(1)
-                  .map(
+              ...availableParents.skip(1).map(
                     (parent) => ListTile(
                       leading: const Icon(Icons.folder),
                       title: Text(parent!.name),

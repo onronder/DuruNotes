@@ -83,7 +83,7 @@ class BlockTheme {
 }
 
 /// Unified block editor that consolidates multiple implementations
-/// 
+///
 /// This widget merges the best features from both BlockEditor and ModularBlockEditor
 /// implementations, providing a single, consistent interface with feature flags
 /// for gradual migration.
@@ -112,11 +112,11 @@ class UnifiedBlockEditor extends ConsumerStatefulWidget {
 class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
   final AppLogger _logger = LoggerFactory.instance;
   final FeatureFlags _featureFlags = FeatureFlags.instance;
-  
+
   late List<NoteBlock> _blocks;
   late Map<int, TextEditingController> _controllers;
   late Map<int, FocusNode> _focusNodes;
-  
+
   int? _focusedBlockIndex;
   bool _showBlockSelector = false;
   int? _blockSelectorIndex;
@@ -129,8 +129,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     _focusNodes = {};
     _focusedBlockIndex = widget.focusedBlockIndex;
     _initializeControllers();
-    
-    _logger.info('UnifiedBlockEditor initialized with ${_blocks.length} blocks');
+
+    _logger
+        .info('UnifiedBlockEditor initialized with ${_blocks.length} blocks');
   }
 
   @override
@@ -160,11 +161,12 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     // Dispose old controllers that are no longer needed
     final oldKeys = Set<int>.from(_controllers.keys);
     final newKeys = <int>{};
-    
+
     for (int i = 0; i < _blocks.length; i++) {
       newKeys.add(i);
       if (!_controllers.containsKey(i)) {
-        _controllers[i] = TextEditingController(text: _blocks[i].data.toString());
+        _controllers[i] =
+            TextEditingController(text: _blocks[i].data.toString());
         _focusNodes[i] = FocusNode();
       } else {
         // Update existing controller if text changed
@@ -174,7 +176,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         }
       }
     }
-    
+
     // Dispose controllers for removed blocks
     for (final key in oldKeys.difference(newKeys)) {
       _controllers[key]?.dispose();
@@ -204,7 +206,8 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
             Expanded(
               child: ReorderableListView.builder(
                 buildDefaultDragHandles: widget.config.allowReordering,
-                onReorder: widget.config.allowReordering ? _onReorder : (_, __) {},
+                onReorder:
+                    widget.config.allowReordering ? _onReorder : (_, __) {},
                 padding: widget.config.padding ?? const EdgeInsets.all(16),
                 itemCount: _blocks.length,
                 itemBuilder: (context, index) {
@@ -275,7 +278,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
   Widget _buildBlockItem(BuildContext context, int index) {
     final block = _blocks[index];
     final isFocused = _focusedBlockIndex == index;
-    
+
     return Dismissible(
       key: ValueKey('block_$index'),
       direction: DismissDirection.endToStart,
@@ -326,7 +329,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
   Widget _buildBlockContent(NoteBlock block, int index, bool isFocused) {
     // Apply custom theme if provided
     final theme = widget.config.theme;
-    
+
     switch (block.type) {
       case NoteBlockType.paragraph:
         return ParagraphBlockWidget(
@@ -389,8 +392,8 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme?.quoteBackgroundColor ?? 
-                   Theme.of(context).colorScheme.surfaceVariant,
+            color: theme?.quoteBackgroundColor ??
+                Theme.of(context).colorScheme.surfaceVariant,
             borderRadius: BorderRadius.circular(8),
             border: Border(
               left: BorderSide(
@@ -479,30 +482,34 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         child: Center(
           child: Card(
             margin: const EdgeInsets.all(32),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Add Block',
-                    style: Theme.of(context).textTheme.headlineSmall,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400, maxHeight: 420),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Add Block',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: NoteBlockType.values.map((type) {
+                          return ActionChip(
+                            label: Text(_getBlockTypeName(type)),
+                            avatar: Icon(_getBlockTypeIcon(type)),
+                            onPressed: () => _addBlock(type),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: NoteBlockType.values.map((type) {
-                      return ActionChip(
-                        label: Text(_getBlockTypeName(type)),
-                        avatar: Icon(_getBlockTypeIcon(type)),
-                        onPressed: () => _addBlock(type),
-                      );
-                    }).toList(),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -526,7 +533,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
       _initializeControllers();
     });
     widget.onBlocksChanged(_blocks);
-    
+
     // Focus the new block
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[index]?.requestFocus();
@@ -579,7 +586,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
   void _addBlock(NoteBlockType type) {
     final index = _blockSelectorIndex ?? _blocks.length;
     NoteBlock newBlock;
-    
+
     switch (type) {
       case NoteBlockType.paragraph:
         newBlock = createParagraphBlock('');
@@ -607,7 +614,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
       default:
         newBlock = const NoteBlock(type: NoteBlockType.paragraph, data: '');
     }
-    
+
     _insertBlock(index, newBlock);
     _hideBlockSelector();
   }

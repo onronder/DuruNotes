@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart'
-    show NoteRemindersCompanion, RecurrencePattern, ReminderType;
+    show NoteReminder, NoteRemindersCompanion, RecurrencePattern, ReminderType;
 import 'package:duru_notes/main.dart'; // for global `logger`
-import 'package:duru_notes/models/note_reminder.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,17 +107,17 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
             Text(
               'No reminders set',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add time-based or location-based reminders for this note',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -339,9 +339,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   Future<void> _activateReminder(NoteReminder reminder) async {
     try {
       // Mark isActive = true in database
-      await ref
-          .read(appDbProvider)
-          .updateReminder(
+      await ref.read(appDbProvider).updateReminder(
             reminder.id,
             const NoteRemindersCompanion(isActive: Value(true)),
           );
@@ -831,8 +829,8 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
         recurrenceEndDate: _recurrenceEndDate,
         customNotificationTitle:
             _notificationTitleController.text.trim().isEmpty
-            ? null
-            : _notificationTitleController.text.trim(),
+                ? null
+                : _notificationTitleController.text.trim(),
         customNotificationBody: _notificationBodyController.text.trim().isEmpty
             ? null
             : _notificationBodyController.text.trim(),
@@ -1201,8 +1199,8 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
             : _locationNameController.text.trim(),
         customNotificationTitle:
             _notificationTitleController.text.trim().isEmpty
-            ? null
-            : _notificationTitleController.text.trim(),
+                ? null
+                : _notificationTitleController.text.trim(),
         customNotificationBody: _notificationBodyController.text.trim().isEmpty
             ? null
             : _notificationBodyController.text.trim(),

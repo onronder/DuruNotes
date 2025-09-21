@@ -33,9 +33,11 @@ class TaskTreeWidget extends StatefulWidget {
 
 class _TaskTreeWidgetState extends State<TaskTreeWidget> {
   final Set<String> _expandedNodes = <String>{};
-  final HierarchicalTaskSyncService _hierarchyService = HierarchicalTaskSyncService(
+  final HierarchicalTaskSyncService _hierarchyService =
+      HierarchicalTaskSyncService(
     database: AppDb(), // This would need proper injection
-    enhancedTaskService: EnhancedTaskService(database: AppDb(), reminderBridge: null as dynamic),
+    enhancedTaskService:
+        EnhancedTaskService(database: AppDb(), reminderBridge: null as dynamic),
   );
 
   @override
@@ -64,7 +66,8 @@ class _TaskTreeWidgetState extends State<TaskTreeWidget> {
           depth: 0,
           maxDepth: widget.maxDepth,
           isExpanded: _expandedNodes.contains(widget.rootNodes[index].task.id),
-          onToggleExpanded: () => _toggleExpanded(widget.rootNodes[index].task.id),
+          onToggleExpanded: () =>
+              _toggleExpanded(widget.rootNodes[index].task.id),
           onTaskToggle: widget.onTaskToggle,
           onTaskEdit: widget.onTaskEdit,
           onTaskDelete: widget.onTaskDelete,
@@ -138,7 +141,8 @@ class TaskTreeNodeWidget extends StatelessWidget {
       children: [
         // Main task row
         Container(
-          margin: EdgeInsets.only(left: depth * 24.0, right: 8, top: 4, bottom: 4),
+          margin:
+              EdgeInsets.only(left: depth * 24.0, right: 8, top: 4, bottom: 4),
           child: Material(
             elevation: depth > 0 ? 1 : 2,
             borderRadius: BorderRadius.circular(8),
@@ -161,9 +165,9 @@ class TaskTreeNodeWidget extends StatelessWidget {
                           height: 20,
                           margin: const EdgeInsets.only(right: 8, top: 2),
                           child: Icon(
-                            isExpanded 
-                              ? Icons.keyboard_arrow_down 
-                              : Icons.keyboard_arrow_right,
+                            isExpanded
+                                ? Icons.keyboard_arrow_down
+                                : Icons.keyboard_arrow_right,
                             size: 16,
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -220,7 +224,9 @@ class TaskTreeNodeWidget extends StatelessWidget {
                               color: isCompleted
                                   ? colorScheme.onSurfaceVariant
                                   : colorScheme.onSurface,
-                              fontWeight: hasChildren ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: hasChildren
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
 
@@ -243,13 +249,15 @@ class TaskTreeNodeWidget extends StatelessWidget {
                                   compact: true,
                                 ),
                               ),
-                              
+
                               // Children count indicator
                               if (hasChildren)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: colorScheme.primaryContainer.withOpacity(0.5),
+                                    color: colorScheme.primaryContainer
+                                        .withOpacity(0.5),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
@@ -260,16 +268,19 @@ class TaskTreeNodeWidget extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                              
+
                               // Source note indicator
-                              if (task.noteId != 'standalone' && onOpenNote != null)
+                              if (task.noteId != 'standalone' &&
+                                  onOpenNote != null)
                                 GestureDetector(
                                   onTap: () => onOpenNote!(task),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     margin: const EdgeInsets.only(left: 4),
                                     decoration: BoxDecoration(
-                                      color: colorScheme.secondaryContainer.withOpacity(0.5),
+                                      color: colorScheme.secondaryContainer
+                                          .withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
@@ -278,13 +289,15 @@ class TaskTreeNodeWidget extends StatelessWidget {
                                         Icon(
                                           Icons.note,
                                           size: 12,
-                                          color: colorScheme.onSecondaryContainer,
+                                          color:
+                                              colorScheme.onSecondaryContainer,
                                         ),
                                         const SizedBox(width: 2),
                                         Text(
                                           'Note',
                                           style: TextStyle(
-                                            color: colorScheme.onSecondaryContainer,
+                                            color: colorScheme
+                                                .onSecondaryContainer,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -355,7 +368,8 @@ class TaskTreeNodeWidget extends StatelessWidget {
                             value: 'delete_hierarchy',
                             child: Row(
                               children: [
-                                Icon(Icons.delete_sweep, size: 16, color: Colors.red),
+                                Icon(Icons.delete_sweep,
+                                    size: 16, color: Colors.red),
                                 SizedBox(width: 8),
                                 Text('Delete All'),
                               ],
@@ -373,19 +387,19 @@ class TaskTreeNodeWidget extends StatelessWidget {
         // Children (if expanded)
         if (hasChildren && isExpanded && depth < maxDepth)
           ...node.children.map((child) => TaskTreeNodeWidget(
-            node: child,
-            depth: depth + 1,
-            maxDepth: maxDepth,
-            isExpanded: _isNodeExpanded(child.task.id),
-            onToggleExpanded: () => _toggleNodeExpanded(child.task.id),
-            onTaskToggle: onTaskToggle,
-            onTaskEdit: onTaskEdit,
-            onTaskDelete: onTaskDelete,
-            onTaskMove: onTaskMove,
-            onOpenNote: onOpenNote,
-            showProgress: showProgress,
-            hierarchyService: hierarchyService,
-          )),
+                node: child,
+                depth: depth + 1,
+                maxDepth: maxDepth,
+                isExpanded: _isNodeExpanded(child.task.id),
+                onToggleExpanded: () => _toggleNodeExpanded(child.task.id),
+                onTaskToggle: onTaskToggle,
+                onTaskEdit: onTaskEdit,
+                onTaskDelete: onTaskDelete,
+                onTaskMove: onTaskMove,
+                onOpenNote: onOpenNote,
+                showProgress: showProgress,
+                hierarchyService: hierarchyService,
+              )),
       ],
     );
   }
@@ -464,7 +478,7 @@ class TaskTreeNodeWidget extends StatelessWidget {
 
   Future<void> _confirmDeleteHierarchy(BuildContext context) async {
     final totalTasks = 1 + node.getAllDescendants().length;
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -553,11 +567,10 @@ class TaskProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final height = compact ? 4.0 : 6.0;
-    final progressColor = progress.isFullyCompleted 
-        ? Colors.green 
-        : colorScheme.primary;
+    final progressColor =
+        progress.isFullyCompleted ? Colors.green : colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,7 +593,7 @@ class TaskProgressBar extends StatelessWidget {
             ),
           ),
         ),
-        
+
         if (!compact) ...[
           const SizedBox(height: 4),
           // Progress text
@@ -647,9 +660,9 @@ class TaskHierarchySummary extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Stats row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -680,7 +693,9 @@ class TaskHierarchySummary extends StatelessWidget {
                 icon: Icons.percent,
                 label: 'Progress',
                 value: '${(stats.completionPercentage * 100).round()}%',
-                color: stats.completionPercentage > 0.8 ? Colors.green : colorScheme.tertiary,
+                color: stats.completionPercentage > 0.8
+                    ? Colors.green
+                    : colorScheme.tertiary,
               ),
             ],
           ),
@@ -697,7 +712,7 @@ class TaskHierarchySummary extends StatelessWidget {
     required Color color,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -3,15 +3,16 @@ import 'package:duru_notes/ui/widgets/tasks/task_card.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_list_item.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_tree_node.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
-import 'package:duru_notes/models/note_task.dart' show UiNoteTask, UiTaskStatus, UiTaskPriority;
+import 'package:duru_notes/models/note_task.dart'
+    show UiNoteTask, UiTaskStatus, UiTaskPriority;
 import 'package:flutter/material.dart';
 
 /// Display modes for task widgets
 enum TaskDisplayMode {
-  list,     // Standard list view
-  tree,     // Hierarchical tree view  
-  card,     // Card-based view
-  compact,  // Minimal compact view
+  list, // Standard list view
+  tree, // Hierarchical tree view
+  card, // Card-based view
+  compact, // Minimal compact view
 }
 
 /// Factory for creating task widgets with unified callbacks
@@ -30,8 +31,9 @@ class TaskWidgetFactory {
     bool showSubtasks = true,
     int indentLevel = 0,
   }) {
-    assert(dbTask != null || uiTask != null, 'Either dbTask or uiTask must be provided');
-    
+    assert(dbTask != null || uiTask != null,
+        'Either dbTask or uiTask must be provided');
+
     switch (mode) {
       case TaskDisplayMode.list:
         return TaskListItem(
@@ -42,7 +44,7 @@ class TaskWidgetFactory {
           showSubtasks: showSubtasks,
           indentLevel: indentLevel,
         );
-        
+
       case TaskDisplayMode.tree:
         return TaskTreeNode(
           dbTask: dbTask,
@@ -53,7 +55,7 @@ class TaskWidgetFactory {
           isExpanded: showSubtasks,
           depth: indentLevel,
         );
-        
+
       case TaskDisplayMode.card:
         return TaskCard(
           dbTask: dbTask,
@@ -62,7 +64,7 @@ class TaskWidgetFactory {
           isSelected: isSelected,
           showSubtasks: showSubtasks,
         );
-        
+
       case TaskDisplayMode.compact:
         return _CompactTaskWidget(
           dbTask: dbTask,
@@ -72,7 +74,7 @@ class TaskWidgetFactory {
         );
     }
   }
-  
+
   /// Create multiple task widgets from a list
   static List<Widget> createList({
     required TaskDisplayMode mode,
@@ -81,13 +83,15 @@ class TaskWidgetFactory {
     Map<String, List<NoteTask>>? subtasksMap,
     Set<String>? selectedIds,
   }) {
-    return tasks.map((task) => create(
-      mode: mode,
-      dbTask: task,
-      dbSubtasks: subtasksMap?[task.id],
-      callbacks: callbacks,
-      isSelected: selectedIds?.contains(task.id) ?? false,
-    )).toList();
+    return tasks
+        .map((task) => create(
+              mode: mode,
+              dbTask: task,
+              dbSubtasks: subtasksMap?[task.id],
+              callbacks: callbacks,
+              isSelected: selectedIds?.contains(task.id) ?? false,
+            ))
+        .toList();
   }
 }
 
@@ -97,14 +101,14 @@ class _CompactTaskWidget extends StatelessWidget {
   final UiNoteTask? uiTask;
   final UnifiedTaskCallbacks callbacks;
   final bool isSelected;
-  
+
   const _CompactTaskWidget({
     this.dbTask,
     this.uiTask,
     required this.callbacks,
     this.isSelected = false,
   }) : assert(dbTask != null || uiTask != null);
-  
+
   @override
   Widget build(BuildContext context) {
     if (dbTask != null) {
@@ -116,11 +120,11 @@ class _CompactTaskWidget extends StatelessWidget {
       return _buildCompact(context, uiTask!);
     }
   }
-  
+
   Widget _buildCompact(BuildContext context, UiNoteTask task) {
     final theme = Theme.of(context);
     final isCompleted = task.status == UiTaskStatus.completed;
-    
+
     return InkWell(
       onTap: () => callbacks.onEdit(task.id),
       child: Container(
@@ -130,7 +134,8 @@ class _CompactTaskWidget extends StatelessWidget {
               ? theme.colorScheme.primaryContainer.withOpacity(0.3)
               : Colors.transparent,
           border: isSelected
-              ? Border(left: BorderSide(
+              ? Border(
+                  left: BorderSide(
                   color: theme.colorScheme.primary,
                   width: 3,
                 ))
@@ -145,14 +150,15 @@ class _CompactTaskWidget extends StatelessWidget {
               child: Checkbox(
                 value: isCompleted,
                 onChanged: (value) async {
-                  final newStatus = value! ? TaskStatus.completed : TaskStatus.open;
+                  final newStatus =
+                      value! ? TaskStatus.completed : TaskStatus.open;
                   await callbacks.onStatusChanged(task.id, newStatus);
                 },
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
             const SizedBox(width: 8),
-            
+
             // Content
             Expanded(
               child: Text(
@@ -167,7 +173,7 @@ class _CompactTaskWidget extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            
+
             // Priority indicator
             if (task.priority != UiTaskPriority.none)
               Icon(
@@ -175,7 +181,7 @@ class _CompactTaskWidget extends StatelessWidget {
                 size: 14,
                 color: _getPriorityColor(task.priority),
               ),
-            
+
             // Due date indicator
             if (task.dueDate != null)
               Padding(
@@ -193,7 +199,7 @@ class _CompactTaskWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   Color _getPriorityColor(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:

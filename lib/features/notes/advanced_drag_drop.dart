@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Advanced drag-drop system with multi-touch support
-/// 
+///
 /// Features:
 /// - Multi-selection drag
 /// - Visual feedback during drag
@@ -46,7 +46,8 @@ class AdvancedDraggableNote extends ConsumerStatefulWidget {
   final DragAnchorStrategy? dragAnchorStrategy;
 
   @override
-  ConsumerState<AdvancedDraggableNote> createState() => _AdvancedDraggableNoteState();
+  ConsumerState<AdvancedDraggableNote> createState() =>
+      _AdvancedDraggableNoteState();
 }
 
 class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
@@ -55,10 +56,10 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   late AnimationController _dragController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _elevationAnimation;
-  
+
   bool _isDragging = false;
   Offset? _dragOffset;
-  
+
   // Multi-touch support
   final Map<int, Offset> _touches = {};
   int? _primaryPointer;
@@ -66,32 +67,25 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   @override
   void initState() {
     super.initState();
-    
+
     _longPressController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _dragController = AnimationController(
       duration: AnimationConfig.fast,
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _longPressController,
-      curve: Curves.easeOut,
-    ));
-    
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _longPressController, curve: Curves.easeOut),
+    );
+
     _elevationAnimation = Tween<double>(
       begin: 0,
       end: 8,
-    ).animate(CurvedAnimation(
-      parent: _dragController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _dragController, curve: Curves.easeOut));
   }
 
   @override
@@ -104,10 +98,10 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   void _handlePointerDown(PointerDownEvent event) {
     _touches[event.pointer] = event.position;
     _primaryPointer ??= event.pointer;
-    
+
     // Start long press animation
     _longPressController.forward();
-    
+
     // Light haptic on touch
     HapticUtils.lightImpact();
   }
@@ -115,7 +109,7 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   void _handlePointerMove(PointerMoveEvent event) {
     if (_touches.containsKey(event.pointer)) {
       _touches[event.pointer] = event.position;
-      
+
       // Check for multi-finger gesture
       if (_touches.length > 1) {
         _handleMultiTouchGesture();
@@ -125,11 +119,11 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
 
   void _handlePointerUp(PointerUpEvent event) {
     _touches.remove(event.pointer);
-    
+
     if (event.pointer == _primaryPointer) {
       _primaryPointer = _touches.keys.firstOrNull;
     }
-    
+
     if (_touches.isEmpty) {
       _longPressController.reverse();
     }
@@ -140,7 +134,7 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
     if (_touches.length == 2) {
       final touches = _touches.values.toList();
       final distance = (touches[0] - touches[1]).distance;
-      
+
       // Trigger multi-selection mode if fingers spread apart
       if (distance > 100 && !_isDragging) {
         _triggerMultiSelectionMode();
@@ -158,7 +152,7 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
     if (!widget.isSelected || widget.selectedNotes.isEmpty) {
       return [widget.note];
     }
-    
+
     // Get all selected notes from repository
     final notes = <LocalNote>[];
     // This would fetch the actual note objects for selected IDs
@@ -168,7 +162,7 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   Widget _buildDragFeedback(BuildContext context, List<LocalNote> notes) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -233,14 +227,17 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
                 ],
               ),
             ),
-            
+
             // Badge for multiple items
             if (notes.length > 1)
               Positioned(
                 top: -8,
                 right: -8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primary,
                     borderRadius: BorderRadius.circular(12),
@@ -269,24 +266,22 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
   @override
   Widget build(BuildContext context) {
     final notes = _getSelectedNotes();
-    
+
     return Listener(
       onPointerDown: _handlePointerDown,
       onPointerMove: _handlePointerMove,
       onPointerUp: _handlePointerUp,
       child: LongPressDraggable<List<LocalNote>>(
         data: notes,
-        dragAnchorStrategy: widget.dragAnchorStrategy ?? childDragAnchorStrategy,
+        dragAnchorStrategy:
+            widget.dragAnchorStrategy ?? childDragAnchorStrategy,
         feedback: _buildDragFeedback(context, notes),
         childWhenDragging: AnimatedBuilder(
           animation: _dragController,
           builder: (context, child) {
             return Opacity(
               opacity: 0.3,
-              child: Transform.scale(
-                scale: 0.95,
-                child: widget.child,
-              ),
+              child: Transform.scale(scale: 0.95, child: widget.child),
             );
           },
         ),
@@ -330,21 +325,23 @@ class AdvancedFolderDropTarget extends ConsumerStatefulWidget {
 
   final LocalFolder? folder; // null for "All Notes"
   final Widget child;
-  final Function(List<LocalNote> notes)? onAccept;
-  final Function(List<LocalNote> notes)? onWillAccept;
+  final Future<void> Function(List<LocalNote> notes)? onAccept;
+  final bool Function(List<LocalNote> notes)? onWillAccept;
   final VoidCallback? onLeave;
   final Function(DragTargetDetails<List<LocalNote>>)? onMove;
 
   @override
-  ConsumerState<AdvancedFolderDropTarget> createState() => _AdvancedFolderDropTargetState();
+  ConsumerState<AdvancedFolderDropTarget> createState() =>
+      _AdvancedFolderDropTargetState();
 }
 
-class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTarget>
+class _AdvancedFolderDropTargetState
+    extends ConsumerState<AdvancedFolderDropTarget>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
-  
+
   bool _isHovering = false;
   bool _willAccept = false;
   Timer? _autoExpandTimer;
@@ -352,27 +349,21 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
   @override
   void initState() {
     super.initState();
-    
+
     _hoverController = AnimationController(
       duration: AnimationConfig.fast,
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.02,
-    ).animate(CurvedAnimation(
-      parent: _hoverController,
-      curve: Curves.easeOut,
-    ));
-    
+    ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
+
     _glowAnimation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(
-      parent: _hoverController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
   }
 
   @override
@@ -387,11 +378,11 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
       _isHovering = true;
       _willAccept = widget.onWillAccept?.call(details.data) ?? true;
     });
-    
+
     if (_willAccept) {
       _hoverController.forward();
       HapticUtils.selectionClick();
-      
+
       // Auto-expand folder after hover
       _autoExpandTimer = Timer(const Duration(seconds: 1), () {
         _autoExpandFolder();
@@ -409,29 +400,31 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
   void _autoExpandFolder() {
     if (widget.folder != null && _isHovering) {
       // Trigger folder expansion in hierarchy
-      ref.read(folderHierarchyProvider.notifier).toggleExpansion(widget.folder!.id);
+      ref
+          .read(folderHierarchyProvider.notifier)
+          .toggleExpansion(widget.folder!.id);
       HapticUtils.lightImpact();
     }
   }
 
   Future<void> _handleDrop(List<LocalNote> notes) async {
     HapticUtils.heavyImpact();
-    
+
     // Animate acceptance
     await _hoverController.forward();
     await Future.delayed(const Duration(milliseconds: 100));
     await _hoverController.reverse();
-    
-    widget.onAccept?.call(notes);
-    
+
+    await widget.onAccept?.call(notes);
+
     // Record in undo/redo
     final undoService = ref.read(undoRedoServiceProvider);
     final repository = ref.read(notesRepositoryProvider);
-    
+
     if (notes.length == 1) {
       final note = notes.first;
       final previousFolder = await repository.getFolderForNote(note.id);
-      
+
       undoService.recordNoteFolderChange(
         noteId: note.id,
         noteTitle: note.title,
@@ -447,7 +440,7 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
         final folder = await repository.getFolderForNote(note.id);
         previousFolderIds[note.id] = folder?.id;
       }
-      
+
       undoService.recordBatchFolderChange(
         noteIds: notes.map((n) => n.id).toList(),
         previousFolderIds: previousFolderIds,
@@ -455,7 +448,7 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
         newFolderName: widget.folder?.name,
       );
     }
-    
+
     // Show feedback
     if (mounted) {
       final l10n = AppLocalizations.of(context);
@@ -467,7 +460,7 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
                 : '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} unfiled',
           ),
           action: SnackBarAction(
-            label: l10n.undo ?? 'Undo',
+            label: 'Undo',
             onPressed: () async {
               await undoService.undo();
               ref.invalidate(folderProvider);
@@ -482,7 +475,7 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return DragTarget<List<LocalNote>>(
       onWillAcceptWithDetails: (details) {
         return widget.onWillAccept?.call(details.data) ?? true;
@@ -523,7 +516,7 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
                 child: Stack(
                   children: [
                     widget.child,
-                    
+
                     // Hover overlay
                     if (_isHovering)
                       Positioned.fill(
@@ -540,12 +533,14 @@ class _AdvancedFolderDropTargetState extends ConsumerState<AdvancedFolderDropTar
                               color: (_willAccept
                                       ? colorScheme.primary
                                       : colorScheme.error)
-                                  .withValues(alpha: 0.1 * _glowAnimation.value),
+                                  .withValues(
+                                alpha: 0.1 * _glowAnimation.value,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    
+
                     // Drop indicator
                     if (_isHovering && _willAccept)
                       Positioned(
@@ -586,13 +581,13 @@ class DragAutoScroller {
   final ScrollController scrollController;
   final double scrollSpeed;
   final double edgeSize;
-  
+
   Timer? _scrollTimer;
   double _scrollDirection = 0;
 
   void startAutoScroll(Offset localPosition, Size containerSize) {
     _scrollDirection = 0;
-    
+
     // Check if near top edge
     if (localPosition.dy < edgeSize) {
       _scrollDirection = -scrollSpeed;
@@ -601,7 +596,7 @@ class DragAutoScroller {
     else if (localPosition.dy > containerSize.height - edgeSize) {
       _scrollDirection = scrollSpeed;
     }
-    
+
     if (_scrollDirection != 0 && _scrollTimer == null) {
       _scrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
         if (scrollController.hasClients) {

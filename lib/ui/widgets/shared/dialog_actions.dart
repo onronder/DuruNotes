@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Reusable dialog action row component
-/// 
+///
 /// This widget standardizes the action buttons used across all dialogs in the app,
 /// providing consistent styling and behavior for cancel/confirm actions.
 class DialogActionRow extends StatelessWidget {
@@ -15,7 +15,7 @@ class DialogActionRow extends StatelessWidget {
   final Widget? customConfirmButton;
   final MainAxisAlignment alignment;
   final double spacing;
-  
+
   const DialogActionRow({
     super.key,
     this.onCancel,
@@ -34,7 +34,7 @@ class DialogActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Build cancel button
     Widget? cancelButton;
     if (customCancelButton != null) {
@@ -45,7 +45,7 @@ class DialogActionRow extends StatelessWidget {
         child: Text(cancelText ?? 'Cancel'),
       );
     }
-    
+
     // Build confirm button
     Widget? confirmButton;
     if (customConfirmButton != null) {
@@ -57,14 +57,14 @@ class DialogActionRow extends StatelessWidget {
               foregroundColor: colorScheme.onError,
             )
           : null;
-          
+
       confirmButton = FilledButton(
         onPressed: isConfirmDisabled ? null : onConfirm,
         style: buttonStyle,
         child: Text(confirmText ?? 'Confirm'),
       );
     }
-    
+
     // Build row with buttons
     final buttons = <Widget>[];
     if (cancelButton != null) buttons.add(cancelButton);
@@ -72,7 +72,7 @@ class DialogActionRow extends StatelessWidget {
       buttons.add(SizedBox(width: spacing));
     }
     if (confirmButton != null) buttons.add(confirmButton);
-    
+
     return Row(
       mainAxisAlignment: alignment,
       children: buttons,
@@ -98,7 +98,7 @@ extension DialogActionRowExtensions on DialogActionRow {
       isConfirmDisabled: isOkDisabled,
     );
   }
-  
+
   /// Create a destructive action dialog row (e.g., for delete confirmations)
   static DialogActionRow destructive({
     required VoidCallback onConfirm,
@@ -116,7 +116,7 @@ extension DialogActionRowExtensions on DialogActionRow {
       isConfirmDisabled: isConfirmDisabled,
     );
   }
-  
+
   /// Create a save/cancel dialog action row
   static DialogActionRow saveCancel({
     required VoidCallback onSave,
@@ -132,7 +132,7 @@ extension DialogActionRowExtensions on DialogActionRow {
       isConfirmDisabled: isSaveDisabled,
     );
   }
-  
+
   /// Create a single action dialog row (e.g., just "Close")
   static DialogActionRow single({
     required VoidCallback onAction,

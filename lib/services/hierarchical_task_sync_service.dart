@@ -11,8 +11,8 @@ class HierarchicalTaskSyncService {
   HierarchicalTaskSyncService({
     required AppDb database,
     required EnhancedTaskService enhancedTaskService,
-  }) : _enhancedTaskService = enhancedTaskService,
-       _database = database;
+  })  : _enhancedTaskService = enhancedTaskService,
+        _database = database;
 
   final EnhancedTaskService _enhancedTaskService;
   final AppDb _database;
@@ -20,7 +20,8 @@ class HierarchicalTaskSyncService {
 
   Future<void> syncTasksForNote(String noteId, String noteContent) async {
     try {
-      final hierarchicalTasks = extractHierarchicalTasksFromContent(noteContent);
+      final hierarchicalTasks =
+          extractHierarchicalTasksFromContent(noteContent);
       await _syncHierarchicalTasks(noteId, hierarchicalTasks);
     } catch (e) {
       logger.debug('Error syncing hierarchical tasks for note $noteId: $e');
@@ -28,7 +29,8 @@ class HierarchicalTaskSyncService {
   }
 
   /// Extract hierarchical tasks from markdown content with indentation support
-  List<HierarchicalTaskInfo> extractHierarchicalTasksFromContent(String content) {
+  List<HierarchicalTaskInfo> extractHierarchicalTasksFromContent(
+      String content) {
     final tasks = <HierarchicalTaskInfo>[];
     final lines = content.split('\n');
     final taskStack = <HierarchicalTaskInfo>[]; // Stack to track parent tasks
@@ -49,19 +51,21 @@ class HierarchicalTaskSyncService {
 
           // Determine parent task based on indentation
           String? parentTaskId;
-          
+
           // Pop stack until we find the appropriate parent level
-          while (taskStack.isNotEmpty && taskStack.last.indentLevel >= indentLevel) {
+          while (taskStack.isNotEmpty &&
+              taskStack.last.indentLevel >= indentLevel) {
             taskStack.removeLast();
           }
-          
+
           // If there's a task in the stack, it's our parent
           if (taskStack.isNotEmpty) {
             parentTaskId = taskStack.last.id;
           }
 
           final taskInfo = HierarchicalTaskInfo(
-            id: _generateTaskId('temp', globalPosition), // Will be replaced with actual ID
+            id: _generateTaskId(
+                'temp', globalPosition), // Will be replaced with actual ID
             content: parsedTask.content,
             isCompleted: isCompleted,
             position: globalPosition,
@@ -80,7 +84,7 @@ class HierarchicalTaskSyncService {
 
           // Add to main list
           tasks.add(taskInfo);
-          
+
           // Push to stack for potential children
           taskStack.add(taskInfo);
 
@@ -114,11 +118,13 @@ class HierarchicalTaskSyncService {
     var priority = TaskPriority.medium;
 
     // Parse due date (format: @due(2024-12-25))
-    final dueDateMatch = RegExp(r'@due\((\d{4}-\d{2}-\d{2})\)').firstMatch(taskContent);
+    final dueDateMatch =
+        RegExp(r'@due\((\d{4}-\d{2}-\d{2})\)').firstMatch(taskContent);
     if (dueDateMatch != null) {
       try {
         dueDate = DateTime.parse(dueDateMatch.group(1)!);
-        cleanContent = cleanContent.replaceAll(dueDateMatch.group(0)!, '').trim();
+        cleanContent =
+            cleanContent.replaceAll(dueDateMatch.group(0)!, '').trim();
       } catch (_) {}
     }
 
@@ -210,10 +216,10 @@ class HierarchicalTaskSyncService {
   /// Check if task needs update
   bool _taskNeedsUpdate(NoteTask existingTask, HierarchicalTaskInfo taskInfo) {
     return existingTask.content != taskInfo.content ||
-           existingTask.priority != taskInfo.priority ||
-           existingTask.dueDate != taskInfo.dueDate ||
-           existingTask.parentTaskId != taskInfo.parentTaskId ||
-           (existingTask.status == TaskStatus.completed) != taskInfo.isCompleted;
+        existingTask.priority != taskInfo.priority ||
+        existingTask.dueDate != taskInfo.dueDate ||
+        existingTask.parentTaskId != taskInfo.parentTaskId ||
+        (existingTask.status == TaskStatus.completed) != taskInfo.isCompleted;
   }
 
   /// Add hierarchical task to note content
@@ -242,7 +248,7 @@ class HierarchicalTaskSyncService {
       }
 
       final updatedContent = lines.join('\n');
-        await _database.updateNote(
+      await _database.updateNote(
         noteId,
         LocalNotesCompanion(
           body: Value(updatedContent),
@@ -286,8 +292,9 @@ class HierarchicalTaskSyncService {
     // Build hierarchy
     for (final task in tasks) {
       final node = nodeMap[task.id]!;
-      
-      if (task.parentTaskId != null && nodeMap.containsKey(task.parentTaskId!)) {
+
+      if (task.parentTaskId != null &&
+          nodeMap.containsKey(task.parentTaskId!)) {
         // Add as child to parent
         final parentNode = nodeMap[task.parentTaskId!]!;
         parentNode.children.add(node);
@@ -322,7 +329,7 @@ class HierarchicalTaskSyncService {
         }
         totalEstimatedMinutes += child.task.estimatedMinutes ?? 0;
         totalActualMinutes += child.task.actualMinutes ?? 0;
-        
+
         // Recursively count children
         countSubtasks(child);
       }
@@ -343,15 +350,16 @@ class HierarchicalTaskSyncService {
   Future<void> completeAllSubtasks(String parentTaskId) async {
     try {
       final subtasks = await _database.getOpenTasks(parentTaskId: parentTaskId);
-      
+
       for (final subtask in subtasks) {
         await _enhancedTaskService.completeTask(subtask.id);
-        
+
         // Recursively complete children
         await completeAllSubtasks(subtask.id);
       }
-      
-      logger.info('Completed all subtasks', data: {'parentTaskId': parentTaskId});
+
+      logger
+          .info('Completed all subtasks', data: {'parentTaskId': parentTaskId});
     } catch (e) {
       logger.error('Error completing all subtasks', error: e);
     }
@@ -362,15 +370,15 @@ class HierarchicalTaskSyncService {
     try {
       // Get all children recursively
       final childTasks = await _getAllChildTasks(taskId);
-      
+
       // Delete children first (to maintain referential integrity)
       for (final child in childTasks.reversed) {
         await _enhancedTaskService.deleteTask(child.id);
       }
-      
+
       // Delete parent task
       await _enhancedTaskService.deleteTask(taskId);
-      
+
       logger.info('Deleted task hierarchy', data: {
         'parentTaskId': taskId,
         'deletedCount': childTasks.length + 1,
@@ -383,14 +391,15 @@ class HierarchicalTaskSyncService {
   /// Get all child tasks recursively
   Future<List<NoteTask>> _getAllChildTasks(String parentTaskId) async {
     final allChildren = <NoteTask>[];
-    final directChildren = await _database.getOpenTasks(parentTaskId: parentTaskId);
-    
+    final directChildren =
+        await _database.getOpenTasks(parentTaskId: parentTaskId);
+
     for (final child in directChildren) {
       allChildren.add(child);
       final grandChildren = await _getAllChildTasks(child.id);
       allChildren.addAll(grandChildren);
     }
-    
+
     return allChildren;
   }
 
@@ -405,11 +414,11 @@ class HierarchicalTaskSyncService {
         taskId: taskId,
         // Note: We need to add parentTaskId support to updateTask
       );
-      
+
       if (newPosition != null) {
         await _enhancedTaskService.updateTaskPositions({taskId: newPosition});
       }
-      
+
       logger.info('Moved task to new parent', data: {
         'taskId': taskId,
         'newParentId': newParentId,
@@ -424,15 +433,16 @@ class HierarchicalTaskSyncService {
   Future<int> getTaskDepth(String taskId) async {
     var depth = 0;
     String? currentTaskId = taskId;
-    
-    while (currentTaskId != null && depth < 10) { // Safety limit
+
+    while (currentTaskId != null && depth < 10) {
+      // Safety limit
       final task = await _database.getTaskById(currentTaskId);
       if (task?.parentTaskId == null) break;
-      
+
       currentTaskId = task!.parentTaskId;
       depth++;
     }
-    
+
     return depth;
   }
 
@@ -448,7 +458,7 @@ class HierarchicalTaskSyncService {
       final allTasks = await _database.getTasksForNote(noteId);
       final rootTasks = allTasks.where((t) => t.parentTaskId == null).toList();
       final subtasks = allTasks.where((t) => t.parentTaskId != null).toList();
-      
+
       var maxDepth = 0;
       for (final task in allTasks) {
         final depth = await getTaskDepth(task.id);
@@ -460,7 +470,8 @@ class HierarchicalTaskSyncService {
         rootTasks: rootTasks.length,
         subtasks: subtasks.length,
         maxDepth: maxDepth,
-        completedTasks: allTasks.where((t) => t.status == TaskStatus.completed).length,
+        completedTasks:
+            allTasks.where((t) => t.status == TaskStatus.completed).length,
       );
     } catch (e) {
       logger.error('Error getting hierarchy stats', error: e);
@@ -566,12 +577,12 @@ class TaskHierarchyNode {
   List<TaskHierarchyNode> getPathFromRoot() {
     final path = <TaskHierarchyNode>[];
     TaskHierarchyNode? current = this;
-    
+
     while (current != null) {
       path.insert(0, current);
       current = current.parent;
     }
-    
+
     return path;
   }
 }

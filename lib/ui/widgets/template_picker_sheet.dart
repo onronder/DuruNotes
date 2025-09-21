@@ -19,7 +19,8 @@ class TemplatePickerSheet extends ConsumerStatefulWidget {
   final Function(String?) onTemplateSelected;
 
   @override
-  ConsumerState<TemplatePickerSheet> createState() => _TemplatePickerSheetState();
+  ConsumerState<TemplatePickerSheet> createState() =>
+      _TemplatePickerSheetState();
 }
 
 class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
@@ -28,7 +29,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final templatesAsync = ref.watch(templateListProvider);
-    
+
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
@@ -104,7 +105,8 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                           context: context,
                           icon: Icons.note_add_rounded,
                           title: AppLocalizations.of(context).blankNoteOption,
-                          description: AppLocalizations.of(context).blankNoteDescription,
+                          description:
+                              AppLocalizations.of(context).blankNoteDescription,
                           color: colorScheme.primary,
                           onTap: () => widget.onTemplateSelected(null),
                           template: null,
@@ -126,18 +128,22 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                           ...templates.map((template) {
                             // Check if this is a system template
                             final bool isDefault = template.isSystem;
-                            
+
                             return _buildTemplateOption(
                               context: context,
-                              icon: isDefault 
-                                  ? Icons.auto_awesome_rounded  // Special icon for system
-                                  : Icons.dashboard_customize_rounded,  // Custom template icon
+                              icon: isDefault
+                                  ? Icons
+                                      .auto_awesome_rounded // Special icon for system
+                                  : Icons
+                                      .dashboard_customize_rounded, // Custom template icon
                               title: template.title,
                               description: template.description,
-                              color: isDefault 
-                                  ? colorScheme.primary  // Primary color for system
-                                  : colorScheme.tertiary,  // Tertiary for custom
-                              onTap: () => widget.onTemplateSelected(template.id),
+                              color: isDefault
+                                  ? colorScheme
+                                      .primary // Primary color for system
+                                  : colorScheme.tertiary, // Tertiary for custom
+                              onTap: () =>
+                                  widget.onTemplateSelected(template.id),
                               template: template,
                             );
                           }),
@@ -150,7 +156,8 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                                 Icon(
                                   Icons.description_outlined,
                                   size: 64,
-                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.3),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -161,10 +168,12 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  AppLocalizations.of(context).noTemplatesDescription,
+                                  AppLocalizations.of(context)
+                                      .noTemplatesDescription,
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                    color: colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -228,10 +237,10 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Check if this is a system template
     final bool isDefault = template?.isSystem ?? false;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -249,7 +258,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            border: isDefault 
+            border: isDefault
                 ? Border(
                     left: BorderSide(
                       width: 3,
@@ -305,7 +314,8 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
               if (isDefault) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -339,7 +349,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
         .replaceAll(RegExp(r'[#*_`\[\]()!]'), '')
         .replaceAll(RegExp(r'\n+'), ' ')
         .trim();
-    
+
     // Return first 100 characters
     if (cleanBody.length <= 100) {
       return cleanBody;
@@ -347,11 +357,12 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
     return '${cleanBody.substring(0, 100)}...';
   }
 
-  void _showTemplateOptions(BuildContext context, LocalTemplate template, bool isDefault) {
+  void _showTemplateOptions(
+      BuildContext context, LocalTemplate template, bool isDefault) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: colorScheme.surface,
@@ -375,7 +386,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isDefault 
+                        isDefault
                             ? Icons.auto_awesome_rounded
                             : Icons.dashboard_customize_rounded,
                         color: colorScheme.primary,
@@ -455,7 +466,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
   void _confirmDeleteTemplate(BuildContext context, LocalTemplate template) {
     final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -483,18 +494,19 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
     );
   }
 
-  Future<void> _deleteTemplate(BuildContext context, LocalTemplate template) async {
+  Future<void> _deleteTemplate(
+      BuildContext context, LocalTemplate template) async {
     final templateRepository = ref.read(templateRepositoryProvider);
     final l10n = AppLocalizations.of(context);
-    
+
     final success = await templateRepository.deleteUserTemplate(template.id);
-    
+
     if (!context.mounted) return;
-    
+
     if (success) {
       // Refresh the template list
       ref.invalidate(templateListProvider);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.templateDeleted),

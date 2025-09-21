@@ -232,9 +232,8 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       ref.read(folderHierarchyProvider.notifier).refresh();
       // Update selected folder if it was the one being edited
       if (_selectedFolder?.id == folder.id) {
-        final updatedFolder = await ref
-            .read(notesRepositoryProvider)
-            .getFolder(folder.id);
+        final updatedFolder =
+            await ref.read(notesRepositoryProvider).getFolder(folder.id);
         setState(() {
           _selectedFolder = updatedFolder;
         });
@@ -308,8 +307,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color:
-                          FolderIconHelpers.getFolderColor(folder.color) ??
+                      color: FolderIconHelpers.getFolderColor(folder.color) ??
                           Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -324,8 +322,8 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     child: Text(
                       folder.name,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                 ],
@@ -350,9 +348,8 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     );
 
     if (confirmed ?? false && mounted) {
-      final success = await ref
-          .read(folderProvider.notifier)
-          .deleteFolder(folder.id);
+      final success =
+          await ref.read(folderProvider.notifier).deleteFolder(folder.id);
 
       if (success) {
         // Clear selection if deleted folder was selected
@@ -442,7 +439,6 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                     'Max Depth',
                     healthStats['max_depth'].toString(),
                   ),
-
                   if (healthStats['issues_found'] != null &&
                       (healthStats['issues_found'] as List).isNotEmpty) ...[
                     const SizedBox(height: 16),
@@ -592,8 +588,7 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color:
-                      FolderIconHelpers.getFolderColor(folder.color) ??
+                  color: FolderIconHelpers.getFolderColor(folder.color) ??
                       colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -705,16 +700,16 @@ class _FolderDetailsView extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color:
                               FolderIconHelpers.getFolderColor(folder.color) ??
-                              colorScheme.primaryContainer,
+                                  colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           FolderIconHelpers.getFolderIcon(folder.icon),
                           color:
                               FolderIconHelpers.getFolderColor(folder.color) !=
-                                  null
-                              ? Colors.white
-                              : colorScheme.onPrimaryContainer,
+                                      null
+                                  ? Colors.white
+                                  : colorScheme.onPrimaryContainer,
                           size: 32,
                         ),
                       ),
@@ -741,7 +736,6 @@ class _FolderDetailsView extends ConsumerWidget {
                       ),
                     ],
                   ),
-
                   if (folder.description.isNotEmpty ?? false) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -939,8 +933,8 @@ class _FolderDetailsView extends ConsumerWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1028,9 +1022,8 @@ class _FolderDetailsView extends ConsumerWidget {
     );
 
     if (confirmed ?? false) {
-      final success = await ref
-          .read(folderProvider.notifier)
-          .deleteFolder(folder.id);
+      final success =
+          await ref.read(folderProvider.notifier).deleteFolder(folder.id);
 
       if (success) {
         onFolderDeleted();

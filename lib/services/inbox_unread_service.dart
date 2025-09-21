@@ -15,7 +15,7 @@ enum InboxBadgeMode {
 /// Service to track unread items in the inbox
 class InboxUnreadService extends ChangeNotifier {
   InboxUnreadService({required SupabaseClient supabase})
-    : _supabase = supabase {
+      : _supabase = supabase {
     _loadSettings();
   }
   static const String _lastViewedKey = 'inbox_last_viewed_timestamp';

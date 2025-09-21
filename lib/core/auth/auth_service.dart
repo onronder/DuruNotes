@@ -33,8 +33,8 @@ class AuthService {
   AuthService({
     SupabaseClient? client,
     LoginAttemptsService? loginAttemptsService,
-  }) : _client = client ?? Supabase.instance.client,
-       _loginAttemptsService = loginAttemptsService ?? LoginAttemptsService();
+  })  : _client = client ?? Supabase.instance.client,
+        _loginAttemptsService = loginAttemptsService ?? LoginAttemptsService();
 
   final SupabaseClient _client;
   final LoginAttemptsService _loginAttemptsService;
@@ -136,8 +136,7 @@ class AuthService {
 
     return AuthResult(
       success: false,
-      error:
-          result?.error ??
+      error: result?.error ??
           lastException?.toString() ??
           'Authentication failed after multiple attempts',
     );

@@ -64,8 +64,8 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-          ? _buildEmptyState(context)
-          : _buildNotesList(context),
+              ? _buildEmptyState(context)
+              : _buildNotesList(context),
     );
   }
 

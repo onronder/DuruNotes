@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -95,9 +96,8 @@ class RecurringReminderService {
           'type': 'time',
           'has_recurrence': recurrence != RecurrencePattern.none,
           'recurrence_pattern': recurrence.name,
-          'hours_from_now': remindAtUtc
-              .difference(DateTime.now().toUtc())
-              .inHours,
+          'hours_from_now':
+              remindAtUtc.difference(DateTime.now().toUtc()).inHours,
         },
       );
 
