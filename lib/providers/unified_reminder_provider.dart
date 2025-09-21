@@ -2,6 +2,8 @@
 /// based on feature flags
 
 import 'package:duru_notes/core/feature_flags.dart';
+import 'package:duru_notes/core/logging/logger_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart'
@@ -11,6 +13,8 @@ import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.da
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+final _logger = LoggerFactory.instance;
+
 /// Unified reminder coordinator provider that uses feature flags
 final unifiedReminderCoordinatorProvider = Provider<dynamic>((ref) {
   final featureFlags = FeatureFlags.instance;
@@ -19,11 +23,11 @@ final unifiedReminderCoordinatorProvider = Provider<dynamic>((ref) {
 
   if (featureFlags.useUnifiedReminders) {
     // Use refactored implementation
-    print('[FeatureFlags] Using REFACTORED ReminderCoordinator');
+    _logger.debug('[FeatureFlags] Using REFACTORED ReminderCoordinator');
     return refactored.ReminderCoordinator(plugin, db);
   } else {
     // Use legacy implementation
-    print('[FeatureFlags] Using LEGACY ReminderCoordinator');
+    _logger.debug('[FeatureFlags] Using LEGACY ReminderCoordinator');
     return legacy.ReminderCoordinator(plugin, db);
   }
 });

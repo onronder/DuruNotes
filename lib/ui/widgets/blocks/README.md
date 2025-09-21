@@ -119,7 +119,7 @@ TodoBlockWidget(
   controller: textController,
   onChanged: (updatedBlock) {
     final todoData = updatedBlock.data as TodoBlockData;
-    print('Todo "${todoData.text}" is ${todoData.checked ? "complete" : "pending"}');
+    logger.debug('Todo "${todoData.text}" is ${todoData.checked ? "complete" : "pending"}');
   },
   onDelete: deleteTodo,
 )
