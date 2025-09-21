@@ -665,22 +665,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             Text(
               l10n.noNotesYet,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: isCompact
-                    ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) -
-                          2
-                    : null,
-              ),
+                    fontSize: isCompact
+                        ? (Theme.of(context).textTheme.titleLarge?.fontSize ??
+                                22) -
+                            2
+                        : null,
+                  ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: isCompact ? 6 : 8),
             Text(
               l10n.tapToCreateFirstNote,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontSize: isCompact
-                    ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) -
-                          1
-                    : null,
-              ),
+                    fontSize: isCompact
+                        ? (Theme.of(context).textTheme.bodyMedium?.fontSize ??
+                                14) -
+                            1
+                        : null,
+                  ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: isCompact ? 16 : 24),
@@ -690,8 +692,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               label: Text(
                 l10n.createFirstNote,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontSize: isCompact ? 13 : null,
-                ),
+                      fontSize: isCompact ? 13 : null,
+                    ),
               ),
               style: FilledButton.styleFrom(
                 padding: EdgeInsets.symmetric(
@@ -987,8 +989,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       Icon(
                         Icons.folder_outlined,
                         size: 12,
-                        color:
-                            folderColor?.withValues(alpha: 0.7) ??
+                        color: folderColor?.withValues(alpha: 0.7) ??
                             colorScheme.primary.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 4),
@@ -996,8 +997,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         child: Text(
                           folderName ?? '',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color:
-                                folderColor?.withValues(alpha: 0.8) ??
+                            color: folderColor?.withValues(alpha: 0.8) ??
                                 colorScheme.primary.withValues(alpha: 0.7),
                           ),
                           maxLines: 1,
@@ -2164,15 +2164,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         return SlideTransition(
           position: Tween<Offset>(begin: const Offset(0.3, 0), end: Offset.zero)
               .animate(
-                CurvedAnimation(
-                  parent: _listAnimationController,
-                  curve: Interval(
-                    math.max(0, (index - 3) / notes.length),
-                    math.min(1, (index + 1) / notes.length),
-                    curve: Curves.easeOutCubic,
-                  ),
-                ),
+            CurvedAnimation(
+              parent: _listAnimationController,
+              curve: Interval(
+                math.max(0, (index - 3) / notes.length),
+                math.min(1, (index + 1) / notes.length),
+                curve: Curves.easeOutCubic,
               ),
+            ),
+          ),
           child: FadeTransition(
             opacity: CurvedAnimation(
               parent: _listAnimationController,
@@ -2273,7 +2273,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       data: (templates) => templates.length,
                       orElse: () => 0,
                     );
-                    
+
                     return _buildModernMiniFAB(
                       icon: Icons.dashboard_customize_rounded,
                       label: templateCount > 0
@@ -2413,9 +2413,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
 
     // Get existing saved searches for duplicate checking
-    final existingSearches = await ref
-        .read(notesRepositoryProvider)
-        .getSavedSearches();
+    final existingSearches =
+        await ref.read(notesRepositoryProvider).getSavedSearches();
 
     // Create and show search delegate
     final delegate = NoteSearchDelegate(
@@ -2470,9 +2469,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         IconButton(
           icon: Icon(
             hasActiveFilters ? Icons.filter_list : Icons.filter_list_outlined,
-            color: hasActiveFilters
-                ? Theme.of(context).colorScheme.primary
-                : null,
+            color:
+                hasActiveFilters ? Theme.of(context).colorScheme.primary : null,
           ),
           onPressed: () => _showFilterSheet(context),
           tooltip: 'Advanced Filters',
@@ -2924,23 +2922,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       final templateRepository = ref.read(templateRepositoryProvider);
       final notesRepository = ref.read(notesRepositoryProvider);
       final analytics = ref.read(analyticsProvider);
-      
+
       // Get the template
       final template = await templateRepository.getTemplate(templateId);
       if (template == null) {
         throw StateError('Template not found');
       }
-      
+
       // Create note data from template
       final noteData = templateRepository.createNoteFromTemplate(template);
-      
+
       // Create the actual note
       final newNote = await notesRepository.createOrUpdate(
         title: noteData['title'] as String,
         body: noteData['body'] as String,
         tags: List<String>.from(noteData['tags'] as List).toSet(),
       );
-      
+
       if (newNote != null && mounted) {
         // Track analytics
         analytics.event('template_used', properties: {
@@ -2949,10 +2947,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           'template_title': template.title,
           'is_system': template.isSystem,
         });
-        
+
         // Track template usage in repository
         templateRepository.trackTemplateUsage(templateId);
-        
+
         // Navigate to edit screen
         await Navigator.push<void>(
           context,
@@ -3533,7 +3531,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _showAnalyticsScreen(BuildContext context) {
     Navigator.push<void>(
       context,
-      MaterialPageRoute<void>(builder: (context) => const ProductivityAnalyticsScreen()),
+      MaterialPageRoute<void>(
+          builder: (context) => const ProductivityAnalyticsScreen()),
     );
   }
 
@@ -3618,18 +3617,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
 
       // Track analytics
-      ref
-          .read(analyticsProvider)
-          .event(
-            'saved_search.tag_filter',
-            properties: {
-              'tag': preset.tag,
-              'key': preset.key.name,
-              'action': currentFilter.includeTags.contains(normalizedTag)
-                  ? 'remove'
-                  : 'add',
-            },
-          );
+      ref.read(analyticsProvider).event(
+        'saved_search.tag_filter',
+        properties: {
+          'tag': preset.tag,
+          'key': preset.key.name,
+          'action': currentFilter.includeTags.contains(normalizedTag)
+              ? 'remove'
+              : 'add',
+        },
+      );
       return;
     }
 
@@ -3822,9 +3819,8 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final progress = _currentProgress;
-    final overallProgress = widget.totalNotes > 0
-        ? (_currentNoteIndex / widget.totalNotes)
-        : 0.0;
+    final overallProgress =
+        widget.totalNotes > 0 ? (_currentNoteIndex / widget.totalNotes) : 0.0;
 
     // Calculate estimated time remaining
     final estimatedTimeRemaining = _calculateEstimatedTime();

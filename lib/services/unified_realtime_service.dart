@@ -70,23 +70,23 @@ class UnifiedRealtimeService extends ChangeNotifier {
   // Singleton instance tracking
   static UnifiedRealtimeService? _instance;
   static String? _currentUserId;
-  
+
   UnifiedRealtimeService._internal({
     required SupabaseClient supabase,
     required this.userId,
     required AppLogger logger,
     ConnectionManager? connectionManager,
     FolderSyncCoordinator? folderSyncCoordinator,
-  }) : _supabase = supabase,
-       _logger = logger,
-       _connectionManager = connectionManager ?? ConnectionManager(),
-       _folderSyncCoordinator = folderSyncCoordinator {
+  })  : _supabase = supabase,
+        _logger = logger,
+        _connectionManager = connectionManager ?? ConnectionManager(),
+        _folderSyncCoordinator = folderSyncCoordinator {
     // Start periodic cleanup of processed event IDs
     _cleanupTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _cleanupProcessedIds();
     });
   }
-  
+
   /// Factory constructor ensures singleton per user
   factory UnifiedRealtimeService({
     required SupabaseClient supabase,
@@ -561,10 +561,10 @@ class UnifiedRealtimeService extends ChangeNotifier {
       _logger.warning('Service already disposed, skipping');
       return;
     }
-    
+
     _logger.info('Disposing service');
     _disposed = true;
-    
+
     // Clear singleton reference if this is the current instance
     if (_instance == this) {
       _instance = null;

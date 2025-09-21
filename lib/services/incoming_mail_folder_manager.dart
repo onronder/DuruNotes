@@ -11,8 +11,8 @@ class IncomingMailFolderManager {
   IncomingMailFolderManager({
     required NotesRepository repository,
     required String userId,
-  }) : _repository = repository,
-       _userId = userId;
+  })  : _repository = repository,
+        _userId = userId;
 
   final NotesRepository _repository;
   final String _userId;

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -14,8 +15,8 @@ class ProductivityGoalsService {
   ProductivityGoalsService({
     required AppDb database,
     required TaskAnalyticsService analyticsService,
-  }) : _db = database,
-       _analyticsService = analyticsService;
+  })  : _db = database,
+        _analyticsService = analyticsService;
 
   final AppDb _db;
   final TaskAnalyticsService _analyticsService;
@@ -29,16 +30,18 @@ class ProductivityGoalsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final goalsJson = prefs.getString(_goalsKey);
-      
+
       if (goalsJson == null) return [];
-      
+
       final goalsList = jsonDecode(goalsJson) as List<dynamic>;
       return goalsList
-          .map((json) => ProductivityGoal.fromJson(json as Map<String, dynamic>))
+          .map(
+              (json) => ProductivityGoal.fromJson(json as Map<String, dynamic>))
           .where((goal) => goal.isActive && !goal.isCompleted)
           .toList();
     } catch (e, stack) {
-      _logger.error('Failed to load productivity goals', error: e, stackTrace: stack);
+      _logger.error('Failed to load productivity goals',
+          error: e, stackTrace: stack);
       return [];
     }
   }
@@ -50,7 +53,8 @@ class ProductivityGoalsService {
       final goalsJson = jsonEncode(goals.map((g) => g.toJson()).toList());
       await prefs.setString(_goalsKey, goalsJson);
     } catch (e, stack) {
-      _logger.error('Failed to save productivity goals', error: e, stackTrace: stack);
+      _logger.error('Failed to save productivity goals',
+          error: e, stackTrace: stack);
     }
   }
 
@@ -99,9 +103,9 @@ class ProductivityGoalsService {
     try {
       final goals = await getActiveGoals();
       final goalIndex = goals.indexWhere((g) => g.id == goalId);
-      
+
       if (goalIndex == -1) return;
-      
+
       final goal = goals[goalIndex];
       final updatedGoal = goal.copyWith(
         currentValue: newValue,
@@ -117,7 +121,8 @@ class ProductivityGoalsService {
         await _recordAchievement(updatedGoal);
       }
     } catch (e, stack) {
-      _logger.error('Failed to update goal progress', error: e, stackTrace: stack);
+      _logger.error('Failed to update goal progress',
+          error: e, stackTrace: stack);
     }
   }
 
@@ -128,51 +133,60 @@ class ProductivityGoalsService {
       if (goals.isEmpty) return;
 
       final now = DateTime.now();
-      
+
       for (final goal in goals) {
         final currentValue = await _calculateCurrentGoalValue(goal, now);
         await updateGoalProgress(goal.id, currentValue);
       }
     } catch (e, stack) {
-      _logger.error('Failed to update all goal progress', error: e, stackTrace: stack);
+      _logger.error('Failed to update all goal progress',
+          error: e, stackTrace: stack);
     }
   }
 
   /// Calculate current value for a goal based on its type and period
-  Future<double> _calculateCurrentGoalValue(ProductivityGoal goal, DateTime now) async {
+  Future<double> _calculateCurrentGoalValue(
+      ProductivityGoal goal, DateTime now) async {
     final startDate = _getGoalPeriodStart(goal, now);
     final endDate = now;
 
     switch (goal.type) {
       case GoalType.tasksCompleted:
-        final stats = await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats =
+            await _analyticsService.getTaskCompletionStats(startDate, endDate);
         return stats.totalCompleted.toDouble();
 
       case GoalType.completionRate:
-        final stats = await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats =
+            await _analyticsService.getTaskCompletionStats(startDate, endDate);
         return stats.completionRate * 100; // Convert to percentage
 
       case GoalType.timeAccuracy:
-        final accuracy = await _analyticsService.getTimeEstimationAccuracy(startDate, endDate);
+        final accuracy = await _analyticsService.getTimeEstimationAccuracy(
+            startDate, endDate);
         return accuracy.overallAccuracy * 100; // Convert to percentage
 
       case GoalType.dailyStreak:
-        final stats = await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats =
+            await _analyticsService.getTaskCompletionStats(startDate, endDate);
         return stats.currentStreak.toDouble();
 
       case GoalType.deadlineAdherence:
-        final metrics = await _analyticsService.getDeadlineAdherenceMetrics(startDate, endDate);
+        final metrics = await _analyticsService.getDeadlineAdherenceMetrics(
+            startDate, endDate);
         return metrics.adherenceRate * 100; // Convert to percentage
 
       case GoalType.timeSpent:
-        final trends = await _analyticsService.getProductivityTrends(startDate, endDate);
+        final trends =
+            await _analyticsService.getProductivityTrends(startDate, endDate);
         return trends.dailyTrends
             .map((d) => d.totalMinutesSpent)
             .fold(0, (a, b) => a + b)
             .toDouble();
 
       case GoalType.averageTasksPerDay:
-        final trends = await _analyticsService.getProductivityTrends(startDate, endDate);
+        final trends =
+            await _analyticsService.getProductivityTrends(startDate, endDate);
         return trends.averageTasksPerDay;
     }
   }
@@ -212,15 +226,17 @@ class ProductivityGoalsService {
       final prefs = await SharedPreferences.getInstance();
       final achievementsJson = prefs.getString(_achievementsKey) ?? '[]';
       final achievements = (jsonDecode(achievementsJson) as List<dynamic>)
-          .map((json) => ProductivityAchievement.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              ProductivityAchievement.fromJson(json as Map<String, dynamic>))
           .toList();
 
       achievements.add(achievement);
-      
+
       // Send achievement notification
       await _sendAchievementNotification(goal);
-      
-      final updatedJson = jsonEncode(achievements.map((a) => a.toJson()).toList());
+
+      final updatedJson =
+          jsonEncode(achievements.map((a) => a.toJson()).toList());
       await prefs.setString(_achievementsKey, updatedJson);
 
       _logger.info('Recorded productivity achievement', data: {
@@ -228,7 +244,8 @@ class ProductivityGoalsService {
         'achievementId': achievement.id,
       });
     } catch (e, stack) {
-      _logger.error('Failed to record achievement', error: e, stackTrace: stack);
+      _logger.error('Failed to record achievement',
+          error: e, stackTrace: stack);
     }
   }
 
@@ -237,10 +254,11 @@ class ProductivityGoalsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final achievementsJson = prefs.getString(_achievementsKey) ?? '[]';
-      
+
       final achievementsList = jsonDecode(achievementsJson) as List<dynamic>;
       return achievementsList
-          .map((json) => ProductivityAchievement.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              ProductivityAchievement.fromJson(json as Map<String, dynamic>))
           .toList()
         ..sort((a, b) => b.achievedAt.compareTo(a.achievedAt));
     } catch (e, stack) {
@@ -330,7 +348,8 @@ class ProductivityGoalsService {
 
       return suggestions;
     } catch (e, stack) {
-      _logger.error('Failed to generate suggested goals', error: e, stackTrace: stack);
+      _logger.error('Failed to generate suggested goals',
+          error: e, stackTrace: stack);
       return [];
     }
   }
@@ -348,7 +367,7 @@ class ProductivityGoalsService {
     goals.add(activeGoal);
     await saveGoals(goals);
   }
-  
+
   /// Send achievement notification
   Future<void> _sendAchievementNotification(ProductivityGoal goal) async {
     try {
@@ -362,25 +381,25 @@ class ProductivityGoalsService {
         icon: '@mipmap/ic_launcher',
         color: Color(0xFF4CAF50), // Green for success
       );
-      
+
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       );
-      
+
       const notificationDetails = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
-      
+
       await flutterLocalNotificationsPlugin.show(
         goal.id.hashCode,
         '🎉 Goal Achieved!',
         'You completed your goal: ${goal.title}',
         notificationDetails,
       );
-      
+
       // Log analytics event
       AnalyticsFactory.instance.event('goal.achieved', properties: {
         'goal_type': goal.type.toString(),
@@ -388,19 +407,21 @@ class ProductivityGoalsService {
         'period': goal.period.toString(),
       });
     } catch (e, stack) {
-      _logger.error('Failed to send achievement notification', error: e, stackTrace: stack);
+      _logger.error('Failed to send achievement notification',
+          error: e, stackTrace: stack);
     }
   }
-  
+
   /// Check and notify achievements periodically
   Future<void> checkAndNotifyAchievements() async {
     try {
       await updateAllGoalProgress();
     } catch (e, stack) {
-      _logger.error('Failed to check achievements', error: e, stackTrace: stack);
+      _logger.error('Failed to check achievements',
+          error: e, stackTrace: stack);
     }
   }
-  
+
   /// Get goal progress
   Future<double> getGoalProgress(String goalId) async {
     try {
@@ -411,33 +432,33 @@ class ProductivityGoalsService {
       return 0.0;
     }
   }
-  
+
   /// Watch active goals stream
   Stream<List<ProductivityGoal>> watchActiveGoals() {
     // Create a stream controller
     final controller = StreamController<List<ProductivityGoal>>.broadcast();
-    
+
     // Initial load
     getActiveGoals().then((goals) {
       if (!controller.isClosed) {
         controller.add(goals);
       }
     });
-    
+
     // Periodic updates
     Timer.periodic(const Duration(minutes: 5), (timer) {
       if (controller.isClosed) {
         timer.cancel();
         return;
       }
-      
+
       getActiveGoals().then((goals) {
         if (!controller.isClosed) {
           controller.add(goals);
         }
       });
     });
-    
+
     return controller.stream;
   }
 }
@@ -558,7 +579,9 @@ class ProductivityGoal {
       targetValue: (json['targetValue'] as num).toDouble(),
       currentValue: (json['currentValue'] as num).toDouble(),
       startDate: DateTime.parse(json['startDate'] as String),
-      deadline: json['deadline'] != null ? DateTime.parse(json['deadline'] as String) : null,
+      deadline: json['deadline'] != null
+          ? DateTime.parse(json['deadline'] as String)
+          : null,
       isActive: json['isActive'] as bool,
       isCompleted: json['isCompleted'] as bool,
       metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},

@@ -47,7 +47,8 @@ class FolderSyncCoordinator {
     final tempId = _generateTempId();
 
     try {
-      logger.info('🚀 FolderSyncCoordinator: Starting folder creation - name: $name, parentId: $parentId, operationId: $operationId');
+      logger.info(
+          '🚀 FolderSyncCoordinator: Starting folder creation - name: $name, parentId: $parentId, operationId: $operationId');
 
       // Start audit
       audit.startOperation(
@@ -68,11 +69,13 @@ class FolderSyncCoordinator {
       );
 
       if (localFolder == null) {
-        logger.error('❌ FolderSyncCoordinator: createLocalFolder returned null');
+        logger
+            .error('❌ FolderSyncCoordinator: createLocalFolder returned null');
         throw Exception('Failed to create local folder');
       }
 
-      logger.info('✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}');
+      logger.info(
+          '✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}');
 
       // Queue for sync
       _pendingOperations[localFolder.id] = FolderOperation.create(
@@ -84,7 +87,7 @@ class FolderSyncCoordinator {
       try {
         await _syncFolderToRemote(localFolder, operationId);
         logger.info('📤 FolderSyncCoordinator: Successfully synced to remote');
-        
+
         // Complete audit for successful sync
         audit.completeOperation(
           operationId,
@@ -93,7 +96,8 @@ class FolderSyncCoordinator {
           name,
         );
       } catch (e) {
-        logger.warning('⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $e');
+        logger.warning(
+            '⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $e');
         // Don't fail the entire operation - folder was created locally
         // Remote sync will be retried later via pending operations
       }
@@ -384,7 +388,7 @@ class FolderSyncCoordinator {
   ) async {
     try {
       await _remoteApi.upsertFolder(folder);
-      
+
       audit.recordEvent(
         FolderSyncEvent(
           type: FolderSyncEventType.realtimeSent,

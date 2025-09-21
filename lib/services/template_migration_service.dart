@@ -103,7 +103,9 @@ class TemplateMigrationService {
           .then((notes) => notes.length);
 
       // Check how many templates are in local_templates
-      final localTemplatesCount = await _db.select(_db.localTemplates).get()
+      final localTemplatesCount = await _db
+          .select(_db.localTemplates)
+          .get()
           .then((templates) => templates.length);
 
       return templateNotesCount > localTemplatesCount;

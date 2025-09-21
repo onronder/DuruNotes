@@ -1,8 +1,9 @@
 /// Converter utility to map between UI task models and database task models
-/// 
+///
 /// This provides conversion functions to map between the temporary UI models
 /// and the actual Drift-backed database models.
 
+import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_task.dart';
 
@@ -72,7 +73,7 @@ class TaskModelConverter {
       dueDate: dbTask.dueDate,
       createdAt: dbTask.createdAt,
       updatedAt: dbTask.updatedAt,
-      tags: dbTask.labels != null 
+      tags: dbTask.labels != null
           ? (dbTask.labels!.split(',').where((s) => s.isNotEmpty).toList())
           : [],
       subtasks: [], // Subtasks would need to be loaded separately
@@ -88,7 +89,8 @@ class TaskModelConverter {
       noteId: uiTask.noteId ?? '',
       content: uiTask.content,
       status: Value(uiStatusToDbStatus(uiTask.status)),
-      priority: Value(uiPriorityToDbPriority(uiTask.priority) ?? TaskPriority.medium),
+      priority:
+          Value(uiPriorityToDbPriority(uiTask.priority) ?? TaskPriority.medium),
       dueDate: Value(uiTask.dueDate),
       createdAt: Value(uiTask.createdAt),
       updatedAt: Value(uiTask.updatedAt),

@@ -21,8 +21,8 @@ class NotesRealtimeService extends ChangeNotifier {
   // Exponential backoff
 
   NotesRealtimeService({required SupabaseClient supabase, required Ref ref})
-    : _supabase = supabase,
-      _ref = ref;
+      : _supabase = supabase,
+        _ref = ref;
   final SupabaseClient _supabase;
   final Ref _ref;
   final AppLogger _logger = LoggerFactory.instance;

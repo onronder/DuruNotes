@@ -7,25 +7,45 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// Configuration and initialization for Sentry error tracking
 class SentryConfig {
   static bool _isInitialized = false;
+  static EnvironmentConfig? _environment;
+  static AppLogger? _logger;
+
+  static bool get isInitialized => _isInitialized;
+
+  /// Inject dependencies required for initialization.
+  static void configure({
+    required EnvironmentConfig environment,
+    required AppLogger logger,
+  }) {
+    _environment = environment;
+    _logger = logger;
+  }
 
   /// Initialize Sentry for error tracking and performance monitoring
   static Future<void> initialize() async {
     if (_isInitialized) {
-      LoggerFactory.instance.warning('Sentry already initialized');
+      (_logger ?? LoggerFactory.instance)
+          .warning('Sentry already initialized');
       return;
     }
 
-    final config = EnvironmentConfig.current;
+    final config = _environment;
+    final logger = _logger ?? LoggerFactory.instance;
+    if (config == null) {
+      throw StateError(
+        'SentryConfig.configure must be called before initialize',
+      );
+    }
 
     // Skip Sentry in debug mode unless explicitly enabled
     if (kDebugMode && !config.crashReportingEnabled) {
-      LoggerFactory.instance.info('Sentry disabled in debug mode');
+      logger.info('Sentry disabled in debug mode');
       return;
     }
 
     // Check if Sentry DSN is configured
     if (config.sentryDsn == null || config.sentryDsn!.isEmpty) {
-      LoggerFactory.instance.warning('Sentry DSN not configured');
+      logger.warning('Sentry DSN not configured');
       return;
     }
 
@@ -37,7 +57,7 @@ class SentryConfig {
         options.dsn = config.sentryDsn;
 
         // Environment and release tracking
-        options.environment = config.currentEnvironment.name;
+        options.environment = config.environment.name;
         options.release =
             '${packageInfo.packageName}@${packageInfo.version}+${packageInfo.buildNumber}';
         options.dist = packageInfo.buildNumber;
@@ -65,9 +85,8 @@ class SentryConfig {
 
         // Debug options
         options.debug = kDebugMode;
-        options.diagnosticLevel = kDebugMode
-            ? SentryLevel.debug
-            : SentryLevel.error;
+        options.diagnosticLevel =
+            kDebugMode ? SentryLevel.debug : SentryLevel.error;
 
         // Before send callback for filtering
         options.beforeSend = (event, hint) async {
@@ -89,7 +108,7 @@ class SentryConfig {
           event = event.copyWith(
             tags: {
               ...?event.tags,
-              'app.environment': config.currentEnvironment.name,
+              'app.environment': config.environment.name,
               'app.debug_mode': kDebugMode.toString(),
               'app.version': packageInfo.version,
               'app.build': packageInfo.buildNumber,
@@ -97,7 +116,7 @@ class SentryConfig {
           );
 
           // Log to our logger as well
-          LoggerFactory.instance.error(
+          logger.error(
             'Sentry capturing exception',
             error: event.throwable,
             data: {'level': event.level?.name, 'tags': event.tags},
@@ -111,22 +130,11 @@ class SentryConfig {
         options.considerInAppFramesByDefault = true;
       });
 
-      // Configure scope with user and additional context
+      // Configure scope with additional context
       await Sentry.configureScope((scope) async {
-        // Set user if authenticated
-        final userId = EnvironmentConfig
-            .current
-            .supabaseUrl; // Replace with actual user ID when available
-        scope.setUser(
-          SentryUser(
-            id: userId,
-            // Don't set email/username unless sendDefaultPii is true
-          ),
-        );
-
         // Set app context
         scope.setContexts('app', {
-          'environment': config.currentEnvironment.name,
+          'environment': config.environment.name,
           'debug_mode': kDebugMode,
           'crash_reporting': config.crashReportingEnabled,
           'analytics': config.analyticsEnabled,
@@ -141,10 +149,10 @@ class SentryConfig {
 
       _isInitialized = true;
 
-      LoggerFactory.instance.info(
+      logger.info(
         'Sentry initialized successfully',
         data: {
-          'environment': config.currentEnvironment.name,
+          'environment': config.environment.name,
           'release': '${packageInfo.version}+${packageInfo.buildNumber}',
           'tracesSampleRate': config.sentryTracesSampleRate,
           'sessionTracking': config.enableAutoSessionTracking,
@@ -156,7 +164,7 @@ class SentryConfig {
         Sentry.captureMessage('Sentry initialized successfully');
       }
     } catch (e, stack) {
-      LoggerFactory.instance.error(
+      logger.error(
         'Failed to initialize Sentry',
         error: e,
         stackTrace: stack,
@@ -171,13 +179,14 @@ class SentryConfig {
     String? username,
   }) async {
     if (!_isInitialized) return;
+    final config = _environment;
 
     await Sentry.configureScope((scope) {
       scope.setUser(
         SentryUser(
           id: userId,
-          email: EnvironmentConfig.current.sendDefaultPii ? email : null,
-          username: EnvironmentConfig.current.sendDefaultPii ? username : null,
+          email: (config?.sendDefaultPii ?? false) ? email : null,
+          username: (config?.sendDefaultPii ?? false) ? username : null,
         ),
       );
     });

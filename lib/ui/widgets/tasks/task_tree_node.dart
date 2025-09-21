@@ -1,7 +1,8 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_model_converter.dart';
-import 'package:duru_notes/models/note_task.dart' show UiNoteTask, UiTaskStatus, UiTaskPriority;
+import 'package:duru_notes/models/note_task.dart'
+    show UiNoteTask, UiTaskStatus, UiTaskPriority;
 import 'package:flutter/material.dart';
 
 /// Fully migrated hierarchical task tree node widget
@@ -14,7 +15,7 @@ class TaskTreeNode extends StatefulWidget {
   final UnifiedTaskCallbacks callbacks;
   final bool isExpanded;
   final int depth;
-  
+
   const TaskTreeNode({
     super.key,
     this.dbTask,
@@ -24,40 +25,46 @@ class TaskTreeNode extends StatefulWidget {
     required this.callbacks,
     this.isExpanded = false,
     this.depth = 0,
-  }) : assert(dbTask != null || uiTask != null, 'Either dbTask or uiTask must be provided');
-  
+  }) : assert(dbTask != null || uiTask != null,
+            'Either dbTask or uiTask must be provided');
+
   @override
   State<TaskTreeNode> createState() => _TaskTreeNodeState();
 }
 
 class _TaskTreeNodeState extends State<TaskTreeNode> {
   late bool _isExpanded;
-  
+
   @override
   void initState() {
     super.initState();
     _isExpanded = widget.isExpanded;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (widget.dbTask != null) {
       return TaskWidgetAdapter(
         dbTask: widget.dbTask,
-        builder: (uiTask) => _buildNode(context, uiTask, widget.dbSubtasks.map((t) => 
-          TaskModelConverter.dbTaskToUiTask(t)).toList()),
+        builder: (uiTask) => _buildNode(
+            context,
+            uiTask,
+            widget.dbSubtasks
+                .map((t) => TaskModelConverter.dbTaskToUiTask(t))
+                .toList()),
       );
     } else {
       return _buildNode(context, widget.uiTask!, widget.uiSubtasks);
     }
   }
-  
-  Widget _buildNode(BuildContext context, UiNoteTask task, List<UiNoteTask> subtasks) {
+
+  Widget _buildNode(
+      BuildContext context, UiNoteTask task, List<UiNoteTask> subtasks) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final hasSubtasks = subtasks.isNotEmpty;
     final taskId = task.id;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -80,7 +87,8 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
               onTap: () => widget.callbacks.onEdit(taskId),
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
                     // Expand/Collapse button
@@ -105,20 +113,22 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                     ] else ...[
                       const SizedBox(width: 24),
                     ],
-                    
+
                     // Checkbox
                     Checkbox(
                       value: task.status == UiTaskStatus.completed,
                       onChanged: (value) async {
-                        final newStatus = value! ? TaskStatus.completed : TaskStatus.open;
-                        await widget.callbacks.onStatusChanged(taskId, newStatus);
-                        
+                        final newStatus =
+                            value! ? TaskStatus.completed : TaskStatus.open;
+                        await widget.callbacks
+                            .onStatusChanged(taskId, newStatus);
+
                         // Also update subtasks if completing parent
                         if (value && hasSubtasks) {
                           for (final subtask in subtasks) {
                             if (subtask.status != UiTaskStatus.completed) {
                               await widget.callbacks.onStatusChanged(
-                                subtask.id, 
+                                subtask.id,
                                 TaskStatus.completed,
                               );
                             }
@@ -127,9 +137,9 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                       },
                       activeColor: _getPriorityColor(task.priority),
                     ),
-                    
+
                     const SizedBox(width: 8),
-                    
+
                     // Task content
                     Expanded(
                       child: Column(
@@ -146,7 +156,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                                   : null,
                             ),
                           ),
-                          
+
                           // Metadata row
                           if (task.priority != UiTaskPriority.none ||
                               task.dueDate != null ||
@@ -167,7 +177,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
                         ],
                       ),
                     ),
-                    
+
                     // Actions menu
                     PopupMenuButton<String>(
                       icon: Icon(
@@ -220,19 +230,19 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
             ),
           ),
         ),
-        
+
         // Subtasks (if expanded)
         if (hasSubtasks && _isExpanded)
           ...subtasks.map((subtask) => TaskTreeNode(
-            uiTask: subtask,
-            uiSubtasks: subtask.subtasks,
-            callbacks: widget.callbacks,
-            depth: widget.depth + 1,
-          )),
+                uiTask: subtask,
+                uiSubtasks: subtask.subtasks,
+                callbacks: widget.callbacks,
+                depth: widget.depth + 1,
+              )),
       ],
     );
   }
-  
+
   Widget _buildPriorityBadge(BuildContext context, UiTaskPriority priority) {
     final color = _getPriorityColor(priority);
     return Container(
@@ -249,20 +259,21 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
           Text(
             _getPriorityLabel(priority),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildDueDateBadge(BuildContext context, DateTime dueDate) {
     final now = DateTime.now();
     final isOverdue = dueDate.isBefore(now);
-    final color = isOverdue ? Colors.red : Theme.of(context).colorScheme.primary;
-    
+    final color =
+        isOverdue ? Colors.red : Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -277,23 +288,25 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
           Text(
             '${dueDate.month}/${dueDate.day}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildSubtaskCount(BuildContext context, List<UiNoteTask> subtasks) {
-    final completed = subtasks.where((t) => t.status == UiTaskStatus.completed).length;
+    final completed =
+        subtasks.where((t) => t.status == UiTaskStatus.completed).length;
     final total = subtasks.length;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color:
+            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -302,7 +315,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
       ),
     );
   }
-  
+
   void _showAddSubtaskDialog(BuildContext context, String parentId) {
     final controller = TextEditingController();
     showDialog(
@@ -336,7 +349,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
       ),
     );
   }
-  
+
   void _showPriorityDialog(BuildContext context, UiNoteTask task) {
     showDialog(
       context: context,
@@ -345,7 +358,8 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: TaskPriority.values.map((priority) {
-            final uiPriority = TaskModelConverter.dbPriorityToUiPriority(priority);
+            final uiPriority =
+                TaskModelConverter.dbPriorityToUiPriority(priority);
             return ListTile(
               leading: Icon(
                 Icons.flag,
@@ -362,14 +376,14 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
       ),
     );
   }
-  
+
   void _confirmDelete(BuildContext context, String taskId, bool hasSubtasks) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(hasSubtasks ? 'Delete Task and Subtasks' : 'Delete Task'),
         content: Text(
-          hasSubtasks 
+          hasSubtasks
               ? 'This will delete the task and all its subtasks. Are you sure?'
               : 'Are you sure you want to delete this task?',
         ),
@@ -389,7 +403,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
       ),
     );
   }
-  
+
   Color _getPriorityColor(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:
@@ -404,7 +418,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
         return Colors.grey.withOpacity(0.5);
     }
   }
-  
+
   String _getPriorityLabel(UiTaskPriority priority) {
     switch (priority) {
       case UiTaskPriority.urgent:

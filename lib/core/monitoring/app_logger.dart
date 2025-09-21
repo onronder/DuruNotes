@@ -23,7 +23,7 @@ abstract class AppLogger {
 /// Console logger implementation
 class ConsoleLogger implements AppLogger {
   const ConsoleLogger({LogLevel minLevel = LogLevel.debug})
-    : _minLevel = minLevel;
+      : _minLevel = minLevel;
   final LogLevel _minLevel;
 
   bool _shouldLog(LogLevel level) => level.index >= _minLevel.index;
@@ -135,9 +135,8 @@ class LoggerFactory {
     LogLevel minLevel = LogLevel.debug,
     bool enabled = true,
   }) {
-    _instance = enabled
-        ? ConsoleLogger(minLevel: minLevel)
-        : const NoOpLogger();
+    _instance =
+        enabled ? ConsoleLogger(minLevel: minLevel) : const NoOpLogger();
   }
 
   static AppLogger get instance => _instance ?? const ConsoleLogger();

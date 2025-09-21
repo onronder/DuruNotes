@@ -14,7 +14,7 @@ abstract class BaseFolderItem extends StatelessWidget {
   final int noteCount;
   final bool showNoteCount;
   final bool showActions;
-  
+
   const BaseFolderItem({
     super.key,
     required this.folder,
@@ -29,36 +29,36 @@ abstract class BaseFolderItem extends StatelessWidget {
     this.showNoteCount = true,
     this.showActions = true,
   });
-  
+
   /// Build folder icon based on state
   Widget buildIcon(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final iconColor = isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    
+    final iconColor =
+        isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+
     IconData iconData;
     if (folder.isSpecial) {
       iconData = _getSpecialFolderIcon();
     } else {
       iconData = isExpanded ? Icons.folder_open : Icons.folder;
     }
-    
+
     return Icon(
       iconData,
       color: iconColor,
       size: 20,
     );
   }
-  
+
   /// Build folder title with appropriate styling
   Widget buildTitle(BuildContext context) {
     final theme = Theme.of(context);
     final textStyle = theme.textTheme.bodyLarge?.copyWith(
       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      color: isSelected 
-          ? theme.colorScheme.primary 
-          : theme.colorScheme.onSurface,
+      color:
+          isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
     );
-    
+
     return Text(
       folder.name,
       style: textStyle,
@@ -66,16 +66,16 @@ abstract class BaseFolderItem extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
   }
-  
+
   /// Build note count badge
   Widget buildNoteCount(BuildContext context) {
     if (!showNoteCount || noteCount == 0) {
       return const SizedBox.shrink();
     }
-    
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -87,39 +87,36 @@ abstract class BaseFolderItem extends StatelessWidget {
       child: Text(
         noteCount.toString(),
         style: theme.textTheme.bodySmall?.copyWith(
-          color: isSelected
-              ? colorScheme.primary
-              : colorScheme.onSurfaceVariant,
+          color:
+              isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
-  
+
   /// Build expand/collapse indicator for folders with children
   Widget buildExpandIndicator(BuildContext context) {
     if (!folder.hasChildren) {
       return const SizedBox(width: 24);
     }
-    
+
     return GestureDetector(
       onTap: onExpand,
       child: Icon(
-        isExpanded 
-            ? Icons.keyboard_arrow_down 
-            : Icons.keyboard_arrow_right,
+        isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
         size: 20,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
-  
+
   /// Build action menu for folder operations
   Widget buildActionMenu(BuildContext context) {
     if (!showActions || (onEdit == null && onDelete == null)) {
       return const SizedBox.shrink();
     }
-    
+
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_vert,
@@ -137,7 +134,7 @@ abstract class BaseFolderItem extends StatelessWidget {
       },
       itemBuilder: (context) {
         final items = <PopupMenuItem<String>>[];
-        
+
         if (onEdit != null && !folder.isSpecial) {
           items.add(
             const PopupMenuItem(
@@ -150,7 +147,7 @@ abstract class BaseFolderItem extends StatelessWidget {
             ),
           );
         }
-        
+
         if (onDelete != null && !folder.isSpecial) {
           items.add(
             const PopupMenuItem(
@@ -163,12 +160,12 @@ abstract class BaseFolderItem extends StatelessWidget {
             ),
           );
         }
-        
+
         return items;
       },
     );
   }
-  
+
   /// Get icon for special system folders
   IconData _getSpecialFolderIcon() {
     switch (folder.specialType) {
@@ -211,13 +208,12 @@ class FolderListItem extends BaseFolderItem {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       margin: EdgeInsets.only(left: indentLevel * 16.0),
       decoration: BoxDecoration(
-        color: isSelected
-            ? colorScheme.primaryContainer.withOpacity(0.3)
-            : null,
+        color:
+            isSelected ? colorScheme.primaryContainer.withOpacity(0.3) : null,
         border: isSelected
             ? Border(
                 left: BorderSide(
@@ -270,7 +266,7 @@ class CompactFolderItem extends BaseFolderItem {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -281,9 +277,8 @@ class CompactFolderItem extends BaseFolderItem {
           bottom: 6,
         ),
         decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primaryContainer.withOpacity(0.3)
-              : null,
+          color:
+              isSelected ? colorScheme.primaryContainer.withOpacity(0.3) : null,
         ),
         child: Row(
           children: [

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,7 +48,7 @@ class AttachmentException implements Exception {
 /// Exception for file size violations
 class AttachmentSizeException extends AttachmentException {
   const AttachmentSizeException(super.message, this.actualSize, this.maxSize)
-    : super(code: 'FILE_TOO_LARGE');
+      : super(code: 'FILE_TOO_LARGE');
   final int actualSize;
   final int maxSize;
 }
@@ -58,9 +59,9 @@ class AttachmentService {
     SupabaseClient? client,
     AppLogger? logger,
     AnalyticsService? analytics,
-  }) : _client = client ?? Supabase.instance.client,
-       _logger = logger ?? LoggerFactory.instance,
-       _analytics = analytics ?? AnalyticsFactory.instance;
+  })  : _client = client ?? Supabase.instance.client,
+        _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
   final SupabaseClient _client;
   final AppLogger _logger;

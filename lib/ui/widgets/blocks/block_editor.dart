@@ -31,7 +31,6 @@ class BlockEditor extends ConsumerStatefulWidget {
 }
 
 class _BlockEditorState extends ConsumerState<BlockEditor> {
-  
   /// Calculate the position of a todo block among all todo blocks
   int _getTodoPosition(int blockIndex) {
     var todoPosition = 0;
@@ -42,6 +41,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     }
     return todoPosition;
   }
+
   late List<NoteBlock> _blocks;
   int? _focusedBlockIndex;
   bool _showBlockSelector = false;
@@ -96,9 +96,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       setState(() {
         _blocks.removeAt(index);
         if (_focusedBlockIndex != null && _focusedBlockIndex! >= index) {
-          _focusedBlockIndex = _focusedBlockIndex! > 0
-              ? _focusedBlockIndex! - 1
-              : 0;
+          _focusedBlockIndex =
+              _focusedBlockIndex! > 0 ? _focusedBlockIndex! - 1 : 0;
         }
       });
       _updateBlocks();
@@ -479,7 +478,6 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 16),
-
                   _buildBlockTypeGrid(),
                 ],
               ),

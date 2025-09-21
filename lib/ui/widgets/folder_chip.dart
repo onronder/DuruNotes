@@ -39,9 +39,8 @@ class FolderChip extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isSelected
-                  ? chipColor
-                  : Colors.grey.withValues(alpha: 0.3),
+              color:
+                  isSelected ? chipColor : Colors.grey.withValues(alpha: 0.3),
               width: isSelected ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(20),

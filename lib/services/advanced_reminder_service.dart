@@ -88,14 +88,12 @@ class AdvancedReminderService {
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(mainChannel);
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(locationChannel);
   }
 
@@ -133,8 +131,7 @@ class AdvancedReminderService {
       if (Platform.isIOS) {
         final result = await _plugin
             .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin
-            >()
+                IOSFlutterLocalNotificationsPlugin>()
             ?.requestPermissions(alert: true, badge: true, sound: true);
         granted = result ?? false;
       } else if (Platform.isAndroid) {
@@ -177,8 +174,7 @@ class AdvancedReminderService {
         return false;
       }
 
-      final granted =
-          permission == geo.LocationPermission.whileInUse ||
+      final granted = permission == geo.LocationPermission.whileInUse ||
           permission == geo.LocationPermission.always;
 
       analytics.event(
@@ -299,9 +295,8 @@ class AdvancedReminderService {
           'type': 'time',
           'has_recurrence': recurrence != RecurrencePattern.none,
           'recurrence_pattern': recurrence.name,
-          'hours_from_now': remindAtUtc
-              .difference(DateTime.now().toUtc())
-              .inHours,
+          'hours_from_now':
+              remindAtUtc.difference(DateTime.now().toUtc()).inHours,
         },
       );
 
@@ -590,8 +585,7 @@ class AdvancedReminderService {
 
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
-      final body =
-          reminder.notificationBody ??
+      final body = reminder.notificationBody ??
           "You're near $locationText - ${reminder.title}";
 
       await _plugin.show(

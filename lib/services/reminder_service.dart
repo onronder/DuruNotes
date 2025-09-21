@@ -6,6 +6,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 // If your enum lives in your DB layer, import it here.
 import 'package:duru_notes/data/local/app_db.dart' show ReminderType;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -62,16 +63,16 @@ class Reminder {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    noteId,
-    title,
-    body,
-    scheduledTime,
-    type,
-    isActive,
-    createdAt,
-    completedAt,
-  );
+        id,
+        noteId,
+        title,
+        body,
+        scheduledTime,
+        type,
+        isActive,
+        createdAt,
+        completedAt,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -90,8 +91,8 @@ class Reminder {
 
 class ReminderService {
   ReminderService({AppLogger? logger, AnalyticsService? analytics})
-    : _logger = logger ?? LoggerFactory.instance,
-      _analytics = analytics ?? AnalyticsFactory.instance;
+      : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
 
   final AppLogger _logger;
   final AnalyticsService _analytics;
@@ -439,10 +440,8 @@ class ReminderService {
 
   Future<void> _createAndroidChannelsIfNeeded() async {
     if (!Platform.isAndroid) return;
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     const channel = AndroidNotificationChannel(
@@ -463,10 +462,8 @@ class ReminderService {
   }
 
   Future<void> _maybeRequestExactAlarmPermission() async {
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     final granted = await android.canScheduleExactNotifications();

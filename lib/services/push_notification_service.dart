@@ -26,8 +26,8 @@ class PushTokenResult {
 /// Service for managing push notifications and FCM tokens
 class PushNotificationService {
   PushNotificationService({SupabaseClient? client, AppLogger? logger})
-    : _client = client ?? Supabase.instance.client,
-      _logger = logger ?? LoggerFactory.instance;
+      : _client = client ?? Supabase.instance.client,
+        _logger = logger ?? LoggerFactory.instance;
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -157,18 +157,19 @@ class PushNotificationService {
         int retries = 0;
         const maxRetries = 5;
         const retryDelay = Duration(seconds: 2);
-        
+
         while (apnsToken == null && retries < maxRetries) {
           apnsToken = await _messaging!.getAPNSToken();
           if (apnsToken == null) {
-            _logger.warning('APNs token not available yet, attempt ${retries + 1}/$maxRetries');
+            _logger.warning(
+                'APNs token not available yet, attempt ${retries + 1}/$maxRetries');
             if (retries < maxRetries - 1) {
               await Future.delayed(retryDelay);
             }
             retries++;
           }
         }
-        
+
         if (apnsToken == null) {
           _logger.error('Failed to get APNs token after $maxRetries attempts');
           // On simulator or if APNs is not configured, we can still try to get FCM token
@@ -285,9 +286,8 @@ class PushNotificationService {
     random[6] = (random[6] & 0x0f) | 0x40;
     random[8] = (random[8] & 0x3f) | 0x80;
 
-    final hex = random
-        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final hex =
+        random.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
   }

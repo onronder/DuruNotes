@@ -278,6 +278,10 @@
   "securityValidation": "• Security validation",
   "progressTracking": "• Progress tracking", 
   "errorRecovery": "• Error recovery",
+  "genericErrorTitle": "Something went wrong",
+  "genericErrorMessage": "An unexpected error occurred. Please try again.",
+  "reportError": "Report Error",
+  "errorReportSent": "Error report sent. Thank you for your feedback!",
   "contentSanitization": "• Content sanitization",
   "featuresSecurityValidation": "Features: Security validation, progress tracking, error recovery",
   

@@ -21,11 +21,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
 /// Notification action types
-enum NotificationAction { 
-  open, 
-  reply, 
-  markAsRead, 
-  dismiss, 
+enum NotificationAction {
+  open,
+  reply,
+  markAsRead,
+  dismiss,
   custom,
   // Task-specific actions
   completeTask,
@@ -74,15 +74,15 @@ class NotificationPayload {
   final String? imageUrl;
 
   Map<String, dynamic> toJson() => {
-    'event_id': eventId,
-    'event_type': eventType,
-    'title': title,
-    'body': body,
-    'data': data,
-    'action': action?.name,
-    'deep_link': deepLink,
-    'image_url': imageUrl,
-  };
+        'event_id': eventId,
+        'event_type': eventType,
+        'title': title,
+        'body': body,
+        'data': data,
+        'action': action?.name,
+        'deep_link': deepLink,
+        'image_url': imageUrl,
+      };
 }
 
 /// Service for handling push notifications and displaying them
@@ -91,9 +91,9 @@ class NotificationHandlerService {
     SupabaseClient? client,
     AppLogger? logger,
     PushNotificationService? pushService,
-  }) : _client = client ?? Supabase.instance.client,
-       _logger = logger ?? LoggerFactory.instance,
-       _pushService = pushService ?? PushNotificationService();
+  })  : _client = client ?? Supabase.instance.client,
+        _logger = logger ?? LoggerFactory.instance,
+        _pushService = pushService ?? PushNotificationService();
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -193,10 +193,9 @@ class NotificationHandlerService {
 
   /// Create Android notification channels
   Future<void> _createNotificationChannels() async {
-    final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin == null) return;
 
@@ -244,13 +243,13 @@ class NotificationHandlerService {
     );
 
     // Handle message opened app (when app was in background)
-    _backgroundMessageSubscription = FirebaseMessaging.onMessageOpenedApp
-        .listen(
-          _handleMessageOpenedApp,
-          onError: (error) {
-            _logger.error('Error in message opened app stream: $error');
-          },
-        );
+    _backgroundMessageSubscription =
+        FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleMessageOpenedApp,
+      onError: (error) {
+        _logger.error('Error in message opened app stream: $error');
+      },
+    );
 
     // Check if app was opened from a notification
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -334,15 +333,13 @@ class NotificationHandlerService {
     return NotificationPayload(
       eventId: (data['event_id'] as String?) ?? '',
       eventType: (data['event_type'] as String?) ?? '',
-      title:
-          message.notification?.title ??
+      title: message.notification?.title ??
           (data['title'] as String?) ??
           'Notification',
       body: message.notification?.body ?? (data['body'] as String?) ?? '',
       data: data,
       deepLink: data['deep_link'] as String?,
-      imageUrl:
-          message.notification?.android?.imageUrl ??
+      imageUrl: message.notification?.android?.imageUrl ??
           message.notification?.apple?.imageUrl,
     );
   }
@@ -574,14 +571,11 @@ class NotificationHandlerService {
     try {
       if (eventId.isEmpty) return;
 
-      await _client
-          .from('notification_deliveries')
-          .update({
-            'status': status,
-            '${status}_at': DateTime.now().toIso8601String(),
-            if (metadata != null) 'provider_response': metadata,
-          })
-          .eq('event_id', eventId);
+      await _client.from('notification_deliveries').update({
+        'status': status,
+        '${status}_at': DateTime.now().toIso8601String(),
+        if (metadata != null) 'provider_response': metadata,
+      }).eq('event_id', eventId);
     } catch (e) {
       _logger.error('Failed to update delivery status: $e');
     }

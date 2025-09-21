@@ -85,7 +85,8 @@ void main() {
       // Remove folder directly to simulate external deletion
       await (db!.delete(
         db!.localFolders,
-      )..where((tbl) => tbl.id.equals(folder.id))).go();
+      )..where((tbl) => tbl.id.equals(folder.id)))
+          .go();
 
       // Relationship should now be orphaned
       var relations = await db!.select(db!.noteFolders).get();

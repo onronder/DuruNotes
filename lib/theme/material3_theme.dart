@@ -94,37 +94,36 @@ class DuruMaterial3Theme {
   /// Dark theme configuration with logo colors
   static ThemeData get darkTheme {
     // Generate base scheme from primary teal
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: _primaryTeal,
-          brightness: Brightness.dark,
-        ).copyWith(
-          // Keep exact logo colors in dark mode
-          primary: _primaryTeal, // #048ABF
-          secondary: _accentAqua, // #5FD0CB
-          tertiary: _lightAqua, // Lighter for dark mode
-          surface: _darkSurface,
-          // Rich dark surface variations with logo color influence
-          surfaceContainerLowest: const Color(0xFF0A1420),
-          surfaceContainerLow: const Color(0xFF0C1724),
-          surfaceContainer: _darkSurface,
-          surfaceContainerHigh: const Color(0xFF152A42),
-          surfaceContainerHighest: const Color(0xFF1A2F47),
-          // Primary containers in dark mode
-          primaryContainer: _primaryTeal.withValues(alpha: 0.2),
-          onPrimaryContainer: _accentAqua,
-          secondaryContainer: _accentAqua.withValues(alpha: 0.15),
-          onSecondaryContainer: _lightAqua,
-          // Dark mode text colors
-          onSurface: const Color(0xFFE3E3E3),
-          onSurfaceVariant: const Color(0xFFC4C7C5),
-          onPrimary: Colors.white,
-          onSecondary: const Color(0xFF1A1C1E),
-          onTertiary: const Color(0xFF1A1C1E),
-          // Dark outline colors
-          outline: const Color(0xFF8E918F),
-          outlineVariant: _primaryTeal.withValues(alpha: 0.2),
-        );
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _primaryTeal,
+      brightness: Brightness.dark,
+    ).copyWith(
+      // Keep exact logo colors in dark mode
+      primary: _primaryTeal, // #048ABF
+      secondary: _accentAqua, // #5FD0CB
+      tertiary: _lightAqua, // Lighter for dark mode
+      surface: _darkSurface,
+      // Rich dark surface variations with logo color influence
+      surfaceContainerLowest: const Color(0xFF0A1420),
+      surfaceContainerLow: const Color(0xFF0C1724),
+      surfaceContainer: _darkSurface,
+      surfaceContainerHigh: const Color(0xFF152A42),
+      surfaceContainerHighest: const Color(0xFF1A2F47),
+      // Primary containers in dark mode
+      primaryContainer: _primaryTeal.withValues(alpha: 0.2),
+      onPrimaryContainer: _accentAqua,
+      secondaryContainer: _accentAqua.withValues(alpha: 0.15),
+      onSecondaryContainer: _lightAqua,
+      // Dark mode text colors
+      onSurface: const Color(0xFFE3E3E3),
+      onSurfaceVariant: const Color(0xFFC4C7C5),
+      onPrimary: Colors.white,
+      onSecondary: const Color(0xFF1A1C1E),
+      onTertiary: const Color(0xFF1A1C1E),
+      // Dark outline colors
+      outline: const Color(0xFF8E918F),
+      outlineVariant: _primaryTeal.withValues(alpha: 0.2),
+    );
 
     return _buildTheme(colorScheme, Brightness.dark);
   }
@@ -160,9 +159,8 @@ class DuruMaterial3Theme {
           statusBarBrightness: Brightness.dark,
           statusBarIconBrightness: Brightness.light,
           systemNavigationBarColor: colorScheme.surface,
-          systemNavigationBarIconBrightness: isDark
-              ? Brightness.light
-              : Brightness.dark,
+          systemNavigationBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
         ),
         titleTextStyle: GoogleFonts.inter(
           color: Colors.white,
@@ -477,9 +475,8 @@ class DuruMaterial3Theme {
           alpha: 0.4,
         ), // Logo accent for handle
         elevation: 8,
-        shadowColor: isDark
-            ? Colors.black
-            : _primaryTeal.withValues(alpha: 0.1),
+        shadowColor:
+            isDark ? Colors.black : _primaryTeal.withValues(alpha: 0.1),
       ),
 
       // Dialog theme

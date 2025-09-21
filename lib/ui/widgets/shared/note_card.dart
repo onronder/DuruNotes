@@ -44,14 +44,14 @@ class NoteCard extends StatelessWidget {
     final cardColor = isSelected
         ? colorScheme.primaryContainer
         : note.isPinned
-        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-        : colorScheme.surface;
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+            : colorScheme.surface;
 
     final borderColor = isSelected
         ? colorScheme.primary
         : note.isPinned
-        ? colorScheme.primary.withValues(alpha: 0.3)
-        : colorScheme.outline.withValues(alpha: 0.2);
+            ? colorScheme.primary.withValues(alpha: 0.3)
+            : colorScheme.outline.withValues(alpha: 0.2);
 
     return Semantics(
       label:

@@ -1,5 +1,5 @@
 /// Feature flags for gradual rollout of refactored components
-/// 
+///
 /// This system allows us to enable/disable new features without deploying new code,
 /// enabling A/B testing and gradual rollouts with easy rollback capability.
 class FeatureFlags {
@@ -11,10 +11,10 @@ class FeatureFlags {
 
   // Feature flag storage (in production, these would come from remote config)
   final Map<String, bool> _flags = {
-    'use_unified_reminders': true,  // ENABLED for development
-    'use_new_block_editor': true,  // ENABLED for development
-    'use_refactored_components': true,  // ENABLED for development
-    'use_unified_permission_manager': true,  // ENABLED for development
+    'use_unified_reminders': true, // ENABLED for development
+    'use_new_block_editor': true, // ENABLED for development
+    'use_refactored_components': true, // ENABLED for development
+    'use_unified_permission_manager': true, // ENABLED for development
   };
 
   // Override flags for testing/development
@@ -50,5 +50,6 @@ class FeatureFlags {
   bool get useUnifiedReminders => isEnabled('use_unified_reminders');
   bool get useNewBlockEditor => isEnabled('use_new_block_editor');
   bool get useRefactoredComponents => isEnabled('use_refactored_components');
-  bool get useUnifiedPermissionManager => isEnabled('use_unified_permission_manager');
+  bool get useUnifiedPermissionManager =>
+      isEnabled('use_unified_permission_manager');
 }

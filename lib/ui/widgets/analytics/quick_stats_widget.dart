@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Widget for displaying quick stats on home screen
 class QuickStatsWidget extends ConsumerWidget {
   const QuickStatsWidget({super.key});
-  
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final todayStatsAsync = ref.watch(todayStatsProvider);
     final theme = Theme.of(context);
-    
+
     return todayStatsAsync.when(
       data: (todayStats) => Card(
         elevation: 2,
@@ -112,18 +112,18 @@ class _StatItem extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  
+
   const _StatItem({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Column(
       children: [
         Container(
@@ -156,7 +156,7 @@ class _StatItem extends StatelessWidget {
 /// Loading state card
 class _LoadingCard extends StatelessWidget {
   const _LoadingCard();
-  
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -177,13 +177,13 @@ class _LoadingCard extends StatelessWidget {
 /// Error state card
 class _ErrorCard extends StatelessWidget {
   final String error;
-  
+
   const _ErrorCard({required this.error});
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(

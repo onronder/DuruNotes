@@ -85,27 +85,28 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
     final initialTitle = widget.initialTitle?.trimRight() ?? '';
     final initialBody = widget.initialBody ?? '';
-    final initialText = initialTitle.isNotEmpty
-        ? '$initialTitle\n$initialBody'
-        : initialBody;
+    final initialText =
+        initialTitle.isNotEmpty ? '$initialTitle\n$initialBody' : initialBody;
 
     _noteController = TextEditingController(text: initialText);
     _initialText = initialText;
-    
+
     // Highlight task if specified
     if (widget.highlightTaskId != null || widget.highlightTaskContent != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _highlightTask();
       });
     }
-    
+
     // Initialize bidirectional task sync for existing notes
     if (widget.noteId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) {
           try {
             // Use only bidirectional sync - legacy sync is deprecated
-            ref.read(noteTaskCoordinatorProvider).startWatchingNote(widget.noteId!);
+            ref
+                .read(noteTaskCoordinatorProvider)
+                .startWatchingNote(widget.noteId!);
           } catch (e) {
             debugPrint('Could not start task sync: $e');
           }
@@ -137,12 +138,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
     _toolbarSlideAnimation =
         Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _toolbarSlideController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
-          ),
-        );
+      CurvedAnimation(
+        parent: _toolbarSlideController,
+        curve: Curves.easeOut,
+        reverseCurve: Curves.easeIn,
+      ),
+    );
 
     // Animation for save button with Material-3 timing
     _saveButtonController = AnimationController(
@@ -182,9 +183,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     if (widget.noteId == null) return;
 
     try {
-      final note = await ref
-          .read(notesRepositoryProvider)
-          .getNote(widget.noteId!);
+      final note =
+          await ref.read(notesRepositoryProvider).getNote(widget.noteId!);
       if (note != null && mounted) {
         // Load pin state
         setState(() {
@@ -234,10 +234,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   /// Highlight the specified task in the note
   void _highlightTask() {
     if (widget.highlightTaskContent == null) return;
-    
+
     final text = _noteController.text;
     final searchPattern = widget.highlightTaskContent!;
-    
+
     // Find the task in the text
     final taskIndex = text.indexOf(searchPattern);
     if (taskIndex != -1) {
@@ -246,17 +246,18 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         baseOffset: taskIndex,
         extentOffset: taskIndex + searchPattern.length,
       );
-      
+
       // Ensure the text field is focused
       _contentFocusNode.requestFocus();
-      
+
       // Show a visual indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                const Icon(Icons.notifications_active,
+                    color: Colors.white, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text('Opened from task reminder'),
@@ -274,7 +275,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       }
     }
   }
-  
+
   @override
   void dispose() {
     // Dispose controllers first
@@ -481,14 +482,16 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,  // Prevent overflow
+                    mainAxisSize: MainAxisSize.min, // Prevent overflow
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Flexible(
                         child: Text(
                           widget.isEditingTemplate
                               ? AppLocalizations.of(context).editingTemplate
-                              : (widget.noteId == null ? 'New Note' : 'Edit Note'),
+                              : (widget.noteId == null
+                                  ? 'New Note'
+                                  : 'Edit Note'),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
@@ -586,9 +589,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                               value: 'save_as_template',
                               child: Row(
                                 children: [
-                                  Icon(Icons.dashboard_customize_rounded, size: 20),
+                                  Icon(Icons.dashboard_customize_rounded,
+                                      size: 20),
                                   SizedBox(width: 12),
-                                  Text(AppLocalizations.of(context).saveAsTemplate),
+                                  Text(AppLocalizations.of(context)
+                                      .saveAsTemplate),
                                 ],
                               ),
                             ),
@@ -776,8 +781,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           color: colorScheme.onSurfaceVariant.withValues(
                             alpha:
                                 Theme.of(context).brightness == Brightness.light
-                                ? 0.4
-                                : 0.5,
+                                    ? 0.4
+                                    : 0.5,
                           ),
                           fontSize: 16,
                         ),
@@ -824,8 +829,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         try {
           final meta = jsonDecode(snapshot.data!.encryptedMetadata!);
 
-          final raw =
-              (meta['attachments']?['files'] as List?)
+          final raw = (meta['attachments']?['files'] as List?)
                   ?.cast<Map<String, dynamic>>() ??
               const [];
 
@@ -833,8 +837,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               .map(
                 (m) => EmailAttachmentRef(
                   path: (m['path'] as String?) ?? '',
-                  filename:
-                      (m['filename'] as String?) ??
+                  filename: (m['filename'] as String?) ??
                       _inferFilename((m['path'] as String?) ?? ''),
                   mimeType:
                       (m['type'] as String?) ?? 'application/octet-stream',
@@ -1154,16 +1157,14 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   // PRODUCTION ENHANCEMENT: Execute formatting commands with undo support
   void _executeCommand(MarkdownCommand command) {
     // Track analytics
-    ref
-        .read(analyticsProvider)
-        .event(
-          'editor.formatting',
-          properties: {
-            'command': command.analyticsName,
-            'selection_length':
-                _noteController.selection.end - _noteController.selection.start,
-          },
-        );
+    ref.read(analyticsProvider).event(
+      'editor.formatting',
+      properties: {
+        'command': command.analyticsName,
+        'selection_length':
+            _noteController.selection.end - _noteController.selection.start,
+      },
+    );
 
     // Execute command
     command.execute(_noteController);
@@ -1323,12 +1324,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         );
 
         // Track analytics
-        ref
-            .read(analyticsProvider)
-            .event(
-              'editor.image_inserted',
-              properties: {'source': 'toolbar', 'size': result.fileSize},
-            );
+        ref.read(analyticsProvider).event(
+          'editor.image_inserted',
+          properties: {'source': 'toolbar', 'size': result.fileSize},
+        );
 
         // Mark as modified
         _hasChanges = true;
@@ -1455,7 +1454,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         if (widget.noteId == null && mounted) {
           try {
             // Use only bidirectional sync - legacy sync is deprecated
-            ref.read(noteTaskCoordinatorProvider).startWatchingNote(noteIdToUse);
+            ref
+                .read(noteTaskCoordinatorProvider)
+                .startWatchingNote(noteIdToUse);
           } catch (e) {
             debugPrint('Could not start task sync for new note: $e');
           }
@@ -1517,7 +1518,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     try {
       // Get the template repository
       final templateRepository = ref.read(templateRepositoryProvider);
-      
+
       // Create the user template
       final template = await templateRepository.createUserTemplate(
         title: cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
@@ -1547,26 +1548,25 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       });
 
       if (!mounted) return;
-      
+
       // Show success message
-      _showInfoSnack(AppLocalizations.of(context).templateSaved(template.title));
-      
+      _showInfoSnack(
+          AppLocalizations.of(context).templateSaved(template.title));
+
       // Optional: Navigate back or stay for further editing
       // Navigator.of(context).pop();
-      
     } catch (e, stackTrace) {
       // Log error to monitoring
       final logger = LoggerFactory.instance;
-      logger.error('Failed to save template', 
-        error: e,
-        stackTrace: stackTrace,
-        data: {
-          'noteId': widget.noteId,
-          'title': cleanTitle,
-          'bodyLength': cleanBody.length,
-        }
-      );
-      
+      logger.error('Failed to save template',
+          error: e,
+          stackTrace: stackTrace,
+          data: {
+            'noteId': widget.noteId,
+            'title': cleanTitle,
+            'bodyLength': cleanBody.length,
+          });
+
       _showErrorSnack(AppLocalizations.of(context).failedToSaveTemplate);
     } finally {
       if (mounted) setState(() => _isLoading = false);

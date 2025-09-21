@@ -18,7 +18,8 @@ class TaskTimeTrackerWidget extends ConsumerStatefulWidget {
   final VoidCallback? onTimeUpdated;
 
   @override
-  ConsumerState<TaskTimeTrackerWidget> createState() => _TaskTimeTrackerWidgetState();
+  ConsumerState<TaskTimeTrackerWidget> createState() =>
+      _TaskTimeTrackerWidgetState();
 }
 
 class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
@@ -26,7 +27,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
   bool _isTracking = false;
   int _elapsedSeconds = 0;
   DateTime? _startTime;
-  
+
   static const String _activeTaskKey = 'active_task_tracking';
   static const String _startTimeKey = 'task_tracking_start_time';
 
@@ -46,7 +47,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
   Future<void> _loadTrackingState() async {
     final prefs = await SharedPreferences.getInstance();
     final activeTaskId = prefs.getString(_activeTaskKey);
-    
+
     if (activeTaskId == widget.task.id) {
       final startTimeMillis = prefs.getInt(_startTimeKey);
       if (startTimeMillis != null) {
@@ -54,7 +55,8 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
         final elapsed = DateTime.now().difference(_startTime!);
         setState(() {
           _isTracking = true;
-          _elapsedSeconds = ((widget.task.actualMinutes ?? 0) * 60) + elapsed.inSeconds;
+          _elapsedSeconds =
+              ((widget.task.actualMinutes ?? 0) * 60) + elapsed.inSeconds;
         });
         _startTimer();
       }
@@ -67,7 +69,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
       setState(() {
         _elapsedSeconds++;
       });
-      
+
       // Auto-save every minute
       if (_elapsedSeconds % 60 == 0) {
         _saveTimeToDatabase();
@@ -85,7 +87,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
 
   Future<void> _startTracking() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Stop any other active tracking
     final activeTaskId = prefs.getString(_activeTaskKey);
     if (activeTaskId != null && activeTaskId != widget.task.id) {
@@ -96,37 +98,37 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
         ),
       );
     }
-    
+
     // Start tracking this task
     _startTime = DateTime.now();
     await prefs.setString(_activeTaskKey, widget.task.id);
     await prefs.setInt(_startTimeKey, _startTime!.millisecondsSinceEpoch);
-    
+
     setState(() {
       _isTracking = true;
     });
-    
+
     _startTimer();
   }
 
   Future<void> _stopTracking() async {
     _timer?.cancel();
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_activeTaskKey);
     await prefs.remove(_startTimeKey);
-    
+
     setState(() {
       _isTracking = false;
     });
-    
+
     await _saveTimeToDatabase();
     widget.onTimeUpdated?.call();
   }
 
   Future<void> _saveTimeToDatabase() async {
     final actualMinutes = (_elapsedSeconds / 60).round();
-    
+
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
       await taskService.updateTask(
@@ -142,7 +144,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
     final hours = seconds ~/ 3600;
     final minutes = (seconds % 3600) ~/ 60;
     final secs = seconds % 60;
-    
+
     if (hours > 0) {
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
     } else {
@@ -154,11 +156,13 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final estimatedMinutes = widget.task.estimatedMinutes ?? 0;
     final actualMinutes = (_elapsedSeconds / 60).round();
-    final progress = estimatedMinutes > 0 ? (actualMinutes / estimatedMinutes).clamp(0.0, 2.0) : 0.0;
-    
+    final progress = estimatedMinutes > 0
+        ? (actualMinutes / estimatedMinutes).clamp(0.0, 2.0)
+        : 0.0;
+
     Color progressColor;
     if (progress <= 0.8) {
       progressColor = Colors.green;
@@ -181,7 +185,9 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                 Icon(
                   Icons.timer,
                   size: 20,
-                  color: _isTracking ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+                  color: _isTracking
+                      ? colorScheme.onPrimaryContainer
+                      : colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -194,11 +200,12 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                 const Spacer(),
                 // Timer display
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _isTracking 
-                      ? colorScheme.primary 
-                      : colorScheme.surfaceVariant,
+                    color: _isTracking
+                        ? colorScheme.primary
+                        : colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -206,18 +213,18 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                     style: theme.textTheme.labelLarge?.copyWith(
                       fontFamily: 'monospace',
                       fontWeight: FontWeight.bold,
-                      color: _isTracking 
-                        ? colorScheme.onPrimary 
-                        : colorScheme.onSurfaceVariant,
+                      color: _isTracking
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
               ],
             ),
-            
+
             if (estimatedMinutes > 0) ...[
               const SizedBox(height: 12),
-              
+
               // Progress bar
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,18 +235,18 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                       Text(
                         'Progress',
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: _isTracking 
-                            ? colorScheme.onPrimaryContainer 
-                            : colorScheme.onSurfaceVariant,
+                          color: _isTracking
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(
                         '$actualMinutes / $estimatedMinutes min',
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: _isTracking 
-                            ? colorScheme.onPrimaryContainer 
-                            : colorScheme.onSurfaceVariant,
+                          color: _isTracking
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -253,9 +260,9 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    progress > 1.0 
-                      ? 'Over by ${((progress - 1) * 100).round()}%'
-                      : '${(progress * 100).round()}% complete',
+                    progress > 1.0
+                        ? 'Over by ${((progress - 1) * 100).round()}%'
+                        : '${(progress * 100).round()}% complete',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: progressColor,
                       fontWeight: FontWeight.w600,
@@ -264,9 +271,9 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                 ],
               ),
             ],
-            
+
             const SizedBox(height: 12),
-            
+
             // Control buttons
             Row(
               children: [
@@ -276,9 +283,8 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                     icon: Icon(_isTracking ? Icons.pause : Icons.play_arrow),
                     label: Text(_isTracking ? 'Pause' : 'Start'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: _isTracking 
-                        ? colorScheme.error 
-                        : colorScheme.primary,
+                      backgroundColor:
+                          _isTracking ? colorScheme.error : colorScheme.primary,
                     ),
                   ),
                 ),
@@ -292,7 +298,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
                 ],
               ],
             ),
-            
+
             // Quick time buttons
             if (!_isTracking && estimatedMinutes == 0) ...[
               const SizedBox(height: 8),
@@ -329,7 +335,8 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Timer?'),
-        content: const Text('This will reset the tracked time to 0. Are you sure?'),
+        content:
+            const Text('This will reset the tracked time to 0. Are you sure?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -373,16 +380,16 @@ class CompactTimeTracker extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final estimated = task.estimatedMinutes ?? 0;
     final actual = task.actualMinutes ?? 0;
-    
+
     if (estimated == 0 && actual == 0) {
       return const SizedBox.shrink();
     }
-    
+
     final progress = estimated > 0 ? (actual / estimated).clamp(0.0, 2.0) : 0.0;
-    
+
     Color progressColor;
     if (progress <= 0.8) {
       progressColor = Colors.green;
@@ -408,9 +415,7 @@ class CompactTimeTracker extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            actual > 0 
-              ? '${actual}m'
-              : '${estimated}m est',
+            actual > 0 ? '${actual}m' : '${estimated}m est',
             style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: actual > 0 ? progressColor : colorScheme.onSurfaceVariant,

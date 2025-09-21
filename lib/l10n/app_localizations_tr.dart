@@ -404,6 +404,20 @@ class AppLocalizationsTr extends AppLocalizations {
   String get errorRecovery => '• Error recovery';
 
   @override
+  String get genericErrorTitle => 'Bir şeyler ters gitti';
+
+  @override
+  String get genericErrorMessage =>
+      'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.';
+
+  @override
+  String get reportError => 'Hata bildir';
+
+  @override
+  String get errorReportSent =>
+      'Hata raporu gönderildi. Geri bildiriminiz için teşekkürler!';
+
+  @override
   String get contentSanitization => '• Content sanitization';
 
   @override

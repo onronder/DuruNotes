@@ -8,7 +8,7 @@ class MetricCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final double? trend;
-  
+
   const MetricCard({
     super.key,
     required this.title,
@@ -18,11 +18,11 @@ class MetricCard extends StatelessWidget {
     required this.color,
     this.trend,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -76,12 +76,12 @@ class MetricCard extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildTrendIndicator(double trend) {
     final isPositive = trend >= 0;
     final color = isPositive ? Colors.green : Colors.red;
     final icon = isPositive ? Icons.trending_up : Icons.trending_down;
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

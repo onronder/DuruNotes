@@ -71,7 +71,8 @@ class ProductivityGoalCard extends StatelessWidget {
                   ),
                   if (goal.isOverdue)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -220,7 +221,7 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _targetController = TextEditingController();
-  
+
   GoalType _selectedType = GoalType.tasksCompleted;
   GoalPeriod _selectedPeriod = GoalPeriod.weekly;
   DateTime? _deadline;
@@ -234,7 +235,8 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
   }
 
   void _createGoal() {
-    if (_titleController.text.trim().isEmpty || _targetController.text.trim().isEmpty) {
+    if (_titleController.text.trim().isEmpty ||
+        _targetController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all required fields')),
       );
@@ -355,7 +357,8 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                           ),
                         );
                       }).toList(),
-                      onChanged: (value) => setState(() => _selectedType = value!),
+                      onChanged: (value) =>
+                          setState(() => _selectedType = value!),
                     ),
 
                     const SizedBox(height: 16),
@@ -387,7 +390,8 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                           child: Text(period.displayName),
                         );
                       }).toList(),
-                      onChanged: (value) => setState(() => _selectedPeriod = value!),
+                      onChanged: (value) =>
+                          setState(() => _selectedPeriod = value!),
                     ),
 
                     const SizedBox(height: 16),
@@ -396,9 +400,9 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                     ListTile(
                       title: const Text('Deadline (optional)'),
                       subtitle: Text(
-                        _deadline != null 
-                          ? DateFormat.yMMMd().format(_deadline!)
-                          : 'No deadline set',
+                        _deadline != null
+                            ? DateFormat.yMMMd().format(_deadline!)
+                            : 'No deadline set',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -719,9 +723,9 @@ class GoalsOverviewWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ...activeGoals.map((goal) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GoalProgressWidget(goal: goal),
-            )),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GoalProgressWidget(goal: goal),
+                )),
             if (goals.length > 3)
               Text(
                 '+${goals.length - 3} more goals',
@@ -776,21 +780,22 @@ class SuggestedGoalsWidget extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ...suggestedGoals.map((goal) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListTile(
-                leading: Icon(goal.type.icon, color: colorScheme.primary),
-                title: Text(goal.title),
-                subtitle: Text(goal.description),
-                trailing: FilledButton(
-                  onPressed: () => onGoalSelected(goal),
-                  child: const Text('Add'),
-                ),
-              ),
-            )),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    border:
+                        Border.all(color: colorScheme.outline.withOpacity(0.2)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ListTile(
+                    leading: Icon(goal.type.icon, color: colorScheme.primary),
+                    title: Text(goal.title),
+                    subtitle: Text(goal.description),
+                    trailing: FilledButton(
+                      onPressed: () => onGoalSelected(goal),
+                      child: const Text('Add'),
+                    ),
+                  ),
+                )),
           ],
         ),
       ),

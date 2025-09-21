@@ -20,7 +20,7 @@ class DraggableFolderTree extends ConsumerStatefulWidget {
 
   final Function(LocalFolder folder)? onFolderSelected;
   final Function(String folderId, String? newParentId, int newPosition)?
-  onFolderMoved;
+      onFolderMoved;
   final String? selectedFolderId;
   final bool showSearch;
   final bool allowReordering;
@@ -71,7 +71,6 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
     return Column(
       children: [
         if (widget.showSearch) _buildSearchBar(),
-
         Expanded(
           child: Stack(
             children: [
@@ -82,8 +81,8 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
                 hierarchyState.error != null
                     ? _buildErrorState(hierarchyState.error!)
                     : visibleNodes.isEmpty
-                    ? _buildEmptyState()
-                    : _buildFolderTree(visibleNodes),
+                        ? _buildEmptyState()
+                        : _buildFolderTree(visibleNodes),
 
               // Drag overlay
               if (_isDragging &&
@@ -183,8 +182,8 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
             Text(
               'Create your first folder to get started',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -231,9 +230,8 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
   }
 
   Widget _buildDragOverlay() {
-    final draggedFolder = ref
-        .read(folderHierarchyProvider)
-        .getFolderById(_draggedFolderId!);
+    final draggedFolder =
+        ref.read(folderHierarchyProvider).getFolderById(_draggedFolderId!);
 
     if (draggedFolder == null) return const SizedBox.shrink();
 
@@ -259,8 +257,7 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
             children: [
               Icon(
                 FolderIconHelpers.getFolderIcon(draggedFolder.icon),
-                color:
-                    FolderIconHelpers.getFolderColor(draggedFolder.color) ??
+                color: FolderIconHelpers.getFolderColor(draggedFolder.color) ??
                     Theme.of(context).colorScheme.primary,
                 size: 20,
               ),
@@ -471,8 +468,9 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                 color: widget.isSelected
                     ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
                     : widget.isDragTarget
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.1)
-                    : null,
+                        ? theme.colorScheme.primaryContainer
+                            .withValues(alpha: 0.1)
+                        : null,
                 borderRadius: BorderRadius.circular(12),
                 border: widget.isDragTarget
                     ? Border.all(color: theme.colorScheme.primary, width: 2)
@@ -508,8 +506,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
                       // Folder icon
                       Icon(
                         FolderIconHelpers.getFolderIcon(folder.icon),
-                        color:
-                            FolderIconHelpers.getFolderColor(folder.color) ??
+                        color: FolderIconHelpers.getFolderColor(folder.color) ??
                             (widget.isSelected
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.onSurfaceVariant),
@@ -593,8 +590,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
               children: [
                 Icon(
                   FolderIconHelpers.getFolderIcon(folder.icon),
-                  color:
-                      FolderIconHelpers.getFolderColor(folder.color) ??
+                  color: FolderIconHelpers.getFolderColor(folder.color) ??
                       theme.colorScheme.primary,
                   size: 20,
                 ),

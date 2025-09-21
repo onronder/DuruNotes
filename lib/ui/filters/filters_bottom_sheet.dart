@@ -247,9 +247,8 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       _filterState.pinnedOnly
                           ? Icons.push_pin
                           : Icons.push_pin_outlined,
-                      color: _filterState.pinnedOnly
-                          ? colorScheme.primary
-                          : null,
+                      color:
+                          _filterState.pinnedOnly ? colorScheme.primary : null,
                     ),
                     value: _filterState.pinnedOnly,
                     onChanged: (value) {

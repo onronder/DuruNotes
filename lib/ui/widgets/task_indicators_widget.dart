@@ -43,7 +43,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
 
     // Labels indicator
     if (task.labels?.isNotEmpty == true) {
-      final labels = task.labels!.split(',').where((l) => l.isNotEmpty).toList();
+      final labels =
+          task.labels!.split(',').where((l) => l.isNotEmpty).toList();
       if (labels.isNotEmpty) {
         indicators.add(
           _buildLabelsIndicator(labels, colorScheme, compact),
@@ -54,7 +55,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
     // Time estimate indicator
     if (task.estimatedMinutes != null) {
       indicators.add(
-        _buildTimeEstimateIndicator(task.estimatedMinutes!, colorScheme, compact),
+        _buildTimeEstimateIndicator(
+            task.estimatedMinutes!, colorScheme, compact),
       );
     }
 
@@ -69,7 +71,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildPriorityIndicator(TaskPriority priority, ColorScheme colorScheme, bool compact) {
+  Widget _buildPriorityIndicator(
+      TaskPriority priority, ColorScheme colorScheme, bool compact) {
     final color = _getPriorityColor(priority);
     final size = compact ? 14.0 : 16.0;
 
@@ -91,12 +94,14 @@ class TaskIndicatorsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDueDateIndicator(DateTime dueDate, DateTime now, ColorScheme colorScheme, bool compact) {
+  Widget _buildDueDateIndicator(
+      DateTime dueDate, DateTime now, ColorScheme colorScheme, bool compact) {
     final isOverdue = dueDate.isBefore(now);
-    final isToday = dueDate.day == now.day && 
-                   dueDate.month == now.month && 
-                   dueDate.year == now.year;
-    final isTomorrow = dueDate.difference(now).inDays == 0 && dueDate.day == now.day + 1;
+    final isToday = dueDate.day == now.day &&
+        dueDate.month == now.month &&
+        dueDate.year == now.year;
+    final isTomorrow =
+        dueDate.difference(now).inDays == 0 && dueDate.day == now.day + 1;
 
     Color color;
     String tooltip;
@@ -148,7 +153,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.secondary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: colorScheme.secondary.withOpacity(0.3), width: 1),
+          border: Border.all(
+              color: colorScheme.secondary.withOpacity(0.3), width: 1),
         ),
         child: Icon(
           Icons.notifications,
@@ -159,7 +165,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildLabelsIndicator(List<String> labels, ColorScheme colorScheme, bool compact) {
+  Widget _buildLabelsIndicator(
+      List<String> labels, ColorScheme colorScheme, bool compact) {
     final size = compact ? 14.0 : 16.0;
     final tooltip = 'Labels: ${labels.join(', ')}';
 
@@ -170,7 +177,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.tertiary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: colorScheme.tertiary.withOpacity(0.3), width: 1),
+          border: Border.all(
+              color: colorScheme.tertiary.withOpacity(0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -207,7 +215,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeEstimateIndicator(int minutes, ColorScheme colorScheme, bool compact) {
+  Widget _buildTimeEstimateIndicator(
+      int minutes, ColorScheme colorScheme, bool compact) {
     final size = compact ? 14.0 : 16.0;
     final tooltip = 'Estimated time: ${_formatDuration(minutes)}';
 
@@ -218,7 +227,8 @@ class TaskIndicatorsWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.outline.withOpacity(0.1),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: colorScheme.outline.withOpacity(0.3), width: 1),
+          border:
+              Border.all(color: colorScheme.outline.withOpacity(0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

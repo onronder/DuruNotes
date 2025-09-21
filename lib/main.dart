@@ -1,231 +1,314 @@
-import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:duru_notes/app/app.dart';
-import 'package:duru_notes/core/android_optimizations.dart';
+import 'package:duru_notes/core/bootstrap/app_bootstrap.dart';
+import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
 import 'package:duru_notes/core/config/environment_config.dart';
-import 'package:duru_notes/core/feature_flags.dart';
-import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
-import 'package:duru_notes/core/monitoring/sentry_config.dart';
-import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/providers/feature_flagged_providers.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-// Global navigation key
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-// Global instances (will be initialized)
-late AppLogger logger;
-late AnalyticsService analytics;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const BootstrapHost());
+}
 
-  try {
-    // Initialize environment configuration first
-    await EnvironmentConfig.initialize();
+/// Hosts the asynchronous bootstrap flow and wires Riverpod overrides.
+class BootstrapHost extends StatefulWidget {
+  const BootstrapHost({super.key});
 
-    // Initialize logger configuration
-    LoggerConfig.initialize();
+  @override
+  State<BootstrapHost> createState() => _BootstrapHostState();
+}
 
-    // Initialize logger instance early
-    LoggerFactory.initialize();
-    logger = LoggerFactory.instance;
+class _BootstrapHostState extends State<BootstrapHost> {
+  late Future<BootstrapResult> _bootstrapFuture;
+  GlobalKey<NavigatorState>? _navigatorKey;
 
-    // Initialize Android optimizations
-    await AndroidOptimizations.initialize();
-
-    // Initialize Sentry for error tracking
-    await SentryConfig.initialize();
-
-    if (EnvironmentConfig.current.debugMode) {
-      debugPrint(
-        'Environment: ${EnvironmentConfig.current.currentEnvironment.name}',
-      );
-      debugPrint('Debug Mode: ${EnvironmentConfig.current.debugMode}');
-      debugPrint(
-        'Sentry Configured: ${EnvironmentConfig.current.isSentryConfigured}',
-      );
-    }
-
-    // Validate configuration
-    if (!EnvironmentConfig.validateConfig()) {
-      throw Exception('Invalid environment configuration');
-    }
-
-    // Initialize Firebase with proper options
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    if (EnvironmentConfig.current.debugMode) {
-      debugPrint('✅ Firebase initialized successfully');
-    }
-
-    // Initialize Supabase
-    await Supabase.initialize(
-      url: EnvironmentConfig.current.supabaseUrl,
-      anonKey: EnvironmentConfig.current.supabaseAnonKey,
-      debug: EnvironmentConfig.current.debugMode,
-    );
-    if (EnvironmentConfig.current.debugMode) {
-      debugPrint('✅ Supabase initialized successfully');
-    }
-
-    // Initialize remaining services
-    await _initializeServices();
-
-    if (EnvironmentConfig.current.debugMode) {
-      debugPrint(
-        '📊 Config Summary: ${EnvironmentConfig.getSafeConfigSummary()}',
-      );
-    }
-
-    // Track app launch
-    analytics.event(
-      AnalyticsEvents.noteCreate,
-      properties: {
-        'environment': EnvironmentConfig.current.currentEnvironment.name,
-        'debug_mode': EnvironmentConfig.current.debugMode,
-      },
-    );
-  } catch (e, stackTrace) {
-    debugPrint('❌ Initialization Error: $e');
-    if (kDebugMode) {
-      debugPrint('Stack trace: $stackTrace');
-    }
+  @override
+  void initState() {
+    super.initState();
+    _runBootstrap();
   }
 
-  // Run the app
-  runApp(
-    ProviderScope(
-      child: DefaultAssetBundle(
-        bundle: SentryAssetBundle(),
-        child: ErrorBoundary(
-          child: _AppWithShareExtension(navigatorKey: navigatorKey),
+  void _runBootstrap() {
+    _bootstrapFuture = AppBootstrap().initialize();
+  }
+
+  void _retryBootstrap() {
+    setState(_runBootstrap);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<BootstrapResult>(
+      future: _bootstrapFuture,
+      builder: (context, snapshot) {
+        // Always provide the same number of overrides to avoid Riverpod container error
+        _navigatorKey ??= GlobalKey<NavigatorState>();
+        
+        final overrides = <Override>[
+          // Always override with either actual data or fallback
+          bootstrapResultProvider.overrideWithValue(
+            snapshot.hasData && snapshot.data != null 
+              ? snapshot.data!
+              : _createFallbackBootstrapResult()
+          ),
+          navigatorKeyProvider.overrideWithValue(_navigatorKey!),
+        ];
+
+        return ProviderScope(
+          overrides: overrides,
+          child: _BootstrapBody(
+            snapshot: snapshot,
+            navigatorKey: _navigatorKey,
+            onRetry: _retryBootstrap,
+          ),
+        );
+      },
+    );
+  }
+  
+  BootstrapResult _createFallbackBootstrapResult() {
+    return BootstrapResult(
+      environment: EnvironmentConfig.fallback(),
+      logger: LoggerFactory.instance,
+      analytics: AnalyticsFactory.instance,
+      supabaseClient: null,
+      firebaseApp: null,
+      sentryEnabled: false,
+      failures: const [],
+      adaptyEnabled: false,
+      warnings: const [],
+      environmentSource: 'fallback-loading',
+    );
+  }
+}
+
+class _BootstrapBody extends StatelessWidget {
+  const _BootstrapBody({
+    required this.snapshot,
+    required this.navigatorKey,
+    required this.onRetry,
+  });
+
+  final AsyncSnapshot<BootstrapResult> snapshot;
+  final GlobalKey<NavigatorState>? navigatorKey;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (snapshot.connectionState != ConnectionState.done) {
+      return const _BootstrapLoadingApp();
+    }
+
+    if (snapshot.hasError || !snapshot.hasData) {
+      final failure = BootstrapFailure(
+        stage: BootstrapStage.environment,
+        error: snapshot.error ?? 'Unknown bootstrap error',
+        stackTrace: snapshot.stackTrace ?? StackTrace.current,
+        critical: true,
+      );
+      return BootstrapFailureApp(
+        failures: [failure],
+        warnings: const [],
+        onRetry: onRetry,
+      );
+    }
+
+    final result = snapshot.data!;
+    final key = navigatorKey ?? GlobalKey<NavigatorState>();
+    return BootstrapShell(
+      result: result,
+      navigatorKey: key,
+      onRetry: onRetry,
+    );
+  }
+}
+
+class _BootstrapLoadingApp extends StatelessWidget {
+  const _BootstrapLoadingApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
         ),
       ),
-    ),
-  );
-}
-
-/// Initialize all services
-Future<void> _initializeServices() async {
-  // Logger already initialized in main()
-  
-  // Initialize feature flags
-  await _initializeFeatureFlags();
-  
-  // Initialize analytics
-  AnalyticsFactory.initialize();
-  analytics = AnalyticsFactory.instance;
-
-  // Initialize Adapty SDK with optimized configuration
-  try {
-    // Set log level - use warning level in debug to reduce verbosity
-    await Adapty().setLogLevel(
-      EnvironmentConfig.current.debugMode
-          ? AdaptyLogLevel.warn  // Changed from verbose to reduce logging
-          : AdaptyLogLevel.error,
-    );
-
-    // Activate Adapty with optimized configuration
-    await Adapty().activate(
-      configuration:
-          AdaptyConfiguration(
-              apiKey: 'public_live_auSluPc0.Qso83VlJGyzNxUmeZn6j',
-            )
-            // Activate AdaptyUI for Paywall Builder support
-            ..withActivateUI(true)
-            // Privacy-compliant configuration
-            ..withAppleIdfaCollectionDisabled(true) // Disable to reduce tracking calls
-            ..withIpAddressCollectionDisabled(
-              true,
-            ) // Disable to reduce network calls
-            // Optimized media cache configuration
-            ..withMediaCacheConfiguration(
-              const AdaptyUIMediaCacheConfiguration(
-                memoryStorageTotalCostLimit: 50 * 1024 * 1024, // Reduced to 50 MB
-                memoryStorageCountLimit: 100, // Reduced from max int
-                diskStorageSizeLimit: 50 * 1024 * 1024, // Reduced to 50 MB
-              ),
-            ),
-    );
-
-    logger.info('Adapty SDK initialized successfully with full configuration');
-
-    // Track successful Adapty initialization
-    analytics.event(
-      AnalyticsEvents.noteCreate,
-      properties: {
-        'adapty_initialized': true,
-        'adapty_ui_enabled': true,
-        'environment': EnvironmentConfig.current.currentEnvironment.name,
-      },
-    );
-  } catch (e) {
-    logger.error('Failed to initialize Adapty SDK: $e');
-
-    // Track Adapty initialization failure
-    analytics.event(
-      AnalyticsEvents.noteCreate,
-      properties: {
-        'adapty_initialized': false,
-        'adapty_error': e.toString(),
-        'environment': EnvironmentConfig.current.currentEnvironment.name,
-      },
     );
   }
-
-  logger.info('Services initialized successfully');
 }
 
-/// Initialize feature flags
-Future<void> _initializeFeatureFlags() async {
-  try {
-    // Get feature flags instance
-    final featureFlags = FeatureFlags.instance;
-    
-    // Update from remote config if available
-    await featureFlags.updateFromRemoteConfig();
-    
-    // Log feature flag state for debugging
-    if (EnvironmentConfig.current.debugMode) {
-      FeatureFlaggedBlockFactory.logFeatureFlagState();
-      
-      debugPrint('Feature Flags initialized:');
-      debugPrint('- useUnifiedReminders: ${featureFlags.useUnifiedReminders}');
-      debugPrint('- useNewBlockEditor: ${featureFlags.useNewBlockEditor}');
-      debugPrint('- useRefactoredComponents: ${featureFlags.useRefactoredComponents}');
-      debugPrint('- useUnifiedPermissionManager: ${featureFlags.useUnifiedPermissionManager}');
+class BootstrapShell extends StatelessWidget {
+  const BootstrapShell({
+    required this.result,
+    required this.navigatorKey,
+    required this.onRetry,
+    super.key,
+  });
+
+  final BootstrapResult result;
+  final GlobalKey<NavigatorState> navigatorKey;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (result.hasCriticalFailures) {
+      return BootstrapFailureApp(
+        failures: result.failures,
+        warnings: result.warnings,
+        onRetry: onRetry,
+      );
     }
-    
-    // Track feature flag initialization
-    analytics.event(
-      'feature_flags_initialized',
-      properties: {
-        'unified_reminders': featureFlags.useUnifiedReminders,
-        'new_block_editor': featureFlags.useNewBlockEditor,
-        'refactored_components': featureFlags.useRefactoredComponents,
-        'unified_permission_manager': featureFlags.useUnifiedPermissionManager,
-      },
+
+    // Ensure feature flag factory prints state when in debug for diagnostics.
+    if (result.environment.debugMode) {
+      FeatureFlaggedBlockFactory.logFeatureFlagState();
+    }
+
+    return DefaultAssetBundle(
+      bundle: SentryAssetBundle(),
+      child: ErrorBoundary(
+        fallback: BootstrapFailureContent(
+          failures: result.failures,
+          warnings: result.warnings,
+          onRetry: onRetry,
+        ),
+        child: _AppWithShareExtension(navigatorKey: navigatorKey),
+      ),
     );
-    
-    logger.info('Feature flags initialized successfully');
-  } catch (e) {
-    logger.error('Failed to initialize feature flags', error: e);
-    // Continue with defaults even if remote config fails
   }
 }
 
-/// App wrapper that initializes share extension service
+class BootstrapFailureApp extends StatelessWidget {
+  const BootstrapFailureApp({
+    required this.failures,
+    required this.warnings,
+    required this.onRetry,
+    super.key,
+  });
+
+  final List<BootstrapFailure> failures;
+  final List<String> warnings;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: BootstrapFailureContent(
+        failures: failures,
+        warnings: warnings,
+        onRetry: onRetry,
+      ),
+    );
+  }
+}
+
+class BootstrapFailureContent extends StatelessWidget {
+  const BootstrapFailureContent({
+    required this.failures,
+    required this.warnings,
+    required this.onRetry,
+    super.key,
+  });
+
+  final List<BootstrapFailure> failures;
+  final List<String> warnings;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+              Text(
+                'Unable to start Duru Notes',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'We ran into some issues while preparing the app. '
+                'You can retry or contact support if the problem persists.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              if (failures.isNotEmpty) ...[
+                Text(
+                  'Errors',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                ...failures.map(
+                  (failure) => Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            failure.stage.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(failure.error.toString()),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (warnings.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Warnings',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                ...warnings.map(
+                  (warning) => Card(
+                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(warning),
+                    ),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: onRetry,
+                  child: const Text('Retry'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// App wrapper that initializes share extension services and template migrations.
 class _AppWithShareExtension extends ConsumerStatefulWidget {
   const _AppWithShareExtension({required this.navigatorKey});
   final GlobalKey<NavigatorState> navigatorKey;
@@ -241,38 +324,44 @@ class _AppWithShareExtensionState
   void initState() {
     super.initState();
 
-    // Initialize services after app starts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeServices();
     });
   }
 
   Future<void> _initializeServices() async {
-    // Initialize share extension
-    await _initializeShareExtension();
-    
-    // Run template migration if needed
+    final logger = ref.read(loggerProvider);
+    final analytics = ref.read(analyticsProvider);
+
+    await _initializeShareExtension(logger);
+
     try {
       final migrationService = ref.read(templateMigrationServiceProvider);
       if (await migrationService.needsMigration()) {
-        debugPrint('[App] Running initial template migration...');
+        logger.info('[App] Running initial template migration');
         await migrationService.migrateTemplates();
         ref.invalidate(templateListProvider);
-        debugPrint('[App] Template migration completed');
+        logger.info('[App] Template migration completed');
       }
-    } catch (e) {
-      debugPrint('[App] Error running template migration: $e');
+    } catch (error, stack) {
+      logger.error('[App] Error running template migration',
+          error: error, stackTrace: stack);
     }
+
+    analytics.event(
+      'bootstrap_ready',
+      properties: {'phase': 'postBootstrap'},
+    );
   }
 
-  Future<void> _initializeShareExtension() async {
+  Future<void> _initializeShareExtension(AppLogger logger) async {
     try {
       final shareExtensionService = ref.read(shareExtensionServiceProvider);
       await shareExtensionService.initialize();
-
       logger.info('Share extension service initialized successfully');
-    } catch (e) {
-      logger.error('Failed to initialize share extension service: $e');
+    } catch (error, stack) {
+      logger.error('Failed to initialize share extension service',
+          error: error, stackTrace: stack);
     }
   }
 

@@ -86,12 +86,12 @@ class FolderHierarchyState {
     final filtered = searchQuery.isEmpty
         ? folders.where((f) => f.parentId == null && !f.deleted).toList()
         : folders
-              .where(
-                (f) =>
-                    !f.deleted &&
-                    f.name.toLowerCase().contains(searchQuery.toLowerCase()),
-              )
-              .toList();
+            .where(
+              (f) =>
+                  !f.deleted &&
+                  f.name.toLowerCase().contains(searchQuery.toLowerCase()),
+            )
+            .toList();
 
     filtered.sort((a, b) {
       final sortCompare = a.sortOrder.compareTo(b.sortOrder);
@@ -102,9 +102,8 @@ class FolderHierarchyState {
 
   /// Get child folders for a parent
   List<LocalFolder> getChildFolders(String parentId) {
-    final children = folders
-        .where((f) => f.parentId == parentId && !f.deleted)
-        .toList();
+    final children =
+        folders.where((f) => f.parentId == parentId && !f.deleted).toList();
 
     children.sort((a, b) {
       final sortCompare = a.sortOrder.compareTo(b.sortOrder);
@@ -163,7 +162,7 @@ class FolderHierarchyState {
 /// Notifier for managing folder hierarchy and expansion states
 class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
   FolderHierarchyNotifier(this._repository)
-    : super(const FolderHierarchyState(folders: [], expandedFolders: {})) {
+      : super(const FolderHierarchyState(folders: [], expandedFolders: {})) {
     _init();
   }
 
@@ -179,20 +178,20 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
   Future<void> loadFolders() async {
     // Check if notifier is still mounted
     if (!mounted) return;
-    
+
     try {
       state = state.copyWith(isLoading: true);
       final folders = await _repository.listFolders();
-      
+
       // Check again after async operation
       if (!mounted) return;
-      
+
       final counts = await _repository.getFolderNoteCounts();
       await _repository.ensureFolderIntegrity();
-      
+
       // Final check before updating state
       if (!mounted) return;
-      
+
       state = state.copyWith(
         folders: folders,
         isLoading: false,
@@ -410,7 +409,7 @@ class FolderOperationState {
 /// Notifier for folder CRUD operations
 class FolderNotifier extends StateNotifier<FolderOperationState> {
   FolderNotifier(this._repository, this._syncCoordinator)
-    : super(const FolderOperationState());
+      : super(const FolderOperationState());
 
   final FolderRepository _repository;
   final FolderSyncCoordinator _syncCoordinator;
@@ -499,7 +498,8 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     try {
       state = state.copyWith(isUpdating: true);
 
-      await _repository.moveFolder(folderId: folderId, newParentId: newParentId);
+      await _repository.moveFolder(
+          folderId: folderId, newParentId: newParentId);
 
       state = state.copyWith(isUpdating: false);
       return true;
@@ -562,7 +562,7 @@ class NoteFolderState {
 /// Notifier for note-folder relationships
 class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
   NoteFolderNotifier(this._repository)
-    : super(const NoteFolderState(noteFolders: {})) {
+      : super(const NoteFolderState(noteFolders: {})) {
     _loadRelationships();
   }
 

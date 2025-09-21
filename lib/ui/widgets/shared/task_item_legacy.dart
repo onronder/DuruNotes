@@ -110,12 +110,11 @@ class TaskItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Title
-                    Text(
-                      task.content,
+                      Text(
+                        task.content,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          decoration: isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
+                          decoration:
+                              isCompleted ? TextDecoration.lineThrough : null,
                           color: isCompleted
                               ? colorScheme.onSurface.withValues(alpha: 0.5)
                               : null,
@@ -123,16 +122,14 @@ class TaskItem extends StatelessWidget {
                       ),
 
                       // Description
-                      if (task.notes != null &&
-                          task.notes!.isNotEmpty) ...[
+                      if (task.notes != null && task.notes!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           task.notes!,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurface.withValues(alpha: 0.7),
-                            decoration: isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
+                            decoration:
+                                isCompleted ? TextDecoration.lineThrough : null,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

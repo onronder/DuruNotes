@@ -32,16 +32,18 @@ class CalendarTaskSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isToday = _isToday(selectedDate);
-    
+
     // Separate completed and incomplete tasks
-    final incompleteTasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
-    final completedTasks = tasks.where((t) => t.status == TaskStatus.completed).toList();
+    final incompleteTasks =
+        tasks.where((t) => t.status != TaskStatus.completed).toList();
+    final completedTasks =
+        tasks.where((t) => t.status == TaskStatus.completed).toList();
 
     // Sort tasks by priority and due time
     incompleteTasks.sort((a, b) {
       final priorityCompare = b.priority.index.compareTo(a.priority.index);
       if (priorityCompare != 0) return priorityCompare;
-      
+
       if (a.dueDate != null && b.dueDate != null) {
         return a.dueDate!.compareTo(b.dueDate!);
       }
@@ -91,7 +93,7 @@ class CalendarTaskSheet extends ConsumerWidget {
                     ],
                   ),
                 ),
-                
+
                 // Add task button
                 IconButton.filledTonal(
                   onPressed: () => _showAddTaskDialog(context, ref),
@@ -105,36 +107,37 @@ class CalendarTaskSheet extends ConsumerWidget {
           // Task list
           Flexible(
             child: tasks.isEmpty
-              ? _buildEmptyState(context, isToday)
-              : ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    // Incomplete tasks
-                    if (incompleteTasks.isNotEmpty) ...[
-                      ...incompleteTasks.map((task) => CalendarTaskItem(
-                        task: task,
-                        onToggle: () => onTaskToggle(task),
-                        onEdit: () => onTaskEdit(task),
-                        onDelete: () => onTaskDelete(task),
-                        onOpenNote: onOpenNote != null ? () => onOpenNote!(task) : null,
-                      )),
-                      
-                      if (completedTasks.isNotEmpty)
-                        const SizedBox(height: 16),
-                    ],
+                ? _buildEmptyState(context, isToday)
+                : ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      // Incomplete tasks
+                      if (incompleteTasks.isNotEmpty) ...[
+                        ...incompleteTasks.map((task) => CalendarTaskItem(
+                              task: task,
+                              onToggle: () => onTaskToggle(task),
+                              onEdit: () => onTaskEdit(task),
+                              onDelete: () => onTaskDelete(task),
+                              onOpenNote: onOpenNote != null
+                                  ? () => onOpenNote!(task)
+                                  : null,
+                            )),
+                        if (completedTasks.isNotEmpty)
+                          const SizedBox(height: 16),
+                      ],
 
-                    // Completed tasks (collapsible)
-                    if (completedTasks.isNotEmpty)
-                      CompletedTasksSection(
-                        tasks: completedTasks,
-                        onTaskToggle: onTaskToggle,
-                        onTaskEdit: onTaskEdit,
-                        onTaskDelete: onTaskDelete,
-                        onOpenNote: onOpenNote,
-                      ),
-                  ],
-                ),
+                      // Completed tasks (collapsible)
+                      if (completedTasks.isNotEmpty)
+                        CompletedTasksSection(
+                          tasks: completedTasks,
+                          onTaskToggle: onTaskToggle,
+                          onTaskEdit: onTaskEdit,
+                          onTaskDelete: onTaskDelete,
+                          onOpenNote: onOpenNote,
+                        ),
+                    ],
+                  ),
           ),
 
           // Bottom padding
@@ -167,9 +170,9 @@ class CalendarTaskSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isToday 
-              ? 'Enjoy your free time or add a new task!'
-              : 'Tap the + button to add a task for this date.',
+            isToday
+                ? 'Enjoy your free time or add a new task!'
+                : 'Tap the + button to add a task for this date.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant.withOpacity(0.7),
             ),
@@ -197,12 +200,14 @@ class CalendarTaskSheet extends ConsumerWidget {
     }
   }
 
-  Future<void> _createTaskForDate(BuildContext context, WidgetRef ref, TaskMetadata metadata) async {
+  Future<void> _createTaskForDate(
+      BuildContext context, WidgetRef ref, TaskMetadata metadata) async {
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
       await taskService.createTask(
         noteId: 'standalone',
-        content: metadata.notes?.isNotEmpty == true ? metadata.notes! : 'New Task',
+        content:
+            metadata.notes?.isNotEmpty == true ? metadata.notes! : 'New Task',
         priority: metadata.priority,
         dueDate: metadata.dueDate ?? selectedDate,
         labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
@@ -226,7 +231,9 @@ class CalendarTaskSheet extends ConsumerWidget {
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   String _formatDateHeader(DateTime date) {
@@ -368,15 +375,17 @@ class CalendarTaskItem extends StatelessWidget {
                               compact: true,
                             ),
                           ),
-                          
+
                           // Source note indicator
                           if (task.noteId != 'standalone' && onOpenNote != null)
                             GestureDetector(
                               onTap: onOpenNote,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.secondaryContainer.withOpacity(0.5),
+                                  color: colorScheme.secondaryContainer
+                                      .withOpacity(0.5),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -419,7 +428,8 @@ class CalendarTaskItem extends StatelessWidget {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit, size: 16, color: colorScheme.primary),
+                          Icon(Icons.edit,
+                              size: 16, color: colorScheme.primary),
                           const SizedBox(width: 8),
                           const Text('Edit'),
                         ],
@@ -430,7 +440,8 @@ class CalendarTaskItem extends StatelessWidget {
                         value: 'open_note',
                         child: Row(
                           children: [
-                            Icon(Icons.note, size: 16, color: colorScheme.secondary),
+                            Icon(Icons.note,
+                                size: 16, color: colorScheme.secondary),
                             const SizedBox(width: 8),
                             const Text('Open Note'),
                           ],
@@ -584,7 +595,9 @@ class _CompletedTasksSectionState extends State<CompletedTasksSection>
               child: Row(
                 children: [
                   Icon(
-                    _isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                    _isExpanded
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_right,
                     color: colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
@@ -612,13 +625,17 @@ class _CompletedTasksSectionState extends State<CompletedTasksSection>
         SizeTransition(
           sizeFactor: _expandAnimation,
           child: Column(
-            children: widget.tasks.map((task) => CalendarTaskItem(
-              task: task,
-              onToggle: () => widget.onTaskToggle(task),
-              onEdit: () => widget.onTaskEdit(task),
-              onDelete: () => widget.onTaskDelete(task),
-              onOpenNote: widget.onOpenNote != null ? () => widget.onOpenNote!(task) : null,
-            )).toList(),
+            children: widget.tasks
+                .map((task) => CalendarTaskItem(
+                      task: task,
+                      onToggle: () => widget.onTaskToggle(task),
+                      onEdit: () => widget.onTaskEdit(task),
+                      onDelete: () => widget.onTaskDelete(task),
+                      onOpenNote: widget.onOpenNote != null
+                          ? () => widget.onOpenNote!(task)
+                          : null,
+                    ))
+                .toList(),
           ),
         ),
       ],

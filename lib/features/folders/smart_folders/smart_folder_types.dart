@@ -261,12 +261,12 @@ class SmartFolderRule {
   final dynamic secondValue;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'field': field.name,
-    'operator': operator.name,
-    'value': value,
-    'secondValue': secondValue,
-  };
+        'id': id,
+        'field': field.name,
+        'operator': operator.name,
+        'value': value,
+        'secondValue': secondValue,
+      };
 
   SmartFolderRule copyWith({
     String? id,
@@ -334,17 +334,17 @@ class SmartFolderConfig {
   final Duration? refreshInterval;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'type': type.name,
-    'rules': rules.map((r) => r.toJson()).toList(),
-    'combineWithAnd': combineWithAnd,
-    'customIcon': customIcon?.codePoint,
-    'customColor': customColor?.value,
-    'maxResults': maxResults,
-    'autoRefresh': autoRefresh,
-    'refreshInterval': refreshInterval?.inSeconds,
-  };
+        'id': id,
+        'name': name,
+        'type': type.name,
+        'rules': rules.map((r) => r.toJson()).toList(),
+        'combineWithAnd': combineWithAnd,
+        'customIcon': customIcon?.codePoint,
+        'customColor': customColor?.value,
+        'maxResults': maxResults,
+        'autoRefresh': autoRefresh,
+        'refreshInterval': refreshInterval?.inSeconds,
+      };
 
   SmartFolderConfig copyWith({
     String? id,

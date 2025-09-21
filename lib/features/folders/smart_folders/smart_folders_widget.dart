@@ -153,7 +153,6 @@ class SmartFoldersWidget extends ConsumerWidget {
             ],
           ),
         ),
-
         SizedBox(
           height: 120,
           child: ListView.builder(
@@ -246,13 +245,13 @@ class SmartFoldersWidget extends ConsumerWidget {
   void _showCreateSmartFolder(BuildContext context, WidgetRef ref) {
     Navigator.of(context)
         .push(
-          MaterialPageRoute(builder: (context) => const SmartFolderCreator()),
-        )
+      MaterialPageRoute(builder: (context) => const SmartFolderCreator()),
+    )
         .then((config) {
-          if (config != null && config is SmartFolderConfig) {
-            ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
-          }
-        });
+      if (config != null && config is SmartFolderConfig) {
+        ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
+      }
+    });
   }
 
   void _showFolderActions(
@@ -267,18 +266,15 @@ class SmartFoldersWidget extends ConsumerWidget {
         onEdit: () {
           Navigator.of(context)
               .push(
-                MaterialPageRoute(
-                  builder: (context) =>
-                      SmartFolderCreator(initialConfig: folder),
-                ),
-              )
+            MaterialPageRoute(
+              builder: (context) => SmartFolderCreator(initialConfig: folder),
+            ),
+          )
               .then((config) {
-                if (config != null && config is SmartFolderConfig) {
-                  ref
-                      .read(smartFoldersProvider.notifier)
-                      .saveSmartFolder(config);
-                }
-              });
+            if (config != null && config is SmartFolderConfig) {
+              ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
+            }
+          });
         },
         onDuplicate: () {
           _showDuplicateDialog(context, ref, folder);
@@ -416,9 +412,7 @@ class _SmartFolderCard extends StatelessWidget {
                     ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
               Text(
                 folder.name,
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -427,9 +421,7 @@ class _SmartFolderCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-
               const Spacer(),
-
               Row(
                 children: [
                   Text(
@@ -583,7 +575,6 @@ class _SmartFolderTile extends StatelessWidget {
                     ),
                   );
                 }),
-
                 if (notes.length > 3) ...[
                   const SizedBox(height: 4),
                   InkWell(

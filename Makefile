@@ -32,19 +32,19 @@ help:
 # Start services
 up:
 	@echo "🚀 Starting Supabase services..."
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "✅ Services started. Access Supabase Studio at http://localhost:54323"
 
 # Start with web
 web:
 	@echo "🚀 Starting all services including Flutter web..."
-	@docker-compose --profile web up -d
+	@docker compose --profile web up -d
 	@echo "✅ Services started. Access Flutter web at http://localhost:8080"
 
 # Stop services
 down:
 	@echo "🛑 Stopping all services..."
-	@docker-compose down
+	@docker compose down
 	@echo "✅ Services stopped"
 
 # Restart services
@@ -52,37 +52,37 @@ restart: down up
 
 # View logs
 logs:
-	@docker-compose logs -f
+	@docker compose logs -f
 
 # Service-specific logs
 logs-db:
-	@docker-compose logs -f supabase-db
+	@docker compose logs -f supabase-db
 
 logs-auth:
-	@docker-compose logs -f supabase-auth
+	@docker compose logs -f supabase-auth
 
 logs-storage:
-	@docker-compose logs -f supabase-storage
+	@docker compose logs -f supabase-storage
 
 logs-functions:
-	@docker-compose logs -f supabase-edge-functions
+	@docker compose logs -f supabase-edge-functions
 
 # Check status
 status:
 	@echo "📊 Service Status:"
-	@docker-compose ps
+	@docker compose ps
 
 # Clean everything (WARNING: Deletes data)
 clean:
 	@echo "⚠️  WARNING: This will delete all data!"
 	@read -p "Are you sure? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@docker-compose down -v
+	@docker compose down -v
 	@rm -rf volumes/
 	@echo "✅ All data removed"
 
 # Complete reset
 reset: clean
-	@docker-compose down --rmi all
+	@docker compose down --rmi all
 	@echo "✅ Complete reset done"
 
 # Database shell
@@ -105,14 +105,14 @@ restore:
 # Build services
 build:
 	@echo "🔨 Building services..."
-	@docker-compose build
+	@docker compose build
 	@echo "✅ Build complete"
 
 # Initialize environment
 init:
 	@if [ ! -f .env ]; then \
 		echo "📝 Creating .env from template..."; \
-		cp docker.env.example .env; \
+		cp env.example .env; \
 		echo "✅ .env created. Please edit it with your configuration."; \
 	else \
 		echo "✅ .env already exists"; \
@@ -124,7 +124,7 @@ init:
 setup: init
 	@echo "⚠️  Please ensure you've configured .env file"
 	@read -p "Continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@make up
+	@$(MAKE) up
 
 # Health check
 health:

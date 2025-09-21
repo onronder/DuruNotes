@@ -140,13 +140,3 @@ class AnalyticsService {
   /// Check if analytics is enabled
   bool get isEnabled => _enabled;
 }
-
-/// Analytics factory to manage a singleton AnalyticsService
-class AnalyticsFactory {
-  static AnalyticsService? _instance;
-  static void initialize() {
-    _instance = AnalyticsService();
-  }
-
-  static AnalyticsService get instance => _instance ?? AnalyticsService();
-}

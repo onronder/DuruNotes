@@ -8,14 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Demonstrates the migrated task system using database models
 class TaskManagementScreen extends ConsumerStatefulWidget {
   final String noteId;
-  
+
   const TaskManagementScreen({
     super.key,
     required this.noteId,
   });
-  
+
   @override
-  ConsumerState<TaskManagementScreen> createState() => _TaskManagementScreenState();
+  ConsumerState<TaskManagementScreen> createState() =>
+      _TaskManagementScreenState();
 }
 
 class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
@@ -23,19 +24,19 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
   TaskPriority _selectedPriority = TaskPriority.medium;
   DateTime? _selectedDueDate;
   bool _showCompleted = true;
-  
+
   @override
   void dispose() {
     _contentController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final tasksAsync = ref.watch(tasksForNoteProvider(widget.noteId));
     final taskService = ref.read(unifiedTaskServiceProvider);
     final theme = Theme.of(context);
-    
+
     // Listen to real-time task updates
     ref.listen<AsyncValue<TaskUpdate>>(
       taskUpdatesProvider,
@@ -43,7 +44,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
         next.whenData((update) {
           // Refresh the task list when updates occur
           ref.invalidate(tasksForNoteProvider(widget.noteId));
-          
+
           // Show snackbar for certain events
           if (update.type == TaskUpdateType.deleted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -53,14 +54,15 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
         });
       },
     );
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Management'),
         actions: [
           // Filter button
           IconButton(
-            icon: Icon(_showCompleted ? Icons.visibility : Icons.visibility_off),
+            icon:
+                Icon(_showCompleted ? Icons.visibility : Icons.visibility_off),
             onPressed: () {
               setState(() {
                 _showCompleted = !_showCompleted;
@@ -112,7 +114,8 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                               _selectedPriority = priority;
                             });
                           },
-                          itemBuilder: (context) => TaskPriority.values.map((priority) {
+                          itemBuilder: (context) =>
+                              TaskPriority.values.map((priority) {
                             return PopupMenuItem(
                               value: priority,
                               child: Row(
@@ -133,14 +136,17 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                         IconButton(
                           icon: Icon(
                             Icons.calendar_today,
-                            color: _selectedDueDate != null ? theme.colorScheme.primary : null,
+                            color: _selectedDueDate != null
+                                ? theme.colorScheme.primary
+                                : null,
                           ),
                           onPressed: () async {
                             final date = await showDatePicker(
                               context: context,
                               initialDate: _selectedDueDate ?? DateTime.now(),
                               firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 365)),
                             );
                             if (date != null) {
                               setState(() {
@@ -181,7 +187,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
               ],
             ),
           ),
-          
+
           // Task list
           Expanded(
             child: tasksAsync.when(
@@ -189,8 +195,10 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                 // Filter tasks based on completion status
                 final filteredTasks = _showCompleted
                     ? tasks
-                    : tasks.where((t) => t.status != TaskStatus.completed).toList();
-                
+                    : tasks
+                        .where((t) => t.status != TaskStatus.completed)
+                        .toList();
+
                 if (filteredTasks.isEmpty) {
                   return Center(
                     child: Column(
@@ -212,57 +220,66 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                     ),
                   );
                 }
-                
+
                 // Group tasks by status
-                final openTasks = filteredTasks.where((t) => t.status == TaskStatus.open).toList();
-                final completedTasks = filteredTasks.where((t) => t.status == TaskStatus.completed).toList();
-                final cancelledTasks = filteredTasks.where((t) => t.status == TaskStatus.cancelled).toList();
-                
+                final openTasks = filteredTasks
+                    .where((t) => t.status == TaskStatus.open)
+                    .toList();
+                final completedTasks = filteredTasks
+                    .where((t) => t.status == TaskStatus.completed)
+                    .toList();
+                final cancelledTasks = filteredTasks
+                    .where((t) => t.status == TaskStatus.cancelled)
+                    .toList();
+
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
                     // Open tasks
                     if (openTasks.isNotEmpty) ...[
-                      _buildSectionHeader('Open Tasks', openTasks.length, Icons.radio_button_unchecked),
+                      _buildSectionHeader('Open Tasks', openTasks.length,
+                          Icons.radio_button_unchecked),
                       ...openTasks.map((task) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: TaskCard(
-                          dbTask: task,
-                          callbacks: taskService,
-                        ),
-                      )),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: TaskCard(
+                              dbTask: task,
+                              callbacks: taskService,
+                            ),
+                          )),
                     ],
-                    
+
                     // Completed tasks
                     if (completedTasks.isNotEmpty && _showCompleted) ...[
                       const SizedBox(height: 24),
-                      _buildSectionHeader('Completed', completedTasks.length, Icons.check_circle),
+                      _buildSectionHeader('Completed', completedTasks.length,
+                          Icons.check_circle),
                       ...completedTasks.map((task) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Opacity(
-                          opacity: 0.7,
-                          child: TaskCard(
-                            dbTask: task,
-                            callbacks: taskService,
-                          ),
-                        ),
-                      )),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Opacity(
+                              opacity: 0.7,
+                              child: TaskCard(
+                                dbTask: task,
+                                callbacks: taskService,
+                              ),
+                            ),
+                          )),
                     ],
-                    
+
                     // Cancelled tasks
                     if (cancelledTasks.isNotEmpty && _showCompleted) ...[
                       const SizedBox(height: 24),
-                      _buildSectionHeader('Cancelled', cancelledTasks.length, Icons.cancel),
+                      _buildSectionHeader(
+                          'Cancelled', cancelledTasks.length, Icons.cancel),
                       ...cancelledTasks.map((task) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Opacity(
-                          opacity: 0.5,
-                          child: TaskCard(
-                            dbTask: task,
-                            callbacks: taskService,
-                          ),
-                        ),
-                      )),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Opacity(
+                              opacity: 0.5,
+                              child: TaskCard(
+                                dbTask: task,
+                                callbacks: taskService,
+                              ),
+                            ),
+                          )),
                     ],
                   ],
                 );
@@ -272,7 +289,8 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
                     Text('Error loading tasks: $error'),
                     const SizedBox(height: 16),
@@ -296,7 +314,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(String title, int count, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -307,8 +325,8 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(width: 8),
           Container(
@@ -326,7 +344,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       ),
     );
   }
-  
+
   Color _getPriorityColor(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.urgent:
@@ -339,10 +357,10 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
         return Colors.grey;
     }
   }
-  
+
   Future<void> _createTask(UnifiedTaskService service) async {
     if (_contentController.text.trim().isEmpty) return;
-    
+
     try {
       await service.createTask(
         noteId: widget.noteId,
@@ -350,17 +368,17 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
         priority: _selectedPriority,
         dueDate: _selectedDueDate,
       );
-      
+
       // Clear the form
       _contentController.clear();
       setState(() {
         _selectedPriority = TaskPriority.medium;
         _selectedDueDate = null;
       });
-      
+
       // Refresh the task list
       ref.invalidate(tasksForNoteProvider(widget.noteId));
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task created successfully')),
@@ -374,10 +392,10 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       }
     }
   }
-  
+
   void _showQuickAddDialog(BuildContext context, UnifiedTaskService service) {
     final controller = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -422,10 +440,10 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       ),
     );
   }
-  
+
   void _showStatistics(BuildContext context) {
     final statsAsync = ref.read(taskStatisticsProvider);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -436,15 +454,17 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildStatRow('Total Tasks', stats.total.toString()),
-              _buildStatRow('Completed', '${stats.completed} (${stats.completionRate.toStringAsFixed(1)}%)'),
+              _buildStatRow('Completed',
+                  '${stats.completed} (${stats.completionRate.toStringAsFixed(1)}%)'),
               _buildStatRow('Open', stats.open.toString()),
               _buildStatRow('Cancelled', stats.cancelled.toString()),
-              _buildStatRow('Overdue', stats.overdue.toString(), 
-                color: stats.overdue > 0 ? Colors.red : null),
+              _buildStatRow('Overdue', stats.overdue.toString(),
+                  color: stats.overdue > 0 ? Colors.red : null),
               const Divider(),
-              const Text('By Priority:', style: TextStyle(fontWeight: FontWeight.bold)),
-              ...stats.byPriority.entries.map((e) => 
-                _buildStatRow(e.key.name, e.value.toString())),
+              const Text('By Priority:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              ...stats.byPriority.entries
+                  .map((e) => _buildStatRow(e.key.name, e.value.toString())),
             ],
           ),
           loading: () => const CircularProgressIndicator(),
@@ -459,7 +479,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       ),
     );
   }
-  
+
   Widget _buildStatRow(String label, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

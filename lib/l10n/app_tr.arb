@@ -565,5 +565,9 @@
   "defaultTemplate": "Varsayılan",
   "customTemplate": "Özel",
   "useTemplate": "Şablonu Kullan",
-  "manageTemplates": "Şablonları Yönet"
+  "manageTemplates": "Şablonları Yönet",
+  "genericErrorTitle": "Bir şeyler ters gitti",
+  "genericErrorMessage": "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+  "reportError": "Hata bildir",
+  "errorReportSent": "Hata raporu gönderildi. Geri bildiriminiz için teşekkürler!"
 }

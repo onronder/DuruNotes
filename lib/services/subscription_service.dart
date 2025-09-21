@@ -1,6 +1,7 @@
 import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,11 +10,11 @@ class SubscriptionService {
   SubscriptionService({
     required AppLogger logger,
     required AnalyticsService analytics,
-  }) : _logger = logger,
-       _analytics = analytics;
+  })  : _logger = logger,
+        _analytics = analytics;
   final AppLogger _logger;
   final AnalyticsService _analytics;
-  
+
   // Cache for profile to reduce API calls
   AdaptyProfile? _cachedProfile;
   DateTime? _cacheTime;
@@ -24,7 +25,7 @@ class SubscriptionService {
     try {
       // Use cached profile if available
       final profile = await getUserProfile();
-      
+
       if (profile == null) {
         return false;
       }
@@ -35,7 +36,8 @@ class SubscriptionService {
       _logger.info('Premium access check: $hasAccess (cached)');
 
       // Only track analytics occasionally, not on every check
-      if (_cacheTime == DateTime.now()) {  // Only on fresh fetch
+      if (_cacheTime == DateTime.now()) {
+        // Only on fresh fetch
         _analytics.event(
           AnalyticsEvents.noteCreate,
           properties: {
@@ -64,8 +66,8 @@ class SubscriptionService {
   Future<AdaptyProfile?> getUserProfile({bool forceRefresh = false}) async {
     try {
       // Check if we have a valid cached profile
-      if (!forceRefresh && 
-          _cachedProfile != null && 
+      if (!forceRefresh &&
+          _cachedProfile != null &&
           _cacheTime != null &&
           DateTime.now().difference(_cacheTime!) < _cacheValidityDuration) {
         _logger.info('Returning cached user profile');
@@ -74,7 +76,7 @@ class SubscriptionService {
 
       // Fetch fresh profile
       final profile = await Adapty().getProfile();
-      
+
       // Update cache
       _cachedProfile = profile;
       _cacheTime = DateTime.now();
@@ -88,7 +90,7 @@ class SubscriptionService {
       return _cachedProfile;
     }
   }
-  
+
   /// Clear profile cache (call on logout)
   void clearCache() {
     _cachedProfile = null;

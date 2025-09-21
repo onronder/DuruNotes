@@ -3,6 +3,7 @@ import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
+import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,17 +96,19 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
 
   Future<void> _loadTaskData() async {
     if (widget.noteId == null) return;
-    
+
     try {
       // Check if widget is still mounted before using ref
       if (!mounted) return;
-      
-      final tasks = await ref.read(appDbProvider).getTasksForNote(widget.noteId!);
-      final matchingTask = tasks.where((task) => 
-        task.position == widget.position && 
-        task.content.trim() == _text.trim()
-      ).firstOrNull;
-      
+
+      final tasks =
+          await ref.read(appDbProvider).getTasksForNote(widget.noteId!);
+      final matchingTask = tasks
+          .where((task) =>
+              task.position == widget.position &&
+              task.content.trim() == _text.trim())
+          .firstOrNull;
+
       if (mounted) {
         setState(() {
           _task = matchingTask;
@@ -134,7 +137,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       _isCompleted = !_isCompleted;
     });
     _updateTodo();
-    
+
     // Track the optimistic state
     final optimisticState = _isCompleted;
 
@@ -143,10 +146,11 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       try {
         // Use the coordinator for critical sync
         final coordinator = ref.read(noteTaskCoordinatorProvider);
-        
-        // Get the updated note content
-        final noteContent = widget.controller.text;
-        
+
+        // Fetch the latest note content for accurate sync
+        final note = await ref.read(appDbProvider).findNote(widget.noteId!);
+        final noteContent = note?.body ?? _text;
+
         // Handle task toggle with critical priority
         await coordinator.handleTaskToggle(
           noteId: widget.noteId!,
@@ -154,7 +158,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
           isCompleted: _isCompleted,
           updatedContent: noteContent,
         );
-        
+
         // Update is handled by the note content update above
         // The bidirectional sync service will handle task updates
       } catch (e) {
@@ -164,7 +168,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
             _isCompleted = previousState;
           });
           _updateTodo();
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to update task: $e'),
@@ -205,18 +209,19 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       if (_task == null) {
         // NEW TASK WITH CUSTOM REMINDER
         String taskId;
-        
-        if (metadata.hasReminder && 
-            metadata.reminderTime != null && 
+
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
             metadata.dueDate != null) {
           // Use createTaskWithReminder for custom reminder times
           taskId = await enhancedTaskService.createTaskWithReminder(
             noteId: widget.noteId!,
             content: _text,
-            dueDate: metadata.dueDate,
-            reminderTime: metadata.reminderTime,
+            dueDate: metadata.dueDate!,
+            reminderTime: metadata.reminderTime!,
             priority: metadata.priority,
-            labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+            labels:
+                metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
             notes: metadata.notes,
             estimatedMinutes: metadata.estimatedMinutes,
           );
@@ -227,7 +232,8 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
             content: _text,
             priority: metadata.priority,
             dueDate: metadata.dueDate,
-            labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+            labels:
+                metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
             notes: metadata.notes,
             estimatedMinutes: metadata.estimatedMinutes,
             createReminder: metadata.hasReminder && metadata.dueDate != null,
@@ -239,23 +245,27 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       } else {
         // UPDATE EXISTING TASK
         final oldTask = _task!;
-        
+
         await enhancedTaskService.updateTask(
           taskId: oldTask.id,
           priority: metadata.priority,
           dueDate: metadata.dueDate,
-          labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+          labels:
+              metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
-        
+
         // Handle reminder changes
-        if (metadata.hasReminder && metadata.reminderTime != null && metadata.dueDate != null) {
+        if (metadata.hasReminder &&
+            metadata.reminderTime != null &&
+            metadata.dueDate != null) {
           if (oldTask.reminderId == null) {
             // Create new reminder
             final updatedTask = await appDb.getTaskById(oldTask.id);
             if (updatedTask != null) {
-              final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+              final duration =
+                  metadata.dueDate!.difference(metadata.reminderTime!);
               await reminderBridge.createTaskReminder(
                 task: updatedTask,
                 beforeDueDate: duration.abs(),
@@ -276,7 +286,6 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
         // Reload task data
         await _loadTaskData();
       }
-
     } catch (e) {
       debugPrint('Error saving task metadata: $e');
       if (mounted) {
@@ -314,7 +323,8 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
                 padding: const EdgeInsets.only(top: 12, right: 8),
                 child: GestureDetector(
                   onTap: _toggleCompleted,
-                  onLongPress: widget.noteId != null ? _showTaskMetadataDialog : null,
+                  onLongPress:
+                      widget.noteId != null ? _showTaskMetadataDialog : null,
                   child: Container(
                     width: 22,
                     height: 22,
@@ -369,7 +379,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
                         textInputAction: TextInputAction.newline,
                       ),
                     ),
-                    
+
                     // Task indicators
                     if (_task != null) ...[
                       const SizedBox(height: 4),

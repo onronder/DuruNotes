@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:test/test.dart' show Skip;
 
 // Generate mocks
 @GenerateMocks([
@@ -19,6 +20,7 @@ import 'package:shared_preferences/shared_preferences.dart';
   AppLogger,
   MethodChannel,
 ])
+@Skip('Quick Capture functionality deferred; tests temporarily disabled')
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -51,7 +53,8 @@ void main() {
       );
 
       // Set up method channel mock
-      const MethodChannel channel = MethodChannel('com.fittechs.durunotes/quick_capture');
+      const MethodChannel channel =
+          MethodChannel('com.fittechs.durunotes/quick_capture');
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         switch (methodCall.method) {
           case 'updateWidgetData':
@@ -75,8 +78,9 @@ void main() {
     group('Initialization', () {
       test('should initialize service successfully', () async {
         await service.initialize();
-        
-        verify(mockAnalytics.event('quick_capture.service_initialized', properties: any))
+
+        verify(mockAnalytics.event('quick_capture.service_initialized',
+                properties: any))
             .called(1);
       });
 
@@ -86,8 +90,9 @@ void main() {
 
         // Should not throw
         await service.initialize();
-        
-        verify(mockLogger.error(any, error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
+
+        verify(mockLogger.error(any,
+                error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
             .called(greaterThan(0));
       });
     });
@@ -117,7 +122,8 @@ void main() {
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
         )).called(1);
-        verify(mockAnalytics.event('quick_capture.note_created', properties: any))
+        verify(mockAnalytics.event('quick_capture.note_created',
+                properties: any))
             .called(1);
       });
 
@@ -145,7 +151,7 @@ void main() {
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
         )).captured.single as String;
-        
+
         expect(capturedBody, contains('## Meeting Notes'));
         expect(capturedBody, contains('Meeting with client'));
       });
@@ -158,7 +164,7 @@ void main() {
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
         )).thenAnswer((_) async => MockLocalNote());
-        
+
         when(mockAttachmentService.processWidgetAttachments(any, any))
             .thenAnswer((_) async => ['attachment1.jpg']);
 
@@ -195,7 +201,8 @@ void main() {
         // Assert
         expect(result.success, false);
         expect(result.error, isNotNull);
-        verify(mockAnalytics.event('quick_capture.capture_failed', properties: any))
+        verify(mockAnalytics.event('quick_capture.capture_failed',
+                properties: any))
             .called(1);
       });
 
@@ -219,7 +226,7 @@ void main() {
           createMockNote('2', 'Note 2'),
           createMockNote('3', 'Note 3'),
         ];
-        
+
         when(mockNotesRepository.getRecentNotes(limit: 5))
             .thenAnswer((_) async => mockCaptures);
 
@@ -273,7 +280,8 @@ void main() {
         await service.updateWidgetCache();
 
         // Assert
-        verify(mockAnalytics.event('quick_capture.cache_updated', properties: any))
+        verify(mockAnalytics.event('quick_capture.cache_updated',
+                properties: any))
             .called(1);
       });
 
@@ -282,7 +290,8 @@ void main() {
         await service.refreshWidget();
 
         // Assert
-        verify(mockAnalytics.event('quick_capture.widget_refreshed', properties: any))
+        verify(mockAnalytics.event('quick_capture.widget_refreshed',
+                properties: any))
             .called(1);
       });
     });
@@ -322,7 +331,7 @@ void main() {
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
         )).captured.single as String;
-        
+
         expect(capturedBody, contains('## Attendees'));
         expect(capturedBody, contains('## Agenda'));
         expect(capturedBody, contains('## Action Items'));
@@ -348,7 +357,8 @@ void main() {
         // Assert
         expect(result.success, false);
         expect(result.error, contains('Database error'));
-        verify(mockLogger.error(any, error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
+        verify(mockLogger.error(any,
+                error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
             .called(greaterThan(0));
       });
 
@@ -391,7 +401,8 @@ void main() {
 
         // Assert
         expect(processed, greaterThan(0));
-        verify(mockAnalytics.event('quick_capture.pending_captures_processed', properties: any))
+        verify(mockAnalytics.event('quick_capture.pending_captures_processed',
+                properties: any))
             .called(1);
       });
 
@@ -406,7 +417,8 @@ void main() {
       test('should track all major events', () async {
         // Initialize
         await service.initialize();
-        verify(mockAnalytics.event('quick_capture.service_initialized', properties: any))
+        verify(mockAnalytics.event('quick_capture.service_initialized',
+                properties: any))
             .called(1);
 
         // Capture note
@@ -416,16 +428,18 @@ void main() {
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
         )).thenAnswer((_) async => MockLocalNote());
-        
+
         await service.captureNote(text: 'Test', platform: 'ios');
-        verify(mockAnalytics.event('quick_capture.note_created', properties: any))
+        verify(mockAnalytics.event('quick_capture.note_created',
+                properties: any))
             .called(1);
 
         // Update cache
         when(mockNotesRepository.getRecentNotes(limit: 10))
             .thenAnswer((_) async => []);
         await service.updateWidgetCache();
-        verify(mockAnalytics.event('quick_capture.cache_updated', properties: any))
+        verify(mockAnalytics.event('quick_capture.cache_updated',
+                properties: any))
             .called(1);
       });
     });

@@ -322,126 +322,129 @@ class _InboundEmailInboxWidgetState
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.inbox, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Your inbox is empty',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.inbox,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Your inbox is empty',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_userEmailAddress != null)
+                              Text(
+                                '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        if (_userEmailAddress != null)
-                          Text(
-                            '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: ListView.builder(
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        return Dismissible(
-                          key: Key(item.id),
-                          background: Container(
-                            color: Colors.green,
-                            alignment: Alignment.centerLeft,
-                            padding: const EdgeInsets.only(left: 16),
-                            child: const Icon(
-                              Icons.note_add,
-                              color: Colors.white,
-                            ),
-                          ),
-                          secondaryBackground: Container(
-                            color: Colors.red,
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 16),
-                            child: const Icon(
-                              Icons.delete,
-                              color: Colors.white,
-                            ),
-                          ),
-                          confirmDismiss: (direction) async {
-                            if (direction == DismissDirection.startToEnd) {
-                              await _convertToNote(item);
-                              return false; // Don't dismiss, we'll refresh
-                            } else {
-                              await _deleteItem(item);
-                              return false; // Don't dismiss, we'll refresh
-                            }
-                          },
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: item.isWebClip
-                                  ? Colors.blue.shade100
-                                  : Colors.grey.shade200,
-                              child: item.isWebClip
-                                  ? Icon(
-                                      Icons.language,
-                                      color: Colors.blue.shade700,
-                                    )
-                                  : Icon(
-                                      Icons.email,
-                                      color: Colors.grey.shade700,
-                                    ),
-                            ),
-                            title: Text(
-                              item.displayTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.displaySubtitle,
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        child: ListView.builder(
+                          itemCount: _items.length,
+                          itemBuilder: (context, index) {
+                            final item = _items[index];
+                            return Dismissible(
+                              key: Key(item.id),
+                              background: Container(
+                                color: Colors.green,
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(left: 16),
+                                child: const Icon(
+                                  Icons.note_add,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              secondaryBackground: Container(
+                                color: Colors.red,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 16),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.startToEnd) {
+                                  await _convertToNote(item);
+                                  return false; // Don't dismiss, we'll refresh
+                                } else {
+                                  await _deleteItem(item);
+                                  return false; // Don't dismiss, we'll refresh
+                                }
+                              },
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: item.isWebClip
+                                      ? Colors.blue.shade100
+                                      : Colors.grey.shade200,
+                                  child: item.isWebClip
+                                      ? Icon(
+                                          Icons.language,
+                                          color: Colors.blue.shade700,
+                                        )
+                                      : Icon(
+                                          Icons.email,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                ),
+                                title: Text(
+                                  item.displayTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (item.displayText != null)
-                                  Text(
-                                    item.displayText!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (item.hasAttachments)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 4),
-                                    child: Icon(
-                                      Icons.attach_file,
-                                      size: 18,
-                                      color: Colors.grey[600],
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.displaySubtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatDate(item.createdAt),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
+                                    if (item.displayText != null)
+                                      Text(
+                                        item.displayText!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            onTap: () => _showItemDetails(item),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (item.hasAttachments)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 4),
+                                        child: Icon(
+                                          Icons.attach_file,
+                                          size: 18,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _formatDate(item.createdAt),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                onTap: () => _showItemDetails(item),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
           ),
         ],
       ),
@@ -479,9 +482,8 @@ class InboxItemDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final attachments = item.isEmail
-        ? inboxService.getAttachments(item)
-        : <EmailAttachment>[];
+    final attachments =
+        item.isEmail ? inboxService.getAttachments(item) : <EmailAttachment>[];
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,

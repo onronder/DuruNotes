@@ -7,18 +7,27 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 /// Repository for managing note templates (system and user-defined)
-/// 
+///
 /// Templates are blueprints for creating notes, stored separately from notes.
 /// System templates are immutable and bundled with the app.
 /// User templates can be created, edited, and deleted.
 class TemplateRepository {
-  TemplateRepository({
-    required this.db,
-  }) : _uuid = const Uuid();
+  TemplateRepository({required this.db}) : _uuid = const Uuid();
 
   final AppDb db;
   final Uuid _uuid;
   final _logger = LoggerFactory.instance;
+
+  List<String> _parseTags(String? tagsJson) {
+    if (tagsJson == null || tagsJson.isEmpty) {
+      return const [];
+    }
+    final decoded = jsonDecode(tagsJson);
+    if (decoded is List) {
+      return decoded.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
 
   // ----------------------
   // Template Retrieval
@@ -29,8 +38,11 @@ class TemplateRepository {
     try {
       return await db.getAllTemplates();
     } catch (e, stackTrace) {
-      _logger.error('Failed to get all templates',
-          error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to get all templates',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -40,8 +52,11 @@ class TemplateRepository {
     try {
       return await db.getSystemTemplates();
     } catch (e, stackTrace) {
-      _logger.error('Failed to get system templates',
-          error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to get system templates',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -51,8 +66,11 @@ class TemplateRepository {
     try {
       return await db.getUserTemplates();
     } catch (e, stackTrace) {
-      _logger.error('Failed to get user templates',
-          error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to get user templates',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -62,8 +80,12 @@ class TemplateRepository {
     try {
       return await db.getTemplate(id);
     } catch (e, stackTrace) {
-      _logger.error('Failed to get template',
-          error: e, stackTrace: stackTrace, data: {'templateId': id});
+      _logger.error(
+        'Failed to get template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'templateId': id},
+      );
       return null;
     }
   }
@@ -74,8 +96,12 @@ class TemplateRepository {
       final templates = await getAllTemplates();
       return templates.where((t) => t.category == category).toList();
     } catch (e, stackTrace) {
-      _logger.error('Failed to get templates by category',
-          error: e, stackTrace: stackTrace, data: {'category': category});
+      _logger.error(
+        'Failed to get templates by category',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'category': category},
+      );
       return [];
     }
   }
@@ -105,7 +131,8 @@ class TemplateRepository {
         tags: jsonEncode(tags),
         isSystem: false, // User template
         category: category,
-        description: description.isEmpty ? 'User-created template' : description,
+        description:
+            description.isEmpty ? 'User-created template' : description,
         icon: icon,
         sortOrder: 1000, // User templates have higher sort order
         metadata: metadata != null ? jsonEncode(metadata) : null,
@@ -116,21 +143,19 @@ class TemplateRepository {
       await db.upsertTemplate(template);
 
       debugPrint('✅ User template created: $id');
-      _logger.info('User template created', data: {
-        'templateId': id,
-        'title': title,
-        'category': category,
-      });
+      _logger.info(
+        'User template created',
+        data: {'templateId': id, 'title': title, 'category': category},
+      );
 
       return template;
     } catch (e, stackTrace) {
-      _logger.error('Failed to create user template',
-          error: e,
-          stackTrace: stackTrace,
-          data: {
-            'title': title,
-            'category': category,
-          });
+      _logger.error(
+        'Failed to create user template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'title': title, 'category': category},
+      );
       debugPrint('❌ Failed to create user template: $e');
       return null;
     }
@@ -179,8 +204,12 @@ class TemplateRepository {
 
       return true;
     } catch (e, stackTrace) {
-      _logger.error('Failed to update user template',
-          error: e, stackTrace: stackTrace, data: {'templateId': id});
+      _logger.error(
+        'Failed to update user template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'templateId': id},
+      );
       debugPrint('❌ Failed to update user template: $e');
       return false;
     }
@@ -190,18 +219,22 @@ class TemplateRepository {
   Future<bool> deleteUserTemplate(String id) async {
     try {
       final success = await db.deleteTemplate(id);
-      
+
       if (success) {
         debugPrint('✅ User template deleted: $id');
         _logger.info('User template deleted', data: {'templateId': id});
       } else {
         debugPrint('⚠️ Could not delete template (may be system): $id');
       }
-      
+
       return success;
     } catch (e, stackTrace) {
-      _logger.error('Failed to delete user template',
-          error: e, stackTrace: stackTrace, data: {'templateId': id});
+      _logger.error(
+        'Failed to delete user template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'templateId': id},
+      );
       debugPrint('❌ Failed to delete user template: $e');
       return false;
     }
@@ -216,11 +249,14 @@ class TemplateRepository {
   Map<String, dynamic> createNoteFromTemplate(LocalTemplate template) {
     try {
       // Parse tags from JSON
-      final tags = List<String>.from(jsonDecode(template.tags));
+      final tags = _parseTags(template.tags);
 
       // Create note data from template
       final noteData = {
-        'title': template.title.replaceAll(RegExp(r'^[^\w\s]+\s*'), ''), // Remove emoji prefix if any
+        'title': template.title.replaceAll(
+          RegExp(r'^[^\w\s]+\s*'),
+          '',
+        ), // Remove emoji prefix if any
         'body': template.body,
         'tags': tags,
         'metadata': {
@@ -234,11 +270,13 @@ class TemplateRepository {
       debugPrint('✅ Note data created from template: ${template.id}');
       return noteData;
     } catch (e, stackTrace) {
-      _logger.error('Failed to create note from template',
-          error: e,
-          stackTrace: stackTrace,
-          data: {'templateId': template.id});
-      
+      _logger.error(
+        'Failed to create note from template',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'templateId': template.id},
+      );
+
       // Return basic note data as fallback
       return {
         'title': template.title,
@@ -258,13 +296,12 @@ class TemplateRepository {
     return {
       'title': template.title,
       'body': template.body,
-      'tags': jsonDecode(template.tags),
+      'tags': _parseTags(template.tags),
       'category': template.category,
       'description': template.description,
       'icon': template.icon,
-      'metadata': template.metadata != null 
-          ? jsonDecode(template.metadata!) 
-          : null,
+      'metadata':
+          template.metadata != null ? jsonDecode(template.metadata!) : null,
       'version': '1.0',
       'exportDate': DateTime.now().toIso8601String(),
     };
@@ -275,7 +312,9 @@ class TemplateRepository {
     try {
       final title = json['title'] as String;
       final body = json['body'] as String;
-      final tags = List<String>.from(json['tags'] ?? []);
+      final tags = (json['tags'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList();
       final category = json['category'] as String? ?? 'personal';
       final description = json['description'] as String? ?? 'Imported template';
       final icon = json['icon'] as String? ?? 'description';
@@ -291,8 +330,11 @@ class TemplateRepository {
         metadata: metadata,
       );
     } catch (e, stackTrace) {
-      _logger.error('Failed to import template',
-          error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to import template',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -304,10 +346,13 @@ class TemplateRepository {
   /// Track template usage
   void trackTemplateUsage(String templateId) {
     try {
-      _logger.info('Template used', data: {
-        'templateId': templateId,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      _logger.info(
+        'Template used',
+        data: {
+          'templateId': templateId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
       // Non-critical, don't throw
       debugPrint('Failed to track template usage: $e');
@@ -323,7 +368,7 @@ class TemplateRepository {
 
       final categoryCounts = <String, int>{};
       for (final template in allTemplates) {
-        categoryCounts[template.category] = 
+        categoryCounts[template.category] =
             (categoryCounts[template.category] ?? 0) + 1;
       }
 
@@ -334,8 +379,11 @@ class TemplateRepository {
         'categoryCounts': categoryCounts,
       };
     } catch (e, stackTrace) {
-      _logger.error('Failed to get template statistics',
-          error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to get template statistics',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return {
         'totalTemplates': 0,
         'systemTemplates': 0,

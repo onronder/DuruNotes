@@ -119,13 +119,13 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
     final l10n = AppLocalizations.of(context);
 
     return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-          .animate(
-            CurvedAnimation(
-              parent: _slideController,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+      position:
+          Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _slideController,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
       child: FadeTransition(
         opacity: _fadeController,
         child: DraggableScrollableSheet(
@@ -199,9 +199,8 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
                               key: ValueKey(_showSearch),
                             ),
                           ),
-                          tooltip: _showSearch
-                              ? l10n.hideSearch
-                              : l10n.showSearch,
+                          tooltip:
+                              _showSearch ? l10n.hideSearch : l10n.showSearch,
                         ),
 
                         // Close button
@@ -337,14 +336,15 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
     try {
       final result = await showDialog<LocalFolder>(
         context: context,
-        barrierDismissible: false, // Prevent accidental dismissal during creation
+        barrierDismissible:
+            false, // Prevent accidental dismissal during creation
         builder: (context) => const CreateFolderDialog(),
       );
 
       if (result != null && mounted) {
         // Refresh folder hierarchy to show the new folder
         ref.read(folderHierarchyProvider.notifier).loadFolders();
-        
+
         // Close this picker sheet and return the newly created folder
         Navigator.of(context).pop(result);
       }
@@ -507,8 +507,7 @@ class _FolderTreeTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color:
-                      FolderIconHelpers.getFolderColor(folder.color) ??
+                  color: FolderIconHelpers.getFolderColor(folder.color) ??
                       colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),

@@ -124,8 +124,8 @@ class SyncService {
       await repo.pullSince(since).timeout(const Duration(seconds: 30));
 
       final remoteIds = await repo.fetchRemoteActiveIds().timeout(
-        const Duration(seconds: 30),
-      );
+            const Duration(seconds: 30),
+          );
       await repo.reconcileHardDeletes(remoteIds);
 
       await prefs.setString(
@@ -377,8 +377,7 @@ class SyncService {
     // All retries failed
     return SyncResult(
       success: false,
-      error:
-          lastException?.toString() ??
+      error: lastException?.toString() ??
           'Sync failed after $_maxRetries attempts',
     );
   }
@@ -407,8 +406,8 @@ class SyncService {
     itemsSynced = (await repo.db.allNotes()).length;
 
     final remoteIds = await repo.fetchRemoteActiveIds().timeout(
-      const Duration(seconds: 10),
-    );
+          const Duration(seconds: 10),
+        );
     await repo.reconcileHardDeletes(remoteIds);
 
     await prefs.setString(

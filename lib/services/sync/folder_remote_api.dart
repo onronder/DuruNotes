@@ -33,7 +33,7 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .from(_tableName)
           .select()
           .order('updated_at', ascending: false);
-      
+
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e, stack) {
       logger.error('Failed to fetch folders', error: e, stackTrace: stack);
@@ -49,7 +49,7 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .select()
           .eq('id', folderId)
           .maybeSingle();
-      
+
       return response as Map<String, dynamic>?;
     } catch (e, stack) {
       logger.error('Failed to fetch folder', error: e, stackTrace: stack);
@@ -99,7 +99,8 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', folderId);
     } catch (e, stack) {
-      logger.error('Failed to mark folder as deleted', error: e, stackTrace: stack);
+      logger.error('Failed to mark folder as deleted',
+          error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -107,23 +108,26 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
   @override
   Future<void> batchUpsertFolders(List<LocalFolder> folders) async {
     try {
-      final data = folders.map((folder) => {
-        'id': folder.id,
-        'name': folder.name,
-        'parent_id': folder.parentId,
-        'path': folder.path,
-        'color': folder.color,
-        'icon': folder.icon,
-        'description': folder.description,
-        'sort_order': folder.sortOrder,
-        'created_at': folder.createdAt.toIso8601String(),
-        'updated_at': folder.updatedAt.toIso8601String(),
-        'deleted': folder.deleted,
-      }).toList();
-      
+      final data = folders
+          .map((folder) => {
+                'id': folder.id,
+                'name': folder.name,
+                'parent_id': folder.parentId,
+                'path': folder.path,
+                'color': folder.color,
+                'icon': folder.icon,
+                'description': folder.description,
+                'sort_order': folder.sortOrder,
+                'created_at': folder.createdAt.toIso8601String(),
+                'updated_at': folder.updatedAt.toIso8601String(),
+                'deleted': folder.deleted,
+              })
+          .toList();
+
       await client.from(_tableName).upsert(data);
     } catch (e, stack) {
-      logger.error('Failed to batch upsert folders', error: e, stackTrace: stack);
+      logger.error('Failed to batch upsert folders',
+          error: e, stackTrace: stack);
       rethrow;
     }
   }

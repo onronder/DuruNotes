@@ -124,7 +124,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
     try {
       final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
-      
+
       // Create a standalone task (not tied to any note)
       final taskId = await enhancedTaskService.createTask(
         noteId: '', // Empty string for standalone tasks
@@ -136,10 +136,12 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
         estimatedMinutes: metadata.estimatedMinutes,
         createReminder: metadata.hasReminder && metadata.reminderTime != null,
       );
-      
+
       // Set up custom reminder time if different from due date
-      if (metadata.hasReminder && metadata.reminderTime != null && 
-          metadata.reminderTime != metadata.dueDate && taskId.isNotEmpty) {
+      if (metadata.hasReminder &&
+          metadata.reminderTime != null &&
+          metadata.reminderTime != metadata.dueDate &&
+          taskId.isNotEmpty) {
         try {
           // Get the created task to update its reminder
           final db = ref.read(appDbProvider);
@@ -156,9 +158,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(metadata.hasReminder 
-              ? 'Task created with reminder' 
-              : 'Task created successfully'),
+            content: Text(metadata.hasReminder
+                ? 'Task created with reminder'
+                : 'Task created successfully'),
             action: SnackBarAction(
               label: 'View',
               onPressed: () {
@@ -473,8 +475,7 @@ class _TaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final taskService = ref.watch(taskServiceProvider);
-    final isOverdue =
-        task.dueDate != null &&
+    final isOverdue = task.dueDate != null &&
         task.dueDate!.isBefore(DateTime.now()) &&
         task.status != TaskStatus.completed;
 
@@ -767,8 +768,8 @@ class _TasksByDateView extends ConsumerWidget {
                   child: Text(
                     dateGroup,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
                 ...tasks.map((task) => _TaskCard(task: task)),
@@ -942,13 +943,11 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                   );
 
                   final tasks = tasksByDate[date] ?? [];
-                  final isSelected =
-                      _selectedDate != null &&
+                  final isSelected = _selectedDate != null &&
                       date.year == _selectedDate!.year &&
                       date.month == _selectedDate!.month &&
                       date.day == _selectedDate!.day;
-                  final isToday =
-                      date.year == DateTime.now().year &&
+                  final isToday = date.year == DateTime.now().year &&
                       date.month == DateTime.now().month &&
                       date.day == DateTime.now().day;
 
@@ -963,8 +962,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                         color: isSelected
                             ? theme.primaryColor.withValues(alpha: 0.2)
                             : isToday
-                            ? theme.primaryColor.withValues(alpha: 0.1)
-                            : null,
+                                ? theme.primaryColor.withValues(alpha: 0.1)
+                                : null,
                         border: Border.all(
                           color: isSelected
                               ? theme.primaryColor
@@ -995,13 +994,11 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color:
-                                          tasks.any(
-                                            (t) =>
-                                                t.priority ==
-                                                    TaskPriority.urgent ||
-                                                t.priority == TaskPriority.high,
-                                          )
+                                      color: tasks.any(
+                                        (t) =>
+                                            t.priority == TaskPriority.urgent ||
+                                            t.priority == TaskPriority.high,
+                                      )
                                           ? Colors.red
                                           : theme.primaryColor,
                                       shape: BoxShape.circle,

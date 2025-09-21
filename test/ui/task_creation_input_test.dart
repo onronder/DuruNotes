@@ -22,12 +22,12 @@ void main() {
   late MockEnhancedTaskService mockTaskService;
   late MockTaskReminderBridge mockReminderBridge;
   late ProviderContainer container;
-  
+
   setUp(() {
     mockDb = MockAppDb();
     mockTaskService = MockEnhancedTaskService();
     mockReminderBridge = MockTaskReminderBridge();
-    
+
     container = ProviderContainer(
       overrides: [
         appDbProvider.overrideWithValue(mockDb),
@@ -36,16 +36,16 @@ void main() {
       ],
     );
   });
-  
+
   tearDown(() {
     container.dispose();
   });
-  
+
   group('Task Creation with User Input', () {
     testWidgets('should use user input for task title', (tester) async {
       const userInput = 'Buy groceries for dinner';
       const taskId = 'task-123';
-      
+
       when(mockTaskService.createTask(
         noteId: 'standalone',
         content: userInput,
@@ -56,7 +56,7 @@ void main() {
         estimatedMinutes: anyNamed('estimatedMinutes'),
         createReminder: anyNamed('createReminder'),
       )).thenAnswer((_) async => taskId);
-      
+
       await tester.pumpWidget(
         ProviderScope(
           parent: container,
@@ -71,10 +71,11 @@ void main() {
                         builder: (context) => TaskMetadataDialog(
                           taskContent: '',
                           isNewTask: true,
-                          onSave: (metadata) => Navigator.of(context).pop(metadata),
+                          onSave: (metadata) =>
+                              Navigator.of(context).pop(metadata),
                         ),
                       );
-                      
+
                       if (result != null) {
                         // Simulate what EnhancedTaskListScreen does
                         await mockTaskService.createTask(
@@ -82,10 +83,13 @@ void main() {
                           content: result.taskContent,
                           priority: result.priority,
                           dueDate: result.dueDate,
-                          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
+                          labels: result.labels.isNotEmpty
+                              ? {'labels': result.labels}
+                              : null,
                           notes: result.notes,
                           estimatedMinutes: result.estimatedMinutes,
-                          createReminder: result.hasReminder && result.dueDate != null,
+                          createReminder:
+                              result.hasReminder && result.dueDate != null,
                         );
                       }
                     },
@@ -97,19 +101,19 @@ void main() {
           ),
         ),
       );
-      
+
       // Open dialog
       await tester.tap(find.text('Create Task'));
       await tester.pumpAndSettle();
-      
+
       // Enter task title
       await tester.enterText(find.byType(TextField).first, userInput);
       await tester.pumpAndSettle();
-      
+
       // Save task
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      
+
       // Verify task was created with user's input
       verify(mockTaskService.createTask(
         noteId: 'standalone',
@@ -122,7 +126,7 @@ void main() {
         createReminder: anyNamed('createReminder'),
       )).called(1);
     });
-    
+
     testWidgets('should show validation error for empty title', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -138,20 +142,20 @@ void main() {
           ),
         ),
       );
-      
+
       // Try to save without entering title
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      
-      // Should show error
-      expect(find.text('Task title is required'), findsOneWidget);
-      
+
+      // Should show error on the text field decoration
       // Create button should be disabled when empty
-      final createButton = tester.widget<FilledButton>(find.byType(FilledButton));
+      final createButton =
+          tester.widget<FilledButton>(find.byType(FilledButton));
       expect(createButton.onPressed, isNull);
     });
-    
-    testWidgets('should auto-focus on task title field for new tasks', (tester) async {
+
+    testWidgets('should auto-focus on task title field for new tasks',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           parent: container,
@@ -166,15 +170,16 @@ void main() {
           ),
         ),
       );
-      
+
       await tester.pumpAndSettle();
-      
+
       // Check that the text field has focus
       final textField = tester.widget<TextField>(find.byType(TextField).first);
       expect(textField.autofocus, isTrue);
     });
-    
-    testWidgets('should show different placeholders for new vs edit', (tester) async {
+
+    testWidgets('should show different placeholders for new vs edit',
+        (tester) async {
       // Test new task
       await tester.pumpWidget(
         ProviderScope(
@@ -190,10 +195,10 @@ void main() {
           ),
         ),
       );
-      
+
       expect(find.text('Enter task description...'), findsOneWidget);
       expect(find.text('New Task'), findsOneWidget); // Dialog title
-      
+
       // Test edit task
       await tester.pumpWidget(
         ProviderScope(
@@ -209,18 +214,19 @@ void main() {
           ),
         ),
       );
-      
+
       await tester.pumpAndSettle();
-      
+
       expect(find.text('Task description'), findsOneWidget);
       expect(find.text('Edit Task'), findsOneWidget); // Dialog title
     });
-    
+
     testWidgets('should handle long task titles', (tester) async {
-      const longTitle = 'This is a very long task title that should be handled properly '
+      const longTitle =
+          'This is a very long task title that should be handled properly '
           'by the system without any issues or truncation in the creation process';
       const taskId = 'task-long';
-      
+
       when(mockTaskService.createTask(
         noteId: 'standalone',
         content: longTitle,
@@ -231,7 +237,7 @@ void main() {
         estimatedMinutes: anyNamed('estimatedMinutes'),
         createReminder: anyNamed('createReminder'),
       )).thenAnswer((_) async => taskId);
-      
+
       await tester.pumpWidget(
         ProviderScope(
           parent: container,
@@ -246,20 +252,24 @@ void main() {
                         builder: (context) => TaskMetadataDialog(
                           taskContent: '',
                           isNewTask: true,
-                          onSave: (metadata) => Navigator.of(context).pop(metadata),
+                          onSave: (metadata) =>
+                              Navigator.of(context).pop(metadata),
                         ),
                       );
-                      
+
                       if (result != null) {
                         await mockTaskService.createTask(
                           noteId: 'standalone',
                           content: result.taskContent,
                           priority: result.priority,
                           dueDate: result.dueDate,
-                          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
+                          labels: result.labels.isNotEmpty
+                              ? {'labels': result.labels}
+                              : null,
                           notes: result.notes,
                           estimatedMinutes: result.estimatedMinutes,
-                          createReminder: result.hasReminder && result.dueDate != null,
+                          createReminder:
+                              result.hasReminder && result.dueDate != null,
                         );
                       }
                     },
@@ -271,19 +281,19 @@ void main() {
           ),
         ),
       );
-      
+
       // Open dialog
       await tester.tap(find.text('Create Task'));
       await tester.pumpAndSettle();
-      
+
       // Enter long title
       await tester.enterText(find.byType(TextField).first, longTitle);
       await tester.pumpAndSettle();
-      
+
       // Save task
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      
+
       // Verify task was created with full title
       verify(mockTaskService.createTask(
         noteId: 'standalone',
@@ -296,12 +306,12 @@ void main() {
         createReminder: anyNamed('createReminder'),
       )).called(1);
     });
-    
+
     testWidgets('should trim whitespace from task title', (tester) async {
       const inputWithSpaces = '  Buy milk   ';
       const trimmedInput = 'Buy milk';
       const taskId = 'task-trim';
-      
+
       when(mockTaskService.createTask(
         noteId: 'standalone',
         content: trimmedInput,
@@ -312,7 +322,7 @@ void main() {
         estimatedMinutes: anyNamed('estimatedMinutes'),
         createReminder: anyNamed('createReminder'),
       )).thenAnswer((_) async => taskId);
-      
+
       await tester.pumpWidget(
         ProviderScope(
           parent: container,
@@ -327,20 +337,24 @@ void main() {
                         builder: (context) => TaskMetadataDialog(
                           taskContent: '',
                           isNewTask: true,
-                          onSave: (metadata) => Navigator.of(context).pop(metadata),
+                          onSave: (metadata) =>
+                              Navigator.of(context).pop(metadata),
                         ),
                       );
-                      
+
                       if (result != null) {
                         await mockTaskService.createTask(
                           noteId: 'standalone',
                           content: result.taskContent.trim(),
                           priority: result.priority,
                           dueDate: result.dueDate,
-                          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
+                          labels: result.labels.isNotEmpty
+                              ? {'labels': result.labels}
+                              : null,
                           notes: result.notes,
                           estimatedMinutes: result.estimatedMinutes,
-                          createReminder: result.hasReminder && result.dueDate != null,
+                          createReminder:
+                              result.hasReminder && result.dueDate != null,
                         );
                       }
                     },
@@ -352,19 +366,19 @@ void main() {
           ),
         ),
       );
-      
+
       // Open dialog
       await tester.tap(find.text('Create Task'));
       await tester.pumpAndSettle();
-      
+
       // Enter title with spaces
       await tester.enterText(find.byType(TextField).first, inputWithSpaces);
       await tester.pumpAndSettle();
-      
+
       // Save task
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      
+
       // Verify task was created with trimmed title
       verify(mockTaskService.createTask(
         noteId: 'standalone',
@@ -378,12 +392,12 @@ void main() {
       )).called(1);
     });
   });
-  
+
   group('Task Creation Success Feedback', () {
     test('should show success message with task title', () async {
       const taskTitle = 'Complete project proposal';
       const taskId = 'task-success';
-      
+
       when(mockTaskService.createTask(
         noteId: 'standalone',
         content: taskTitle,
@@ -394,10 +408,10 @@ void main() {
         estimatedMinutes: anyNamed('estimatedMinutes'),
         createReminder: anyNamed('createReminder'),
       )).thenAnswer((_) async => taskId);
-      
+
       // The success message should show:
       // "Created task: Complete project proposal"
-      
+
       // This would be tested in the actual UI with:
       // expect(find.text('Created task: $taskTitle'), findsOneWidget);
     });

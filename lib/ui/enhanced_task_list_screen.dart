@@ -18,7 +18,8 @@ class EnhancedTaskListScreen extends ConsumerStatefulWidget {
   const EnhancedTaskListScreen({super.key});
 
   @override
-  ConsumerState<EnhancedTaskListScreen> createState() => _EnhancedTaskListScreenState();
+  ConsumerState<EnhancedTaskListScreen> createState() =>
+      _EnhancedTaskListScreenState();
 }
 
 class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
@@ -125,10 +126,10 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
-      
+
       // USE USER'S INPUT instead of hardcoded "New Task"
       final taskContent = metadata.taskContent.trim();
-      
+
       // Validate content
       if (taskContent.isEmpty) {
         if (mounted) {
@@ -141,7 +142,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         }
         return;
       }
-      
+
       // Create task with user's content
       final taskId = await taskService.createTask(
         noteId: 'standalone', // Special identifier for standalone tasks
@@ -153,19 +154,19 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         estimatedMinutes: metadata.estimatedMinutes,
         createReminder: metadata.hasReminder && metadata.dueDate != null,
       );
-      
+
       // Handle custom reminder time if specified
-      if (metadata.hasReminder && 
-          metadata.reminderTime != null && 
+      if (metadata.hasReminder &&
+          metadata.reminderTime != null &&
           metadata.dueDate != null &&
           metadata.reminderTime != metadata.dueDate) {
         final task = await ref.read(appDbProvider).getTaskById(taskId);
         if (task != null) {
           final duration = metadata.dueDate!.difference(metadata.reminderTime!);
           await ref.read(taskReminderBridgeProvider).createTaskReminder(
-            task: task,
-            beforeDueDate: duration.abs(),
-          );
+                task: task,
+                beforeDueDate: duration.abs(),
+              );
         }
       }
 
@@ -243,23 +244,25 @@ class EnhancedTaskListView extends ConsumerWidget {
         if (tasks.isEmpty) {
           return EmptyTaskGroup(
             title: 'No tasks found',
-            message: showCompleted 
-              ? 'All tasks completed! 🎉'
-              : 'Create a new task or show completed tasks',
+            message: showCompleted
+                ? 'All tasks completed! 🎉'
+                : 'Create a new task or show completed tasks',
             action: null, // Remove duplicate button, using FAB instead
           );
         }
 
         return viewMode == TaskViewMode.grouped
-          ? _buildGroupedView(context, ref, tasks)
-          : _buildListView(context, ref, tasks);
+            ? _buildGroupedView(context, ref, tasks)
+            : _buildListView(context, ref, tasks);
       },
     );
   }
 
-  Widget _buildGroupedView(BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
+  Widget _buildGroupedView(
+      BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
     final groupedTasks = _groupTasksByDueDate(tasks);
-    final groups = groupedTasks.entries.where((entry) => entry.value.isNotEmpty).toList();
+    final groups =
+        groupedTasks.entries.where((entry) => entry.value.isNotEmpty).toList();
 
     if (groups.isEmpty) {
       return const EmptyTaskGroup(
@@ -281,25 +284,21 @@ class EnhancedTaskListView extends ConsumerWidget {
             title: groupTitle,
             taskCount: groupTasks.length,
           ),
-          children: groupTasks.map((task) => 
-            TaskItemWidget(
-              task: task,
-              onToggle: () => _toggleTask(ref, task),
-              onEdit: () => _editTask(context, ref, task),
-              onDelete: () => _deleteTask(ref, task),
-              onOpenNote: task.noteId != 'standalone' 
-                ? () => _openSourceNote(context, ref, task)
-                : null,
-              onSnooze: () => _snoozeTask(context, ref, task),
-              showSourceNote: task.noteId != 'standalone',
-            ),
-          ).toList(),
+          children: groupTasks
+              .map<Widget>(
+                (task) => TaskItemWidget(
+                  task: task,
+                  showSourceNote: task.noteId != 'standalone',
+                ),
+              )
+              .toList(),
         );
       },
     );
   }
 
-  Widget _buildListView(BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
+  Widget _buildListView(
+      BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
     // Sort tasks by due date and priority
     final sortedTasks = _sortTasks(tasks);
 
@@ -310,13 +309,6 @@ class EnhancedTaskListView extends ConsumerWidget {
         final task = sortedTasks[index];
         return TaskItemWidget(
           task: task,
-          onToggle: () => _toggleTask(ref, task),
-          onEdit: () => _editTask(context, ref, task),
-          onDelete: () => _deleteTask(ref, task),
-          onOpenNote: task.noteId != 'standalone' 
-            ? () => _openSourceNote(context, ref, task)
-            : null,
-          onSnooze: () => _snoozeTask(context, ref, task),
           showSourceNote: task.noteId != 'standalone',
         );
       },
@@ -360,7 +352,7 @@ class EnhancedTaskListView extends ConsumerWidget {
         // First by priority (urgent first)
         final priorityCompare = b.priority.index.compareTo(a.priority.index);
         if (priorityCompare != 0) return priorityCompare;
-        
+
         // Then by due date
         if (a.dueDate != null && b.dueDate != null) {
           return a.dueDate!.compareTo(b.dueDate!);
@@ -369,7 +361,7 @@ class EnhancedTaskListView extends ConsumerWidget {
         } else if (b.dueDate != null) {
           return 1;
         }
-        
+
         // Finally by creation date
         return b.createdAt.compareTo(a.createdAt);
       });
@@ -384,7 +376,7 @@ class EnhancedTaskListView extends ConsumerWidget {
       // First by completion status (incomplete first)
       final statusCompare = a.status.index.compareTo(b.status.index);
       if (statusCompare != 0) return statusCompare;
-      
+
       // Then by due date (overdue and sooner first)
       if (a.dueDate != null && b.dueDate != null) {
         return a.dueDate!.compareTo(b.dueDate!);
@@ -393,22 +385,22 @@ class EnhancedTaskListView extends ConsumerWidget {
       } else if (b.dueDate != null) {
         return 1;
       }
-      
+
       // Then by priority (urgent first)
       final priorityCompare = b.priority.index.compareTo(a.priority.index);
       if (priorityCompare != 0) return priorityCompare;
-      
+
       // Finally by creation date (newest first)
       return b.createdAt.compareTo(a.createdAt);
     });
-    
+
     return sortedTasks;
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
-           date1.month == date2.month &&
-           date1.day == date2.day;
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   Future<void> _toggleTask(WidgetRef ref, NoteTask task) async {
@@ -420,7 +412,8 @@ class EnhancedTaskListView extends ConsumerWidget {
     }
   }
 
-  Future<void> _editTask(BuildContext context, WidgetRef ref, NoteTask task) async {
+  Future<void> _editTask(
+      BuildContext context, WidgetRef ref, NoteTask task) async {
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
@@ -435,7 +428,8 @@ class EnhancedTaskListView extends ConsumerWidget {
     }
   }
 
-  Future<void> _updateTask(WidgetRef ref, NoteTask task, TaskMetadata metadata) async {
+  Future<void> _updateTask(
+      WidgetRef ref, NoteTask task, TaskMetadata metadata) async {
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
       await taskService.updateTask(
@@ -460,13 +454,14 @@ class EnhancedTaskListView extends ConsumerWidget {
     }
   }
 
-  Future<void> _openSourceNote(BuildContext context, WidgetRef ref, NoteTask task) async {
+  Future<void> _openSourceNote(
+      BuildContext context, WidgetRef ref, NoteTask task) async {
     if (task.noteId == 'standalone') return;
-    
+
     try {
       final notesRepo = ref.read(notesRepositoryProvider);
       final note = await notesRepo.getNote(task.noteId);
-      
+
       if (note != null && context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -488,7 +483,8 @@ class EnhancedTaskListView extends ConsumerWidget {
     }
   }
 
-  Future<void> _snoozeTask(BuildContext context, WidgetRef ref, NoteTask task) async {
+  Future<void> _snoozeTask(
+      BuildContext context, WidgetRef ref, NoteTask task) async {
     final newDueDate = await showDatePicker(
       context: context,
       initialDate: task.dueDate ?? DateTime.now().add(const Duration(days: 1)),
@@ -519,7 +515,7 @@ class EnhancedTaskListView extends ConsumerWidget {
             taskId: task.id,
             dueDate: snoozeDateTime,
           );
-          
+
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -596,7 +592,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     final now = DateTime.now();
     _currentMonth = DateTime(now.year, now.month, 1);
     _selectedDate = DateTime(now.year, now.month, now.day);
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -621,11 +617,11 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   Future<void> _loadTasksForMonth() async {
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
-      
+
       // Get all tasks for the current month
       final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
       final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
-      
+
       final tasks = await taskService.getTasksByDateRange(
         start: firstDay,
         end: lastDay.add(const Duration(days: 1)),
@@ -681,12 +677,12 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   void _goToToday() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     setState(() {
       _currentMonth = DateTime(now.year, now.month, 1);
       _selectedDate = today;
     });
-    
+
     _loadTasksForMonth();
   }
 
@@ -774,11 +770,11 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _openSourceNote(NoteTask task) async {
     if (task.noteId == 'standalone') return;
-    
+
     try {
       final notesRepo = ref.read(notesRepositoryProvider);
       final note = await notesRepo.getNote(task.noteId);
-      
+
       if (note != null && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -830,7 +826,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              color:
+                  Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
               border: Border(
                 top: BorderSide(
                   color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
@@ -846,19 +843,23 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   Widget _buildQuickStats() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Calculate stats for current month
     final allTasks = _tasksByDate.values.expand((tasks) => tasks).toList();
     final totalTasks = allTasks.length;
-    final completedTasks = allTasks.where((t) => t.status == TaskStatus.completed).length;
-    final overdueTasks = allTasks.where((t) => 
-      t.dueDate != null && 
-      t.dueDate!.isBefore(DateTime.now()) && 
-      t.status != TaskStatus.completed
-    ).length;
-    final highPriorityTasks = allTasks.where((t) => 
-      t.priority == TaskPriority.high || t.priority == TaskPriority.urgent
-    ).length;
+    final completedTasks =
+        allTasks.where((t) => t.status == TaskStatus.completed).length;
+    final overdueTasks = allTasks
+        .where((t) =>
+            t.dueDate != null &&
+            t.dueDate!.isBefore(DateTime.now()) &&
+            t.status != TaskStatus.completed)
+        .length;
+    final highPriorityTasks = allTasks
+        .where((t) =>
+            t.priority == TaskPriority.high ||
+            t.priority == TaskPriority.urgent)
+        .length;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -900,7 +901,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     required Color color,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

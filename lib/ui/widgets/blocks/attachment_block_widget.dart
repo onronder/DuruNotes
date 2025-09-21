@@ -90,10 +90,10 @@ class AttachmentBlockWidget extends StatelessWidget {
                   Text(
                     _getFileTypeAndSize(_attachmentData['filename']!),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
                   ),
               ],
             ),
@@ -152,11 +152,11 @@ class AttachmentBlockWidget extends StatelessWidget {
               Text(
                 _getFileExtension(_attachmentData['filename']!).toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ],
           ),

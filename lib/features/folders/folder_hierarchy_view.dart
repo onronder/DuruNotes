@@ -199,9 +199,8 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     );
 
     if (confirmed ?? false && mounted) {
-      final success = await ref
-          .read(folderProvider.notifier)
-          .deleteFolder(folder.id);
+      final success =
+          await ref.read(folderProvider.notifier).deleteFolder(folder.id);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
       } else {
@@ -291,8 +290,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                         );
                       },
                     ),
-                    tooltip:
-                        ref
+                    tooltip: ref
                             .watch(folderHierarchyProvider)
                             .expandedFolders
                             .isNotEmpty
@@ -367,9 +365,8 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                 if (filteredNodes.isEmpty) {
                   return _EmptyState(
                     searchQuery: _searchQuery,
-                    onCreateFolder: widget.showActions
-                        ? _showCreateFolderDialog
-                        : null,
+                    onCreateFolder:
+                        widget.showActions ? _showCreateFolderDialog : null,
                   );
                 }
 
@@ -390,7 +387,8 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                               padding: widget.padding.copyWith(top: 0),
                               itemCount: filteredNodes.length,
                               itemBuilder: (context, index) {
-                                return _buildFolderTreeItem(filteredNodes[index]);
+                                return _buildFolderTreeItem(
+                                    filteredNodes[index]);
                               },
                             ),
                           )
@@ -439,9 +437,8 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
 
   Future<void> _moveToRoot(String folderId) async {
     if (folderId == _draggedFolderId) {
-      final success = await ref
-          .read(folderProvider.notifier)
-          .moveFolder(folderId, null);
+      final success =
+          await ref.read(folderProvider.notifier).moveFolder(folderId, null);
       if (success) {
         ref.read(folderHierarchyProvider.notifier).refresh();
       }
@@ -580,8 +577,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color:
-                                FolderIconHelpers.getFolderColor(
+                            color: FolderIconHelpers.getFolderColor(
                                   folder.color,
                                 ) ??
                                 colorScheme.primaryContainer,
@@ -589,8 +585,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
                           ),
                           child: Icon(
                             FolderIconHelpers.getFolderIcon(folder.icon),
-                            color:
-                                FolderIconHelpers.getFolderColor(
+                            color: FolderIconHelpers.getFolderColor(
                                       folder.color,
                                     ) !=
                                     null
@@ -647,8 +642,8 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
         color: widget.isSelected
             ? colorScheme.primaryContainer.withValues(alpha: 0.5)
             : _isDragOver
-            ? colorScheme.surfaceContainerHighest
-            : null,
+                ? colorScheme.surfaceContainerHighest
+                : null,
         borderRadius: BorderRadius.circular(12),
         border: _isDragOver
             ? Border.all(color: colorScheme.primary, width: 2)
@@ -689,8 +684,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color:
-                    FolderIconHelpers.getFolderColor(folder.color) ??
+                color: FolderIconHelpers.getFolderColor(folder.color) ??
                     colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -782,8 +776,7 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color:
-                      FolderIconHelpers.getFolderColor(folder.color) ??
+                  color: FolderIconHelpers.getFolderColor(folder.color) ??
                       colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -930,7 +923,6 @@ class _EmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-
             if (onCreateFolder != null && searchQuery.isEmpty) ...[
               const SizedBox(height: 24),
               FilledButton.icon(

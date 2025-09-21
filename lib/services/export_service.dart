@@ -5,6 +5,7 @@ import 'package:duru_notes/core/parser/note_block_parser.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
@@ -155,8 +156,8 @@ class ExportService {
     AppLogger? logger,
     AnalyticsService? analytics,
     // AttachmentService? attachmentService,  // Reserved for future attachment export
-  }) : _logger = logger ?? LoggerFactory.instance,
-       _analytics = analytics ?? AnalyticsFactory.instance;
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _analytics = analytics ?? AnalyticsFactory.instance;
   final AppLogger _logger;
   final AnalyticsService _analytics;
   // final AttachmentService _attachmentService;  // Reserved for future attachment export
@@ -911,9 +912,8 @@ class ExportService {
                 style: pw.TextStyle(
                   font: fontRegular,
                   fontSize: _defaultFontSize,
-                  decoration: isCompleted
-                      ? pw.TextDecoration.lineThrough
-                      : null,
+                  decoration:
+                      isCompleted ? pw.TextDecoration.lineThrough : null,
                 ),
               ),
             ),

@@ -11,7 +11,7 @@ class ChartTheme {
   final Color tooltipText;
   final TextStyle? titleStyle;
   final TextStyle? labelStyle;
-  
+
   const ChartTheme({
     required this.gridColor,
     required this.borderColor,
@@ -22,12 +22,12 @@ class ChartTheme {
     this.titleStyle,
     this.labelStyle,
   });
-  
+
   factory ChartTheme.fromContext(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return ChartTheme(
       gridColor: colorScheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.5),
       borderColor: colorScheme.outline.withOpacity(0.3),
@@ -60,7 +60,7 @@ class ChartConfig {
   final double lineWidth;
   final bool isCurved;
   final double curveSmoothness;
-  
+
   const ChartConfig({
     this.showGrid = true,
     this.drawVerticalLines = true,
@@ -80,9 +80,9 @@ class ChartConfig {
     this.isCurved = true,
     this.curveSmoothness = 0.35,
   });
-  
+
   static const ChartConfig defaults = ChartConfig();
-  
+
   factory ChartConfig.minimal() {
     return const ChartConfig(
       showGrid: false,
@@ -90,7 +90,7 @@ class ChartConfig {
       showTooltips: false,
     );
   }
-  
+
   factory ChartConfig.detailed() {
     return const ChartConfig(
       showGrid: true,
@@ -125,7 +125,7 @@ class ChartBuilders {
       lineTouchData: _buildLineTouchData(theme, config),
     );
   }
-  
+
   /// Build a bar chart with the given data
   static BarChartData buildBarChart({
     required List<BarChartGroupData> barGroups,
@@ -144,7 +144,7 @@ class ChartBuilders {
       barTouchData: _buildBarTouchData(theme, config),
     );
   }
-  
+
   /// Build a pie chart with the given data
   static PieChartData buildPieChart({
     required List<PieChartSectionData> sections,
@@ -162,7 +162,7 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   /// Create bar groups for a simple bar chart
   static List<BarChartGroupData> createBarGroups({
     required List<double> values,
@@ -184,7 +184,7 @@ class ChartBuilders {
       );
     }).toList();
   }
-  
+
   /// Create pie chart sections
   static List<PieChartSectionData> createPieSections({
     required List<double> values,
@@ -195,28 +195,29 @@ class ChartBuilders {
     TextStyle? titleStyle,
   }) {
     assert(values.length == labels.length && values.length == colors.length);
-    
+
     final total = values.reduce((a, b) => a + b);
-    
+
     return List.generate(values.length, (index) {
       final percentage = (values[index] / total * 100).toStringAsFixed(1);
-      
+
       return PieChartSectionData(
         value: values[index],
         title: showTitle ? '$percentage%' : '',
         color: colors[index],
         radius: radius,
-        titleStyle: titleStyle ?? const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        titleStyle: titleStyle ??
+            const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
       );
     });
   }
-  
+
   // Private helper methods
-  
+
   static FlGridData _buildGridData(ChartTheme theme, ChartConfig config) {
     return FlGridData(
       show: config.showGrid,
@@ -234,7 +235,7 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   static FlTitlesData _buildTitlesData(
     ChartTheme theme,
     ChartConfig config,
@@ -278,9 +279,9 @@ class ChartBuilders {
                   return const SizedBox.shrink();
                 }
               : (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: theme.labelStyle,
-                ),
+                    value.toInt().toString(),
+                    style: theme.labelStyle,
+                  ),
         ),
       ),
       topTitles: const AxisTitles(
@@ -291,7 +292,7 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   static FlBorderData _buildBorderData(ChartTheme theme, ChartConfig config) {
     return FlBorderData(
       show: true,
@@ -301,7 +302,7 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   static LineChartBarData _buildLineBarData(
     List<FlSpot> spots,
     ChartTheme theme,
@@ -331,12 +332,13 @@ class ChartBuilders {
       ),
     );
   }
-  
-  static LineTouchData _buildLineTouchData(ChartTheme theme, ChartConfig config) {
+
+  static LineTouchData _buildLineTouchData(
+      ChartTheme theme, ChartConfig config) {
     if (!config.showTooltips) {
       return const LineTouchData(enabled: false);
     }
-    
+
     return LineTouchData(
       enabled: true,
       touchTooltipData: LineTouchTooltipData(
@@ -354,12 +356,12 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   static BarTouchData _buildBarTouchData(ChartTheme theme, ChartConfig config) {
     if (!config.showTooltips) {
       return BarTouchData(enabled: false);
     }
-    
+
     return BarTouchData(
       enabled: true,
       touchTooltipData: BarTouchTooltipData(
@@ -375,22 +377,22 @@ class ChartBuilders {
       ),
     );
   }
-  
+
   static double _calculateMinY(List<FlSpot> spots) {
     if (spots.isEmpty) return 0;
     return spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
   }
-  
+
   static double _calculateMaxY(List<FlSpot> spots) {
     if (spots.isEmpty) return 10;
     return spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
   }
-  
+
   static double _calculateMinX(List<FlSpot> spots) {
     if (spots.isEmpty) return 0;
     return spots.map((s) => s.x).reduce((a, b) => a < b ? a : b);
   }
-  
+
   static double _calculateMaxX(List<FlSpot> spots) {
     if (spots.isEmpty) return 10;
     return spots.map((s) => s.x).reduce((a, b) => a > b ? a : b);

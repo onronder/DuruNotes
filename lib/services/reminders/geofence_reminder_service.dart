@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geofence_service/geofence_service.dart';
 import 'package:geolocator/geolocator.dart' as geo;
@@ -62,8 +63,7 @@ class GeofenceReminderService {
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(locationChannel);
   }
 
@@ -110,8 +110,7 @@ class GeofenceReminderService {
         return false;
       }
 
-      final granted =
-          permission == geo.LocationPermission.whileInUse ||
+      final granted = permission == geo.LocationPermission.whileInUse ||
           permission == geo.LocationPermission.always;
 
       analytics.event(
@@ -289,8 +288,7 @@ class GeofenceReminderService {
 
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
-      final body =
-          reminder.notificationBody ??
+      final body = reminder.notificationBody ??
           "You're near $locationText - ${reminder.title}";
 
       await _plugin.show(

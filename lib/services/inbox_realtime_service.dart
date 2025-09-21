@@ -13,7 +13,7 @@ class InboxRealtimeService extends ChangeNotifier {
   // Exponential backoff
 
   InboxRealtimeService({required SupabaseClient supabase})
-    : _supabase = supabase;
+      : _supabase = supabase;
   final SupabaseClient _supabase;
   final AppLogger _logger = LoggerFactory.instance;
   RealtimeChannel? _channel;

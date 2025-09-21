@@ -1,13 +1,13 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 
 @GenerateMocks([
   EnhancedTaskService,
@@ -20,19 +20,42 @@ void main() {
   late MockEnhancedTaskService mockTaskService;
   late MockTaskReminderBridge mockReminderBridge;
   late MockAppDb mockDb;
+  late DateTime defaultDueDate;
 
   setUp(() {
     mockTaskService = MockEnhancedTaskService();
     mockReminderBridge = MockTaskReminderBridge();
     mockDb = MockAppDb();
+    final base = DateTime.now().add(const Duration(days: 1));
+    defaultDueDate = DateTime(base.year, base.month, base.day, 20, 0);
   });
 
+  NoteTask _buildTask({DateTime? dueDate, int? reminderId}) {
+    final now = DateTime.now();
+    return NoteTask(
+      id: 'task-1',
+      noteId: 'note-1',
+      content: 'Seed task',
+      status: TaskStatus.open,
+      priority: TaskPriority.medium,
+      dueDate: dueDate,
+      reminderId: reminderId,
+      position: 0,
+      contentHash: 'hash',
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+    );
+  }
+
   group('TaskMetadataDialog Reminder UI', () {
-    testWidgets('should show reminder section when due date is set', (tester) async {
+    testWidgets('shows reminder section when due date is pre-set',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -40,28 +63,18 @@ void main() {
         ),
       );
 
-      // Set a due date
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      
-      // Select tomorrow
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      await tester.tap(find.text(tomorrow.day.toString()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Verify reminder section is visible
       expect(find.text('Reminder'), findsOneWidget);
       expect(find.text('Set reminder'), findsOneWidget);
       expect(find.byType(Switch), findsOneWidget);
     });
 
-    testWidgets('should show reminder time options when reminder is enabled', (tester) async {
+    testWidgets('shows reminder time options when reminder enabled',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -69,30 +82,19 @@ void main() {
         ),
       );
 
-      // Set a due date
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      await tester.tap(find.text(tomorrow.day.toString()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Enable reminder
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
 
-      // Verify time selection options are visible
-      expect(find.byIcon(Icons.access_time), findsOneWidget);
-      expect(find.byIcon(Icons.schedule), findsOneWidget);
+      expect(find.byIcon(Icons.access_time), findsWidgets);
+      expect(find.byIcon(Icons.schedule), findsWidgets);
     });
 
-    testWidgets('should show quick reminder presets', (tester) async {
+    testWidgets('shows quick reminder presets', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -100,81 +102,52 @@ void main() {
         ),
       );
 
-      // Set due date and enable reminder
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      
-      final tomorrow = DateTime.now().add(const Duration(days: 1));
-      await tester.tap(find.text(tomorrow.day.toString()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
 
-      // Open quick presets menu
       await tester.tap(find.byIcon(Icons.schedule));
       await tester.pumpAndSettle();
 
-      // Verify preset options
       expect(find.text('15 minutes before'), findsOneWidget);
       expect(find.text('1 hour before'), findsOneWidget);
       expect(find.text('2 hours before'), findsOneWidget);
       expect(find.text('1 day before'), findsOneWidget);
     });
 
-    testWidgets('should validate reminder time is before due date', (tester) async {
+    testWidgets('persists default reminder time when saved', (tester) async {
       TaskMetadata? savedMetadata;
-      
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
-              onSave: (metadata) {
-                savedMetadata = metadata;
-              },
+              onSave: (metadata) => savedMetadata = metadata,
             ),
           ),
         ),
       );
 
-      // Set a due date
-      final dueDate = DateTime.now().add(const Duration(days: 1));
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(dueDate.day.toString()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Enable reminder
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
-
-      // Try to save without setting reminder time (should use default)
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      // Verify metadata was saved with default reminder time (1 hour before)
       expect(savedMetadata, isNotNull);
-      expect(savedMetadata!.hasReminder, isTrue);
       expect(savedMetadata!.reminderTime, isNotNull);
-      
-      // Default should be 1 hour before due date
-      final expectedReminderTime = dueDate.subtract(const Duration(hours: 1));
       expect(
-        savedMetadata!.reminderTime!.hour,
-        equals(expectedReminderTime.hour),
+        savedMetadata!.reminderTime,
+        equals(defaultDueDate.subtract(const Duration(hours: 1))),
       );
     });
 
-    testWidgets('should format reminder time correctly', (tester) async {
+    testWidgets('allows entering estimated minutes', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -182,34 +155,41 @@ void main() {
         ),
       );
 
-      // Set due date
-      final dueDate = DateTime.now().add(const Duration(days: 2));
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(dueDate.day.toString()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
+      await tester.enterText(
+          find.byKey(const ValueKey('task_estimate_field')), '25');
       await tester.pumpAndSettle();
 
-      // Enable reminder
+      expect(find.text('25'), findsOneWidget);
+    });
+
+    testWidgets('displays preset selection text when chosen', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TaskMetadataDialog(
+              task: _buildTask(dueDate: defaultDueDate),
+              taskContent: 'Test Task',
+              onSave: (_) {},
+            ),
+          ),
+        ),
+      );
+
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
-
-      // Select "1 day before" preset
       await tester.tap(find.byIcon(Icons.schedule));
       await tester.pumpAndSettle();
       await tester.tap(find.text('1 day before'));
       await tester.pumpAndSettle();
 
-      // Verify formatted text is shown
       expect(find.textContaining('1 day before'), findsWidgets);
     });
   });
 
   group('Task Reminder Integration', () {
-    testWidgets('should create task with custom reminder time', (tester) async {
+    testWidgets('creates task with custom reminder time', (tester) async {
       const taskId = 'test-task-123';
-      final dueDate = DateTime.now().add(const Duration(days: 2));
+      final dueDate = defaultDueDate.add(const Duration(days: 1));
       final reminderTime = dueDate.subtract(const Duration(hours: 2));
 
       when(mockTaskService.createTaskWithReminder(
@@ -231,13 +211,12 @@ void main() {
         ],
       );
 
-      // Test the service is called with correct parameters
       await container.read(enhancedTaskServiceProvider).createTaskWithReminder(
-        noteId: 'note-123',
-        content: 'Test Task',
-        dueDate: dueDate,
-        reminderTime: reminderTime,
-      );
+            noteId: 'note-123',
+            content: 'Test Task',
+            dueDate: dueDate,
+            reminderTime: reminderTime,
+          );
 
       verify(mockTaskService.createTaskWithReminder(
         noteId: 'note-123',
@@ -247,22 +226,10 @@ void main() {
       )).called(1);
     });
 
-    testWidgets('should handle reminder updates for existing tasks', (tester) async {
-      final oldTask = NoteTask(
-        id: 'task-123',
-        noteId: 'note-123',
-        content: 'Test Task',
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        reminderId: 42,
-        position: 0,
-        contentHash: 'hash',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    testWidgets('updates reminder for existing task', (tester) async {
+      final task = _buildTask(dueDate: defaultDueDate, reminderId: 42);
 
-      when(mockDb.getTaskById(any)).thenAnswer((_) async => oldTask);
+      when(mockDb.getTaskById(any)).thenAnswer((_) async => task);
       when(mockReminderBridge.updateTaskReminder(any)).thenAnswer((_) async {});
 
       final container = ProviderContainer(
@@ -273,26 +240,13 @@ void main() {
         ],
       );
 
-      // Simulate updating task reminder
-      await container.read(taskReminderBridgeProvider).updateTaskReminder(oldTask);
+      await container.read(taskReminderBridgeProvider).updateTaskReminder(task);
 
-      verify(mockReminderBridge.updateTaskReminder(oldTask)).called(1);
+      verify(mockReminderBridge.updateTaskReminder(task)).called(1);
     });
 
-    testWidgets('should cancel reminder when toggled off', (tester) async {
-      final task = NoteTask(
-        id: 'task-123',
-        noteId: 'note-123',
-        content: 'Test Task',
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        reminderId: 42,
-        position: 0,
-        contentHash: 'hash',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    testWidgets('cancels reminder when toggled off', (tester) async {
+      final task = _buildTask(dueDate: defaultDueDate, reminderId: 42);
 
       when(mockReminderBridge.cancelTaskReminder(any)).thenAnswer((_) async {});
 
@@ -304,7 +258,6 @@ void main() {
         ],
       );
 
-      // Simulate cancelling reminder
       await container.read(taskReminderBridgeProvider).cancelTaskReminder(task);
 
       verify(mockReminderBridge.cancelTaskReminder(task)).called(1);

@@ -112,9 +112,8 @@ class TaskItem extends ConsumerWidget {
                       Text(
                         task.content,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          decoration: isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
+                          decoration:
+                              isCompleted ? TextDecoration.lineThrough : null,
                           color: isCompleted
                               ? colorScheme.onSurface.withValues(alpha: 0.5)
                               : null,
@@ -122,16 +121,14 @@ class TaskItem extends ConsumerWidget {
                       ),
 
                       // Description
-                      if (task.notes != null &&
-                          task.notes!.isNotEmpty) ...[
+                      if (task.notes != null && task.notes!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           task.notes!,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurface.withValues(alpha: 0.7),
-                            decoration: isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
+                            decoration:
+                                isCompleted ? TextDecoration.lineThrough : null,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -192,20 +189,23 @@ class TaskItem extends ConsumerWidget {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: Text(l10n.delete),
-                            content: const Text('Are you sure you want to delete this task?'),
+                            content: const Text(
+                                'Are you sure you want to delete this task?'),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.of(context).pop(false),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
                                 child: const Text('Cancel'),
                               ),
                               FilledButton(
-                                onPressed: () => Navigator.of(context).pop(true),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
                                 child: Text(l10n.delete),
                               ),
                             ],
                           ),
                         );
-                        
+
                         if (confirmed == true) {
                           await unifiedService.onDeleted(task.id);
                         }
@@ -391,4 +391,3 @@ class TaskItem extends ConsumerWidget {
     }
   }
 }
-

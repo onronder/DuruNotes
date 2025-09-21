@@ -11,7 +11,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Global error recovery manager
 class ErrorRecoveryManager {
-  static final ErrorRecoveryManager _instance = ErrorRecoveryManager._internal();
+  static final ErrorRecoveryManager _instance =
+      ErrorRecoveryManager._internal();
   factory ErrorRecoveryManager() => _instance;
   ErrorRecoveryManager._internal();
 
@@ -29,13 +30,16 @@ class ErrorRecoveryManager {
   /// Attempt to recover from an error
   Future<bool> attemptRecovery(Object error, StackTrace? stackTrace) async {
     final errorKey = error.runtimeType.toString();
-    
+
     // Track error frequency
     _trackError(errorKey);
-    
+
     // Check if error is happening too frequently
     if (_isErrorTooFrequent(errorKey)) {
-      _logger.error('Error occurring too frequently, skipping recovery', error: error);
+      _logger.error(
+        'Error occurring too frequently, skipping recovery',
+        error: error,
+      );
       return false;
     }
 
@@ -51,11 +55,15 @@ class ErrorRecoveryManager {
             return true;
           }
         } catch (e, stack) {
-          _logger.error('Recovery strategy failed', error: e, stackTrace: stack);
+          _logger.error(
+            'Recovery strategy failed',
+            error: e,
+            stackTrace: stack,
+          );
         }
       }
     }
-    
+
     return false;
   }
 
@@ -67,12 +75,12 @@ class ErrorRecoveryManager {
   bool _isErrorTooFrequent(String errorKey) {
     final count = _errorCounts[errorKey] ?? 0;
     final lastTime = _errorTimestamps[errorKey];
-    
+
     if (count > 5 && lastTime != null) {
       final timeSinceFirst = DateTime.now().difference(lastTime);
       return timeSinceFirst.inSeconds < 60; // More than 5 errors in 60 seconds
     }
-    
+
     return false;
   }
 
@@ -86,7 +94,7 @@ class ErrorRecoveryManager {
 abstract class ErrorRecoveryStrategy {
   String get name;
   int get priority; // Higher priority strategies are tried first
-  
+
   bool canHandle(Object error);
   Future<bool> recover(Object error, StackTrace? stackTrace);
 }
@@ -95,23 +103,23 @@ abstract class ErrorRecoveryStrategy {
 class NetworkErrorRecovery extends ErrorRecoveryStrategy {
   @override
   String get name => 'NetworkErrorRecovery';
-  
+
   @override
   int get priority => 100;
-  
+
   @override
   bool canHandle(Object error) {
     return error is SocketException ||
-           error is HttpException ||
-           error.toString().contains('NetworkException') ||
-           error.toString().contains('Connection refused');
+        error is HttpException ||
+        error.toString().contains('NetworkException') ||
+        error.toString().contains('Connection refused');
   }
-  
+
   @override
   Future<bool> recover(Object error, StackTrace? stackTrace) async {
     // Wait and retry
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // Check connectivity
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -126,22 +134,22 @@ class NetworkErrorRecovery extends ErrorRecoveryStrategy {
 class DatabaseErrorRecovery extends ErrorRecoveryStrategy {
   @override
   String get name => 'DatabaseErrorRecovery';
-  
+
   @override
   int get priority => 90;
-  
+
   @override
   bool canHandle(Object error) {
     return error.toString().contains('SqliteException') ||
-           error.toString().contains('DatabaseException') ||
-           error.toString().contains('database is locked');
+        error.toString().contains('DatabaseException') ||
+        error.toString().contains('database is locked');
   }
-  
+
   @override
   Future<bool> recover(Object error, StackTrace? stackTrace) async {
     // Wait for database to unlock
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     // Could trigger database cleanup or migration here
     return true;
   }
@@ -151,17 +159,17 @@ class DatabaseErrorRecovery extends ErrorRecoveryStrategy {
 class PermissionErrorRecovery extends ErrorRecoveryStrategy {
   @override
   String get name => 'PermissionErrorRecovery';
-  
+
   @override
   int get priority => 80;
-  
+
   @override
   bool canHandle(Object error) {
     return error is PlatformException &&
-           (error.code == 'PERMISSION_DENIED' ||
+        (error.code == 'PERMISSION_DENIED' ||
             error.code == 'PERMISSION_PERMANENTLY_DENIED');
   }
-  
+
   @override
   Future<bool> recover(Object error, StackTrace? stackTrace) async {
     // Could trigger permission request flow here
@@ -197,14 +205,14 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   bool _hasError = false;
   bool _isRecovering = false;
   int _retryCount = 0;
-  
+
   final _logger = LoggerFactory.instance;
   final _recoveryManager = ErrorRecoveryManager();
 
   @override
   void initState() {
     super.initState();
-    
+
     // Register default recovery strategies
     _recoveryManager.registerStrategy(NetworkErrorRecovery());
     _recoveryManager.registerStrategy(DatabaseErrorRecovery());
@@ -213,22 +221,29 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
   void _handleError(Object error, StackTrace? stackTrace) async {
     // Log error
-    _logger.error('Error caught by ErrorBoundary', error: error, stackTrace: stackTrace);
-    
+    _logger.error(
+      'Error caught by ErrorBoundary',
+      error: error,
+      stackTrace: stackTrace,
+    );
+
     // Report to Sentry
     await Sentry.captureException(error, stackTrace: stackTrace);
-    
+
     // Call custom error handler
     widget.onError?.call(error, stackTrace);
-    
+
     // Attempt auto-recovery if enabled
     if (widget.enableAutoRecovery && _retryCount < 3) {
       setState(() {
         _isRecovering = true;
       });
-      
-      final recovered = await _recoveryManager.attemptRecovery(error, stackTrace);
-      
+
+      final recovered = await _recoveryManager.attemptRecovery(
+        error,
+        stackTrace,
+      );
+
       if (recovered) {
         setState(() {
           _hasError = false;
@@ -240,7 +255,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
         return;
       }
     }
-    
+
     // Show error UI
     setState(() {
       _hasError = true;
@@ -267,19 +282,18 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
         withScope: (scope) {
           scope.level = SentryLevel.error;
           scope.setTag('user_reported', 'true');
-          scope.setContext('error_boundary', {
+          scope.setContexts('error_boundary', {
             'retry_count': _retryCount,
             'auto_recovery_enabled': widget.enableAutoRecovery,
           });
         },
       );
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error report sent. Thank you for your feedback!'),
-          ),
-        );
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.errorReportSent)));
       }
     }
   }
@@ -294,24 +308,19 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
       return _buildRecoveringWidget(context);
     }
 
-    return ErrorBoundaryLayer(
-      onError: _handleError,
-      child: widget.child,
-    );
+    return ErrorBoundaryLayer(onError: _handleError, child: widget.child);
   }
 
   Widget _buildRecoveringWidget(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       color: theme.scaffoldBackgroundColor,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
-              color: theme.colorScheme.primary,
-            ),
+            CircularProgressIndicator(color: theme.colorScheme.primary),
             const SizedBox(height: 16),
             Text(
               'Attempting to recover...',
@@ -327,7 +336,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    
+
     return Container(
       color: theme.scaffoldBackgroundColor,
       padding: const EdgeInsets.all(24),
@@ -352,7 +361,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
               ),
               const SizedBox(height: 24),
               Text(
-                l10n.somethingWentWrong ?? 'Something went wrong',
+                l10n.genericErrorTitle,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -360,8 +369,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
               ),
               const SizedBox(height: 12),
               Text(
-                l10n.errorOccurredMessage ?? 
-                    'An unexpected error occurred. Please try again.',
+                l10n.genericErrorMessage,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -374,9 +382,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colorScheme.outlineVariant,
-                    ),
+                    border: Border.all(color: colorScheme.outlineVariant),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +396,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Error Details',
+                            l10n.errorDetails,
                             style: theme.textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -439,7 +445,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
                   OutlinedButton.icon(
                     onPressed: _report,
                     icon: const Icon(Icons.flag),
-                    label: Text(l10n.reportError ?? 'Report Error'),
+                    label: Text(l10n.reportError),
                   ),
                   const SizedBox(width: 16),
                   FilledButton.icon(
@@ -485,7 +491,7 @@ class _ErrorBoundaryLayerState extends State<ErrorBoundaryLayer> {
   @override
   void initState() {
     super.initState();
-    
+
     // Capture Flutter errors in this subtree
     FlutterError.onError = (FlutterErrorDetails details) {
       widget.onError(details.exception, details.stack);
@@ -499,7 +505,7 @@ class _ErrorBoundaryLayerState extends State<ErrorBoundaryLayer> {
       widget.onError(details.exception, details.stack);
       return const SizedBox.shrink();
     };
-    
+
     return widget.child;
   }
 }

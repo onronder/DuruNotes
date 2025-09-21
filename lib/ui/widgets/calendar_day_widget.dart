@@ -25,16 +25,15 @@ class CalendarDayWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Determine task priority levels
     final hasUrgent = tasks.any((t) => t.priority == TaskPriority.urgent);
     final hasHigh = tasks.any((t) => t.priority == TaskPriority.high);
     final hasMedium = tasks.any((t) => t.priority == TaskPriority.medium);
-    final hasOverdue = tasks.any((t) => 
-      t.dueDate != null && 
-      t.dueDate!.isBefore(DateTime.now()) && 
-      t.status != TaskStatus.completed
-    );
+    final hasOverdue = tasks.any((t) =>
+        t.dueDate != null &&
+        t.dueDate!.isBefore(DateTime.now()) &&
+        t.status != TaskStatus.completed);
 
     // Determine indicator color based on highest priority
     Color? indicatorColor;
@@ -51,8 +50,10 @@ class CalendarDayWidget extends StatelessWidget {
     }
 
     // Filter incomplete tasks for count
-    final incompleteTasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
-    final completedTasks = tasks.where((t) => t.status == TaskStatus.completed).toList();
+    final incompleteTasks =
+        tasks.where((t) => t.status != TaskStatus.completed).toList();
+    final completedTasks =
+        tasks.where((t) => t.status == TaskStatus.completed).toList();
 
     return Material(
       color: Colors.transparent,
@@ -74,7 +75,9 @@ class CalendarDayWidget extends StatelessWidget {
                 date.day.toString(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: _getTextColor(colorScheme),
-                  fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isToday || isSelected
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                 ),
               ),
 
@@ -217,7 +220,8 @@ class CalendarMonthWidget extends StatelessWidget {
 
     final days = <DateTime>[];
     var currentDay = firstDayOfCalendar;
-    while (currentDay.isBefore(lastDayOfCalendar) || currentDay.isAtSameMomentAs(lastDayOfCalendar)) {
+    while (currentDay.isBefore(lastDayOfCalendar) ||
+        currentDay.isAtSameMomentAs(lastDayOfCalendar)) {
       days.add(currentDay);
       currentDay = currentDay.add(const Duration(days: 1));
     }
@@ -228,19 +232,21 @@ class CalendarMonthWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
-            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => 
-              Expanded(
-                child: Center(
-                  child: Text(
-                    day,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
+            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                .map(
+                  (day) => Expanded(
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ).toList(),
+                )
+                .toList(),
           ),
         ),
 
@@ -258,10 +264,10 @@ class CalendarMonthWidget extends StatelessWidget {
             final date = days[index];
             final dateKey = DateTime(date.year, date.month, date.day);
             final tasks = tasksByDate[dateKey] ?? [];
-            final isSelected = selectedDate != null && 
-                              selectedDate!.year == date.year &&
-                              selectedDate!.month == date.month &&
-                              selectedDate!.day == date.day;
+            final isSelected = selectedDate != null &&
+                selectedDate!.year == date.year &&
+                selectedDate!.month == date.month &&
+                selectedDate!.day == date.day;
             final isToday = dateKey.isAtSameMomentAs(today);
             final isCurrentMonth = date.month == month.month;
 
@@ -299,7 +305,8 @@ class CalendarHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final now = DateTime.now();
-    final isCurrentMonth = currentMonth.year == now.year && currentMonth.month == now.month;
+    final isCurrentMonth =
+        currentMonth.year == now.year && currentMonth.month == now.month;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

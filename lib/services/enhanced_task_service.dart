@@ -13,15 +13,15 @@ class EnhancedTaskService extends TaskService {
     required AppDb database,
     required TaskReminderBridge reminderBridge,
     BidirectionalTaskSyncService? bidirectionalSync,
-  }) : _reminderBridge = reminderBridge,
-       _db = database,
-       _bidirectionalSync = bidirectionalSync,
-       super(database: database);
+  })  : _reminderBridge = reminderBridge,
+        _db = database,
+        _bidirectionalSync = bidirectionalSync,
+        super(database: database);
 
   final TaskReminderBridge _reminderBridge;
   final AppDb _db;
   BidirectionalTaskSyncService? _bidirectionalSync;
-  
+
   /// Set the bidirectional sync service (to avoid circular dependency)
   void setBidirectionalSync(BidirectionalTaskSyncService sync) {
     _bidirectionalSync = sync;
@@ -66,7 +66,7 @@ class EnhancedTaskService extends TaskService {
               task: task,
               beforeDueDate: const Duration(hours: 1), // Default 1 hour before
             );
-            
+
             // Link reminder to task within the same transaction
             if (reminderId != null) {
               await super.updateTask(
@@ -117,7 +117,7 @@ class EnhancedTaskService extends TaskService {
   }) async {
     // Get old task for comparison
     final oldTask = await _db.getTaskById(taskId);
-    
+
     // Update the task using parent implementation
     await super.updateTask(
       taskId: taskId,
@@ -135,7 +135,9 @@ class EnhancedTaskService extends TaskService {
     );
 
     // Sync changes back to note if bidirectional sync is enabled
-    if (_bidirectionalSync != null && oldTask != null && oldTask.noteId.isNotEmpty) {
+    if (_bidirectionalSync != null &&
+        oldTask != null &&
+        oldTask.noteId.isNotEmpty) {
       await _bidirectionalSync!.syncFromTaskToNote(
         taskId: taskId,
         noteId: oldTask.noteId,
@@ -164,7 +166,7 @@ class EnhancedTaskService extends TaskService {
   Future<void> completeTask(String taskId, {String? completedBy}) async {
     // Get task before completion for reminder cleanup
     final task = await _db.getTaskById(taskId);
-    
+
     // Complete the task using parent implementation
     await super.completeTask(taskId, completedBy: completedBy);
 
@@ -194,12 +196,14 @@ class EnhancedTaskService extends TaskService {
   Future<void> toggleTaskStatus(String taskId) async {
     // Get task before toggle for reminder management
     final oldTask = await _db.getTaskById(taskId);
-    
+
     // Toggle using parent implementation
     await super.toggleTaskStatus(taskId);
 
     // Sync toggle back to note
-    if (_bidirectionalSync != null && oldTask != null && oldTask.noteId.isNotEmpty) {
+    if (_bidirectionalSync != null &&
+        oldTask != null &&
+        oldTask.noteId.isNotEmpty) {
       final newTask = await _db.getTaskById(taskId);
       if (newTask != null) {
         await _bidirectionalSync!.syncFromTaskToNote(
@@ -227,7 +231,7 @@ class EnhancedTaskService extends TaskService {
   Future<void> deleteTask(String taskId) async {
     // Get task before deletion for reminder cleanup
     final task = await _db.getTaskById(taskId);
-    
+
     // Delete the task using parent implementation
     await super.deleteTask(taskId);
 
@@ -273,9 +277,11 @@ class EnhancedTaskService extends TaskService {
         final reminderDuration = reminderTime.difference(dueDate);
         final reminderId = await _reminderBridge.createTaskReminder(
           task: task,
-          beforeDueDate: reminderDuration.isNegative ? Duration.zero : reminderDuration.abs(),
+          beforeDueDate: reminderDuration.isNegative
+              ? Duration.zero
+              : reminderDuration.abs(),
         );
-        
+
         // Link reminder to task
         if (reminderId != null) {
           await updateTask(
@@ -339,14 +345,14 @@ class EnhancedTaskService extends TaskService {
   Future<void> completeAllSubtasks(String parentTaskId) async {
     try {
       final subtasks = await getSubtasks(parentTaskId);
-      
+
       for (final subtask in subtasks) {
         await completeTask(subtask.id);
-        
+
         // Recursively complete children
         await completeAllSubtasks(subtask.id);
       }
-      
+
       debugPrint('Completed all subtasks for parent: $parentTaskId');
     } catch (e) {
       debugPrint('Error completing all subtasks: $e');
@@ -359,16 +365,17 @@ class EnhancedTaskService extends TaskService {
     try {
       // Get all children recursively
       final childTasks = await _getAllChildTasks(taskId);
-      
+
       // Delete children first (to maintain referential integrity)
       for (final child in childTasks.reversed) {
         await deleteTask(child.id);
       }
-      
+
       // Delete parent task
       await deleteTask(taskId);
-      
-      debugPrint('Deleted task hierarchy: $taskId (${childTasks.length + 1} tasks)');
+
+      debugPrint(
+          'Deleted task hierarchy: $taskId (${childTasks.length + 1} tasks)');
     } catch (e) {
       debugPrint('Error deleting task hierarchy: $e');
       rethrow;
@@ -379,13 +386,13 @@ class EnhancedTaskService extends TaskService {
   Future<List<NoteTask>> _getAllChildTasks(String parentTaskId) async {
     final allChildren = <NoteTask>[];
     final directChildren = await getSubtasks(parentTaskId);
-    
+
     for (final child in directChildren) {
       allChildren.add(child);
       final grandChildren = await _getAllChildTasks(child.id);
       allChildren.addAll(grandChildren);
     }
-    
+
     return allChildren;
   }
 
@@ -400,11 +407,11 @@ class EnhancedTaskService extends TaskService {
         taskId: taskId,
         parentTaskId: newParentId,
       );
-      
+
       if (newPosition != null) {
         await updateTaskPositions({taskId: newPosition});
       }
-      
+
       debugPrint('Moved task $taskId to parent: $newParentId');
     } catch (e) {
       debugPrint('Error moving task to parent: $e');
@@ -441,8 +448,9 @@ class EnhancedTaskService extends TaskService {
     // Build hierarchy
     for (final task in tasks) {
       final node = nodeMap[task.id]!;
-      
-      if (task.parentTaskId != null && nodeMap.containsKey(task.parentTaskId!)) {
+
+      if (task.parentTaskId != null &&
+          nodeMap.containsKey(task.parentTaskId!)) {
         // Add as child to parent
         final parentNode = nodeMap[task.parentTaskId!]!;
         parentNode.children.add(node);
@@ -477,7 +485,7 @@ class EnhancedTaskService extends TaskService {
         }
         totalEstimatedMinutes += child.task.estimatedMinutes ?? 0;
         totalActualMinutes += child.task.actualMinutes ?? 0;
-        
+
         // Recursively count children
         countSubtasks(child);
       }

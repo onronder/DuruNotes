@@ -80,8 +80,8 @@ class _HelpScreenState extends State<HelpScreen> {
               ),
             )
           : _errorMessage != null
-          ? _buildErrorView()
-          : _buildHelpContent(),
+              ? _buildErrorView()
+              : _buildHelpContent(),
     );
   }
 
@@ -189,9 +189,9 @@ class _HelpScreenState extends State<HelpScreen> {
             },
             styleSheet: MarkdownStyleSheet(
               h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
               h2: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
@@ -200,11 +200,11 @@ class _HelpScreenState extends State<HelpScreen> {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               p: Theme.of(context).textTheme.bodyMedium,
               code: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontFamily: 'monospace',
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
-              ),
+                    fontFamily: 'monospace',
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                  ),
               codeblockDecoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
@@ -221,9 +221,9 @@ class _HelpScreenState extends State<HelpScreen> {
                 ),
               ),
               listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             selectable: true,
           ),
@@ -574,9 +574,9 @@ class _QuickHelpSection extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
           ),
         ),
         ...items.map(

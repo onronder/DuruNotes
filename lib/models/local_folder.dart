@@ -1,5 +1,5 @@
 /// Folder model for Phase 2 UI components
-/// 
+///
 /// This is a simplified folder model for demonstrating the
 /// refactored UI components. In production, this would integrate
 /// with the existing folder system.
@@ -16,7 +16,7 @@ class LocalFolder {
   final String? color;
   final String? icon;
   final int sortOrder;
-  
+
   const LocalFolder({
     required this.id,
     required this.name,
@@ -30,7 +30,7 @@ class LocalFolder {
     this.icon,
     this.sortOrder = 0,
   });
-  
+
   LocalFolder copyWith({
     String? id,
     String? name,

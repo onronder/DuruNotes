@@ -20,27 +20,28 @@ void main() {
   late MockTaskService mockTaskService;
   late BidirectionalTaskSyncService bidirectionalSync;
   late NoteTaskCoordinator coordinator;
-  
+
   setUp(() {
     mockDb = MockAppDb();
     mockTaskService = MockTaskService();
-    
+
     bidirectionalSync = BidirectionalTaskSyncService(
       database: mockDb,
       taskService: mockTaskService,
     );
-    
+
     coordinator = NoteTaskCoordinator(
       database: mockDb,
       bidirectionalSync: bidirectionalSync,
     );
-    
+
     // Clear metrics before each test
     TaskSyncMetrics.instance.clearMetrics();
   });
-  
+
   group('No Duplicate Tasks', () {
-    test('should not create duplicate tasks when opening note with tasks', () async {
+    test('should not create duplicate tasks when opening note with tasks',
+        () async {
       const noteId = 'note-123';
       const noteContent = '''
 # My Note
@@ -48,7 +49,7 @@ void main() {
 - [x] Task 2
 - [ ] Task 3
 ''';
-      
+
       final note = LocalNote(
         id: noteId,
         title: 'My Note',
@@ -76,12 +77,12 @@ void main() {
         reminderType: null,
         reminderMetadata: null,
       );
-      
+
       // Mock database responses
       when(mockDb.getNote(noteId)).thenAnswer((_) async => note);
       when(mockDb.watchNote(noteId)).thenAnswer((_) => Stream.value(note));
       when(mockDb.getTasksForNote(noteId)).thenAnswer((_) async => []);
-      
+
       // Mock task creation
       when(mockTaskService.createTask(
         noteId: anyNamed('noteId'),
@@ -99,13 +100,13 @@ void main() {
         final position = invocation.namedArguments[#position] as int;
         return 'task_${noteId}_${position}_${content.hashCode}';
       });
-      
+
       // Start watching note (simulates opening note in editor)
       await coordinator.startWatchingNote(noteId);
-      
+
       // Wait for initial sync
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Verify tasks were created exactly once
       verify(mockTaskService.createTask(
         noteId: noteId,
@@ -114,7 +115,7 @@ void main() {
         priority: any,
         position: any,
       )).called(1);
-      
+
       verify(mockTaskService.createTask(
         noteId: noteId,
         content: 'Task 2',
@@ -122,7 +123,7 @@ void main() {
         priority: any,
         position: any,
       )).called(1);
-      
+
       verify(mockTaskService.createTask(
         noteId: noteId,
         content: 'Task 3',
@@ -130,19 +131,20 @@ void main() {
         priority: any,
         position: any,
       )).called(1);
-      
+
       // Check metrics
       final metrics = TaskSyncMetrics.instance.getHealthMetrics();
       expect(metrics['totalDuplicatesFound'], equals(0));
-      
+
       // Clean up
       await coordinator.stopWatchingNote(noteId);
     });
-    
-    test('should not create duplicate when rapidly opening/closing note', () async {
+
+    test('should not create duplicate when rapidly opening/closing note',
+        () async {
       const noteId = 'note-456';
       const noteContent = '- [ ] Single task';
-      
+
       final note = LocalNote(
         id: noteId,
         title: 'Test',
@@ -170,11 +172,11 @@ void main() {
         reminderType: null,
         reminderMetadata: null,
       );
-      
+
       when(mockDb.getNote(noteId)).thenAnswer((_) async => note);
       when(mockDb.watchNote(noteId)).thenAnswer((_) => Stream.value(note));
       when(mockDb.getTasksForNote(noteId)).thenAnswer((_) async => []);
-      
+
       when(mockTaskService.createTask(
         noteId: anyNamed('noteId'),
         content: anyNamed('content'),
@@ -187,17 +189,17 @@ void main() {
         notes: anyNamed('notes'),
         estimatedMinutes: anyNamed('estimatedMinutes'),
       )).thenAnswer((_) async => 'task-single');
-      
+
       // Rapidly open and close note multiple times
       for (int i = 0; i < 5; i++) {
         await coordinator.startWatchingNote(noteId);
         await Future.delayed(const Duration(milliseconds: 10));
         await coordinator.stopWatchingNote(noteId);
       }
-      
+
       // Wait for any pending operations
       await Future.delayed(const Duration(milliseconds: 200));
-      
+
       // Verify task was created only once
       verify(mockTaskService.createTask(
         noteId: noteId,
@@ -206,50 +208,50 @@ void main() {
         priority: any,
         position: any,
       )).called(1);
-      
+
       // Check no duplicates were detected
       final metrics = TaskSyncMetrics.instance.getHealthMetrics();
       expect(metrics['totalDuplicatesFound'], equals(0));
     });
-    
+
     test('should use stable IDs based on content hash', () async {
       const noteId = 'note-789';
       const content1 = '- [ ] Task with specific content';
       const content2 = '- [ ] Another task';
-      
+
       // Generate expected IDs
       final expectedId1 = bidirectionalSync.generateStableTaskId(
         noteId: noteId,
         content: 'Task with specific content',
         lineNumber: 0,
       );
-      
+
       final expectedId2 = bidirectionalSync.generateStableTaskId(
         noteId: noteId,
         content: 'Another task',
         lineNumber: 1,
       );
-      
+
       // IDs should be deterministic
       final regeneratedId1 = bidirectionalSync.generateStableTaskId(
         noteId: noteId,
         content: 'Task with specific content',
         lineNumber: 0,
       );
-      
+
       expect(regeneratedId1, equals(expectedId1));
       expect(expectedId1, isNot(equals(expectedId2)));
-      
+
       // IDs should be valid and consistent format
       expect(expectedId1, matches(RegExp(r'^[a-f0-9\-]+$')));
       expect(expectedId2, matches(RegExp(r'^[a-f0-9\-]+$')));
     });
-    
+
     test('should handle task updates without creating duplicates', () async {
       const noteId = 'note-update';
       const initialContent = '- [ ] Original task';
       const updatedContent = '- [x] Original task';
-      
+
       final existingTask = NoteTask(
         id: 'existing-task-id',
         noteId: noteId,
@@ -262,7 +264,7 @@ void main() {
         updatedAt: DateTime.now(),
         deleted: false,
       );
-      
+
       final note = LocalNote(
         id: noteId,
         title: 'Test',
@@ -290,10 +292,11 @@ void main() {
         reminderType: null,
         reminderMetadata: null,
       );
-      
+
       when(mockDb.getNote(noteId)).thenAnswer((_) async => note);
-      when(mockDb.getTasksForNote(noteId)).thenAnswer((_) async => [existingTask]);
-      
+      when(mockDb.getTasksForNote(noteId))
+          .thenAnswer((_) async => [existingTask]);
+
       when(mockTaskService.updateTask(
         taskId: anyNamed('taskId'),
         content: anyNamed('content'),
@@ -308,17 +311,17 @@ void main() {
         reminderId: anyNamed('reminderId'),
         clearReminderId: anyNamed('clearReminderId'),
       )).thenAnswer((_) async {});
-      
+
       // Sync the updated content
       await bidirectionalSync.syncFromNoteToTasks(noteId, updatedContent);
-      
+
       // Verify update was called, not create
       verify(mockTaskService.updateTask(
         taskId: existingTask.id,
         content: any,
         status: TaskStatus.completed,
       )).called(1);
-      
+
       verifyNever(mockTaskService.createTask(
         noteId: any,
         content: any,
@@ -326,19 +329,19 @@ void main() {
         priority: any,
         position: any,
       ));
-      
+
       // Check no duplicates
       final metrics = TaskSyncMetrics.instance.getHealthMetrics();
       expect(metrics['totalDuplicatesFound'], equals(0));
     });
-    
+
     test('should detect and report duplicate attempts', () async {
       const noteId = 'note-dup';
       const noteContent = '''
 - [ ] Task 1
 - [ ] Task 1
 '''; // Intentional duplicate
-      
+
       final note = LocalNote(
         id: noteId,
         title: 'Test',
@@ -366,10 +369,10 @@ void main() {
         reminderType: null,
         reminderMetadata: null,
       );
-      
+
       when(mockDb.getNote(noteId)).thenAnswer((_) async => note);
       when(mockDb.getTasksForNote(noteId)).thenAnswer((_) async => []);
-      
+
       when(mockTaskService.createTask(
         noteId: anyNamed('noteId'),
         content: anyNamed('content'),
@@ -382,14 +385,14 @@ void main() {
         notes: anyNamed('notes'),
         estimatedMinutes: anyNamed('estimatedMinutes'),
       )).thenAnswer((_) async => 'task-id');
-      
+
       // Sync with duplicate content
       await bidirectionalSync.syncFromNoteToTasks(noteId, noteContent);
-      
+
       // Check metrics detected the duplicate
       final noteMetrics = TaskSyncMetrics.instance.getNoteMetrics(noteId);
       expect(noteMetrics['duplicatesFound'], greaterThan(0));
-      
+
       // Tasks should still be created (with different IDs due to line numbers)
       verify(mockTaskService.createTask(
         noteId: noteId,
@@ -400,15 +403,15 @@ void main() {
       )).called(2); // Both tasks created despite same content
     });
   });
-  
+
   group('Performance', () {
     test('should complete sync quickly for large notes', () async {
       const noteId = 'note-perf';
-      
+
       // Generate a large note with many tasks
       final tasks = List.generate(100, (i) => '- [ ] Task $i').join('\n');
       final noteContent = '# Large Note\n$tasks';
-      
+
       final note = LocalNote(
         id: noteId,
         title: 'Large Note',
@@ -436,7 +439,7 @@ void main() {
         reminderType: null,
         reminderMetadata: null,
       );
-      
+
       when(mockDb.getNote(noteId)).thenAnswer((_) async => note);
       when(mockDb.getTasksForNote(noteId)).thenAnswer((_) async => []);
       when(mockTaskService.createTask(
@@ -451,14 +454,14 @@ void main() {
         notes: anyNamed('notes'),
         estimatedMinutes: anyNamed('estimatedMinutes'),
       )).thenAnswer((_) async => 'task-id');
-      
+
       final stopwatch = Stopwatch()..start();
       await bidirectionalSync.syncFromNoteToTasks(noteId, noteContent);
       stopwatch.stop();
-      
+
       // Should complete within reasonable time
       expect(stopwatch.elapsedMilliseconds, lessThan(1000));
-      
+
       // Check performance metrics
       final perfStats = TaskSyncMetrics.instance.getPerformanceStats();
       expect(perfStats['maxDuration'], lessThan(1000));

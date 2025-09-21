@@ -11,6 +11,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+extension ConflictResolutionL10n on AppLocalizations {
+  String get conflictSyncDetectedTitle => 'Sync Conflict Detected';
+  String get conflictLocalTab => 'Local';
+  String get conflictRemoteTab => 'Remote';
+  String get conflictMergedTab => 'Merged';
+  String get conflictChooseResolution => 'Choose Resolution';
+  String get conflictKeepLocal => 'Keep Local';
+  String get conflictKeepRemote => 'Keep Remote';
+  String get conflictMerge => 'Merge';
+  String get conflictSkip => 'Skip';
+  String get conflictResolve => 'Resolve';
+}
+
 /// Represents a sync conflict that needs manual resolution
 class SyncConflict {
   SyncConflict({
@@ -40,12 +53,7 @@ enum ConflictType {
 }
 
 /// Resolution strategies for conflicts
-enum ResolutionStrategy {
-  keepLocal,
-  keepRemote,
-  merge,
-  skip,
-}
+enum ResolutionStrategy { keepLocal, keepRemote, merge, skip }
 
 /// Dialog for resolving sync conflicts manually
 class ConflictResolutionDialog extends ConsumerStatefulWidget {
@@ -56,13 +64,16 @@ class ConflictResolutionDialog extends ConsumerStatefulWidget {
   });
 
   final SyncConflict conflict;
-  final Function(ResolutionStrategy strategy, Map<String, dynamic>? mergedData)? onResolved;
+  final Function(ResolutionStrategy strategy, Map<String, dynamic>? mergedData)?
+      onResolved;
 
   @override
-  ConsumerState<ConflictResolutionDialog> createState() => _ConflictResolutionDialogState();
+  ConsumerState<ConflictResolutionDialog> createState() =>
+      _ConflictResolutionDialogState();
 }
 
-class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDialog>
+class _ConflictResolutionDialogState
+    extends ConsumerState<ConflictResolutionDialog>
     with TickerProviderStateMixin {
   late AnimationController _slideController;
   late AnimationController _fadeController;
@@ -121,7 +132,10 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     _mergedData = {
       'id': local['id'] ?? remote['id'],
       'name': _selectNewer(local, remote, 'name', 'updated_at'),
-      'description': _mergeDescriptions(local['description'], remote['description']),
+      'description': _mergeDescriptions(
+        local['description'] as String?,
+        remote['description'] as String?,
+      ),
       'color': _selectNewer(local, remote, 'color', 'updated_at'),
       'icon': _selectNewer(local, remote, 'icon', 'updated_at'),
       'parent_id': _selectNewer(local, remote, 'parent_id', 'updated_at'),
@@ -130,14 +144,22 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     };
   }
 
-  dynamic _selectNewer(Map<String, dynamic> local, Map<String, dynamic> remote, 
-      String field, String timestampField) {
-    final localTime = DateTime.tryParse(local[timestampField] ?? '');
-    final remoteTime = DateTime.tryParse(remote[timestampField] ?? '');
-    
+  dynamic _selectNewer(
+    Map<String, dynamic> local,
+    Map<String, dynamic> remote,
+    String field,
+    String timestampField,
+  ) {
+    final localTime = DateTime.tryParse(
+      (local[timestampField] as String?) ?? '',
+    );
+    final remoteTime = DateTime.tryParse(
+      (remote[timestampField] as String?) ?? '',
+    );
+
     if (localTime == null) return remote[field];
     if (remoteTime == null) return local[field];
-    
+
     return localTime.isAfter(remoteTime) ? local[field] : remote[field];
   }
 
@@ -145,7 +167,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     if (local == null || local.isEmpty) return remote;
     if (remote == null || remote.isEmpty) return local;
     if (local == remote) return local;
-    
+
     // Combine descriptions with separator
     return '$local\n---\n$remote';
   }
@@ -157,11 +179,14 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
     try {
       // Log the resolution
-      _logger.info('Resolving conflict', data: {
-        'conflictId': widget.conflict.id,
-        'strategy': _selectedStrategy!.name,
-        'type': widget.conflict.type.name,
-      });
+      _logger.info(
+        'Resolving conflict',
+        data: {
+          'conflictId': widget.conflict.id,
+          'strategy': _selectedStrategy!.name,
+          'type': widget.conflict.type.name,
+        },
+      );
 
       // Call the resolution callback
       widget.onResolved?.call(_selectedStrategy!, _mergedData);
@@ -193,13 +218,13 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     final l10n = AppLocalizations.of(context);
 
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, 0.1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _slideController,
-        curve: Curves.easeOutCubic,
-      )),
+      position:
+          Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _slideController,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
       child: FadeTransition(
         opacity: _fadeController,
         child: Dialog(
@@ -209,18 +234,13 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
             borderRadius: BorderRadius.circular(28),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 600,
-              maxHeight: 700,
-            ),
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildHeader(theme, l10n),
                 _buildConflictInfo(theme, l10n),
-                Flexible(
-                  child: _buildComparisonTabs(theme, l10n),
-                ),
+                Flexible(child: _buildComparisonTabs(theme, l10n)),
                 _buildResolutionOptions(theme, l10n),
                 _buildActions(theme, l10n),
               ],
@@ -233,7 +253,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
   Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -249,11 +269,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
               color: colorScheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              Icons.sync_problem,
-              color: colorScheme.error,
-              size: 24,
-            ),
+            child: Icon(Icons.sync_problem, color: colorScheme.error, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -261,7 +277,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.syncConflictDetected ?? 'Sync Conflict Detected',
+                  l10n.conflictSyncDetectedTitle,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -299,16 +315,13 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
   Widget _buildConflictInfo(ThemeData theme, AppLocalizations l10n) {
     final colorScheme = theme.colorScheme;
     final dateFormat = DateFormat.yMMMd().add_jm();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
         ),
       ),
       child: Row(
@@ -333,9 +346,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
               size: 16,
             ),
             label: Text(_showDiff ? 'Hide Diff' : 'Show Diff'),
-            style: TextButton.styleFrom(
-              textStyle: theme.textTheme.bodySmall,
-            ),
+            style: TextButton.styleFrom(textStyle: theme.textTheme.bodySmall),
           ),
         ],
       ),
@@ -344,25 +355,16 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
   Widget _buildComparisonTabs(ThemeData theme, AppLocalizations l10n) {
     final colorScheme = theme.colorScheme;
-    
+
     return Column(
       children: [
         TabBar(
           controller: _tabController,
           tabs: [
-            Tab(
-              icon: const Icon(Icons.computer),
-              text: l10n.local ?? 'Local',
-            ),
-            Tab(
-              icon: const Icon(Icons.cloud),
-              text: l10n.remote ?? 'Remote',
-            ),
+            Tab(icon: const Icon(Icons.computer), text: l10n.conflictLocalTab),
+            Tab(icon: const Icon(Icons.cloud), text: l10n.conflictRemoteTab),
             if (_canMerge())
-              Tab(
-                icon: const Icon(Icons.merge),
-                text: l10n.merged ?? 'Merged',
-              ),
+              Tab(icon: const Icon(Icons.merge), text: l10n.conflictMergedTab),
           ],
         ),
         Expanded(
@@ -370,7 +372,11 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
             controller: _tabController,
             children: [
               _buildDataView(widget.conflict.localData, 'Local Version', theme),
-              _buildDataView(widget.conflict.remoteData, 'Remote Version', theme),
+              _buildDataView(
+                widget.conflict.remoteData,
+                'Remote Version',
+                theme,
+              ),
               if (_canMerge())
                 _buildDataView(_mergedData ?? {}, 'Merged Version', theme),
             ],
@@ -380,9 +386,13 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     );
   }
 
-  Widget _buildDataView(Map<String, dynamic> data, String title, ThemeData theme) {
+  Widget _buildDataView(
+    Map<String, dynamic> data,
+    String title,
+    ThemeData theme,
+  ) {
     final colorScheme = theme.colorScheme;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -396,7 +406,9 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: colorScheme.outlineVariant,
@@ -416,19 +428,20 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
   Widget _buildFolderPreview(Map<String, dynamic> data, ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    final name = data['name'] ?? 'Unnamed Folder';
-    final description = data['description'] ?? '';
-    final icon = data['icon'] ?? Icons.folder.codePoint.toString();
-    final color = data['color'] ?? colorScheme.primary.value.toRadixString(16);
-    
+    final rawName = (data['name'] as String?)?.trim();
+    final description = (data['description'] as String?)?.trim() ?? '';
+    final icon = (data['icon'] as String?) ?? Icons.folder.codePoint.toString();
+    final color = (data['color'] as String?) ??
+        colorScheme.primary.value.toRadixString(16);
+    final name =
+        (rawName == null || rawName.isEmpty) ? 'Unnamed Folder' : rawName;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -436,13 +449,16 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: FolderIconHelpers.getFolderColor(color)?.withValues(alpha: 0.2) ??
+              color: FolderIconHelpers.getFolderColor(
+                    color,
+                  )?.withValues(alpha: 0.2) ??
                   colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               FolderIconHelpers.getFolderIcon(icon),
-              color: FolderIconHelpers.getFolderColor(color) ?? colorScheme.primary,
+              color: FolderIconHelpers.getFolderColor(color) ??
+                  colorScheme.primary,
               size: 24,
             ),
           ),
@@ -479,21 +495,21 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
   List<Widget> _buildDataFields(Map<String, dynamic> data, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     final fields = <Widget>[];
-    
+
     // Highlight differences
     final localData = widget.conflict.localData;
     final remoteData = widget.conflict.remoteData;
-    
+
     for (final entry in data.entries) {
       final key = entry.key;
       final value = entry.value;
-      
+
       // Skip internal fields
       if (key.startsWith('_') || key == 'user_id') continue;
-      
+
       // Check if this field differs
       final isDifferent = localData[key] != remoteData[key];
-      
+
       fields.add(
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -517,7 +533,9 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
                       : null,
                   decoration: isDifferent
                       ? BoxDecoration(
-                          color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                          color: colorScheme.tertiaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         )
                       : null,
@@ -542,7 +560,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
         ),
       );
     }
-    
+
     return fields;
   }
 
@@ -550,9 +568,11 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     return key
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isNotEmpty
-            ? '${word[0].toUpperCase()}${word.substring(1)}'
-            : '')
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1)}'
+              : '',
+        )
         .join(' ');
   }
 
@@ -570,23 +590,20 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
   Widget _buildResolutionOptions(ThemeData theme, AppLocalizations l10n) {
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.chooseResolution ?? 'Choose Resolution',
+            l10n.conflictChooseResolution,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -599,14 +616,14 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
               _buildResolutionChip(
                 ResolutionStrategy.keepLocal,
                 Icons.computer,
-                l10n.keepLocal ?? 'Keep Local',
+                l10n.conflictKeepLocal,
                 'Use the version from this device',
                 theme,
               ),
               _buildResolutionChip(
                 ResolutionStrategy.keepRemote,
                 Icons.cloud,
-                l10n.keepRemote ?? 'Keep Remote',
+                l10n.conflictKeepRemote,
                 'Use the version from the server',
                 theme,
               ),
@@ -614,14 +631,14 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
                 _buildResolutionChip(
                   ResolutionStrategy.merge,
                   Icons.merge,
-                  l10n.merge ?? 'Merge',
+                  l10n.conflictMerge,
                   'Combine both versions intelligently',
                   theme,
                 ),
               _buildResolutionChip(
                 ResolutionStrategy.skip,
                 Icons.skip_next,
-                l10n.skip ?? 'Skip',
+                l10n.conflictSkip,
                 'Resolve this conflict later',
                 theme,
               ),
@@ -641,7 +658,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
   ) {
     final colorScheme = theme.colorScheme;
     final isSelected = _selectedStrategy == strategy;
-    
+
     return Tooltip(
       message: tooltip,
       child: ChoiceChip(
@@ -660,9 +677,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
         selectedColor: colorScheme.primaryContainer,
         backgroundColor: colorScheme.surface,
         side: BorderSide(
-          color: isSelected
-              ? colorScheme.primary
-              : colorScheme.outlineVariant,
+          color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
         ),
       ),
     );
@@ -670,22 +685,20 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 
   Widget _buildActions(ThemeData theme, AppLocalizations l10n) {
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
         ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           TextButton(
-            onPressed: _isResolving ? null : () => Navigator.of(context).pop(false),
+            onPressed:
+                _isResolving ? null : () => Navigator.of(context).pop(false),
             child: Text(l10n.cancel),
           ),
           const SizedBox(width: 8),
@@ -702,7 +715,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
                       color: colorScheme.onPrimary,
                     ),
                   )
-                : Text(l10n.resolve ?? 'Resolve'),
+                : Text(l10n.conflictResolve),
           ),
         ],
       ),
@@ -711,7 +724,8 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
 }
 
 /// Provider for managing conflict resolution queue
-final conflictQueueProvider = StateNotifierProvider<ConflictQueueNotifier, List<SyncConflict>>((ref) {
+final conflictQueueProvider =
+    StateNotifierProvider<ConflictQueueNotifier, List<SyncConflict>>((ref) {
   return ConflictQueueNotifier();
 });
 

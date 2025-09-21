@@ -9,7 +9,7 @@ class TodayStats {
   final int pending;
   final int overdue;
   final int streak;
-  
+
   TodayStats({
     required this.completed,
     required this.pending,
@@ -22,19 +22,22 @@ class TodayStats {
 final todayStatsProvider = FutureProvider<TodayStats>((ref) async {
   final db = ref.watch(appDbProvider);
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
-  
+
   final now = DateTime.now();
   final todayStart = DateTime(now.year, now.month, now.day);
   final todayEnd = todayStart.add(const Duration(days: 1));
-  
+
   // Get all tasks for today
-  final allTasks = await db.getTasksForDateRange(todayStart, todayEnd);
-  
+  final allTasks = await db.getTasksByDateRange(
+    start: todayStart,
+    end: todayEnd,
+  );
+
   // Count by status
   int completed = 0;
   int pending = 0;
   int overdue = 0;
-  
+
   for (final task in allTasks) {
     if (task.status == TaskStatus.completed) {
       completed++;
@@ -44,15 +47,15 @@ final todayStatsProvider = FutureProvider<TodayStats>((ref) async {
       pending++;
     }
   }
-  
+
   // Get streak
   final analytics = await analyticsService.getProductivityAnalytics(
     startDate: now.subtract(const Duration(days: 30)),
     endDate: now,
   );
-  
+
   final streak = analytics.completionStats.currentStreak;
-  
+
   return TodayStats(
     completed: completed,
     pending: pending,
@@ -64,36 +67,38 @@ final todayStatsProvider = FutureProvider<TodayStats>((ref) async {
 /// Provider for weekly statistics
 final weeklyStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
-  
+
   final now = DateTime.now();
   final weekStart = now.subtract(Duration(days: now.weekday - 1));
   final weekEnd = weekStart.add(const Duration(days: 7));
-  
+
   final analytics = await analyticsService.getProductivityAnalytics(
     startDate: weekStart,
     endDate: weekEnd,
   );
-  
+
   return {
     'completionRate': analytics.completionStats.completionRate,
     'averagePerDay': analytics.completionStats.averagePerDay,
     'totalCompleted': analytics.completionStats.totalCompleted,
     'totalCreated': analytics.completionStats.totalCreated,
-    'timeAccuracy': analytics.timeAccuracyStats.averageAccuracy,
+    'timeAccuracy': analytics.timeAccuracyStats.overallAccuracy,
   };
 });
 
 /// Provider for productivity insights
-final productivityInsightsProvider = FutureProvider<ProductivityInsights?>((ref) async {
+final productivityInsightsProvider = FutureProvider<ProductivityInsights?>((
+  ref,
+) async {
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
-  
+
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
-  
+
   final analytics = await analyticsService.getProductivityAnalytics(
     startDate: monthStart,
     endDate: now,
   );
-  
+
   return await analyticsService.getProductivityInsights(analytics);
 });

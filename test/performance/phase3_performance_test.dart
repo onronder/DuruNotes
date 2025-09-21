@@ -2,6 +2,7 @@ import 'package:duru_notes/models/local_folder.dart';
 import 'package:duru_notes/models/note_task.dart';
 import 'package:duru_notes/ui/widgets/analytics/unified_metric_card.dart';
 import 'package:duru_notes/ui/widgets/folders/folder_item_base.dart';
+import 'package:duru_notes/ui/widgets/settings/settings_components.dart';
 import 'package:duru_notes/ui/widgets/tasks/base_task_widget.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_factory.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,7 @@ void main() {
     group('Widget Build Performance', () {
       testWidgets('Large task list renders efficiently', (tester) async {
         final stopwatch = Stopwatch()..start();
-        
+
         // Generate 100 tasks
         final tasks = List.generate(100, (index) {
           return NoteTask(
@@ -20,7 +21,9 @@ void main() {
             content: 'Task $index with some longer content to test rendering',
             priority: TaskPriority.values[index % TaskPriority.values.length],
             status: index % 3 == 0 ? TaskStatus.completed : TaskStatus.pending,
-            dueDate: index % 2 == 0 ? DateTime.now().add(Duration(days: index)) : null,
+            dueDate: index % 2 == 0
+                ? DateTime.now().add(Duration(days: index))
+                : null,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             tags: index % 4 == 0 ? ['tag1', 'tag2'] : [],
@@ -45,7 +48,7 @@ void main() {
         );
 
         stopwatch.stop();
-        
+
         // Initial render should be under 2 seconds
         expect(stopwatch.elapsedMilliseconds, lessThan(2000),
             reason: 'Initial render took ${stopwatch.elapsedMilliseconds}ms');
@@ -53,13 +56,13 @@ void main() {
         // Test scrolling performance
         stopwatch.reset();
         stopwatch.start();
-        
+
         // Scroll through the list
         await tester.fling(find.byType(ListView), const Offset(0, -500), 2000);
         await tester.pumpAndSettle();
-        
+
         stopwatch.stop();
-        
+
         // Scrolling should be smooth (under 500ms for settling)
         expect(stopwatch.elapsedMilliseconds, lessThan(500),
             reason: 'Scrolling took ${stopwatch.elapsedMilliseconds}ms');
@@ -67,7 +70,7 @@ void main() {
 
       testWidgets('Folder tree renders efficiently', (tester) async {
         final stopwatch = Stopwatch()..start();
-        
+
         // Generate nested folder structure
         final folders = List.generate(50, (index) {
           return LocalFolder(
@@ -97,15 +100,16 @@ void main() {
         );
 
         stopwatch.stop();
-        
+
         // Folder list should render quickly
         expect(stopwatch.elapsedMilliseconds, lessThan(1000),
-            reason: 'Folder list render took ${stopwatch.elapsedMilliseconds}ms');
+            reason:
+                'Folder list render took ${stopwatch.elapsedMilliseconds}ms');
       });
 
       testWidgets('Analytics dashboard renders efficiently', (tester) async {
         final stopwatch = Stopwatch()..start();
-        
+
         // Generate multiple metric cards
         final metrics = List.generate(20, (index) {
           return MetricCardConfig.withTrend(
@@ -134,10 +138,11 @@ void main() {
         );
 
         stopwatch.stop();
-        
+
         // Analytics grid should render efficiently
         expect(stopwatch.elapsedMilliseconds, lessThan(1500),
-            reason: 'Analytics grid render took ${stopwatch.elapsedMilliseconds}ms');
+            reason:
+                'Analytics grid render took ${stopwatch.elapsedMilliseconds}ms');
       });
     });
 
@@ -200,15 +205,15 @@ void main() {
         );
 
         final stopwatch = Stopwatch()..start();
-        
+
         // Perform 10 rapid toggles
         for (int i = 0; i < 10; i++) {
           await tester.tap(find.byType(GestureDetector).first);
           await tester.pump();
         }
-        
+
         stopwatch.stop();
-        
+
         // All toggles should complete quickly
         expect(toggleCount, equals(10));
         expect(stopwatch.elapsedMilliseconds, lessThan(500),
@@ -246,15 +251,15 @@ void main() {
         );
 
         final stopwatch = Stopwatch()..start();
-        
+
         // Toggle multiple switches
         for (int i = 0; i < 10; i++) {
           await tester.tap(find.byType(Switch).at(i));
           await tester.pump();
         }
-        
+
         stopwatch.stop();
-        
+
         // All switches should respond quickly
         expect(changeCount, equals(10));
         expect(stopwatch.elapsedMilliseconds, lessThan(300),
@@ -265,7 +270,7 @@ void main() {
     group('Rendering Optimization', () {
       testWidgets('Only visible widgets are built', (tester) async {
         int buildCount = 0;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -291,7 +296,7 @@ void main() {
 
       testWidgets('Widget rebuilds are minimized', (tester) async {
         int rebuildCount = 0;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -322,17 +327,14 @@ void main() {
 
         // Initial build
         expect(rebuildCount, equals(1));
-        
+
         // Trigger rebuild
         await tester.tap(find.byType(ElevatedButton));
         await tester.pump();
-        
+
         // Only the dynamic part should rebuild
         expect(rebuildCount, equals(2));
       });
     });
   });
 }
-
-// Import for settings components
-import 'package:duru_notes/ui/widgets/settings/settings_components.dart';

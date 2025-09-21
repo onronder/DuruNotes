@@ -39,14 +39,14 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   /// Check if the query matches a saved search preset
   SavedSearchPreset? _getMatchingPreset(String query) {
     final lowerQuery = query.toLowerCase().trim();
-    
+
     // Check for preset-specific queries
     for (final preset in SavedSearchRegistry.presets) {
       // Check by label
       if (lowerQuery == preset.label.toLowerCase()) {
         return preset;
       }
-      
+
       // Check by tag (if applicable)
       if (preset.tag != null) {
         if (lowerQuery == preset.tag!.toLowerCase() ||
@@ -55,54 +55,54 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           return preset;
         }
       }
-      
+
       // Check by common query patterns for each preset type
       switch (preset.key) {
         case SavedSearchKey.attachments:
-          if (lowerQuery == 'has:attachment' || 
+          if (lowerQuery == 'has:attachment' ||
               lowerQuery == 'has:attachments' ||
               lowerQuery == 'attachments') {
             return preset;
           }
           break;
         case SavedSearchKey.emailNotes:
-          if (lowerQuery == 'from:email' || 
+          if (lowerQuery == 'from:email' ||
               lowerQuery == 'email' ||
               lowerQuery == 'email notes') {
             return preset;
           }
           break;
         case SavedSearchKey.webNotes:
-          if (lowerQuery == 'from:web' || 
+          if (lowerQuery == 'from:web' ||
               lowerQuery == 'web' ||
               lowerQuery == 'web clips') {
             return preset;
           }
           break;
         case SavedSearchKey.inbox:
-          if (lowerQuery == 'inbox' ||
-              lowerQuery == 'folder:inbox') {
+          if (lowerQuery == 'inbox' || lowerQuery == 'folder:inbox') {
             return preset;
           }
           break;
       }
     }
-    
+
     return null;
   }
 
   /// Apply preset-based filtering using SavedSearchRegistry
-  List<LocalNote> _applyPresetFilter(List<LocalNote> notes, SavedSearchPreset preset) {
+  List<LocalNote> _applyPresetFilter(
+      List<LocalNote> notes, SavedSearchPreset preset) {
     switch (preset.key) {
       case SavedSearchKey.attachments:
         return notes.where(AppDb.noteHasAttachments).toList();
-        
+
       case SavedSearchKey.emailNotes:
         return notes.where(AppDb.noteIsFromEmail).toList();
-        
+
       case SavedSearchKey.webNotes:
         return notes.where(AppDb.noteIsFromWeb).toList();
-        
+
       case SavedSearchKey.inbox:
         // Inbox is folder-based, needs special handling
         // This would require folder filtering logic
@@ -164,7 +164,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     if (matchingPreset != null) {
       return _applyPresetFilter(notes, matchingPreset);
     }
-    
+
     // Parse the search query using SearchParser
     final searchQuery = SearchParser.parse(query);
 
@@ -550,8 +550,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     if (note.encryptedMetadata != null) {
       try {
         final meta = jsonDecode(note.encryptedMetadata!);
-        final files =
-            (meta['attachments']?['files'] as List?) ??
+        final files = (meta['attachments']?['files'] as List?) ??
             (meta['attachments'] as List?) ??
             [];
         if (files.isNotEmpty) {
@@ -756,8 +755,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           child: Text(
             'Saved Searches',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
         SizedBox(
@@ -789,8 +788,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           child: Text(
             'Recent Notes',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
         Expanded(
@@ -810,8 +809,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   Widget buildResults(BuildContext context) {
     // Check if we need async search (has folder filter)
     final filters = _parseSearchQuery(query);
-    final needsAsync =
-        filters['folderName'] != null &&
+    final needsAsync = filters['folderName'] != null &&
         resolveFolderIdByName != null &&
         getFolderNoteIdSet != null;
 
@@ -967,13 +965,13 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           searchType: parameters.containsKey('folderName')
               ? 'folder'
               : parameters.containsKey('includeTags') ||
-                    parameters.containsKey('excludeTags')
-              ? 'tag'
-              : parameters.containsKey('hasAttachment') ||
-                    parameters.containsKey('fromEmail') ||
-                    parameters.containsKey('fromWeb')
-              ? 'filter'
-              : 'text',
+                      parameters.containsKey('excludeTags')
+                  ? 'tag'
+                  : parameters.containsKey('hasAttachment') ||
+                          parameters.containsKey('fromEmail') ||
+                          parameters.containsKey('fromWeb')
+                      ? 'filter'
+                      : 'text',
           parameters: jsonEncode(result['parameters']),
           createdAt: DateTime.now(),
           lastUsedAt: DateTime.now(),
@@ -1043,10 +1041,10 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
             Text(
               'No results found',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1054,10 +1052,10 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                   ? 'No $filterDescription found'
                   : 'Try different keywords',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1080,10 +1078,10 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                   query.contains('has:attachment')
                       ? Icons.attach_file
                       : query.contains('from:email')
-                      ? Icons.email
-                      : query.contains('from:web')
-                      ? Icons.language
-                      : Icons.search,
+                          ? Icons.email
+                          : query.contains('from:web')
+                              ? Icons.language
+                              : Icons.search,
                   size: 20,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -1091,16 +1089,16 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                 Text(
                   filterDescription,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                 ),
                 const Spacer(),
                 Text(
                   '${results.length} ${results.length == 1 ? 'note' : 'notes'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -1161,8 +1159,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
             Text(
               preview,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1171,10 +1169,10 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           Text(
             _formatDate(note.updatedAt),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
           ),
         ],
       ),
@@ -1217,8 +1215,8 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                     child: Text(
                       note.title.isEmpty ? '(Untitled)' : note.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1247,10 +1245,10 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                   Text(
                     _formatDate(note.updatedAt),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
                   ),
                   const Spacer(),
                   Container(
@@ -1267,9 +1265,9 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
                     child: Text(
                       '#${index + 1}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                 ],

@@ -488,43 +488,43 @@ class FolderRepository {
   }
 
   Stream<List<LocalNote>> _watchUnfiledNotes(FolderSortSpec sort) {
-    final query =
-        db.select(db.localNotes).join([
-          leftOuterJoin(
-            db.noteFolders,
-            db.noteFolders.noteId.equalsExp(db.localNotes.id),
-          ),
-        ])..where(
-          db.localNotes.deleted.equals(false) & db.noteFolders.noteId.isNull(),
-        );
+    final query = db.select(db.localNotes).join([
+      leftOuterJoin(
+        db.noteFolders,
+        db.noteFolders.noteId.equalsExp(db.localNotes.id),
+      ),
+    ])
+      ..where(
+        db.localNotes.deleted.equals(false) & db.noteFolders.noteId.isNull(),
+      );
 
     _applySorting(query, sort);
 
     return query.watch().map(
-      (rows) => rows.map((row) => row.readTable(db.localNotes)).toList(),
-    );
+          (rows) => rows.map((row) => row.readTable(db.localNotes)).toList(),
+        );
   }
 
   Stream<List<LocalNote>> _watchNotesInSpecificFolder(
     String folderId,
     FolderSortSpec sort,
   ) {
-    final query =
-        db.select(db.localNotes).join([
-          innerJoin(
-            db.noteFolders,
-            db.noteFolders.noteId.equalsExp(db.localNotes.id),
-          ),
-        ])..where(
-          db.localNotes.deleted.equals(false) &
-              db.noteFolders.folderId.equals(folderId),
-        );
+    final query = db.select(db.localNotes).join([
+      innerJoin(
+        db.noteFolders,
+        db.noteFolders.noteId.equalsExp(db.localNotes.id),
+      ),
+    ])
+      ..where(
+        db.localNotes.deleted.equals(false) &
+            db.noteFolders.folderId.equals(folderId),
+      );
 
     _applySorting(query, sort);
 
     return query.watch().map(
-      (rows) => rows.map((row) => row.readTable(db.localNotes)).toList(),
-    );
+          (rows) => rows.map((row) => row.readTable(db.localNotes)).toList(),
+        );
   }
 
   void _applySorting(JoinedSelectStatement query, FolderSortSpec sort) {

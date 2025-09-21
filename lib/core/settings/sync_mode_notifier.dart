@@ -20,7 +20,7 @@ void unawaited(Future<void> future) {
 /// Notifier for managing sync mode settings
 class SyncModeNotifier extends StateNotifier<SyncMode> {
   SyncModeNotifier(this._notesRepository, [this._onSyncComplete])
-    : super(SyncMode.automatic) {
+      : super(SyncMode.automatic) {
     _loadSyncMode();
   }
 
@@ -109,9 +109,8 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
 
       // Determine since: if no local notes, force full pull
       final localCount = (await _notesRepository.db.allNotes()).length;
-      final since = localCount == 0
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(0);
+      final since =
+          localCount == 0 ? null : DateTime.fromMillisecondsSinceEpoch(0);
 
       // Then pull latest changes
       debugPrint(

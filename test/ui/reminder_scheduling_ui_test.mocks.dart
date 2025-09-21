@@ -34,190 +34,188 @@ import 'package:mockito/src/dummies.dart' as _i10;
 
 class _FakeTaskProgress_0 extends _i1.SmartFake implements _i2.TaskProgress {
   _FakeTaskProgress_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeTaskStatistics_1 extends _i1.SmartFake
     implements _i3.TaskStatistics {
   _FakeTaskStatistics_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeMigrationStrategy_2 extends _i1.SmartFake
     implements _i4.MigrationStrategy {
   _FakeMigrationStrategy_2(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$AppDbManager_3 extends _i1.SmartFake implements _i5.$AppDbManager {
   _Fake$AppDbManager_3(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$LocalNotesTable_4 extends _i1.SmartFake
     implements _i5.$LocalNotesTable {
   _Fake$LocalNotesTable_4(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$PendingOpsTable_5 extends _i1.SmartFake
     implements _i5.$PendingOpsTable {
   _Fake$PendingOpsTable_5(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$NoteTagsTable_6 extends _i1.SmartFake
     implements _i5.$NoteTagsTable {
   _Fake$NoteTagsTable_6(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$NoteLinksTable_7 extends _i1.SmartFake
     implements _i5.$NoteLinksTable {
   _Fake$NoteLinksTable_7(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$NoteRemindersTable_8 extends _i1.SmartFake
     implements _i5.$NoteRemindersTable {
   _Fake$NoteRemindersTable_8(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$NoteTasksTable_9 extends _i1.SmartFake
     implements _i5.$NoteTasksTable {
   _Fake$NoteTasksTable_9(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$LocalFoldersTable_10 extends _i1.SmartFake
     implements _i5.$LocalFoldersTable {
   _Fake$LocalFoldersTable_10(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$NoteFoldersTable_11 extends _i1.SmartFake
     implements _i5.$NoteFoldersTable {
   _Fake$NoteFoldersTable_11(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$SavedSearchesTable_12 extends _i1.SmartFake
     implements _i5.$SavedSearchesTable {
   _Fake$SavedSearchesTable_12(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _Fake$LocalTemplatesTable_13 extends _i1.SmartFake
     implements _i5.$LocalTemplatesTable {
   _Fake$LocalTemplatesTable_13(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeGeneratedDatabase_14 extends _i1.SmartFake
     implements _i4.GeneratedDatabase {
   _FakeGeneratedDatabase_14(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeDriftDatabaseOptions_15 extends _i1.SmartFake
     implements _i4.DriftDatabaseOptions {
   _FakeDriftDatabaseOptions_15(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeStreamQueryUpdateRules_16 extends _i1.SmartFake
     implements _i4.StreamQueryUpdateRules {
   _FakeStreamQueryUpdateRules_16(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeDatabaseConnection_17 extends _i1.SmartFake
     implements _i4.DatabaseConnection {
   _FakeDatabaseConnection_17(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeQueryExecutor_18 extends _i1.SmartFake implements _i4.QueryExecutor {
   _FakeQueryExecutor_18(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeStreamQueryStore_19 extends _i1.SmartFake
     implements _i6.StreamQueryStore {
   _FakeStreamQueryStore_19(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeDatabaseConnectionUser_20 extends _i1.SmartFake
     implements _i4.DatabaseConnectionUser {
   _FakeDatabaseConnectionUser_20(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeExpression_21<D extends Object> extends _i1.SmartFake
     implements _i4.Expression<D> {
   _FakeExpression_21(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeMigrator_22 extends _i1.SmartFake implements _i4.Migrator {
   _FakeMigrator_22(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeFuture_23<T1> extends _i1.SmartFake implements _i7.Future<T1> {
   _FakeFuture_23(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeInsertStatement_24<T1 extends _i4.Table, D1> extends _i1.SmartFake
     implements _i4.InsertStatement<T1, D1> {
   _FakeInsertStatement_24(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeUpdateStatement_25<T extends _i4.Table, D> extends _i1.SmartFake
     implements _i4.UpdateStatement<T, D> {
   _FakeUpdateStatement_25(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeSimpleSelectStatement_26<T1 extends _i4.HasResultSet, D>
-    extends _i1.SmartFake
-    implements _i4.SimpleSelectStatement<T1, D> {
+    extends _i1.SmartFake implements _i4.SimpleSelectStatement<T1, D> {
   _FakeSimpleSelectStatement_26(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeJoinedSelectStatement_27<FirstT extends _i4.HasResultSet, FirstD>
-    extends _i1.SmartFake
-    implements _i4.JoinedSelectStatement<FirstT, FirstD> {
+    extends _i1.SmartFake implements _i4.JoinedSelectStatement<FirstT, FirstD> {
   _FakeJoinedSelectStatement_27(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeBaseSelectStatement_28<Row> extends _i1.SmartFake
     implements _i4.BaseSelectStatement<Row> {
   _FakeBaseSelectStatement_28(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeDeleteStatement_29<T1 extends _i4.Table, D1> extends _i1.SmartFake
     implements _i4.DeleteStatement<T1, D1> {
   _FakeDeleteStatement_29(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeSelectable_30<T> extends _i1.SmartFake implements _i4.Selectable<T> {
   _FakeSelectable_30(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 class _FakeGenerationContext_31 extends _i1.SmartFake
     implements _i4.GenerationContext {
   _FakeGenerationContext_31(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+      : super(parent, parentInvocation);
 }
 
 /// A class which mocks [EnhancedTaskService].
@@ -251,6 +249,22 @@ class MockEnhancedTaskService extends _i1.Mock
     bool? createReminder = true,
   }) =>
       (super.noSuchMethod(
+        Invocation.method(#createTask, [], {
+          #noteId: noteId,
+          #content: content,
+          #status: status,
+          #priority: priority,
+          #dueDate: dueDate,
+          #parentTaskId: parentTaskId,
+          #labels: labels,
+          #notes: notes,
+          #estimatedMinutes: estimatedMinutes,
+          #position: position,
+          #createReminder: createReminder,
+        }),
+        returnValue: _i7.Future<String>.value(
+          _i10.dummyValue<String>(
+            this,
             Invocation.method(#createTask, [], {
               #noteId: noteId,
               #content: content,
@@ -264,26 +278,9 @@ class MockEnhancedTaskService extends _i1.Mock
               #position: position,
               #createReminder: createReminder,
             }),
-            returnValue: _i7.Future<String>.value(
-              _i10.dummyValue<String>(
-                this,
-                Invocation.method(#createTask, [], {
-                  #noteId: noteId,
-                  #content: content,
-                  #status: status,
-                  #priority: priority,
-                  #dueDate: dueDate,
-                  #parentTaskId: parentTaskId,
-                  #labels: labels,
-                  #notes: notes,
-                  #estimatedMinutes: estimatedMinutes,
-                  #position: position,
-                  #createReminder: createReminder,
-                }),
-              ),
-            ),
-          )
-          as _i7.Future<String>);
+          ),
+        ),
+      ) as _i7.Future<String>);
 
   @override
   _i7.Future<void> updateTask({
@@ -302,56 +299,50 @@ class MockEnhancedTaskService extends _i1.Mock
     bool? clearReminderId = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#updateTask, [], {
-              #taskId: taskId,
-              #content: content,
-              #status: status,
-              #priority: priority,
-              #dueDate: dueDate,
-              #labels: labels,
-              #notes: notes,
-              #estimatedMinutes: estimatedMinutes,
-              #actualMinutes: actualMinutes,
-              #reminderId: reminderId,
-              #parentTaskId: parentTaskId,
-              #updateReminder: updateReminder,
-              #clearReminderId: clearReminderId,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateTask, [], {
+          #taskId: taskId,
+          #content: content,
+          #status: status,
+          #priority: priority,
+          #dueDate: dueDate,
+          #labels: labels,
+          #notes: notes,
+          #estimatedMinutes: estimatedMinutes,
+          #actualMinutes: actualMinutes,
+          #reminderId: reminderId,
+          #parentTaskId: parentTaskId,
+          #updateReminder: updateReminder,
+          #clearReminderId: clearReminderId,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> completeTask(String? taskId, {String? completedBy}) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #completeTask,
-              [taskId],
-              {#completedBy: completedBy},
-            ),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(
+          #completeTask,
+          [taskId],
+          {#completedBy: completedBy},
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> toggleTaskStatus(String? taskId) =>
-      (super.noSuchMethod(
-            Invocation.method(#toggleTaskStatus, [taskId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> toggleTaskStatus(String? taskId) => (super.noSuchMethod(
+        Invocation.method(#toggleTaskStatus, [taskId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deleteTask(String? taskId) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteTask, [taskId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteTask(String? taskId) => (super.noSuchMethod(
+        Invocation.method(#deleteTask, [taskId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<String> createTaskWithReminder({
@@ -366,6 +357,20 @@ class MockEnhancedTaskService extends _i1.Mock
     int? estimatedMinutes,
   }) =>
       (super.noSuchMethod(
+        Invocation.method(#createTaskWithReminder, [], {
+          #noteId: noteId,
+          #content: content,
+          #dueDate: dueDate,
+          #reminderTime: reminderTime,
+          #priority: priority,
+          #parentTaskId: parentTaskId,
+          #labels: labels,
+          #notes: notes,
+          #estimatedMinutes: estimatedMinutes,
+        }),
+        returnValue: _i7.Future<String>.value(
+          _i10.dummyValue<String>(
+            this,
             Invocation.method(#createTaskWithReminder, [], {
               #noteId: noteId,
               #content: content,
@@ -377,24 +382,9 @@ class MockEnhancedTaskService extends _i1.Mock
               #notes: notes,
               #estimatedMinutes: estimatedMinutes,
             }),
-            returnValue: _i7.Future<String>.value(
-              _i10.dummyValue<String>(
-                this,
-                Invocation.method(#createTaskWithReminder, [], {
-                  #noteId: noteId,
-                  #content: content,
-                  #dueDate: dueDate,
-                  #reminderTime: reminderTime,
-                  #priority: priority,
-                  #parentTaskId: parentTaskId,
-                  #labels: labels,
-                  #notes: notes,
-                  #estimatedMinutes: estimatedMinutes,
-                }),
-              ),
-            ),
-          )
-          as _i7.Future<String>);
+          ),
+        ),
+      ) as _i7.Future<String>);
 
   @override
   _i7.Future<void> snoozeTaskReminder({
@@ -402,40 +392,34 @@ class MockEnhancedTaskService extends _i1.Mock
     required Duration? snoozeDuration,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#snoozeTaskReminder, [], {
-              #taskId: taskId,
-              #snoozeDuration: snoozeDuration,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#snoozeTaskReminder, [], {
+          #taskId: taskId,
+          #snoozeDuration: snoozeDuration,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getTasksWithReminders() =>
-      (super.noSuchMethod(
-            Invocation.method(#getTasksWithReminders, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getTasksWithReminders() => (super.noSuchMethod(
+        Invocation.method(#getTasksWithReminders, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<void> bulkUpdateTaskReminders(List<_i5.NoteTask>? tasks) =>
       (super.noSuchMethod(
-            Invocation.method(#bulkUpdateTaskReminders, [tasks]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#bulkUpdateTaskReminders, [tasks]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> cleanupOrphanedTaskReminders() =>
-      (super.noSuchMethod(
-            Invocation.method(#cleanupOrphanedTaskReminders, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> cleanupOrphanedTaskReminders() => (super.noSuchMethod(
+        Invocation.method(#cleanupOrphanedTaskReminders, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> handleTaskNotificationAction({
@@ -443,32 +427,28 @@ class MockEnhancedTaskService extends _i1.Mock
     required String? payload,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#handleTaskNotificationAction, [], {
-              #action: action,
-              #payload: payload,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#handleTaskNotificationAction, [], {
+          #action: action,
+          #payload: payload,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> completeAllSubtasks(String? parentTaskId) =>
       (super.noSuchMethod(
-            Invocation.method(#completeAllSubtasks, [parentTaskId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#completeAllSubtasks, [parentTaskId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deleteTaskHierarchy(String? taskId) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteTaskHierarchy, [taskId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteTaskHierarchy(String? taskId) => (super.noSuchMethod(
+        Invocation.method(#deleteTaskHierarchy, [taskId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> moveTaskToParent({
@@ -477,73 +457,66 @@ class MockEnhancedTaskService extends _i1.Mock
     int? newPosition,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#moveTaskToParent, [], {
-              #taskId: taskId,
-              #newParentId: newParentId,
-              #newPosition: newPosition,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#moveTaskToParent, [], {
+          #taskId: taskId,
+          #newParentId: newParentId,
+          #newPosition: newPosition,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i2.TaskHierarchyNode>> getTaskHierarchy(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getTaskHierarchy, [noteId]),
-            returnValue: _i7.Future<List<_i2.TaskHierarchyNode>>.value(
-              <_i2.TaskHierarchyNode>[],
-            ),
-          )
-          as _i7.Future<List<_i2.TaskHierarchyNode>>);
+        Invocation.method(#getTaskHierarchy, [noteId]),
+        returnValue: _i7.Future<List<_i2.TaskHierarchyNode>>.value(
+          <_i2.TaskHierarchyNode>[],
+        ),
+      ) as _i7.Future<List<_i2.TaskHierarchyNode>>);
 
   @override
   _i2.TaskProgress calculateTaskProgress(_i2.TaskHierarchyNode? parentNode) =>
       (super.noSuchMethod(
-            Invocation.method(#calculateTaskProgress, [parentNode]),
-            returnValue: _FakeTaskProgress_0(
-              this,
-              Invocation.method(#calculateTaskProgress, [parentNode]),
-            ),
-          )
-          as _i2.TaskProgress);
+        Invocation.method(#calculateTaskProgress, [parentNode]),
+        returnValue: _FakeTaskProgress_0(
+          this,
+          Invocation.method(#calculateTaskProgress, [parentNode]),
+        ),
+      ) as _i2.TaskProgress);
 
   @override
   _i7.Future<void> bulkCompleteTasks(List<String>? taskIds) =>
       (super.noSuchMethod(
-            Invocation.method(#bulkCompleteTasks, [taskIds]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#bulkCompleteTasks, [taskIds]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> bulkDeleteTasks(List<String>? taskIds) =>
       (super.noSuchMethod(
-            Invocation.method(#bulkDeleteTasks, [taskIds]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#bulkDeleteTasks, [taskIds]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> bulkUpdateTaskPriorities(
     Map<String, _i5.TaskPriority>? taskPriorities,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#bulkUpdateTaskPriorities, [taskPriorities]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#bulkUpdateTaskPriorities, [taskPriorities]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getTasksForNote, [noteId]),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getTasksForNote, [noteId]),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getOpenTasks({
@@ -552,14 +525,13 @@ class MockEnhancedTaskService extends _i1.Mock
     String? parentTaskId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getOpenTasks, [], {
-              #dueBefore: dueBefore,
-              #priority: priority,
-              #parentTaskId: parentTaskId,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getOpenTasks, [], {
+          #dueBefore: dueBefore,
+          #priority: priority,
+          #parentTaskId: parentTaskId,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getTasksByDateRange({
@@ -567,21 +539,18 @@ class MockEnhancedTaskService extends _i1.Mock
     required DateTime? end,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getTasksByDateRange, [], {
-              #start: start,
-              #end: end,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getTasksByDateRange, [], {
+          #start: start,
+          #end: end,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getOverdueTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#getOverdueTasks, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getOverdueTasks() => (super.noSuchMethod(
+        Invocation.method(#getOverdueTasks, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getCompletedTasks({
@@ -589,45 +558,37 @@ class MockEnhancedTaskService extends _i1.Mock
     int? limit,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getCompletedTasks, [], {
-              #since: since,
-              #limit: limit,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getCompletedTasks, [], {
+          #since: since,
+          #limit: limit,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getTodaysTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#getTodaysTasks, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getTodaysTasks() => (super.noSuchMethod(
+        Invocation.method(#getTodaysTasks, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getThisWeeksTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#getThisWeeksTasks, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getThisWeeksTasks() => (super.noSuchMethod(
+        Invocation.method(#getThisWeeksTasks, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Stream<List<_i5.NoteTask>> watchOpenTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#watchOpenTasks, []),
-            returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
-          )
-          as _i7.Stream<List<_i5.NoteTask>>);
+  _i7.Stream<List<_i5.NoteTask>> watchOpenTasks() => (super.noSuchMethod(
+        Invocation.method(#watchOpenTasks, []),
+        returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
+      ) as _i7.Stream<List<_i5.NoteTask>>);
 
   @override
   _i7.Stream<List<_i5.NoteTask>> watchTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#watchTasksForNote, [noteId]),
-            returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
-          )
-          as _i7.Stream<List<_i5.NoteTask>>);
+        Invocation.method(#watchTasksForNote, [noteId]),
+        returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
+      ) as _i7.Stream<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<void> syncTasksWithNoteContent(
@@ -635,63 +596,54 @@ class MockEnhancedTaskService extends _i1.Mock
     String? noteContent,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#syncTasksWithNoteContent, [noteId, noteContent]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#syncTasksWithNoteContent, [noteId, noteContent]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<_i3.TaskStatistics> getTaskStatistics() =>
-      (super.noSuchMethod(
+  _i7.Future<_i3.TaskStatistics> getTaskStatistics() => (super.noSuchMethod(
+        Invocation.method(#getTaskStatistics, []),
+        returnValue: _i7.Future<_i3.TaskStatistics>.value(
+          _FakeTaskStatistics_1(
+            this,
             Invocation.method(#getTaskStatistics, []),
-            returnValue: _i7.Future<_i3.TaskStatistics>.value(
-              _FakeTaskStatistics_1(
-                this,
-                Invocation.method(#getTaskStatistics, []),
-              ),
-            ),
-          )
-          as _i7.Future<_i3.TaskStatistics>);
+          ),
+        ),
+      ) as _i7.Future<_i3.TaskStatistics>);
 
   @override
   _i7.Future<void> updateTaskPositions(Map<String, int>? taskPositions) =>
       (super.noSuchMethod(
-            Invocation.method(#updateTaskPositions, [taskPositions]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateTaskPositions, [taskPositions]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getSubtasks(String? parentTaskId) =>
       (super.noSuchMethod(
-            Invocation.method(#getSubtasks, [parentTaskId]),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getSubtasks, [parentTaskId]),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  String priorityToString(_i5.TaskPriority? priority) =>
-      (super.noSuchMethod(
-            Invocation.method(#priorityToString, [priority]),
-            returnValue: _i10.dummyValue<String>(
-              this,
-              Invocation.method(#priorityToString, [priority]),
-            ),
-          )
-          as String);
+  String priorityToString(_i5.TaskPriority? priority) => (super.noSuchMethod(
+        Invocation.method(#priorityToString, [priority]),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.method(#priorityToString, [priority]),
+        ),
+      ) as String);
 
   @override
-  String statusToString(_i5.TaskStatus? status) =>
-      (super.noSuchMethod(
-            Invocation.method(#statusToString, [status]),
-            returnValue: _i10.dummyValue<String>(
-              this,
-              Invocation.method(#statusToString, [status]),
-            ),
-          )
-          as String);
+  String statusToString(_i5.TaskStatus? status) => (super.noSuchMethod(
+        Invocation.method(#statusToString, [status]),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.method(#statusToString, [status]),
+        ),
+      ) as String);
 }
 
 /// A class which mocks [TaskReminderBridge].
@@ -704,13 +656,11 @@ class MockTaskReminderBridge extends _i1.Mock
   }
 
   @override
-  _i7.Future<void> initialize() =>
-      (super.noSuchMethod(
-            Invocation.method(#initialize, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> initialize() => (super.noSuchMethod(
+        Invocation.method(#initialize, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<int?> createTaskReminder({
@@ -718,31 +668,28 @@ class MockTaskReminderBridge extends _i1.Mock
     Duration? beforeDueDate,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#createTaskReminder, [], {
-              #task: task,
-              #beforeDueDate: beforeDueDate,
-            }),
-            returnValue: _i7.Future<int?>.value(),
-          )
-          as _i7.Future<int?>);
+        Invocation.method(#createTaskReminder, [], {
+          #task: task,
+          #beforeDueDate: beforeDueDate,
+        }),
+        returnValue: _i7.Future<int?>.value(),
+      ) as _i7.Future<int?>);
 
   @override
   _i7.Future<void> updateTaskReminder(_i5.NoteTask? task) =>
       (super.noSuchMethod(
-            Invocation.method(#updateTaskReminder, [task]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateTaskReminder, [task]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> cancelTaskReminder(_i5.NoteTask? task) =>
       (super.noSuchMethod(
-            Invocation.method(#cancelTaskReminder, [task]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#cancelTaskReminder, [task]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> snoozeTaskReminder({
@@ -750,14 +697,13 @@ class MockTaskReminderBridge extends _i1.Mock
     required Duration? snoozeDuration,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#snoozeTaskReminder, [], {
-              #task: task,
-              #snoozeDuration: snoozeDuration,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#snoozeTaskReminder, [], {
+          #task: task,
+          #snoozeDuration: snoozeDuration,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> handleTaskNotificationAction({
@@ -765,14 +711,13 @@ class MockTaskReminderBridge extends _i1.Mock
     required String? payload,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#handleTaskNotificationAction, [], {
-              #action: action,
-              #payload: payload,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#handleTaskNotificationAction, [], {
+          #action: action,
+          #payload: payload,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> scheduleTaskNotification({
@@ -780,23 +725,20 @@ class MockTaskReminderBridge extends _i1.Mock
     required DateTime? reminderTime,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#scheduleTaskNotification, [], {
-              #task: task,
-              #reminderTime: reminderTime,
-            }),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#scheduleTaskNotification, [], {
+          #task: task,
+          #reminderTime: reminderTime,
+        }),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> onTaskCreated(_i5.NoteTask? task) =>
-      (super.noSuchMethod(
-            Invocation.method(#onTaskCreated, [task]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> onTaskCreated(_i5.NoteTask? task) => (super.noSuchMethod(
+        Invocation.method(#onTaskCreated, [task]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> onTaskUpdated(
@@ -804,52 +746,44 @@ class MockTaskReminderBridge extends _i1.Mock
     _i5.NoteTask? newTask,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#onTaskUpdated, [oldTask, newTask]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#onTaskUpdated, [oldTask, newTask]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> onTaskDeleted(_i5.NoteTask? task) =>
-      (super.noSuchMethod(
-            Invocation.method(#onTaskDeleted, [task]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> onTaskDeleted(_i5.NoteTask? task) => (super.noSuchMethod(
+        Invocation.method(#onTaskDeleted, [task]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getTasksWithReminders() =>
-      (super.noSuchMethod(
-            Invocation.method(#getTasksWithReminders, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getTasksWithReminders() => (super.noSuchMethod(
+        Invocation.method(#getTasksWithReminders, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<void> bulkUpdateTaskReminders(List<_i5.NoteTask>? tasks) =>
       (super.noSuchMethod(
-            Invocation.method(#bulkUpdateTaskReminders, [tasks]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#bulkUpdateTaskReminders, [tasks]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> cleanupOrphanedReminders() =>
-      (super.noSuchMethod(
-            Invocation.method(#cleanupOrphanedReminders, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> cleanupOrphanedReminders() => (super.noSuchMethod(
+        Invocation.method(#cleanupOrphanedReminders, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   void dispose() => super.noSuchMethod(
-    Invocation.method(#dispose, []),
-    returnValueForMissingStub: null,
-  );
+        Invocation.method(#dispose, []),
+        returnValueForMissingStub: null,
+      );
 }
 
 /// A class which mocks [AppDb].
@@ -866,251 +800,206 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
           as int);
 
   @override
-  _i4.MigrationStrategy get migration =>
-      (super.noSuchMethod(
-            Invocation.getter(#migration),
-            returnValue: _FakeMigrationStrategy_2(
-              this,
-              Invocation.getter(#migration),
-            ),
-          )
-          as _i4.MigrationStrategy);
+  _i4.MigrationStrategy get migration => (super.noSuchMethod(
+        Invocation.getter(#migration),
+        returnValue: _FakeMigrationStrategy_2(
+          this,
+          Invocation.getter(#migration),
+        ),
+      ) as _i4.MigrationStrategy);
 
   @override
-  _i5.$AppDbManager get managers =>
-      (super.noSuchMethod(
-            Invocation.getter(#managers),
-            returnValue: _Fake$AppDbManager_3(
-              this,
-              Invocation.getter(#managers),
-            ),
-          )
-          as _i5.$AppDbManager);
+  _i5.$AppDbManager get managers => (super.noSuchMethod(
+        Invocation.getter(#managers),
+        returnValue: _Fake$AppDbManager_3(
+          this,
+          Invocation.getter(#managers),
+        ),
+      ) as _i5.$AppDbManager);
 
   @override
-  _i5.$LocalNotesTable get localNotes =>
-      (super.noSuchMethod(
-            Invocation.getter(#localNotes),
-            returnValue: _Fake$LocalNotesTable_4(
-              this,
-              Invocation.getter(#localNotes),
-            ),
-          )
-          as _i5.$LocalNotesTable);
+  _i5.$LocalNotesTable get localNotes => (super.noSuchMethod(
+        Invocation.getter(#localNotes),
+        returnValue: _Fake$LocalNotesTable_4(
+          this,
+          Invocation.getter(#localNotes),
+        ),
+      ) as _i5.$LocalNotesTable);
 
   @override
-  _i5.$PendingOpsTable get pendingOps =>
-      (super.noSuchMethod(
-            Invocation.getter(#pendingOps),
-            returnValue: _Fake$PendingOpsTable_5(
-              this,
-              Invocation.getter(#pendingOps),
-            ),
-          )
-          as _i5.$PendingOpsTable);
+  _i5.$PendingOpsTable get pendingOps => (super.noSuchMethod(
+        Invocation.getter(#pendingOps),
+        returnValue: _Fake$PendingOpsTable_5(
+          this,
+          Invocation.getter(#pendingOps),
+        ),
+      ) as _i5.$PendingOpsTable);
 
   @override
-  _i5.$NoteTagsTable get noteTags =>
-      (super.noSuchMethod(
-            Invocation.getter(#noteTags),
-            returnValue: _Fake$NoteTagsTable_6(
-              this,
-              Invocation.getter(#noteTags),
-            ),
-          )
-          as _i5.$NoteTagsTable);
+  _i5.$NoteTagsTable get noteTags => (super.noSuchMethod(
+        Invocation.getter(#noteTags),
+        returnValue: _Fake$NoteTagsTable_6(
+          this,
+          Invocation.getter(#noteTags),
+        ),
+      ) as _i5.$NoteTagsTable);
 
   @override
-  _i5.$NoteLinksTable get noteLinks =>
-      (super.noSuchMethod(
-            Invocation.getter(#noteLinks),
-            returnValue: _Fake$NoteLinksTable_7(
-              this,
-              Invocation.getter(#noteLinks),
-            ),
-          )
-          as _i5.$NoteLinksTable);
+  _i5.$NoteLinksTable get noteLinks => (super.noSuchMethod(
+        Invocation.getter(#noteLinks),
+        returnValue: _Fake$NoteLinksTable_7(
+          this,
+          Invocation.getter(#noteLinks),
+        ),
+      ) as _i5.$NoteLinksTable);
 
   @override
-  _i5.$NoteRemindersTable get noteReminders =>
-      (super.noSuchMethod(
-            Invocation.getter(#noteReminders),
-            returnValue: _Fake$NoteRemindersTable_8(
-              this,
-              Invocation.getter(#noteReminders),
-            ),
-          )
-          as _i5.$NoteRemindersTable);
+  _i5.$NoteRemindersTable get noteReminders => (super.noSuchMethod(
+        Invocation.getter(#noteReminders),
+        returnValue: _Fake$NoteRemindersTable_8(
+          this,
+          Invocation.getter(#noteReminders),
+        ),
+      ) as _i5.$NoteRemindersTable);
 
   @override
-  _i5.$NoteTasksTable get noteTasks =>
-      (super.noSuchMethod(
-            Invocation.getter(#noteTasks),
-            returnValue: _Fake$NoteTasksTable_9(
-              this,
-              Invocation.getter(#noteTasks),
-            ),
-          )
-          as _i5.$NoteTasksTable);
+  _i5.$NoteTasksTable get noteTasks => (super.noSuchMethod(
+        Invocation.getter(#noteTasks),
+        returnValue: _Fake$NoteTasksTable_9(
+          this,
+          Invocation.getter(#noteTasks),
+        ),
+      ) as _i5.$NoteTasksTable);
 
   @override
-  _i5.$LocalFoldersTable get localFolders =>
-      (super.noSuchMethod(
-            Invocation.getter(#localFolders),
-            returnValue: _Fake$LocalFoldersTable_10(
-              this,
-              Invocation.getter(#localFolders),
-            ),
-          )
-          as _i5.$LocalFoldersTable);
+  _i5.$LocalFoldersTable get localFolders => (super.noSuchMethod(
+        Invocation.getter(#localFolders),
+        returnValue: _Fake$LocalFoldersTable_10(
+          this,
+          Invocation.getter(#localFolders),
+        ),
+      ) as _i5.$LocalFoldersTable);
 
   @override
-  _i5.$NoteFoldersTable get noteFolders =>
-      (super.noSuchMethod(
-            Invocation.getter(#noteFolders),
-            returnValue: _Fake$NoteFoldersTable_11(
-              this,
-              Invocation.getter(#noteFolders),
-            ),
-          )
-          as _i5.$NoteFoldersTable);
+  _i5.$NoteFoldersTable get noteFolders => (super.noSuchMethod(
+        Invocation.getter(#noteFolders),
+        returnValue: _Fake$NoteFoldersTable_11(
+          this,
+          Invocation.getter(#noteFolders),
+        ),
+      ) as _i5.$NoteFoldersTable);
 
   @override
-  _i5.$SavedSearchesTable get savedSearches =>
-      (super.noSuchMethod(
-            Invocation.getter(#savedSearches),
-            returnValue: _Fake$SavedSearchesTable_12(
-              this,
-              Invocation.getter(#savedSearches),
-            ),
-          )
-          as _i5.$SavedSearchesTable);
+  _i5.$SavedSearchesTable get savedSearches => (super.noSuchMethod(
+        Invocation.getter(#savedSearches),
+        returnValue: _Fake$SavedSearchesTable_12(
+          this,
+          Invocation.getter(#savedSearches),
+        ),
+      ) as _i5.$SavedSearchesTable);
 
   @override
-  _i5.$LocalTemplatesTable get localTemplates =>
-      (super.noSuchMethod(
-            Invocation.getter(#localTemplates),
-            returnValue: _Fake$LocalTemplatesTable_13(
-              this,
-              Invocation.getter(#localTemplates),
-            ),
-          )
-          as _i5.$LocalTemplatesTable);
+  _i5.$LocalTemplatesTable get localTemplates => (super.noSuchMethod(
+        Invocation.getter(#localTemplates),
+        returnValue: _Fake$LocalTemplatesTable_13(
+          this,
+          Invocation.getter(#localTemplates),
+        ),
+      ) as _i5.$LocalTemplatesTable);
 
   @override
   Iterable<_i4.TableInfo<_i4.Table, Object?>> get allTables =>
       (super.noSuchMethod(
-            Invocation.getter(#allTables),
-            returnValue: <_i4.TableInfo<_i4.Table, Object?>>[],
-          )
-          as Iterable<_i4.TableInfo<_i4.Table, Object?>>);
+        Invocation.getter(#allTables),
+        returnValue: <_i4.TableInfo<_i4.Table, Object?>>[],
+      ) as Iterable<_i4.TableInfo<_i4.Table, Object?>>);
 
   @override
-  List<_i4.DatabaseSchemaEntity> get allSchemaEntities =>
-      (super.noSuchMethod(
-            Invocation.getter(#allSchemaEntities),
-            returnValue: <_i4.DatabaseSchemaEntity>[],
-          )
-          as List<_i4.DatabaseSchemaEntity>);
+  List<_i4.DatabaseSchemaEntity> get allSchemaEntities => (super.noSuchMethod(
+        Invocation.getter(#allSchemaEntities),
+        returnValue: <_i4.DatabaseSchemaEntity>[],
+      ) as List<_i4.DatabaseSchemaEntity>);
 
   @override
-  _i4.GeneratedDatabase get attachedDatabase =>
-      (super.noSuchMethod(
-            Invocation.getter(#attachedDatabase),
-            returnValue: _FakeGeneratedDatabase_14(
-              this,
-              Invocation.getter(#attachedDatabase),
-            ),
-          )
-          as _i4.GeneratedDatabase);
+  _i4.GeneratedDatabase get attachedDatabase => (super.noSuchMethod(
+        Invocation.getter(#attachedDatabase),
+        returnValue: _FakeGeneratedDatabase_14(
+          this,
+          Invocation.getter(#attachedDatabase),
+        ),
+      ) as _i4.GeneratedDatabase);
 
   @override
-  _i4.DriftDatabaseOptions get options =>
-      (super.noSuchMethod(
-            Invocation.getter(#options),
-            returnValue: _FakeDriftDatabaseOptions_15(
-              this,
-              Invocation.getter(#options),
-            ),
-          )
-          as _i4.DriftDatabaseOptions);
+  _i4.DriftDatabaseOptions get options => (super.noSuchMethod(
+        Invocation.getter(#options),
+        returnValue: _FakeDriftDatabaseOptions_15(
+          this,
+          Invocation.getter(#options),
+        ),
+      ) as _i4.DriftDatabaseOptions);
 
   @override
-  _i4.StreamQueryUpdateRules get streamUpdateRules =>
-      (super.noSuchMethod(
-            Invocation.getter(#streamUpdateRules),
-            returnValue: _FakeStreamQueryUpdateRules_16(
-              this,
-              Invocation.getter(#streamUpdateRules),
-            ),
-          )
-          as _i4.StreamQueryUpdateRules);
+  _i4.StreamQueryUpdateRules get streamUpdateRules => (super.noSuchMethod(
+        Invocation.getter(#streamUpdateRules),
+        returnValue: _FakeStreamQueryUpdateRules_16(
+          this,
+          Invocation.getter(#streamUpdateRules),
+        ),
+      ) as _i4.StreamQueryUpdateRules);
 
   @override
-  _i4.DatabaseConnection get connection =>
-      (super.noSuchMethod(
-            Invocation.getter(#connection),
-            returnValue: _FakeDatabaseConnection_17(
-              this,
-              Invocation.getter(#connection),
-            ),
-          )
-          as _i4.DatabaseConnection);
+  _i4.DatabaseConnection get connection => (super.noSuchMethod(
+        Invocation.getter(#connection),
+        returnValue: _FakeDatabaseConnection_17(
+          this,
+          Invocation.getter(#connection),
+        ),
+      ) as _i4.DatabaseConnection);
 
   @override
-  _i4.SqlTypes get typeMapping =>
-      (super.noSuchMethod(
-            Invocation.getter(#typeMapping),
-            returnValue: _i10.dummyValue<_i4.SqlTypes>(
-              this,
-              Invocation.getter(#typeMapping),
-            ),
-          )
-          as _i4.SqlTypes);
+  _i4.SqlTypes get typeMapping => (super.noSuchMethod(
+        Invocation.getter(#typeMapping),
+        returnValue: _i10.dummyValue<_i4.SqlTypes>(
+          this,
+          Invocation.getter(#typeMapping),
+        ),
+      ) as _i4.SqlTypes);
 
   @override
-  _i4.QueryExecutor get executor =>
-      (super.noSuchMethod(
-            Invocation.getter(#executor),
-            returnValue: _FakeQueryExecutor_18(
-              this,
-              Invocation.getter(#executor),
-            ),
-          )
-          as _i4.QueryExecutor);
+  _i4.QueryExecutor get executor => (super.noSuchMethod(
+        Invocation.getter(#executor),
+        returnValue: _FakeQueryExecutor_18(
+          this,
+          Invocation.getter(#executor),
+        ),
+      ) as _i4.QueryExecutor);
 
   @override
-  _i6.StreamQueryStore get streamQueries =>
-      (super.noSuchMethod(
-            Invocation.getter(#streamQueries),
-            returnValue: _FakeStreamQueryStore_19(
-              this,
-              Invocation.getter(#streamQueries),
-            ),
-          )
-          as _i6.StreamQueryStore);
+  _i6.StreamQueryStore get streamQueries => (super.noSuchMethod(
+        Invocation.getter(#streamQueries),
+        returnValue: _FakeStreamQueryStore_19(
+          this,
+          Invocation.getter(#streamQueries),
+        ),
+      ) as _i6.StreamQueryStore);
 
   @override
-  _i4.DatabaseConnectionUser get resolvedEngine =>
-      (super.noSuchMethod(
-            Invocation.getter(#resolvedEngine),
-            returnValue: _FakeDatabaseConnectionUser_20(
-              this,
-              Invocation.getter(#resolvedEngine),
-            ),
-          )
-          as _i4.DatabaseConnectionUser);
+  _i4.DatabaseConnectionUser get resolvedEngine => (super.noSuchMethod(
+        Invocation.getter(#resolvedEngine),
+        returnValue: _FakeDatabaseConnectionUser_20(
+          this,
+          Invocation.getter(#resolvedEngine),
+        ),
+      ) as _i4.DatabaseConnectionUser);
 
   @override
-  _i4.Expression<bool> noteIsVisible(_i5.LocalNotes? t) =>
-      (super.noSuchMethod(
-            Invocation.method(#noteIsVisible, [t]),
-            returnValue: _FakeExpression_21<bool>(
-              this,
-              Invocation.method(#noteIsVisible, [t]),
-            ),
-          )
-          as _i4.Expression<bool>);
+  _i4.Expression<bool> noteIsVisible(_i5.LocalNotes? t) => (super.noSuchMethod(
+        Invocation.method(#noteIsVisible, [t]),
+        returnValue: _FakeExpression_21<bool>(
+          this,
+          Invocation.method(#noteIsVisible, [t]),
+        ),
+      ) as _i4.Expression<bool>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> suggestNotesByTitlePrefix(
@@ -1118,26 +1007,23 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     int? limit = 8,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #suggestNotesByTitlePrefix,
-              [query],
-              {#limit: limit},
-            ),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(
+          #suggestNotesByTitlePrefix,
+          [query],
+          {#limit: limit},
+        ),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<List<_i5.LocalNote>> allNotes() =>
-      (super.noSuchMethod(
-            Invocation.method(#allNotes, []),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+  _i7.Future<List<_i5.LocalNote>> allNotes() => (super.noSuchMethod(
+        Invocation.method(#allNotes, []),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> notesAfter({
@@ -1145,15 +1031,14 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     required int? limit,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#notesAfter, [], {
-              #cursor: cursor,
-              #limit: limit,
-            }),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#notesAfter, [], {
+          #cursor: cursor,
+          #limit: limit,
+        }),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> pagedNotes({
@@ -1161,53 +1046,45 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     required int? offset,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#pagedNotes, [], {
-              #limit: limit,
-              #offset: offset,
-            }),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#pagedNotes, [], {
+          #limit: limit,
+          #offset: offset,
+        }),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<List<_i5.LocalNote>> allNotesWithPinned() =>
-      (super.noSuchMethod(
-            Invocation.method(#allNotesWithPinned, []),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+  _i7.Future<List<_i5.LocalNote>> allNotesWithPinned() => (super.noSuchMethod(
+        Invocation.method(#allNotesWithPinned, []),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<List<_i5.LocalNote>> getPinnedNotes() =>
-      (super.noSuchMethod(
-            Invocation.method(#getPinnedNotes, []),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+  _i7.Future<List<_i5.LocalNote>> getPinnedNotes() => (super.noSuchMethod(
+        Invocation.method(#getPinnedNotes, []),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<void> toggleNotePin(String? noteId) =>
-      (super.noSuchMethod(
-            Invocation.method(#toggleNotePin, [noteId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> toggleNotePin(String? noteId) => (super.noSuchMethod(
+        Invocation.method(#toggleNotePin, [noteId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> setNotePin(String? noteId, bool? isPinned) =>
       (super.noSuchMethod(
-            Invocation.method(#setNotePin, [noteId, isPinned]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#setNotePin, [noteId, isPinned]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> getNotesInFolderWithPinned(
@@ -1216,96 +1093,80 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     DateTime? cursor,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #getNotesInFolderWithPinned,
-              [folderId],
-              {#limit: limit, #cursor: cursor},
-            ),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(
+          #getNotesInFolderWithPinned,
+          [folderId],
+          {#limit: limit, #cursor: cursor},
+        ),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<void> upsertNote(_i5.LocalNote? n) =>
-      (super.noSuchMethod(
-            Invocation.method(#upsertNote, [n]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> upsertNote(_i5.LocalNote? n) => (super.noSuchMethod(
+        Invocation.method(#upsertNote, [n]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<_i5.LocalNote?> findNote(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#findNote, [id]),
-            returnValue: _i7.Future<_i5.LocalNote?>.value(),
-          )
-          as _i7.Future<_i5.LocalNote?>);
+  _i7.Future<_i5.LocalNote?> findNote(String? id) => (super.noSuchMethod(
+        Invocation.method(#findNote, [id]),
+        returnValue: _i7.Future<_i5.LocalNote?>.value(),
+      ) as _i7.Future<_i5.LocalNote?>);
 
   @override
   _i7.Future<int> enqueue(String? entityId, String? kind, {String? payload}) =>
       (super.noSuchMethod(
-            Invocation.method(#enqueue, [entityId, kind], {#payload: payload}),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(#enqueue, [entityId, kind], {#payload: payload}),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
-  _i7.Future<List<_i5.PendingOp>> getPendingOps() =>
-      (super.noSuchMethod(
-            Invocation.method(#getPendingOps, []),
-            returnValue: _i7.Future<List<_i5.PendingOp>>.value(
-              <_i5.PendingOp>[],
-            ),
-          )
-          as _i7.Future<List<_i5.PendingOp>>);
+  _i7.Future<List<_i5.PendingOp>> getPendingOps() => (super.noSuchMethod(
+        Invocation.method(#getPendingOps, []),
+        returnValue: _i7.Future<List<_i5.PendingOp>>.value(
+          <_i5.PendingOp>[],
+        ),
+      ) as _i7.Future<List<_i5.PendingOp>>);
 
   @override
   _i7.Future<void> deletePendingByIds(Iterable<int>? ids) =>
       (super.noSuchMethod(
-            Invocation.method(#deletePendingByIds, [ids]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#deletePendingByIds, [ids]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i5.PendingOp>> dequeueAll() =>
-      (super.noSuchMethod(
-            Invocation.method(#dequeueAll, []),
-            returnValue: _i7.Future<List<_i5.PendingOp>>.value(
-              <_i5.PendingOp>[],
-            ),
-          )
-          as _i7.Future<List<_i5.PendingOp>>);
+  _i7.Future<List<_i5.PendingOp>> dequeueAll() => (super.noSuchMethod(
+        Invocation.method(#dequeueAll, []),
+        returnValue: _i7.Future<List<_i5.PendingOp>>.value(
+          <_i5.PendingOp>[],
+        ),
+      ) as _i7.Future<List<_i5.PendingOp>>);
 
   @override
-  _i7.Future<void> clearAll() =>
-      (super.noSuchMethod(
-            Invocation.method(#clearAll, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> clearAll() => (super.noSuchMethod(
+        Invocation.method(#clearAll, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<Set<String>> getLocalActiveNoteIds() =>
-      (super.noSuchMethod(
-            Invocation.method(#getLocalActiveNoteIds, []),
-            returnValue: _i7.Future<Set<String>>.value(<String>{}),
-          )
-          as _i7.Future<Set<String>>);
+  _i7.Future<Set<String>> getLocalActiveNoteIds() => (super.noSuchMethod(
+        Invocation.method(#getLocalActiveNoteIds, []),
+        returnValue: _i7.Future<Set<String>>.value(<String>{}),
+      ) as _i7.Future<Set<String>>);
 
   @override
   _i7.Future<void> replaceTagsForNote(String? noteId, Set<String>? tags) =>
       (super.noSuchMethod(
-            Invocation.method(#replaceTagsForNote, [noteId, tags]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#replaceTagsForNote, [noteId, tags]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> replaceLinksForNote(
@@ -1313,53 +1174,45 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     List<Map<String, String?>>? links,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#replaceLinksForNote, [noteId, links]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#replaceLinksForNote, [noteId, links]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<String>> distinctTags() =>
-      (super.noSuchMethod(
-            Invocation.method(#distinctTags, []),
-            returnValue: _i7.Future<List<String>>.value(<String>[]),
-          )
-          as _i7.Future<List<String>>);
+  _i7.Future<List<String>> distinctTags() => (super.noSuchMethod(
+        Invocation.method(#distinctTags, []),
+        returnValue: _i7.Future<List<String>>.value(<String>[]),
+      ) as _i7.Future<List<String>>);
 
   @override
-  _i7.Future<List<_i5.TagCount>> getTagsWithCounts() =>
-      (super.noSuchMethod(
-            Invocation.method(#getTagsWithCounts, []),
-            returnValue: _i7.Future<List<_i5.TagCount>>.value(<_i5.TagCount>[]),
-          )
-          as _i7.Future<List<_i5.TagCount>>);
+  _i7.Future<List<_i5.TagCount>> getTagsWithCounts() => (super.noSuchMethod(
+        Invocation.method(#getTagsWithCounts, []),
+        returnValue: _i7.Future<List<_i5.TagCount>>.value(<_i5.TagCount>[]),
+      ) as _i7.Future<List<_i5.TagCount>>);
 
   @override
   _i7.Future<void> addTagToNote(String? noteId, String? rawTag) =>
       (super.noSuchMethod(
-            Invocation.method(#addTagToNote, [noteId, rawTag]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#addTagToNote, [noteId, rawTag]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> removeTagFromNote(String? noteId, String? rawTag) =>
       (super.noSuchMethod(
-            Invocation.method(#removeTagFromNote, [noteId, rawTag]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#removeTagFromNote, [noteId, rawTag]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<int> renameTagEverywhere(String? fromRaw, String? toRaw) =>
       (super.noSuchMethod(
-            Invocation.method(#renameTagEverywhere, [fromRaw, toRaw]),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(#renameTagEverywhere, [fromRaw, toRaw]),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> notesByTags({
@@ -1368,115 +1221,101 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     List<String>? noneTags = const [],
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#notesByTags, [], {
-              #anyTags: anyTags,
-              #sort: sort,
-              #noneTags: noneTags,
-            }),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#notesByTags, [], {
+          #anyTags: anyTags,
+          #sort: sort,
+          #noneTags: noneTags,
+        }),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<List<String>> searchTags(String? prefix) =>
-      (super.noSuchMethod(
-            Invocation.method(#searchTags, [prefix]),
-            returnValue: _i7.Future<List<String>>.value(<String>[]),
-          )
-          as _i7.Future<List<String>>);
+  _i7.Future<List<String>> searchTags(String? prefix) => (super.noSuchMethod(
+        Invocation.method(#searchTags, [prefix]),
+        returnValue: _i7.Future<List<String>>.value(<String>[]),
+      ) as _i7.Future<List<String>>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> notesWithTag(String? tag) =>
       (super.noSuchMethod(
-            Invocation.method(#notesWithTag, [tag]),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#notesWithTag, [tag]),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<void> debugMetadata() =>
-      (super.noSuchMethod(
-            Invocation.method(#debugMetadata, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> debugMetadata() => (super.noSuchMethod(
+        Invocation.method(#debugMetadata, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> notesForSavedSearch({
     required String? savedSearchKey,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#notesForSavedSearch, [], {
-              #savedSearchKey: savedSearchKey,
-            }),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#notesForSavedSearch, [], {
+          #savedSearchKey: savedSearchKey,
+        }),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
   _i7.Future<List<_i5.BacklinkPair>> backlinksWithSources(
     String? targetTitle,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#backlinksWithSources, [targetTitle]),
-            returnValue: _i7.Future<List<_i5.BacklinkPair>>.value(
-              <_i5.BacklinkPair>[],
-            ),
-          )
-          as _i7.Future<List<_i5.BacklinkPair>>);
+        Invocation.method(#backlinksWithSources, [targetTitle]),
+        returnValue: _i7.Future<List<_i5.BacklinkPair>>.value(
+          <_i5.BacklinkPair>[],
+        ),
+      ) as _i7.Future<List<_i5.BacklinkPair>>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> searchNotes(String? raw) =>
       (super.noSuchMethod(
-            Invocation.method(#searchNotes, [raw]),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#searchNotes, [raw]),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getRemindersForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getRemindersForNote, [noteId]),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getRemindersForNote, [noteId]),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getActiveReminders() =>
       (super.noSuchMethod(
-            Invocation.method(#getActiveReminders, []),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getActiveReminders, []),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
-  _i7.Future<_i5.NoteReminder?> getReminderById(int? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#getReminderById, [id]),
-            returnValue: _i7.Future<_i5.NoteReminder?>.value(),
-          )
-          as _i7.Future<_i5.NoteReminder?>);
+  _i7.Future<_i5.NoteReminder?> getReminderById(int? id) => (super.noSuchMethod(
+        Invocation.method(#getReminderById, [id]),
+        returnValue: _i7.Future<_i5.NoteReminder?>.value(),
+      ) as _i7.Future<_i5.NoteReminder?>);
 
   @override
   _i7.Future<int> createReminder(_i5.NoteRemindersCompanion? reminder) =>
       (super.noSuchMethod(
-            Invocation.method(#createReminder, [reminder]),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(#createReminder, [reminder]),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
   _i7.Future<void> updateReminder(
@@ -1484,79 +1323,69 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     _i5.NoteRemindersCompanion? updates,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#updateReminder, [id, updates]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateReminder, [id, updates]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deleteReminderById(int? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteReminderById, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteReminderById(int? id) => (super.noSuchMethod(
+        Invocation.method(#deleteReminderById, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> deleteRemindersForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#deleteRemindersForNote, [noteId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#deleteRemindersForNote, [noteId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getTimeRemindersToTrigger({
     required DateTime? before,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getTimeRemindersToTrigger, [], {
-              #before: before,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getTimeRemindersToTrigger, [], {
+          #before: before,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getLocationReminders() =>
       (super.noSuchMethod(
-            Invocation.method(#getLocationReminders, []),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getLocationReminders, []),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getRecurringReminders() =>
       (super.noSuchMethod(
-            Invocation.method(#getRecurringReminders, []),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getRecurringReminders, []),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getTasksForNote, [noteId]),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getTasksForNote, [noteId]),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<_i5.NoteTask?> getTaskById(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#getTaskById, [id]),
-            returnValue: _i7.Future<_i5.NoteTask?>.value(),
-          )
-          as _i7.Future<_i5.NoteTask?>);
+  _i7.Future<_i5.NoteTask?> getTaskById(String? id) => (super.noSuchMethod(
+        Invocation.method(#getTaskById, [id]),
+        returnValue: _i7.Future<_i5.NoteTask?>.value(),
+      ) as _i7.Future<_i5.NoteTask?>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getOpenTasks({
@@ -1565,14 +1394,13 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     String? parentTaskId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getOpenTasks, [], {
-              #dueBefore: dueBefore,
-              #priority: priority,
-              #parentTaskId: parentTaskId,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getOpenTasks, [], {
+          #dueBefore: dueBefore,
+          #priority: priority,
+          #parentTaskId: parentTaskId,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getTasksByDateRange({
@@ -1580,29 +1408,24 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     required DateTime? end,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getTasksByDateRange, [], {
-              #start: start,
-              #end: end,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getTasksByDateRange, [], {
+          #start: start,
+          #end: end,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getOverdueTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#getOverdueTasks, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getOverdueTasks() => (super.noSuchMethod(
+        Invocation.method(#getOverdueTasks, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
-  _i7.Future<List<_i5.NoteTask>> getAllTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAllTasks, []),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+  _i7.Future<List<_i5.NoteTask>> getAllTasks() => (super.noSuchMethod(
+        Invocation.method(#getAllTasks, []),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteTask>> getCompletedTasks({
@@ -1610,67 +1433,57 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     int? limit,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getCompletedTasks, [], {
-              #since: since,
-              #limit: limit,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
-          )
-          as _i7.Future<List<_i5.NoteTask>>);
+        Invocation.method(#getCompletedTasks, [], {
+          #since: since,
+          #limit: limit,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteTask>>.value(<_i5.NoteTask>[]),
+      ) as _i7.Future<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<void> createTask(_i5.NoteTasksCompanion? task) =>
       (super.noSuchMethod(
-            Invocation.method(#createTask, [task]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#createTask, [task]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> updateTask(String? id, _i5.NoteTasksCompanion? updates) =>
       (super.noSuchMethod(
-            Invocation.method(#updateTask, [id, updates]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateTask, [id, updates]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> completeTask(String? id, {String? completedBy}) =>
       (super.noSuchMethod(
-            Invocation.method(#completeTask, [id], {#completedBy: completedBy}),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#completeTask, [id], {#completedBy: completedBy}),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> toggleTaskStatus(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#toggleTaskStatus, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> toggleTaskStatus(String? id) => (super.noSuchMethod(
+        Invocation.method(#toggleTaskStatus, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deleteTaskById(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteTaskById, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteTaskById(String? id) => (super.noSuchMethod(
+        Invocation.method(#deleteTaskById, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deleteTasksForNote(String? noteId) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteTasksForNote, [noteId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteTasksForNote(String? noteId) => (super.noSuchMethod(
+        Invocation.method(#deleteTasksForNote, [noteId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> syncTasksWithNoteContent(
@@ -1678,155 +1491,131 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     String? noteContent,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#syncTasksWithNoteContent, [noteId, noteContent]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#syncTasksWithNoteContent, [noteId, noteContent]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Stream<List<_i5.NoteTask>> watchOpenTasks() =>
-      (super.noSuchMethod(
-            Invocation.method(#watchOpenTasks, []),
-            returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
-          )
-          as _i7.Stream<List<_i5.NoteTask>>);
+  _i7.Stream<List<_i5.NoteTask>> watchOpenTasks() => (super.noSuchMethod(
+        Invocation.method(#watchOpenTasks, []),
+        returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
+      ) as _i7.Stream<List<_i5.NoteTask>>);
 
   @override
   _i7.Stream<List<_i5.NoteTask>> watchTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#watchTasksForNote, [noteId]),
-            returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
-          )
-          as _i7.Stream<List<_i5.NoteTask>>);
+        Invocation.method(#watchTasksForNote, [noteId]),
+        returnValue: _i7.Stream<List<_i5.NoteTask>>.empty(),
+      ) as _i7.Stream<List<_i5.NoteTask>>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getSnoozedRemindersToReschedule({
     required DateTime? now,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getSnoozedRemindersToReschedule, [], {
-              #now: now,
-            }),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getSnoozedRemindersToReschedule, [], {
+          #now: now,
+        }),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
   _i7.Future<void> markReminderTriggered(int? id, {DateTime? triggeredAt}) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #markReminderTriggered,
-              [id],
-              {#triggeredAt: triggeredAt},
-            ),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(
+          #markReminderTriggered,
+          [id],
+          {#triggeredAt: triggeredAt},
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> snoozeReminder(int? id, DateTime? snoozeUntil) =>
       (super.noSuchMethod(
-            Invocation.method(#snoozeReminder, [id, snoozeUntil]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#snoozeReminder, [id, snoozeUntil]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> clearSnooze(int? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#clearSnooze, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> clearSnooze(int? id) => (super.noSuchMethod(
+        Invocation.method(#clearSnooze, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> deactivateReminder(int? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deactivateReminder, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deactivateReminder(int? id) => (super.noSuchMethod(
+        Invocation.method(#deactivateReminder, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.NoteReminder>> getAllReminders({
     bool? activeOnly = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getAllReminders, [], {#activeOnly: activeOnly}),
-            returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
-              <_i5.NoteReminder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteReminder>>);
+        Invocation.method(#getAllReminders, [], {#activeOnly: activeOnly}),
+        returnValue: _i7.Future<List<_i5.NoteReminder>>.value(
+          <_i5.NoteReminder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteReminder>>);
 
   @override
-  _i7.Future<void> cleanupOrphanedReminders() =>
-      (super.noSuchMethod(
-            Invocation.method(#cleanupOrphanedReminders, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> cleanupOrphanedReminders() => (super.noSuchMethod(
+        Invocation.method(#cleanupOrphanedReminders, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<Map<String, int>> getReminderStats() =>
-      (super.noSuchMethod(
-            Invocation.method(#getReminderStats, []),
-            returnValue: _i7.Future<Map<String, int>>.value(<String, int>{}),
-          )
-          as _i7.Future<Map<String, int>>);
+  _i7.Future<Map<String, int>> getReminderStats() => (super.noSuchMethod(
+        Invocation.method(#getReminderStats, []),
+        returnValue: _i7.Future<Map<String, int>>.value(<String, int>{}),
+      ) as _i7.Future<Map<String, int>>);
 
   @override
-  _i7.Future<List<_i5.LocalFolder>> getRootFolders() =>
-      (super.noSuchMethod(
-            Invocation.method(#getRootFolders, []),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+  _i7.Future<List<_i5.LocalFolder>> getRootFolders() => (super.noSuchMethod(
+        Invocation.method(#getRootFolders, []),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
   _i7.Future<List<_i5.LocalFolder>> getChildFolders(String? parentId) =>
       (super.noSuchMethod(
-            Invocation.method(#getChildFolders, [parentId]),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+        Invocation.method(#getChildFolders, [parentId]),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
-  _i7.Future<_i5.LocalFolder?> getFolderById(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#getFolderById, [id]),
-            returnValue: _i7.Future<_i5.LocalFolder?>.value(),
-          )
-          as _i7.Future<_i5.LocalFolder?>);
+  _i7.Future<_i5.LocalFolder?> getFolderById(String? id) => (super.noSuchMethod(
+        Invocation.method(#getFolderById, [id]),
+        returnValue: _i7.Future<_i5.LocalFolder?>.value(),
+      ) as _i7.Future<_i5.LocalFolder?>);
 
   @override
-  _i7.Future<void> upsertFolder(_i5.LocalFolder? folder) =>
-      (super.noSuchMethod(
-            Invocation.method(#upsertFolder, [folder]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> upsertFolder(_i5.LocalFolder? folder) => (super.noSuchMethod(
+        Invocation.method(#upsertFolder, [folder]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<int> getNotesCountInFolder(String? folderId) =>
       (super.noSuchMethod(
-            Invocation.method(#getNotesCountInFolder, [folderId]),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(#getNotesCountInFolder, [folderId]),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> getNotesInFolder(
@@ -1835,58 +1624,48 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     DateTime? cursor,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #getNotesInFolder,
-              [folderId],
-              {#limit: limit, #cursor: cursor},
-            ),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(
+          #getNotesInFolder,
+          [folderId],
+          {#limit: limit, #cursor: cursor},
+        ),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
-  _i7.Future<Map<String, int>> getFolderNoteCounts() =>
-      (super.noSuchMethod(
-            Invocation.method(#getFolderNoteCounts, []),
-            returnValue: _i7.Future<Map<String, int>>.value(<String, int>{}),
-          )
-          as _i7.Future<Map<String, int>>);
+  _i7.Future<Map<String, int>> getFolderNoteCounts() => (super.noSuchMethod(
+        Invocation.method(#getFolderNoteCounts, []),
+        returnValue: _i7.Future<Map<String, int>>.value(<String, int>{}),
+      ) as _i7.Future<Map<String, int>>);
 
   @override
-  _i7.Future<void> cleanupOrphanedRelationships() =>
-      (super.noSuchMethod(
-            Invocation.method(#cleanupOrphanedRelationships, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> cleanupOrphanedRelationships() => (super.noSuchMethod(
+        Invocation.method(#cleanupOrphanedRelationships, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<_i5.LocalNote?> getNote(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#getNote, [id]),
-            returnValue: _i7.Future<_i5.LocalNote?>.value(),
-          )
-          as _i7.Future<_i5.LocalNote?>);
+  _i7.Future<_i5.LocalNote?> getNote(String? id) => (super.noSuchMethod(
+        Invocation.method(#getNote, [id]),
+        returnValue: _i7.Future<_i5.LocalNote?>.value(),
+      ) as _i7.Future<_i5.LocalNote?>);
 
   @override
-  _i7.Stream<_i5.LocalNote?> watchNote(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#watchNote, [id]),
-            returnValue: _i7.Stream<_i5.LocalNote?>.empty(),
-          )
-          as _i7.Stream<_i5.LocalNote?>);
+  _i7.Stream<_i5.LocalNote?> watchNote(String? id) => (super.noSuchMethod(
+        Invocation.method(#watchNote, [id]),
+        returnValue: _i7.Stream<_i5.LocalNote?>.empty(),
+      ) as _i7.Stream<_i5.LocalNote?>);
 
   @override
   _i7.Future<void> updateNote(String? id, _i5.LocalNotesCompanion? updates) =>
       (super.noSuchMethod(
-            Invocation.method(#updateNote, [id, updates]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#updateNote, [id, updates]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.LocalNote>> getUnfiledNotes({
@@ -1894,366 +1673,308 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     DateTime? cursor,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getUnfiledNotes, [], {
-              #limit: limit,
-              #cursor: cursor,
-            }),
-            returnValue: _i7.Future<List<_i5.LocalNote>>.value(
-              <_i5.LocalNote>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalNote>>);
+        Invocation.method(#getUnfiledNotes, [], {
+          #limit: limit,
+          #cursor: cursor,
+        }),
+        returnValue: _i7.Future<List<_i5.LocalNote>>.value(
+          <_i5.LocalNote>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalNote>>);
 
   @override
   _i7.Future<void> moveNoteToFolder(String? noteId, String? folderId) =>
       (super.noSuchMethod(
-            Invocation.method(#moveNoteToFolder, [noteId, folderId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#moveNoteToFolder, [noteId, folderId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<String>> getNoteIdsInFolder(String? folderId) =>
       (super.noSuchMethod(
-            Invocation.method(#getNoteIdsInFolder, [folderId]),
-            returnValue: _i7.Future<List<String>>.value(<String>[]),
-          )
-          as _i7.Future<List<String>>);
+        Invocation.method(#getNoteIdsInFolder, [folderId]),
+        returnValue: _i7.Future<List<String>>.value(<String>[]),
+      ) as _i7.Future<List<String>>);
 
   @override
   _i7.Future<_i5.LocalFolder?> getNoteFolder(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getNoteFolder, [noteId]),
-            returnValue: _i7.Future<_i5.LocalFolder?>.value(),
-          )
-          as _i7.Future<_i5.LocalFolder?>);
+        Invocation.method(#getNoteFolder, [noteId]),
+        returnValue: _i7.Future<_i5.LocalFolder?>.value(),
+      ) as _i7.Future<_i5.LocalFolder?>);
 
   @override
   _i7.Future<String> generateFolderPath(String? folderId) =>
       (super.noSuchMethod(
+        Invocation.method(#generateFolderPath, [folderId]),
+        returnValue: _i7.Future<String>.value(
+          _i10.dummyValue<String>(
+            this,
             Invocation.method(#generateFolderPath, [folderId]),
-            returnValue: _i7.Future<String>.value(
-              _i10.dummyValue<String>(
-                this,
-                Invocation.method(#generateFolderPath, [folderId]),
-              ),
-            ),
-          )
-          as _i7.Future<String>);
+          ),
+        ),
+      ) as _i7.Future<String>);
 
   @override
-  _i7.Future<_i5.LocalFolder?> findFolder(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#findFolder, [id]),
-            returnValue: _i7.Future<_i5.LocalFolder?>.value(),
-          )
-          as _i7.Future<_i5.LocalFolder?>);
+  _i7.Future<_i5.LocalFolder?> findFolder(String? id) => (super.noSuchMethod(
+        Invocation.method(#findFolder, [id]),
+        returnValue: _i7.Future<_i5.LocalFolder?>.value(),
+      ) as _i7.Future<_i5.LocalFolder?>);
 
   @override
-  _i7.Future<List<_i5.LocalFolder>> allFolders() =>
-      (super.noSuchMethod(
-            Invocation.method(#allFolders, []),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+  _i7.Future<List<_i5.LocalFolder>> allFolders() => (super.noSuchMethod(
+        Invocation.method(#allFolders, []),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
-  _i7.Future<List<_i5.LocalFolder>> getActiveFolders() =>
-      (super.noSuchMethod(
-            Invocation.method(#getActiveFolders, []),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+  _i7.Future<List<_i5.LocalFolder>> getActiveFolders() => (super.noSuchMethod(
+        Invocation.method(#getActiveFolders, []),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
   _i7.Future<_i5.LocalFolder?> getFolderForNote(String? noteId) =>
       (super.noSuchMethod(
-            Invocation.method(#getFolderForNote, [noteId]),
-            returnValue: _i7.Future<_i5.LocalFolder?>.value(),
-          )
-          as _i7.Future<_i5.LocalFolder?>);
+        Invocation.method(#getFolderForNote, [noteId]),
+        returnValue: _i7.Future<_i5.LocalFolder?>.value(),
+      ) as _i7.Future<_i5.LocalFolder?>);
 
   @override
-  _i7.Future<void> removeNoteFromFolder(String? noteId) =>
-      (super.noSuchMethod(
-            Invocation.method(#removeNoteFromFolder, [noteId]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> removeNoteFromFolder(String? noteId) => (super.noSuchMethod(
+        Invocation.method(#removeNoteFromFolder, [noteId]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> upsertNoteFolder(_i5.NoteFolder? relationship) =>
       (super.noSuchMethod(
-            Invocation.method(#upsertNoteFolder, [relationship]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#upsertNoteFolder, [relationship]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<List<_i5.NoteFolder>> getAllNoteFolderRelationships() =>
       (super.noSuchMethod(
-            Invocation.method(#getAllNoteFolderRelationships, []),
-            returnValue: _i7.Future<List<_i5.NoteFolder>>.value(
-              <_i5.NoteFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.NoteFolder>>);
+        Invocation.method(#getAllNoteFolderRelationships, []),
+        returnValue: _i7.Future<List<_i5.NoteFolder>>.value(
+          <_i5.NoteFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.NoteFolder>>);
 
   @override
-  _i7.Future<Set<String>> getActiveNoteIds() =>
-      (super.noSuchMethod(
-            Invocation.method(#getActiveNoteIds, []),
-            returnValue: _i7.Future<Set<String>>.value(<String>{}),
-          )
-          as _i7.Future<Set<String>>);
+  _i7.Future<Set<String>> getActiveNoteIds() => (super.noSuchMethod(
+        Invocation.method(#getActiveNoteIds, []),
+        returnValue: _i7.Future<Set<String>>.value(<String>{}),
+      ) as _i7.Future<Set<String>>);
 
   @override
-  _i7.Future<Set<String>> getLocalActiveFolderIds() =>
-      (super.noSuchMethod(
-            Invocation.method(#getLocalActiveFolderIds, []),
-            returnValue: _i7.Future<Set<String>>.value(<String>{}),
-          )
-          as _i7.Future<Set<String>>);
+  _i7.Future<Set<String>> getLocalActiveFolderIds() => (super.noSuchMethod(
+        Invocation.method(#getLocalActiveFolderIds, []),
+        returnValue: _i7.Future<Set<String>>.value(<String>{}),
+      ) as _i7.Future<Set<String>>);
 
   @override
   _i7.Future<List<_i5.LocalFolder>> getRecentlyUpdatedFolders({
     required DateTime? since,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getRecentlyUpdatedFolders, [], {#since: since}),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+        Invocation.method(#getRecentlyUpdatedFolders, [], {#since: since}),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
   _i7.Future<List<_i5.LocalFolder>> getFoldersByParent(String? parentId) =>
       (super.noSuchMethod(
-            Invocation.method(#getFoldersByParent, [parentId]),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+        Invocation.method(#getFoldersByParent, [parentId]),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
-  _i7.Future<int> countNotesInFolder(String? folderId) =>
-      (super.noSuchMethod(
-            Invocation.method(#countNotesInFolder, [folderId]),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+  _i7.Future<int> countNotesInFolder(String? folderId) => (super.noSuchMethod(
+        Invocation.method(#countNotesInFolder, [folderId]),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
-  _i7.Future<int> getFolderDepth(String? folderId) =>
-      (super.noSuchMethod(
-            Invocation.method(#getFolderDepth, [folderId]),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+  _i7.Future<int> getFolderDepth(String? folderId) => (super.noSuchMethod(
+        Invocation.method(#getFolderDepth, [folderId]),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
-  _i7.Future<bool> hasChildFolders(String? folderId) =>
-      (super.noSuchMethod(
-            Invocation.method(#hasChildFolders, [folderId]),
-            returnValue: _i7.Future<bool>.value(false),
-          )
-          as _i7.Future<bool>);
+  _i7.Future<bool> hasChildFolders(String? folderId) => (super.noSuchMethod(
+        Invocation.method(#hasChildFolders, [folderId]),
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
 
   @override
   _i7.Future<List<_i5.LocalFolder>> getFolderSubtree(String? rootId) =>
       (super.noSuchMethod(
-            Invocation.method(#getFolderSubtree, [rootId]),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+        Invocation.method(#getFolderSubtree, [rootId]),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
   _i7.Future<List<_i5.LocalFolder>> searchFolders(String? query) =>
       (super.noSuchMethod(
-            Invocation.method(#searchFolders, [query]),
-            returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
-              <_i5.LocalFolder>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalFolder>>);
+        Invocation.method(#searchFolders, [query]),
+        returnValue: _i7.Future<List<_i5.LocalFolder>>.value(
+          <_i5.LocalFolder>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalFolder>>);
 
   @override
   _i7.Future<_i5.LocalFolder?> findFolderByName(String? name) =>
       (super.noSuchMethod(
-            Invocation.method(#findFolderByName, [name]),
-            returnValue: _i7.Future<_i5.LocalFolder?>.value(),
-          )
-          as _i7.Future<_i5.LocalFolder?>);
+        Invocation.method(#findFolderByName, [name]),
+        returnValue: _i7.Future<_i5.LocalFolder?>.value(),
+      ) as _i7.Future<_i5.LocalFolder?>);
 
   @override
   _i7.Future<void> upsertSavedSearch(_i5.SavedSearch? search) =>
       (super.noSuchMethod(
-            Invocation.method(#upsertSavedSearch, [search]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#upsertSavedSearch, [search]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i5.SavedSearch>> getSavedSearches() =>
-      (super.noSuchMethod(
-            Invocation.method(#getSavedSearches, []),
-            returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
-              <_i5.SavedSearch>[],
-            ),
-          )
-          as _i7.Future<List<_i5.SavedSearch>>);
+  _i7.Future<List<_i5.SavedSearch>> getSavedSearches() => (super.noSuchMethod(
+        Invocation.method(#getSavedSearches, []),
+        returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
+          <_i5.SavedSearch>[],
+        ),
+      ) as _i7.Future<List<_i5.SavedSearch>>);
 
   @override
   _i7.Future<List<_i5.SavedSearch>> getSavedSearchesByType(
     String? searchType,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#getSavedSearchesByType, [searchType]),
-            returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
-              <_i5.SavedSearch>[],
-            ),
-          )
-          as _i7.Future<List<_i5.SavedSearch>>);
+        Invocation.method(#getSavedSearchesByType, [searchType]),
+        returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
+          <_i5.SavedSearch>[],
+        ),
+      ) as _i7.Future<List<_i5.SavedSearch>>);
 
   @override
   _i7.Future<_i5.SavedSearch?> getSavedSearchById(String? id) =>
       (super.noSuchMethod(
-            Invocation.method(#getSavedSearchById, [id]),
-            returnValue: _i7.Future<_i5.SavedSearch?>.value(),
-          )
-          as _i7.Future<_i5.SavedSearch?>);
+        Invocation.method(#getSavedSearchById, [id]),
+        returnValue: _i7.Future<_i5.SavedSearch?>.value(),
+      ) as _i7.Future<_i5.SavedSearch?>);
 
   @override
-  _i7.Future<void> deleteSavedSearch(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteSavedSearch, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> deleteSavedSearch(String? id) => (super.noSuchMethod(
+        Invocation.method(#deleteSavedSearch, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> updateSavedSearchUsage(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#updateSavedSearchUsage, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> updateSavedSearchUsage(String? id) => (super.noSuchMethod(
+        Invocation.method(#updateSavedSearchUsage, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> toggleSavedSearchPin(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#toggleSavedSearchPin, [id]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> toggleSavedSearchPin(String? id) => (super.noSuchMethod(
+        Invocation.method(#toggleSavedSearchPin, [id]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<void> reorderSavedSearches(List<String>? orderedIds) =>
       (super.noSuchMethod(
-            Invocation.method(#reorderSavedSearches, [orderedIds]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#reorderSavedSearches, [orderedIds]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Stream<List<_i5.SavedSearch>> watchSavedSearches() =>
-      (super.noSuchMethod(
-            Invocation.method(#watchSavedSearches, []),
-            returnValue: _i7.Stream<List<_i5.SavedSearch>>.empty(),
-          )
-          as _i7.Stream<List<_i5.SavedSearch>>);
+  _i7.Stream<List<_i5.SavedSearch>> watchSavedSearches() => (super.noSuchMethod(
+        Invocation.method(#watchSavedSearches, []),
+        returnValue: _i7.Stream<List<_i5.SavedSearch>>.empty(),
+      ) as _i7.Stream<List<_i5.SavedSearch>>);
 
   @override
   _i7.Future<List<_i5.SavedSearch>> getPinnedSavedSearches() =>
       (super.noSuchMethod(
-            Invocation.method(#getPinnedSavedSearches, []),
-            returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
-              <_i5.SavedSearch>[],
-            ),
-          )
-          as _i7.Future<List<_i5.SavedSearch>>);
+        Invocation.method(#getPinnedSavedSearches, []),
+        returnValue: _i7.Future<List<_i5.SavedSearch>>.value(
+          <_i5.SavedSearch>[],
+        ),
+      ) as _i7.Future<List<_i5.SavedSearch>>);
 
   @override
-  _i7.Future<List<_i5.LocalTemplate>> getAllTemplates() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAllTemplates, []),
-            returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
-              <_i5.LocalTemplate>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalTemplate>>);
+  _i7.Future<List<_i5.LocalTemplate>> getAllTemplates() => (super.noSuchMethod(
+        Invocation.method(#getAllTemplates, []),
+        returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
+          <_i5.LocalTemplate>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalTemplate>>);
 
   @override
   _i7.Future<List<_i5.LocalTemplate>> getSystemTemplates() =>
       (super.noSuchMethod(
-            Invocation.method(#getSystemTemplates, []),
-            returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
-              <_i5.LocalTemplate>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalTemplate>>);
+        Invocation.method(#getSystemTemplates, []),
+        returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
+          <_i5.LocalTemplate>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalTemplate>>);
 
   @override
-  _i7.Future<List<_i5.LocalTemplate>> getUserTemplates() =>
-      (super.noSuchMethod(
-            Invocation.method(#getUserTemplates, []),
-            returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
-              <_i5.LocalTemplate>[],
-            ),
-          )
-          as _i7.Future<List<_i5.LocalTemplate>>);
+  _i7.Future<List<_i5.LocalTemplate>> getUserTemplates() => (super.noSuchMethod(
+        Invocation.method(#getUserTemplates, []),
+        returnValue: _i7.Future<List<_i5.LocalTemplate>>.value(
+          <_i5.LocalTemplate>[],
+        ),
+      ) as _i7.Future<List<_i5.LocalTemplate>>);
 
   @override
-  _i7.Future<_i5.LocalTemplate?> getTemplate(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#getTemplate, [id]),
-            returnValue: _i7.Future<_i5.LocalTemplate?>.value(),
-          )
-          as _i7.Future<_i5.LocalTemplate?>);
+  _i7.Future<_i5.LocalTemplate?> getTemplate(String? id) => (super.noSuchMethod(
+        Invocation.method(#getTemplate, [id]),
+        returnValue: _i7.Future<_i5.LocalTemplate?>.value(),
+      ) as _i7.Future<_i5.LocalTemplate?>);
 
   @override
   _i7.Future<void> upsertTemplate(_i5.LocalTemplate? template) =>
       (super.noSuchMethod(
-            Invocation.method(#upsertTemplate, [template]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#upsertTemplate, [template]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<bool> deleteTemplate(String? id) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteTemplate, [id]),
-            returnValue: _i7.Future<bool>.value(false),
-          )
-          as _i7.Future<bool>);
+  _i7.Future<bool> deleteTemplate(String? id) => (super.noSuchMethod(
+        Invocation.method(#deleteTemplate, [id]),
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
 
   @override
-  _i4.Migrator createMigrator() =>
-      (super.noSuchMethod(
-            Invocation.method(#createMigrator, []),
-            returnValue: _FakeMigrator_22(
-              this,
-              Invocation.method(#createMigrator, []),
-            ),
-          )
-          as _i4.Migrator);
+  _i4.Migrator createMigrator() => (super.noSuchMethod(
+        Invocation.method(#createMigrator, []),
+        returnValue: _FakeMigrator_22(
+          this,
+          Invocation.method(#createMigrator, []),
+        ),
+      ) as _i4.Migrator);
 
   @override
   _i7.Future<void> beforeOpen(
@@ -2261,41 +1982,36 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     _i4.OpeningDetails? details,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#beforeOpen, [executor, details]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#beforeOpen, [executor, details]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i7.Future<void> close() =>
-      (super.noSuchMethod(
-            Invocation.method(#close, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+  _i7.Future<void> close() => (super.noSuchMethod(
+        Invocation.method(#close, []),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Stream<T> createStream<T extends Object>(
     _i6.QueryStreamFetcher<T>? stmt,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#createStream, [stmt]),
-            returnValue: _i7.Stream<T>.empty(),
-          )
-          as _i7.Stream<T>);
+        Invocation.method(#createStream, [stmt]),
+        returnValue: _i7.Stream<T>.empty(),
+      ) as _i7.Stream<T>);
 
   @override
   T alias<T, D>(_i4.ResultSetImplementation<T, D>? table, String? alias) =>
       (super.noSuchMethod(
-            Invocation.method(#alias, [table, alias]),
-            returnValue: _i10.dummyValue<T>(
-              this,
-              Invocation.method(#alias, [table, alias]),
-            ),
-          )
-          as T);
+        Invocation.method(#alias, [table, alias]),
+        returnValue: _i10.dummyValue<T>(
+          this,
+          Invocation.method(#alias, [table, alias]),
+        ),
+      ) as T);
 
   @override
   void markTablesUpdated(Iterable<_i4.TableInfo<_i4.Table, dynamic>>? tables) =>
@@ -2306,63 +2022,58 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
 
   @override
   void notifyUpdates(Set<_i4.TableUpdate>? updates) => super.noSuchMethod(
-    Invocation.method(#notifyUpdates, [updates]),
-    returnValueForMissingStub: null,
-  );
+        Invocation.method(#notifyUpdates, [updates]),
+        returnValueForMissingStub: null,
+      );
 
   @override
   _i7.Stream<Set<_i4.TableUpdate>> tableUpdates([
     _i4.TableUpdateQuery? query = const _i4.TableUpdateQuery.any(),
   ]) =>
       (super.noSuchMethod(
-            Invocation.method(#tableUpdates, [query]),
-            returnValue: _i7.Stream<Set<_i4.TableUpdate>>.empty(),
-          )
-          as _i7.Stream<Set<_i4.TableUpdate>>);
+        Invocation.method(#tableUpdates, [query]),
+        returnValue: _i7.Stream<Set<_i4.TableUpdate>>.empty(),
+      ) as _i7.Stream<Set<_i4.TableUpdate>>);
 
   @override
   _i7.Future<T> doWhenOpened<T>(
     _i7.FutureOr<T> Function(_i4.QueryExecutor)? fn,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#doWhenOpened, [fn]),
-            returnValue:
-                _i10.ifNotNull(
-                  _i10.dummyValueOrNull<T>(
-                    this,
-                    Invocation.method(#doWhenOpened, [fn]),
-                  ),
-                  (T v) => _i7.Future<T>.value(v),
-                ) ??
-                _FakeFuture_23<T>(this, Invocation.method(#doWhenOpened, [fn])),
-          )
-          as _i7.Future<T>);
+        Invocation.method(#doWhenOpened, [fn]),
+        returnValue: _i10.ifNotNull(
+              _i10.dummyValueOrNull<T>(
+                this,
+                Invocation.method(#doWhenOpened, [fn]),
+              ),
+              (T v) => _i7.Future<T>.value(v),
+            ) ??
+            _FakeFuture_23<T>(this, Invocation.method(#doWhenOpened, [fn])),
+      ) as _i7.Future<T>);
 
   @override
   _i4.InsertStatement<T, D> into<T extends _i4.Table, D>(
     _i4.TableInfo<T, D>? table,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#into, [table]),
-            returnValue: _FakeInsertStatement_24<T, D>(
-              this,
-              Invocation.method(#into, [table]),
-            ),
-          )
-          as _i4.InsertStatement<T, D>);
+        Invocation.method(#into, [table]),
+        returnValue: _FakeInsertStatement_24<T, D>(
+          this,
+          Invocation.method(#into, [table]),
+        ),
+      ) as _i4.InsertStatement<T, D>);
 
   @override
   _i4.UpdateStatement<Tbl, R> update<Tbl extends _i4.Table, R>(
     _i4.TableInfo<Tbl, R>? table,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#update, [table]),
-            returnValue: _FakeUpdateStatement_25<Tbl, R>(
-              this,
-              Invocation.method(#update, [table]),
-            ),
-          )
-          as _i4.UpdateStatement<Tbl, R>);
+        Invocation.method(#update, [table]),
+        returnValue: _FakeUpdateStatement_25<Tbl, R>(
+          this,
+          Invocation.method(#update, [table]),
+        ),
+      ) as _i4.UpdateStatement<Tbl, R>);
 
   @override
   _i4.SimpleSelectStatement<T, R> select<T extends _i4.HasResultSet, R>(
@@ -2370,13 +2081,12 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     bool? distinct = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#select, [table], {#distinct: distinct}),
-            returnValue: _FakeSimpleSelectStatement_26<T, R>(
-              this,
-              Invocation.method(#select, [table], {#distinct: distinct}),
-            ),
-          )
-          as _i4.SimpleSelectStatement<T, R>);
+        Invocation.method(#select, [table], {#distinct: distinct}),
+        returnValue: _FakeSimpleSelectStatement_26<T, R>(
+          this,
+          Invocation.method(#select, [table], {#distinct: distinct}),
+        ),
+      ) as _i4.SimpleSelectStatement<T, R>);
 
   @override
   _i4.JoinedSelectStatement<T, R> selectOnly<T extends _i4.HasResultSet, R>(
@@ -2384,39 +2094,36 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     bool? distinct = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#selectOnly, [table], {#distinct: distinct}),
-            returnValue: _FakeJoinedSelectStatement_27<T, R>(
-              this,
-              Invocation.method(#selectOnly, [table], {#distinct: distinct}),
-            ),
-          )
-          as _i4.JoinedSelectStatement<T, R>);
+        Invocation.method(#selectOnly, [table], {#distinct: distinct}),
+        returnValue: _FakeJoinedSelectStatement_27<T, R>(
+          this,
+          Invocation.method(#selectOnly, [table], {#distinct: distinct}),
+        ),
+      ) as _i4.JoinedSelectStatement<T, R>);
 
   @override
   _i4.BaseSelectStatement<_i4.TypedResult> selectExpressions(
     Iterable<_i4.Expression<Object>>? columns,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#selectExpressions, [columns]),
-            returnValue: _FakeBaseSelectStatement_28<_i4.TypedResult>(
-              this,
-              Invocation.method(#selectExpressions, [columns]),
-            ),
-          )
-          as _i4.BaseSelectStatement<_i4.TypedResult>);
+        Invocation.method(#selectExpressions, [columns]),
+        returnValue: _FakeBaseSelectStatement_28<_i4.TypedResult>(
+          this,
+          Invocation.method(#selectExpressions, [columns]),
+        ),
+      ) as _i4.BaseSelectStatement<_i4.TypedResult>);
 
   @override
   _i4.DeleteStatement<T, D> delete<T extends _i4.Table, D>(
     _i4.TableInfo<T, D>? table,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#delete, [table]),
-            returnValue: _FakeDeleteStatement_29<T, D>(
-              this,
-              Invocation.method(#delete, [table]),
-            ),
-          )
-          as _i4.DeleteStatement<T, D>);
+        Invocation.method(#delete, [table]),
+        returnValue: _FakeDeleteStatement_29<T, D>(
+          this,
+          Invocation.method(#delete, [table]),
+        ),
+      ) as _i4.DeleteStatement<T, D>);
 
   @override
   _i7.Future<int> customUpdate(
@@ -2426,18 +2133,17 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     _i4.UpdateKind? updateKind,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #customUpdate,
-              [query],
-              {
-                #variables: variables,
-                #updates: updates,
-                #updateKind: updateKind,
-              },
-            ),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(
+          #customUpdate,
+          [query],
+          {
+            #variables: variables,
+            #updates: updates,
+            #updateKind: updateKind,
+          },
+        ),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
   _i7.Future<int> customInsert(
@@ -2446,14 +2152,13 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     Set<_i4.ResultSetImplementation<dynamic, dynamic>>? updates,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #customInsert,
-              [query],
-              {#variables: variables, #updates: updates},
-            ),
-            returnValue: _i7.Future<int>.value(0),
-          )
-          as _i7.Future<int>);
+        Invocation.method(
+          #customInsert,
+          [query],
+          {#variables: variables, #updates: updates},
+        ),
+        returnValue: _i7.Future<int>.value(0),
+      ) as _i7.Future<int>);
 
   @override
   _i7.Future<List<_i4.QueryRow>> customWriteReturning(
@@ -2463,18 +2168,17 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     _i4.UpdateKind? updateKind,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #customWriteReturning,
-              [query],
-              {
-                #variables: variables,
-                #updates: updates,
-                #updateKind: updateKind,
-              },
-            ),
-            returnValue: _i7.Future<List<_i4.QueryRow>>.value(<_i4.QueryRow>[]),
-          )
-          as _i7.Future<List<_i4.QueryRow>>);
+        Invocation.method(
+          #customWriteReturning,
+          [query],
+          {
+            #variables: variables,
+            #updates: updates,
+            #updateKind: updateKind,
+          },
+        ),
+        returnValue: _i7.Future<List<_i4.QueryRow>>.value(<_i4.QueryRow>[]),
+      ) as _i7.Future<List<_i4.QueryRow>>);
 
   @override
   _i4.Selectable<_i4.QueryRow> customSelect(
@@ -2483,21 +2187,20 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     Set<_i4.ResultSetImplementation<dynamic, dynamic>>? readsFrom = const {},
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #customSelect,
-              [query],
-              {#variables: variables, #readsFrom: readsFrom},
-            ),
-            returnValue: _FakeSelectable_30<_i4.QueryRow>(
-              this,
-              Invocation.method(
-                #customSelect,
-                [query],
-                {#variables: variables, #readsFrom: readsFrom},
-              ),
-            ),
-          )
-          as _i4.Selectable<_i4.QueryRow>);
+        Invocation.method(
+          #customSelect,
+          [query],
+          {#variables: variables, #readsFrom: readsFrom},
+        ),
+        returnValue: _FakeSelectable_30<_i4.QueryRow>(
+          this,
+          Invocation.method(
+            #customSelect,
+            [query],
+            {#variables: variables, #readsFrom: readsFrom},
+          ),
+        ),
+      ) as _i4.Selectable<_i4.QueryRow>);
 
   @override
   _i4.Selectable<_i4.QueryRow> customSelectQuery(
@@ -2506,30 +2209,28 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     Set<_i4.ResultSetImplementation<dynamic, dynamic>>? readsFrom = const {},
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #customSelectQuery,
-              [query],
-              {#variables: variables, #readsFrom: readsFrom},
-            ),
-            returnValue: _FakeSelectable_30<_i4.QueryRow>(
-              this,
-              Invocation.method(
-                #customSelectQuery,
-                [query],
-                {#variables: variables, #readsFrom: readsFrom},
-              ),
-            ),
-          )
-          as _i4.Selectable<_i4.QueryRow>);
+        Invocation.method(
+          #customSelectQuery,
+          [query],
+          {#variables: variables, #readsFrom: readsFrom},
+        ),
+        returnValue: _FakeSelectable_30<_i4.QueryRow>(
+          this,
+          Invocation.method(
+            #customSelectQuery,
+            [query],
+            {#variables: variables, #readsFrom: readsFrom},
+          ),
+        ),
+      ) as _i4.Selectable<_i4.QueryRow>);
 
   @override
   _i7.Future<void> customStatement(String? statement, [List<dynamic>? args]) =>
       (super.noSuchMethod(
-            Invocation.method(#customStatement, [statement, args]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#customStatement, [statement, args]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<T> transaction<T>(
@@ -2537,61 +2238,56 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     bool? requireNew = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #transaction,
-              [action],
-              {#requireNew: requireNew},
-            ),
-            returnValue:
-                _i10.ifNotNull(
-                  _i10.dummyValueOrNull<T>(
-                    this,
-                    Invocation.method(
-                      #transaction,
-                      [action],
-                      {#requireNew: requireNew},
-                    ),
-                  ),
-                  (T v) => _i7.Future<T>.value(v),
-                ) ??
-                _FakeFuture_23<T>(
-                  this,
-                  Invocation.method(
-                    #transaction,
-                    [action],
-                    {#requireNew: requireNew},
-                  ),
+        Invocation.method(
+          #transaction,
+          [action],
+          {#requireNew: requireNew},
+        ),
+        returnValue: _i10.ifNotNull(
+              _i10.dummyValueOrNull<T>(
+                this,
+                Invocation.method(
+                  #transaction,
+                  [action],
+                  {#requireNew: requireNew},
                 ),
-          )
-          as _i7.Future<T>);
+              ),
+              (T v) => _i7.Future<T>.value(v),
+            ) ??
+            _FakeFuture_23<T>(
+              this,
+              Invocation.method(
+                #transaction,
+                [action],
+                {#requireNew: requireNew},
+              ),
+            ),
+      ) as _i7.Future<T>);
 
   @override
   _i7.Future<T> exclusively<T>(_i7.Future<T> Function()? action) =>
       (super.noSuchMethod(
-            Invocation.method(#exclusively, [action]),
-            returnValue:
-                _i10.ifNotNull(
-                  _i10.dummyValueOrNull<T>(
-                    this,
-                    Invocation.method(#exclusively, [action]),
-                  ),
-                  (T v) => _i7.Future<T>.value(v),
-                ) ??
-                _FakeFuture_23<T>(
-                  this,
-                  Invocation.method(#exclusively, [action]),
-                ),
-          )
-          as _i7.Future<T>);
+        Invocation.method(#exclusively, [action]),
+        returnValue: _i10.ifNotNull(
+              _i10.dummyValueOrNull<T>(
+                this,
+                Invocation.method(#exclusively, [action]),
+              ),
+              (T v) => _i7.Future<T>.value(v),
+            ) ??
+            _FakeFuture_23<T>(
+              this,
+              Invocation.method(#exclusively, [action]),
+            ),
+      ) as _i7.Future<T>);
 
   @override
   _i7.Future<void> batch(_i7.FutureOr<void> Function(_i4.Batch)? runInBatch) =>
       (super.noSuchMethod(
-            Invocation.method(#batch, [runInBatch]),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
+        Invocation.method(#batch, [runInBatch]),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
   _i7.Future<T> runWithInterceptor<T>(
@@ -2599,33 +2295,31 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     required _i4.QueryInterceptor? interceptor,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #runWithInterceptor,
-              [action],
-              {#interceptor: interceptor},
-            ),
-            returnValue:
-                _i10.ifNotNull(
-                  _i10.dummyValueOrNull<T>(
-                    this,
-                    Invocation.method(
-                      #runWithInterceptor,
-                      [action],
-                      {#interceptor: interceptor},
-                    ),
-                  ),
-                  (T v) => _i7.Future<T>.value(v),
-                ) ??
-                _FakeFuture_23<T>(
-                  this,
-                  Invocation.method(
-                    #runWithInterceptor,
-                    [action],
-                    {#interceptor: interceptor},
-                  ),
+        Invocation.method(
+          #runWithInterceptor,
+          [action],
+          {#interceptor: interceptor},
+        ),
+        returnValue: _i10.ifNotNull(
+              _i10.dummyValueOrNull<T>(
+                this,
+                Invocation.method(
+                  #runWithInterceptor,
+                  [action],
+                  {#interceptor: interceptor},
                 ),
-          )
-          as _i7.Future<T>);
+              ),
+              (T v) => _i7.Future<T>.value(v),
+            ) ??
+            _FakeFuture_23<T>(
+              this,
+              Invocation.method(
+                #runWithInterceptor,
+                [action],
+                {#interceptor: interceptor},
+              ),
+            ),
+      ) as _i7.Future<T>);
 
   @override
   _i4.GenerationContext $write(
@@ -2634,24 +2328,23 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     int? startIndex,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #$write,
-              [component],
-              {#hasMultipleTables: hasMultipleTables, #startIndex: startIndex},
-            ),
-            returnValue: _FakeGenerationContext_31(
-              this,
-              Invocation.method(
-                #$write,
-                [component],
-                {
-                  #hasMultipleTables: hasMultipleTables,
-                  #startIndex: startIndex,
-                },
-              ),
-            ),
-          )
-          as _i4.GenerationContext);
+        Invocation.method(
+          #$write,
+          [component],
+          {#hasMultipleTables: hasMultipleTables, #startIndex: startIndex},
+        ),
+        returnValue: _FakeGenerationContext_31(
+          this,
+          Invocation.method(
+            #$write,
+            [component],
+            {
+              #hasMultipleTables: hasMultipleTables,
+              #startIndex: startIndex,
+            },
+          ),
+        ),
+      ) as _i4.GenerationContext);
 
   @override
   _i4.GenerationContext $writeInsertable(
@@ -2660,30 +2353,27 @@ class MockAppDb extends _i1.Mock implements _i5.AppDb {
     int? startIndex,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(
-              #$writeInsertable,
-              [table, insertable],
-              {#startIndex: startIndex},
-            ),
-            returnValue: _FakeGenerationContext_31(
-              this,
-              Invocation.method(
-                #$writeInsertable,
-                [table, insertable],
-                {#startIndex: startIndex},
-              ),
-            ),
-          )
-          as _i4.GenerationContext);
+        Invocation.method(
+          #$writeInsertable,
+          [table, insertable],
+          {#startIndex: startIndex},
+        ),
+        returnValue: _FakeGenerationContext_31(
+          this,
+          Invocation.method(
+            #$writeInsertable,
+            [table, insertable],
+            {#startIndex: startIndex},
+          ),
+        ),
+      ) as _i4.GenerationContext);
 
   @override
-  String $expandVar(int? start, int? amount) =>
-      (super.noSuchMethod(
-            Invocation.method(#$expandVar, [start, amount]),
-            returnValue: _i10.dummyValue<String>(
-              this,
-              Invocation.method(#$expandVar, [start, amount]),
-            ),
-          )
-          as String);
+  String $expandVar(int? start, int? amount) => (super.noSuchMethod(
+        Invocation.method(#$expandVar, [start, amount]),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.method(#$expandVar, [start, amount]),
+        ),
+      ) as String);
 }

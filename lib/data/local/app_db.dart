@@ -24,9 +24,10 @@ class LocalNotes extends Table {
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   TextColumn get encryptedMetadata => text().nullable()();
   BoolColumn get isPinned => boolean().withDefault(
-    const Constant(false),
-  )(); // For pinning notes to top
-  IntColumn get noteType => intEnum<NoteKind>().withDefault(const Constant(0))(); // 0=note, 1=template
+        const Constant(false),
+      )(); // For pinning notes to top
+  IntColumn get noteType => intEnum<NoteKind>()
+      .withDefault(const Constant(0))(); // 0=note, 1=template
 
   @override
   Set<Column> get primaryKey => {id};
@@ -103,8 +104,8 @@ class NoteReminders extends Table {
 
   // Recurring reminder fields
   IntColumn get recurrencePattern => intEnum<RecurrencePattern>().withDefault(
-    Constant(RecurrencePattern.none.index),
-  )();
+        Constant(RecurrencePattern.none.index),
+      )();
   DateTimeColumn get recurrenceEndDate => dateTime().nullable()();
   IntColumn get recurrenceInterval =>
       integer().withDefault(const Constant(1))(); // every X days/weeks/months
@@ -153,8 +154,8 @@ class NoteTasks extends Table {
 
   /// Task priority level
   IntColumn get priority => intEnum<TaskPriority>().withDefault(
-    Constant(TaskPriority.medium.index),
-  )();
+        Constant(TaskPriority.medium.index),
+      )();
 
   /// Optional due date for the task
   DateTimeColumn get dueDate => dateTime().nullable()();
@@ -398,125 +399,125 @@ class AppDb extends _$AppDb {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
+        onCreate: (m) async {
+          await m.createAll();
 
-      // FTS table with folder_path support
-      await customStatement(
-        'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
+          // FTS table with folder_path support
+          await customStatement(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body, folder_path UNINDEXED)',
+          );
+
+          // Triggers: local_notes <-> fts_notes sync
+          await _createFtsTriggers();
+
+          // Triggers: folder path sync
+          await _createFolderSyncTriggers();
+
+          // Indexes
+          await _createIndexes();
+          await _createReminderIndexes();
+          await _createFolderIndexes();
+          await _createTaskIndexes();
+          await _createSavedSearchIndexes();
+
+          // Seed existing data to FTS (exclude templates)
+          await customStatement(
+            'INSERT INTO fts_notes(id, title, body, folder_path) '
+            'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0 AND note_type = 0',
+          );
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(noteTags);
+            await m.createTable(noteLinks);
+          }
+          // FTS tablosu ve tetikleyiciler/indeksler
+          await customStatement(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
+          );
+          if (from < 3) {
+            await _createFtsTriggers();
+            await _createIndexes();
+            await customStatement('DELETE FROM fts_notes');
+            await customStatement(
+              'INSERT INTO fts_notes(id, title, body) '
+              'SELECT id, title, body FROM local_notes WHERE deleted = 0 AND note_type = 0',
+            );
+          }
+          if (from < 4) {
+            await m.createTable(noteReminders);
+            await _createReminderIndexes();
+          }
+          if (from < 5) {
+            // Migration from simple reminders to advanced reminders
+            await _migrateToAdvancedReminders(m);
+            await _createAdvancedReminderIndexes();
+          }
+          if (from < 6) {
+            // Add folder system tables
+            await m.createTable(localFolders);
+            await m.createTable(noteFolders);
+
+            // Create folder indexes for performance
+            await _createFolderIndexes();
+
+            // Update FTS to include folder path
+            await _updateFtsForFolders();
+
+            // Create default "Unfiled" folder for existing notes (optional)
+            await _createDefaultFolders();
+          }
+          if (from < 7) {
+            // Add metadata column for attachment and email information persistence
+            await m.addColumn(localNotes, localNotes.encryptedMetadata);
+          }
+          if (from < 8) {
+            // Version 8: Enhanced folder system, pinning, and saved searches
+
+            // 1. Add is_pinned column to local_notes for pinning functionality
+            await m.addColumn(localNotes, localNotes.isPinned);
+
+            // 2. Create saved_searches table for persisting user queries
+            await m.createTable(savedSearches);
+
+            // 3. Create triggers to keep fts_notes.folder_path in sync
+            await _createFolderSyncTriggers();
+
+            // 4. Create indexes for saved searches
+            await _createSavedSearchIndexes();
+
+            // 5. Update existing notes in FTS with folder paths
+            await _syncExistingFolderPaths();
+          }
+          if (from < 9) {
+            // Version 9: Add note tasks table for task management
+            await m.createTable(noteTasks);
+
+            // Create indexes for task queries
+            await _createTaskIndexes();
+
+            // Parse existing notes and extract tasks from checkboxes
+            await _extractTasksFromExistingNotes();
+
+            // Backfill content_hash for any existing tasks with stable hash
+            await _backfillTaskContentHash();
+          }
+          if (from < 10) {
+            // Version 10: Add noteType column to support templates
+            await m.addColumn(localNotes, localNotes.noteType);
+          }
+          if (from < 11) {
+            // Version 11: Add proper templates table (separate from notes)
+            await m.createTable(localTemplates);
+
+            // Initialize system templates
+            await _initializeSystemTemplates();
+          }
+        },
       );
-
-      // Triggers: local_notes <-> fts_notes sync
-      await _createFtsTriggers();
-
-      // Triggers: folder path sync
-      await _createFolderSyncTriggers();
-
-      // Indexes
-      await _createIndexes();
-      await _createReminderIndexes();
-      await _createFolderIndexes();
-      await _createTaskIndexes();
-      await _createSavedSearchIndexes();
-
-      // Seed existing data to FTS (exclude templates)
-      await customStatement(
-        'INSERT INTO fts_notes(id, title, body, folder_path) '
-        'SELECT id, title, body, NULL FROM local_notes WHERE deleted = 0 AND note_type = 0',
-      );
-    },
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.createTable(noteTags);
-        await m.createTable(noteLinks);
-      }
-      // FTS tablosu ve tetikleyiciler/indeksler
-      await customStatement(
-        'CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(id UNINDEXED, title, body)',
-      );
-      if (from < 3) {
-        await _createFtsTriggers();
-        await _createIndexes();
-        await customStatement('DELETE FROM fts_notes');
-        await customStatement(
-          'INSERT INTO fts_notes(id, title, body) '
-          'SELECT id, title, body FROM local_notes WHERE deleted = 0 AND note_type = 0',
-        );
-      }
-      if (from < 4) {
-        await m.createTable(noteReminders);
-        await _createReminderIndexes();
-      }
-      if (from < 5) {
-        // Migration from simple reminders to advanced reminders
-        await _migrateToAdvancedReminders(m);
-        await _createAdvancedReminderIndexes();
-      }
-      if (from < 6) {
-        // Add folder system tables
-        await m.createTable(localFolders);
-        await m.createTable(noteFolders);
-
-        // Create folder indexes for performance
-        await _createFolderIndexes();
-
-        // Update FTS to include folder path
-        await _updateFtsForFolders();
-
-        // Create default "Unfiled" folder for existing notes (optional)
-        await _createDefaultFolders();
-      }
-      if (from < 7) {
-        // Add metadata column for attachment and email information persistence
-        await m.addColumn(localNotes, localNotes.encryptedMetadata);
-      }
-      if (from < 8) {
-        // Version 8: Enhanced folder system, pinning, and saved searches
-
-        // 1. Add is_pinned column to local_notes for pinning functionality
-        await m.addColumn(localNotes, localNotes.isPinned);
-
-        // 2. Create saved_searches table for persisting user queries
-        await m.createTable(savedSearches);
-
-        // 3. Create triggers to keep fts_notes.folder_path in sync
-        await _createFolderSyncTriggers();
-
-        // 4. Create indexes for saved searches
-        await _createSavedSearchIndexes();
-
-        // 5. Update existing notes in FTS with folder paths
-        await _syncExistingFolderPaths();
-      }
-      if (from < 9) {
-        // Version 9: Add note tasks table for task management
-        await m.createTable(noteTasks);
-
-        // Create indexes for task queries
-        await _createTaskIndexes();
-
-        // Parse existing notes and extract tasks from checkboxes
-        await _extractTasksFromExistingNotes();
-
-        // Backfill content_hash for any existing tasks with stable hash
-        await _backfillTaskContentHash();
-      }
-      if (from < 10) {
-        // Version 10: Add noteType column to support templates
-        await m.addColumn(localNotes, localNotes.noteType);
-      }
-      if (from < 11) {
-        // Version 11: Add proper templates table (separate from notes)
-        await m.createTable(localTemplates);
-        
-        // Initialize system templates
-        await _initializeSystemTemplates();
-      }
-    },
-  );
 
   /// Helper to check if a note is visible (not deleted and not a template)
-  Expression<bool> noteIsVisible(LocalNotes t) => 
+  Expression<bool> noteIsVisible(LocalNotes t) =>
       t.deleted.equals(false) & t.noteType.equals(0);
 
   Future<void> _createIndexes() async {
@@ -651,11 +652,10 @@ class AppDb extends _$AppDb {
         .get();
   }
 
-  Future<List<LocalNote>> allNotes() =>
-      (select(localNotes)
-            ..where((t) => noteIsVisible(t))
-            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-          .get();
+  Future<List<LocalNote>> allNotes() => (select(localNotes)
+        ..where((t) => noteIsVisible(t))
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+      .get();
 
   /// Keyset pagination: Get notes after a given cursor (updatedAt timestamp)
   /// Uses keyset pagination for better performance at scale vs OFFSET
@@ -689,21 +689,19 @@ class AppDb extends _$AppDb {
           .get();
 
   /// Get all notes with pinned notes first
-  Future<List<LocalNote>> allNotesWithPinned() =>
-      (select(localNotes)
-            ..where((t) => noteIsVisible(t))
-            ..orderBy([
-              (t) => OrderingTerm.desc(t.isPinned),
-              (t) => OrderingTerm.desc(t.updatedAt),
-            ]))
-          .get();
+  Future<List<LocalNote>> allNotesWithPinned() => (select(localNotes)
+        ..where((t) => noteIsVisible(t))
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.isPinned),
+          (t) => OrderingTerm.desc(t.updatedAt),
+        ]))
+      .get();
 
   /// Get pinned notes only
-  Future<List<LocalNote>> getPinnedNotes() =>
-      (select(localNotes)
-            ..where((t) => noteIsVisible(t) & t.isPinned.equals(true))
-            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-          .get();
+  Future<List<LocalNote>> getPinnedNotes() => (select(localNotes)
+        ..where((t) => noteIsVisible(t) & t.isPinned.equals(true))
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+      .get();
 
   /// Pin or unpin a note
   Future<void> toggleNotePin(String noteId) async {
@@ -737,16 +735,15 @@ class AppDb extends _$AppDb {
     int? limit,
     DateTime? cursor,
   }) {
-    final query =
-        select(localNotes).join([
-          leftOuterJoin(
-            noteFolders,
-            noteFolders.noteId.equalsExp(localNotes.id),
-          ),
-        ])..where(
-          noteIsVisible(localNotes) &
-              noteFolders.folderId.equals(folderId),
-        );
+    final query = select(localNotes).join([
+      leftOuterJoin(
+        noteFolders,
+        noteFolders.noteId.equalsExp(localNotes.id),
+      ),
+    ])
+      ..where(
+        noteIsVisible(localNotes) & noteFolders.folderId.equals(folderId),
+      );
 
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
@@ -793,7 +790,8 @@ class AppDb extends _$AppDb {
   Future<List<PendingOp>> dequeueAll() async {
     final ops = await (select(
       pendingOps,
-    )..orderBy([(o) => OrderingTerm.asc(o.id)])).get();
+    )..orderBy([(o) => OrderingTerm.asc(o.id)]))
+        .get();
     await delete(pendingOps).go();
     return ops;
   }
@@ -815,7 +813,8 @@ class AppDb extends _$AppDb {
   Future<Set<String>> getLocalActiveNoteIds() async {
     final rows = await (select(
       localNotes,
-    )..where((t) => noteIsVisible(t))).get();
+    )..where((t) => noteIsVisible(t)))
+        .get();
     return rows.map((e) => e.id).toSet();
   }
 
@@ -919,7 +918,8 @@ class AppDb extends _$AppDb {
     final tag = rawTag.trim().toLowerCase();
     await (delete(
       noteTags,
-    )..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag))).go();
+    )..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag)))
+        .go();
   }
 
   /// Rename/merge tag across all notes
@@ -1203,14 +1203,16 @@ class AppDb extends _$AppDb {
   Future<List<BacklinkPair>> backlinksWithSources(String targetTitle) async {
     final links = await (select(
       noteLinks,
-    )..where((l) => l.targetTitle.equals(targetTitle))).get();
+    )..where((l) => l.targetTitle.equals(targetTitle)))
+        .get();
 
     if (links.isEmpty) return const <BacklinkPair>[];
 
     final sourceIds = links.map((l) => l.sourceId).toSet().toList();
     final sources = await (select(
       localNotes,
-    )..where((n) => n.deleted.equals(false) & n.id.isIn(sourceIds))).get();
+    )..where((n) => n.deleted.equals(false) & n.id.isIn(sourceIds)))
+        .get();
 
     final byId = {for (final n in sources) n.id: n};
     return links
@@ -1223,16 +1225,12 @@ class AppDb extends _$AppDb {
   // ----------------------
   // Güvenli MATCH ifadesi oluştur
   String _ftsQuery(String input) {
-    final parts = input
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
-        .map((t) {
-          var s = t.replaceAll('"', '').replaceAll("'", '');
-          if (!s.endsWith('*')) s = '$s*';
-          return s;
-        })
-        .toList();
+    final parts =
+        input.trim().split(RegExp(r'\s+')).where((t) => t.isNotEmpty).map((t) {
+      var s = t.replaceAll('"', '').replaceAll("'", '');
+      if (!s.endsWith('*')) s = '$s*';
+      return s;
+    }).toList();
     if (parts.isEmpty) return '';
     // Tüm kelimeler eşleşsin
     return parts.join(' AND ');
@@ -1256,7 +1254,8 @@ class AppDb extends _$AppDb {
 
       final tagRows = await (select(
         noteTags,
-      )..where((t) => t.tag.like(likeWrap(needle)))).get();
+      )..where((t) => t.tag.like(likeWrap(needle))))
+          .get();
 
       final ids = tagRows.map((e) => e.noteId).toSet().toList();
       if (ids.isEmpty) return const <LocalNote>[];
@@ -1305,14 +1304,15 @@ class AppDb extends _$AppDb {
 
   /// Get all reminders for a specific note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) => (select(
-    noteReminders,
-  )..where((r) => r.noteId.equals(noteId) & r.isActive.equals(true))).get();
+        noteReminders,
+      )..where((r) => r.noteId.equals(noteId) & r.isActive.equals(true)))
+          .get();
 
   /// Get all active reminders
   Future<List<NoteReminder>> getActiveReminders() => (select(noteReminders)
-    ..where((r) => r.isActive.equals(true))
-    ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]))
-    .get();
+        ..where((r) => r.isActive.equals(true))
+        ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]))
+      .get();
 
   /// Get a specific reminder by ID
   Future<NoteReminder?> getReminderById(int id) =>
@@ -1338,47 +1338,47 @@ class AppDb extends _$AppDb {
   Future<List<NoteReminder>> getTimeRemindersToTrigger({
     required DateTime before,
   }) =>
-      (select(noteReminders)..where(
-            (r) =>
-                r.type.equals(ReminderType.time.index) &
-                r.isActive.equals(true) &
-                r.remindAt.isSmallerOrEqualValue(before) &
-                (r.snoozedUntil.isNull() |
-                    r.snoozedUntil.isSmallerOrEqualValue(before)),
-          ))
+      (select(noteReminders)
+            ..where(
+              (r) =>
+                  r.type.equals(ReminderType.time.index) &
+                  r.isActive.equals(true) &
+                  r.remindAt.isSmallerOrEqualValue(before) &
+                  (r.snoozedUntil.isNull() |
+                      r.snoozedUntil.isSmallerOrEqualValue(before)),
+            ))
           .get();
 
   /// Get all active location-based reminders
-  Future<List<NoteReminder>> getLocationReminders() =>
-      (select(noteReminders)..where(
-            (r) =>
-                r.type.equals(ReminderType.location.index) &
-                r.isActive.equals(true) &
-                r.latitude.isNotNull() &
-                r.longitude.isNotNull(),
-          ))
-          .get();
+  Future<List<NoteReminder>> getLocationReminders() => (select(noteReminders)
+        ..where(
+          (r) =>
+              r.type.equals(ReminderType.location.index) &
+              r.isActive.equals(true) &
+              r.latitude.isNotNull() &
+              r.longitude.isNotNull(),
+        ))
+      .get();
 
   /// Get all recurring reminders that need to be scheduled
-  Future<List<NoteReminder>> getRecurringReminders() =>
-      (select(noteReminders)..where(
-            (r) =>
-                r.type.equals(ReminderType.recurring.index) &
-                r.isActive.equals(true) &
-                r.recurrencePattern.isNotValue(RecurrencePattern.none.index),
-          ))
-          .get();
+  Future<List<NoteReminder>> getRecurringReminders() => (select(noteReminders)
+        ..where(
+          (r) =>
+              r.type.equals(ReminderType.recurring.index) &
+              r.isActive.equals(true) &
+              r.recurrencePattern.isNotValue(RecurrencePattern.none.index),
+        ))
+      .get();
 
   // ----------------------
   // Tasks
   // ----------------------
 
   /// Get all tasks for a specific note
-  Future<List<NoteTask>> getTasksForNote(String noteId) =>
-      (select(noteTasks)
-            ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
-            ..orderBy([(t) => OrderingTerm.asc(t.position)]))
-          .get();
+  Future<List<NoteTask>> getTasksForNote(String noteId) => (select(noteTasks)
+        ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
+        ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+      .get();
 
   /// Get a specific task by ID
   Future<NoteTask?> getTaskById(String id) =>
@@ -1578,8 +1578,8 @@ class AppDb extends _$AppDb {
               ),
               completedAt:
                   parsed.isCompleted && existing.status != TaskStatus.completed
-                  ? Value(DateTime.now())
-                  : const Value.absent(),
+                      ? Value(DateTime.now())
+                      : const Value.absent(),
               updatedAt: Value(DateTime.now()),
             ),
           );
@@ -1618,36 +1618,34 @@ class AppDb extends _$AppDb {
   }
 
   /// Watch all open tasks (for UI updates)
-  Stream<List<NoteTask>> watchOpenTasks() =>
-      (select(noteTasks)
-            ..where(
-              (t) =>
-                  t.status.equals(TaskStatus.open.index) &
-                  t.deleted.equals(false),
-            )
-            ..orderBy([
-              (t) => OrderingTerm.asc(t.dueDate),
-              (t) => OrderingTerm.desc(t.priority),
-            ]))
-          .watch();
+  Stream<List<NoteTask>> watchOpenTasks() => (select(noteTasks)
+        ..where(
+          (t) =>
+              t.status.equals(TaskStatus.open.index) & t.deleted.equals(false),
+        )
+        ..orderBy([
+          (t) => OrderingTerm.asc(t.dueDate),
+          (t) => OrderingTerm.desc(t.priority),
+        ]))
+      .watch();
 
   /// Watch tasks for a specific note
-  Stream<List<NoteTask>> watchTasksForNote(String noteId) =>
-      (select(noteTasks)
-            ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
-            ..orderBy([(t) => OrderingTerm.asc(t.position)]))
-          .watch();
+  Stream<List<NoteTask>> watchTasksForNote(String noteId) => (select(noteTasks)
+        ..where((t) => t.noteId.equals(noteId) & t.deleted.equals(false))
+        ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+      .watch();
 
   /// Get snoozed reminders that are ready to be rescheduled
   Future<List<NoteReminder>> getSnoozedRemindersToReschedule({
     required DateTime now,
   }) =>
-      (select(noteReminders)..where(
-            (r) =>
-                r.isActive.equals(true) &
-                r.snoozedUntil.isNotNull() &
-                r.snoozedUntil.isSmallerOrEqualValue(now),
-          ))
+      (select(noteReminders)
+            ..where(
+              (r) =>
+                  r.isActive.equals(true) &
+                  r.snoozedUntil.isNotNull() &
+                  r.snoozedUntil.isSmallerOrEqualValue(now),
+            ))
           .get();
 
   /// Mark a reminder as triggered
@@ -1770,7 +1768,8 @@ class AppDb extends _$AppDb {
     // Extract tasks from existing notes that have checkboxes
     final notes = await (select(
       localNotes,
-    )..where((n) => noteIsVisible(n))).get();
+    )..where((n) => noteIsVisible(n)))
+        .get();
 
     for (final note in notes) {
       // Parse note body for checkbox patterns
@@ -1802,9 +1801,8 @@ class AppDb extends _$AppDb {
                 ),
                 position: Value(position),
                 contentHash: contentHash,
-                completedAt: isCompleted
-                    ? Value(DateTime.now())
-                    : const Value.absent(),
+                completedAt:
+                    isCompleted ? Value(DateTime.now()) : const Value.absent(),
               ),
             );
 
@@ -1819,7 +1817,8 @@ class AppDb extends _$AppDb {
     // Backfill content_hash for any existing tasks with stable hash
     final tasks = await (select(
       noteTasks,
-    )..where((t) => t.deleted.equals(false))).get();
+    )..where((t) => t.deleted.equals(false)))
+        .get();
 
     for (final task in tasks) {
       // Only update if content_hash seems to be using old hashCode
@@ -1978,7 +1977,8 @@ class AppDb extends _$AppDb {
   Future<LocalFolder?> getFolderById(String id) {
     return (select(
       localFolders,
-    )..where((f) => f.id.equals(id))).getSingleOrNull();
+    )..where((f) => f.id.equals(id)))
+        .getSingleOrNull();
   }
 
   /// Insert or update folder
@@ -2009,16 +2009,15 @@ class AppDb extends _$AppDb {
     int? limit,
     DateTime? cursor,
   }) {
-    final query =
-        select(localNotes).join([
-          leftOuterJoin(
-            noteFolders,
-            noteFolders.noteId.equalsExp(localNotes.id),
-          ),
-        ])..where(
-          noteIsVisible(localNotes) &
-              noteFolders.folderId.equals(folderId),
-        );
+    final query = select(localNotes).join([
+      leftOuterJoin(
+        noteFolders,
+        noteFolders.noteId.equalsExp(localNotes.id),
+      ),
+    ])
+      ..where(
+        noteIsVisible(localNotes) & noteFolders.folderId.equals(folderId),
+      );
 
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
@@ -2039,18 +2038,17 @@ class AppDb extends _$AppDb {
     final folderIdColumn = noteFolders.folderId;
     final countColumn = folderIdColumn.count();
 
-    final query =
-        await (selectOnly(noteFolders)
-              ..join([
-                innerJoin(
-                  localNotes,
-                  localNotes.id.equalsExp(noteFolders.noteId),
-                ),
-              ])
-              ..where(noteIsVisible(localNotes))
-              ..addColumns([folderIdColumn, countColumn])
-              ..groupBy([folderIdColumn]))
-            .get();
+    final query = await (selectOnly(noteFolders)
+          ..join([
+            innerJoin(
+              localNotes,
+              localNotes.id.equalsExp(noteFolders.noteId),
+            ),
+          ])
+          ..where(noteIsVisible(localNotes))
+          ..addColumns([folderIdColumn, countColumn])
+          ..groupBy([folderIdColumn]))
+        .get();
 
     for (final row in query) {
       final folderId = row.read(folderIdColumn);
@@ -2071,14 +2069,16 @@ class AppDb extends _$AppDb {
       final note = await getNote(rel.noteId);
       final folder = await (select(
         localFolders,
-      )..where((f) => f.id.equals(rel.folderId))).getSingleOrNull();
+      )..where((f) => f.id.equals(rel.folderId)))
+          .getSingleOrNull();
 
       if (note == null || folder == null) {
-        await (delete(noteFolders)..where(
-              (nf) =>
-                  nf.noteId.equals(rel.noteId) &
-                  nf.folderId.equals(rel.folderId),
-            ))
+        await (delete(noteFolders)
+              ..where(
+                (nf) =>
+                    nf.noteId.equals(rel.noteId) &
+                    nf.folderId.equals(rel.folderId),
+              ))
             .go();
       }
     }
@@ -2100,7 +2100,8 @@ class AppDb extends _$AppDb {
   Future<List<LocalNote>> getUnfiledNotes({int? limit, DateTime? cursor}) {
     final query = select(localNotes).join([
       leftOuterJoin(noteFolders, noteFolders.noteId.equalsExp(localNotes.id)),
-    ])..where(noteIsVisible(localNotes) & noteFolders.noteId.isNull());
+    ])
+      ..where(noteIsVisible(localNotes) & noteFolders.noteId.isNull());
 
     if (cursor != null) {
       query.where(localNotes.updatedAt.isSmallerThanValue(cursor));
@@ -2145,7 +2146,8 @@ class AppDb extends _$AppDb {
   Future<LocalFolder?> getNoteFolder(String noteId) async {
     final query = select(localFolders).join([
       innerJoin(noteFolders, noteFolders.folderId.equalsExp(localFolders.id)),
-    ])..where(noteFolders.noteId.equals(noteId));
+    ])
+      ..where(noteFolders.noteId.equals(noteId));
 
     final result = await query.getSingleOrNull();
     return result?.readTable(localFolders);
@@ -2178,7 +2180,8 @@ class AppDb extends _$AppDb {
   Future<List<LocalFolder>> allFolders() {
     return (select(
       localFolders,
-    )..orderBy([(f) => OrderingTerm.asc(f.path)])).get();
+    )..orderBy([(f) => OrderingTerm.asc(f.path)]))
+        .get();
   }
 
   /// Get all active folders
@@ -2211,7 +2214,8 @@ class AppDb extends _$AppDb {
   Future<Set<String>> getActiveNoteIds() async {
     final notes = await (select(
       localNotes,
-    )..where((n) => noteIsVisible(n))).get();
+    )..where((n) => noteIsVisible(n)))
+        .get();
     return notes.map((n) => n.id).toSet();
   }
 
@@ -2219,7 +2223,8 @@ class AppDb extends _$AppDb {
   Future<Set<String>> getLocalActiveFolderIds() async {
     final folders = await (select(
       localFolders,
-    )..where((f) => f.deleted.equals(false))).get();
+    )..where((f) => f.deleted.equals(false)))
+        .get();
     return folders.map((f) => f.id).toSet();
   }
 
@@ -2317,11 +2322,12 @@ class AppDb extends _$AppDb {
 
   /// Get all saved searches ordered by pinned status and sort order
   Future<List<SavedSearch>> getSavedSearches() {
-    return (select(savedSearches)..orderBy([
-          (s) => OrderingTerm.desc(s.isPinned),
-          (s) => OrderingTerm.asc(s.sortOrder),
-          (s) => OrderingTerm.desc(s.usageCount),
-        ]))
+    return (select(savedSearches)
+          ..orderBy([
+            (s) => OrderingTerm.desc(s.isPinned),
+            (s) => OrderingTerm.asc(s.sortOrder),
+            (s) => OrderingTerm.desc(s.usageCount),
+          ]))
         .get();
   }
 
@@ -2340,7 +2346,8 @@ class AppDb extends _$AppDb {
   Future<SavedSearch?> getSavedSearchById(String id) {
     return (select(
       savedSearches,
-    )..where((s) => s.id.equals(id))).getSingleOrNull();
+    )..where((s) => s.id.equals(id)))
+        .getSingleOrNull();
   }
 
   /// Delete a saved search
@@ -2385,72 +2392,75 @@ class AppDb extends _$AppDb {
 
   /// Watch saved searches stream
   Stream<List<SavedSearch>> watchSavedSearches() {
-    return (select(savedSearches)..orderBy([
-          (s) => OrderingTerm.desc(s.isPinned),
-          (s) => OrderingTerm.asc(s.sortOrder),
-          (s) => OrderingTerm.desc(s.usageCount),
-        ]))
+    return (select(savedSearches)
+          ..orderBy([
+            (s) => OrderingTerm.desc(s.isPinned),
+            (s) => OrderingTerm.asc(s.sortOrder),
+            (s) => OrderingTerm.desc(s.usageCount),
+          ]))
         .watch();
   }
 
   /// Get pinned saved searches
   Future<List<SavedSearch>> getPinnedSavedSearches() {
     return (select(savedSearches)
-        ..where((s) => s.isPinned.equals(true))
-        ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
-      .get();
+          ..where((s) => s.isPinned.equals(true))
+          ..orderBy([(s) => OrderingTerm.asc(s.sortOrder)]))
+        .get();
   }
 
   // ----------------------
   // Template Management
   // ----------------------
-  
+
   /// Get all templates (system and user)
   Future<List<LocalTemplate>> getAllTemplates() {
     return select(localTemplates).get();
   }
-  
+
   /// Get system templates only
   Future<List<LocalTemplate>> getSystemTemplates() {
     return (select(localTemplates)
-      ..where((t) => t.isSystem.equals(true))
-      ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
-      .get();
+          ..where((t) => t.isSystem.equals(true))
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
   }
-  
+
   /// Get user templates only
   Future<List<LocalTemplate>> getUserTemplates() {
     return (select(localTemplates)
-      ..where((t) => t.isSystem.equals(false))
-      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-      .get();
+          ..where((t) => t.isSystem.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+        .get();
   }
-  
+
   /// Get template by ID
   Future<LocalTemplate?> getTemplate(String id) {
-    return (select(localTemplates)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return (select(localTemplates)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
   }
-  
+
   /// Insert or update template
   Future<void> upsertTemplate(LocalTemplate template) async {
     await into(localTemplates).insertOnConflictUpdate(template);
   }
-  
+
   /// Delete user template (system templates cannot be deleted)
   Future<bool> deleteTemplate(String id) async {
     final template = await getTemplate(id);
     if (template == null || template.isSystem) {
       return false; // Cannot delete system templates
     }
-    
-    final deleted = await (delete(localTemplates)..where((t) => t.id.equals(id))).go();
+
+    final deleted =
+        await (delete(localTemplates)..where((t) => t.id.equals(id))).go();
     return deleted > 0;
   }
-  
+
   /// Initialize system templates (called on first launch and upgrades)
   Future<void> _initializeSystemTemplates() async {
     final now = DateTime.now();
-    
+
     final systemTemplates = [
       LocalTemplate(
         id: 'system_meeting_notes',
@@ -2489,7 +2499,8 @@ class AppDb extends _$AppDb {
         tags: '["meeting", "work"]',
         isSystem: true,
         category: 'meeting',
-        description: 'Structured template for meeting notes with agenda and action items',
+        description:
+            'Structured template for meeting notes with agenda and action items',
         icon: 'meeting_room',
         sortOrder: 1,
         metadata: null,
@@ -2700,7 +2711,7 @@ Main focus:
         updatedAt: now,
       ),
     ];
-    
+
     // Insert system templates
     for (final template in systemTemplates) {
       await into(localTemplates).insertOnConflictUpdate(template);

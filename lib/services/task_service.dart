@@ -39,9 +39,8 @@ class TaskService {
         position: Value(position ?? 0),
         dueDate: Value(dueDate),
         parentTaskId: Value(parentTaskId),
-        labels: labels != null
-            ? Value(labels.toString())
-            : const Value.absent(),
+        labels:
+            labels != null ? Value(labels.toString()) : const Value.absent(),
         notes: Value(notes),
         estimatedMinutes: Value(estimatedMinutes),
       ),
@@ -85,13 +84,13 @@ class TaskService {
       estimatedMinutes: estimatedMinutes != null
           ? Value(estimatedMinutes)
           : const Value.absent(),
-      actualMinutes: actualMinutes != null
-          ? Value(actualMinutes)
-          : const Value.absent(),
-      reminderId: clearReminderId 
-          ? Value<int?>(null) 
+      actualMinutes:
+          actualMinutes != null ? Value(actualMinutes) : const Value.absent(),
+      reminderId: clearReminderId
+          ? Value<int?>(null)
           : (reminderId != null ? Value(reminderId) : const Value.absent()),
-      parentTaskId: parentTaskId != null ? Value(parentTaskId) : const Value.absent(),
+      parentTaskId:
+          parentTaskId != null ? Value(parentTaskId) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     );
 

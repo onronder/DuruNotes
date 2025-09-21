@@ -4,8 +4,10 @@
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart' as legacy;
-import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.dart' as refactored;
+import 'package:duru_notes/services/reminders/reminder_coordinator.dart'
+    as legacy;
+import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.dart'
+    as refactored;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,7 +16,7 @@ final unifiedReminderCoordinatorProvider = Provider<dynamic>((ref) {
   final featureFlags = FeatureFlags.instance;
   final plugin = FlutterLocalNotificationsPlugin();
   final db = ref.read(appDbProvider);
-  
+
   if (featureFlags.useUnifiedReminders) {
     // Use refactored implementation
     print('[FeatureFlags] Using REFACTORED ReminderCoordinator');

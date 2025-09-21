@@ -13,10 +13,10 @@ class SmartFolderSavedSearchPresets {
   static SmartFolderConfig _convertToSmartFolder(SavedSearchPreset preset) {
     // Use the centralized ID generation from SavedSearchRegistry
     final id = SavedSearchRegistry.keyToId(preset.key);
-    
+
     // Determine tag value for rules
     final tagValue = preset.tag != null ? '#${preset.tag}' : null;
-    
+
     // Determine color based on preset
     Color color;
     switch (preset.key) {
@@ -33,7 +33,7 @@ class SmartFolderSavedSearchPresets {
         color = Colors.purple;
         break;
     }
-    
+
     // Create rules only if we have a tag (inbox uses folder-based filtering)
     final rules = tagValue != null
         ? [
@@ -45,7 +45,7 @@ class SmartFolderSavedSearchPresets {
             ),
           ]
         : <SmartFolderRule>[];
-    
+
     return SmartFolderConfig(
       id: id,
       name: preset.label,
@@ -69,8 +69,8 @@ class SmartFolderSavedSearchPresets {
 
   /// Get smart folder by preset key
   static SmartFolderConfig? getSmartFolderByKey(SavedSearchKey key) {
-    final preset = SavedSearchRegistry.presets
-        .firstWhere((p) => p.key == key, orElse: () => throw StateError('Preset not found'));
+    final preset = SavedSearchRegistry.presets.firstWhere((p) => p.key == key,
+        orElse: () => throw StateError('Preset not found'));
     if (key == SavedSearchKey.inbox) {
       // Inbox is handled differently as it's folder-based
       return null;
@@ -79,9 +79,12 @@ class SmartFolderSavedSearchPresets {
   }
 
   /// Cached smart folders for performance
-  static final attachmentsSmartFolder = getSmartFolderByKey(SavedSearchKey.attachments)!;
-  static final emailNotesSmartFolder = getSmartFolderByKey(SavedSearchKey.emailNotes)!;
-  static final webClipsSmartFolder = getSmartFolderByKey(SavedSearchKey.webNotes)!;
+  static final attachmentsSmartFolder =
+      getSmartFolderByKey(SavedSearchKey.attachments)!;
+  static final emailNotesSmartFolder =
+      getSmartFolderByKey(SavedSearchKey.emailNotes)!;
+  static final webClipsSmartFolder =
+      getSmartFolderByKey(SavedSearchKey.webNotes)!;
 
   /// Check if a note matches saved search criteria (with metadata support)
   /// This delegates to the centralized detection logic in AppDb
@@ -89,7 +92,7 @@ class SmartFolderSavedSearchPresets {
     // Convert string ID to enum key using the bridging utility
     final key = SavedSearchRegistry.idToKey(presetId);
     if (key == null) return false;
-    
+
     // Use centralized detection functions from AppDb to avoid duplication
     switch (key) {
       case SavedSearchKey.attachments:

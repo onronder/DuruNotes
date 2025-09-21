@@ -1,5 +1,5 @@
 /// Phase 2 UI Components Test Suite
-/// 
+///
 /// This test validates all Phase 2 UI component consolidation:
 /// - Dialog action components
 /// - Task row widgets
@@ -29,7 +29,7 @@ void main() {
       testWidgets('DialogActionRow renders correctly', (tester) async {
         bool cancelPressed = false;
         bool confirmPressed = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -42,17 +42,17 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Cancel'), findsOneWidget);
         expect(find.text('Confirm'), findsOneWidget);
-        
+
         await tester.tap(find.text('Cancel'));
         expect(cancelPressed, isTrue);
-        
+
         await tester.tap(find.text('Confirm'));
         expect(confirmPressed, isTrue);
       });
-      
+
       testWidgets('DialogActionRow destructive mode', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -66,11 +66,11 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Delete'), findsOneWidget);
         expect(find.byType(FilledButton), findsOneWidget);
       });
-      
+
       testWidgets('DialogHeader renders with icon and title', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -83,13 +83,13 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Test Dialog'), findsOneWidget);
         expect(find.byIcon(Icons.settings), findsOneWidget);
         expect(find.byIcon(Icons.close), findsOneWidget);
       });
     });
-    
+
     group('Task Widgets', () {
       final testTask = NoteTask(
         id: '1',
@@ -101,7 +101,7 @@ void main() {
         updatedAt: DateTime.now(),
         tags: ['test', 'phase2'],
       );
-      
+
       testWidgets('TaskListItem renders task correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -116,22 +116,24 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Test Task'), findsOneWidget);
         expect(find.byType(Card), findsOneWidget);
       });
-      
-      testWidgets('TaskWidgetFactory creates correct widget type', (tester) async {
+
+      testWidgets('TaskWidgetFactory creates correct widget type',
+          (tester) async {
         final widget = TaskWidgetFactory.create(
           mode: TaskDisplayMode.list,
           task: testTask,
           callbacks: TaskCallbacks(),
         );
-        
+
         expect(widget, isA<TaskListItem>());
       });
-      
-      testWidgets('Task priority indicator shows for high priority', (tester) async {
+
+      testWidgets('Task priority indicator shows for high priority',
+          (tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -142,12 +144,12 @@ void main() {
             ),
           ),
         );
-        
+
         // High priority tasks should show an indicator
         expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
       });
     });
-    
+
     group('Folder Components', () {
       final testFolder = LocalFolder(
         id: '1',
@@ -156,7 +158,7 @@ void main() {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       testWidgets('FolderListItem renders folder correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -169,13 +171,14 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Test Folder'), findsOneWidget);
         expect(find.text('5'), findsOneWidget);
         expect(find.byIcon(Icons.folder), findsOneWidget);
       });
-      
-      testWidgets('Folder expand indicator shows for folders with children', (tester) async {
+
+      testWidgets('Folder expand indicator shows for folders with children',
+          (tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -187,10 +190,10 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.byIcon(Icons.keyboard_arrow_right), findsOneWidget);
       });
-      
+
       testWidgets('CompactFolderItem renders in compact mode', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -202,12 +205,12 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Test Folder'), findsOneWidget);
         expect(find.text('10'), findsOneWidget);
       });
     });
-    
+
     group('Analytics Cards', () {
       testWidgets('UnifiedMetricCard renders simple metric', (tester) async {
         await tester.pumpWidget(
@@ -222,12 +225,12 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Total Notes'), findsOneWidget);
         expect(find.text('42'), findsOneWidget);
         expect(find.byIcon(Icons.note), findsOneWidget);
       });
-      
+
       testWidgets('UnifiedMetricCard renders with trend', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -241,13 +244,13 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Weekly Tasks'), findsOneWidget);
         expect(find.text('15'), findsOneWidget);
         expect(find.text('+25.5%'), findsOneWidget);
         expect(find.byIcon(Icons.trending_up), findsOneWidget);
       });
-      
+
       testWidgets('StreakCard shows current and best streak', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -261,14 +264,14 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Daily Notes'), findsOneWidget);
         expect(find.text('7'), findsOneWidget);
         expect(find.text('days'), findsOneWidget);
         expect(find.text('Best: 30 days'), findsOneWidget);
         expect(find.byType(LinearProgressIndicator), findsOneWidget);
       });
-      
+
       testWidgets('QuickStatsWidget displays grid of metrics', (tester) async {
         final metrics = [
           MetricCardConfig.simple(
@@ -282,7 +285,7 @@ void main() {
             icon: Icons.task,
           ),
         ];
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -293,20 +296,20 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Notes'), findsOneWidget);
         expect(find.text('100'), findsOneWidget);
         expect(find.text('Tasks'), findsOneWidget);
         expect(find.text('50'), findsOneWidget);
       });
     });
-    
+
     group('Chart Builders', () {
       test('ChartTheme creates theme from context', () {
         final context = MockBuildContext();
         // ChartTheme.fromContext would normally use the context
         // For testing, we verify the structure
-        
+
         const theme = ChartTheme(
           gridColor: Colors.grey,
           borderColor: Colors.black,
@@ -315,18 +318,18 @@ void main() {
           tooltipBackground: Colors.white,
           tooltipText: Colors.black,
         );
-        
+
         expect(theme.gridColor, equals(Colors.grey));
         expect(theme.lineColor, equals(Colors.blue));
       });
-      
+
       test('ChartBuilders creates line chart data', () {
         final spots = [
           const FlSpot(0, 1),
           const FlSpot(1, 3),
           const FlSpot(2, 2),
         ];
-        
+
         const theme = ChartTheme(
           gridColor: Colors.grey,
           borderColor: Colors.black,
@@ -335,31 +338,31 @@ void main() {
           tooltipBackground: Colors.white,
           tooltipText: Colors.black,
         );
-        
+
         final chartData = ChartBuilders.buildLineChart(
           spots: spots,
           theme: theme,
         );
-        
+
         expect(chartData.lineBarsData.length, equals(1));
         expect(chartData.lineBarsData[0].spots, equals(spots));
       });
-      
+
       test('ChartConfig has different presets', () {
         const defaultConfig = ChartConfig.defaults;
         expect(defaultConfig.showGrid, isTrue);
         expect(defaultConfig.showDots, isTrue);
-        
+
         final minimalConfig = ChartConfig.minimal();
         expect(minimalConfig.showGrid, isFalse);
         expect(minimalConfig.showDots, isFalse);
-        
+
         final detailedConfig = ChartConfig.detailed();
         expect(detailedConfig.showGrid, isTrue);
         expect(detailedConfig.dotRadius, equals(5));
       });
     });
-    
+
     group('Settings Components', () {
       testWidgets('SettingsTile renders correctly', (tester) async {
         await tester.pumpWidget(
@@ -374,16 +377,16 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Notifications'), findsOneWidget);
         expect(find.text('Manage notification settings'), findsOneWidget);
         expect(find.byIcon(Icons.notifications), findsOneWidget);
         expect(find.byIcon(Icons.chevron_right), findsOneWidget);
       });
-      
+
       testWidgets('SettingsSwitchTile toggles correctly', (tester) async {
         bool value = false;
-        
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -404,16 +407,16 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Dark Mode'), findsOneWidget);
         expect(find.byType(Switch), findsOneWidget);
-        
+
         await tester.tap(find.byType(Switch));
         await tester.pump();
-        
+
         expect(value, isTrue);
       });
-      
+
       testWidgets('SettingsSection groups settings', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -436,13 +439,13 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('GENERAL'), findsOneWidget);
         expect(find.text('Language'), findsOneWidget);
         expect(find.text('Backup'), findsOneWidget);
         expect(find.byType(Card), findsOneWidget);
       });
-      
+
       testWidgets('SettingsAccountHeader displays user info', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -455,13 +458,13 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('John Doe'), findsOneWidget);
         expect(find.text('john@example.com'), findsOneWidget);
         expect(find.text('J'), findsOneWidget); // Avatar initial
         expect(find.byType(CircleAvatar), findsOneWidget);
       });
-      
+
       testWidgets('SettingsVersionFooter shows version info', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -474,7 +477,7 @@ void main() {
             ),
           ),
         );
-        
+
         expect(find.text('Duru Notes'), findsOneWidget);
         expect(find.text('v2.0.0 (100)'), findsOneWidget);
       });

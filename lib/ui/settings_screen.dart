@@ -382,9 +382,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w600,
-        ),
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }
@@ -424,7 +424,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-
             if (_isLoadingEmail)
               const Center(
                 child: Padding(
@@ -626,9 +625,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     horizontal: 16,
                     vertical: isCompact ? 6 : 10,
                   ),
-                  visualDensity: isCompact
-                      ? const VisualDensity(vertical: -2)
-                      : null,
+                  visualDensity:
+                      isCompact ? const VisualDensity(vertical: -2) : null,
                   minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
@@ -647,9 +645,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -686,9 +683,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -714,9 +710,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<SyncMode>(
                 title: Text(
@@ -740,9 +735,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               if (syncMode == SyncMode.manual) ...[
                 const Divider(height: 1),
@@ -831,9 +825,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(
@@ -853,9 +846,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(
@@ -875,9 +867,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
             ],
           ),
@@ -915,9 +906,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -957,9 +947,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1003,9 +992,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1031,9 +1019,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -3)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -3) : null,
               ),
             ],
           ),
@@ -1072,9 +1059,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1096,9 +1082,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1135,9 +1120,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1157,9 +1141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1176,9 +1159,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -1194,9 +1176,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -1212,9 +1193,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity: isCompact
-                    ? const VisualDensity(vertical: -2)
-                    : null,
+                visualDensity:
+                    isCompact ? const VisualDensity(vertical: -2) : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1556,8 +1536,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ],
               ),
@@ -1702,9 +1682,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               try {
-                await ref
-                    .read(accountKeyServiceProvider)
-                    .changePassphrase(
+                await ref.read(accountKeyServiceProvider).changePassphrase(
                       oldPassphrase: oldCtrl.text,
                       newPassphrase: newCtrl.text,
                     );

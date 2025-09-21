@@ -330,18 +330,19 @@ class _NotificationPreferencesScreenState
                             await _supabase
                                 .from('notification_preferences')
                                 .update({
-                                  'dnd_enabled': true,
-                                  'dnd_until': until.toIso8601String(),
-                                })
-                                .eq('user_id', _supabase.auth.currentUser!.id);
+                              'dnd_enabled': true,
+                              'dnd_until': until.toIso8601String(),
+                            }).eq('user_id', _supabase.auth.currentUser!.id);
                           } else {
                             setState(() => _dndEnabled = false);
                           }
                         } else {
                           await _supabase
                               .from('notification_preferences')
-                              .update({'dnd_enabled': false, 'dnd_until': null})
-                              .eq('user_id', _supabase.auth.currentUser!.id);
+                              .update({
+                            'dnd_enabled': false,
+                            'dnd_until': null
+                          }).eq('user_id', _supabase.auth.currentUser!.id);
                         }
                       }
                     : null,
@@ -370,9 +371,9 @@ class _NotificationPreferencesScreenState
             child: Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ),
           ...children,

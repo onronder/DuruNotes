@@ -39,7 +39,7 @@ class SavedSearchRegistry {
   /// Convert string ID back to SavedSearchKey enum
   static SavedSearchKey? idToKey(String id) {
     if (!id.startsWith('saved_search_')) return null;
-    
+
     final keyName = id.substring('saved_search_'.length);
     try {
       return SavedSearchKey.values.firstWhere(
@@ -54,7 +54,7 @@ class SavedSearchRegistry {
   static SavedSearchPreset? getPresetById(String id) {
     final key = idToKey(id);
     if (key == null) return null;
-    
+
     try {
       return presets.firstWhere((preset) => preset.key == key);
     } catch (_) {

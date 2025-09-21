@@ -25,8 +25,8 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
         final type = level == 1
             ? NoteBlockType.heading1
             : level == 2
-            ? NoteBlockType.heading2
-            : NoteBlockType.heading3;
+                ? NoteBlockType.heading2
+                : NoteBlockType.heading3;
         blocks.add(NoteBlock(type: type, data: text));
         continue;
       }
@@ -173,8 +173,8 @@ NoteBlock createHeadingBlock(int level, String text) {
   final type = level == 1
       ? NoteBlockType.heading1
       : level == 2
-      ? NoteBlockType.heading2
-      : NoteBlockType.heading3;
+          ? NoteBlockType.heading2
+          : NoteBlockType.heading3;
   return NoteBlock(type: type, data: text);
 }
 

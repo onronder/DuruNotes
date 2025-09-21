@@ -1,15 +1,26 @@
 import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+
+export 'analytics_factory.dart' show AnalyticsFactory, analytics;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Sentry implementation of the analytics service
 class SentryAnalytics extends AnalyticsService {
+  SentryAnalytics({
+    required AppLogger logger,
+    required EnvironmentConfig config,
+  })  : _logger = logger,
+        _config = config;
+
   final Map<String, DateTime> _timingEvents = {};
   String? _currentUserId;
   String? _sessionId;
   String? _appVersion;
+  final AppLogger _logger;
+  final EnvironmentConfig _config;
 
   /// Initialize the analytics service
   Future<void> initialize() async {
@@ -21,23 +32,23 @@ class SentryAnalytics extends AnalyticsService {
       final packageInfo = await PackageInfo.fromPlatform();
       _appVersion = packageInfo.version;
 
-      logger.info(
+      _logger.info(
         'SentryAnalytics initialized',
         data: {
           'sessionId': _sessionId,
           'appVersion': _appVersion,
-          'analyticsEnabled': EnvironmentConfig.current.analyticsEnabled,
-          'samplingRate': EnvironmentConfig.current.analyticsSamplingRate,
+          'analyticsEnabled': _config.analyticsEnabled,
+          'samplingRate': _config.analyticsSamplingRate,
         },
       );
     } catch (e) {
-      logger.error('Failed to initialize SentryAnalytics', error: e);
+      _logger.error('Failed to initialize SentryAnalytics', error: e);
     }
   }
 
   /// Check if analytics is enabled and should be sampled
   bool get _isEnabled {
-    return EnvironmentConfig.current.analyticsEnabled;
+    return _config.analyticsEnabled;
   }
 
   @override
@@ -49,8 +60,7 @@ class SentryAnalytics extends AnalyticsService {
         ...(properties ?? {}),
         AnalyticsProperties.sessionId: _sessionId,
         AnalyticsProperties.appVersion: _appVersion,
-        AnalyticsProperties.environment:
-            EnvironmentConfig.current.currentEnvironment.name,
+        AnalyticsProperties.environment: _config.environment.name,
         if (_currentUserId != null) AnalyticsProperties.userId: _currentUserId,
       };
 
@@ -66,12 +76,12 @@ class SentryAnalytics extends AnalyticsService {
         },
       );
 
-      logger.breadcrumb(
+      _logger.breadcrumb(
         'Analytics event: $name',
         data: {'event': name, 'propertyCount': eventData.length},
       );
     } catch (e) {
-      logger.error(
+      _logger.error(
         'Failed to track analytics event',
         error: e,
         data: {'eventName': name},
@@ -98,7 +108,7 @@ class SentryAnalytics extends AnalyticsService {
         scope.setUser(SentryUser(id: userId, data: properties ?? {}));
       });
 
-      logger.info(
+      _logger.info(
         'Analytics user set',
         data: {
           'hasUserId': userId != null,
@@ -106,7 +116,7 @@ class SentryAnalytics extends AnalyticsService {
         },
       );
     } catch (e) {
-      logger.error('Failed to set analytics user', error: e);
+      _logger.error('Failed to set analytics user', error: e);
     }
   }
 
@@ -121,9 +131,9 @@ class SentryAnalytics extends AnalyticsService {
         scope.setUser(null);
       });
 
-      logger.info('Analytics user cleared');
+      _logger.info('Analytics user cleared');
     } catch (e) {
-      logger.error('Failed to clear analytics user', error: e);
+      _logger.error('Failed to clear analytics user', error: e);
     }
   }
 
@@ -139,7 +149,7 @@ class SentryAnalytics extends AnalyticsService {
         }
       });
     } catch (e) {
-      logger.error(
+      _logger.error(
         'Failed to set user property',
         error: e,
         data: {'property': key},
@@ -151,14 +161,14 @@ class SentryAnalytics extends AnalyticsService {
   void startTiming(String name) {
     _timingEvents[name] = DateTime.now();
 
-    logger.breadcrumb('Started timing: $name');
+    _logger.breadcrumb('Started timing: $name');
   }
 
   @override
   void endTiming(String name, {Map<String, dynamic>? properties}) {
     final startTime = _timingEvents.remove(name);
     if (startTime == null) {
-      logger.warn('Attempted to end timing for non-started event: $name');
+      _logger.warn('Attempted to end timing for non-started event: $name');
       return;
     }
 
@@ -244,7 +254,7 @@ class SentryAnalytics extends AnalyticsService {
         }
       });
     } catch (e) {
-      logger.error('Failed to set user properties', error: e);
+      _logger.error('Failed to set user properties', error: e);
     }
   }
 
@@ -255,7 +265,7 @@ class SentryAnalytics extends AnalyticsService {
     try {
       await Sentry.close();
     } catch (e) {
-      logger.error('Failed to flush analytics', error: e);
+      _logger.error('Failed to flush analytics', error: e);
     }
   }
 
@@ -356,48 +366,3 @@ class NoOpAnalytics extends AnalyticsService {
     // No-op
   }
 }
-
-/// Analytics factory to create the appropriate analytics service
-class AnalyticsFactory {
-  static AnalyticsService? _instance;
-
-  /// Get the singleton analytics instance
-  static AnalyticsService get instance {
-    return _instance ?? _createAnalytics();
-  }
-
-  /// Initialize the analytics service
-  static Future<void> initialize() async {
-    if (EnvironmentConfig.current.analyticsEnabled &&
-        EnvironmentConfig.current.isSentryConfigured) {
-      final sentryAnalytics = SentryAnalytics();
-      await sentryAnalytics.initialize();
-      _instance = sentryAnalytics;
-    } else {
-      _instance = NoOpAnalytics();
-    }
-
-    logger.info(
-      'Analytics service initialized',
-      data: {
-        'type': _instance.runtimeType.toString(),
-        'enabled': EnvironmentConfig.current.analyticsEnabled,
-      },
-    );
-  }
-
-  /// Create the appropriate analytics service
-  static AnalyticsService _createAnalytics() {
-    // Default to no-op if not explicitly initialized
-    _instance = NoOpAnalytics();
-    return _instance!;
-  }
-
-  /// Reset the analytics instance (useful for testing)
-  static void reset() {
-    _instance = null;
-  }
-}
-
-/// Global analytics instance for convenience
-AnalyticsService get analytics => AnalyticsFactory.instance;

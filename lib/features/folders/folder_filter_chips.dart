@@ -61,13 +61,13 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
     });
 
     return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
-          .animate(
-            CurvedAnimation(
-              parent: _slideController,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+      position:
+          Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _slideController,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
       child: Container(
         height: AccessibilityUtils.minTouchTarget + 12, // 44dp + padding
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -92,12 +92,14 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                 _AllNotesDropTarget(
                   label: l10n.notesListTitle,
                   icon: Icons.notes,
-                  isSelected: currentFolder == null && !ref.watch(isInboxFilterActiveProvider),
+                  isSelected: currentFolder == null &&
+                      !ref.watch(isInboxFilterActiveProvider),
                   onSelected: () {
                     HapticUtils.selection();
                     // Clear folder filter by updating current folder to null
                     widget.onFolderSelected?.call(null);
-                    ref.read(isInboxFilterActiveProvider.notifier).state = false;
+                    ref.read(isInboxFilterActiveProvider.notifier).state =
+                        false;
                   },
                 ),
 
@@ -344,8 +346,7 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color:
-                          FolderIconHelpers.getFolderColor(
+                      color: FolderIconHelpers.getFolderColor(
                             widget.folder.color,
                           ) ??
                           colorScheme.primary,
@@ -455,8 +456,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                 child: Text(
                   widget.folder.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ),
               const Divider(height: 1),
@@ -543,13 +544,13 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                     // Check for duplicate name among siblings
                     final siblings = widget.folder.parentId != null
                         ? await ref
-                              .read(folderRepositoryProvider)
-                              .db
-                              .getChildFolders(widget.folder.parentId!)
+                            .read(folderRepositoryProvider)
+                            .db
+                            .getChildFolders(widget.folder.parentId!)
                         : await ref
-                              .read(folderRepositoryProvider)
-                              .db
-                              .getRootFolders();
+                            .read(folderRepositoryProvider)
+                            .db
+                            .getRootFolders();
                     final isDuplicate = siblings.any(
                       (f) => f.id != widget.folder.id && f.name == name,
                     );
@@ -628,9 +629,7 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     if (selectedParentId != null &&
         selectedParentId != widget.folder.parentId) {
       try {
-        await ref
-            .read(folderRepositoryProvider)
-            .moveFolder(
+        await ref.read(folderRepositoryProvider).moveFolder(
               folderId: widget.folder.id,
               newParentId: selectedParentId == 'root' ? null : selectedParentId,
             );
@@ -873,7 +872,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                                     alpha: 0.5,
                                   )
                                 : colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.3),
+                                    .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -883,8 +882,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                                 width: 14,
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color:
-                                      FolderIconHelpers.getFolderColor(
+                                  color: FolderIconHelpers.getFolderColor(
                                         folder.color,
                                       ) ??
                                       colorScheme.primary,
@@ -1048,8 +1046,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                                   width: 16,
                                   height: 16,
                                   decoration: BoxDecoration(
-                                    color:
-                                        FolderIconHelpers.getFolderColor(
+                                    color: FolderIconHelpers.getFolderColor(
                                           folder.color,
                                         ) ??
                                         theme.colorScheme.primary,
@@ -1124,9 +1121,9 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
       // Check for duplicate name among siblings
       final siblings = _selectedParentId != null
           ? await ref
-                .read(folderRepositoryProvider)
-                .db
-                .getChildFolders(_selectedParentId!)
+              .read(folderRepositoryProvider)
+              .db
+              .getChildFolders(_selectedParentId!)
           : await ref.read(folderRepositoryProvider).db.getRootFolders();
 
       final isDuplicate = siblings.any((f) => f.name == name);
@@ -1231,8 +1228,7 @@ class _ParentFolderPicker extends ConsumerWidget {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color:
-                                  FolderIconHelpers.getFolderColor(
+                              color: FolderIconHelpers.getFolderColor(
                                     folder.color,
                                   ) ??
                                   theme.colorScheme.primary,
@@ -1363,7 +1359,8 @@ class _AllNotesDropTarget extends ConsumerStatefulWidget {
   final VoidCallback onSelected;
 
   @override
-  ConsumerState<_AllNotesDropTarget> createState() => _AllNotesDropTargetState();
+  ConsumerState<_AllNotesDropTarget> createState() =>
+      _AllNotesDropTargetState();
 }
 
 class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
@@ -1398,10 +1395,10 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
     final repository = ref.read(notesRepositoryProvider);
     final undoService = ref.read(undoRedoServiceProvider);
     final l10n = AppLocalizations.of(context);
-    
+
     // Get current folder info before unfiling
     final currentFolder = await repository.getFolderForNote(note.id);
-    
+
     // Record the operation for undo
     undoService.recordNoteFolderChange(
       noteId: note.id,
@@ -1411,17 +1408,17 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
       newFolderId: null,
       newFolderName: null,
     );
-    
+
     // Remove note from folder (unfile it)
     await repository.removeNoteFromFolder(note.id);
-    
+
     // Show snackbar with undo action
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.noteUnfiled ?? 'Note unfiled'),
+          content: Text(l10n.unfiledNotes),
           action: SnackBarAction(
-            label: l10n.undo ?? 'Undo',
+            label: 'Undo',
             onPressed: () async {
               await undoService.undo();
               // Refresh the UI
@@ -1433,7 +1430,7 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
         ),
       );
     }
-    
+
     // Refresh counts
     ref.invalidate(unfiledNotesCountProvider);
     ref.invalidate(folderProvider);
@@ -1443,14 +1440,14 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
     final repository = ref.read(notesRepositoryProvider);
     final undoService = ref.read(undoRedoServiceProvider);
     final l10n = AppLocalizations.of(context);
-    
+
     // Collect previous folder info for all notes
     final previousFolderIds = <String, String?>{};
     for (final note in notes) {
       final folder = await repository.getFolderForNote(note.id);
       previousFolderIds[note.id] = folder?.id;
     }
-    
+
     // Record batch operation for undo
     undoService.recordBatchFolderChange(
       noteIds: notes.map((n) => n.id).toList(),
@@ -1458,19 +1455,19 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
       newFolderId: null,
       newFolderName: null,
     );
-    
+
     // Unfile all notes
     for (final note in notes) {
       await repository.removeNoteFromFolder(note.id);
     }
-    
+
     // Show snackbar with undo action
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${notes.length} notes unfiled'),
           action: SnackBarAction(
-            label: l10n.undo ?? 'Undo',
+            label: 'Undo',
             onPressed: () async {
               await undoService.undo();
               // Refresh the UI
@@ -1482,7 +1479,7 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
         ),
       );
     }
-    
+
     // Refresh counts
     ref.invalidate(unfiledNotesCountProvider);
     ref.invalidate(folderProvider);
@@ -1492,21 +1489,21 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
-    return DragTarget<dynamic>(
+
+    return DragTarget<Object>(
       onWillAcceptWithDetails: (details) {
         // Accept both single notes and batch selections
         return details.data is LocalNote || details.data is List<LocalNote>;
       },
       onAcceptWithDetails: (details) async {
         HapticFeedback.mediumImpact();
-        
+
         if (details.data is LocalNote) {
           await _handleNoteDrop(details.data as LocalNote);
         } else if (details.data is List<LocalNote>) {
           await _handleBatchDrop(details.data as List<LocalNote>);
         }
-        
+
         setState(() => _isDragOver = false);
         _highlightController.reverse();
       },
@@ -1600,40 +1597,44 @@ class _InboxPresetChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final isActive = ref.watch(isInboxFilterActiveProvider);
-    
+
     return FutureBuilder<String?>(
       future: _getIncomingMailFolderId(ref),
       builder: (context, folderSnapshot) {
         if (!folderSnapshot.hasData || folderSnapshot.data == null) {
           return const SizedBox.shrink();
         }
-        
+
         final folderId = folderSnapshot.data!;
-        
+
         return FutureBuilder<int>(
-          future: ref.read(notesRepositoryProvider).db.countNotesInFolder(folderId),
+          future:
+              ref.read(notesRepositoryProvider).db.countNotesInFolder(folderId),
           builder: (context, countSnapshot) {
             final count = countSnapshot.data ?? 0;
-            
+
             // Only show if there are notes in inbox
             if (count == 0 && !isActive) {
               return const SizedBox.shrink();
             }
-            
+
             return _FilterChip(
-              label: l10n.inbox ?? 'Inbox',
+              label: 'Inbox',
               icon: Icons.inbox,
               count: count > 0 ? count : null,
               isSelected: isActive,
               onSelected: () async {
                 HapticUtils.selection();
-                
+
                 // Toggle inbox filter
-                ref.read(isInboxFilterActiveProvider.notifier).state = !isActive;
-                
+                ref.read(isInboxFilterActiveProvider.notifier).state =
+                    !isActive;
+
                 if (!isActive) {
                   // Activate inbox filter - show only notes in incoming mail folder
-                  final folder = await ref.read(notesRepositoryProvider).getFolder(folderId);
+                  final folder = await ref
+                      .read(notesRepositoryProvider)
+                      .getFolder(folderId);
                   if (folder != null) {
                     ref.read(currentFolderProvider.notifier).state = folder;
                   }
@@ -1648,12 +1649,12 @@ class _InboxPresetChip extends ConsumerWidget {
       },
     );
   }
-  
+
   Future<String?> _getIncomingMailFolderId(WidgetRef ref) async {
     try {
       final repository = ref.read(notesRepositoryProvider);
       final folders = await repository.listFolders();
-      
+
       // Look for "Incoming Mail" folder
       final incomingMailFolder = folders.firstWhere(
         (f) => f.name.toLowerCase() == 'incoming mail' && !f.deleted,
@@ -1670,7 +1671,7 @@ class _InboxPresetChip extends ConsumerWidget {
           deleted: true,
         ),
       );
-      
+
       return incomingMailFolder.id.isNotEmpty ? incomingMailFolder.id : null;
     } catch (e) {
       return null;

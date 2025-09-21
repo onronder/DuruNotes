@@ -37,11 +37,11 @@ class ClipperInboxService {
     required NotesCapturePort notesPort,
     required IncomingMailFolderManager folderManager,
     InboxUnreadService? unreadService,
-  }) : _supabase = supabase,
-       _notesPort = notesPort,
-       _folderManager = folderManager,
-       _unreadService =
-           unreadService; // Note: unreadService is no longer used here
+  })  : _supabase = supabase,
+        _notesPort = notesPort,
+        _folderManager = folderManager,
+        _unreadService =
+            unreadService; // Note: unreadService is no longer used here
 
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
@@ -98,9 +98,8 @@ class ClipperInboxService {
   void _startPolling() {
     _stopPolling();
     // Use longer interval when realtime is connected
-    final interval = _realtimeConnected
-        ? _realtimePollingInterval
-        : _normalPollingInterval;
+    final interval =
+        _realtimeConnected ? _realtimePollingInterval : _normalPollingInterval;
     _timer = Timer.periodic(interval, (_) => unawaited(processOnce()));
     _logger.debug(' Polling started with interval: ${interval.inSeconds}s');
   }
@@ -119,19 +118,18 @@ class ClipperInboxService {
       }
 
       // Create channel for clipper_inbox inserts
-      _realtimeChannel = _supabase
-          .channel('clipper_inbox_changes')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
-            schema: 'public',
-            table: 'clipper_inbox',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'user_id',
-              value: userId,
-            ),
-            callback: _handleRealtimeInsert,
-          );
+      _realtimeChannel =
+          _supabase.channel('clipper_inbox_changes').onPostgresChanges(
+                event: PostgresChangeEvent.insert,
+                schema: 'public',
+                table: 'clipper_inbox',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'user_id',
+                  value: userId,
+                ),
+                callback: _handleRealtimeInsert,
+              );
 
       // Subscribe to the channel
       _realtimeChannel!.subscribe((status, error) {
@@ -260,10 +258,8 @@ class ClipperInboxService {
       // Limit the size of processed IDs set
       if (_processedIds.length > _maxProcessedIds) {
         // Remove oldest entries (convert to list, take last N, convert back)
-        final recentIds = _processedIds
-            .toList()
-            .skip(_processedIds.length - 500)
-            .toSet();
+        final recentIds =
+            _processedIds.toList().skip(_processedIds.length - 500).toSet();
         _processedIds.clear();
         _processedIds.addAll(recentIds);
       }
@@ -286,8 +282,7 @@ class ClipperInboxService {
       final text = (payload['text'] as String?)?.trim() ?? '';
       final html = payload['html'] as String?;
       final to = (payload['to'] as String?)?.trim();
-      final receivedAt =
-          (payload['received_at'] as String?)?.trim() ??
+      final receivedAt = (payload['received_at'] as String?)?.trim() ??
           DateTime.now().toIso8601String();
 
       // Build note body (plain text + footer)
@@ -376,8 +371,7 @@ class ClipperInboxService {
       final text = (payload['text'] as String?)?.trim() ?? '';
       final url = (payload['url'] as String?)?.trim() ?? '';
       final html = payload['html'] as String?;
-      final clippedAt =
-          (payload['clipped_at'] as String?)?.trim() ??
+      final clippedAt = (payload['clipped_at'] as String?)?.trim() ??
           DateTime.now().toIso8601String();
 
       // Build note body with clipped content and source reference

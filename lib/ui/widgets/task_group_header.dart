@@ -23,9 +23,10 @@ class TaskGroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Determine urgency color based on title
-    Color effectiveAccentColor = accentColor ?? _getUrgencyColor(title, colorScheme);
+    Color effectiveAccentColor =
+        accentColor ?? _getUrgencyColor(title, colorScheme);
 
     return Container(
       margin: const EdgeInsets.only(top: 16, bottom: 8),
@@ -47,9 +48,9 @@ class TaskGroupHeader extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Title and count
                 Expanded(
                   child: Row(
@@ -86,13 +87,13 @@ class TaskGroupHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Expand/collapse icon
                 if (showExpandIcon)
                   Icon(
-                    isExpanded 
-                      ? Icons.keyboard_arrow_up 
-                      : Icons.keyboard_arrow_down,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     color: colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
@@ -203,20 +204,19 @@ class _ExpandableTaskGroupState extends State<ExpandableTaskGroup>
           showExpandIcon: true,
           onTap: _toggleExpanded,
         ),
-        
         SizeTransition(
           sizeFactor: _expandAnimation,
           child: widget.maintainState
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: widget.children,
-              )
-            : _isExpanded
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: widget.children,
-                  )
-                : const SizedBox.shrink(),
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: widget.children,
+                )
+              : _isExpanded
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: widget.children,
+                    )
+                  : const SizedBox.shrink(),
         ),
       ],
     );

@@ -20,10 +20,12 @@ class HierarchicalTaskListView extends ConsumerStatefulWidget {
   final String? noteId; // If provided, show only tasks for this note
 
   @override
-  ConsumerState<HierarchicalTaskListView> createState() => _HierarchicalTaskListViewState();
+  ConsumerState<HierarchicalTaskListView> createState() =>
+      _HierarchicalTaskListViewState();
 }
 
-class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListView> {
+class _HierarchicalTaskListViewState
+    extends ConsumerState<HierarchicalTaskListView> {
   late HierarchicalTaskSyncService _hierarchyService;
   final Set<String> _expandedNodes = <String>{};
 
@@ -41,9 +43,9 @@ class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListV
     final enhancedTaskService = ref.watch(enhancedTaskServiceProvider);
 
     return StreamBuilder<List<NoteTask>>(
-      stream: widget.noteId != null 
-        ? enhancedTaskService.watchTasksForNote(widget.noteId!)
-        : enhancedTaskService.watchOpenTasks(),
+      stream: widget.noteId != null
+          ? enhancedTaskService.watchTasksForNote(widget.noteId!)
+          : enhancedTaskService.watchOpenTasks(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -77,9 +79,9 @@ class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListV
         if (tasks.isEmpty) {
           return EmptyTaskGroup(
             title: 'No tasks found',
-            message: widget.showCompleted 
-              ? 'Create a new task to get started'
-              : 'All tasks completed! 🎉\nCreate a new task or show completed tasks.',
+            message: widget.showCompleted
+                ? 'Create a new task to get started'
+                : 'All tasks completed! 🎉\nCreate a new task or show completed tasks.',
             action: ElevatedButton.icon(
               onPressed: () => _showCreateTaskDialog(context),
               icon: const Icon(Icons.add),
@@ -96,7 +98,7 @@ class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListV
             }
 
             final rootNodes = hierarchySnapshot.data ?? [];
-            
+
             return Column(
               children: [
                 // Hierarchy statistics
@@ -104,10 +106,12 @@ class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListV
                   FutureBuilder<TaskHierarchyStats>(
                     future: _hierarchyService.getHierarchyStats(widget.noteId!),
                     builder: (context, statsSnapshot) {
-                      if (statsSnapshot.hasData && statsSnapshot.data!.hasNesting) {
+                      if (statsSnapshot.hasData &&
+                          statsSnapshot.data!.hasNesting) {
                         return Padding(
                           padding: const EdgeInsets.all(16),
-                          child: TaskHierarchySummary(stats: statsSnapshot.data!),
+                          child:
+                              TaskHierarchySummary(stats: statsSnapshot.data!),
                         );
                       }
                       return const SizedBox.shrink();
@@ -136,7 +140,7 @@ class _HierarchicalTaskListViewState extends ConsumerState<HierarchicalTaskListV
 
   void _showCreateTaskDialog(BuildContext context) async {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
-    
+
     // Show task creation dialog
     final taskContent = await showDialog<String>(
       context: context,
@@ -341,7 +345,8 @@ class TaskHierarchyPanel extends ConsumerWidget {
     }
   }
 
-  Future<void> _completeAllRootTasks(BuildContext context, WidgetRef ref) async {
+  Future<void> _completeAllRootTasks(
+      BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -388,7 +393,8 @@ class TaskHierarchyPanel extends ConsumerWidget {
     }
   }
 
-  Future<void> _cleanupCompletedTasks(BuildContext context, WidgetRef ref) async {
+  Future<void> _cleanupCompletedTasks(
+      BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -414,7 +420,8 @@ class TaskHierarchyPanel extends ConsumerWidget {
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
         final tasks = await unifiedService.getTasksForNote(noteId);
-        final completedTasks = tasks.where((t) => t.status == TaskStatus.completed).toList();
+        final completedTasks =
+            tasks.where((t) => t.status == TaskStatus.completed).toList();
 
         for (final task in completedTasks) {
           await unifiedService.onDeleted(task.id);
@@ -422,7 +429,9 @@ class TaskHierarchyPanel extends ConsumerWidget {
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Archived ${completedTasks.length} completed tasks')),
+            SnackBar(
+                content:
+                    Text('Archived ${completedTasks.length} completed tasks')),
           );
         }
       } catch (e) {
@@ -435,4 +444,3 @@ class TaskHierarchyPanel extends ConsumerWidget {
     }
   }
 }
-

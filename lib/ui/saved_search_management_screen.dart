@@ -182,10 +182,10 @@ class _SavedSearchManagementScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _savedSearches.isEmpty
-          ? _buildEmptyState(context)
-          : _isReordering
-          ? _buildReorderableList()
-          : _buildNormalList(),
+              ? _buildEmptyState(context)
+              : _isReordering
+                  ? _buildReorderableList()
+                  : _buildNormalList(),
       floatingActionButton: FloatingActionButton(
         onPressed: _createSavedSearch,
         child: const Icon(Icons.add),
@@ -548,8 +548,7 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed:
-              _nameController.text.isNotEmpty &&
+          onPressed: _nameController.text.isNotEmpty &&
                   _queryController.text.isNotEmpty
               ? () {
                   Navigator.pop(context, {

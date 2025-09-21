@@ -6,24 +6,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Dialog for creating and managing productivity goals
 class GoalsDialog extends ConsumerStatefulWidget {
   const GoalsDialog({super.key});
-  
+
   @override
   ConsumerState<GoalsDialog> createState() => _GoalsDialogState();
 }
 
 class _GoalsDialogState extends ConsumerState<GoalsDialog> {
   final _formKey = GlobalKey<FormState>();
-  
+
   GoalType _selectedType = GoalType.tasksCompleted;
   GoalPeriod _selectedPeriod = GoalPeriod.daily;
   int _targetValue = 5;
   String _customDescription = '';
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -58,7 +58,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Goal Type Selection
               Text(
                 'Goal Type',
@@ -78,16 +78,18 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                     vertical: 12,
                   ),
                 ),
-                items: GoalType.values.map((type) => DropdownMenuItem(
-                  value: type,
-                  child: Row(
-                    children: [
-                      Icon(_getIconForGoalType(type), size: 20),
-                      const SizedBox(width: 8),
-                      Text(_getDisplayNameForGoalType(type)),
-                    ],
-                  ),
-                )).toList(),
+                items: GoalType.values
+                    .map((type) => DropdownMenuItem(
+                          value: type,
+                          child: Row(
+                            children: [
+                              Icon(_getIconForGoalType(type), size: 20),
+                              const SizedBox(width: 8),
+                              Text(_getDisplayNameForGoalType(type)),
+                            ],
+                          ),
+                        ))
+                    .toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() {
@@ -98,7 +100,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Period Selection
               Text(
                 'Time Period',
@@ -134,7 +136,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Target Value
               Text(
                 'Target',
@@ -188,7 +190,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Custom Description (Optional)
               TextFormField(
                 decoration: InputDecoration(
@@ -205,10 +207,11 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                 },
               ),
               const SizedBox(height: 24),
-              
+
               // Current Goals List
               FutureBuilder<List<ProductivityGoal>>(
-                future: ref.read(productivityGoalsServiceProvider).getActiveGoals(),
+                future:
+                    ref.read(productivityGoalsServiceProvider).getActiveGoals(),
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                     return Column(
@@ -235,25 +238,26 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                               return ListTile(
                                 leading: Icon(
                                   _getIconForGoalType(goal.type),
-                                  color: goal.isCompleted 
-                                    ? Colors.green 
-                                    : colorScheme.primary,
+                                  color: goal.isCompleted
+                                      ? Colors.green
+                                      : colorScheme.primary,
                                 ),
                                 title: Text(goal.description),
                                 subtitle: LinearProgressIndicator(
                                   value: goal.currentValue / goal.targetValue,
                                   backgroundColor: colorScheme.surfaceVariant,
                                   valueColor: AlwaysStoppedAnimation(
-                                    goal.isCompleted 
-                                      ? Colors.green 
-                                      : colorScheme.primary,
+                                    goal.isCompleted
+                                        ? Colors.green
+                                        : colorScheme.primary,
                                   ),
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(Icons.delete_outline),
                                   onPressed: () async {
-                                    await ref.read(productivityGoalsServiceProvider)
-                                      .deleteGoal(goal.id);
+                                    await ref
+                                        .read(productivityGoalsServiceProvider)
+                                        .deleteGoal(goal.id);
                                     setState(() {});
                                   },
                                 ),
@@ -268,7 +272,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                   return const SizedBox.shrink();
                 },
               ),
-              
+
               // Actions
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -291,13 +295,16 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
       ),
     );
   }
-  
+
   void _updateDefaultTarget() {
     setState(() {
       switch (_selectedType) {
         case GoalType.tasksCompleted:
-          _targetValue = _selectedPeriod == GoalPeriod.daily ? 5 
-            : _selectedPeriod == GoalPeriod.weekly ? 30 : 100;
+          _targetValue = _selectedPeriod == GoalPeriod.daily
+              ? 5
+              : _selectedPeriod == GoalPeriod.weekly
+                  ? 30
+                  : 100;
           break;
         case GoalType.completionRate:
           _targetValue = 80;
@@ -312,8 +319,11 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
           _targetValue = 90;
           break;
         case GoalType.timeSpent:
-          _targetValue = _selectedPeriod == GoalPeriod.daily ? 120 
-            : _selectedPeriod == GoalPeriod.weekly ? 600 : 2400;
+          _targetValue = _selectedPeriod == GoalPeriod.daily
+              ? 120
+              : _selectedPeriod == GoalPeriod.weekly
+                  ? 600
+                  : 2400;
           break;
         case GoalType.averageTasksPerDay:
           _targetValue = 5;
@@ -321,7 +331,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
       }
     });
   }
-  
+
   double _getMinTarget() {
     switch (_selectedType) {
       case GoalType.tasksCompleted:
@@ -340,12 +350,15 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return 1;
     }
   }
-  
+
   double _getMaxTarget() {
     switch (_selectedType) {
       case GoalType.tasksCompleted:
-        return _selectedPeriod == GoalPeriod.daily ? 20 
-          : _selectedPeriod == GoalPeriod.weekly ? 100 : 500;
+        return _selectedPeriod == GoalPeriod.daily
+            ? 20
+            : _selectedPeriod == GoalPeriod.weekly
+                ? 100
+                : 500;
       case GoalType.completionRate:
         return 100;
       case GoalType.timeAccuracy:
@@ -355,13 +368,16 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
       case GoalType.deadlineAdherence:
         return 100;
       case GoalType.timeSpent:
-        return _selectedPeriod == GoalPeriod.daily ? 480 
-          : _selectedPeriod == GoalPeriod.weekly ? 2400 : 10000;
+        return _selectedPeriod == GoalPeriod.daily
+            ? 480
+            : _selectedPeriod == GoalPeriod.weekly
+                ? 2400
+                : 10000;
       case GoalType.averageTasksPerDay:
         return 50;
     }
   }
-  
+
   String _formatTargetValue() {
     switch (_selectedType) {
       case GoalType.completionRate:
@@ -380,7 +396,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return _targetValue.toString();
     }
   }
-  
+
   String _getGoalDescription() {
     final period = _selectedPeriod.name;
     switch (_selectedType) {
@@ -400,7 +416,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return 'Average $_targetValue tasks per day';
     }
   }
-  
+
   IconData _getIconForGoalType(GoalType type) {
     switch (type) {
       case GoalType.tasksCompleted:
@@ -419,7 +435,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return Icons.trending_up;
     }
   }
-  
+
   String _getDisplayNameForGoalType(GoalType type) {
     switch (type) {
       case GoalType.tasksCompleted:
@@ -438,11 +454,11 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return 'Average Tasks/Day';
     }
   }
-  
+
   Future<void> _createGoal() async {
     if (_formKey.currentState!.validate()) {
       final goalsService = ref.read(productivityGoalsServiceProvider);
-      
+
       final goal = ProductivityGoal(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _getDisplayNameForGoalType(_selectedType),
@@ -450,9 +466,9 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         period: _selectedPeriod,
         targetValue: _targetValue.toDouble(),
         currentValue: 0,
-        description: _customDescription.isNotEmpty 
-          ? _customDescription 
-          : _getGoalDescription(),
+        description: _customDescription.isNotEmpty
+            ? _customDescription
+            : _getGoalDescription(),
         startDate: DateTime.now(),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -460,7 +476,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         isCompleted: false,
         metadata: {},
       );
-      
+
       await goalsService.createGoal(
         title: goal.title,
         description: goal.description,
@@ -468,7 +484,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         period: goal.period,
         targetValue: goal.targetValue,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

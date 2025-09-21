@@ -11,7 +11,7 @@ class SettingsTile extends StatelessWidget {
   final bool enabled;
   final Color? iconColor;
   final EdgeInsetsGeometry? contentPadding;
-  
+
   const SettingsTile({
     super.key,
     required this.icon,
@@ -29,22 +29,23 @@ class SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final effectiveIconColor = isDestructive
         ? colorScheme.error
         : iconColor ?? colorScheme.onSurfaceVariant;
-    
+
     final effectiveTextColor = isDestructive
         ? colorScheme.error
         : enabled
             ? colorScheme.onSurface
             : colorScheme.onSurface.withOpacity(0.5);
-    
+
     return ListTile(
       enabled: enabled,
       leading: Icon(
         icon,
-        color: enabled ? effectiveIconColor : effectiveIconColor.withOpacity(0.5),
+        color:
+            enabled ? effectiveIconColor : effectiveIconColor.withOpacity(0.5),
         size: 24,
       ),
       title: Text(
@@ -61,17 +62,19 @@ class SettingsTile extends StatelessWidget {
               ),
             )
           : null,
-      trailing: trailing ?? (onTap != null
-          ? Icon(
-              Icons.chevron_right,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-            )
-          : null),
+      trailing: trailing ??
+          (onTap != null
+              ? Icon(
+                  Icons.chevron_right,
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                )
+              : null),
       onTap: enabled ? onTap : null,
-      contentPadding: contentPadding ?? const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
-      ),
+      contentPadding: contentPadding ??
+          const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
     );
   }
 }
@@ -83,7 +86,7 @@ class SettingsSection extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
   final Color? titleColor;
   final TextStyle? titleStyle;
-  
+
   const SettingsSection({
     super.key,
     this.title,
@@ -96,11 +99,12 @@ class SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveTitleStyle = titleStyle ?? theme.textTheme.titleSmall?.copyWith(
-      color: titleColor ?? theme.colorScheme.primary,
-      fontWeight: FontWeight.bold,
-    );
-    
+    final effectiveTitleStyle = titleStyle ??
+        theme.textTheme.titleSmall?.copyWith(
+          color: titleColor ?? theme.colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        );
+
     return Container(
       margin: margin ?? const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -136,7 +140,7 @@ class SettingsSwitchTile extends StatelessWidget {
   final ValueChanged<bool> onChanged;
   final bool enabled;
   final Color? iconColor;
-  
+
   const SettingsSwitchTile({
     super.key,
     required this.icon,
@@ -175,7 +179,7 @@ class SettingsRadioTile<T> extends StatelessWidget {
   final ValueChanged<T?> onChanged;
   final bool enabled;
   final Color? iconColor;
-  
+
   const SettingsRadioTile({
     super.key,
     required this.icon,
@@ -219,7 +223,7 @@ class SettingsSliderTile extends StatelessWidget {
   final String Function(double)? labelBuilder;
   final bool enabled;
   final Color? iconColor;
-  
+
   const SettingsSliderTile({
     super.key,
     required this.icon,
@@ -239,7 +243,7 @@ class SettingsSliderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displayValue = labelBuilder?.call(value) ?? value.toStringAsFixed(1);
-    
+
     return Column(
       children: [
         SettingsTile(
@@ -281,7 +285,7 @@ class SettingsNavigationTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool enabled;
   final Color? iconColor;
-  
+
   const SettingsNavigationTile({
     super.key,
     required this.icon,
@@ -296,7 +300,7 @@ class SettingsNavigationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return SettingsTile(
       icon: icon,
       title: title,
@@ -341,7 +345,7 @@ class SettingsAccountHeader extends StatelessWidget {
   final String email;
   final VoidCallback? onTap;
   final Widget? trailing;
-  
+
   const SettingsAccountHeader({
     super.key,
     this.avatarUrl,
@@ -355,7 +359,7 @@ class SettingsAccountHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Card(
       margin: const EdgeInsets.all(16),
       child: InkWell(
@@ -368,9 +372,8 @@ class SettingsAccountHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: colorScheme.primaryContainer,
-                backgroundImage: avatarUrl != null
-                    ? NetworkImage(avatarUrl!)
-                    : null,
+                backgroundImage:
+                    avatarUrl != null ? NetworkImage(avatarUrl!) : null,
                 child: avatarUrl == null
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -423,7 +426,7 @@ class SettingsVersionFooter extends StatelessWidget {
   final String version;
   final String? buildNumber;
   final VoidCallback? onTap;
-  
+
   const SettingsVersionFooter({
     super.key,
     required this.appName,
@@ -435,10 +438,9 @@ class SettingsVersionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final versionText = buildNumber != null
-        ? 'v$version ($buildNumber)'
-        : 'v$version';
-    
+    final versionText =
+        buildNumber != null ? 'v$version ($buildNumber)' : 'v$version';
+
     return InkWell(
       onTap: onTap,
       child: Padding(

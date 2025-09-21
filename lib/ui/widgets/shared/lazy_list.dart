@@ -131,8 +131,7 @@ class _LazyListState<T> extends ConsumerState<LazyList<T>> {
   }
 
   Widget _buildList() {
-    final itemCount =
-        widget.items.length +
+    final itemCount = widget.items.length +
         (widget.header != null ? 1 : 0) +
         (widget.footer != null ? 1 : 0) +
         (widget.hasMore ? 1 : 0);
@@ -197,8 +196,7 @@ class _LazyListState<T> extends ConsumerState<LazyList<T>> {
       shrinkWrap: widget.shrinkWrap,
       cacheExtent: widget.cacheExtent,
       semanticChildCount: widget.semanticChildCount ?? widget.items.length,
-      gridDelegate:
-          widget.gridDelegate ??
+      gridDelegate: widget.gridDelegate ??
           const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 8,
@@ -295,8 +293,7 @@ class SliverLazyList<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isGrid) {
       return SliverGrid(
-        gridDelegate:
-            gridDelegate ??
+        gridDelegate: gridDelegate ??
             const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 8,

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide Column;
+import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/feature_flags.dart';
@@ -104,7 +105,8 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 });
 
 /// Template migration service provider
-final templateMigrationServiceProvider = Provider<TemplateMigrationService>((ref) {
+final templateMigrationServiceProvider =
+    Provider<TemplateMigrationService>((ref) {
   final db = ref.watch(appDbProvider);
   return TemplateMigrationService(db);
 });
@@ -116,25 +118,28 @@ final templateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
   if (await migrationService.needsMigration()) {
     await migrationService.migrateTemplates();
   }
-  
+
   final repository = ref.watch(templateRepositoryProvider);
   return repository.getAllTemplates();
 });
 
 /// Template list stream provider - real-time updates
-final templateListStreamProvider = StreamProvider<List<LocalTemplate>>((ref) async* {
+final templateListStreamProvider =
+    StreamProvider<List<LocalTemplate>>((ref) async* {
   final db = ref.watch(appDbProvider);
   yield* db.select(db.localTemplates).watch();
 });
 
 /// System templates only
-final systemTemplateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+final systemTemplateListProvider =
+    FutureProvider<List<LocalTemplate>>((ref) async {
   final repository = ref.watch(templateRepositoryProvider);
   return repository.getSystemTemplates();
 });
 
-/// User templates only  
-final userTemplateListProvider = FutureProvider<List<LocalTemplate>>((ref) async {
+/// User templates only
+final userTemplateListProvider =
+    FutureProvider<List<LocalTemplate>>((ref) async {
   final repository = ref.watch(templateRepositoryProvider);
   return repository.getUserTemplates();
 });
@@ -213,7 +218,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       ref.invalidate(filteredNotesProvider);
       ref.read(notesPageProvider.notifier).refresh();
       debugPrint('[Sync] Notes providers refreshed after sync completion');
-      
+
       // Run template migration after sync
       final migrationService = ref.read(templateMigrationServiceProvider);
       if (await migrationService.needsMigration()) {
@@ -234,15 +239,12 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 /// Provider for paginated notes
-final notesPageProvider =
-    StateNotifierProvider.autoDispose<
-      NotesPaginationNotifier,
-      AsyncValue<NotesPage>
-    >((ref) {
-      final repo = ref.watch(notesRepositoryProvider);
-      return NotesPaginationNotifier(repo)
-        ..loadMore(); // Load first page immediately
-    });
+final notesPageProvider = StateNotifierProvider.autoDispose<
+    NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
+  final repo = ref.watch(notesRepositoryProvider);
+  return NotesPaginationNotifier(repo)
+    ..loadMore(); // Load first page immediately
+});
 
 /// Provider to watch just the loading state
 final notesLoadingProvider = Provider<bool>((ref) {
@@ -252,9 +254,7 @@ final notesLoadingProvider = Provider<bool>((ref) {
 
 /// Provider to watch just the current notes list
 final currentNotesProvider = Provider<List<LocalNote>>((ref) {
-  return ref
-      .watch(notesPageProvider)
-      .when(
+  return ref.watch(notesPageProvider).when(
         data: (page) => page.items,
         loading: () => <LocalNote>[],
         error: (_, __) => <LocalNote>[],
@@ -264,8 +264,8 @@ final currentNotesProvider = Provider<List<LocalNote>>((ref) {
 /// Current folder filter provider
 final currentFolderProvider =
     StateNotifierProvider<CurrentFolderNotifier, LocalFolder?>((ref) {
-      return CurrentFolderNotifier();
-    });
+  return CurrentFolderNotifier();
+});
 
 /// Helper function to batch fetch tags for multiple notes
 Future<Map<String, Set<String>>> _batchFetchTags(
@@ -348,9 +348,7 @@ final filteredNotesProvider = FutureProvider<List<LocalNote>>((ref) async {
 
 /// Provider to check if there are more notes to load
 final hasMoreNotesProvider = Provider<bool>((ref) {
-  return ref
-      .watch(notesPageProvider)
-      .when(
+  return ref.watch(notesPageProvider).when(
         data: (page) => page.hasMore,
         loading: () => true,
         error: (_, __) => false,
@@ -359,12 +357,12 @@ final hasMoreNotesProvider = Provider<bool>((ref) {
 
 /// Logger provider
 final loggerProvider = Provider<AppLogger>((ref) {
-  return LoggerFactory.instance;
+  return ref.watch(bootstrapLoggerProvider);
 });
 
 /// Analytics provider
 final analyticsProvider = Provider<AnalyticsService>((ref) {
-  return AnalyticsFactory.instance;
+  return ref.watch(bootstrapAnalyticsProvider);
 });
 
 /// Database provider alias for compatibility
@@ -536,71 +534,71 @@ final inboxManagementServiceProvider = Provider<InboxManagementService>((ref) {
   );
 });
 
-
 /// Unified Realtime Service - Single source of truth for all realtime subscriptions
 /// This replaces individual realtime services to reduce database load
 final unifiedRealtimeServiceProvider =
     ChangeNotifierProvider<UnifiedRealtimeService?>((ref) {
-      // Watch auth state to properly manage lifecycle
-      final authStateAsync = ref.watch(authStateChangesProvider);
+  // Watch auth state to properly manage lifecycle
+  final authStateAsync = ref.watch(authStateChangesProvider);
 
-      return authStateAsync.when(
-        data: (authState) {
-          // Return null if not authenticated
-          if (authState.session == null) {
-            debugPrint(
-              '[Providers] No session - unified realtime service not created',
-            );
-            return null;
-          }
+  return authStateAsync.when(
+    data: (authState) {
+      // Return null if not authenticated
+      if (authState.session == null) {
+        debugPrint(
+          '[Providers] No session - unified realtime service not created',
+        );
+        return null;
+      }
 
-          final userId = authState.session!.user.id;
-          final logger = LoggerFactory.instance;
-          final folderSyncCoordinator = ref.watch(
-            folderSyncCoordinatorProvider,
-          );
-
-          debugPrint(
-            '[Providers] Creating unified realtime service for user: $userId',
-          );
-
-          // Create service with injected dependencies
-          final service = UnifiedRealtimeService(
-            supabase: Supabase.instance.client,
-            userId: userId,
-            logger: logger,
-            connectionManager: ConnectionManager(),
-            folderSyncCoordinator: folderSyncCoordinator,
-          );
-
-          // Start the service with proper error handling
-          service.start().catchError((Object error) {
-            logger.error(
-              '[Providers] Failed to start unified realtime',
-              error: error,
-            );
-          });
-
-          // CRITICAL: Proper disposal on logout or provider disposal
-          ref.onDispose(() {
-            debugPrint('[Providers] Disposing unified realtime service');
-            service.dispose();
-          });
-
-          return service;
-        },
-        loading: () => null,
-        error: (error, stack) {
-          debugPrint('[Providers] Auth state error: $error');
-          return null;
-        },
+      final userId = authState.session!.user.id;
+      final logger = ref.watch(loggerProvider);
+      final folderSyncCoordinator = ref.watch(
+        folderSyncCoordinatorProvider,
       );
-    });
+
+      debugPrint(
+        '[Providers] Creating unified realtime service for user: $userId',
+      );
+
+      // Create service with injected dependencies
+      final service = UnifiedRealtimeService(
+        supabase: Supabase.instance.client,
+        userId: userId,
+        logger: logger,
+        connectionManager: ConnectionManager(),
+        folderSyncCoordinator: folderSyncCoordinator,
+      );
+
+      // Start the service with proper error handling
+      service.start().catchError((Object error) {
+        logger.error(
+          '[Providers] Failed to start unified realtime',
+          error: error,
+        );
+      });
+
+      // CRITICAL: Proper disposal on logout or provider disposal
+      ref.onDispose(() {
+        debugPrint('[Providers] Disposing unified realtime service');
+        service.dispose();
+      });
+
+      return service;
+    },
+    loading: () => null,
+    error: (error, stack) {
+      debugPrint('[Providers] Auth state error: $error');
+      return null;
+    },
+  );
+});
 
 /// Legacy provider - Deprecated, use unifiedRealtimeServiceProvider
 /// This creates a stub service that doesn't actually start realtime subscriptions
 @Deprecated('Use unifiedRealtimeServiceProvider instead')
-final inboxRealtimeServiceProvider = ChangeNotifierProvider<InboxRealtimeService>((
+final inboxRealtimeServiceProvider =
+    ChangeNotifierProvider<InboxRealtimeService>((
   ref,
 ) {
   ref.watch(authStateChangesProvider);
@@ -628,14 +626,14 @@ final folderRealtimeServiceProvider = Provider<FolderRealtimeService?>((ref) {
 
 // Folder sync audit provider
 final folderSyncAuditProvider = Provider<FolderSyncAudit>((ref) {
-  final logger = LoggerFactory.instance;
+  final logger = ref.watch(loggerProvider);
   return FolderSyncAudit(logger: logger);
 });
 
 // Folder sync coordinator provider
 final folderRemoteApiProvider = Provider<FolderRemoteApi>((ref) {
   final client = Supabase.instance.client;
-  final logger = LoggerFactory.instance;
+  final logger = ref.watch(loggerProvider);
   return SupabaseFolderRemoteApi(client: client, logger: logger);
 });
 
@@ -643,7 +641,7 @@ final folderSyncCoordinatorProvider = Provider<FolderSyncCoordinator>((ref) {
   final repository = ref.watch(folderRepositoryProvider);
   final remoteApi = ref.watch(folderRemoteApiProvider);
   final audit = ref.watch(folderSyncAuditProvider);
-  final logger = LoggerFactory.instance;
+  final logger = ref.watch(loggerProvider);
 
   return FolderSyncCoordinator(
     repository: repository,
@@ -657,9 +655,9 @@ final folderSyncCoordinatorProvider = Provider<FolderSyncCoordinator>((ref) {
 @Deprecated('Use unifiedRealtimeServiceProvider instead')
 final notesRealtimeServiceProvider =
     ChangeNotifierProvider<NotesRealtimeService?>((ref) {
-      // Return null - functionality moved to unified service
-      return null;
-    });
+  // Return null - functionality moved to unified service
+  return null;
+});
 
 /// Inbox unread tracking service provider
 final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService?>((
@@ -768,33 +766,33 @@ final localeProvider = StateNotifierProvider<LocaleNotifier, Locale?>((ref) {
 /// Analytics settings provider
 final analyticsSettingsProvider =
     StateNotifierProvider<AnalyticsNotifier, bool>((ref) {
-      final analytics = ref.watch(analyticsProvider);
-      return AnalyticsNotifier(analytics);
-    });
+  final analytics = ref.watch(analyticsProvider);
+  return AnalyticsNotifier(analytics);
+});
 
 // Folder providers
 
 /// Folder state provider for CRUD operations
 final folderProvider =
     StateNotifierProvider<FolderNotifier, FolderOperationState>((ref) {
-      final repo = ref.watch(folderRepositoryProvider);
-      final syncCoordinator = ref.watch(folderSyncCoordinatorProvider);
-      return FolderNotifier(repo, syncCoordinator);
-    });
+  final repo = ref.watch(folderRepositoryProvider);
+  final syncCoordinator = ref.watch(folderSyncCoordinatorProvider);
+  return FolderNotifier(repo, syncCoordinator);
+});
 
 /// Folder hierarchy provider for tree structure management
 final folderHierarchyProvider =
     StateNotifierProvider<FolderHierarchyNotifier, FolderHierarchyState>((ref) {
-      final repo = ref.watch(notesRepositoryProvider);
-      return FolderHierarchyNotifier(repo);
-    });
+  final repo = ref.watch(notesRepositoryProvider);
+  return FolderHierarchyNotifier(repo);
+});
 
 /// Note-folder relationship provider
 final noteFolderProvider =
     StateNotifierProvider<NoteFolderNotifier, NoteFolderState>((ref) {
-      final repo = ref.watch(notesRepositoryProvider);
-      return NoteFolderNotifier(repo);
-    });
+  final repo = ref.watch(notesRepositoryProvider);
+  return NoteFolderNotifier(repo);
+});
 
 /// Folder list provider (derived from hierarchy state)
 final folderListProvider = Provider<List<LocalFolder>>((ref) {
@@ -859,24 +857,24 @@ final filterStateProvider = StateProvider<FilterState?>((ref) => null);
 /// Current sort spec for the selected folder
 final currentSortSpecProvider =
     StateNotifierProvider<CurrentSortSpecNotifier, NoteSortSpec>((ref) {
-      final currentFolder = ref.watch(currentFolderProvider);
-      final service = ref.watch(sortPreferencesServiceProvider);
+  final currentFolder = ref.watch(currentFolderProvider);
+  final service = ref.watch(sortPreferencesServiceProvider);
 
-      // Create a new notifier when folder changes
-      final notifier = CurrentSortSpecNotifier(service, currentFolder?.id);
+  // Create a new notifier when folder changes
+  final notifier = CurrentSortSpecNotifier(service, currentFolder?.id);
 
-      // Clean up when folder changes
-      ref.onDispose(() {
-        // Nothing to dispose, but could add cleanup if needed
-      });
+  // Clean up when folder changes
+  ref.onDispose(() {
+    // Nothing to dispose, but could add cleanup if needed
+  });
 
-      return notifier;
-    });
+  return notifier;
+});
 
 /// Notifier for managing the current sort spec
 class CurrentSortSpecNotifier extends StateNotifier<NoteSortSpec> {
   CurrentSortSpecNotifier(this._service, this._folderId)
-    : super(const NoteSortSpec()) {
+      : super(const NoteSortSpec()) {
     _loadSortSpec();
   }
 
@@ -920,13 +918,15 @@ final undoRedoServiceProvider = ChangeNotifierProvider<UndoRedoService>((ref) {
 });
 
 /// Provider for watching tasks for a specific note
-final noteTasksProvider = StreamProvider.family<List<NoteTask>, String>((ref, noteId) {
+final noteTasksProvider =
+    StreamProvider.family<List<NoteTask>, String>((ref, noteId) {
   final taskService = ref.watch(taskServiceProvider);
   return taskService.watchTasksForNote(noteId);
 });
 
 /// Provider for getting a specific task by ID
-final taskByIdProvider = FutureProvider.family<NoteTask?, String>((ref, taskId) async {
+final taskByIdProvider =
+    FutureProvider.family<NoteTask?, String>((ref, taskId) async {
   final db = ref.watch(appDbProvider);
   return db.getTaskById(taskId);
 });
@@ -936,16 +936,17 @@ final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
   // Import the unified provider
   // Note: Since the bridge expects specific types, we'll need to handle both cases
   final featureFlags = FeatureFlags.instance;
-  
+
   // Get the appropriate services based on feature flags
   final reminderCoordinator = featureFlags.useUnifiedReminders
       ? ref.watch(unifiedReminderCoordinatorProvider)
       : ref.watch(reminderCoordinatorProvider);
-  
+
   final advancedReminderService = ref.watch(advancedReminderServiceProvider);
   final taskService = ref.watch(taskServiceProvider);
   final database = ref.watch(appDbProvider);
   final notificationPlugin = FlutterLocalNotificationsPlugin();
+  final navigatorKey = ref.watch(navigatorKeyProvider);
 
   final bridge = TaskReminderBridge(
     reminderCoordinator: reminderCoordinator,
@@ -953,6 +954,7 @@ final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
     taskService: taskService,
     database: database,
     notificationPlugin: notificationPlugin,
+    navigatorKey: navigatorKey,
   );
 
   ref.onDispose(bridge.dispose);
@@ -977,9 +979,10 @@ final enhancedTaskServiceProvider = Provider<EnhancedTaskService>((ref) {
 });
 
 /// Bidirectional task sync service provider
-final bidirectionalTaskSyncServiceProvider = Provider<BidirectionalTaskSyncService>((ref) {
+final bidirectionalTaskSyncServiceProvider =
+    Provider<BidirectionalTaskSyncService>((ref) {
   final database = ref.watch(appDbProvider);
-  
+
   // Create service without enhanced task service to avoid circular dependency
   // EnhancedTaskService will be passed when needed
   return BidirectionalTaskSyncService(
@@ -992,7 +995,7 @@ final bidirectionalTaskSyncServiceProvider = Provider<BidirectionalTaskSyncServi
 final noteTaskCoordinatorProvider = Provider<NoteTaskCoordinator>((ref) {
   final database = ref.watch(appDbProvider);
   final bidirectionalSync = ref.watch(bidirectionalTaskSyncServiceProvider);
-  
+
   final coordinator = NoteTaskCoordinator(
     database: database,
     bidirectionalSync: bidirectionalSync,
@@ -1003,7 +1006,8 @@ final noteTaskCoordinatorProvider = Provider<NoteTaskCoordinator>((ref) {
 });
 
 /// Hierarchical task sync service provider
-final hierarchicalTaskSyncServiceProvider = Provider<HierarchicalTaskSyncService>((ref) {
+final hierarchicalTaskSyncServiceProvider =
+    Provider<HierarchicalTaskSyncService>((ref) {
   final database = ref.watch(appDbProvider);
   final enhancedTaskService = ref.watch(enhancedTaskServiceProvider);
 
@@ -1020,10 +1024,11 @@ final taskAnalyticsServiceProvider = Provider<TaskAnalyticsService>((ref) {
 });
 
 /// Productivity goals service provider
-final productivityGoalsServiceProvider = Provider<ProductivityGoalsService>((ref) {
+final productivityGoalsServiceProvider =
+    Provider<ProductivityGoalsService>((ref) {
   final database = ref.watch(appDbProvider);
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
-  
+
   return ProductivityGoalsService(
     database: database,
     analyticsService: analyticsService,
@@ -1031,12 +1036,13 @@ final productivityGoalsServiceProvider = Provider<ProductivityGoalsService>((ref
 });
 
 /// Stream provider for active productivity goals
-final activeGoalsProvider = StreamProvider<List<ProductivityGoal>>((ref) async* {
+final activeGoalsProvider =
+    StreamProvider<List<ProductivityGoal>>((ref) async* {
   final goalsService = ref.watch(productivityGoalsServiceProvider);
-  
+
   // Initial load
   yield await goalsService.getActiveGoals();
-  
+
   // Update every minute to refresh progress
   yield* Stream.periodic(const Duration(minutes: 1), (_) async {
     await goalsService.updateAllGoalProgress();

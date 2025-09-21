@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Reusable dialog header component
-/// 
+///
 /// This widget standardizes the header section used across all dialogs in the app,
 /// providing consistent styling for titles, icons, and close buttons.
 class DialogHeader extends StatelessWidget {
@@ -13,7 +13,7 @@ class DialogHeader extends StatelessWidget {
   final TextStyle? titleStyle;
   final EdgeInsetsGeometry? padding;
   final bool showDivider;
-  
+
   const DialogHeader({
     super.key,
     required this.title,
@@ -30,16 +30,16 @@ class DialogHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
-    final effectiveTitleStyle = titleStyle ?? 
+
+    final effectiveTitleStyle = titleStyle ??
         theme.textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w600,
         );
-    
+
     final effectiveIconColor = iconColor ?? colorScheme.primary;
-    final effectivePadding = padding ?? 
-        const EdgeInsets.fromLTRB(24, 24, 24, 16);
-    
+    final effectivePadding =
+        padding ?? const EdgeInsets.fromLTRB(24, 24, 24, 16);
+
     Widget header = Row(
       children: [
         if (icon != null) ...[
@@ -74,14 +74,14 @@ class DialogHeader extends StatelessWidget {
         ],
       ],
     );
-    
+
     if (padding != null || padding == EdgeInsets.zero) {
       header = Padding(
         padding: effectivePadding,
         child: header,
       );
     }
-    
+
     if (showDivider) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -91,7 +91,7 @@ class DialogHeader extends StatelessWidget {
         ],
       );
     }
-    
+
     return header;
   }
 }
@@ -102,7 +102,7 @@ extension DialogHeaderExtensions on DialogHeader {
   static DialogHeader simple(String title) {
     return DialogHeader(title: title);
   }
-  
+
   /// Create a header with an icon
   static DialogHeader withIcon({
     required String title,
@@ -115,7 +115,7 @@ extension DialogHeaderExtensions on DialogHeader {
       iconColor: iconColor,
     );
   }
-  
+
   /// Create a closeable header
   static DialogHeader closeable({
     required String title,
@@ -128,7 +128,7 @@ extension DialogHeaderExtensions on DialogHeader {
       onClose: onClose,
     );
   }
-  
+
   /// Create a header for forms (with close button and divider)
   static DialogHeader form({
     required String title,
@@ -142,7 +142,7 @@ extension DialogHeaderExtensions on DialogHeader {
       showDivider: true,
     );
   }
-  
+
   /// Create a header for destructive actions
   static DialogHeader destructive({
     required String title,
@@ -155,7 +155,7 @@ extension DialogHeaderExtensions on DialogHeader {
       onClose: onClose,
     );
   }
-  
+
   /// Create a header for info dialogs
   static DialogHeader info({
     required String title,

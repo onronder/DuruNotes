@@ -314,8 +314,7 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
             const SizedBox(width: 24),
           Icon(
             FolderIconHelpers.getFolderIcon(node.folder.icon),
-            color:
-                FolderIconHelpers.getFolderColor(node.folder.color) ??
+            color: FolderIconHelpers.getFolderColor(node.folder.color) ??
                 (isSelected
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant),
@@ -355,11 +354,11 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
       context: context,
       builder: (context) => const CreateFolderDialog(),
     );
-    
+
     if (result != null && mounted) {
       // Select the newly created folder immediately
       widget.onFolderSelected?.call(result.id);
-      
+
       // Refresh folder hierarchy
       ref.read(folderHierarchyProvider.notifier).refresh();
       ref.invalidate(rootFoldersProvider);

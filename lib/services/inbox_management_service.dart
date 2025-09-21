@@ -20,12 +20,12 @@ class InboxManagementService {
     IncomingMailFolderManager? folderManager,
     SyncService? syncService,
     AttachmentService? attachmentService,
-  }) : _supabase = supabase,
-       _aliasService = aliasService,
-       _notesRepository = notesRepository,
-       _folderManager = folderManager,
-       _syncService = syncService,
-       _attachmentService = attachmentService;
+  })  : _supabase = supabase,
+        _aliasService = aliasService,
+        _notesRepository = notesRepository,
+        _folderManager = folderManager,
+        _syncService = syncService,
+        _attachmentService = attachmentService;
   final SupabaseClient _supabase;
   final EmailAliasService _aliasService;
   final NotesRepository? _notesRepository;

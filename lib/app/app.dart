@@ -28,8 +28,7 @@ class App extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     const generatedSupportedLocales = AppLocalizations.supportedLocales;
     // If a saved locale isn't generated, fall back to system
-    final effectiveLocale =
-        (locale != null &&
+    final effectiveLocale = (locale != null &&
             generatedSupportedLocales.any(
               (l) => l.languageCode == locale.languageCode,
             ))
@@ -314,7 +313,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
                 // Initialize notification handler service
                 _initializeNotificationHandler();
-                
               });
 
               return const NotesListScreen();
@@ -331,7 +329,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           _notificationTapSubscription = null;
           _notificationHandler?.dispose();
           _notificationHandler = null;
-          
 
           return const AuthScreen();
         }
@@ -470,7 +467,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       debugPrint('Stack trace: $stack');
     }
   }
-
 
   void _handleNotificationTap(NotificationPayload payload) {
     debugPrint('📱 Handling notification tap: ${payload.eventType}');
