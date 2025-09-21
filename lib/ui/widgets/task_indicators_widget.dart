@@ -81,9 +81,9 @@ class TaskIndicatorsWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(compact ? 2 : 3),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Icon(
           Icons.flag,
@@ -130,9 +130,9 @@ class TaskIndicatorsWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(compact ? 2 : 3),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Icon(
           icon,
@@ -151,10 +151,10 @@ class TaskIndicatorsWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(compact ? 2 : 3),
         decoration: BoxDecoration(
-          color: colorScheme.secondary.withOpacity(0.1),
+          color: colorScheme.secondary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-              color: colorScheme.secondary.withOpacity(0.3), width: 1),
+              color: colorScheme.secondary.withValues(alpha: 0.3), width: 1),
         ),
         child: Icon(
           Icons.notifications,
@@ -175,10 +175,10 @@ class TaskIndicatorsWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(compact ? 2 : 3),
         decoration: BoxDecoration(
-          color: colorScheme.tertiary.withOpacity(0.1),
+          color: colorScheme.tertiary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-              color: colorScheme.tertiary.withOpacity(0.3), width: 1),
+              color: colorScheme.tertiary.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -225,10 +225,10 @@ class TaskIndicatorsWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(compact ? 2 : 3),
         decoration: BoxDecoration(
-          color: colorScheme.outline.withOpacity(0.1),
+          color: colorScheme.outline.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
-          border:
-              Border.all(color: colorScheme.outline.withOpacity(0.3), width: 1),
+          border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

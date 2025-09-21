@@ -6,7 +6,6 @@ import 'package:duru_notes/services/note_task_coordinator.dart';
 import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/core/monitoring/sync_performance_metrics.dart';
-import 'dart:async';
 
 @GenerateMocks([
   AppDb,

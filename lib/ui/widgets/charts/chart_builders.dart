@@ -29,8 +29,9 @@ class ChartTheme {
     final isDark = theme.brightness == Brightness.dark;
 
     return ChartTheme(
-      gridColor: colorScheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.5),
-      borderColor: colorScheme.outline.withOpacity(0.3),
+      gridColor: colorScheme.surfaceContainerHighest
+          .withValues(alpha: isDark ? 0.3 : 0.5),
+      borderColor: colorScheme.outline.withValues(alpha: 0.3),
       lineColor: colorScheme.primary,
       dotColor: colorScheme.primary,
       tooltipBackground: colorScheme.surface,
@@ -226,11 +227,11 @@ class ChartBuilders {
       horizontalInterval: config.horizontalInterval,
       verticalInterval: config.verticalInterval,
       getDrawingHorizontalLine: (value) => FlLine(
-        color: theme.gridColor.withOpacity(config.gridOpacity),
+        color: theme.gridColor.withValues(alpha: config.gridOpacity),
         strokeWidth: config.gridStrokeWidth,
       ),
       getDrawingVerticalLine: (value) => FlLine(
-        color: theme.gridColor.withOpacity(config.gridOpacity),
+        color: theme.gridColor.withValues(alpha: config.gridOpacity),
         strokeWidth: config.gridStrokeWidth,
       ),
     );
@@ -328,7 +329,7 @@ class ChartBuilders {
       ),
       belowBarData: BarAreaData(
         show: true,
-        color: theme.lineColor.withOpacity(0.1),
+        color: theme.lineColor.withValues(alpha: 0.1),
       ),
     );
   }
@@ -345,7 +346,7 @@ class ChartBuilders {
         getTooltipItems: (touchedSpots) {
           return touchedSpots.map((spot) {
             return LineTooltipItem(
-              '${spot.y.toStringAsFixed(1)}',
+              spot.y.toStringAsFixed(1),
               TextStyle(
                 color: theme.tooltipText,
                 fontWeight: FontWeight.bold,

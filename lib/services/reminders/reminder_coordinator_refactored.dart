@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
@@ -369,14 +367,12 @@ class ReminderCoordinator {
     try {
       // Process recurring reminders
       if (_recurringService is RecurringReminderService) {
-        await (_recurringService as RecurringReminderService)
-            .processDueReminders();
+        await (_recurringService).processDueReminders();
       }
 
       // Process snoozed reminders
       if (_snoozeService is SnoozeReminderService) {
-        await (_snoozeService as SnoozeReminderService)
-            .processSnoozedReminders();
+        await (_snoozeService).processSnoozedReminders();
       }
     } catch (e, stack) {
       logger.error(

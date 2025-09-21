@@ -5,8 +5,6 @@ import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
 
 // Use SnoozeDuration from app_db.dart instead of defining our own
 
@@ -19,9 +17,9 @@ import 'package:timezone/timezone.dart' as tz;
 /// - Managing snooze counts and limits
 class SnoozeReminderService extends BaseReminderService {
   SnoozeReminderService(
-    FlutterLocalNotificationsPlugin plugin,
-    AppDb db,
-  ) : super(plugin, db);
+    super.plugin,
+    super.db,
+  );
 
   /// Maximum number of times a reminder can be snoozed
   static const int maxSnoozeCount = 5;

@@ -69,10 +69,10 @@ class TaskGroupHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: effectiveAccentColor.withOpacity(0.1),
+                          color: effectiveAccentColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: effectiveAccentColor.withOpacity(0.3),
+                            color: effectiveAccentColor.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
@@ -251,7 +251,7 @@ class EmptyTaskGroup extends StatelessWidget {
           Icon(
             icon,
             size: 64,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -265,7 +265,7 @@ class EmptyTaskGroup extends StatelessWidget {
           Text(
             message,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),

@@ -1,6 +1,5 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:drift/drift.dart';
 
 /// Service to migrate templates from local_notes to local_templates table
 class TemplateMigrationService {

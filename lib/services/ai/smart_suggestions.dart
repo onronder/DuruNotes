@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:math' as math;
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Smart folder suggestions service using ML-like algorithms
@@ -99,7 +97,7 @@ class SmartSuggestionsService {
           score += 0.3;
           matches++;
         }
-        if (folder.description?.toLowerCase().contains(keyword.toLowerCase()) ??
+        if (folder.description.toLowerCase().contains(keyword.toLowerCase()) ??
             false) {
           score += 0.2;
           matches++;

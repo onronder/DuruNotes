@@ -50,13 +50,13 @@ class TaskListItem extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isSelected
-            ? colorScheme.primaryContainer.withOpacity(0.3)
+            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
             : colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isSelected
               ? colorScheme.primary
-              : colorScheme.outline.withOpacity(0.2),
+              : colorScheme.outline.withValues(alpha: 0.2),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -86,7 +86,7 @@ class TaskListItem extends StatelessWidget {
                               ? TextDecoration.lineThrough
                               : null,
                           color: task.status == UiTaskStatus.completed
-                              ? colorScheme.onSurface.withOpacity(0.5)
+                              ? colorScheme.onSurface.withValues(alpha: 0.5)
                               : null,
                         ),
                       ),
@@ -121,7 +121,7 @@ class TaskListItem extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.more_vert,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
                   onSelected: (value) {
                     switch (value) {
@@ -211,9 +211,9 @@ class TaskListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -250,9 +250,9 @@ class TaskListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -279,8 +279,10 @@ class TaskListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .secondaryContainer
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -301,7 +303,10 @@ class TaskListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .tertiaryContainer
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -385,7 +390,7 @@ class TaskListItem extends StatelessWidget {
       case UiTaskPriority.low:
         return Colors.grey;
       case UiTaskPriority.none:
-        return Colors.grey.withOpacity(0.5);
+        return Colors.grey.withValues(alpha: 0.5);
     }
   }
 

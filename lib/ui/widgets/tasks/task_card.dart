@@ -1,6 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
-import 'package:duru_notes/ui/widgets/tasks/task_model_converter.dart';
 import 'package:duru_notes/models/note_task.dart';
 import 'package:flutter/material.dart';
 
@@ -73,7 +72,8 @@ class TaskCard extends StatelessWidget {
                       icon: Icon(
                         Icons.more_vert,
                         size: 20,
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       onSelected: (value) {
                         switch (value) {
@@ -111,7 +111,7 @@ class TaskCard extends StatelessWidget {
                         ? TextDecoration.lineThrough
                         : null,
                     color: task.status == UiTaskStatus.completed
-                        ? colorScheme.onSurface.withOpacity(0.5)
+                        ? colorScheme.onSurface.withValues(alpha: 0.5)
                         : null,
                   ),
                   maxLines: 3,
@@ -147,7 +147,8 @@ class TaskCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withOpacity(0.5),
+                        color:
+                            colorScheme.primaryContainer.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -228,8 +229,8 @@ class TaskCard extends StatelessWidget {
         ),
       ),
       backgroundColor: isOverdue
-          ? Colors.red.withOpacity(0.1)
-          : (isDueToday ? Colors.orange.withOpacity(0.1) : null),
+          ? Colors.red.withValues(alpha: 0.1)
+          : (isDueToday ? Colors.orange.withValues(alpha: 0.1) : null),
     );
   }
 
@@ -243,8 +244,10 @@ class TaskCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .secondaryContainer
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

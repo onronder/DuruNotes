@@ -203,7 +203,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
               style: theme.textTheme.bodyLarge?.copyWith(
                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                 color: isCompleted
-                    ? colorScheme.onSurface.withOpacity(0.5)
+                    ? colorScheme.onSurface.withValues(alpha: 0.5)
                     : colorScheme.onSurface,
               ),
             ),
@@ -232,7 +232,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: priorityColor?.withOpacity(0.1),
+                          color: priorityColor?.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -262,7 +262,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: isOverdue
-                              ? Colors.red.withOpacity(0.1)
+                              ? Colors.red.withValues(alpha: 0.1)
                               : colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -296,7 +296,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(

@@ -175,7 +175,7 @@ class _ProductivityAnalyticsScreenState
           if (_selectedDateRange != null)
             Container(
               padding: const EdgeInsets.all(16),
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               child: Row(
                 children: [
                   Icon(Icons.date_range, color: colorScheme.primary, size: 20),
@@ -628,7 +628,7 @@ class _ProductivityAnalyticsScreenState
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: impactColor.withOpacity(0.1),
+                color: impactColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -656,7 +656,7 @@ class _ProductivityAnalyticsScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: impactColor.withOpacity(0.2),
+                          color: impactColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

@@ -2,15 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/settings/sync_mode.dart';
-import 'package:flutter/foundation.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
 
 /// Helper function to fire and forget async operations
 void unawaited(Future<void> future) {

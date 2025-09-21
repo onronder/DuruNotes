@@ -67,8 +67,7 @@ class BootstrapResult {
   final String environmentSource;
 
   bool get hasFailures => failures.isNotEmpty;
-  bool get hasCriticalFailures =>
-      failures.any((failure) => failure.critical);
+  bool get hasCriticalFailures => failures.any((failure) => failure.critical);
 }
 
 /// Coordinates initialization of environment, logging, and backend SDKs.

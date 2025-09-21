@@ -40,7 +40,7 @@ class ProductivityGoalCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: progressColor.withOpacity(0.1),
+                      color: progressColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -74,7 +74,7 @@ class ProductivityGoalCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -163,7 +163,7 @@ class ProductivityGoalCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: goal.progressPercentage,
-                    backgroundColor: colorScheme.surfaceVariant,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                     minHeight: 8,
                   ),
@@ -340,7 +340,7 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
 
                     // Goal type
                     DropdownButtonFormField<GoalType>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       decoration: const InputDecoration(
                         labelText: 'Goal Type',
                         border: OutlineInputBorder(),
@@ -379,7 +379,7 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
 
                     // Period
                     DropdownButtonFormField<GoalPeriod>(
-                      value: _selectedPeriod,
+                      initialValue: _selectedPeriod,
                       decoration: const InputDecoration(
                         labelText: 'Time Period',
                         border: OutlineInputBorder(),
@@ -493,7 +493,7 @@ class GoalProgressWidget extends StatelessWidget {
           Expanded(
             child: LinearProgressIndicator(
               value: goal.progressPercentage,
-              backgroundColor: colorScheme.surfaceVariant,
+              backgroundColor: colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               minHeight: 4,
             ),
@@ -534,7 +534,7 @@ class GoalProgressWidget extends StatelessWidget {
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: goal.progressPercentage,
-          backgroundColor: colorScheme.surfaceVariant,
+          backgroundColor: colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(progressColor),
           minHeight: 8,
         ),
@@ -579,8 +579,8 @@ class AchievementCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             colors: [
-              Colors.amber.withOpacity(0.1),
-              Colors.orange.withOpacity(0.1),
+              Colors.amber.withValues(alpha: 0.1),
+              Colors.orange.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -591,7 +591,7 @@ class AchievementCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
+                  color: Colors.amber.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -667,7 +667,7 @@ class GoalsOverviewWidget extends StatelessWidget {
               Icon(
                 Icons.flag,
                 size: 48,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 8),
               Text(
@@ -680,7 +680,7 @@ class GoalsOverviewWidget extends StatelessWidget {
               Text(
                 'Set productivity goals to track your progress',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -782,8 +782,8 @@ class SuggestedGoalsWidget extends StatelessWidget {
             ...suggestedGoals.map((goal) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    border:
-                        Border.all(color: colorScheme.outline.withOpacity(0.2)),
+                    border: Border.all(
+                        color: colorScheme.outline.withValues(alpha: 0.2)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ListTile(

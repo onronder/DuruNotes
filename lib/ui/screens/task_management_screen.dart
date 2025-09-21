@@ -86,7 +86,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
               color: theme.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -207,13 +207,15 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                         Icon(
                           Icons.task_alt,
                           size: 64,
-                          color: theme.colorScheme.onSurface.withOpacity(0.3),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.3),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _showCompleted ? 'No tasks yet' : 'No pending tasks',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
                           ),
                         ),
                       ],

@@ -30,7 +30,7 @@ void main() {
     defaultDueDate = DateTime(base.year, base.month, base.day, 20, 0);
   });
 
-  NoteTask _buildTask({DateTime? dueDate, int? reminderId}) {
+  NoteTask buildTask({DateTime? dueDate, int? reminderId}) {
     final now = DateTime.now();
     return NoteTask(
       id: 'task-1',
@@ -55,7 +55,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -74,7 +74,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -94,7 +94,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -121,7 +121,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (metadata) => savedMetadata = metadata,
             ),
@@ -147,7 +147,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -167,7 +167,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: TaskMetadataDialog(
-              task: _buildTask(dueDate: defaultDueDate),
+              task: buildTask(dueDate: defaultDueDate),
               taskContent: 'Test Task',
               onSave: (_) {},
             ),
@@ -227,7 +227,7 @@ void main() {
     });
 
     testWidgets('updates reminder for existing task', (tester) async {
-      final task = _buildTask(dueDate: defaultDueDate, reminderId: 42);
+      final task = buildTask(dueDate: defaultDueDate, reminderId: 42);
 
       when(mockDb.getTaskById(any)).thenAnswer((_) async => task);
       when(mockReminderBridge.updateTaskReminder(any)).thenAnswer((_) async {});
@@ -246,7 +246,7 @@ void main() {
     });
 
     testWidgets('cancels reminder when toggled off', (tester) async {
-      final task = _buildTask(dueDate: defaultDueDate, reminderId: 42);
+      final task = buildTask(dueDate: defaultDueDate, reminderId: 42);
 
       when(mockReminderBridge.cancelTaskReminder(any)).thenAnswer((_) async {});
 

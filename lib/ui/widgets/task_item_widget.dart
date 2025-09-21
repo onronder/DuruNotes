@@ -316,9 +316,9 @@ class TaskItemWidget extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
+        color: chipColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: chipColor.withOpacity(0.3)),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -348,7 +348,7 @@ class TaskItemWidget extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: colorScheme.secondaryContainer.withOpacity(0.5),
+          color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -384,7 +384,7 @@ class TaskItemWidget extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -706,7 +706,7 @@ class _ActionChip extends StatelessWidget {
     final effectiveColor = color ?? colorScheme.primary;
 
     return Material(
-      color: effectiveColor.withOpacity(0.1),
+      color: effectiveColor.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),

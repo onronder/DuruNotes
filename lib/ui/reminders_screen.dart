@@ -162,9 +162,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (reminder.body != null && reminder.body!.isNotEmpty)
+                      if (reminder.body.isNotEmpty)
                         Text(
-                          reminder.body!,
+                          reminder.body,
                           style: Theme.of(context).textTheme.bodySmall,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

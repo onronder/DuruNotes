@@ -7,7 +7,6 @@ import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,6 +1,5 @@
 import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 
 export 'analytics_factory.dart' show AnalyticsFactory, analytics;

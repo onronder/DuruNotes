@@ -1,4 +1,3 @@
-import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';

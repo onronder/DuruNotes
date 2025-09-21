@@ -5,6 +5,8 @@
 /// 2. Permission manager
 /// 3. Base reminder service architecture
 /// 4. Unified block editor
+library;
+
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/permission_manager.dart';

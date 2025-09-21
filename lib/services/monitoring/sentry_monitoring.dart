@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sentry/sentry.dart' show SentryFeedback;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -202,7 +200,7 @@ class SentryMonitoringService {
     }
 
     // Filter common Flutter errors
-    if (event.message?.formatted?.contains(
+    if (event.message?.formatted.contains(
           'setState() called after dispose()',
         ) ??
         false) {
@@ -441,9 +439,8 @@ class SentryMonitoringService {
       category: 'performance',
       data: {
         'status': span.status?.toString(),
-        'duration_ms': span.endTimestamp != null && span.startTimestamp != null
-            ? span.endTimestamp!.difference(span.startTimestamp).inMilliseconds
-            : null,
+        'duration_ms':
+            span.endTimestamp?.difference(span.startTimestamp).inMilliseconds,
       },
     );
 

@@ -6,7 +6,6 @@ import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -427,7 +426,7 @@ abstract class BaseReminderService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    logger.info('${runtimeType} initialized');
+    logger.info('$runtimeType initialized');
     analytics.event(
       'service_initialized',
       properties: {'service': runtimeType.toString()},
@@ -438,6 +437,6 @@ abstract class BaseReminderService {
   ///
   /// Subclasses can override to add specific cleanup logic
   Future<void> dispose() async {
-    logger.info('${runtimeType} disposed');
+    logger.info('$runtimeType disposed');
   }
 }

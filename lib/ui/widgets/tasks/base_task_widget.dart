@@ -81,8 +81,9 @@ abstract class BaseTaskWidget extends StatelessWidget {
             width: 2,
           ),
           borderRadius: BorderRadius.circular(6),
-          color:
-              isCompleted ? checkboxColor.withOpacity(0.1) : Colors.transparent,
+          color: isCompleted
+              ? checkboxColor.withValues(alpha: 0.1)
+              : Colors.transparent,
         ),
         child: isCompleted
             ? Icon(
@@ -161,7 +162,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
           vertical: 4,
         ),
         decoration: BoxDecoration(
-          color: chipColor.withOpacity(isOverdue ? 1.0 : 0.2),
+          color: chipColor.withValues(alpha: isOverdue ? 1.0 : 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -178,7 +179,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: isOverdue || isDueToday
                     ? textColor
-                    : chipColor.withOpacity(0.8),
+                    : chipColor.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -197,8 +198,9 @@ abstract class BaseTaskWidget extends StatelessWidget {
       task.content,
       style: theme.textTheme.bodyLarge?.copyWith(
         decoration: isCompleted ? TextDecoration.lineThrough : null,
-        color:
-            isCompleted ? theme.colorScheme.onSurface.withOpacity(0.5) : null,
+        color: isCompleted
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+            : null,
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
@@ -234,7 +236,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 2,
-              backgroundColor: Colors.grey.withOpacity(0.3),
+              backgroundColor: Colors.grey.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(width: 4),
@@ -261,7 +263,7 @@ abstract class BaseTaskWidget extends StatelessWidget {
       case UiTaskPriority.low:
         return Colors.grey;
       case UiTaskPriority.none:
-        return Colors.grey.withOpacity(0.5);
+        return Colors.grey.withValues(alpha: 0.5);
     }
   }
 

@@ -38,7 +38,7 @@ class MetricCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 24),
@@ -51,7 +51,7 @@ class MetricCard extends StatelessWidget {
             Text(
               title,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 4),
@@ -67,7 +67,7 @@ class MetricCard extends StatelessWidget {
               Text(
                 subtitle!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],

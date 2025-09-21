@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';

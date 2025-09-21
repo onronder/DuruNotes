@@ -749,9 +749,8 @@ class TaskAnalyticsService {
   }
 
   Duration _calculateAverageCompletionTime(List<NoteTask> tasks) {
-    final tasksWithCompletionTime = tasks
-        .where((t) => t.createdAt != null && t.completedAt != null)
-        .toList();
+    final tasksWithCompletionTime =
+        tasks.where((t) => t.completedAt != null).toList();
 
     if (tasksWithCompletionTime.isEmpty) return Duration.zero;
 

@@ -2,6 +2,7 @@
 ///
 /// This provides conversion functions to map between the temporary UI models
 /// and the actual Drift-backed database models.
+library;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';

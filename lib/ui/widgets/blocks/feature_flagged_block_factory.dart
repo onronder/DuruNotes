@@ -2,9 +2,9 @@
 ///
 /// This factory uses feature flags to determine whether to use legacy or
 /// refactored block widgets, enabling gradual rollout of new implementations.
+library;
 
 import 'package:duru_notes/core/feature_flags.dart';
-import 'package:duru_notes/core/logging/logger_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/ui/widgets/blocks/hierarchical_todo_block_widget.dart';
@@ -124,7 +124,8 @@ class FeatureFlaggedBlockFactory {
     _logger.debug('=== Feature Flag State ===');
     _logger.debug('useUnifiedReminders: ${_featureFlags.useUnifiedReminders}');
     _logger.debug('useNewBlockEditor: ${_featureFlags.useNewBlockEditor}');
-    _logger.debug('useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');
+    _logger.debug(
+        'useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');
     _logger.debug(
         'useUnifiedPermissionManager: ${_featureFlags.useUnifiedPermissionManager}');
     _logger.debug('========================');

@@ -68,7 +68,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<GoalType>(
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -186,7 +186,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
               Text(
                 _getGoalDescription(),
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.7),
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 16),
@@ -227,7 +227,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                         Container(
                           constraints: const BoxConstraints(maxHeight: 150),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceVariant.withOpacity(0.3),
+                            color: colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: ListView.builder(
@@ -245,7 +246,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                                 title: Text(goal.description),
                                 subtitle: LinearProgressIndicator(
                                   value: goal.currentValue / goal.targetValue,
-                                  backgroundColor: colorScheme.surfaceVariant,
+                                  backgroundColor:
+                                      colorScheme.surfaceContainerHighest,
                                   valueColor: AlwaysStoppedAnimation(
                                     goal.isCompleted
                                         ? Colors.green

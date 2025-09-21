@@ -1,12 +1,7 @@
-import 'dart:convert';
-
 import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/sync/folder_sync_audit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';

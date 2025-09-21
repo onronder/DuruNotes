@@ -69,7 +69,7 @@ class StreakCard extends StatelessWidget {
               const SizedBox(height: 16),
               LinearProgressIndicator(
                 value: currentStreak / (longestStreak > 0 ? longestStreak : 1),
-                backgroundColor: theme.colorScheme.surfaceVariant,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                 minHeight: 8,
               ),
@@ -77,7 +77,7 @@ class StreakCard extends StatelessWidget {
               Text(
                 _getStreakMessage(currentStreak, longestStreak),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -99,10 +99,11 @@ class StreakCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isHighlighted ? color.withOpacity(0.1) : Colors.transparent,
+        color:
+            isHighlighted ? color.withValues(alpha: 0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -111,7 +112,7 @@ class StreakCard extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 4),
@@ -125,7 +126,7 @@ class StreakCard extends StatelessWidget {
           Text(
             days == 1 ? 'day' : 'days',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         ],

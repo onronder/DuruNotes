@@ -109,8 +109,9 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
           Consumer(
             builder: (context, ref, child) {
               final hierarchyState = ref.watch(folderHierarchyProvider);
-              if (hierarchyState.searchQuery.isEmpty)
+              if (hierarchyState.searchQuery.isEmpty) {
                 return const SizedBox.shrink();
+              }
 
               return IconButton(
                 onPressed: () {
@@ -282,8 +283,9 @@ class _DraggableFolderTreeState extends ConsumerState<DraggableFolderTree>
     if (!widget.allowReordering) return;
 
     final visibleNodes = ref.read(visibleFolderNodesProvider);
-    if (oldIndex >= visibleNodes.length || newIndex >= visibleNodes.length)
+    if (oldIndex >= visibleNodes.length || newIndex >= visibleNodes.length) {
       return;
+    }
 
     // Haptic feedback
     HapticFeedback.lightImpact();

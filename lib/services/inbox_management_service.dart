@@ -747,8 +747,9 @@ class EmailAttachment {
     if (type.contains('pdf')) return 'pdf';
     if (type.contains('word') || type.contains('document')) return 'document';
     if (type.contains('sheet') || type.contains('excel')) return 'spreadsheet';
-    if (type.contains('presentation') || type.contains('powerpoint'))
+    if (type.contains('presentation') || type.contains('powerpoint')) {
       return 'presentation';
+    }
     if (type.startsWith('text/')) return 'text';
     return 'file';
   }

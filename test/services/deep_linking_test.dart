@@ -275,10 +275,10 @@ void main() {
       // The categories are defined in the settings
       final iosSettings = settings.iOS as DarwinInitializationSettings;
       expect(iosSettings.notificationCategories, isNotNull);
-      expect(iosSettings.notificationCategories!.length, greaterThan(0));
+      expect(iosSettings.notificationCategories.length, greaterThan(0));
 
       // Find task reminder category
-      final taskCategory = iosSettings.notificationCategories!
+      final taskCategory = iosSettings.notificationCategories
           .firstWhere((c) => c.identifier == 'TASK_REMINDER');
 
       expect(taskCategory.actions.length, equals(6));

@@ -1,24 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:flutter/foundation.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 
 /// Notification action types
 enum NotificationAction {

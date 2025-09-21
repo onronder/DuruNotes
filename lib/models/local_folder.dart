@@ -3,6 +3,7 @@
 /// This is a simplified folder model for demonstrating the
 /// refactored UI components. In production, this would integrate
 /// with the existing folder system.
+library;
 
 class LocalFolder {
   final String id;
