@@ -4,6 +4,8 @@
 /// refactored block widgets, enabling gradual rollout of new implementations.
 
 import 'package:duru_notes/core/feature_flags.dart';
+import 'package:duru_notes/core/logging/logger_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/ui/widgets/blocks/hierarchical_todo_block_widget.dart';
 import 'package:duru_notes/ui/widgets/blocks/todo_block_widget.dart';
@@ -14,6 +16,7 @@ import 'package:flutter/material.dart';
 /// Factory class for creating block widgets based on feature flags
 class FeatureFlaggedBlockFactory {
   static final FeatureFlags _featureFlags = FeatureFlags.instance;
+  static final AppLogger _logger = LoggerFactory.instance;
 
   /// Create a todo block widget based on feature flags
   static Widget createTodoBlock({
@@ -29,7 +32,7 @@ class FeatureFlaggedBlockFactory {
     String? parentTaskId,
   }) {
     if (_featureFlags.useNewBlockEditor) {
-      print('[FeatureFlags] ✅ Using HIERARCHICAL TodoBlockWidget');
+      _logger.debug('[FeatureFlags] ✅ Using HIERARCHICAL TodoBlockWidget');
 
       // Use the new hierarchical todo block with enhanced features
       return HierarchicalTodoBlockWidget(
@@ -45,7 +48,7 @@ class FeatureFlaggedBlockFactory {
         parentTaskId: parentTaskId,
       );
     } else {
-      print('[FeatureFlags] ⚠️ Using LEGACY TodoBlockWidget');
+      _logger.debug('[FeatureFlags] ⚠️ Using LEGACY TodoBlockWidget');
 
       // Use the legacy todo block
       return TodoBlockWidget(
@@ -70,7 +73,7 @@ class FeatureFlaggedBlockFactory {
   }) {
     if (_featureFlags.useNewBlockEditor &&
         _featureFlags.useRefactoredComponents) {
-      print('[FeatureFlags] ✅ Using UNIFIED BlockEditor');
+      _logger.debug('[FeatureFlags] ✅ Using UNIFIED BlockEditor');
 
       // Use the unified block editor with all refactored features
       return unified.UnifiedBlockEditor(
@@ -79,7 +82,7 @@ class FeatureFlaggedBlockFactory {
         onBlocksChanged: onBlocksChanged,
       );
     } else {
-      print('[FeatureFlags] ⚠️ Using LEGACY block editor components');
+      _logger.debug('[FeatureFlags] ⚠️ Using LEGACY block editor components');
 
       // For now, return a simple column with todo blocks
       // In a real implementation, this would use the legacy block editor
@@ -118,13 +121,13 @@ class FeatureFlaggedBlockFactory {
 
   /// Log current feature flag state for debugging
   static void logFeatureFlagState() {
-    print('=== Feature Flag State ===');
-    print('useUnifiedReminders: ${_featureFlags.useUnifiedReminders}');
-    print('useNewBlockEditor: ${_featureFlags.useNewBlockEditor}');
-    print('useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');
-    print(
+    _logger.debug('=== Feature Flag State ===');
+    _logger.debug('useUnifiedReminders: ${_featureFlags.useUnifiedReminders}');
+    _logger.debug('useNewBlockEditor: ${_featureFlags.useNewBlockEditor}');
+    _logger.debug('useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');
+    _logger.debug(
         'useUnifiedPermissionManager: ${_featureFlags.useUnifiedPermissionManager}');
-    print('========================');
+    _logger.debug('========================');
   }
 }
 

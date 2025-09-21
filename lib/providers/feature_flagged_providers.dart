@@ -4,6 +4,8 @@
 /// legacy and refactored implementations of various services and UI components.
 
 import 'package:duru_notes/core/feature_flags.dart';
+import 'package:duru_notes/core/logging/logger_config.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
@@ -14,6 +16,8 @@ import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.da
 import 'package:duru_notes/services/permission_manager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final _logger = LoggerFactory.instance;
 
 /// Feature flag provider for easy access
 final featureFlagsProvider =
@@ -28,25 +32,27 @@ final featureFlaggedReminderCoordinatorProvider = Provider<dynamic>((ref) {
 
   if (featureFlags.useUnifiedReminders) {
     // Log for debugging
-    print('[FeatureFlags] ✅ Using REFACTORED ReminderCoordinator');
+    _logger.debug('[FeatureFlags] ✅ Using REFACTORED ReminderCoordinator');
 
     final coordinator = refactored.ReminderCoordinator(plugin, db);
 
     // Initialize on creation
     coordinator.initialize().catchError((error) {
-      print('[FeatureFlags] Error initializing refactored coordinator: $error');
+      _logger.error('[FeatureFlags] Error initializing refactored coordinator',
+          error: error);
     });
 
     return coordinator;
   } else {
     // Log for debugging
-    print('[FeatureFlags] ⚠️ Using LEGACY ReminderCoordinator');
+    _logger.debug('[FeatureFlags] ⚠️ Using LEGACY ReminderCoordinator');
 
     final coordinator = legacy.ReminderCoordinator(plugin, db);
 
     // Initialize on creation
     coordinator.initialize().catchError((error) {
-      print('[FeatureFlags] Error initializing legacy coordinator: $error');
+      _logger.error('[FeatureFlags] Error initializing legacy coordinator',
+          error: error);
     });
 
     return coordinator;
@@ -59,10 +65,10 @@ final featureFlaggedPermissionManagerProvider =
   final featureFlags = ref.watch(featureFlagsProvider);
 
   if (featureFlags.useUnifiedPermissionManager) {
-    print('[FeatureFlags] ✅ Using unified PermissionManager');
+    _logger.debug('[FeatureFlags] ✅ Using unified PermissionManager');
     return PermissionManager.instance;
   } else {
-    print('[FeatureFlags] ⚠️ Using legacy permission handling');
+    _logger.debug('[FeatureFlags] ⚠️ Using legacy permission handling');
     // For now, return the same instance as we only have one implementation
     // In a real scenario, this would return a legacy permission handler
     return PermissionManager.instance;
@@ -78,9 +84,9 @@ final featureFlaggedAdvancedReminderServiceProvider =
   final db = ref.read(appDbProvider);
 
   if (featureFlags.useUnifiedReminders) {
-    print('[FeatureFlags] ✅ Using refactored AdvancedReminderService');
+    _logger.debug('[FeatureFlags] ✅ Using refactored AdvancedReminderService');
   } else {
-    print('[FeatureFlags] ⚠️ Using legacy AdvancedReminderService');
+    _logger.debug('[FeatureFlags] ⚠️ Using legacy AdvancedReminderService');
   }
 
   // Currently both use the same implementation
