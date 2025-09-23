@@ -1,6 +1,7 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:flutter/material.dart';
@@ -273,7 +274,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
               onPressed: () async {
                 if (contentController.text.isNotEmpty) {
                   // Create task without note ID (standalone task)
-                  final taskService = ref.read(taskServiceProvider);
+                  final taskService = ref.read(unifiedTaskServiceProvider);
                   await taskService.createTask(
                     noteId: '', // Empty for standalone tasks
                     content: contentController.text,
@@ -347,7 +348,7 @@ class _TaskListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(taskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
 
     return StreamBuilder<List<NoteTask>>(
       stream: taskService.watchOpenTasks(),
@@ -470,7 +471,7 @@ class _TaskCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(taskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
     final isOverdue = task.dueDate != null &&
         task.dueDate!.isBefore(DateTime.now()) &&
         task.status != TaskStatus.completed;
@@ -662,7 +663,7 @@ class _TaskCard extends ConsumerWidget {
             ElevatedButton(
               onPressed: () async {
                 if (contentController.text.isNotEmpty) {
-                  final taskService = ref.read(taskServiceProvider);
+                  final taskService = ref.read(unifiedTaskServiceProvider);
                   await taskService.updateTask(
                     taskId: task.id,
                     content: contentController.text,
@@ -730,7 +731,7 @@ class _TasksByDateView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(taskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
 
     return FutureBuilder<Map<String, List<NoteTask>>>(
       future: _getTasksGroupedByDate(taskService),
@@ -779,7 +780,7 @@ class _TasksByDateView extends ConsumerWidget {
   }
 
   Future<Map<String, List<NoteTask>>> _getTasksGroupedByDate(
-    TaskService taskService,
+    UnifiedTaskService taskService,
   ) async {
     final tasks = await taskService.getOpenTasks();
     final grouped = <String, List<NoteTask>>{};
@@ -861,7 +862,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
 
   @override
   Widget build(BuildContext context) {
-    final taskService = ref.watch(taskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -1027,7 +1028,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
   }
 
   Future<Map<DateTime, List<NoteTask>>> _getTasksForMonth(
-    TaskService taskService,
+    UnifiedTaskService taskService,
   ) async {
     final startOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
     final endOfMonth = DateTime(
@@ -1037,8 +1038,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
     );
 
     final tasks = await taskService.getTasksByDateRange(
-      start: startOfMonth,
-      end: endOfMonth,
+      startOfMonth,
+      endOfMonth,
     );
 
     final tasksByDate = <DateTime, List<NoteTask>>{};
@@ -1085,7 +1086,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                   leading: Checkbox(
                     value: task.status == TaskStatus.completed,
                     onChanged: (_) {
-                      ref.read(taskServiceProvider).toggleTaskStatus(task.id);
+                      ref.read(unifiedTaskServiceProvider).toggleTaskStatus(task.id);
                       Navigator.pop(context);
                     },
                   ),

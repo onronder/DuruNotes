@@ -8,12 +8,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class KeyManager {
   KeyManager({
     FlutterSecureStorage? storage,
-    AccountKeyService? accountKeyService,
+    required AccountKeyService accountKeyService,
   })  : _storage = storage ?? const FlutterSecureStorage(),
-        _accountKeyService = accountKeyService ?? AccountKeyService();
-  KeyManager.inMemory()
-      : _storage = null,
-        _accountKeyService = AccountKeyService();
+        _accountKeyService = accountKeyService;
+  KeyManager.inMemory({
+    required AccountKeyService accountKeyService,
+  })  : _storage = null,
+        _accountKeyService = accountKeyService;
 
   final FlutterSecureStorage? _storage;
   final Map<String, String> _mem = {};

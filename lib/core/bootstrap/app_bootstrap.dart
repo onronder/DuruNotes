@@ -9,6 +9,8 @@ import 'package:duru_notes/core/monitoring/sentry_config.dart';
 import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
+import 'package:duru_notes/data/local/app_db.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -20,6 +22,7 @@ enum BootstrapStage {
   monitoring,
   firebase,
   supabase,
+  migrations,
   featureFlags,
   analytics,
   adapty,
@@ -221,12 +224,36 @@ class AppBootstrap {
       );
     }
 
-    // 7. Feature flags
+    // 7. Migration System
+    try {
+      if (supabaseClient != null) {
+        // Initialize the app database instance for migration tables
+        final appDb = AppDb();
+        await MigrationTablesSetup.ensureMigrationTables(appDb);
+        await MigrationTablesSetup.seedInitialMigrationData(appDb);
+
+        logger.info('Migration system initialized successfully');
+      } else {
+        logger.warning('Skipping migration system initialization - Supabase not available');
+      }
+    } catch (error, stack) {
+      failures.add(
+        BootstrapFailure(
+          stage: BootstrapStage.migrations,
+          error: error,
+          stackTrace: stack,
+        ),
+      );
+      logger.warning('Migration system initialization failed', data: {
+        'error': error.toString(),
+      });
+    }
+
+    // 8. Feature flags
     try {
       await FeatureFlags.instance.updateFromRemoteConfig();
       if (environment.debugMode) {
         logger.info('Feature flags loaded', data: {
-          'useUnifiedReminders': FeatureFlags.instance.useUnifiedReminders,
           'useNewBlockEditor': FeatureFlags.instance.useNewBlockEditor,
           'useRefactoredComponents':
               FeatureFlags.instance.useRefactoredComponents,
@@ -244,7 +271,7 @@ class AppBootstrap {
       );
     }
 
-    // 8. Analytics
+    // 9. Analytics
     AnalyticsFactory.reset();
     AnalyticsFactory.configure(config: environment, logger: logger);
     AnalyticsService analytics;
@@ -285,7 +312,7 @@ class AppBootstrap {
       }
     }
 
-    // 9. Adapty (optional)
+    // 10. Adapty (optional)
     bool adaptyEnabled = false;
     final adaptyKey = environment.adaptyPublicApiKey;
     if (adaptyKey != null && adaptyKey.isNotEmpty) {

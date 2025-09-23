@@ -1,117 +1,116 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+// NoteReminder is imported from app_db.dart
+import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 
 /// Service responsible for managing recurring time-based reminders.
 ///
-/// This service handles:
+/// This service extends [BaseReminderService] and handles:
 /// - Creating and scheduling recurring reminders (daily, weekly, monthly, yearly)
 /// - Calculating next occurrence times for recurring patterns
 /// - Managing recurrence end dates and intervals
 /// - Scheduling notifications for time-based reminders
-class RecurringReminderService {
-  RecurringReminderService(this._plugin, this._db);
+class RecurringReminderService extends BaseReminderService {
+  RecurringReminderService(
+    super.ref,
+    super.plugin,
+    super.db,
+  );
 
-  final FlutterLocalNotificationsPlugin _plugin;
-  final AppDb _db;
-
-  static const String _channelId = 'notes_reminders';
-  static const String _channelName = 'Notes Reminders';
-  static const String _channelDescription = 'Reminders for your notes';
-
-  final AppLogger logger = LoggerFactory.instance;
-  final AnalyticsService analytics = AnalyticsFactory.instance;
-
-  /// Create a time-based reminder with optional recurrence
-  Future<int?> createTimeReminder({
-    required String noteId,
-    required String title,
-    required String body,
-    required DateTime remindAtUtc,
-    RecurrencePattern recurrence = RecurrencePattern.none,
-    int recurrenceInterval = 1,
-    DateTime? recurrenceEndDate,
-    String? customNotificationTitle,
-    String? customNotificationBody,
-  }) async {
+  @override
+  Future<int?> createReminder(ReminderConfig config) async {
     try {
       // Validate time
-      if (remindAtUtc.isBefore(DateTime.now().toUtc())) {
-        logger.warn('Cannot create reminder - time is in the past');
+      if (config.scheduledTime.isBefore(DateTime.now())) {
+        logger.warning('Cannot create reminder - time is in the past');
+        trackReminderEvent('reminder_creation_failed', {
+          'reason': 'past_time',
+          'type': 'recurring',
+        });
         return null;
       }
 
       // Validate recurrence parameters
-      if (recurrence != RecurrencePattern.none && recurrenceInterval < 1) {
-        logger.warn('Invalid recurrence interval: $recurrenceInterval');
+      if (config.recurrencePattern != RecurrencePattern.none &&
+          config.recurrenceInterval < 1) {
+        logger.warning(
+            'Invalid recurrence interval: ${config.recurrenceInterval}');
+        trackReminderEvent('reminder_creation_failed', {
+          'reason': 'invalid_interval',
+          'type': 'recurring',
+        });
         return null;
       }
 
-      // Create reminder in database
-      final reminderId = await _db.createReminder(
-        NoteRemindersCompanion.insert(
-          noteId: noteId,
-          title: Value(title),
-          body: Value(body),
-          type: ReminderType.recurring,
-          remindAt: Value(remindAtUtc),
-          recurrencePattern: Value(recurrence),
-          recurrenceInterval: Value(recurrenceInterval),
-          recurrenceEndDate: Value(recurrenceEndDate),
-          notificationTitle: Value(customNotificationTitle),
-          notificationBody: Value(customNotificationBody),
-          timeZone: Value(DateTime.now().timeZoneName),
-        ),
-      );
+      // Check permissions
+      if (!await hasNotificationPermissions()) {
+        logger.warning('Cannot create reminder - no notification permissions');
+        trackReminderEvent('reminder_creation_failed', {
+          'reason': 'no_permissions',
+          'type': 'recurring',
+        });
+        return null;
+      }
+
+      // Create reminder in database using base class method
+      final reminderType = config.recurrencePattern != RecurrencePattern.none
+          ? ReminderType.recurring
+          : ReminderType.time;
+      final reminderId =
+          await createReminderInDb(config.toCompanion(reminderType));
+
+      if (reminderId == null) {
+        return null;
+      }
 
       // Schedule the notification
-      await _scheduleNotification(
-        reminderId,
-        remindAtUtc,
-        title,
-        body,
-        customTitle: customNotificationTitle,
-        customBody: customNotificationBody,
-      );
+      await scheduleNotification(ReminderNotificationData(
+        id: reminderId,
+        title: config.customNotificationTitle ?? config.title,
+        body: config.customNotificationBody ??
+            config.body ??
+            'Tap to view your note',
+        scheduledTime: config.scheduledTime,
+        payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
+      ));
 
       // If recurring, schedule next occurrence
-      if (recurrence != RecurrencePattern.none) {
+      if (config.recurrencePattern != RecurrencePattern.none) {
         await _scheduleNextRecurrence(
           reminderId,
-          remindAtUtc,
-          recurrence,
-          recurrenceInterval,
+          config.scheduledTime,
+          config.recurrencePattern,
+          config.recurrenceInterval,
+          config.recurrenceEndDate,
         );
       }
 
-      analytics.event(
-        AnalyticsEvents.reminderSet,
-        properties: {
-          'type': 'time',
-          'has_recurrence': recurrence != RecurrencePattern.none,
-          'recurrence_pattern': recurrence.name,
-          'hours_from_now':
-              remindAtUtc.difference(DateTime.now().toUtc()).inHours,
-        },
-      );
+      trackReminderEvent('reminder_created', {
+        'type': 'recurring',
+        'has_recurrence': config.recurrencePattern != RecurrencePattern.none,
+        'recurrence_pattern': config.recurrencePattern.name,
+        'hours_from_now':
+            config.scheduledTime.difference(DateTime.now()).inHours,
+      });
+
+      trackFeatureUsage('recurring_reminder_created', properties: {
+        'pattern': config.recurrencePattern.name,
+        'interval': config.recurrenceInterval,
+      });
 
       return reminderId;
     } catch (e, stack) {
       logger.error(
-        'Failed to create time reminder',
+        'Failed to create recurring reminder',
         error: e,
         stackTrace: stack,
       );
-      analytics.event(
-        'reminder.create_error',
-        properties: {'type': 'time', 'error': e.toString()},
-      );
+      trackReminderEvent('reminder_creation_error', {
+        'type': 'recurring',
+        'error': e.toString(),
+      });
       return null;
     }
   }
@@ -122,27 +121,37 @@ class RecurringReminderService {
     DateTime currentTime,
     RecurrencePattern pattern,
     int interval,
+    DateTime? endDate,
   ) async {
     final nextTime = calculateNextOccurrence(currentTime, pattern, interval);
 
     if (nextTime != null) {
+      // Check if we've exceeded the end date
+      if (endDate != null && nextTime.isAfter(endDate)) {
+        await updateReminderStatus(reminderId, false);
+        logger.info(
+            'Recurrence ended for reminder $reminderId - exceeded end date');
+        return;
+      }
+
       // Update the reminder with next occurrence time
-      await _db.updateReminder(
+      await db.updateReminder(
         reminderId,
-        NoteRemindersCompanion(remindAt: Value(nextTime.toUtc())),
+        NoteRemindersCompanion(remindAt: Value(nextTime)),
       );
 
       // Schedule the next notification
-      final reminder = await _db.getReminderById(reminderId);
+      final reminder = await db.getReminderById(reminderId);
       if (reminder != null) {
-        await _scheduleNotification(
-          reminderId,
-          nextTime.toUtc(),
-          reminder.title,
-          reminder.body,
-          customTitle: reminder.notificationTitle,
-          customBody: reminder.notificationBody,
-        );
+        await scheduleNotification(ReminderNotificationData(
+          id: reminderId,
+          title: reminder.notificationTitle ?? reminder.title,
+          body: reminder.notificationBody ??
+              reminder.body ??
+              'Tap to view your note',
+          scheduledTime: nextTime,
+          payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
+        ));
 
         logger.info(
           'Scheduled next recurrence for reminder $reminderId at $nextTime',
@@ -158,6 +167,9 @@ class RecurringReminderService {
     int interval,
   ) {
     switch (pattern) {
+      case RecurrencePattern.none:
+        return null;
+
       case RecurrencePattern.daily:
         return currentTime.add(Duration(days: interval));
 
@@ -185,9 +197,6 @@ class RecurringReminderService {
         );
         // Handle leap year edge case (Feb 29)
         return _adjustForValidDate(nextYear);
-
-      case RecurrencePattern.none:
-        return null;
     }
   }
 
@@ -209,87 +218,13 @@ class RecurringReminderService {
     }
   }
 
-  /// Schedule a time-based notification
-  Future<void> _scheduleNotification(
-    int reminderId,
-    DateTime remindAtUtc,
-    String title,
-    String body, {
-    String? customTitle,
-    String? customBody,
-  }) async {
-    try {
-      final notificationId = _generateNotificationId(reminderId);
-      final payload = jsonEncode({'reminderId': reminderId, 'type': 'time'});
-
-      final localTime = tz.TZDateTime.from(remindAtUtc, tz.local);
-
-      await _plugin.zonedSchedule(
-        notificationId,
-        customTitle ?? title,
-        customBody ?? body,
-        localTime,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: _channelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-            actions: _getNotificationActions(),
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: payload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.dateAndTime,
-      );
-
-      logger.info(
-        'Scheduled notification for reminder $reminderId at $localTime',
-      );
-    } catch (e, stack) {
-      logger.error(
-        'Failed to schedule notification',
-        error: e,
-        stackTrace: stack,
-      );
-    }
-  }
-
-  /// Get notification action buttons
-  List<AndroidNotificationAction> _getNotificationActions() {
-    return [
-      const AndroidNotificationAction(
-        'snooze_5',
-        'Snooze 5m',
-        icon: DrawableResourceAndroidBitmap('ic_snooze'),
-      ),
-      const AndroidNotificationAction(
-        'snooze_15',
-        'Snooze 15m',
-        icon: DrawableResourceAndroidBitmap('ic_snooze'),
-      ),
-      const AndroidNotificationAction(
-        'complete',
-        'Mark Done',
-        icon: DrawableResourceAndroidBitmap('ic_check'),
-      ),
-    ];
-  }
-
   /// Process due reminders and trigger recurring notifications
   Future<void> processDueReminders() async {
     try {
-      final now = DateTime.now().toUtc();
+      final now = DateTime.now();
 
       // Get time-based reminders that are due
-      final dueReminders = await _db.getTimeRemindersToTrigger(before: now);
+      final dueReminders = await db.getTimeRemindersToTrigger(before: now);
 
       for (final reminder in dueReminders) {
         await _triggerTimeReminder(reminder);
@@ -297,6 +232,10 @@ class RecurringReminderService {
 
       if (dueReminders.isNotEmpty) {
         logger.info('Processed ${dueReminders.length} due reminders');
+        trackReminderEvent('reminders_processed', {
+          'count': dueReminders.length,
+          'type': 'recurring',
+        });
       }
     } catch (e, stack) {
       logger.error(
@@ -311,16 +250,23 @@ class RecurringReminderService {
   Future<void> _triggerTimeReminder(NoteReminder reminder) async {
     try {
       // Mark as triggered
-      await _db.markReminderTriggered(reminder.id);
+      // Mark as triggered (but keep active for recurring reminders)
+      await db.updateReminder(
+        reminder.id,
+        NoteRemindersCompanion(
+          lastTriggered: Value(DateTime.now()),
+          triggerCount: Value(reminder.triggerCount + 1),
+        ),
+      );
 
       // If recurring, schedule next occurrence
       if (reminder.recurrencePattern != RecurrencePattern.none &&
           reminder.remindAt != null) {
         // Check if recurrence has ended
         if (reminder.recurrenceEndDate != null &&
-            DateTime.now().toUtc().isAfter(reminder.recurrenceEndDate!)) {
+            DateTime.now().isAfter(reminder.recurrenceEndDate!)) {
           // Recurrence period has ended, deactivate reminder
-          await _db.deactivateReminder(reminder.id);
+          await updateReminderStatus(reminder.id, false);
           logger.info('Recurrence ended for reminder ${reminder.id}');
         } else {
           // Schedule next occurrence
@@ -329,21 +275,19 @@ class RecurringReminderService {
             reminder.remindAt!,
             reminder.recurrencePattern,
             reminder.recurrenceInterval,
+            reminder.recurrenceEndDate,
           );
         }
       } else {
         // Deactivate non-recurring reminder
-        await _db.deactivateReminder(reminder.id);
+        await updateReminderStatus(reminder.id, false);
       }
 
-      analytics.event(
-        'reminder.triggered',
-        properties: {
-          'type': 'time',
-          'is_recurring': reminder.recurrencePattern != RecurrencePattern.none,
-          'recurrence_pattern': reminder.recurrencePattern.name,
-        },
-      );
+      trackReminderEvent('reminder_triggered', {
+        'type': 'recurring',
+        'is_recurring': reminder.recurrencePattern != RecurrencePattern.none,
+        'recurrence_pattern': reminder.recurrencePattern.name,
+      });
     } catch (e, stack) {
       logger.error(
         'Failed to trigger time reminder',
@@ -351,18 +295,6 @@ class RecurringReminderService {
         stackTrace: stack,
       );
     }
-  }
-
-  /// Cancel a scheduled notification
-  Future<void> cancelNotification(int reminderId) async {
-    final notificationId = _generateNotificationId(reminderId);
-    await _plugin.cancel(notificationId);
-    logger.info('Cancelled notification for reminder $reminderId');
-  }
-
-  /// Generate stable notification ID from reminder ID
-  int _generateNotificationId(int reminderId) {
-    return reminderId.hashCode.abs();
   }
 
   /// Update a recurring reminder's pattern or interval
@@ -374,7 +306,7 @@ class RecurringReminderService {
   }) async {
     try {
       // Update database
-      await _db.updateReminder(
+      await db.updateReminder(
         reminderId,
         NoteRemindersCompanion(
           recurrencePattern: Value(newPattern),
@@ -388,18 +320,24 @@ class RecurringReminderService {
 
       // If pattern is not none, reschedule with new pattern
       if (newPattern != RecurrencePattern.none) {
-        final reminder = await _db.getReminderById(reminderId);
+        final reminder = await db.getReminderById(reminderId);
         if (reminder?.remindAt != null) {
           await _scheduleNextRecurrence(
             reminderId,
             reminder!.remindAt!,
             newPattern,
             newInterval,
+            newEndDate,
           );
         }
       }
 
       logger.info('Updated recurrence pattern for reminder $reminderId');
+      trackReminderEvent('recurrence_updated', {
+        'reminder_id': reminderId,
+        'new_pattern': newPattern.name,
+        'new_interval': newInterval,
+      });
     } catch (e, stack) {
       logger.error(
         'Failed to update recurrence pattern',

@@ -3,7 +3,8 @@ import 'dart:typed_data';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -12,12 +13,11 @@ import 'package:record/record.dart';
 
 /// Audio recording service for recording voice notes
 class AudioRecordingService {
-  AudioRecordingService({AppLogger? logger, AnalyticsService? analytics})
-      : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  AudioRecordingService(this._ref);
 
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
+  final Ref _ref;
+  AppLogger get _logger => _ref.read(loggerProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
   final AudioRecorder _recorder = AudioRecorder();
 
   bool _isRecording = false;

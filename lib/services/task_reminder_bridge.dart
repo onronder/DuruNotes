@@ -7,32 +7,33 @@ import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// Bridge service that connects task management with the reminder system
 class TaskReminderBridge {
-  TaskReminderBridge({
+  TaskReminderBridge(this._ref, {
     required dynamic reminderCoordinator,
     required AdvancedReminderService advancedReminderService,
     required TaskService taskService,
     required AppDb database,
     required FlutterLocalNotificationsPlugin notificationPlugin,
-    required GlobalKey<NavigatorState> navigatorKey,
   })  : _reminderCoordinator = reminderCoordinator,
         _advancedReminderService = advancedReminderService,
         _taskService = taskService,
         _db = database,
-        _notificationPlugin = notificationPlugin,
-        _navigatorKey = navigatorKey;
+        _notificationPlugin = notificationPlugin;
 
+  final Ref _ref;
   final dynamic _reminderCoordinator;
   final AdvancedReminderService _advancedReminderService;
   final TaskService _taskService;
   final AppDb _db;
   final FlutterLocalNotificationsPlugin _notificationPlugin;
-  final GlobalKey<NavigatorState> _navigatorKey;
-  final AppLogger _logger = LoggerFactory.instance;
+  GlobalKey<NavigatorState> get _navigatorKey => _ref.read(navigatorKeyProvider);
+  AppLogger get _logger => _ref.read(loggerProvider);
 
   static const String _taskChannelId = 'task_reminders';
   static const String _taskChannelName = 'Task Reminders';

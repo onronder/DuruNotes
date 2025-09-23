@@ -1,100 +1,130 @@
 import 'dart:convert';
 
-import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+// NoteReminder is imported from app_db.dart
+import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+
+// Use SnoozeDuration from app_db.dart instead of defining our own
 
 /// Service responsible for managing snooze functionality for reminders.
 ///
-/// This service handles:
+/// This service extends [BaseReminderService] and handles:
 /// - Snoozing reminders for various durations (5min, 15min, 1hr, etc.)
 /// - Calculating appropriate snooze times including smart scheduling
 /// - Rescheduling snoozed reminders when snooze period expires
 /// - Managing snooze counts and limits
-class SnoozeReminderService {
-  SnoozeReminderService(this._plugin, this._db);
-
-  final FlutterLocalNotificationsPlugin _plugin;
-  final AppDb _db;
-
-  static const String _channelId = 'notes_reminders';
-  static const String _channelName = 'Notes Reminders';
-  static const String _channelDescription = 'Reminders for your notes';
+class SnoozeReminderService extends BaseReminderService {
+  SnoozeReminderService(
+    super.ref,
+    super.plugin,
+    super.db,
+  );
 
   /// Maximum number of times a reminder can be snoozed
   static const int maxSnoozeCount = 5;
 
-  final AppLogger logger = LoggerFactory.instance;
-  final AnalyticsService analytics = AnalyticsFactory.instance;
+  @override
+  Future<int?> createReminder(ReminderConfig config) async {
+    // Snooze service doesn't create new reminders, it only modifies existing ones
+    // This method is required by base class but not used
+    logger.warning(
+        'SnoozeReminderService.createReminder called but not implemented');
+    return null;
+  }
 
   /// Snooze a reminder for the specified duration
   Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
     try {
-      final reminder = await _db.getReminderById(reminderId);
+      final reminder = await db.getReminderById(reminderId);
       if (reminder == null) {
-        logger.warn('Cannot snooze reminder $reminderId - not found');
+        logger.warning('Cannot snooze reminder $reminderId - not found');
+        trackReminderEvent('snooze_failed', {
+          'reason': 'not_found',
+          'reminder_id': reminderId,
+        });
         return false;
       }
 
       // Check snooze limit
       if (reminder.snoozeCount >= maxSnoozeCount) {
-        logger.warn(
+        logger.warning(
           'Cannot snooze reminder $reminderId - max snooze count reached',
         );
-        analytics.event(
-          'reminder.snooze_limit_reached',
-          properties: {
-            'reminder_id': reminderId,
-            'snooze_count': reminder.snoozeCount,
-          },
-        );
+        trackReminderEvent('snooze_limit_reached', {
+          'reminder_id': reminderId,
+          'snooze_count': reminder.snoozeCount,
+        });
+        return false;
+      }
+
+      // Check permissions
+      if (!await hasNotificationPermissions()) {
+        logger.warning('Cannot snooze reminder - no notification permissions');
+        trackReminderEvent('snooze_failed', {
+          'reason': 'no_permissions',
+          'reminder_id': reminderId,
+        });
         return false;
       }
 
       final snoozeUntil = _calculateSnoozeTime(duration);
 
       // Update database with snooze information
-      await _db.snoozeReminder(reminderId, snoozeUntil);
+      // Update snooze information
+      await db.snoozeReminder(reminderId, snoozeUntil);
+      await db.updateReminder(
+        reminderId,
+        NoteRemindersCompanion(
+          snoozeCount: Value((reminder.snoozeCount ?? 0) + 1),
+        ),
+      );
 
       // Cancel current notification
-      await _cancelNotification(reminderId);
+      await cancelNotification(reminderId);
 
-      // Reschedule for snooze time if it's a time-based reminder
-      if (reminder.type == ReminderType.time) {
-        await _scheduleSnoozeNotification(
-          reminderId,
-          snoozeUntil,
-          reminder.title,
-          reminder.body,
-          customTitle: reminder.notificationTitle,
-          customBody: reminder.notificationBody,
-        );
-      }
+      // Reschedule for snooze time
+      await scheduleNotification(ReminderNotificationData(
+        id: reminderId,
+        title: reminder.notificationTitle ?? reminder.title,
+        body: reminder.notificationBody ??
+            reminder.body ??
+            'Tap to view your note',
+        scheduledTime: snoozeUntil,
+        payload: jsonEncode({
+          'reminderId': reminderId,
+          'type': 'snoozed',
+          'snoozed': true,
+        }),
+      ));
 
-      analytics.event(
-        'reminder.snoozed',
-        properties: {
-          'duration': duration.name,
-          'snooze_count': reminder.snoozeCount + 1,
-          'reminder_type': reminder.type.name,
-        },
-      );
+      trackReminderEvent('reminder_snoozed', {
+        'duration': duration.name,
+        'snooze_count': reminder.snoozeCount + 1,
+        'reminder_type': reminder.type.name,
+      });
+
+      trackFeatureUsage('snooze_used', properties: {
+        'duration': duration.name,
+        'current_snooze_count': reminder.snoozeCount,
+      });
 
       logger.info('Snoozed reminder $reminderId until $snoozeUntil');
       return true;
     } catch (e, stack) {
       logger.error('Failed to snooze reminder', error: e, stackTrace: stack);
+      trackReminderEvent('snooze_error', {
+        'reminder_id': reminderId,
+        'error': e.toString(),
+      });
       return false;
     }
   }
 
   /// Calculate snooze time based on duration with smart scheduling
   DateTime _calculateSnoozeTime(SnoozeDuration duration) {
-    final now = DateTime.now().toUtc();
+    final now = DateTime.now();
 
     switch (duration) {
       case SnoozeDuration.fiveMinutes:
@@ -142,93 +172,13 @@ class SnoozeReminderService {
     return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, hour);
   }
 
-  /// Schedule a notification for when snooze period expires
-  Future<void> _scheduleSnoozeNotification(
-    int reminderId,
-    DateTime snoozeUntil,
-    String title,
-    String body, {
-    String? customTitle,
-    String? customBody,
-  }) async {
-    try {
-      final notificationId = _generateNotificationId(reminderId);
-      final payload = jsonEncode({
-        'reminderId': reminderId,
-        'type': 'time',
-        'snoozed': true,
-      });
-
-      final localTime = tz.TZDateTime.from(snoozeUntil, tz.local);
-
-      await _plugin.zonedSchedule(
-        notificationId,
-        customTitle ?? title,
-        customBody ?? body,
-        localTime,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: _channelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-            actions: _getSnoozeNotificationActions(reminderId),
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: payload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.dateAndTime,
-      );
-
-      logger.info(
-        'Scheduled snooze notification for reminder $reminderId at $localTime',
-      );
-    } catch (e, stack) {
-      logger.error(
-        'Failed to schedule snooze notification',
-        error: e,
-        stackTrace: stack,
-      );
-    }
-  }
-
-  /// Get notification actions with reduced snooze options after multiple snoozes
-  List<AndroidNotificationAction> _getSnoozeNotificationActions(
-    int reminderId,
-  ) {
-    return [
-      const AndroidNotificationAction(
-        'snooze_15',
-        'Snooze 15m',
-        icon: DrawableResourceAndroidBitmap('ic_snooze'),
-      ),
-      const AndroidNotificationAction(
-        'snooze_1h',
-        'Snooze 1h',
-        icon: DrawableResourceAndroidBitmap('ic_snooze'),
-      ),
-      const AndroidNotificationAction(
-        'complete',
-        'Mark Done',
-        icon: DrawableResourceAndroidBitmap('ic_check'),
-      ),
-    ];
-  }
-
   /// Process snoozed reminders that need to be rescheduled
   Future<void> processSnoozedReminders() async {
     try {
-      final now = DateTime.now().toUtc();
+      final now = DateTime.now();
 
       // Get snoozed reminders that should be rescheduled
-      final snoozedReminders = await _db.getSnoozedRemindersToReschedule(
+      final snoozedReminders = await db.getSnoozedRemindersToReschedule(
         now: now,
       );
 
@@ -238,6 +188,9 @@ class SnoozeReminderService {
 
       if (snoozedReminders.isNotEmpty) {
         logger.info('Rescheduled ${snoozedReminders.length} snoozed reminders');
+        trackReminderEvent('snoozed_reminders_processed', {
+          'count': snoozedReminders.length,
+        });
       }
     } catch (e, stack) {
       logger.error(
@@ -252,27 +205,29 @@ class SnoozeReminderService {
   Future<void> _rescheduleSnoozedReminder(NoteReminder reminder) async {
     try {
       // Clear snooze status
-      await _db.clearSnooze(reminder.id);
+      await db.clearSnooze(reminder.id);
 
-      if (reminder.type == ReminderType.time && reminder.snoozedUntil != null) {
+      if (reminder.snoozedUntil != null) {
         // Reschedule notification for the original snooze time
-        await _scheduleSnoozeNotification(
-          reminder.id,
-          reminder.snoozedUntil!,
-          reminder.title,
-          reminder.body,
-          customTitle: reminder.notificationTitle,
-          customBody: reminder.notificationBody,
-        );
+        await scheduleNotification(ReminderNotificationData(
+          id: reminder.id,
+          title: reminder.notificationTitle ?? reminder.title,
+          body: reminder.notificationBody ??
+              reminder.body ??
+              'Tap to view your note',
+          scheduledTime: reminder.snoozedUntil!,
+          payload: jsonEncode({
+            'reminderId': reminder.id,
+            'type': 'snoozed',
+            'snooze_expired': true,
+          }),
+        ));
       }
 
-      analytics.event(
-        'reminder.snooze_expired',
-        properties: {
-          'reminder_id': reminder.id,
-          'snooze_count': reminder.snoozeCount,
-        },
-      );
+      trackReminderEvent('snooze_expired', {
+        'reminder_id': reminder.id,
+        'snooze_count': reminder.snoozeCount,
+      });
     } catch (e, stack) {
       logger.error(
         'Failed to reschedule snoozed reminder',
@@ -289,7 +244,7 @@ class SnoozeReminderService {
       final reminderId = data['reminderId'] as int?;
 
       if (reminderId == null) {
-        logger.warn('Invalid payload for snooze action: missing reminderId');
+        logger.warning('Invalid payload for snooze action: missing reminderId');
         return;
       }
 
@@ -302,8 +257,10 @@ class SnoozeReminderService {
         case 'snooze_1h':
           duration = SnoozeDuration.oneHour;
         case 'complete':
-          await _db.deactivateReminder(reminderId);
-          analytics.event('reminder.completed_from_notification');
+          await updateReminderStatus(reminderId, false);
+          trackReminderEvent('reminder_completed_from_notification', {
+            'reminder_id': reminderId,
+          });
           return;
       }
 
@@ -319,42 +276,54 @@ class SnoozeReminderService {
     }
   }
 
-  /// Cancel a notification
-  Future<void> _cancelNotification(int reminderId) async {
-    final notificationId = _generateNotificationId(reminderId);
-    await _plugin.cancel(notificationId);
-  }
-
-  /// Generate stable notification ID
-  int _generateNotificationId(int reminderId) {
-    return reminderId.hashCode.abs();
-  }
-
   /// Get snooze statistics for analytics
   Future<Map<String, dynamic>> getSnoozeStats() async {
     try {
-      // TODO: Implement database methods for snooze analytics
-      // final totalSnoozed = await _db.getTotalSnoozedCount();
-      // final averageSnoozeCount = await _db.getAverageSnoozeCount();
+      // Get basic statistics from reminder data
+      final allReminders = await db.getAllReminders();
+      final snoozedReminders = allReminders
+          .where(
+            (r) => r.snoozedUntil != null && r.isActive,
+          )
+          .toList();
+      final totalSnoozeCount = snoozedReminders.fold<int>(
+        0,
+        (sum, r) => sum + r.snoozeCount,
+      );
+      final avgSnoozeCount = snoozedReminders.isEmpty
+          ? 0.0
+          : totalSnoozeCount / snoozedReminders.length;
+
+      final stats = {
+        'total_snoozed': snoozedReminders.length,
+        'average_snooze_count': avgSnoozeCount,
+      };
 
       return {
-        'total_snoozed': 0, // totalSnoozed,
-        'average_snooze_count': 0.0, // averageSnoozeCount,
+        'total_snoozed': stats['total_snoozed'] ?? 0,
+        'average_snooze_count': stats['average_snooze_count'] ?? 0.0,
         'max_snooze_limit': maxSnoozeCount,
       };
     } catch (e, stack) {
       logger.error('Failed to get snooze stats', error: e, stackTrace: stack);
-      return {};
+      return {
+        'total_snoozed': 0,
+        'average_snooze_count': 0.0,
+        'max_snooze_limit': maxSnoozeCount,
+      };
     }
   }
 
   /// Clear all snooze data for a reminder (when manually edited)
   Future<void> clearSnooze(int reminderId) async {
     try {
-      await _db.clearSnooze(reminderId);
-      await _cancelNotification(reminderId);
+      await db.clearSnooze(reminderId);
+      await cancelNotification(reminderId);
 
       logger.info('Cleared snooze for reminder $reminderId');
+      trackReminderEvent('snooze_cleared', {
+        'reminder_id': reminderId,
+      });
     } catch (e, stack) {
       logger.error('Failed to clear snooze', error: e, stackTrace: stack);
     }

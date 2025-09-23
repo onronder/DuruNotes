@@ -2,11 +2,15 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Manages indexing and cross-referencing of notes for search and linking
 class NoteIndexer {
-  NoteIndexer({AppLogger? logger}) : _logger = logger ?? LoggerFactory.instance;
-  final AppLogger _logger;
+  NoteIndexer(this._ref);
+
+  final Ref _ref;
+  AppLogger get _logger => _ref.read(loggerProvider);
   final Map<String, Set<String>> _tagIndex = {};
   final Map<String, Set<String>> _linkIndex = {};
   final Map<String, Set<String>> _wordIndex = {};
@@ -168,7 +172,7 @@ class NoteIndexer {
   // Private helper methods
 
   Future<void> _indexTags(LocalNote note) async {
-    final tags = _extractTags(note.body);
+    final tags = NoteIndexer._extractTags(note.body);
 
     for (final tag in tags) {
       final normalizedTag = tag.toLowerCase();
@@ -177,7 +181,7 @@ class NoteIndexer {
   }
 
   Future<void> _indexLinks(LocalNote note) async {
-    final links = _extractNoteLinks(note.body);
+    final links = NoteIndexer._extractNoteLinks(note.body);
 
     for (final linkedNoteId in links) {
       _linkIndex.putIfAbsent(linkedNoteId, () => <String>{}).add(note.id);
@@ -185,7 +189,7 @@ class NoteIndexer {
   }
 
   Future<void> _indexWords(LocalNote note) async {
-    final words = _extractWords('${note.title} ${note.body}');
+    final words = NoteIndexer._extractWords('${note.title} ${note.body}');
 
     for (final word in words) {
       final normalizedWord = word.toLowerCase();
@@ -196,7 +200,7 @@ class NoteIndexer {
     }
   }
 
-  Set<String> _extractTags(String content) {
+  static Set<String> _extractTags(String content) {
     final tags = <String>{};
 
     // Extract hashtags (#tag)
@@ -220,7 +224,7 @@ class NoteIndexer {
     return tags;
   }
 
-  Set<String> _extractNoteLinks(String content) {
+  static Set<String> _extractNoteLinks(String content) {
     final links = <String>{};
 
     // Extract note links in format [[note-id]] or [[note-title]]
@@ -235,7 +239,7 @@ class NoteIndexer {
     return links;
   }
 
-  Set<String> _extractWords(String content) {
+  static Set<String> _extractWords(String content) {
     final words = <String>{};
 
     // Remove markdown formatting and special characters
@@ -250,7 +254,7 @@ class NoteIndexer {
     for (final match in wordMatches) {
       if (match.group(0) != null) {
         final word = match.group(0)!;
-        if (word.length >= 2 && !_isStopWord(word)) {
+        if (word.length >= 2 && !NoteIndexer._isStopWord(word)) {
           words.add(word);
         }
       }
@@ -259,7 +263,7 @@ class NoteIndexer {
     return words;
   }
 
-  bool _isStopWord(String word) {
+  static bool _isStopWord(String word) {
     const stopWords = {
       'the',
       'a',
@@ -347,20 +351,17 @@ class NoteIndexer {
 extension LocalNoteIndexing on LocalNote {
   /// Extract all tags from the note
   Set<String> get tags {
-    final indexer = NoteIndexer();
-    return indexer._extractTags(body);
+    return NoteIndexer._extractTags(body);
   }
 
   /// Extract all note links from the note
   Set<String> get noteLinks {
-    final indexer = NoteIndexer();
-    return indexer._extractNoteLinks(body);
+    return NoteIndexer._extractNoteLinks(body);
   }
 
   /// Extract all searchable words from the note
   Set<String> get words {
-    final indexer = NoteIndexer();
-    return indexer._extractWords('$title $body');
+    return NoteIndexer._extractWords('$title $body');
   }
 
   /// Check if the note contains a specific tag

@@ -122,7 +122,6 @@ class FeatureFlaggedBlockFactory {
   /// Log current feature flag state for debugging
   static void logFeatureFlagState() {
     _logger.debug('=== Feature Flag State ===');
-    _logger.debug('useUnifiedReminders: ${_featureFlags.useUnifiedReminders}');
     _logger.debug('useNewBlockEditor: ${_featureFlags.useNewBlockEditor}');
     _logger.debug(
         'useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');

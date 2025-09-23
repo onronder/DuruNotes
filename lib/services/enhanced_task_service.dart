@@ -1,10 +1,9 @@
 import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
 import 'package:duru_notes/services/task_service.dart';
+import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Enhanced task service with integrated reminder management
@@ -12,19 +11,13 @@ class EnhancedTaskService extends TaskService {
   EnhancedTaskService({
     required super.database,
     required TaskReminderBridge reminderBridge,
-    BidirectionalTaskSyncService? bidirectionalSync,
   })  : _reminderBridge = reminderBridge,
-        _db = database,
-        _bidirectionalSync = bidirectionalSync;
+        _db = database;
 
   final TaskReminderBridge _reminderBridge;
   final AppDb _db;
-  BidirectionalTaskSyncService? _bidirectionalSync;
 
-  /// Set the bidirectional sync service (to avoid circular dependency)
-  void setBidirectionalSync(BidirectionalTaskSyncService sync) {
-    _bidirectionalSync = sync;
-  }
+  // Bidirectional sync functionality moved to UnifiedTaskService
 
   @override
   Future<String> createTask({
@@ -133,19 +126,7 @@ class EnhancedTaskService extends TaskService {
       clearReminderId: clearReminderId,
     );
 
-    // Sync changes back to note if bidirectional sync is enabled
-    if (_bidirectionalSync != null &&
-        oldTask != null &&
-        oldTask.noteId.isNotEmpty) {
-      await _bidirectionalSync!.syncFromTaskToNote(
-        taskId: taskId,
-        noteId: oldTask.noteId,
-        newContent: content,
-        isCompleted: status == TaskStatus.completed,
-        priority: priority,
-        dueDate: dueDate,
-      );
-    }
+    // Sync handled by UnifiedTaskService
 
     // Handle reminder updates if enabled
     if (updateReminder && oldTask != null) {
@@ -169,14 +150,7 @@ class EnhancedTaskService extends TaskService {
     // Complete the task using parent implementation
     await super.completeTask(taskId, completedBy: completedBy);
 
-    // Sync completion back to note
-    if (_bidirectionalSync != null && task != null && task.noteId.isNotEmpty) {
-      await _bidirectionalSync!.syncFromTaskToNote(
-        taskId: taskId,
-        noteId: task.noteId,
-        isCompleted: true,
-      );
-    }
+    // Sync handled by UnifiedTaskService
 
     // Cancel reminder if task had one
     if (task != null) {
@@ -199,19 +173,7 @@ class EnhancedTaskService extends TaskService {
     // Toggle using parent implementation
     await super.toggleTaskStatus(taskId);
 
-    // Sync toggle back to note
-    if (_bidirectionalSync != null &&
-        oldTask != null &&
-        oldTask.noteId.isNotEmpty) {
-      final newTask = await _db.getTaskById(taskId);
-      if (newTask != null) {
-        await _bidirectionalSync!.syncFromTaskToNote(
-          taskId: taskId,
-          noteId: oldTask.noteId,
-          isCompleted: newTask.status == TaskStatus.completed,
-        );
-      }
-    }
+    // Sync handled by UnifiedTaskService
 
     // Handle reminder updates
     if (oldTask != null) {

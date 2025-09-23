@@ -1,5 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

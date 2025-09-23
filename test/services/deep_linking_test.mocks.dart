@@ -33,204 +33,379 @@ import 'package:supabase_flutter/supabase_flutter.dart' as _i8;
 
 class _FakeMigrationStrategy_0 extends _i1.SmartFake
     implements _i2.MigrationStrategy {
-  _FakeMigrationStrategy_0(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeMigrationStrategy_0(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$AppDbManager_1 extends _i1.SmartFake implements _i3.$AppDbManager {
-  _Fake$AppDbManager_1(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$AppDbManager_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$LocalNotesTable_2 extends _i1.SmartFake
     implements _i3.$LocalNotesTable {
-  _Fake$LocalNotesTable_2(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$LocalNotesTable_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$PendingOpsTable_3 extends _i1.SmartFake
     implements _i3.$PendingOpsTable {
-  _Fake$PendingOpsTable_3(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$PendingOpsTable_3(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$NoteTagsTable_4 extends _i1.SmartFake
     implements _i3.$NoteTagsTable {
-  _Fake$NoteTagsTable_4(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$NoteTagsTable_4(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$NoteLinksTable_5 extends _i1.SmartFake
     implements _i3.$NoteLinksTable {
-  _Fake$NoteLinksTable_5(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$NoteLinksTable_5(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$NoteRemindersTable_6 extends _i1.SmartFake
     implements _i3.$NoteRemindersTable {
-  _Fake$NoteRemindersTable_6(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$NoteRemindersTable_6(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$NoteTasksTable_7 extends _i1.SmartFake
     implements _i3.$NoteTasksTable {
-  _Fake$NoteTasksTable_7(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$NoteTasksTable_7(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$LocalFoldersTable_8 extends _i1.SmartFake
     implements _i3.$LocalFoldersTable {
-  _Fake$LocalFoldersTable_8(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$LocalFoldersTable_8(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$NoteFoldersTable_9 extends _i1.SmartFake
     implements _i3.$NoteFoldersTable {
-  _Fake$NoteFoldersTable_9(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$NoteFoldersTable_9(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$SavedSearchesTable_10 extends _i1.SmartFake
     implements _i3.$SavedSearchesTable {
-  _Fake$SavedSearchesTable_10(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$SavedSearchesTable_10(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _Fake$LocalTemplatesTable_11 extends _i1.SmartFake
     implements _i3.$LocalTemplatesTable {
-  _Fake$LocalTemplatesTable_11(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _Fake$LocalTemplatesTable_11(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeGeneratedDatabase_12 extends _i1.SmartFake
     implements _i2.GeneratedDatabase {
-  _FakeGeneratedDatabase_12(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeGeneratedDatabase_12(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeDriftDatabaseOptions_13 extends _i1.SmartFake
     implements _i2.DriftDatabaseOptions {
-  _FakeDriftDatabaseOptions_13(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeDriftDatabaseOptions_13(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeStreamQueryUpdateRules_14 extends _i1.SmartFake
     implements _i2.StreamQueryUpdateRules {
-  _FakeStreamQueryUpdateRules_14(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeStreamQueryUpdateRules_14(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeDatabaseConnection_15 extends _i1.SmartFake
     implements _i2.DatabaseConnection {
-  _FakeDatabaseConnection_15(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeDatabaseConnection_15(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeQueryExecutor_16 extends _i1.SmartFake implements _i2.QueryExecutor {
-  _FakeQueryExecutor_16(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeQueryExecutor_16(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeStreamQueryStore_17 extends _i1.SmartFake
     implements _i4.StreamQueryStore {
-  _FakeStreamQueryStore_17(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeStreamQueryStore_17(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeDatabaseConnectionUser_18 extends _i1.SmartFake
     implements _i2.DatabaseConnectionUser {
-  _FakeDatabaseConnectionUser_18(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeDatabaseConnectionUser_18(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeExpression_19<D extends Object> extends _i1.SmartFake
     implements _i2.Expression<D> {
-  _FakeExpression_19(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeExpression_19(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeMigrator_20 extends _i1.SmartFake implements _i2.Migrator {
-  _FakeMigrator_20(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeMigrator_20(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeFuture_21<T1> extends _i1.SmartFake implements _i5.Future<T1> {
-  _FakeFuture_21(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeFuture_21(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeInsertStatement_22<T1 extends _i2.Table, D1> extends _i1.SmartFake
     implements _i2.InsertStatement<T1, D1> {
-  _FakeInsertStatement_22(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeInsertStatement_22(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeUpdateStatement_23<T extends _i2.Table, D> extends _i1.SmartFake
     implements _i2.UpdateStatement<T, D> {
-  _FakeUpdateStatement_23(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeUpdateStatement_23(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeSimpleSelectStatement_24<T1 extends _i2.HasResultSet, D>
     extends _i1.SmartFake implements _i2.SimpleSelectStatement<T1, D> {
-  _FakeSimpleSelectStatement_24(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeSimpleSelectStatement_24(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeJoinedSelectStatement_25<FirstT extends _i2.HasResultSet, FirstD>
     extends _i1.SmartFake implements _i2.JoinedSelectStatement<FirstT, FirstD> {
-  _FakeJoinedSelectStatement_25(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeJoinedSelectStatement_25(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeBaseSelectStatement_26<Row> extends _i1.SmartFake
     implements _i2.BaseSelectStatement<Row> {
-  _FakeBaseSelectStatement_26(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeBaseSelectStatement_26(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeDeleteStatement_27<T1 extends _i2.Table, D1> extends _i1.SmartFake
     implements _i2.DeleteStatement<T1, D1> {
-  _FakeDeleteStatement_27(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeDeleteStatement_27(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeSelectable_28<T> extends _i1.SmartFake implements _i2.Selectable<T> {
-  _FakeSelectable_28(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeSelectable_28(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeGenerationContext_29 extends _i1.SmartFake
     implements _i2.GenerationContext {
-  _FakeGenerationContext_29(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeGenerationContext_29(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeAppDb_30 extends _i1.SmartFake implements _i3.AppDb {
-  _FakeAppDb_30(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeAppDb_30(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeCryptoBox_31 extends _i1.SmartFake implements _i6.CryptoBox {
-  _FakeCryptoBox_31(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeCryptoBox_31(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeSupabaseNoteApi_32 extends _i1.SmartFake
     implements _i7.SupabaseNoteApi {
-  _FakeSupabaseNoteApi_32(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeSupabaseNoteApi_32(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeSupabaseClient_33 extends _i1.SmartFake
     implements _i8.SupabaseClient {
-  _FakeSupabaseClient_33(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeSupabaseClient_33(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 class _FakeLocalFolder_34 extends _i1.SmartFake implements _i3.LocalFolder {
-  _FakeLocalFolder_34(Object parent, Invocation parentInvocation)
-      : super(parent, parentInvocation);
+  _FakeLocalFolder_34(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 /// A class which mocks [AppDb].
@@ -242,9 +417,10 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   }
 
   @override
-  int get schemaVersion =>
-      (super.noSuchMethod(Invocation.getter(#schemaVersion), returnValue: 0)
-          as int);
+  int get schemaVersion => (super.noSuchMethod(
+        Invocation.getter(#schemaVersion),
+        returnValue: 0,
+      ) as int);
 
   @override
   _i2.MigrationStrategy get migration => (super.noSuchMethod(
@@ -441,10 +617,16 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
 
   @override
   _i2.Expression<bool> noteIsVisible(_i3.LocalNotes? t) => (super.noSuchMethod(
-        Invocation.method(#noteIsVisible, [t]),
+        Invocation.method(
+          #noteIsVisible,
+          [t],
+        ),
         returnValue: _FakeExpression_19<bool>(
           this,
-          Invocation.method(#noteIsVisible, [t]),
+          Invocation.method(
+            #noteIsVisible,
+            [t],
+          ),
         ),
       ) as _i2.Expression<bool>);
 
@@ -459,17 +641,16 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           [query],
           {#limit: limit},
         ),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
-        ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> allNotes() => (super.noSuchMethod(
-        Invocation.method(#allNotes, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #allNotes,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -478,13 +659,15 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     required int? limit,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#notesAfter, [], {
-          #cursor: cursor,
-          #limit: limit,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #notesAfter,
+          [],
+          {
+            #cursor: cursor,
+            #limit: limit,
+          },
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -493,42 +676,58 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     required int? offset,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#pagedNotes, [], {
-          #limit: limit,
-          #offset: offset,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #pagedNotes,
+          [],
+          {
+            #limit: limit,
+            #offset: offset,
+          },
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> allNotesWithPinned() => (super.noSuchMethod(
-        Invocation.method(#allNotesWithPinned, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #allNotesWithPinned,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> getPinnedNotes() => (super.noSuchMethod(
-        Invocation.method(#getPinnedNotes, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getPinnedNotes,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<void> toggleNotePin(String? noteId) => (super.noSuchMethod(
-        Invocation.method(#toggleNotePin, [noteId]),
+        Invocation.method(
+          #toggleNotePin,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> setNotePin(String? noteId, bool? isPinned) =>
+  _i5.Future<void> setNotePin(
+    String? noteId,
+    bool? isPinned,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#setNotePin, [noteId, isPinned]),
+        Invocation.method(
+          #setNotePin,
+          [
+            noteId,
+            isPinned,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -543,74 +742,112 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #getNotesInFolderWithPinned,
           [folderId],
-          {#limit: limit, #cursor: cursor},
+          {
+            #limit: limit,
+            #cursor: cursor,
+          },
         ),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
-        ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<void> upsertNote(_i3.LocalNote? n) => (super.noSuchMethod(
-        Invocation.method(#upsertNote, [n]),
+        Invocation.method(
+          #upsertNote,
+          [n],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<_i3.LocalNote?> findNote(String? id) => (super.noSuchMethod(
-        Invocation.method(#findNote, [id]),
+        Invocation.method(
+          #findNote,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
-  _i5.Future<int> enqueue(String? entityId, String? kind, {String? payload}) =>
+  _i5.Future<int> enqueue(
+    String? entityId,
+    String? kind, {
+    String? payload,
+  }) =>
       (super.noSuchMethod(
-        Invocation.method(#enqueue, [entityId, kind], {#payload: payload}),
+        Invocation.method(
+          #enqueue,
+          [
+            entityId,
+            kind,
+          ],
+          {#payload: payload},
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
   @override
   _i5.Future<List<_i3.PendingOp>> getPendingOps() => (super.noSuchMethod(
-        Invocation.method(#getPendingOps, []),
-        returnValue: _i5.Future<List<_i3.PendingOp>>.value(
-          <_i3.PendingOp>[],
+        Invocation.method(
+          #getPendingOps,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.PendingOp>>.value(<_i3.PendingOp>[]),
       ) as _i5.Future<List<_i3.PendingOp>>);
 
   @override
   _i5.Future<void> deletePendingByIds(Iterable<int>? ids) =>
       (super.noSuchMethod(
-        Invocation.method(#deletePendingByIds, [ids]),
+        Invocation.method(
+          #deletePendingByIds,
+          [ids],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.PendingOp>> dequeueAll() => (super.noSuchMethod(
-        Invocation.method(#dequeueAll, []),
-        returnValue: _i5.Future<List<_i3.PendingOp>>.value(
-          <_i3.PendingOp>[],
+        Invocation.method(
+          #dequeueAll,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.PendingOp>>.value(<_i3.PendingOp>[]),
       ) as _i5.Future<List<_i3.PendingOp>>);
 
   @override
   _i5.Future<void> clearAll() => (super.noSuchMethod(
-        Invocation.method(#clearAll, []),
+        Invocation.method(
+          #clearAll,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<Set<String>> getLocalActiveNoteIds() => (super.noSuchMethod(
-        Invocation.method(#getLocalActiveNoteIds, []),
+        Invocation.method(
+          #getLocalActiveNoteIds,
+          [],
+        ),
         returnValue: _i5.Future<Set<String>>.value(<String>{}),
       ) as _i5.Future<Set<String>>);
 
   @override
-  _i5.Future<void> replaceTagsForNote(String? noteId, Set<String>? tags) =>
+  _i5.Future<void> replaceTagsForNote(
+    String? noteId,
+    Set<String>? tags,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#replaceTagsForNote, [noteId, tags]),
+        Invocation.method(
+          #replaceTagsForNote,
+          [
+            noteId,
+            tags,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -621,43 +858,82 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     List<Map<String, String?>>? links,
   ) =>
       (super.noSuchMethod(
-        Invocation.method(#replaceLinksForNote, [noteId, links]),
+        Invocation.method(
+          #replaceLinksForNote,
+          [
+            noteId,
+            links,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<String>> distinctTags() => (super.noSuchMethod(
-        Invocation.method(#distinctTags, []),
+        Invocation.method(
+          #distinctTags,
+          [],
+        ),
         returnValue: _i5.Future<List<String>>.value(<String>[]),
       ) as _i5.Future<List<String>>);
 
   @override
   _i5.Future<List<_i3.TagCount>> getTagsWithCounts() => (super.noSuchMethod(
-        Invocation.method(#getTagsWithCounts, []),
+        Invocation.method(
+          #getTagsWithCounts,
+          [],
+        ),
         returnValue: _i5.Future<List<_i3.TagCount>>.value(<_i3.TagCount>[]),
       ) as _i5.Future<List<_i3.TagCount>>);
 
   @override
-  _i5.Future<void> addTagToNote(String? noteId, String? rawTag) =>
+  _i5.Future<void> addTagToNote(
+    String? noteId,
+    String? rawTag,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#addTagToNote, [noteId, rawTag]),
+        Invocation.method(
+          #addTagToNote,
+          [
+            noteId,
+            rawTag,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> removeTagFromNote(String? noteId, String? rawTag) =>
+  _i5.Future<void> removeTagFromNote(
+    String? noteId,
+    String? rawTag,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#removeTagFromNote, [noteId, rawTag]),
+        Invocation.method(
+          #removeTagFromNote,
+          [
+            noteId,
+            rawTag,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<int> renameTagEverywhere(String? fromRaw, String? toRaw) =>
+  _i5.Future<int> renameTagEverywhere(
+    String? fromRaw,
+    String? toRaw,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#renameTagEverywhere, [fromRaw, toRaw]),
+        Invocation.method(
+          #renameTagEverywhere,
+          [
+            fromRaw,
+            toRaw,
+          ],
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
@@ -668,99 +944,119 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     List<String>? noneTags = const [],
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#notesByTags, [], {
-          #anyTags: anyTags,
-          #sort: sort,
-          #noneTags: noneTags,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #notesByTags,
+          [],
+          {
+            #anyTags: anyTags,
+            #sort: sort,
+            #noneTags: noneTags,
+          },
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<String>> searchTags(String? prefix) => (super.noSuchMethod(
-        Invocation.method(#searchTags, [prefix]),
+        Invocation.method(
+          #searchTags,
+          [prefix],
+        ),
         returnValue: _i5.Future<List<String>>.value(<String>[]),
       ) as _i5.Future<List<String>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> notesWithTag(String? tag) =>
       (super.noSuchMethod(
-        Invocation.method(#notesWithTag, [tag]),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #notesWithTag,
+          [tag],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<void> debugMetadata() => (super.noSuchMethod(
-        Invocation.method(#debugMetadata, []),
+        Invocation.method(
+          #debugMetadata,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<List<_i3.LocalNote>> notesForSavedSearch({
-    required String? savedSearchKey,
-  }) =>
+  _i5.Future<List<_i3.LocalNote>> notesForSavedSearch(
+          {required String? savedSearchKey}) =>
       (super.noSuchMethod(
-        Invocation.method(#notesForSavedSearch, [], {
-          #savedSearchKey: savedSearchKey,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #notesForSavedSearch,
+          [],
+          {#savedSearchKey: savedSearchKey},
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.BacklinkPair>> backlinksWithSources(
-    String? targetTitle,
-  ) =>
+          String? targetTitle) =>
       (super.noSuchMethod(
-        Invocation.method(#backlinksWithSources, [targetTitle]),
-        returnValue: _i5.Future<List<_i3.BacklinkPair>>.value(
-          <_i3.BacklinkPair>[],
+        Invocation.method(
+          #backlinksWithSources,
+          [targetTitle],
         ),
+        returnValue:
+            _i5.Future<List<_i3.BacklinkPair>>.value(<_i3.BacklinkPair>[]),
       ) as _i5.Future<List<_i3.BacklinkPair>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> searchNotes(String? raw) =>
       (super.noSuchMethod(
-        Invocation.method(#searchNotes, [raw]),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #searchNotes,
+          [raw],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.NoteReminder>> getRemindersForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getRemindersForNote, [noteId]),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getRemindersForNote,
+          [noteId],
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<List<_i3.NoteReminder>> getActiveReminders() =>
       (super.noSuchMethod(
-        Invocation.method(#getActiveReminders, []),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getActiveReminders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<_i3.NoteReminder?> getReminderById(int? id) => (super.noSuchMethod(
-        Invocation.method(#getReminderById, [id]),
+        Invocation.method(
+          #getReminderById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.NoteReminder?>.value(),
       ) as _i5.Future<_i3.NoteReminder?>);
 
   @override
   _i5.Future<int> createReminder(_i3.NoteRemindersCompanion? reminder) =>
       (super.noSuchMethod(
-        Invocation.method(#createReminder, [reminder]),
+        Invocation.method(
+          #createReminder,
+          [reminder],
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
@@ -770,14 +1066,23 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     _i3.NoteRemindersCompanion? updates,
   ) =>
       (super.noSuchMethod(
-        Invocation.method(#updateReminder, [id, updates]),
+        Invocation.method(
+          #updateReminder,
+          [
+            id,
+            updates,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deleteReminderById(int? id) => (super.noSuchMethod(
-        Invocation.method(#deleteReminderById, [id]),
+        Invocation.method(
+          #deleteReminderById,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -785,52 +1090,65 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<void> deleteRemindersForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#deleteRemindersForNote, [noteId]),
+        Invocation.method(
+          #deleteRemindersForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<List<_i3.NoteReminder>> getTimeRemindersToTrigger({
-    required DateTime? before,
-  }) =>
+  _i5.Future<List<_i3.NoteReminder>> getTimeRemindersToTrigger(
+          {required DateTime? before}) =>
       (super.noSuchMethod(
-        Invocation.method(#getTimeRemindersToTrigger, [], {
-          #before: before,
-        }),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getTimeRemindersToTrigger,
+          [],
+          {#before: before},
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<List<_i3.NoteReminder>> getLocationReminders() =>
       (super.noSuchMethod(
-        Invocation.method(#getLocationReminders, []),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getLocationReminders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<List<_i3.NoteReminder>> getRecurringReminders() =>
       (super.noSuchMethod(
-        Invocation.method(#getRecurringReminders, []),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getRecurringReminders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<List<_i3.NoteTask>> getTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getTasksForNote, [noteId]),
+        Invocation.method(
+          #getTasksForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
   @override
   _i5.Future<_i3.NoteTask?> getTaskById(String? id) => (super.noSuchMethod(
-        Invocation.method(#getTaskById, [id]),
+        Invocation.method(
+          #getTaskById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.NoteTask?>.value(),
       ) as _i5.Future<_i3.NoteTask?>);
 
@@ -841,11 +1159,15 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     String? parentTaskId,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#getOpenTasks, [], {
-          #dueBefore: dueBefore,
-          #priority: priority,
-          #parentTaskId: parentTaskId,
-        }),
+        Invocation.method(
+          #getOpenTasks,
+          [],
+          {
+            #dueBefore: dueBefore,
+            #priority: priority,
+            #parentTaskId: parentTaskId,
+          },
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
@@ -855,22 +1177,32 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     required DateTime? end,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#getTasksByDateRange, [], {
-          #start: start,
-          #end: end,
-        }),
+        Invocation.method(
+          #getTasksByDateRange,
+          [],
+          {
+            #start: start,
+            #end: end,
+          },
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
   @override
   _i5.Future<List<_i3.NoteTask>> getOverdueTasks() => (super.noSuchMethod(
-        Invocation.method(#getOverdueTasks, []),
+        Invocation.method(
+          #getOverdueTasks,
+          [],
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
   @override
   _i5.Future<List<_i3.NoteTask>> getAllTasks() => (super.noSuchMethod(
-        Invocation.method(#getAllTasks, []),
+        Invocation.method(
+          #getAllTasks,
+          [],
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
@@ -880,54 +1212,86 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     int? limit,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#getCompletedTasks, [], {
-          #since: since,
-          #limit: limit,
-        }),
+        Invocation.method(
+          #getCompletedTasks,
+          [],
+          {
+            #since: since,
+            #limit: limit,
+          },
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
   @override
   _i5.Future<void> createTask(_i3.NoteTasksCompanion? task) =>
       (super.noSuchMethod(
-        Invocation.method(#createTask, [task]),
+        Invocation.method(
+          #createTask,
+          [task],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> updateTask(String? id, _i3.NoteTasksCompanion? updates) =>
+  _i5.Future<void> updateTask(
+    String? id,
+    _i3.NoteTasksCompanion? updates,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#updateTask, [id, updates]),
+        Invocation.method(
+          #updateTask,
+          [
+            id,
+            updates,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> completeTask(String? id, {String? completedBy}) =>
+  _i5.Future<void> completeTask(
+    String? id, {
+    String? completedBy,
+  }) =>
       (super.noSuchMethod(
-        Invocation.method(#completeTask, [id], {#completedBy: completedBy}),
+        Invocation.method(
+          #completeTask,
+          [id],
+          {#completedBy: completedBy},
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> toggleTaskStatus(String? id) => (super.noSuchMethod(
-        Invocation.method(#toggleTaskStatus, [id]),
+        Invocation.method(
+          #toggleTaskStatus,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deleteTaskById(String? id) => (super.noSuchMethod(
-        Invocation.method(#deleteTaskById, [id]),
+        Invocation.method(
+          #deleteTaskById,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deleteTasksForNote(String? noteId) => (super.noSuchMethod(
-        Invocation.method(#deleteTasksForNote, [noteId]),
+        Invocation.method(
+          #deleteTasksForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -938,39 +1302,54 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     String? noteContent,
   ) =>
       (super.noSuchMethod(
-        Invocation.method(#syncTasksWithNoteContent, [noteId, noteContent]),
+        Invocation.method(
+          #syncTasksWithNoteContent,
+          [
+            noteId,
+            noteContent,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Stream<List<_i3.NoteTask>> watchOpenTasks() => (super.noSuchMethod(
-        Invocation.method(#watchOpenTasks, []),
+        Invocation.method(
+          #watchOpenTasks,
+          [],
+        ),
         returnValue: _i5.Stream<List<_i3.NoteTask>>.empty(),
       ) as _i5.Stream<List<_i3.NoteTask>>);
 
   @override
   _i5.Stream<List<_i3.NoteTask>> watchTasksForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#watchTasksForNote, [noteId]),
+        Invocation.method(
+          #watchTasksForNote,
+          [noteId],
+        ),
         returnValue: _i5.Stream<List<_i3.NoteTask>>.empty(),
       ) as _i5.Stream<List<_i3.NoteTask>>);
 
   @override
-  _i5.Future<List<_i3.NoteReminder>> getSnoozedRemindersToReschedule({
-    required DateTime? now,
-  }) =>
+  _i5.Future<List<_i3.NoteReminder>> getSnoozedRemindersToReschedule(
+          {required DateTime? now}) =>
       (super.noSuchMethod(
-        Invocation.method(#getSnoozedRemindersToReschedule, [], {
-          #now: now,
-        }),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getSnoozedRemindersToReschedule,
+          [],
+          {#now: now},
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
-  _i5.Future<void> markReminderTriggered(int? id, {DateTime? triggeredAt}) =>
+  _i5.Future<void> markReminderTriggered(
+    int? id, {
+    DateTime? triggeredAt,
+  }) =>
       (super.noSuchMethod(
         Invocation.method(
           #markReminderTriggered,
@@ -982,77 +1361,110 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> snoozeReminder(int? id, DateTime? snoozeUntil) =>
+  _i5.Future<void> snoozeReminder(
+    int? id,
+    DateTime? snoozeUntil,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#snoozeReminder, [id, snoozeUntil]),
+        Invocation.method(
+          #snoozeReminder,
+          [
+            id,
+            snoozeUntil,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> clearSnooze(int? id) => (super.noSuchMethod(
-        Invocation.method(#clearSnooze, [id]),
+        Invocation.method(
+          #clearSnooze,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deactivateReminder(int? id) => (super.noSuchMethod(
-        Invocation.method(#deactivateReminder, [id]),
+        Invocation.method(
+          #deactivateReminder,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<List<_i3.NoteReminder>> getAllReminders({
-    bool? activeOnly = false,
-  }) =>
+  _i5.Future<List<_i3.NoteReminder>> getAllReminders(
+          {bool? activeOnly = false}) =>
       (super.noSuchMethod(
-        Invocation.method(#getAllReminders, [], {#activeOnly: activeOnly}),
-        returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
-          <_i3.NoteReminder>[],
+        Invocation.method(
+          #getAllReminders,
+          [],
+          {#activeOnly: activeOnly},
         ),
+        returnValue:
+            _i5.Future<List<_i3.NoteReminder>>.value(<_i3.NoteReminder>[]),
       ) as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
   _i5.Future<void> cleanupOrphanedReminders() => (super.noSuchMethod(
-        Invocation.method(#cleanupOrphanedReminders, []),
+        Invocation.method(
+          #cleanupOrphanedReminders,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<Map<String, int>> getReminderStats() => (super.noSuchMethod(
-        Invocation.method(#getReminderStats, []),
+        Invocation.method(
+          #getReminderStats,
+          [],
+        ),
         returnValue: _i5.Future<Map<String, int>>.value(<String, int>{}),
       ) as _i5.Future<Map<String, int>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getRootFolders() => (super.noSuchMethod(
-        Invocation.method(#getRootFolders, []),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getRootFolders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getChildFolders(String? parentId) =>
       (super.noSuchMethod(
-        Invocation.method(#getChildFolders, [parentId]),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getChildFolders,
+          [parentId],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<_i3.LocalFolder?> getFolderById(String? id) => (super.noSuchMethod(
-        Invocation.method(#getFolderById, [id]),
+        Invocation.method(
+          #getFolderById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<void> upsertFolder(_i3.LocalFolder? folder) => (super.noSuchMethod(
-        Invocation.method(#upsertFolder, [folder]),
+        Invocation.method(
+          #upsertFolder,
+          [folder],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1060,7 +1472,10 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<int> getNotesCountInFolder(String? folderId) =>
       (super.noSuchMethod(
-        Invocation.method(#getNotesCountInFolder, [folderId]),
+        Invocation.method(
+          #getNotesCountInFolder,
+          [folderId],
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
@@ -1074,42 +1489,64 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #getNotesInFolder,
           [folderId],
-          {#limit: limit, #cursor: cursor},
+          {
+            #limit: limit,
+            #cursor: cursor,
+          },
         ),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
-        ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<Map<String, int>> getFolderNoteCounts() => (super.noSuchMethod(
-        Invocation.method(#getFolderNoteCounts, []),
+        Invocation.method(
+          #getFolderNoteCounts,
+          [],
+        ),
         returnValue: _i5.Future<Map<String, int>>.value(<String, int>{}),
       ) as _i5.Future<Map<String, int>>);
 
   @override
   _i5.Future<void> cleanupOrphanedRelationships() => (super.noSuchMethod(
-        Invocation.method(#cleanupOrphanedRelationships, []),
+        Invocation.method(
+          #cleanupOrphanedRelationships,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<_i3.LocalNote?> getNote(String? id) => (super.noSuchMethod(
-        Invocation.method(#getNote, [id]),
+        Invocation.method(
+          #getNote,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Stream<_i3.LocalNote?> watchNote(String? id) => (super.noSuchMethod(
-        Invocation.method(#watchNote, [id]),
+        Invocation.method(
+          #watchNote,
+          [id],
+        ),
         returnValue: _i5.Stream<_i3.LocalNote?>.empty(),
       ) as _i5.Stream<_i3.LocalNote?>);
 
   @override
-  _i5.Future<void> updateNote(String? id, _i3.LocalNotesCompanion? updates) =>
+  _i5.Future<void> updateNote(
+    String? id,
+    _i3.LocalNotesCompanion? updates,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#updateNote, [id, updates]),
+        Invocation.method(
+          #updateNote,
+          [
+            id,
+            updates,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1120,19 +1557,30 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     DateTime? cursor,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#getUnfiledNotes, [], {
-          #limit: limit,
-          #cursor: cursor,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getUnfiledNotes,
+          [],
+          {
+            #limit: limit,
+            #cursor: cursor,
+          },
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
-  _i5.Future<void> moveNoteToFolder(String? noteId, String? folderId) =>
+  _i5.Future<void> moveNoteToFolder(
+    String? noteId,
+    String? folderId,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#moveNoteToFolder, [noteId, folderId]),
+        Invocation.method(
+          #moveNoteToFolder,
+          [
+            noteId,
+            folderId,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1140,61 +1588,84 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<List<String>> getNoteIdsInFolder(String? folderId) =>
       (super.noSuchMethod(
-        Invocation.method(#getNoteIdsInFolder, [folderId]),
+        Invocation.method(
+          #getNoteIdsInFolder,
+          [folderId],
+        ),
         returnValue: _i5.Future<List<String>>.value(<String>[]),
       ) as _i5.Future<List<String>>);
 
   @override
   _i5.Future<_i3.LocalFolder?> getNoteFolder(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getNoteFolder, [noteId]),
+        Invocation.method(
+          #getNoteFolder,
+          [noteId],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<String> generateFolderPath(String? folderId) =>
       (super.noSuchMethod(
-        Invocation.method(#generateFolderPath, [folderId]),
-        returnValue: _i5.Future<String>.value(
-          _i9.dummyValue<String>(
-            this,
-            Invocation.method(#generateFolderPath, [folderId]),
-          ),
+        Invocation.method(
+          #generateFolderPath,
+          [folderId],
         ),
+        returnValue: _i5.Future<String>.value(_i9.dummyValue<String>(
+          this,
+          Invocation.method(
+            #generateFolderPath,
+            [folderId],
+          ),
+        )),
       ) as _i5.Future<String>);
 
   @override
   _i5.Future<_i3.LocalFolder?> findFolder(String? id) => (super.noSuchMethod(
-        Invocation.method(#findFolder, [id]),
+        Invocation.method(
+          #findFolder,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> allFolders() => (super.noSuchMethod(
-        Invocation.method(#allFolders, []),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #allFolders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getActiveFolders() => (super.noSuchMethod(
-        Invocation.method(#getActiveFolders, []),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getActiveFolders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<_i3.LocalFolder?> getFolderForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getFolderForNote, [noteId]),
+        Invocation.method(
+          #getFolderForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<void> removeNoteFromFolder(String? noteId) => (super.noSuchMethod(
-        Invocation.method(#removeNoteFromFolder, [noteId]),
+        Invocation.method(
+          #removeNoteFromFolder,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1202,7 +1673,10 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<void> upsertNoteFolder(_i3.NoteFolder? relationship) =>
       (super.noSuchMethod(
-        Invocation.method(#upsertNoteFolder, [relationship]),
+        Invocation.method(
+          #upsertNoteFolder,
+          [relationship],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1210,138 +1684,183 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<List<_i3.NoteFolder>> getAllNoteFolderRelationships() =>
       (super.noSuchMethod(
-        Invocation.method(#getAllNoteFolderRelationships, []),
-        returnValue: _i5.Future<List<_i3.NoteFolder>>.value(
-          <_i3.NoteFolder>[],
+        Invocation.method(
+          #getAllNoteFolderRelationships,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.NoteFolder>>.value(<_i3.NoteFolder>[]),
       ) as _i5.Future<List<_i3.NoteFolder>>);
 
   @override
   _i5.Future<Set<String>> getActiveNoteIds() => (super.noSuchMethod(
-        Invocation.method(#getActiveNoteIds, []),
+        Invocation.method(
+          #getActiveNoteIds,
+          [],
+        ),
         returnValue: _i5.Future<Set<String>>.value(<String>{}),
       ) as _i5.Future<Set<String>>);
 
   @override
   _i5.Future<Set<String>> getLocalActiveFolderIds() => (super.noSuchMethod(
-        Invocation.method(#getLocalActiveFolderIds, []),
+        Invocation.method(
+          #getLocalActiveFolderIds,
+          [],
+        ),
         returnValue: _i5.Future<Set<String>>.value(<String>{}),
       ) as _i5.Future<Set<String>>);
 
   @override
-  _i5.Future<List<_i3.LocalFolder>> getRecentlyUpdatedFolders({
-    required DateTime? since,
-  }) =>
+  _i5.Future<List<_i3.LocalFolder>> getRecentlyUpdatedFolders(
+          {required DateTime? since}) =>
       (super.noSuchMethod(
-        Invocation.method(#getRecentlyUpdatedFolders, [], {#since: since}),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getRecentlyUpdatedFolders,
+          [],
+          {#since: since},
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getFoldersByParent(String? parentId) =>
       (super.noSuchMethod(
-        Invocation.method(#getFoldersByParent, [parentId]),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getFoldersByParent,
+          [parentId],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<int> countNotesInFolder(String? folderId) => (super.noSuchMethod(
-        Invocation.method(#countNotesInFolder, [folderId]),
+        Invocation.method(
+          #countNotesInFolder,
+          [folderId],
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
   @override
   _i5.Future<int> getFolderDepth(String? folderId) => (super.noSuchMethod(
-        Invocation.method(#getFolderDepth, [folderId]),
+        Invocation.method(
+          #getFolderDepth,
+          [folderId],
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
   @override
   _i5.Future<bool> hasChildFolders(String? folderId) => (super.noSuchMethod(
-        Invocation.method(#hasChildFolders, [folderId]),
+        Invocation.method(
+          #hasChildFolders,
+          [folderId],
+        ),
         returnValue: _i5.Future<bool>.value(false),
       ) as _i5.Future<bool>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getFolderSubtree(String? rootId) =>
       (super.noSuchMethod(
-        Invocation.method(#getFolderSubtree, [rootId]),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getFolderSubtree,
+          [rootId],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> searchFolders(String? query) =>
       (super.noSuchMethod(
-        Invocation.method(#searchFolders, [query]),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #searchFolders,
+          [query],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<_i3.LocalFolder?> findFolderByName(String? name) =>
       (super.noSuchMethod(
-        Invocation.method(#findFolderByName, [name]),
+        Invocation.method(
+          #findFolderByName,
+          [name],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<void> upsertSavedSearch(_i3.SavedSearch? search) =>
       (super.noSuchMethod(
-        Invocation.method(#upsertSavedSearch, [search]),
+        Invocation.method(
+          #upsertSavedSearch,
+          [search],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.SavedSearch>> getSavedSearches() => (super.noSuchMethod(
-        Invocation.method(#getSavedSearches, []),
-        returnValue: _i5.Future<List<_i3.SavedSearch>>.value(
-          <_i3.SavedSearch>[],
+        Invocation.method(
+          #getSavedSearches,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.SavedSearch>>.value(<_i3.SavedSearch>[]),
       ) as _i5.Future<List<_i3.SavedSearch>>);
 
   @override
   _i5.Future<List<_i3.SavedSearch>> getSavedSearchesByType(
-    String? searchType,
-  ) =>
+          String? searchType) =>
       (super.noSuchMethod(
-        Invocation.method(#getSavedSearchesByType, [searchType]),
-        returnValue: _i5.Future<List<_i3.SavedSearch>>.value(
-          <_i3.SavedSearch>[],
+        Invocation.method(
+          #getSavedSearchesByType,
+          [searchType],
         ),
+        returnValue:
+            _i5.Future<List<_i3.SavedSearch>>.value(<_i3.SavedSearch>[]),
       ) as _i5.Future<List<_i3.SavedSearch>>);
 
   @override
   _i5.Future<_i3.SavedSearch?> getSavedSearchById(String? id) =>
       (super.noSuchMethod(
-        Invocation.method(#getSavedSearchById, [id]),
+        Invocation.method(
+          #getSavedSearchById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.SavedSearch?>.value(),
       ) as _i5.Future<_i3.SavedSearch?>);
 
   @override
   _i5.Future<void> deleteSavedSearch(String? id) => (super.noSuchMethod(
-        Invocation.method(#deleteSavedSearch, [id]),
+        Invocation.method(
+          #deleteSavedSearch,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> updateSavedSearchUsage(String? id) => (super.noSuchMethod(
-        Invocation.method(#updateSavedSearchUsage, [id]),
+        Invocation.method(
+          #updateSavedSearchUsage,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> toggleSavedSearchPin(String? id) => (super.noSuchMethod(
-        Invocation.method(#toggleSavedSearchPin, [id]),
+        Invocation.method(
+          #toggleSavedSearchPin,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1349,77 +1868,106 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<void> reorderSavedSearches(List<String>? orderedIds) =>
       (super.noSuchMethod(
-        Invocation.method(#reorderSavedSearches, [orderedIds]),
+        Invocation.method(
+          #reorderSavedSearches,
+          [orderedIds],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Stream<List<_i3.SavedSearch>> watchSavedSearches() => (super.noSuchMethod(
-        Invocation.method(#watchSavedSearches, []),
+        Invocation.method(
+          #watchSavedSearches,
+          [],
+        ),
         returnValue: _i5.Stream<List<_i3.SavedSearch>>.empty(),
       ) as _i5.Stream<List<_i3.SavedSearch>>);
 
   @override
   _i5.Future<List<_i3.SavedSearch>> getPinnedSavedSearches() =>
       (super.noSuchMethod(
-        Invocation.method(#getPinnedSavedSearches, []),
-        returnValue: _i5.Future<List<_i3.SavedSearch>>.value(
-          <_i3.SavedSearch>[],
+        Invocation.method(
+          #getPinnedSavedSearches,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.SavedSearch>>.value(<_i3.SavedSearch>[]),
       ) as _i5.Future<List<_i3.SavedSearch>>);
 
   @override
   _i5.Future<List<_i3.LocalTemplate>> getAllTemplates() => (super.noSuchMethod(
-        Invocation.method(#getAllTemplates, []),
-        returnValue: _i5.Future<List<_i3.LocalTemplate>>.value(
-          <_i3.LocalTemplate>[],
+        Invocation.method(
+          #getAllTemplates,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalTemplate>>.value(<_i3.LocalTemplate>[]),
       ) as _i5.Future<List<_i3.LocalTemplate>>);
 
   @override
   _i5.Future<List<_i3.LocalTemplate>> getSystemTemplates() =>
       (super.noSuchMethod(
-        Invocation.method(#getSystemTemplates, []),
-        returnValue: _i5.Future<List<_i3.LocalTemplate>>.value(
-          <_i3.LocalTemplate>[],
+        Invocation.method(
+          #getSystemTemplates,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalTemplate>>.value(<_i3.LocalTemplate>[]),
       ) as _i5.Future<List<_i3.LocalTemplate>>);
 
   @override
   _i5.Future<List<_i3.LocalTemplate>> getUserTemplates() => (super.noSuchMethod(
-        Invocation.method(#getUserTemplates, []),
-        returnValue: _i5.Future<List<_i3.LocalTemplate>>.value(
-          <_i3.LocalTemplate>[],
+        Invocation.method(
+          #getUserTemplates,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalTemplate>>.value(<_i3.LocalTemplate>[]),
       ) as _i5.Future<List<_i3.LocalTemplate>>);
 
   @override
   _i5.Future<_i3.LocalTemplate?> getTemplate(String? id) => (super.noSuchMethod(
-        Invocation.method(#getTemplate, [id]),
+        Invocation.method(
+          #getTemplate,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalTemplate?>.value(),
       ) as _i5.Future<_i3.LocalTemplate?>);
 
   @override
   _i5.Future<void> upsertTemplate(_i3.LocalTemplate? template) =>
       (super.noSuchMethod(
-        Invocation.method(#upsertTemplate, [template]),
+        Invocation.method(
+          #upsertTemplate,
+          [template],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<bool> deleteTemplate(String? id) => (super.noSuchMethod(
-        Invocation.method(#deleteTemplate, [id]),
+        Invocation.method(
+          #deleteTemplate,
+          [id],
+        ),
         returnValue: _i5.Future<bool>.value(false),
       ) as _i5.Future<bool>);
 
   @override
   _i2.Migrator createMigrator() => (super.noSuchMethod(
-        Invocation.method(#createMigrator, []),
+        Invocation.method(
+          #createMigrator,
+          [],
+        ),
         returnValue: _FakeMigrator_20(
           this,
-          Invocation.method(#createMigrator, []),
+          Invocation.method(
+            #createMigrator,
+            [],
+          ),
         ),
       ) as _i2.Migrator);
 
@@ -1429,96 +1977,151 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     _i2.OpeningDetails? details,
   ) =>
       (super.noSuchMethod(
-        Invocation.method(#beforeOpen, [executor, details]),
+        Invocation.method(
+          #beforeOpen,
+          [
+            executor,
+            details,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> close() => (super.noSuchMethod(
-        Invocation.method(#close, []),
+        Invocation.method(
+          #close,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Stream<T> createStream<T extends Object>(
-    _i4.QueryStreamFetcher<T>? stmt,
-  ) =>
+          _i4.QueryStreamFetcher<T>? stmt) =>
       (super.noSuchMethod(
-        Invocation.method(#createStream, [stmt]),
+        Invocation.method(
+          #createStream,
+          [stmt],
+        ),
         returnValue: _i5.Stream<T>.empty(),
       ) as _i5.Stream<T>);
 
   @override
-  T alias<T, D>(_i2.ResultSetImplementation<T, D>? table, String? alias) =>
+  T alias<T, D>(
+    _i2.ResultSetImplementation<T, D>? table,
+    String? alias,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#alias, [table, alias]),
+        Invocation.method(
+          #alias,
+          [
+            table,
+            alias,
+          ],
+        ),
         returnValue: _i9.dummyValue<T>(
           this,
-          Invocation.method(#alias, [table, alias]),
+          Invocation.method(
+            #alias,
+            [
+              table,
+              alias,
+            ],
+          ),
         ),
       ) as T);
 
   @override
   void markTablesUpdated(Iterable<_i2.TableInfo<_i2.Table, dynamic>>? tables) =>
       super.noSuchMethod(
-        Invocation.method(#markTablesUpdated, [tables]),
+        Invocation.method(
+          #markTablesUpdated,
+          [tables],
+        ),
         returnValueForMissingStub: null,
       );
 
   @override
   void notifyUpdates(Set<_i2.TableUpdate>? updates) => super.noSuchMethod(
-        Invocation.method(#notifyUpdates, [updates]),
+        Invocation.method(
+          #notifyUpdates,
+          [updates],
+        ),
         returnValueForMissingStub: null,
       );
 
   @override
-  _i5.Stream<Set<_i2.TableUpdate>> tableUpdates([
-    _i2.TableUpdateQuery? query = const _i2.TableUpdateQuery.any(),
-  ]) =>
+  _i5.Stream<Set<_i2.TableUpdate>> tableUpdates(
+          [_i2.TableUpdateQuery? query = const _i2.TableUpdateQuery.any()]) =>
       (super.noSuchMethod(
-        Invocation.method(#tableUpdates, [query]),
+        Invocation.method(
+          #tableUpdates,
+          [query],
+        ),
         returnValue: _i5.Stream<Set<_i2.TableUpdate>>.empty(),
       ) as _i5.Stream<Set<_i2.TableUpdate>>);
 
   @override
   _i5.Future<T> doWhenOpened<T>(
-    _i5.FutureOr<T> Function(_i2.QueryExecutor)? fn,
-  ) =>
+          _i5.FutureOr<T> Function(_i2.QueryExecutor)? fn) =>
       (super.noSuchMethod(
-        Invocation.method(#doWhenOpened, [fn]),
+        Invocation.method(
+          #doWhenOpened,
+          [fn],
+        ),
         returnValue: _i9.ifNotNull(
               _i9.dummyValueOrNull<T>(
                 this,
-                Invocation.method(#doWhenOpened, [fn]),
+                Invocation.method(
+                  #doWhenOpened,
+                  [fn],
+                ),
               ),
               (T v) => _i5.Future<T>.value(v),
             ) ??
-            _FakeFuture_21<T>(this, Invocation.method(#doWhenOpened, [fn])),
+            _FakeFuture_21<T>(
+              this,
+              Invocation.method(
+                #doWhenOpened,
+                [fn],
+              ),
+            ),
       ) as _i5.Future<T>);
 
   @override
   _i2.InsertStatement<T, D> into<T extends _i2.Table, D>(
-    _i2.TableInfo<T, D>? table,
-  ) =>
+          _i2.TableInfo<T, D>? table) =>
       (super.noSuchMethod(
-        Invocation.method(#into, [table]),
+        Invocation.method(
+          #into,
+          [table],
+        ),
         returnValue: _FakeInsertStatement_22<T, D>(
           this,
-          Invocation.method(#into, [table]),
+          Invocation.method(
+            #into,
+            [table],
+          ),
         ),
       ) as _i2.InsertStatement<T, D>);
 
   @override
   _i2.UpdateStatement<Tbl, R> update<Tbl extends _i2.Table, R>(
-    _i2.TableInfo<Tbl, R>? table,
-  ) =>
+          _i2.TableInfo<Tbl, R>? table) =>
       (super.noSuchMethod(
-        Invocation.method(#update, [table]),
+        Invocation.method(
+          #update,
+          [table],
+        ),
         returnValue: _FakeUpdateStatement_23<Tbl, R>(
           this,
-          Invocation.method(#update, [table]),
+          Invocation.method(
+            #update,
+            [table],
+          ),
         ),
       ) as _i2.UpdateStatement<Tbl, R>);
 
@@ -1528,10 +2131,18 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     bool? distinct = false,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#select, [table], {#distinct: distinct}),
+        Invocation.method(
+          #select,
+          [table],
+          {#distinct: distinct},
+        ),
         returnValue: _FakeSimpleSelectStatement_24<T, R>(
           this,
-          Invocation.method(#select, [table], {#distinct: distinct}),
+          Invocation.method(
+            #select,
+            [table],
+            {#distinct: distinct},
+          ),
         ),
       ) as _i2.SimpleSelectStatement<T, R>);
 
@@ -1541,34 +2152,52 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     bool? distinct = false,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#selectOnly, [table], {#distinct: distinct}),
+        Invocation.method(
+          #selectOnly,
+          [table],
+          {#distinct: distinct},
+        ),
         returnValue: _FakeJoinedSelectStatement_25<T, R>(
           this,
-          Invocation.method(#selectOnly, [table], {#distinct: distinct}),
+          Invocation.method(
+            #selectOnly,
+            [table],
+            {#distinct: distinct},
+          ),
         ),
       ) as _i2.JoinedSelectStatement<T, R>);
 
   @override
   _i2.BaseSelectStatement<_i2.TypedResult> selectExpressions(
-    Iterable<_i2.Expression<Object>>? columns,
-  ) =>
+          Iterable<_i2.Expression<Object>>? columns) =>
       (super.noSuchMethod(
-        Invocation.method(#selectExpressions, [columns]),
+        Invocation.method(
+          #selectExpressions,
+          [columns],
+        ),
         returnValue: _FakeBaseSelectStatement_26<_i2.TypedResult>(
           this,
-          Invocation.method(#selectExpressions, [columns]),
+          Invocation.method(
+            #selectExpressions,
+            [columns],
+          ),
         ),
       ) as _i2.BaseSelectStatement<_i2.TypedResult>);
 
   @override
   _i2.DeleteStatement<T, D> delete<T extends _i2.Table, D>(
-    _i2.TableInfo<T, D>? table,
-  ) =>
+          _i2.TableInfo<T, D>? table) =>
       (super.noSuchMethod(
-        Invocation.method(#delete, [table]),
+        Invocation.method(
+          #delete,
+          [table],
+        ),
         returnValue: _FakeDeleteStatement_27<T, D>(
           this,
-          Invocation.method(#delete, [table]),
+          Invocation.method(
+            #delete,
+            [table],
+          ),
         ),
       ) as _i2.DeleteStatement<T, D>);
 
@@ -1602,7 +2231,10 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #customInsert,
           [query],
-          {#variables: variables, #updates: updates},
+          {
+            #variables: variables,
+            #updates: updates,
+          },
         ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
@@ -1637,14 +2269,20 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #customSelect,
           [query],
-          {#variables: variables, #readsFrom: readsFrom},
+          {
+            #variables: variables,
+            #readsFrom: readsFrom,
+          },
         ),
         returnValue: _FakeSelectable_28<_i2.QueryRow>(
           this,
           Invocation.method(
             #customSelect,
             [query],
-            {#variables: variables, #readsFrom: readsFrom},
+            {
+              #variables: variables,
+              #readsFrom: readsFrom,
+            },
           ),
         ),
       ) as _i2.Selectable<_i2.QueryRow>);
@@ -1659,22 +2297,37 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #customSelectQuery,
           [query],
-          {#variables: variables, #readsFrom: readsFrom},
+          {
+            #variables: variables,
+            #readsFrom: readsFrom,
+          },
         ),
         returnValue: _FakeSelectable_28<_i2.QueryRow>(
           this,
           Invocation.method(
             #customSelectQuery,
             [query],
-            {#variables: variables, #readsFrom: readsFrom},
+            {
+              #variables: variables,
+              #readsFrom: readsFrom,
+            },
           ),
         ),
       ) as _i2.Selectable<_i2.QueryRow>);
 
   @override
-  _i5.Future<void> customStatement(String? statement, [List<dynamic>? args]) =>
+  _i5.Future<void> customStatement(
+    String? statement, [
+    List<dynamic>? args,
+  ]) =>
       (super.noSuchMethod(
-        Invocation.method(#customStatement, [statement, args]),
+        Invocation.method(
+          #customStatement,
+          [
+            statement,
+            args,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1714,24 +2367,36 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   @override
   _i5.Future<T> exclusively<T>(_i5.Future<T> Function()? action) =>
       (super.noSuchMethod(
-        Invocation.method(#exclusively, [action]),
+        Invocation.method(
+          #exclusively,
+          [action],
+        ),
         returnValue: _i9.ifNotNull(
               _i9.dummyValueOrNull<T>(
                 this,
-                Invocation.method(#exclusively, [action]),
+                Invocation.method(
+                  #exclusively,
+                  [action],
+                ),
               ),
               (T v) => _i5.Future<T>.value(v),
             ) ??
             _FakeFuture_21<T>(
               this,
-              Invocation.method(#exclusively, [action]),
+              Invocation.method(
+                #exclusively,
+                [action],
+              ),
             ),
       ) as _i5.Future<T>);
 
   @override
   _i5.Future<void> batch(_i5.FutureOr<void> Function(_i2.Batch)? runInBatch) =>
       (super.noSuchMethod(
-        Invocation.method(#batch, [runInBatch]),
+        Invocation.method(
+          #batch,
+          [runInBatch],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1778,7 +2443,10 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
         Invocation.method(
           #$write,
           [component],
-          {#hasMultipleTables: hasMultipleTables, #startIndex: startIndex},
+          {
+            #hasMultipleTables: hasMultipleTables,
+            #startIndex: startIndex,
+          },
         ),
         returnValue: _FakeGenerationContext_29(
           this,
@@ -1802,25 +2470,47 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
       (super.noSuchMethod(
         Invocation.method(
           #$writeInsertable,
-          [table, insertable],
+          [
+            table,
+            insertable,
+          ],
           {#startIndex: startIndex},
         ),
         returnValue: _FakeGenerationContext_29(
           this,
           Invocation.method(
             #$writeInsertable,
-            [table, insertable],
+            [
+              table,
+              insertable,
+            ],
             {#startIndex: startIndex},
           ),
         ),
       ) as _i2.GenerationContext);
 
   @override
-  String $expandVar(int? start, int? amount) => (super.noSuchMethod(
-        Invocation.method(#$expandVar, [start, amount]),
+  String $expandVar(
+    int? start,
+    int? amount,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #$expandVar,
+          [
+            start,
+            amount,
+          ],
+        ),
         returnValue: _i9.dummyValue<String>(
           this,
-          Invocation.method(#$expandVar, [start, amount]),
+          Invocation.method(
+            #$expandVar,
+            [
+              start,
+              amount,
+            ],
+          ),
         ),
       ) as String);
 }
@@ -1836,19 +2526,28 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i3.AppDb get db => (super.noSuchMethod(
         Invocation.getter(#db),
-        returnValue: _FakeAppDb_30(this, Invocation.getter(#db)),
+        returnValue: _FakeAppDb_30(
+          this,
+          Invocation.getter(#db),
+        ),
       ) as _i3.AppDb);
 
   @override
   _i6.CryptoBox get crypto => (super.noSuchMethod(
         Invocation.getter(#crypto),
-        returnValue: _FakeCryptoBox_31(this, Invocation.getter(#crypto)),
+        returnValue: _FakeCryptoBox_31(
+          this,
+          Invocation.getter(#crypto),
+        ),
       ) as _i6.CryptoBox);
 
   @override
   _i7.SupabaseNoteApi get api => (super.noSuchMethod(
         Invocation.getter(#api),
-        returnValue: _FakeSupabaseNoteApi_32(this, Invocation.getter(#api)),
+        returnValue: _FakeSupabaseNoteApi_32(
+          this,
+          Invocation.getter(#api),
+        ),
       ) as _i7.SupabaseNoteApi);
 
   @override
@@ -1863,42 +2562,59 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i5.Future<void> createOrUpdateSavedSearch(_i3.SavedSearch? savedSearch) =>
       (super.noSuchMethod(
-        Invocation.method(#createOrUpdateSavedSearch, [savedSearch]),
+        Invocation.method(
+          #createOrUpdateSavedSearch,
+          [savedSearch],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deleteSavedSearch(String? id) => (super.noSuchMethod(
-        Invocation.method(#deleteSavedSearch, [id]),
+        Invocation.method(
+          #deleteSavedSearch,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.SavedSearch>> getSavedSearches() => (super.noSuchMethod(
-        Invocation.method(#getSavedSearches, []),
-        returnValue: _i5.Future<List<_i3.SavedSearch>>.value(
-          <_i3.SavedSearch>[],
+        Invocation.method(
+          #getSavedSearches,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.SavedSearch>>.value(<_i3.SavedSearch>[]),
       ) as _i5.Future<List<_i3.SavedSearch>>);
 
   @override
   _i5.Stream<List<_i3.SavedSearch>> watchSavedSearches() => (super.noSuchMethod(
-        Invocation.method(#watchSavedSearches, []),
+        Invocation.method(
+          #watchSavedSearches,
+          [],
+        ),
         returnValue: _i5.Stream<List<_i3.SavedSearch>>.empty(),
       ) as _i5.Stream<List<_i3.SavedSearch>>);
 
   @override
   _i5.Future<void> toggleSavedSearchPin(String? id) => (super.noSuchMethod(
-        Invocation.method(#toggleSavedSearchPin, [id]),
+        Invocation.method(
+          #toggleSavedSearchPin,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> trackSavedSearchUsage(String? id) => (super.noSuchMethod(
-        Invocation.method(#trackSavedSearchUsage, [id]),
+        Invocation.method(
+          #trackSavedSearchUsage,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1906,63 +2622,102 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i5.Future<void> reorderSavedSearches(List<String>? ids) =>
       (super.noSuchMethod(
-        Invocation.method(#reorderSavedSearches, [ids]),
+        Invocation.method(
+          #reorderSavedSearches,
+          [ids],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> executeSavedSearch(
-    _i3.SavedSearch? savedSearch,
-  ) =>
+          _i3.SavedSearch? savedSearch) =>
       (super.noSuchMethod(
-        Invocation.method(#executeSavedSearch, [savedSearch]),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #executeSavedSearch,
+          [savedSearch],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<void> toggleNotePin(String? noteId) => (super.noSuchMethod(
-        Invocation.method(#toggleNotePin, [noteId]),
+        Invocation.method(
+          #toggleNotePin,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> setNotePin(String? noteId, bool? isPinned) =>
+  _i5.Future<void> setNotePin(
+    String? noteId,
+    bool? isPinned,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#setNotePin, [noteId, isPinned]),
+        Invocation.method(
+          #setNotePin,
+          [
+            noteId,
+            isPinned,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> getPinnedNotes() => (super.noSuchMethod(
-        Invocation.method(#getPinnedNotes, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getPinnedNotes,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.TagCount>> listTagsWithCounts() => (super.noSuchMethod(
-        Invocation.method(#listTagsWithCounts, []),
+        Invocation.method(
+          #listTagsWithCounts,
+          [],
+        ),
         returnValue: _i5.Future<List<_i3.TagCount>>.value(<_i3.TagCount>[]),
       ) as _i5.Future<List<_i3.TagCount>>);
 
   @override
-  _i5.Future<void> addTag({required String? noteId, required String? tag}) =>
+  _i5.Future<void> addTag({
+    required String? noteId,
+    required String? tag,
+  }) =>
       (super.noSuchMethod(
-        Invocation.method(#addTag, [], {#noteId: noteId, #tag: tag}),
+        Invocation.method(
+          #addTag,
+          [],
+          {
+            #noteId: noteId,
+            #tag: tag,
+          },
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> removeTag({required String? noteId, required String? tag}) =>
+  _i5.Future<void> removeTag({
+    required String? noteId,
+    required String? tag,
+  }) =>
       (super.noSuchMethod(
-        Invocation.method(#removeTag, [], {#noteId: noteId, #tag: tag}),
+        Invocation.method(
+          #removeTag,
+          [],
+          {
+            #noteId: noteId,
+            #tag: tag,
+          },
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -1973,7 +2728,14 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     required String? to,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#renameTagEverywhere, [], {#from: from, #to: to}),
+        Invocation.method(
+          #renameTagEverywhere,
+          [],
+          {
+            #from: from,
+            #to: to,
+          },
+        ),
         returnValue: _i5.Future<int>.value(0),
       ) as _i5.Future<int>);
 
@@ -1984,45 +2746,62 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     List<String>? noneTags = const [],
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#queryNotesByTags, [], {
-          #anyTags: anyTags,
-          #sort: sort,
-          #noneTags: noneTags,
-        }),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #queryNotesByTags,
+          [],
+          {
+            #anyTags: anyTags,
+            #sort: sort,
+            #noneTags: noneTags,
+          },
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<String>> searchTags(String? prefix) => (super.noSuchMethod(
-        Invocation.method(#searchTags, [prefix]),
+        Invocation.method(
+          #searchTags,
+          [prefix],
+        ),
         returnValue: _i5.Future<List<String>>.value(<String>[]),
       ) as _i5.Future<List<String>>);
 
   @override
   _i5.Future<List<String>> getTagsForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getTagsForNote, [noteId]),
+        Invocation.method(
+          #getTagsForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<List<String>>.value(<String>[]),
       ) as _i5.Future<List<String>>);
 
   @override
   _i5.Future<_i3.LocalNote?> getLocalNoteById(String? id) =>
       (super.noSuchMethod(
-        Invocation.method(#getLocalNoteById, [id]),
+        Invocation.method(
+          #getLocalNoteById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Future<_i3.LocalNote?> getNote(String? id) => (super.noSuchMethod(
-        Invocation.method(#getNote, [id]),
+        Invocation.method(
+          #getNote,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Future<_i3.LocalNote?> getNoteById(String? id) => (super.noSuchMethod(
-        Invocation.method(#getNoteById, [id]),
+        Invocation.method(
+          #getNoteById,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
@@ -2033,11 +2812,15 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     String? folderId,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createNote, [], {
-          #title: title,
-          #body: body,
-          #folderId: folderId,
-        }),
+        Invocation.method(
+          #createNote,
+          [],
+          {
+            #title: title,
+            #body: body,
+            #folderId: folderId,
+          },
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
@@ -2048,7 +2831,14 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     required String? body,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#updateNote, [id], {#title: title, #body: body}),
+        Invocation.method(
+          #updateNote,
+          [id],
+          {
+            #title: title,
+            #body: body,
+          },
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
@@ -2065,35 +2855,42 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     bool? isPinned,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createOrUpdate, [], {
-          #title: title,
-          #body: body,
-          #id: id,
-          #updatedAt: updatedAt,
-          #tags: tags,
-          #links: links,
-          #attachmentMeta: attachmentMeta,
-          #metadataJson: metadataJson,
-          #isPinned: isPinned,
-        }),
+        Invocation.method(
+          #createOrUpdate,
+          [],
+          {
+            #title: title,
+            #body: body,
+            #id: id,
+            #updatedAt: updatedAt,
+            #tags: tags,
+            #links: links,
+            #attachmentMeta: attachmentMeta,
+            #metadataJson: metadataJson,
+            #isPinned: isPinned,
+          },
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> getRecentlyViewedNotes({int? limit = 5}) =>
       (super.noSuchMethod(
-        Invocation.method(#getRecentlyViewedNotes, [], {#limit: limit}),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getRecentlyViewedNotes,
+          [],
+          {#limit: limit},
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> localNotes() => (super.noSuchMethod(
-        Invocation.method(#localNotes, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #localNotes,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -2102,10 +2899,12 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     int? limit = 20,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#listAfter, [cursor], {#limit: limit}),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #listAfter,
+          [cursor],
+          {#limit: limit},
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -2141,24 +2940,31 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
 
   @override
   _i5.Future<void> deleteNote(String? id) => (super.noSuchMethod(
-        Invocation.method(#deleteNote, [id]),
+        Invocation.method(
+          #deleteNote,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> delete(String? id) => (super.noSuchMethod(
-        Invocation.method(#delete, [id]),
+        Invocation.method(
+          #delete,
+          [id],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> listTemplates() => (super.noSuchMethod(
-        Invocation.method(#listTemplates, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #listTemplates,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -2169,48 +2975,65 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     Map<String, dynamic>? metadata,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createTemplate, [], {
-          #title: title,
-          #body: body,
-          #tags: tags,
-          #metadata: metadata,
-        }),
+        Invocation.method(
+          #createTemplate,
+          [],
+          {
+            #title: title,
+            #body: body,
+            #tags: tags,
+            #metadata: metadata,
+          },
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Future<_i3.LocalNote?> createNoteFromTemplate(String? templateId) =>
       (super.noSuchMethod(
-        Invocation.method(#createNoteFromTemplate, [templateId]),
+        Invocation.method(
+          #createNoteFromTemplate,
+          [templateId],
+        ),
         returnValue: _i5.Future<_i3.LocalNote?>.value(),
       ) as _i5.Future<_i3.LocalNote?>);
 
   @override
   _i5.Future<bool> deleteTemplate(String? templateId) => (super.noSuchMethod(
-        Invocation.method(#deleteTemplate, [templateId]),
+        Invocation.method(
+          #deleteTemplate,
+          [templateId],
+        ),
         returnValue: _i5.Future<bool>.value(false),
       ) as _i5.Future<bool>);
 
   @override
   _i5.Future<_i3.LocalFolder?> getFolder(String? id) => (super.noSuchMethod(
-        Invocation.method(#getFolder, [id]),
+        Invocation.method(
+          #getFolder,
+          [id],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> listFolders() => (super.noSuchMethod(
-        Invocation.method(#listFolders, []),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #listFolders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalFolder>> getRootFolders() => (super.noSuchMethod(
-        Invocation.method(#getRootFolders, []),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getRootFolders,
+          [],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
@@ -2224,19 +3047,25 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     int? sortOrder,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createOrUpdateFolder, [], {
-          #name: name,
-          #id: id,
-          #parentId: parentId,
-          #color: color,
-          #icon: icon,
-          #description: description,
-          #sortOrder: sortOrder,
-        }),
-        returnValue: _i5.Future<String>.value(
-          _i9.dummyValue<String>(
-            this,
-            Invocation.method(#createOrUpdateFolder, [], {
+        Invocation.method(
+          #createOrUpdateFolder,
+          [],
+          {
+            #name: name,
+            #id: id,
+            #parentId: parentId,
+            #color: color,
+            #icon: icon,
+            #description: description,
+            #sortOrder: sortOrder,
+          },
+        ),
+        returnValue: _i5.Future<String>.value(_i9.dummyValue<String>(
+          this,
+          Invocation.method(
+            #createOrUpdateFolder,
+            [],
+            {
               #name: name,
               #id: id,
               #parentId: parentId,
@@ -2244,9 +3073,9 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
               #icon: icon,
               #description: description,
               #sortOrder: sortOrder,
-            }),
+            },
           ),
-        ),
+        )),
       ) as _i5.Future<String>);
 
   @override
@@ -2258,46 +3087,73 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     String? description,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createFolder, [], {
-          #name: name,
-          #parentId: parentId,
-          #color: color,
-          #icon: icon,
-          #description: description,
-        }),
-        returnValue: _i5.Future<_i3.LocalFolder>.value(
-          _FakeLocalFolder_34(
-            this,
-            Invocation.method(#createFolder, [], {
+        Invocation.method(
+          #createFolder,
+          [],
+          {
+            #name: name,
+            #parentId: parentId,
+            #color: color,
+            #icon: icon,
+            #description: description,
+          },
+        ),
+        returnValue: _i5.Future<_i3.LocalFolder>.value(_FakeLocalFolder_34(
+          this,
+          Invocation.method(
+            #createFolder,
+            [],
+            {
               #name: name,
               #parentId: parentId,
               #color: color,
               #icon: icon,
               #description: description,
-            }),
+            },
           ),
-        ),
+        )),
       ) as _i5.Future<_i3.LocalFolder>);
 
   @override
-  _i5.Future<void> renameFolder(String? folderId, String? newName) =>
+  _i5.Future<void> renameFolder(
+    String? folderId,
+    String? newName,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#renameFolder, [folderId, newName]),
+        Invocation.method(
+          #renameFolder,
+          [
+            folderId,
+            newName,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> moveFolder(String? folderId, String? newParentId) =>
+  _i5.Future<void> moveFolder(
+    String? folderId,
+    String? newParentId,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#moveFolder, [folderId, newParentId]),
+        Invocation.method(
+          #moveFolder,
+          [
+            folderId,
+            newParentId,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> deleteFolder(String? folderId) => (super.noSuchMethod(
-        Invocation.method(#deleteFolder, [folderId]),
+        Invocation.method(
+          #deleteFolder,
+          [folderId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2305,52 +3161,81 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i5.Future<List<_i3.LocalNote>> getNotesInFolder(String? folderId) =>
       (super.noSuchMethod(
-        Invocation.method(#getNotesInFolder, [folderId]),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getNotesInFolder,
+          [folderId],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> getUnfiledNotes() => (super.noSuchMethod(
-        Invocation.method(#getUnfiledNotes, []),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #getUnfiledNotes,
+          [],
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
-  _i5.Future<void> addNoteToFolder(String? noteId, String? folderId) =>
+  _i5.Future<void> addNoteToFolder(
+    String? noteId,
+    String? folderId,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#addNoteToFolder, [noteId, folderId]),
+        Invocation.method(
+          #addNoteToFolder,
+          [
+            noteId,
+            folderId,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<void> moveNoteToFolder(String? noteId, String? folderId) =>
+  _i5.Future<void> moveNoteToFolder(
+    String? noteId,
+    String? folderId,
+  ) =>
       (super.noSuchMethod(
-        Invocation.method(#moveNoteToFolder, [noteId, folderId]),
+        Invocation.method(
+          #moveNoteToFolder,
+          [
+            noteId,
+            folderId,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> removeNoteFromFolder(String? noteId) => (super.noSuchMethod(
-        Invocation.method(#removeNoteFromFolder, [noteId]),
+        Invocation.method(
+          #removeNoteFromFolder,
+          [noteId],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<Map<String, int>> getFolderNoteCounts() => (super.noSuchMethod(
-        Invocation.method(#getFolderNoteCounts, []),
+        Invocation.method(
+          #getFolderNoteCounts,
+          [],
+        ),
         returnValue: _i5.Future<Map<String, int>>.value(<String, int>{}),
       ) as _i5.Future<Map<String, int>>);
 
   @override
   _i5.Future<void> ensureFolderIntegrity() => (super.noSuchMethod(
-        Invocation.method(#ensureFolderIntegrity, []),
+        Invocation.method(
+          #ensureFolderIntegrity,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2358,36 +3243,50 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i5.Future<_i3.LocalFolder?> getFolderForNote(String? noteId) =>
       (super.noSuchMethod(
-        Invocation.method(#getFolderForNote, [noteId]),
+        Invocation.method(
+          #getFolderForNote,
+          [noteId],
+        ),
         returnValue: _i5.Future<_i3.LocalFolder?>.value(),
       ) as _i5.Future<_i3.LocalFolder?>);
 
   @override
   _i5.Future<Map<String, dynamic>> performFolderHealthCheck() =>
       (super.noSuchMethod(
-        Invocation.method(#performFolderHealthCheck, []),
-        returnValue: _i5.Future<Map<String, dynamic>>.value(
-          <String, dynamic>{},
+        Invocation.method(
+          #performFolderHealthCheck,
+          [],
         ),
+        returnValue:
+            _i5.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
       ) as _i5.Future<Map<String, dynamic>>);
 
   @override
   _i5.Future<void> validateAndRepairFolderStructure() => (super.noSuchMethod(
-        Invocation.method(#validateAndRepairFolderStructure, []),
+        Invocation.method(
+          #validateAndRepairFolderStructure,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> cleanupOrphanedRelationships() => (super.noSuchMethod(
-        Invocation.method(#cleanupOrphanedRelationships, []),
+        Invocation.method(
+          #cleanupOrphanedRelationships,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> resolveFolderConflicts() => (super.noSuchMethod(
-        Invocation.method(#resolveFolderConflicts, []),
+        Invocation.method(
+          #resolveFolderConflicts,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2395,18 +3294,22 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
   @override
   _i5.Future<List<_i3.LocalFolder>> getChildFolders(String? parentId) =>
       (super.noSuchMethod(
-        Invocation.method(#getChildFolders, [parentId]),
-        returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
-          <_i3.LocalFolder>[],
+        Invocation.method(
+          #getChildFolders,
+          [parentId],
         ),
+        returnValue:
+            _i5.Future<List<_i3.LocalFolder>>.value(<_i3.LocalFolder>[]),
       ) as _i5.Future<List<_i3.LocalFolder>>);
 
   @override
   _i5.Future<List<_i3.LocalNote>> list({int? limit}) => (super.noSuchMethod(
-        Invocation.method(#list, [], {#limit: limit}),
-        returnValue: _i5.Future<List<_i3.LocalNote>>.value(
-          <_i3.LocalNote>[],
+        Invocation.method(
+          #list,
+          [],
+          {#limit: limit},
         ),
+        returnValue: _i5.Future<List<_i3.LocalNote>>.value(<_i3.LocalNote>[]),
       ) as _i5.Future<List<_i3.LocalNote>>);
 
   @override
@@ -2418,60 +3321,85 @@ class MockNotesRepository extends _i1.Mock implements _i10.NotesRepository {
     _i3.SortSpec? sort,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#watchNotes, [], {
-          #folderId: folderId,
-          #anyTags: anyTags,
-          #noneTags: noneTags,
-          #pinnedFirst: pinnedFirst,
-          #sort: sort,
-        }),
+        Invocation.method(
+          #watchNotes,
+          [],
+          {
+            #folderId: folderId,
+            #anyTags: anyTags,
+            #noneTags: noneTags,
+            #pinnedFirst: pinnedFirst,
+            #sort: sort,
+          },
+        ),
         returnValue: _i5.Stream<List<_i3.LocalNote>>.empty(),
       ) as _i5.Stream<List<_i3.LocalNote>>);
 
   @override
   _i5.Future<void> pushAllPending() => (super.noSuchMethod(
-        Invocation.method(#pushAllPending, []),
+        Invocation.method(
+          #pushAllPending,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> pullSince(DateTime? since) => (super.noSuchMethod(
-        Invocation.method(#pullSince, [since]),
+        Invocation.method(
+          #pullSince,
+          [since],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<Set<String>> fetchRemoteActiveIds() => (super.noSuchMethod(
-        Invocation.method(#fetchRemoteActiveIds, []),
+        Invocation.method(
+          #fetchRemoteActiveIds,
+          [],
+        ),
         returnValue: _i5.Future<Set<String>>.value(<String>{}),
       ) as _i5.Future<Set<String>>);
 
   @override
   _i5.Future<void> reconcileHardDeletes(Set<String>? remoteIds) =>
       (super.noSuchMethod(
-        Invocation.method(#reconcileHardDeletes, [remoteIds]),
+        Invocation.method(
+          #reconcileHardDeletes,
+          [remoteIds],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> reconcile() => (super.noSuchMethod(
-        Invocation.method(#reconcile, []),
+        Invocation.method(
+          #reconcile,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<DateTime?> getLastSyncTime() => (super.noSuchMethod(
-        Invocation.method(#getLastSyncTime, []),
+        Invocation.method(
+          #getLastSyncTime,
+          [],
+        ),
         returnValue: _i5.Future<DateTime?>.value(),
       ) as _i5.Future<DateTime?>);
 
   @override
   _i5.Future<void> sync() => (super.noSuchMethod(
-        Invocation.method(#sync, []),
+        Invocation.method(
+          #sync,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2488,7 +3416,10 @@ class MockTaskReminderBridge extends _i1.Mock
 
   @override
   _i5.Future<void> initialize() => (super.noSuchMethod(
-        Invocation.method(#initialize, []),
+        Invocation.method(
+          #initialize,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2499,17 +3430,24 @@ class MockTaskReminderBridge extends _i1.Mock
     Duration? beforeDueDate,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#createTaskReminder, [], {
-          #task: task,
-          #beforeDueDate: beforeDueDate,
-        }),
+        Invocation.method(
+          #createTaskReminder,
+          [],
+          {
+            #task: task,
+            #beforeDueDate: beforeDueDate,
+          },
+        ),
         returnValue: _i5.Future<int?>.value(),
       ) as _i5.Future<int?>);
 
   @override
   _i5.Future<void> updateTaskReminder(_i3.NoteTask? task) =>
       (super.noSuchMethod(
-        Invocation.method(#updateTaskReminder, [task]),
+        Invocation.method(
+          #updateTaskReminder,
+          [task],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2517,7 +3455,10 @@ class MockTaskReminderBridge extends _i1.Mock
   @override
   _i5.Future<void> cancelTaskReminder(_i3.NoteTask? task) =>
       (super.noSuchMethod(
-        Invocation.method(#cancelTaskReminder, [task]),
+        Invocation.method(
+          #cancelTaskReminder,
+          [task],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2528,10 +3469,14 @@ class MockTaskReminderBridge extends _i1.Mock
     required Duration? snoozeDuration,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#snoozeTaskReminder, [], {
-          #task: task,
-          #snoozeDuration: snoozeDuration,
-        }),
+        Invocation.method(
+          #snoozeTaskReminder,
+          [],
+          {
+            #task: task,
+            #snoozeDuration: snoozeDuration,
+          },
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2542,10 +3487,14 @@ class MockTaskReminderBridge extends _i1.Mock
     required String? payload,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#handleTaskNotificationAction, [], {
-          #action: action,
-          #payload: payload,
-        }),
+        Invocation.method(
+          #handleTaskNotificationAction,
+          [],
+          {
+            #action: action,
+            #payload: payload,
+          },
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2556,17 +3505,24 @@ class MockTaskReminderBridge extends _i1.Mock
     required DateTime? reminderTime,
   }) =>
       (super.noSuchMethod(
-        Invocation.method(#scheduleTaskNotification, [], {
-          #task: task,
-          #reminderTime: reminderTime,
-        }),
+        Invocation.method(
+          #scheduleTaskNotification,
+          [],
+          {
+            #task: task,
+            #reminderTime: reminderTime,
+          },
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> onTaskCreated(_i3.NoteTask? task) => (super.noSuchMethod(
-        Invocation.method(#onTaskCreated, [task]),
+        Invocation.method(
+          #onTaskCreated,
+          [task],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
@@ -2577,42 +3533,63 @@ class MockTaskReminderBridge extends _i1.Mock
     _i3.NoteTask? newTask,
   ) =>
       (super.noSuchMethod(
-        Invocation.method(#onTaskUpdated, [oldTask, newTask]),
+        Invocation.method(
+          #onTaskUpdated,
+          [
+            oldTask,
+            newTask,
+          ],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> onTaskDeleted(_i3.NoteTask? task) => (super.noSuchMethod(
-        Invocation.method(#onTaskDeleted, [task]),
+        Invocation.method(
+          #onTaskDeleted,
+          [task],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<List<_i3.NoteTask>> getTasksWithReminders() => (super.noSuchMethod(
-        Invocation.method(#getTasksWithReminders, []),
+        Invocation.method(
+          #getTasksWithReminders,
+          [],
+        ),
         returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
       ) as _i5.Future<List<_i3.NoteTask>>);
 
   @override
   _i5.Future<void> bulkUpdateTaskReminders(List<_i3.NoteTask>? tasks) =>
       (super.noSuchMethod(
-        Invocation.method(#bulkUpdateTaskReminders, [tasks]),
+        Invocation.method(
+          #bulkUpdateTaskReminders,
+          [tasks],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   _i5.Future<void> cleanupOrphanedReminders() => (super.noSuchMethod(
-        Invocation.method(#cleanupOrphanedReminders, []),
+        Invocation.method(
+          #cleanupOrphanedReminders,
+          [],
+        ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
 
   @override
   void dispose() => super.noSuchMethod(
-        Invocation.method(#dispose, []),
+        Invocation.method(
+          #dispose,
+          [],
+        ),
         returnValueForMissingStub: null,
       );
 }

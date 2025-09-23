@@ -142,5 +142,5 @@ class LoggerFactory {
   static AppLogger get instance => _instance ?? const ConsoleLogger();
 }
 
-/// Global logger instance for easy access
-final AppLogger logger = LoggerFactory.instance;
+/// Global logger instance for easy access - DEPRECATED
+/// Use loggerProvider from infrastructure_providers.dart instead

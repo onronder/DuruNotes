@@ -52,6 +52,10 @@ enable_confirmations = false
 subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"  # Commented out - template file not needed
 
+# Edge Functions configuration - SECURITY FIX
+# NOTE: Global verify_jwt not supported, must be set per function
+# Default behavior: JWT verification enabled (secure by default)
+
 [functions.email_inbox]
-# Disable JWT verification for webhook endpoints
+# Disable JWT verification for webhook endpoints only
 verify_jwt = false

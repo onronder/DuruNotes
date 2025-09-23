@@ -5,6 +5,8 @@ import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rxdart/rxdart.dart';
@@ -78,16 +80,15 @@ class NotificationPayload {
 
 /// Service for handling push notifications and displaying them
 class NotificationHandlerService {
-  NotificationHandlerService({
+  NotificationHandlerService(this._ref, {
     SupabaseClient? client,
-    AppLogger? logger,
     PushNotificationService? pushService,
   })  : _client = client ?? Supabase.instance.client,
-        _logger = logger ?? LoggerFactory.instance,
-        _pushService = pushService ?? PushNotificationService();
+        _pushService = pushService ?? PushNotificationService(_ref);
 
+  final Ref _ref;
   final SupabaseClient _client;
-  final AppLogger _logger;
+  AppLogger get _logger => _ref.read(loggerProvider);
   final PushNotificationService _pushService;
 
   // Local notifications plugin

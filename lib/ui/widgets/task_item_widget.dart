@@ -1,4 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';

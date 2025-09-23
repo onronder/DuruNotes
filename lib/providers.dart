@@ -1,7 +1,6 @@
 import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
-import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/core/settings/analytics_notifier.dart';
@@ -46,12 +45,10 @@ import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
 import 'package:duru_notes/services/template_migration_service.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
-import 'package:duru_notes/services/bidirectional_task_sync_service.dart';
-import 'package:duru_notes/services/note_task_coordinator.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
+import 'package:duru_notes/services/unified_task_service.dart' as unified;
+import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/productivity_goals_service.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:duru_notes/services/undo_redo_service.dart';
@@ -86,12 +83,18 @@ final cryptoBoxProvider = Provider<CryptoBox>((ref) {
   return CryptoBox(keyManager);
 });
 
+/// Note indexer provider
+final noteIndexerProvider = Provider<NoteIndexer>((ref) {
+  return NoteIndexer(ref);
+});
+
 /// Notes repository provider
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   // Rebuild when auth state changes
   ref.watch(authStateChangesProvider);
   final db = ref.watch(appDbProvider);
   final crypto = ref.watch(cryptoBoxProvider);
+  final indexer = ref.watch(noteIndexerProvider);
   final client = Supabase.instance.client;
   final userId = client.auth.currentUser?.id;
   if (userId == null || userId.isEmpty) {
@@ -100,7 +103,7 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 
   final api = SupabaseNoteApi(client);
 
-  return NotesRepository(db: db, crypto: crypto, api: api, client: client);
+  return NotesRepository(db: db, crypto: crypto, api: api, client: client, indexer: indexer);
 });
 
 /// Template migration service provider
@@ -241,7 +244,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 final notesPageProvider = StateNotifierProvider.autoDispose<
     NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
-  return NotesPaginationNotifier(repo)
+  return NotesPaginationNotifier(ref, repo)
     ..loadMore(); // Load first page immediately
 });
 
@@ -369,11 +372,7 @@ final Provider<AppDb> dbProvider = appDbProvider;
 
 /// Export service provider
 final exportServiceProvider = Provider<ExportService>((ref) {
-  return ExportService(
-    logger: ref.watch(loggerProvider),
-    analytics: ref.watch(analyticsProvider),
-    // attachmentService: ref.watch(attachmentServiceProvider),  // Reserved for attachment export
-  );
+  return ExportService(ref);
 });
 
 /// Task service provider
@@ -407,14 +406,14 @@ final templateRepositoryProvider = Provider<TemplateRepository>((ref) {
 
 /// Account key service (AMK) provider
 final accountKeyServiceProvider = Provider<AccountKeyService>((ref) {
-  return AccountKeyService(logger: ref.watch(loggerProvider));
+  return AccountKeyService(ref);
 });
 
 /// Push notification service provider
 final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref,
 ) {
-  final service = PushNotificationService(logger: ref.watch(loggerProvider));
+  final service = PushNotificationService(ref);
 
   // Initialize the service
   service.initialize().catchError((Object error) {
@@ -443,8 +442,8 @@ final notificationHandlerServiceProvider = Provider<NotificationHandlerService>(
     }
 
     final service = NotificationHandlerService(
+      ref,
       client: client,
-      logger: ref.watch(loggerProvider),
       pushService: ref.watch(pushNotificationServiceProvider),
     );
 
@@ -457,17 +456,14 @@ final notificationHandlerServiceProvider = Provider<NotificationHandlerService>(
 
 /// Attachment service provider
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
-  return AttachmentService(
-    logger: ref.watch(loggerProvider),
-    analytics: ref.watch(analyticsProvider),
-  );
+  return AttachmentService(ref);
 });
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(
     notesRepository: ref.watch(notesRepositoryProvider),
-    noteIndexer: NoteIndexer(logger: ref.watch(loggerProvider)),
+    noteIndexer: NoteIndexer(ref),
     logger: ref.watch(loggerProvider),
     analytics: ref.watch(analyticsProvider),
   );
@@ -932,28 +928,20 @@ final taskByIdProvider =
 
 /// Task reminder bridge provider with feature flag support
 final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
-  // Import the unified provider
-  // Note: Since the bridge expects specific types, we'll need to handle both cases
-  final featureFlags = FeatureFlags.instance;
-
-  // Get the appropriate services based on feature flags
-  final reminderCoordinator = featureFlags.useUnifiedReminders
-      ? ref.watch(unifiedReminderCoordinatorProvider)
-      : ref.watch(reminderCoordinatorProvider);
+  // Use the unified reminder coordinator
+  final reminderCoordinator = ref.watch(unifiedReminderCoordinatorProvider);
 
   final advancedReminderService = ref.watch(advancedReminderServiceProvider);
   final taskService = ref.watch(taskServiceProvider);
   final database = ref.watch(appDbProvider);
   final notificationPlugin = FlutterLocalNotificationsPlugin();
-  final navigatorKey = ref.watch(navigatorKeyProvider);
-
   final bridge = TaskReminderBridge(
+    ref,
     reminderCoordinator: reminderCoordinator,
     advancedReminderService: advancedReminderService,
     taskService: taskService,
     database: database,
     notificationPlugin: notificationPlugin,
-    navigatorKey: navigatorKey,
   );
 
   ref.onDispose(bridge.dispose);
@@ -970,56 +958,18 @@ final enhancedTaskServiceProvider = Provider<EnhancedTaskService>((ref) {
     reminderBridge: reminderBridge,
   );
 
-  // Set bidirectional sync after creation to avoid circular dependency
-  final bidirectionalSync = ref.watch(bidirectionalTaskSyncServiceProvider);
-  service.setBidirectionalSync(bidirectionalSync);
+  // Note: Bidirectional sync is now handled by UnifiedTaskService
 
   return service;
 });
 
-/// Bidirectional task sync service provider
-final bidirectionalTaskSyncServiceProvider =
-    Provider<BidirectionalTaskSyncService>((ref) {
-  final database = ref.watch(appDbProvider);
-
-  // Create service without enhanced task service to avoid circular dependency
-  // EnhancedTaskService will be passed when needed
-  return BidirectionalTaskSyncService(
-    database: database,
-    taskService: ref.watch(taskServiceProvider),
-  );
-});
-
-/// Note-task coordinator provider for managing bidirectional sync
-final noteTaskCoordinatorProvider = Provider<NoteTaskCoordinator>((ref) {
-  final database = ref.watch(appDbProvider);
-  final bidirectionalSync = ref.watch(bidirectionalTaskSyncServiceProvider);
-
-  final coordinator = NoteTaskCoordinator(
-    database: database,
-    bidirectionalSync: bidirectionalSync,
-  );
-
-  ref.onDispose(coordinator.dispose);
-  return coordinator;
-});
-
-/// Hierarchical task sync service provider
-final hierarchicalTaskSyncServiceProvider =
-    Provider<HierarchicalTaskSyncService>((ref) {
-  final database = ref.watch(appDbProvider);
-  final enhancedTaskService = ref.watch(enhancedTaskServiceProvider);
-
-  return HierarchicalTaskSyncService(
-    database: database,
-    enhancedTaskService: enhancedTaskService,
-  );
-});
+// DEPRECATED: Task service providers have been consolidated into UnifiedTaskService
+// See lib/services/unified_task_service.dart and unifiedTaskServiceProvider
 
 /// Task analytics service provider
 final taskAnalyticsServiceProvider = Provider<TaskAnalyticsService>((ref) {
   final database = ref.watch(appDbProvider);
-  return TaskAnalyticsService(database: database);
+  return TaskAnalyticsService(ref, database: database);
 });
 
 /// Productivity goals service provider
@@ -1028,10 +978,17 @@ final productivityGoalsServiceProvider =
   final database = ref.watch(appDbProvider);
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
 
-  return ProductivityGoalsService(
+  final service = ProductivityGoalsService(
     database: database,
     analyticsService: analyticsService,
   );
+
+  // Dispose the service when provider is disposed to prevent memory leaks
+  ref.onDispose(() {
+    service.dispose();
+  });
+
+  return service;
 });
 
 /// Stream provider for active productivity goals
@@ -1047,4 +1004,80 @@ final activeGoalsProvider =
     await goalsService.updateAllGoalProgress();
     return goalsService.getActiveGoals();
   }).asyncMap((future) => future);
+});
+
+// ===== UNIFIED TASK SERVICE PROVIDERS =====
+
+/// Provider for the unified task service that consolidates all task functionality
+final unifiedTaskServiceProvider = Provider<unified.UnifiedTaskService>((ref) {
+  final db = ref.watch(appDbProvider);
+  final logger = LoggerFactory.instance;
+  final analytics = AnalyticsFactory.instance;
+
+  // Create enhanced task service internally to avoid circular dependency
+  // Use a lazy approach to prevent initialization loops
+  final reminderBridge = ref.watch(taskReminderBridgeProvider);
+
+  late final EnhancedTaskService enhancedService;
+  late final unified.UnifiedTaskService service;
+
+  // Initialize enhanced service after unified service is created
+  enhancedService = EnhancedTaskService(
+    database: db,
+    reminderBridge: reminderBridge,
+  );
+
+  service = unified.UnifiedTaskService(
+    db: db,
+    logger: logger,
+    analytics: analytics,
+    enhancedTaskService: enhancedService,
+  );
+
+  // CRITICAL: Dispose the service when provider is disposed to prevent memory leaks
+  ref.onDispose(() {
+    try {
+      service.dispose();
+    } catch (e) {
+      logger.error('Error disposing UnifiedTaskService', error: e);
+    }
+  });
+
+  return service;
+});
+
+/// Provider for task updates stream
+final unifiedTaskUpdatesProvider = StreamProvider<unified.TaskUpdate>((ref) {
+  final service = ref.watch(unifiedTaskServiceProvider);
+  return service.taskUpdates;
+});
+
+/// Provider for tasks by note using unified service
+final unifiedTasksForNoteProvider =
+    FutureProvider.family<List<NoteTask>, String>((ref, noteId) {
+  final service = ref.watch(unifiedTaskServiceProvider);
+  return service.getTasksForNote(noteId);
+});
+
+/// Provider for task statistics using unified service
+final unifiedTaskStatisticsProvider = FutureProvider<unified.TaskStatistics>((ref) {
+  final service = ref.watch(unifiedTaskServiceProvider);
+
+  // Refresh when task updates occur
+  ref.watch(unifiedTaskUpdatesProvider);
+
+  return service.getTaskStatistics();
+});
+
+/// Supabase Note API provider for sync verification system
+final supabaseNoteApiProvider = Provider<SupabaseNoteApi>((ref) {
+  // Rebuild when auth state changes
+  ref.watch(authStateChangesProvider);
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  if (userId == null || userId.isEmpty) {
+    throw StateError('SupabaseNoteApi requested without an authenticated user');
+  }
+
+  return SupabaseNoteApi(client);
 });

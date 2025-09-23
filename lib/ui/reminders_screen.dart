@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart'
     show NoteReminder, NoteRemindersCompanion, RecurrencePattern, ReminderType;
-import 'package:duru_notes/main.dart'; // for global `logger`
+import 'package:duru_notes/main.dart'; // for global `ref.read(loggerProvider)`
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/providers/feature_flagged_providers.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,8 +34,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   void initState() {
     super.initState();
     _loadReminders();
-    // Log screen view analytics
-    analytics.event(
+    // Log screen view ref.read(analyticsProvider)
+    ref.read(analyticsProvider).event(
       'screen_view',
       properties: {
         'screen': 'RemindersScreen',
@@ -47,16 +48,16 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   Future<void> _loadReminders() async {
     try {
       // Load reminders from the coordinator service
-      final coordinator = ref.read(reminderCoordinatorProvider);
+      final coordinator = ref.read(featureFlaggedReminderCoordinatorProvider);
       final reminders = await coordinator.getRemindersForNote(widget.noteId);
       if (mounted) {
         setState(() {
-          _reminders = reminders;
+          _reminders = reminders != null ? List<NoteReminder>.from(reminders as List) : [];
           _loading = false;
         });
       }
     } catch (e, stack) {
-      logger.error('Failed to load reminders', error: e, stackTrace: stack);
+      ref.read(loggerProvider).error('Failed to load reminders', error: e, stackTrace: stack);
       if (mounted) {
         setState(() {
           _loading = false;
@@ -304,7 +305,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         ).showSnackBar(const SnackBar(content: Text('Reminder un-snoozed')));
       }
     } catch (e, stack) {
-      logger.error('Failed to unsnooze reminder', error: e, stackTrace: stack);
+      ref.read(loggerProvider).error('Failed to unsnooze reminder', error: e, stackTrace: stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to unsnooze reminder')),
@@ -323,7 +324,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         ).showSnackBar(const SnackBar(content: Text('Reminder deactivated')));
       }
     } catch (e, stack) {
-      logger.error(
+      ref.read(loggerProvider).error(
         'Failed to deactivate reminder',
         error: e,
         stackTrace: stack,
@@ -350,7 +351,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         ).showSnackBar(const SnackBar(content: Text('Reminder activated')));
       }
     } catch (e, stack) {
-      logger.error('Failed to activate reminder', error: e, stackTrace: stack);
+      ref.read(loggerProvider).error('Failed to activate reminder', error: e, stackTrace: stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to activate reminder')),
@@ -387,7 +388,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           ).showSnackBar(const SnackBar(content: Text('Reminder deleted')));
         }
       } catch (e, stack) {
-        logger.error('Failed to delete reminder', error: e, stackTrace: stack);
+        ref.read(loggerProvider).error('Failed to delete reminder', error: e, stackTrace: stack);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to delete reminder')),
@@ -818,7 +819,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
         (p) => p.name == _recurrence,
         orElse: () => RecurrencePattern.none,
       );
-      final coord = ref.read(reminderCoordinatorProvider);
+      final coord = ref.read(featureFlaggedReminderCoordinatorProvider);
       final reminderId = await coord.createTimeReminder(
         noteId: widget.noteId,
         title: _titleController.text.trim(),
@@ -850,7 +851,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
         }
       }
     } catch (e, stack) {
-      logger.error(
+      ref.read(loggerProvider).error(
         'Failed to create time reminder',
         error: e,
         stackTrace: stack,
@@ -1065,13 +1066,13 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       setState(() {
         _loading = true;
       });
-      final coord = ref.read(reminderCoordinatorProvider);
+      final coord = ref.read(featureFlaggedReminderCoordinatorProvider);
       // Ensure permissions for location
-      var havePerms = await coord.hasRequiredPermissions(includeLocation: true);
+      var havePerms = (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
       if (!havePerms) {
         await coord.requestNotificationPermissions();
         await coord.requestLocationPermissions();
-        havePerms = await coord.hasRequiredPermissions(includeLocation: true);
+        havePerms = (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
       }
       if (!havePerms) {
         if (mounted) {
@@ -1092,7 +1093,7 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
         _hasLocation = true;
       });
     } catch (e, stack) {
-      logger.error(
+      ref.read(loggerProvider).error(
         'Failed to get current location',
         error: e,
         stackTrace: stack,
@@ -1186,7 +1187,7 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       _loading = true;
     });
     try {
-      final coord = ref.read(reminderCoordinatorProvider);
+      final coord = ref.read(featureFlaggedReminderCoordinatorProvider);
       final reminderId = await coord.createLocationReminder(
         noteId: widget.noteId,
         title: _titleController.text.trim(),
@@ -1222,7 +1223,7 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
         }
       }
     } catch (e, stack) {
-      logger.error(
+      ref.read(loggerProvider).error(
         'Failed to create location reminder',
         error: e,
         stackTrace: stack,

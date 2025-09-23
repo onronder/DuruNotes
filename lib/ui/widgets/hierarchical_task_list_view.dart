@@ -1,6 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
@@ -26,26 +25,14 @@ class HierarchicalTaskListView extends ConsumerStatefulWidget {
 
 class _HierarchicalTaskListViewState
     extends ConsumerState<HierarchicalTaskListView> {
-  late HierarchicalTaskSyncService _hierarchyService;
   final Set<String> _expandedNodes = <String>{};
 
   @override
-  void initState() {
-    super.initState();
-    _hierarchyService = HierarchicalTaskSyncService(
-      database: ref.read(appDbProvider),
-      enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final enhancedTaskService = ref.watch(enhancedTaskServiceProvider);
+    final enhancedTaskService = ref.watch(unifiedTaskServiceProvider);
 
     return StreamBuilder<List<NoteTask>>(
-      stream: widget.noteId != null
-          ? enhancedTaskService.watchTasksForNote(widget.noteId!)
-          : enhancedTaskService.watchOpenTasks(),
+      stream: enhancedTaskService.watchOpenTasks(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -61,7 +48,7 @@ class _HierarchicalTaskListViewState
                 Text('Error: ${snapshot.error}'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.refresh(enhancedTaskServiceProvider),
+                  onPressed: () => ref.refresh(unifiedTaskServiceProvider),
                   child: const Text('Retry'),
                 ),
               ],
@@ -70,6 +57,11 @@ class _HierarchicalTaskListViewState
         }
 
         var tasks = snapshot.data ?? [];
+
+        // Filter by noteId if specified
+        if (widget.noteId != null) {
+          tasks = tasks.where((t) => t.noteId == widget.noteId).toList();
+        }
 
         // Filter completed tasks if needed
         if (!widget.showCompleted) {
@@ -104,7 +96,7 @@ class _HierarchicalTaskListViewState
                 // Hierarchy statistics
                 if (widget.noteId != null)
                   FutureBuilder<TaskHierarchyStats>(
-                    future: _hierarchyService.getHierarchyStats(widget.noteId!),
+                    future: ref.read(unifiedTaskServiceProvider).getHierarchyStats(widget.noteId!),
                     builder: (context, statsSnapshot) {
                       if (statsSnapshot.hasData &&
                           statsSnapshot.data!.hasNesting) {
@@ -135,7 +127,7 @@ class _HierarchicalTaskListViewState
   }
 
   Future<List<TaskHierarchyNode>> _buildHierarchy(List<NoteTask> tasks) async {
-    return _hierarchyService.getTaskHierarchy(widget.noteId ?? 'all');
+    return ref.read(unifiedTaskServiceProvider).getTaskHierarchy(widget.noteId ?? 'all');
   }
 
   void _showCreateTaskDialog(BuildContext context) async {
@@ -321,11 +313,7 @@ class TaskHierarchyPanel extends ConsumerWidget {
   }
 
   Future<TaskHierarchyStats> _getHierarchyStats(WidgetRef ref) async {
-    final hierarchyService = HierarchicalTaskSyncService(
-      database: ref.read(appDbProvider),
-      enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-    );
-    return hierarchyService.getHierarchyStats(noteId);
+    return ref.read(unifiedTaskServiceProvider).getHierarchyStats(noteId);
   }
 
   void _handleBulkAction(BuildContext context, WidgetRef ref, String action) {

@@ -11,7 +11,6 @@ class FeatureFlags {
 
   // Feature flag storage (in production, these would come from remote config)
   final Map<String, bool> _flags = {
-    'use_unified_reminders': true, // ENABLED for development
     'use_new_block_editor': true, // ENABLED for development
     'use_refactored_components': true, // ENABLED for development
     'use_unified_permission_manager': true, // ENABLED for development
@@ -47,7 +46,6 @@ class FeatureFlags {
   }
 
   // Convenience getters for specific flags
-  bool get useUnifiedReminders => isEnabled('use_unified_reminders');
   bool get useNewBlockEditor => isEnabled('use_new_block_editor');
   bool get useRefactoredComponents => isEnabled('use_refactored_components');
   bool get useUnifiedPermissionManager =>

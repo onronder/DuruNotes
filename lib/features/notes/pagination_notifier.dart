@@ -2,12 +2,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// Global instances
-final AppLogger logger = LoggerFactory.instance;
-final AnalyticsService analytics = AnalyticsFactory.instance;
 
 /// Represents a page of notes with pagination state
 class NotesPage {
@@ -57,16 +53,20 @@ class NotesPage {
 
 /// StateNotifier for managing paginated notes
 class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
-  NotesPaginationNotifier(this._repo)
+  NotesPaginationNotifier(this._ref, this._repo)
       : super(
           const AsyncValue.data(
             NotesPage(items: [], hasMore: true, nextCursor: null),
           ),
         );
 
+  final Ref _ref;
   final NotesRepository _repo;
   static const int _pageSize = 20;
   bool _isLoadingMore = false;
+
+  AppLogger get logger => _ref.read(loggerProvider);
+  AnalyticsService get analytics => _ref.read(analyticsProvider);
 
   /// Load more notes (append to current list)
   Future<void> loadMore() async {

@@ -6,6 +6,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,19 +17,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// - wrap/unwrap AMK to/from user_keys table in Supabase
 /// - cache AMK in secure storage locally
 class AccountKeyService {
-  AccountKeyService({
+  AccountKeyService(this._ref, {
     FlutterSecureStorage? storage,
-    AppLogger? logger,
     SupabaseClient? client,
   })  : _storage = storage ?? const FlutterSecureStorage(),
-        _logger = logger ?? LoggerFactory.instance,
         _client = client ?? Supabase.instance.client;
 
   static const String _amkKeyPrefix = 'amk:';
   static const String _amkMetaPrefix = 'amk_meta:';
 
+  final Ref _ref;
   final FlutterSecureStorage _storage;
-  final AppLogger _logger;
+  AppLogger get _logger => _ref.read(loggerProvider);
   final SupabaseClient _client;
 
   Future<Uint8List?> getLocalAmk({String? userId}) async {

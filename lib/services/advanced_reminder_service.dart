@@ -20,10 +20,12 @@ import 'package:timezone/timezone.dart' as tz;
 /// - Location-based reminders (geofencing)
 /// - Rich notifications with snooze functionality
 class AdvancedReminderService {
-  AdvancedReminderService(this._plugin, this._db);
+  AdvancedReminderService(this._ref, this._plugin, this._db);
 
+  final Ref _ref;
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
+  AppLogger get logger => _ref.read(loggerProvider);
 
   static const String _channelId = 'notes_reminders';
   static const String _channelName = 'Notes Reminders';
@@ -911,7 +913,7 @@ final advancedReminderServiceProvider = Provider<AdvancedReminderService>((
 ) {
   final plugin = FlutterLocalNotificationsPlugin();
   final db = ref.read(appDbProvider);
-  return AdvancedReminderService(plugin, db);
+  return AdvancedReminderService(ref, plugin, db);
 });
 
 /// Extension methods for easier snooze duration handling

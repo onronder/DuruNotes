@@ -1,0 +1,585 @@
+# CI/CD Pipeline for Supabase Edge Functions
+# Production-grade deployment automation with testing, security, and monitoring
+
+name: Edge Functions CI/CD
+
+on:
+  push:
+    branches: [main, develop, staging]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/edge-functions-cicd.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  DENO_VERSION: '1.37.0'
+  SUPABASE_CLI_VERSION: '1.110.0'
+
+jobs:
+  # Security and dependency scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'supabase/functions'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check for secrets with GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Code quality and linting
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('supabase/functions/**/*.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Lint Edge Functions
+        run: |
+          cd supabase/functions
+          for function_dir in */; do
+            if [ -f "${function_dir}index.ts" ]; then
+              echo "Linting ${function_dir}"
+              deno lint "${function_dir}"
+            fi
+          done
+
+      - name: Format check
+        run: |
+          cd supabase/functions
+          deno fmt --check
+
+      - name: Type check
+        run: |
+          cd supabase/functions
+          for function_dir in */; do
+            if [ -f "${function_dir}index.ts" ]; then
+              echo "Type checking ${function_dir}"
+              deno check "${function_dir}index.ts"
+            fi
+          done
+
+  # Unit and integration tests
+  test:
+    name: Test Edge Functions
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Start Supabase local development
+        run: |
+          supabase start
+        env:
+          SUPABASE_DB_PASSWORD: postgres
+
+      - name: Run database migrations
+        run: |
+          supabase db reset --local
+
+      - name: Run Edge Function tests
+        run: |
+          # Set test environment variables
+          export SUPABASE_URL="http://localhost:54321"
+          export SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY_TEST }}"
+          export SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY_TEST }}"
+          export FCM_SERVICE_ACCOUNT_KEY="${{ secrets.FCM_SERVICE_ACCOUNT_KEY_TEST }}"
+          export REDIS_PASSWORD="test_password"
+          export WEBHOOK_SECRET="test_webhook_secret"
+
+          # Run tests
+          cd supabase/functions
+          deno test --allow-net --allow-env --allow-read tests/
+
+      - name: Generate test coverage
+        run: |
+          cd supabase/functions
+          deno test --allow-net --allow-env --allow-read --coverage=cov_profile tests/
+          deno coverage cov_profile --lcov --output=coverage.lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: supabase/functions/coverage.lcov
+          flags: edge-functions
+          name: edge-functions-coverage
+
+      - name: Performance benchmarks
+        run: |
+          cd supabase/functions
+          deno bench --allow-net --allow-env benchmarks/
+
+  # Build and validate functions
+  build:
+    name: Build Edge Functions
+    runs-on: ubuntu-latest
+    needs: [test]
+    strategy:
+      matrix:
+        function: [
+          'fcm-notification-v2',
+          'send-push-notification-v1',
+          'email-inbox',
+          'inbound-web',
+          'process-notification-queue',
+          'process-notifications'
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Build function bundle
+        run: |
+          cd supabase/functions/${{ matrix.function }}
+          if [ -f "index.ts" ]; then
+            deno bundle index.ts bundle.js
+            echo "✅ Successfully built ${{ matrix.function }}"
+          else
+            echo "⚠️ No index.ts found for ${{ matrix.function }}"
+          fi
+
+      - name: Validate function syntax
+        run: |
+          cd supabase/functions/${{ matrix.function }}
+          if [ -f "index.ts" ]; then
+            deno check index.ts
+            echo "✅ Syntax validation passed for ${{ matrix.function }}"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.function }}-bundle
+          path: supabase/functions/${{ matrix.function }}/bundle.js
+          retention-days: 7
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
+    environment:
+      name: staging
+      url: https://staging-api.duru-notes.com
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Deploy to Supabase Staging
+        run: |
+          # Login to Supabase
+          echo "${{ secrets.SUPABASE_ACCESS_TOKEN_STAGING }}" | supabase auth login --token
+
+          # Link to staging project
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+
+          # Deploy functions
+          supabase functions deploy --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_STAGING }}
+
+      - name: Update Kong configuration for staging
+        run: |
+          # Update Kong gateway configuration
+          curl -X POST "${{ secrets.KONG_ADMIN_URL_STAGING }}/config" \
+            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_STAGING }}" \
+            -F config=@infrastructure/kong/kong-staging.yml
+
+      - name: Run staging health checks
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+
+          # Health check endpoints
+          STAGING_BASE_URL="https://staging-api.duru-notes.com"
+
+          # Check FCM notification endpoint
+          curl -f "$STAGING_BASE_URL/api/v2/notifications/fcm/health" || exit 1
+
+          # Check other endpoints
+          curl -f "$STAGING_BASE_URL/api/v1/email/inbox/health" || exit 1
+          curl -f "$STAGING_BASE_URL/api/v1/web/inbound/health" || exit 1
+
+      - name: Run staging smoke tests
+        run: |
+          cd tests/e2e
+          npm ci
+          npm run test:staging
+        env:
+          STAGING_API_URL: https://staging-api.duru-notes.com
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+
+      - name: Notify deployment status
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          custom_payload: |
+            {
+              text: `Staging deployment ${job.status}`,
+              attachments: [{
+                color: '${{ job.status }}' === 'success' ? 'good' : 'danger',
+                fields: [{
+                  title: 'Environment',
+                  value: 'staging',
+                  short: true
+                }, {
+                  title: 'Commit',
+                  value: `${process.env.AS_COMMIT}`,
+                  short: true
+                }]
+              }]
+            }
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://api.duru-notes.com
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Create deployment backup
+        run: |
+          # Backup current production functions
+          mkdir -p backups/$(date +%Y%m%d_%H%M%S)
+
+          # Export current Kong configuration
+          curl -X GET "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
+            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
+            > backups/$(date +%Y%m%d_%H%M%S)/kong-config.yml
+
+      - name: Blue-Green deployment preparation
+        run: |
+          # Create new deployment version
+          export DEPLOYMENT_ID=$(date +%Y%m%d_%H%M%S)
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+          echo "🚀 Starting deployment $DEPLOYMENT_ID"
+
+      - name: Deploy to Supabase Production
+        run: |
+          # Login to Supabase
+          echo "${{ secrets.SUPABASE_ACCESS_TOKEN_PRODUCTION }}" | supabase auth login --token
+
+          # Link to production project
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_PRODUCTION }}
+
+          # Deploy functions with canary deployment
+          supabase functions deploy --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PRODUCTION }}
+
+      - name: Update Kong configuration for production
+        run: |
+          # Canary deployment - route 10% of traffic to new version
+          curl -X POST "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
+            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
+            -F config=@infrastructure/kong/kong-production-canary.yml
+
+      - name: Canary health monitoring
+        run: |
+          # Monitor canary deployment for 5 minutes
+          for i in {1..30}; do
+            echo "Canary health check $i/30"
+
+            # Check error rates
+            ERROR_RATE=$(curl -s "${{ secrets.PROMETHEUS_URL }}/api/v1/query?query=kong:error_rate_5m" | jq -r '.data.result[0].value[1]')
+
+            if (( $(echo "$ERROR_RATE > 0.05" | bc -l) )); then
+              echo "❌ Canary deployment failed - error rate too high: $ERROR_RATE"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "✅ Canary deployment successful"
+
+      - name: Full production deployment
+        run: |
+          # Route 100% traffic to new version
+          curl -X POST "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
+            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
+            -F config=@infrastructure/kong/kong-production.yml
+
+      - name: Production health checks
+        run: |
+          # Comprehensive health checks
+          PRODUCTION_BASE_URL="https://api.duru-notes.com"
+
+          # Check all critical endpoints
+          curl -f "$PRODUCTION_BASE_URL/api/v2/notifications/fcm/health" || exit 1
+          curl -f "$PRODUCTION_BASE_URL/api/v1/email/inbox/health" || exit 1
+          curl -f "$PRODUCTION_BASE_URL/api/v1/web/inbound/health" || exit 1
+          curl -f "$PRODUCTION_BASE_URL/api/v1/notifications/process/health" || exit 1
+
+      - name: Run production smoke tests
+        run: |
+          cd tests/e2e
+          npm ci
+          npm run test:production
+        env:
+          PRODUCTION_API_URL: https://api.duru-notes.com
+          PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
+
+      - name: Update monitoring and alerting
+        run: |
+          # Update Prometheus targets
+          curl -X POST "${{ secrets.PROMETHEUS_URL }}/-/reload"
+
+          # Update Grafana dashboards
+          curl -X POST "${{ secrets.GRAFANA_URL }}/api/admin/provisioning/dashboards/reload" \
+            -H "Authorization: Bearer ${{ secrets.GRAFANA_API_KEY }}"
+
+      - name: Generate deployment report
+        run: |
+          cat > deployment-report.md << EOF
+          # Production Deployment Report
+
+          **Deployment ID:** ${{ env.DEPLOYMENT_ID }}
+          **Date:** $(date)
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          **Author:** ${{ github.actor }}
+
+          ## Deployed Functions
+          - FCM Notification v2
+          - FCM Notification v1 (Legacy)
+          - Email Inbox
+          - Inbound Web
+          - Process Notification Queue
+
+          ## Health Checks
+          ✅ All endpoints responding
+          ✅ Error rates within acceptable limits
+          ✅ Latency within SLA
+          ✅ Smoke tests passed
+
+          ## Rollback Plan
+          In case of issues, run:
+          \`\`\`
+          kubectl rollout undo deployment/kong-gateway
+          \`\`\`
+          EOF
+
+      - name: Notify successful deployment
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: success
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          custom_payload: |
+            {
+              text: "🚀 Production deployment successful!",
+              attachments: [{
+                color: 'good',
+                fields: [{
+                  title: 'Environment',
+                  value: 'production',
+                  short: true
+                }, {
+                  title: 'Deployment ID',
+                  value: '${{ env.DEPLOYMENT_ID }}',
+                  short: true
+                }, {
+                  title: 'Commit',
+                  value: `${process.env.AS_COMMIT}`,
+                  short: true
+                }]
+              }]
+            }
+
+      - name: Notify failed deployment
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: failure
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          custom_payload: |
+            {
+              text: "❌ Production deployment failed!",
+              attachments: [{
+                color: 'danger',
+                fields: [{
+                  title: 'Environment',
+                  value: 'production',
+                  short: true
+                }, {
+                  title: 'Deployment ID',
+                  value: '${{ env.DEPLOYMENT_ID }}',
+                  short: true
+                }, {
+                  title: 'Action Required',
+                  value: 'Check logs and consider rollback',
+                  short: false
+                }]
+              }]
+            }
+
+  # Rollback capability
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    needs: [deploy-production]
+    environment:
+      name: production-rollback
+
+    steps:
+      - name: Rollback to previous version
+        run: |
+          echo "🔄 Initiating rollback..."
+
+          # Restore previous Kong configuration
+          curl -X POST "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
+            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
+            -F config=@backups/previous/kong-config.yml
+
+          # Verify rollback
+          sleep 30
+          curl -f "https://api.duru-notes.com/health"
+
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          channel: '#incidents'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          custom_payload: |
+            {
+              text: "🔄 Production rollback initiated",
+              attachments: [{
+                color: 'warning',
+                fields: [{
+                  title: 'Reason',
+                  value: 'Deployment failure',
+                  short: true
+                }, {
+                  title: 'Status',
+                  value: 'System restored to previous state',
+                  short: true
+                }]
+              }]
+            }

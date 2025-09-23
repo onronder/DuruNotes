@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -28,12 +29,11 @@ class ShareOptions {
 
 /// Service for sharing notes via various methods
 class ShareService {
-  ShareService({AppLogger? logger, AnalyticsService? analytics})
-      : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  ShareService(this._ref);
 
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
+  final Ref _ref;
+  AppLogger get _logger => _ref.read(loggerProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
 
   /// Share a single note
   Future<bool> shareNote(

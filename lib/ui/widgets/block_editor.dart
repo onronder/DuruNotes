@@ -1,6 +1,7 @@
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
@@ -9,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// the user edits or reorders blocks. Use this editor in place of a single
 /// large `TextField` to support rich content such as headings, todos, quotes,
 /// code blocks and tables.
-class BlockEditor extends StatefulWidget {
+class BlockEditor extends ConsumerStatefulWidget {
   const BlockEditor({required this.blocks, required this.onChanged, super.key});
 
   /// The initial blocks to edit. The list is copied internally; mutations
@@ -21,10 +22,10 @@ class BlockEditor extends StatefulWidget {
   final ValueChanged<List<NoteBlock>> onChanged;
 
   @override
-  State<BlockEditor> createState() => _BlockEditorState();
+  ConsumerState<BlockEditor> createState() => _BlockEditorState();
 }
 
-class _BlockEditorState extends State<BlockEditor> {
+class _BlockEditorState extends ConsumerState<BlockEditor> {
   late List<NoteBlock> _blocks;
   List<TextEditingController?> _controllers = [];
 
@@ -190,8 +191,7 @@ class _BlockEditorState extends State<BlockEditor> {
   /// and uploading the selected file. If the user cancels the picker or
   /// an upload error occurs, no block is inserted.
   Future<void> _createAttachmentBlock(int insertIndex) async {
-    final client = Supabase.instance.client;
-    final service = AttachmentService(client: client);
+    final service = ref.read(attachmentServiceProvider);
     // Show a loading indicator while picking/uploading. We use a
     // modal progress indicator for clarity, but other UX patterns are
     // possible.

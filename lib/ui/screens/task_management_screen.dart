@@ -1,5 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/unified_task_service.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/unified_task_service.dart' as unified;
 import 'package:duru_notes/ui/widgets/tasks/task_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,20 +34,21 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tasksAsync = ref.watch(tasksForNoteProvider(widget.noteId));
-    final taskService = ref.read(unifiedTaskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
+    final tasksAsync = ref.watch(FutureProvider((ref) => taskService.getTasksForNote(widget.noteId)));
+    final logger = ref.read(loggerProvider);
     final theme = Theme.of(context);
 
     // Listen to real-time task updates
-    ref.listen<AsyncValue<TaskUpdate>>(
-      taskUpdatesProvider,
+    ref.listen(
+      unifiedTaskUpdatesProvider,
       (previous, next) {
         next.whenData((update) {
           // Refresh the task list when updates occur
-          ref.invalidate(tasksForNoteProvider(widget.noteId));
+          setState(() {}); // Trigger rebuild to refresh tasks
 
           // Show snackbar for certain events
-          if (update.type == TaskUpdateType.deleted) {
+          if (update.type == unified.TaskUpdateType.deleted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Task deleted')),
             );
@@ -298,7 +300,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
-                        ref.invalidate(tasksForNoteProvider(widget.noteId));
+                        setState(() {}); // Refresh tasks
                       },
                       child: const Text('Retry'),
                     ),
@@ -360,7 +362,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
     }
   }
 
-  Future<void> _createTask(UnifiedTaskService service) async {
+  Future<void> _createTask(unified.UnifiedTaskService service) async {
     if (_contentController.text.trim().isEmpty) return;
 
     try {
@@ -379,7 +381,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
       });
 
       // Refresh the task list
-      ref.invalidate(tasksForNoteProvider(widget.noteId));
+      setState(() {}); // Refresh tasks
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -395,7 +397,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
     }
   }
 
-  void _showQuickAddDialog(BuildContext context, UnifiedTaskService service) {
+  void _showQuickAddDialog(BuildContext context, unified.UnifiedTaskService service) {
     final controller = TextEditingController();
 
     showDialog(
@@ -415,7 +417,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                 noteId: widget.noteId,
                 content: value.trim(),
               );
-              ref.invalidate(tasksForNoteProvider(widget.noteId));
+              setState(() {}); // Refresh tasks
               Navigator.of(context).pop();
             }
           },
@@ -432,7 +434,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                   noteId: widget.noteId,
                   content: controller.text.trim(),
                 );
-                ref.invalidate(tasksForNoteProvider(widget.noteId));
+                setState(() {}); // Refresh tasks
                 Navigator.of(context).pop();
               }
             },
@@ -444,13 +446,14 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
   }
 
   void _showStatistics(BuildContext context) {
-    final statsAsync = ref.read(taskStatisticsProvider);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Task Statistics'),
-        content: statsAsync.when(
+        content: Consumer(
+          builder: (context, ref, child) {
+            final statsAsync = ref.watch(unifiedTaskStatisticsProvider);
+            return statsAsync.when(
           data: (stats) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,6 +474,8 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
           ),
           loading: () => const CircularProgressIndicator(),
           error: (error, _) => Text('Error: $error'),
+            );
+          },
         ),
         actions: [
           TextButton(

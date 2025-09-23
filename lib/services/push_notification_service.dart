@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -25,12 +27,12 @@ class PushTokenResult {
 
 /// Service for managing push notifications and FCM tokens
 class PushNotificationService {
-  PushNotificationService({SupabaseClient? client, AppLogger? logger})
-      : _client = client ?? Supabase.instance.client,
-        _logger = logger ?? LoggerFactory.instance;
+  PushNotificationService(this._ref, {SupabaseClient? client})
+      : _client = client ?? Supabase.instance.client;
 
+  final Ref _ref;
   final SupabaseClient _client;
-  final AppLogger _logger;
+  AppLogger get _logger => _ref.read(loggerProvider);
 
   // Firebase Messaging instance
   FirebaseMessaging? _messaging;

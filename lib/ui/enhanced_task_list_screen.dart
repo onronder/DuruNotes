@@ -125,7 +125,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
 
       // USE USER'S INPUT instead of hardcoded "New Task"
       final taskContent = metadata.taskContent.trim();
@@ -144,12 +144,12 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
       }
 
       // Create task with user's content
-      final taskId = await taskService.createTask(
+      final task = await taskService.createTask(
         noteId: 'standalone', // Special identifier for standalone tasks
         content: taskContent, // USE ACTUAL USER INPUT
         priority: metadata.priority,
         dueDate: metadata.dueDate,
-        labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+        labels: metadata.labels,
         notes: metadata.notes,
         estimatedMinutes: metadata.estimatedMinutes,
         createReminder: metadata.hasReminder && metadata.dueDate != null,
@@ -160,14 +160,11 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           metadata.reminderTime != null &&
           metadata.dueDate != null &&
           metadata.reminderTime != metadata.dueDate) {
-        final task = await ref.read(appDbProvider).getTaskById(taskId);
-        if (task != null) {
-          final duration = metadata.dueDate!.difference(metadata.reminderTime!);
-          await ref.read(taskReminderBridgeProvider).createTaskReminder(
-                task: task,
-                beforeDueDate: duration.abs(),
-              );
-        }
+        final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+        await ref.read(taskReminderBridgeProvider).createTaskReminder(
+              task: task,
+              beforeDueDate: duration.abs(),
+            );
       }
 
       if (mounted) {
@@ -207,7 +204,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(enhancedTaskServiceProvider);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
 
     return StreamBuilder<List<NoteTask>>(
       stream: taskService.watchOpenTasks(),
@@ -405,7 +402,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
   Future<void> _toggleTask(WidgetRef ref, NoteTask task) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.toggleTaskStatus(task.id);
     } catch (e) {
       debugPrint('Error toggling task: $e');
@@ -431,12 +428,12 @@ class EnhancedTaskListView extends ConsumerWidget {
   Future<void> _updateTask(
       WidgetRef ref, NoteTask task, TaskMetadata metadata) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.updateTask(
         taskId: task.id,
         priority: metadata.priority,
         dueDate: metadata.dueDate,
-        labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
+        labels: metadata.labels,
         notes: metadata.notes,
         estimatedMinutes: metadata.estimatedMinutes,
       );
@@ -447,7 +444,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
   Future<void> _deleteTask(WidgetRef ref, NoteTask task) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.deleteTask(task.id);
     } catch (e) {
       debugPrint('Error deleting task: $e');
@@ -510,7 +507,7 @@ class EnhancedTaskListView extends ConsumerWidget {
         );
 
         try {
-          final taskService = ref.read(enhancedTaskServiceProvider);
+          final taskService = ref.read(unifiedTaskServiceProvider);
           await taskService.updateTask(
             taskId: task.id,
             dueDate: snoozeDateTime,
@@ -543,13 +540,13 @@ class EnhancedTaskListView extends ConsumerWidget {
 
     if (result != null) {
       try {
-        final taskService = ref.read(enhancedTaskServiceProvider);
+        final taskService = ref.read(unifiedTaskServiceProvider);
         await taskService.createTask(
           noteId: 'standalone',
           content: 'New Task',
           priority: result.priority,
           dueDate: result.dueDate,
-          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
+          labels: result.labels,
           notes: result.notes,
           estimatedMinutes: result.estimatedMinutes,
         );
@@ -616,15 +613,15 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _loadTasksForMonth() async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
 
       // Get all tasks for the current month
       final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
       final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
 
       final tasks = await taskService.getTasksByDateRange(
-        start: firstDay,
-        end: lastDay.add(const Duration(days: 1)),
+        firstDay,
+        lastDay.add(const Duration(days: 1)),
       );
 
       // Group tasks by date
@@ -721,7 +718,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _toggleTask(NoteTask task) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.toggleTaskStatus(task.id);
       await _loadTasksForMonth(); // Refresh calendar
     } catch (e) {
@@ -741,13 +738,13 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
     if (result != null) {
       try {
-        final taskService = ref.read(enhancedTaskServiceProvider);
+        final taskService = ref.read(unifiedTaskServiceProvider);
         await taskService.updateTask(
           taskId: task.id,
           content: task.content, // Keep existing content
           priority: result.priority,
           dueDate: result.dueDate,
-          labels: result.labels.isNotEmpty ? {'labels': result.labels} : null,
+          labels: result.labels,
           notes: result.notes,
           estimatedMinutes: result.estimatedMinutes,
         );
@@ -760,7 +757,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _deleteTask(NoteTask task) async {
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
+      final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.deleteTask(task.id);
       await _loadTasksForMonth(); // Refresh calendar
     } catch (e) {

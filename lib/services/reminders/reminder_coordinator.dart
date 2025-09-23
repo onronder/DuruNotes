@@ -1,118 +1,126 @@
-import 'dart:io';
-
-import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart'; // Import appDbProvider from here
+import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/core/feature_flags.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+// NoteReminder is imported from app_db.dart
+import 'package:duru_notes/services/permission_manager.dart';
+import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
 import 'package:duru_notes/services/reminders/recurring_reminder_service.dart';
 import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 
-/// Coordinator service that manages all reminder functionalities.
+/// Unified coordinator for all reminder services
 ///
-/// Acts as a facade for:
+/// This class manages the lifecycle and interactions between different reminder services:
+/// - [RecurringReminderService] for time-based and recurring reminders
 /// - [GeofenceReminderService] for location-based reminders
-/// - [RecurringReminderService] for time-based & recurring reminders
 /// - [SnoozeReminderService] for snooze functionality
+///
+/// The coordinator uses feature flags to enable gradual rollout of the refactored services.
 class ReminderCoordinator {
-  ReminderCoordinator(this._plugin, this._db) {
-    _geofenceService = GeofenceReminderService(_plugin, _db);
-    _recurringService = RecurringReminderService(_plugin, _db);
-    _snoozeService = SnoozeReminderService(_plugin, _db);
+  ReminderCoordinator(this._ref, this._plugin, this._db) {
+    // Use consolidated reminder services (Phase 1 complete)
+    _recurringService = RecurringReminderService(_ref, _plugin, _db);
+    _geofenceService = GeofenceReminderService(_ref, _plugin, _db);
+    _snoozeService = SnoozeReminderService(_ref, _plugin, _db);
   }
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
-  late final GeofenceReminderService _geofenceService;
-  late final RecurringReminderService _recurringService;
-  late final SnoozeReminderService _snoozeService;
 
-  static const String _channelId = 'notes_reminders';
-  static const String _channelName = 'Notes Reminders';
-  static const String _channelDescription = 'Reminders for your notes';
+  late final BaseReminderService _recurringService;
+  late final BaseReminderService _geofenceService;
+  late final BaseReminderService _snoozeService;
 
+  final Ref _ref;
   bool _initialized = false;
-  final AppLogger logger = LoggerFactory.instance;
-  final AnalyticsService analytics = AnalyticsFactory.instance;
+  AppLogger get logger => _ref.read(loggerProvider);
+  AnalyticsService get analytics => _ref.read(analyticsProvider);
+  final FeatureFlags _featureFlags = FeatureFlags.instance;
+  final PermissionManager _permissionManager = PermissionManager.instance;
 
   /// Get the snooze service for external use
-  SnoozeReminderService get snoozeService => _snoozeService;
+  SnoozeReminderService get snoozeService =>
+      _snoozeService as SnoozeReminderService;
 
   /// Initialize all sub-services and notification channel
   Future<void> initialize() async {
     if (_initialized) return;
-    // Create main notification channel for reminders
-    const channel = AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      description: _channelDescription,
-      importance: Importance.high,
-    );
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
 
-    // Initialize geofence sub-service (recurring and snooze may initialize on demand)
     try {
-      await _geofenceService.initialize();
+      // Initialize all services
+      await Future.wait([
+        _recurringService.initialize(),
+        _geofenceService.initialize(),
+        _snoozeService.initialize(),
+      ]);
+
+      _initialized = true;
+      logger.info('ReminderCoordinator initialized with unified services');
+
+      analytics.event(
+        'app.feature_enabled',
+        properties: {
+          'feature': 'reminder_coordinator',
+          'unified_services': true, // Phase 1 complete - always unified
+        },
+      );
     } catch (e, stack) {
       logger.error(
-        'Failed to initialize geofence service',
+        'Failed to initialize ReminderCoordinator',
         error: e,
         stackTrace: stack,
       );
+      // Don't throw - partial initialization is better than none
     }
-    _initialized = true;
-    logger.info('ReminderCoordinator initialized');
-    analytics.event(
-      'app.feature_enabled',
-      properties: {'feature': 'reminder_coordinator'},
-    );
   }
 
-  // Permission Management
+  // Permission Management (using unified PermissionManager)
 
   Future<bool> requestNotificationPermissions() async {
-    try {
-      if (Platform.isIOS) {
-        final result = await _plugin
-            .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>()
-            ?.requestPermissions(alert: true, badge: true, sound: true);
-        return result ?? false;
-      } else {
-        final status = await Permission.notification.request();
-        return status.isGranted;
-      }
-    } catch (e, stack) {
-      logger.error(
-        'Failed to request notification permissions',
-        error: e,
-        stackTrace: stack,
-      );
-      return false;
+    if (_featureFlags.useUnifiedPermissionManager) {
+      final status =
+          await _permissionManager.request(PermissionType.notification);
+      return status == PermissionStatus.granted;
+    } else {
+      // Fall back to base service method
+      return await _recurringService.requestNotificationPermissions();
     }
   }
 
   Future<bool> hasNotificationPermissions() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.notification.status;
-      return status.isGranted;
+    if (_featureFlags.useUnifiedPermissionManager) {
+      return await _permissionManager
+          .hasPermission(PermissionType.notification);
+    } else {
+      // Fall back to base service method
+      return await _recurringService.hasNotificationPermissions();
     }
-    return true; // iOS handles notifications via requestPermissions
   }
 
   Future<bool> requestLocationPermissions() async {
-    return _geofenceService.requestLocationPermissions();
+    if (_featureFlags.useUnifiedPermissionManager) {
+      final status = await _permissionManager.request(PermissionType.location);
+      return status == PermissionStatus.granted;
+    } else {
+      // Fall back to geofence service method
+      return await (_geofenceService as GeofenceReminderService)
+          .requestLocationPermissions();
+    }
   }
 
   Future<bool> hasLocationPermissions() async {
-    return _geofenceService.hasLocationPermissions();
+    if (_featureFlags.useUnifiedPermissionManager) {
+      return await _permissionManager.hasPermission(PermissionType.location);
+    } else {
+      // Fall back to geofence service method
+      return await (_geofenceService as GeofenceReminderService)
+          .hasLocationPermissions();
+    }
   }
 
   /// Check if all required permissions are granted (optionally include location)
@@ -138,63 +146,137 @@ class ReminderCoordinator {
     String? customNotificationBody,
   }) async {
     await initialize();
+
     if (!await hasNotificationPermissions()) {
-      // Ensure notification permission
-      await requestNotificationPermissions();
+      logger.warning('Cannot create reminder - no notification permissions');
+
+      if (!await requestNotificationPermissions()) {
+        analytics
+            .event('reminder.permission_denied', properties: {'type': 'time'});
+        return null;
+      }
     }
-    // Delegate to recurring service
-    return _recurringService.createTimeReminder(
+
+    final config = ReminderConfig(
       noteId: noteId,
       title: title,
       body: body,
-      remindAtUtc: remindAtUtc,
-      recurrence: recurrence,
+      scheduledTime: remindAtUtc,
+      recurrencePattern: recurrence,
       recurrenceInterval: recurrenceInterval,
       recurrenceEndDate: recurrenceEndDate,
       customNotificationTitle: customNotificationTitle,
       customNotificationBody: customNotificationBody,
     );
+
+    final reminderId = await _recurringService.createReminder(config);
+
+    if (reminderId != null) {
+      logger.info('Created time reminder', data: {
+        'id': reminderId,
+        'recurrence': recurrence.name,
+      });
+    }
+
+    return reminderId;
   }
 
-  /// Create a location-based reminder (geofence)
+  /// Create a location-based reminder
   Future<int?> createLocationReminder({
     required String noteId,
     required String title,
     required String body,
     required double latitude,
     required double longitude,
-    required double radius,
+    double radius = 100.0,
     String? locationName,
     String? customNotificationTitle,
     String? customNotificationBody,
   }) async {
     await initialize();
-    if (!await hasNotificationPermissions()) {
-      await requestNotificationPermissions();
+
+    if (!await hasLocationPermissions()) {
+      logger
+          .warning('Cannot create location reminder - no location permissions');
+
+      if (!await requestLocationPermissions()) {
+        analytics.event('reminder.permission_denied',
+            properties: {'type': 'location'});
+        return null;
+      }
     }
-    // Delegate to geofence service
-    return _geofenceService.createLocationReminder(
+
+    final config = ReminderConfig(
       noteId: noteId,
       title: title,
       body: body,
-      latitude: latitude,
-      longitude: longitude,
-      radius: radius,
-      locationName: locationName,
+      scheduledTime: DateTime.now(), // Not used for location reminders
+      metadata: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'radius': radius,
+        'locationName': locationName,
+      },
       customNotificationTitle: customNotificationTitle,
       customNotificationBody: customNotificationBody,
     );
+
+    final reminderId = await _geofenceService.createReminder(config);
+
+    if (reminderId != null) {
+      logger.info('Created location reminder', data: {
+        'id': reminderId,
+        'location': locationName ?? 'unnamed',
+      });
+    }
+
+    return reminderId;
   }
 
-  /// Get all reminders for a specific note
+  /// Snooze an existing reminder
+  Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
+    await initialize();
+
+    if (!await hasNotificationPermissions()) {
+      logger.warning('Cannot snooze reminder - no notification permissions');
+      return false;
+    }
+
+    final snoozed = await (_snoozeService as SnoozeReminderService)
+        .snoozeReminder(reminderId, duration);
+
+    if (snoozed) {
+      logger.info('Snoozed reminder', data: {
+        'id': reminderId,
+        'duration': duration.name,
+      });
+    }
+
+    return snoozed;
+  }
+
+  /// Get all reminders for a note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
     try {
-      final dbReminders = await _db.getRemindersForNote(noteId);
-      // Return the database NoteReminder objects directly
-      return dbReminders;
+      return await _db.getRemindersForNote(noteId);
     } catch (e, stack) {
       logger.error(
         'Failed to get reminders for note',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
+      return [];
+    }
+  }
+
+  /// Get all active reminders
+  Future<List<NoteReminder>> getActiveReminders() async {
+    try {
+      return await _db.getActiveReminders();
+    } catch (e, stack) {
+      logger.error(
+        'Failed to get active reminders',
         error: e,
         stackTrace: stack,
       );
@@ -202,24 +284,159 @@ class ReminderCoordinator {
     }
   }
 
-  /// Dispose of sub-services
+  /// Cancel a reminder
+  Future<void> cancelReminder(int reminderId) async {
+    try {
+      // Determine which service should handle the cancellation
+      final reminder = await _db.getReminderById(reminderId);
+      if (reminder == null) {
+        logger.warning('Cannot cancel reminder - not found',
+            data: {'id': reminderId});
+        return;
+      }
+
+      switch (reminder.type) {
+        case ReminderType.time:
+        case ReminderType.recurring:
+          await _recurringService.cancelReminder(reminderId);
+          break;
+        case ReminderType.location:
+          await _geofenceService.cancelReminder(reminderId);
+          break;
+        default:
+          // Generic cancellation
+          await _recurringService.cancelNotification(reminderId);
+          await _db.updateReminder(
+            reminderId,
+            NoteRemindersCompanion(isActive: Value(false)),
+          );
+          break;
+      }
+
+      logger.info('Cancelled reminder', data: {'id': reminderId});
+
+      analytics.event('reminder.cancelled', properties: {
+        'reminder_id': reminderId,
+        'type': reminder.type.name,
+      });
+    } catch (e, stack) {
+      logger.error(
+        'Failed to cancel reminder',
+        error: e,
+        stackTrace: stack,
+        data: {'id': reminderId},
+      );
+    }
+  }
+
+  /// Cancel all reminders for a note
+  Future<void> cancelRemindersForNote(String noteId) async {
+    try {
+      final reminders = await getRemindersForNote(noteId);
+
+      for (final reminder in reminders) {
+        await cancelReminder(reminder.id);
+      }
+
+      if (reminders.isNotEmpty) {
+        logger.info('Cancelled ${reminders.length} reminders for note', data: {
+          'noteId': noteId,
+        });
+      }
+    } catch (e, stack) {
+      logger.error(
+        'Failed to cancel reminders for note',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
+    }
+  }
+
+  /// Process due reminders (called periodically)
+  Future<void> processDueReminders() async {
+    if (!_initialized) return;
+
+    try {
+      // Process recurring reminders
+      if (_recurringService is RecurringReminderService) {
+        await (_recurringService).processDueReminders();
+      }
+
+      // Process snoozed reminders
+      if (_snoozeService is SnoozeReminderService) {
+        await (_snoozeService).processSnoozedReminders();
+      }
+    } catch (e, stack) {
+      logger.error(
+        'Failed to process due reminders',
+        error: e,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// Handle notification tap
+  Future<void> handleNotificationTap(String? payload) async {
+    if (payload == null) return;
+
+    try {
+      // Parse payload to determine action
+      // This would typically navigate to the relevant note
+      logger.info('Notification tapped', data: {'payload': payload});
+
+      analytics.event('notification.tapped', properties: {
+        'payload': payload,
+      });
+    } catch (e, stack) {
+      logger.error(
+        'Failed to handle notification tap',
+        error: e,
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// Clean up resources
   Future<void> dispose() async {
     try {
-      await _geofenceService.dispose();
+      await Future.wait([
+        _recurringService.dispose(),
+        _geofenceService.dispose(),
+        _snoozeService.dispose(),
+      ]);
+
       logger.info('ReminderCoordinator disposed');
     } catch (e) {
       logger.warning('Error disposing ReminderCoordinator: $e');
     }
   }
+
+  /// Get statistics about reminders
+  Future<Map<String, dynamic>> getReminderStatistics() async {
+    try {
+      final active = await getActiveReminders();
+      final snoozeStats =
+          await (_snoozeService as SnoozeReminderService).getSnoozeStats();
+
+      return {
+        'total_active': active.length,
+        'by_type': {
+          'time': active.where((r) => r.type == ReminderType.time).length,
+          'recurring':
+              active.where((r) => r.type == ReminderType.recurring).length,
+          'location':
+              active.where((r) => r.type == ReminderType.location).length,
+        },
+        'snooze_stats': snoozeStats,
+      };
+    } catch (e, stack) {
+      logger.error(
+        'Failed to get reminder statistics',
+        error: e,
+        stackTrace: stack,
+      );
+      return {};
+    }
+  }
 }
-
-/// Provider for `ReminderCoordinator`
-final reminderCoordinatorProvider = Provider<ReminderCoordinator>((ref) {
-  final plugin = FlutterLocalNotificationsPlugin();
-  // Import the appDbProvider from providers.dart to avoid creating multiple instances
-  final db = ref.read(appDbProvider);
-  return ReminderCoordinator(plugin, db);
-});
-
-// Note: Use advancedReminderServiceProvider from advanced_reminder_service.dart
-// This provider is deprecated - use reminderCoordinatorProvider directly

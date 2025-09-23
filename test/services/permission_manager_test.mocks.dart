@@ -32,12 +32,6 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
   }
 
   @override
-  bool get useUnifiedReminders => (super.noSuchMethod(
-        Invocation.getter(#useUnifiedReminders),
-        returnValue: false,
-      ) as bool);
-
-  @override
   bool get useNewBlockEditor => (super.noSuchMethod(
         Invocation.getter(#useNewBlockEditor),
         returnValue: false,
@@ -57,25 +51,44 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
 
   @override
   bool isEnabled(String? flagName) => (super.noSuchMethod(
-        Invocation.method(#isEnabled, [flagName]),
+        Invocation.method(
+          #isEnabled,
+          [flagName],
+        ),
         returnValue: false,
       ) as bool);
 
   @override
-  void setOverride(String? flagName, bool? value) => super.noSuchMethod(
-        Invocation.method(#setOverride, [flagName, value]),
+  void setOverride(
+    String? flagName,
+    bool? value,
+  ) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #setOverride,
+          [
+            flagName,
+            value,
+          ],
+        ),
         returnValueForMissingStub: null,
       );
 
   @override
   void clearOverrides() => super.noSuchMethod(
-        Invocation.method(#clearOverrides, []),
+        Invocation.method(
+          #clearOverrides,
+          [],
+        ),
         returnValueForMissingStub: null,
       );
 
   @override
   _i3.Future<void> updateFromRemoteConfig() => (super.noSuchMethod(
-        Invocation.method(#updateFromRemoteConfig, []),
+        Invocation.method(
+          #updateFromRemoteConfig,
+          [],
+        ),
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);

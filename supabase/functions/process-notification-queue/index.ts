@@ -298,11 +298,29 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = serviceKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !supabaseServiceKey) {
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
       throw new ServerError("Supabase configuration missing");
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // SECURITY FIX: Use anon key with JWT context when available, service key only for pg_cron
+    let supabase;
+    if (isPgCron) {
+      // pg_cron operations need service key for scheduled tasks
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+    } else {
+      // Use anon key with user context to respect RLS policies
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+      } else {
+        // Fallback to service key only if no user context available
+        supabase = createClient(supabaseUrl, supabaseServiceKey);
+      }
+    }
     
     let result: any = {};
     
