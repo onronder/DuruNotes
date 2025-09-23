@@ -17,14 +17,16 @@ class NotesRepository {
     required this.crypto,
     required this.api,
     required SupabaseClient client,
-  }) : _supabase = client;
+    required NoteIndexer indexer,
+  }) : _supabase = client,
+       _indexer = indexer;
 
   final AppDb db;
   final CryptoBox crypto;
   final SupabaseNoteApi api;
   final SupabaseClient _supabase;
+  final NoteIndexer _indexer;
   final _uuid = const Uuid();
-  final _indexer = NoteIndexer();
 
   // Expose client for compatibility
   SupabaseClient get client => _supabase;

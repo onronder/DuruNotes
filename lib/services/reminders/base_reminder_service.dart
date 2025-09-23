@@ -5,7 +5,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -97,13 +98,14 @@ class ReminderNotificationData {
 /// }
 /// ```
 abstract class BaseReminderService {
-  BaseReminderService(this.plugin, this.db);
+  BaseReminderService(this._ref, this.plugin, this.db);
 
   // Shared dependencies
+  final Ref _ref;
   final FlutterLocalNotificationsPlugin plugin;
   final AppDb db;
-  final AppLogger logger = LoggerFactory.instance;
-  final AnalyticsService analytics = AnalyticsFactory.instance;
+  AppLogger get logger => _ref.read(loggerProvider);
+  AnalyticsService get analytics => _ref.read(analyticsProvider);
 
   // Channel configuration
   static const String channelId = 'notes_reminders';

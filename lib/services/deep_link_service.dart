@@ -7,17 +7,19 @@ import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
 
 /// Service for handling deep links from notifications to specific app content
 typedef Reader = T Function<T>(ProviderListenable<T> provider);
 
 class DeepLinkService {
-  DeepLinkService({
+  DeepLinkService(this._ref, {
     required Reader read,
   }) : _read = read;
 
+  final Ref _ref;
   final Reader _read;
-  final AppLogger _logger = LoggerFactory.instance;
+  AppLogger get _logger => _ref.read(loggerProvider);
 
   /// Handle deep link from notification
   Future<void> handleDeepLink({

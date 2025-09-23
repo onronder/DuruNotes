@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -55,17 +56,14 @@ class AttachmentSizeException extends AttachmentException {
 
 /// Attachment service for handling file uploads and downloads
 class AttachmentService {
-  AttachmentService({
+  AttachmentService(this._ref, {
     SupabaseClient? client,
-    AppLogger? logger,
-    AnalyticsService? analytics,
-  })  : _client = client ?? Supabase.instance.client,
-        _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  })  : _client = client ?? Supabase.instance.client;
 
+  final Ref _ref;
   final SupabaseClient _client;
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
+  AppLogger get _logger => _ref.read(loggerProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
 
   /// Pick and upload a file from device
   Future<AttachmentBlockData?> pickAndUpload() async {

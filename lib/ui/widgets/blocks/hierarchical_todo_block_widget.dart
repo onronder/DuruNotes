@@ -1,7 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
@@ -142,15 +141,11 @@ class _HierarchicalTodoBlockWidgetState
     if (_task == null) return;
 
     try {
-      final hierarchyService = HierarchicalTaskSyncService(
-        database: ref.read(appDbProvider),
-        enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-      );
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
 
-      final hasChildren = await hierarchyService.hasSubtasks(_task!.id);
+      final hasChildren = await unifiedService.hasSubtasks(_task!.id);
       if (hasChildren) {
-        final hierarchy =
-            await hierarchyService.getTaskHierarchy(widget.noteId!);
+        final hierarchy = await unifiedService.getTaskHierarchy(widget.noteId!);
         final node = hierarchy
             .expand((root) => [root, ...root.getAllDescendants()])
             .where((node) => node.task.id == _task!.id)
@@ -158,7 +153,7 @@ class _HierarchicalTodoBlockWidgetState
 
         if (node != null && mounted) {
           setState(() {
-            _progress = hierarchyService.calculateTaskProgress(node);
+            _progress = unifiedService.calculateTaskProgress(node);
           });
         }
       }
@@ -629,12 +624,8 @@ class _HierarchicalTodoBlockWidgetState
     if (_task == null) return;
 
     try {
-      final hierarchyService = HierarchicalTaskSyncService(
-        database: ref.read(appDbProvider),
-        enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-      );
-
-      await hierarchyService.completeAllSubtasks(_task!.id);
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
+      await unifiedService.completeAllSubtasks(_task!.id);
       await _loadTaskProgress();
 
       if (mounted) {
@@ -678,12 +669,8 @@ class _HierarchicalTodoBlockWidgetState
 
     if (confirmed == true) {
       try {
-        final hierarchyService = HierarchicalTaskSyncService(
-          database: ref.read(appDbProvider),
-          enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-        );
-
-        await hierarchyService.deleteTaskHierarchy(_task!.id);
+        final unifiedService = ref.read(unifiedTaskServiceProvider);
+        await unifiedService.deleteTaskHierarchy(_task!.id);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

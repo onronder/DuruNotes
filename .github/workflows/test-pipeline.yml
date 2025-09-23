@@ -1,0 +1,344 @@
+name: Comprehensive Test Pipeline
+
+on:
+  push:
+    branches: [main, dev/*, feature/*]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  FLUTTER_VERSION: '3.x'
+  DART_VERSION: 'stable'
+
+jobs:
+  # Job 1: Unit Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          flutter pub global activate coverage
+
+      - name: Generate mocks
+        run: |
+          flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Run unit tests with coverage
+        run: |
+          flutter test --coverage --test-randomize-ordering-seed random \
+            --reporter=json > test-results.json || true
+          flutter test --coverage --machine > test-results-machine.json || true
+
+      - name: Generate coverage report
+        run: |
+          flutter pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info \
+            --packages=.packages --report-on=lib
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/lcov.info
+          flags: unit-tests
+          name: unit-coverage
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-results
+          path: |
+            test-results.json
+            test-results-machine.json
+            coverage/
+
+  # Job 2: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'schedule' # Skip on scheduled runs
+
+    env:
+      TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      TEST_SUPABASE_SERVICE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_KEY }}
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup test database
+        run: |
+          # Create test environment in Supabase
+          curl -X POST "$TEST_SUPABASE_URL/rest/v1/rpc/setup_test_environment" \
+            -H "apikey: $TEST_SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $TEST_SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"test_run_id": "${{ github.run_id }}"}'
+
+      - name: Run integration tests
+        run: |
+          flutter test test/integration \
+            --dart-define=TEST_MODE=integration \
+            --dart-define=TEST_SUPABASE_URL=$TEST_SUPABASE_URL \
+            --dart-define=TEST_SUPABASE_ANON_KEY=$TEST_SUPABASE_ANON_KEY
+
+      - name: Cleanup test data
+        if: always()
+        run: |
+          curl -X POST "$TEST_SUPABASE_URL/rest/v1/rpc/cleanup_test_environment" \
+            -H "apikey: $TEST_SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $TEST_SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"test_run_id": "${{ github.run_id }}"}'
+
+  # Job 3: Edge Function Tests
+  edge-function-tests:
+    name: Edge Function Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: |
+          supabase start
+          supabase status
+
+      - name: Deploy Edge Functions locally
+        run: |
+          supabase functions deploy --local
+
+      - name: Run Edge Function tests
+        run: |
+          flutter test test/edge_functions \
+            --dart-define=EDGE_FUNCTION_URL=http://localhost:54321/functions/v1
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
+  # Job 4: Security Tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run security tests
+        run: |
+          flutter test test/security \
+            --dart-define=SECURITY_TEST_MODE=true
+
+      - name: Run dependency vulnerability scan
+        run: |
+          flutter pub outdated
+          flutter pub audit || true
+
+      - name: OWASP dependency check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'duru-notes'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --enableRetired
+            --enableExperimental
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: reports/
+
+  # Job 5: Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event_name == 'schedule' # Only run on schedule
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Run performance benchmarks
+        run: |
+          flutter test test/performance \
+            --dart-define=PERFORMANCE_TEST=true
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: test/performance/results/
+
+  # Job 6: Widget Tests
+  widget-tests:
+    name: Widget Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run widget tests
+        run: |
+          flutter test test/ui test/widgets \
+            --dart-define=WIDGET_TEST_MODE=true
+
+  # Job 7: Test Report Generation
+  test-report:
+    name: Generate Test Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, widget-tests, security-tests]
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: test-artifacts/
+
+      - name: Setup Python for report generation
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Generate consolidated report
+        run: |
+          python scripts/generate_test_report.py \
+            --input-dir test-artifacts \
+            --output-file test-report.html
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: consolidated-test-report
+          path: test-report.html
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const testResults = JSON.parse(fs.readFileSync('test-artifacts/unit-test-results/test-results.json'));
+
+            const comment = `## Test Results
+
+            ✅ **Unit Tests:** ${testResults.passed}/${testResults.total} passed
+            📊 **Coverage:** ${testResults.coverage}%
+            ⏱️ **Duration:** ${testResults.duration}s
+
+            [View full report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Job 8: Notify on failure
+  notify-failure:
+    name: Notify Test Failures
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, edge-function-tests, security-tests]
+    if: failure()
+    timeout-minutes: 5
+
+    steps:
+      - name: Send Slack notification
+        if: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🚨 Test Pipeline Failed",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref }}\n*Run:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              }]
+            }'
+
+# Matrix strategy for parallel execution
+strategy:
+  matrix:
+    test-suite:
+      - unit
+      - integration
+      - widget
+      - security
+      - edge-functions

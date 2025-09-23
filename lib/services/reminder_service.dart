@@ -6,9 +6,10 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 // If your enum lives in your DB layer, import it here.
 import 'package:duru_notes/data/local/app_db.dart' show ReminderType;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:flutter_timezone/flutter_timezone.dart' show FlutterTimezone, TimezoneInfo;
 import 'package:permission_handler/permission_handler.dart';
 // Timezone handling
 import 'package:timezone/data/latest.dart' as tzdata;
@@ -90,12 +91,11 @@ class Reminder {
 }
 
 class ReminderService {
-  ReminderService({AppLogger? logger, AnalyticsService? analytics})
-      : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
+  ReminderService(this._ref);
 
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
+  final Ref _ref;
+  AppLogger get _logger => _ref.read(loggerProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
 
@@ -103,7 +103,7 @@ class ReminderService {
   bool _tzReady = false;
 
   // Static timezone cache - shared across all instances
-  static String? _cachedTimezone;
+  static TimezoneInfo? _cachedTimezone;
   static bool _timezoneInitialized = false;
 
   // ---------------- Public API ----------------
@@ -403,7 +403,7 @@ class ReminderService {
     // Check static cache - if already initialized globally, just use it
     if (_timezoneInitialized && _cachedTimezone != null) {
       _tzReady = true;
-      _logger.debug('Using cached timezone', data: {'tz': _cachedTimezone});
+      _logger.debug('Using cached timezone', data: {'tz': _cachedTimezone?.identifier});
       return;
     }
 
@@ -419,20 +419,25 @@ class ReminderService {
         _cachedTimezone = await FlutterTimezone.getLocalTimezone();
         _logger.info(
           'Timezone fetched and cached',
-          data: {'tz': _cachedTimezone},
+          data: {'tz': _cachedTimezone?.identifier},
         );
       }
 
-      tz.setLocalLocation(tz.getLocation(_cachedTimezone!));
+      if (_cachedTimezone != null) {
+        tz.setLocalLocation(tz.getLocation(_cachedTimezone!.identifier));
+        _logger.debug('Timezone initialized', data: {'tz': _cachedTimezone!.identifier});
+      } else {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+        _logger.debug('Timezone initialized with fallback UTC');
+      }
       _tzReady = true;
-      _logger.debug('Timezone initialized', data: {'tz': _cachedTimezone});
     } catch (e, st) {
       _logger.error(
         'Failed to initialize timezone; falling back to UTC',
         error: e,
         stackTrace: st,
       );
-      _cachedTimezone = 'UTC';
+      _cachedTimezone = null; // Clear cache on error
       tz.setLocalLocation(tz.getLocation('UTC'));
       _tzReady = true;
     }

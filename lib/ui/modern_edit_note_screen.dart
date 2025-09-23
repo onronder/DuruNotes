@@ -104,7 +104,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           try {
             // Use only bidirectional sync - legacy sync is deprecated
             ref
-                .read(noteTaskCoordinatorProvider)
+                .read(unifiedTaskServiceProvider)
                 .startWatchingNote(widget.noteId!);
           } catch (e) {
             debugPrint('Could not start task sync: $e');
@@ -127,7 +127,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     });
 
     // REMOVED: Legacy task sync - now handled by bidirectional sync above
-    // The noteTaskCoordinatorProvider.startWatchingNote() call at line 95
+    // The unifiedTaskServiceProvider.startWatchingNote() call at line 95
     // already handles initial sync via initializeBidirectionalSync()
 
     // Animation setup for toolbar slide with Material-3 timing
@@ -290,7 +290,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         try {
           // Check if the widget is still mounted before using ref
           if (context.owner != null) {
-            final coordinator = ref.read(noteTaskCoordinatorProvider);
+            final coordinator = ref.read(unifiedTaskServiceProvider);
             coordinator.stopWatchingNote(widget.noteId!);
           }
         } catch (e) {
@@ -1454,7 +1454,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           try {
             // Use only bidirectional sync - legacy sync is deprecated
             ref
-                .read(noteTaskCoordinatorProvider)
+                .read(unifiedTaskServiceProvider)
                 .startWatchingNote(noteIdToUse);
           } catch (e) {
             debugPrint('Could not start task sync for new note: $e');

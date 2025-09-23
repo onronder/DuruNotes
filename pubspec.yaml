@@ -86,14 +86,7 @@ dev_dependencies:
   mockito: ^5.5.1
   # very_good_analysis: ^9.0.0  # Removed - using flutter_lints instead
   image: ^4.1.7
-  intl_utils: ^2.8.12
 
-# Configuration for flutter_launcher_icons package
-  riverpod: any
-  firebase_messaging_platform_interface: any
-  supabase: any
-  flutter_local_notifications_platform_interface: any
-  test: any
 flutter_launcher_icons:
   android: true
   ios: true

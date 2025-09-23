@@ -3,14 +3,17 @@ import 'dart:math';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 /// Service for analyzing task productivity and generating insights
 class TaskAnalyticsService {
-  TaskAnalyticsService({required AppDb database}) : _db = database;
+  TaskAnalyticsService(this._ref, {required AppDb database}) : _db = database;
 
+  final Ref _ref;
   final AppDb _db;
-  final AppLogger _logger = LoggerFactory.instance;
+  AppLogger get _logger => _ref.read(loggerProvider);
 
   /// Get comprehensive productivity analytics
   Future<ProductivityAnalytics> getProductivityAnalytics({

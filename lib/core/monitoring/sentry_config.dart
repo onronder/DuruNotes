@@ -24,13 +24,13 @@ class SentryConfig {
   /// Initialize Sentry for error tracking and performance monitoring
   static Future<void> initialize() async {
     if (_isInitialized) {
-      (_logger ?? LoggerFactory.instance).warning('Sentry already initialized');
+      _logger?.warning('Sentry already initialized');
       return;
     }
 
     final config = _environment;
-    final logger = _logger ?? LoggerFactory.instance;
-    if (config == null) {
+    final logger = _logger;
+    if (config == null || logger == null) {
       throw StateError(
         'SentryConfig.configure must be called before initialize',
       );

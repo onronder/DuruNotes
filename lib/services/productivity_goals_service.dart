@@ -21,6 +21,10 @@ class ProductivityGoalsService {
   final TaskAnalyticsService _analyticsService;
   final AppLogger _logger = LoggerFactory.instance;
 
+  // Track resources for proper disposal
+  final List<Timer> _activeTimers = [];
+  final List<StreamController> _activeControllers = [];
+
   static const String _goalsKey = 'productivity_goals';
   static const String _achievementsKey = 'productivity_achievements';
 
@@ -436,6 +440,7 @@ class ProductivityGoalsService {
   Stream<List<ProductivityGoal>> watchActiveGoals() {
     // Create a stream controller
     final controller = StreamController<List<ProductivityGoal>>.broadcast();
+    _activeControllers.add(controller);
 
     // Initial load
     getActiveGoals().then((goals) {
@@ -445,9 +450,10 @@ class ProductivityGoalsService {
     });
 
     // Periodic updates
-    Timer.periodic(const Duration(minutes: 5), (timer) {
+    final timer = Timer.periodic(const Duration(minutes: 5), (timer) {
       if (controller.isClosed) {
         timer.cancel();
+        _activeTimers.remove(timer);
         return;
       }
 
@@ -457,8 +463,33 @@ class ProductivityGoalsService {
         }
       });
     });
+    _activeTimers.add(timer);
+
+    // Clean up controller from list when stream is cancelled
+    controller.onCancel = () {
+      _activeControllers.remove(controller);
+    };
 
     return controller.stream;
+  }
+
+  /// Dispose of all resources to prevent memory leaks
+  void dispose() {
+    // Cancel all active timers
+    for (final timer in _activeTimers) {
+      timer.cancel();
+    }
+    _activeTimers.clear();
+
+    // Close all active stream controllers
+    for (final controller in _activeControllers) {
+      if (!controller.isClosed) {
+        controller.close();
+      }
+    }
+    _activeControllers.clear();
+
+    _logger.debug('ProductivityGoalsService disposed');
   }
 }
 

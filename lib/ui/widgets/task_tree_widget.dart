@@ -1,6 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/hierarchical_task_sync_service.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
@@ -104,11 +103,7 @@ class TaskTreeNodeWidget extends ConsumerWidget {
     // Calculate progress if this is a parent task
     TaskProgress? progress;
     if (hasChildren && showProgress) {
-      final hierarchyService = HierarchicalTaskSyncService(
-        database: ref.watch(appDbProvider),
-        enhancedTaskService: ref.watch(enhancedTaskServiceProvider),
-      );
-      progress = hierarchyService.calculateTaskProgress(node);
+      progress = unifiedService.calculateTaskProgress(node);
     }
 
     return Column(
@@ -408,12 +403,8 @@ class TaskTreeNodeWidget extends ConsumerWidget {
 
   Future<void> _completeAllSubtasks(BuildContext context, WidgetRef ref) async {
     try {
-      final hierarchyService = HierarchicalTaskSyncService(
-        database: ref.read(appDbProvider),
-        enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-      );
-
-      await hierarchyService.completeAllSubtasks(node.task.id);
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
+      await unifiedService.completeAllSubtasks(node.task.id);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -489,12 +480,8 @@ class TaskTreeNodeWidget extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        final hierarchyService = HierarchicalTaskSyncService(
-          database: ref.read(appDbProvider),
-          enhancedTaskService: ref.read(enhancedTaskServiceProvider),
-        );
-
-        await hierarchyService.deleteTaskHierarchy(node.task.id);
+        final unifiedService = ref.read(unifiedTaskServiceProvider);
+        await unifiedService.deleteTaskHierarchy(node.task.id);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -5,7 +5,8 @@ import 'package:duru_notes/core/parser/note_block_parser.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
@@ -152,14 +153,11 @@ class ExportResult {
 
 /// World-class export service with comprehensive format support
 class ExportService {
-  ExportService({
-    AppLogger? logger,
-    AnalyticsService? analytics,
-    // AttachmentService? attachmentService,  // Reserved for future attachment export
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _analytics = analytics ?? AnalyticsFactory.instance;
-  final AppLogger _logger;
-  final AnalyticsService _analytics;
+  ExportService(this._ref);
+
+  final Ref _ref;
+  AppLogger get _logger => _ref.read(loggerProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
   // final AttachmentService _attachmentService;  // Reserved for future attachment export
 
   // Configuration constants (reserved for future implementation)

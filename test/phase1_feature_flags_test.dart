@@ -32,14 +32,14 @@ void main() {
 
       test('should have all Phase 1 flags enabled in development', () {
         // All flags should be enabled as we set them in development
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
       });
 
       test('should check flags using isEnabled method', () {
-        expect(flags.isEnabled('use_unified_reminders'), isTrue);
+        expect(flags.isEnabled('use_refactored_components'), isTrue);
         expect(flags.isEnabled('use_new_block_editor'), isTrue);
         expect(flags.isEnabled('use_refactored_components'), isTrue);
         expect(flags.isEnabled('use_unified_permission_manager'), isTrue);
@@ -54,12 +54,12 @@ void main() {
     group('Override Functionality', () {
       test('should support overrides for individual flags', () {
         // Initially enabled
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
 
         // Override to disable
-        flags.setOverride('use_unified_reminders', false);
-        expect(flags.useUnifiedReminders, isFalse);
-        expect(flags.isEnabled('use_unified_reminders'), isFalse);
+        flags.setOverride('use_refactored_components', false);
+        expect(flags.useRefactoredComponents, isFalse);
+        expect(flags.isEnabled('use_refactored_components'), isFalse);
 
         // Other flags should remain unchanged
         expect(flags.useNewBlockEditor, isTrue);
@@ -69,10 +69,10 @@ void main() {
 
       test('should support multiple overrides', () {
         // Override multiple flags
-        flags.setOverride('use_unified_reminders', false);
+        flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_new_block_editor', false);
 
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isTrue); // Not overridden
         expect(flags.useUnifiedPermissionManager, isTrue); // Not overridden
@@ -80,13 +80,13 @@ void main() {
 
       test('should clear all overrides', () {
         // Set some overrides
-        flags.setOverride('use_unified_reminders', false);
+        flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_new_block_editor', false);
         flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_unified_permission_manager', false);
 
         // Verify overrides are applied
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
@@ -95,7 +95,7 @@ void main() {
         flags.clearOverrides();
 
         // All flags should return to development defaults (enabled)
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
@@ -103,25 +103,25 @@ void main() {
 
       test('overrides should take precedence over defaults', () {
         // Even though default is true, override should win
-        flags.setOverride('use_unified_reminders', false);
-        expect(flags.isEnabled('use_unified_reminders'), isFalse);
+        flags.setOverride('use_refactored_components', false);
+        expect(flags.isEnabled('use_refactored_components'), isFalse);
 
         // Set override to true (even though default is already true)
-        flags.setOverride('use_unified_reminders', true);
-        expect(flags.isEnabled('use_unified_reminders'), isTrue);
+        flags.setOverride('use_refactored_components', true);
+        expect(flags.isEnabled('use_refactored_components'), isTrue);
       });
     });
 
     group('Gradual Rollout Simulation', () {
       test('should support gradual feature enablement', () {
         // Start with all features disabled (simulating production)
-        flags.setOverride('use_unified_reminders', false);
+        flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_new_block_editor', false);
         flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_unified_permission_manager', false);
 
         // Verify all disabled
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
@@ -130,15 +130,15 @@ void main() {
         flags.setOverride('use_unified_permission_manager', true);
 
         expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isFalse);
 
         // Stage 2: Enable reminders
-        flags.setOverride('use_unified_reminders', true);
+        flags.setOverride('use_refactored_components', true);
 
         expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isFalse);
 
@@ -146,7 +146,7 @@ void main() {
         flags.setOverride('use_new_block_editor', true);
 
         expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isFalse);
 
@@ -154,33 +154,33 @@ void main() {
         flags.setOverride('use_refactored_components', true);
 
         expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
       });
 
       test('should support rollback scenarios', () {
         // All features enabled
-        expect(flags.useUnifiedReminders, isTrue);
+        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
 
         // Simulate issue detected - rollback reminders only
-        flags.setOverride('use_unified_reminders', false);
+        flags.setOverride('use_refactored_components', false);
 
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isTrue); // Others still enabled
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
 
         // Emergency rollback - disable all new features
-        flags.setOverride('use_unified_reminders', false);
+        flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_new_block_editor', false);
         flags.setOverride('use_refactored_components', false);
         flags.setOverride('use_unified_permission_manager', false);
 
-        expect(flags.useUnifiedReminders, isFalse);
+        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
@@ -231,7 +231,7 @@ void main() {
 
         if (useRefactored) {
           // Load refactored components
-          expect(flags.useUnifiedReminders, isTrue);
+          expect(flags.useRefactoredComponents, isTrue);
           expect(flags.useUnifiedPermissionManager, isTrue);
         } else {
           // Load legacy components

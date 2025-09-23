@@ -55,16 +55,30 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const token = authHeader.substring(7);
-        // Try to decode the JWT to get user ID
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.sub) {
-          userId = payload.sub;
+        // SECURITY FIX: Use proper Supabase authentication instead of unsafe JWT parsing
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+        if (!anonKey) {
+          console.error("Missing SUPABASE_ANON_KEY");
+          throw new Error("Authentication configuration error");
+        }
+
+        // Create authenticated Supabase client with user JWT
+        const userSupabase = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+
+        // Verify JWT and get user
+        const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+
+        if (user && !authError) {
+          userId = user.id;
           authMethod = "jwt";
           console.log("Authenticated via JWT for user:", userId);
+        } else {
+          console.log("JWT verification failed:", authError?.message);
         }
       } catch (e) {
-        console.log("JWT decode failed, trying other auth methods");
+        console.log("JWT authentication failed, trying other auth methods:", e.message);
       }
     }
 

@@ -8,10 +8,7 @@ import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart'
-    as legacy;
-import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.dart'
-    as refactored;
+import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:duru_notes/services/permission_manager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,40 +19,23 @@ final _logger = LoggerFactory.instance;
 final featureFlagsProvider =
     Provider<FeatureFlags>((ref) => FeatureFlags.instance);
 
-/// Feature-flagged reminder coordinator provider
-/// Returns either legacy or refactored implementation based on feature flag
+/// Reminder coordinator provider (unified implementation)
+/// Phase 1 complete - always uses refactored implementation
 final featureFlaggedReminderCoordinatorProvider = Provider<dynamic>((ref) {
-  final featureFlags = ref.watch(featureFlagsProvider);
   final plugin = FlutterLocalNotificationsPlugin();
   final db = ref.read(appDbProvider);
 
-  if (featureFlags.useUnifiedReminders) {
-    // Log for debugging
-    _logger.debug('[FeatureFlags] ✅ Using REFACTORED ReminderCoordinator');
+  // Always use unified implementation (Phase 1 complete)
+  _logger.debug('[FeatureFlags] ✅ Using unified ReminderCoordinator');
 
-    final coordinator = refactored.ReminderCoordinator(plugin, db);
+  final coordinator = ReminderCoordinator(ref, plugin, db);
 
-    // Initialize on creation
-    coordinator.initialize().catchError((error) {
-      _logger.error('[FeatureFlags] Error initializing refactored coordinator',
-          error: error);
-    });
+  // Initialize on creation
+  coordinator.initialize().catchError((error) {
+    _logger.error('[FeatureFlags] Error initializing coordinator', error: error);
+  });
 
-    return coordinator;
-  } else {
-    // Log for debugging
-    _logger.debug('[FeatureFlags] ⚠️ Using LEGACY ReminderCoordinator');
-
-    final coordinator = legacy.ReminderCoordinator(plugin, db);
-
-    // Initialize on creation
-    coordinator.initialize().catchError((error) {
-      _logger.error('[FeatureFlags] Error initializing legacy coordinator',
-          error: error);
-    });
-
-    return coordinator;
-  }
+  return coordinator;
 });
 
 /// Feature-flagged permission manager provider
@@ -74,23 +54,16 @@ final featureFlaggedPermissionManagerProvider =
   }
 });
 
-/// Feature-flagged advanced reminder service provider
-/// This can switch between different reminder implementations
+/// Advanced reminder service provider (unified implementation)
+/// Phase 1 complete - uses unified implementation
 final featureFlaggedAdvancedReminderServiceProvider =
     Provider<AdvancedReminderService>((ref) {
-  final featureFlags = ref.watch(featureFlagsProvider);
   final plugin = FlutterLocalNotificationsPlugin();
   final db = ref.read(appDbProvider);
 
-  if (featureFlags.useUnifiedReminders) {
-    _logger.debug('[FeatureFlags] ✅ Using refactored AdvancedReminderService');
-  } else {
-    _logger.debug('[FeatureFlags] ⚠️ Using legacy AdvancedReminderService');
-  }
+  _logger.debug('[FeatureFlags] ✅ Using unified AdvancedReminderService');
 
-  // Currently both use the same implementation
-  // In future, this could return different implementations
-  return AdvancedReminderService(plugin, db);
+  return AdvancedReminderService(ref, plugin, db);
 });
 
 /// Helper function to check if refactored components should be used
@@ -98,10 +71,6 @@ bool shouldUseRefactoredComponents() {
   return FeatureFlags.instance.useRefactoredComponents;
 }
 
-/// Helper function to check if unified reminders should be used
-bool shouldUseUnifiedReminders() {
-  return FeatureFlags.instance.useUnifiedReminders;
-}
 
 /// Helper function to check if new block editor should be used
 bool shouldUseNewBlockEditor() {
@@ -114,9 +83,6 @@ extension FeatureFlagExtensions on WidgetRef {
   bool get useRefactoredComponents =>
       read(featureFlagsProvider).useRefactoredComponents;
 
-  /// Check if unified reminders should be used
-  bool get useUnifiedReminders =>
-      read(featureFlagsProvider).useUnifiedReminders;
 
   /// Check if new block editor should be used
   bool get useNewBlockEditor => read(featureFlagsProvider).useNewBlockEditor;

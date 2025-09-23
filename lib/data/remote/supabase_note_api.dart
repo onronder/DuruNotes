@@ -307,4 +307,99 @@ class SupabaseNoteApi {
     }
     throw ArgumentError('Unsupported byte value type: ${v.runtimeType}');
   }
+
+  // ----------------------
+  // Task Operations
+  // ----------------------
+
+  /// Fetch note tasks, optionally since a given timestamp.
+  /// Returns tasks for all notes owned by the current user.
+  ///
+  /// Each task contains:
+  /// - id: Task UUID
+  /// - note_id: The ID of the parent note
+  /// - content: Task description/content
+  /// - status: Task status (pending, in_progress, completed, cancelled)
+  /// - priority: Task priority (0-5)
+  /// - due_date: Optional due date
+  /// - completed_at: When task was completed
+  /// - parent_id: Parent task ID for hierarchical tasks
+  /// - created_at, updated_at: Timestamps
+  /// - deleted: Soft deletion flag
+  Future<List<Map<String, dynamic>>> fetchNoteTasks({
+    DateTime? since,
+  }) async {
+    var query = _client
+        .from('note_tasks')
+        .select('''
+          id, note_id, user_id, content, status, priority, position,
+          due_date, completed_at, parent_id, labels, metadata,
+          created_at, updated_at, deleted
+        ''')
+        .eq('user_id', _uid);
+
+    if (since != null) {
+      query = query.gte('updated_at', since.toUtc().toIso8601String());
+    }
+
+    final dynamic res = await query;
+    return _normalizeListOfMaps(res);
+  }
+
+  /// Fetch active (non-deleted) task IDs for reconciliation
+  Future<Set<String>> fetchAllActiveTaskIds() async {
+    final dynamic res = await _client
+        .from('note_tasks')
+        .select('id')
+        .eq('user_id', _uid)
+        .eq('deleted', false);
+
+    final list = _normalizeListOfMaps(res);
+    return list.map((m) => m['id'] as String).toSet();
+  }
+
+  /// Upsert task to the remote 'note_tasks' table
+  ///
+  /// Parameters:
+  /// - [id]: Task UUID
+  /// - [noteId]: Parent note UUID
+  /// - [content]: Task description
+  /// - [status]: Task status (pending, in_progress, completed, cancelled)
+  /// - [priority]: Priority level (0-5)
+  /// - [dueDate]: Optional due date
+  /// - [parentId]: Optional parent task for hierarchy
+  /// - [deleted]: Soft deletion flag
+  Future<void> upsertNoteTask({
+    required String id,
+    required String noteId,
+    required String content,
+    required String status,
+    int priority = 0,
+    int position = 0,
+    DateTime? dueDate,
+    DateTime? completedAt,
+    String? parentId,
+    Map<String, dynamic>? labels,
+    Map<String, dynamic>? metadata,
+    required bool deleted,
+  }) async {
+    final row = <String, dynamic>{
+      'id': id,
+      'note_id': noteId,
+      'user_id': _uid,
+      'content': content,
+      'status': status,
+      'priority': priority,
+      'position': position,
+      'due_date': dueDate?.toUtc().toIso8601String(),
+      'completed_at': completedAt?.toUtc().toIso8601String(),
+      'parent_id': parentId,
+      'labels': labels,
+      'metadata': metadata ?? {},
+      'deleted': deleted,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    await _client.from('note_tasks').upsert(row);
+  }
 }

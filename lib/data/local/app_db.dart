@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:duru_notes/data/migrations/migration_12_phase3_optimization.dart';
 import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
@@ -395,7 +396,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -513,12 +514,38 @@ class AppDb extends _$AppDb {
             // Initialize system templates
             await _initializeSystemTemplates();
           }
+          if (from < 12) {
+            // Version 12: Phase 3 optimization - foreign keys and performance indexes
+            // Note: This migration recreates tables with foreign key constraints
+            // Make sure to backup data before running this migration
+
+            // Apply Phase 3 optimizations (foreign keys and performance indexes)
+            await Migration12Phase3Optimization.apply(this);
+          }
+
+          // Always attempt Migration 12 (idempotent) to handle edge cases where
+          // schema version is 12 but optimizations weren't applied
+          await _ensureMigration12Applied();
         },
       );
 
   /// Helper to check if a note is visible (not deleted and not a template)
   Expression<bool> noteIsVisible(LocalNotes t) =>
       t.deleted.equals(false) & t.noteType.equals(0);
+
+  /// Ensures Migration 12 Phase 3 optimizations are applied (idempotent)
+  /// This handles edge cases where schema version is 12 but optimizations weren't applied
+  Future<void> _ensureMigration12Applied() async {
+    try {
+      // Migration 12 is idempotent, so it's safe to call regardless of current state
+      await Migration12Phase3Optimization.apply(this);
+    } catch (e) {
+      // Log error but don't fail the migration - this is a safety check
+      if (kDebugMode) {
+        print('Warning: Could not ensure Migration 12 applied: $e');
+      }
+    }
+  }
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -2280,20 +2307,45 @@ class AppDb extends _$AppDb {
     return children.isNotEmpty;
   }
 
-  /// Get complete folder tree starting from a root
+  /// Get complete folder tree starting from a root (optimized with single query)
   Future<List<LocalFolder>> getFolderSubtree(String rootId) async {
-    final result = <LocalFolder>[];
-    final root = await findFolder(rootId);
-    if (root != null) {
-      result.add(root);
+    // Use a recursive CTE to get all folders in the subtree with a single query
+    final query = await customSelect(
+      '''
+      WITH RECURSIVE folder_tree AS (
+        -- Start with the root folder
+        SELECT * FROM local_folders
+        WHERE id = ? AND deleted = 0
 
-      final children = await getChildFolders(rootId);
-      for (final child in children) {
-        final subtree = await getFolderSubtree(child.id);
-        result.addAll(subtree);
-      }
-    }
-    return result;
+        UNION ALL
+
+        -- Recursively get child folders
+        SELECT f.* FROM local_folders f
+        INNER JOIN folder_tree ft ON f.parent_id = ft.id
+        WHERE f.deleted = 0
+      )
+      SELECT * FROM folder_tree
+      ORDER BY name
+      ''',
+      variables: [Variable.withString(rootId)],
+      readsFrom: {localFolders},
+    ).get();
+
+    return query.map((row) {
+      return LocalFolder(
+        id: row.read<String>('id'),
+        name: row.read<String>('name'),
+        parentId: row.readNullable<String>('parent_id'),
+        path: row.read<String>('path'),
+        sortOrder: row.read<int>('sort_order'),
+        color: row.readNullable<String>('color'),
+        icon: row.readNullable<String>('icon'),
+        description: row.read<String>('description'),
+        createdAt: row.read<DateTime>('created_at'),
+        updatedAt: row.read<DateTime>('updated_at'),
+        deleted: row.read<bool>('deleted'),
+      );
+    }).toList();
   }
 
   /// Search folders by name
@@ -2716,6 +2768,89 @@ Main focus:
     for (final template in systemTemplates) {
       await into(localTemplates).insertOnConflictUpdate(template);
     }
+  }
+
+  /// Apply Phase 3 optimization migrations
+  Future<void> _applyPhase3Optimizations() async {
+    // Enable foreign key constraints
+    await customStatement('PRAGMA foreign_keys = ON');
+
+    // Create performance indexes that don't require table recreation
+    // (Foreign keys require table recreation in SQLite, so they're handled separately)
+
+    // Composite index for pinned + updated sorting (most common query)
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_local_notes_pinned_updated
+      ON local_notes(is_pinned DESC, updated_at DESC)
+      WHERE deleted = 0
+    ''');
+
+    // Composite index for note-tag queries
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_tags_note_tag
+      ON note_tags(note_id, tag)
+    ''');
+
+    // Index for active tasks by note
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_tasks_note_status
+      ON note_tasks(note_id, status)
+      WHERE deleted = 0
+    ''');
+
+    // Index for active reminders by note
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_reminders_note_active
+      ON note_reminders(note_id, is_active)
+    ''');
+
+    // Index for folder hierarchy navigation
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_local_folders_parent_sort
+      ON local_folders(parent_id, sort_order)
+      WHERE deleted = 0
+    ''');
+
+    // Index for note-folder relationships
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_folders_folder_note
+      ON note_folders(folder_id, note_id)
+    ''');
+
+    // Index for open tasks with due dates
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_tasks_open_due
+      ON note_tasks(due_date ASC)
+      WHERE status = 0 AND deleted = 0 AND due_date IS NOT NULL
+    ''');
+
+    // Index for active reminders by time
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_note_reminders_active_time
+      ON note_reminders(remind_at ASC)
+      WHERE is_active = 1 AND remind_at IS NOT NULL
+    ''');
+
+    // Index for saved searches by usage
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_saved_searches_usage
+      ON saved_searches(is_pinned DESC, usage_count DESC, last_used_at DESC)
+    ''');
+
+    // Index for templates by category and usage
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_local_templates_category_usage
+      ON local_templates(category, usage_count DESC)
+      WHERE deleted = 0
+    ''');
+
+    // Note: Foreign key constraints would require table recreation in SQLite
+    // For production deployment, we would need to:
+    // 1. Create new tables with foreign key constraints
+    // 2. Copy data from old tables
+    // 3. Drop old tables
+    // 4. Rename new tables
+    // This is a complex operation that should be done carefully with proper backups
   }
 }
 
