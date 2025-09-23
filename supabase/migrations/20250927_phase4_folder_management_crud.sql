@@ -571,9 +571,35 @@ GRANT EXECUTE ON FUNCTION update_folder_hierarchy(UUID) TO authenticated;
 -- PART 8: REAL-TIME SUBSCRIPTIONS SETUP
 -- =====================================================
 
--- Enable real-time for folders table
-ALTER PUBLICATION supabase_realtime ADD TABLE public.folders;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.note_folders;
+-- Enable real-time for folders table (handle if already exists)
+DO $$
+BEGIN
+    -- Check if folders table is already in publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+        AND schemaname = 'public'
+        AND tablename = 'folders'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.folders;
+        RAISE NOTICE 'Added folders table to real-time publication';
+    ELSE
+        RAISE NOTICE 'Folders table already in real-time publication';
+    END IF;
+
+    -- Check if note_folders table is already in publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+        AND schemaname = 'public'
+        AND tablename = 'note_folders'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.note_folders;
+        RAISE NOTICE 'Added note_folders table to real-time publication';
+    ELSE
+        RAISE NOTICE 'Note_folders table already in real-time publication';
+    END IF;
+END $$;
 
 -- =====================================================
 -- PART 9: TRIGGER FUNCTIONS FOR AUTOMATION
