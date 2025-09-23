@@ -224,7 +224,9 @@ class BootstrapFailureContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Padding(
@@ -302,6 +304,7 @@ class BootstrapFailureContent extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

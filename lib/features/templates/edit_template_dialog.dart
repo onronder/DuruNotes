@@ -3,6 +3,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -278,19 +280,20 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                     const SizedBox(width: 16),
 
                     // Save button
-                    FilledButton.icon(
+                    DuruButton(
                       onPressed: _isLoading || !_hasChanges ? null : _saveTemplate,
-                      icon: _isLoading
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: colorScheme.onPrimary,
-                              ),
-                            )
-                          : const Icon(Icons.save),
-                      label: Text(_isLoading ? 'Saving...' : 'Save Changes'),
+                      variant: DuruButtonVariant.primary,
+                      isLoading: _isLoading,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!_isLoading) ...[
+                            const Icon(Icons.save),
+                            SizedBox(width: DuruSpacing.xs),
+                          ],
+                          Text(_isLoading ? 'Saving...' : 'Save Changes'),
+                        ],
+                      ),
                     ),
                   ],
                 ),

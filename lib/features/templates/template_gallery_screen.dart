@@ -5,6 +5,7 @@ import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/features/templates/edit_template_dialog.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -608,18 +609,22 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                 // Footer with category and usage count
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        template.category.toUpperCase(),
-                        style: theme.textTheme.labelSmall,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          template.category.toUpperCase(),
+                          style: theme.textTheme.labelSmall,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     // Usage count not available in current schema
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -901,22 +906,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   }
 
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'work':
-        return Colors.blue;
-      case 'personal':
-        return Colors.green;
-      case 'academic':
-        return Colors.purple;
-      case 'creative':
-        return Colors.orange;
-      case 'meeting':
-        return Colors.red;
-      case 'planning':
-        return Colors.indigo;
-      default:
-        return Colors.grey;
-    }
+    return DuruColors.getCategoryColor(context, category);
   }
 
   IconData _getCategoryIcon(String category) {

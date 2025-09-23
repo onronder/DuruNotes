@@ -4,6 +4,7 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/folder_undo_service.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -191,7 +192,7 @@ mixin FolderDeletionWithUndo {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Deleted folder "${folder.name}"'),
-            backgroundColor: Colors.green,
+            backgroundColor: DuruColors.accent,
             duration: const Duration(seconds: 8), // Longer duration for undo
             action: SnackBarAction(
               label: 'UNDO',
@@ -271,7 +272,7 @@ mixin FolderDeletionWithUndo {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Folder deletion undone'),
-              backgroundColor: Colors.blue,
+              backgroundColor: DuruColors.primary,
               duration: Duration(seconds: 3),
             ),
           );
