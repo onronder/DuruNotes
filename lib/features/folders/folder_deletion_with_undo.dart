@@ -1,12 +1,18 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/folder_undo_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Mixin for folder management screens to handle deletion with undo support
 mixin FolderDeletionWithUndo {
+  // Logger instance
+  final AppLogger _folderDeletionLogger = LoggerFactory.instance;
+
   /// Show confirmation dialog and delete folder with undo support
   Future<bool> confirmAndDeleteFolder(
     BuildContext context,
@@ -113,16 +119,47 @@ mixin FolderDeletionWithUndo {
       ),
     );
 
-    if (!(confirmed ?? false)) return false;
+    if (!(confirmed ?? false)) {
+      _folderDeletionLogger.info('Folder deletion cancelled by user', data: {
+        'folderId': folder.id,
+        'folderName': folder.name,
+      });
+      return false;
+    }
+
+    // Log deletion attempt
+    _folderDeletionLogger.info('Starting folder deletion', data: {
+      'folderId': folder.id,
+      'folderName': folder.name,
+      'path': folder.path,
+    });
+
+    // Track in Sentry
+    await Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: 'Folder deletion started',
+        category: 'folder.delete',
+        data: {
+          'folderId': folder.id,
+          'folderName': folder.name,
+        },
+      ),
+    );
 
     // Gather data for undo operation before deletion
     final notesRepo = ref.read(notesRepositoryProvider);
     final undoService = ref.read(folderUndoServiceProvider);
+    final analytics = ref.read(analyticsProvider);
 
     try {
       // Get affected notes and child folders before deletion
       final affectedNotes = await notesRepo.db.getNoteIdsInFolder(folder.id);
       final affectedChildFolders = await notesRepo.getChildFoldersRecursive(folder.id);
+
+      _folderDeletionLogger.debug('Folder deletion metadata', data: {
+        'affectedNotes': affectedNotes.length,
+        'childFolders': affectedChildFolders.length,
+      });
 
       // Perform the deletion
       final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
@@ -168,7 +205,29 @@ mixin FolderDeletionWithUndo {
       }
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _folderDeletionLogger.error('Failed to delete folder',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': folder.id,
+          'folderName': folder.name,
+        },
+      );
+
+      await Sentry.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('operation', 'folder_deletion');
+          scope.setContexts('folder', {
+            'id': folder.id,
+            'name': folder.name,
+            'path': folder.path,
+          });
+        },
+      );
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -190,10 +249,17 @@ mixin FolderDeletionWithUndo {
   ) async {
     final undoService = ref.read(folderUndoServiceProvider);
 
+    _folderDeletionLogger.info('Starting undo operation', data: {
+      'operationId': operationId,
+    });
+
     try {
       final success = await undoService.undoOperation(operationId);
 
       if (success) {
+        _folderDeletionLogger.info('Undo operation succeeded', data: {
+          'operationId': operationId,
+        });
         // Refresh folder providers
         ref.read(folderProvider.notifier).refresh();
         ref.read(folderHierarchyProvider.notifier).refresh();
@@ -211,6 +277,10 @@ mixin FolderDeletionWithUndo {
           );
         }
       } else {
+        _folderDeletionLogger.warning('Undo operation failed', data: {
+          'operationId': operationId,
+        });
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -220,7 +290,26 @@ mixin FolderDeletionWithUndo {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _folderDeletionLogger.error('Undo operation failed with exception',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'operationId': operationId,
+        },
+      );
+
+      await Sentry.captureException(
+        e,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('operation', 'folder_undo');
+          scope.setContexts('undo', {
+            'operationId': operationId,
+          });
+        },
+      );
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

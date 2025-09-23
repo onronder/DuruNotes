@@ -11,6 +11,7 @@ import 'package:duru_notes/core/settings/theme_mode_notifier.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
+import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/providers/unified_reminder_provider.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
@@ -781,6 +782,16 @@ final folderHierarchyProvider =
     StateNotifierProvider<FolderHierarchyNotifier, FolderHierarchyState>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
   return FolderHierarchyNotifier(repo);
+});
+
+/// Note-folder integration service provider for enhanced operations
+final noteFolderIntegrationServiceProvider = Provider<NoteFolderIntegrationService>((ref) {
+  final notesRepository = ref.watch(notesRepositoryProvider);
+  final analyticsService = ref.watch(analyticsProvider);
+  return NoteFolderIntegrationService(
+    notesRepository: notesRepository,
+    analyticsService: analyticsService,
+  );
 });
 
 /// Note-folder relationship provider

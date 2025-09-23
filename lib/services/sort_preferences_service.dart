@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum NoteSortField {
   updatedAt('updated_at', 'Modified'),
   createdAt('created_at', 'Created'),
-  title('title', 'Title');
+  title('title', 'Title'),
+  folder('folder', 'Folder');
 
   const NoteSortField(this.value, this.label);
   final String value;
@@ -69,6 +70,8 @@ class NoteSortSpec {
         return 'Created (${direction == SortDirection.desc ? "Newest First" : "Oldest First"})';
       case NoteSortField.title:
         return 'Title (${direction == SortDirection.asc ? "A-Z" : "Z-A"})';
+      case NoteSortField.folder:
+        return 'Folder (${direction == SortDirection.asc ? "A-Z" : "Z-A"})';
     }
   }
 
@@ -81,6 +84,8 @@ class NoteSortSpec {
         return 'Created';
       case NoteSortField.title:
         return 'Title';
+      case NoteSortField.folder:
+        return 'Folder';
     }
   }
 
