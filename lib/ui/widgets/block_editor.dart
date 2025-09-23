@@ -533,7 +533,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     // Data format: "row1col1|row1col2\nrow2col1|row2col2"
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(8),

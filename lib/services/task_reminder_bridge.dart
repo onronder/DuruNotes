@@ -366,7 +366,7 @@ class TaskReminderBridge {
             importance: Importance.high,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
-            color: const Color(0xFFFF9800), // Orange for warning
+            color: const Color(0xFFF59E0B), // Consistent warning color
           ),
           iOS: const DarwinNotificationDetails(
             presentAlert: true,
@@ -569,7 +569,7 @@ class TaskReminderBridge {
         importance: Importance.low,
         priority: Priority.low,
         icon: '@mipmap/ic_launcher',
-        color: Color(0xFF4CAF50), // Green for completion
+        color: const Color(0xFF5FD0CB), // Duru accent color for completion
       );
 
       const iosDetails = DarwinNotificationDetails(

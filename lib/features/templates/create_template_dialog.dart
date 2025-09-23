@@ -1,5 +1,7 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -117,7 +119,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(DuruSpacing.lg),
               decoration: BoxDecoration(
                 color: colorScheme.primary,
                 gradient: LinearGradient(
@@ -207,7 +209,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
             // Action buttons
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(DuruSpacing.lg),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLowest,
                 border: Border(
@@ -219,10 +221,17 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
               child: Row(
                 children: [
                   // Preview button
-                  OutlinedButton.icon(
+                  DuruButton(
                     onPressed: _isLoading ? null : _previewTemplate,
-                    icon: const Icon(Icons.preview),
-                    label: const Text('Preview'),
+                    variant: DuruButtonVariant.outlined,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.preview),
+                        SizedBox(width: DuruSpacing.xs),
+                        const Text('Preview'),
+                      ],
+                    ),
                   ),
 
                   const Spacer(),
@@ -236,19 +245,20 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                   const SizedBox(width: 16),
 
                   // Create button
-                  FilledButton.icon(
+                  DuruButton(
                     onPressed: _isLoading ? null : _createTemplate,
-                    icon: _isLoading
-                        ? SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.check),
-                    label: Text(_isLoading ? 'Creating...' : 'Create'),
+                    variant: DuruButtonVariant.primary,
+                    isLoading: _isLoading,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!_isLoading) ...[
+                          const Icon(Icons.check),
+                          SizedBox(width: DuruSpacing.xs),
+                        ],
+                        Text(_isLoading ? 'Creating...' : 'Create'),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -261,7 +271,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
   Widget _buildBasicInfoTab(ThemeData theme, ColorScheme colorScheme) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(DuruSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -352,7 +362,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
   Widget _buildContentTab(ThemeData theme, ColorScheme colorScheme) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(DuruSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -383,7 +393,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
           // Variable helper
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(DuruSpacing.md),
             decoration: BoxDecoration(
               color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
@@ -477,7 +487,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
   Widget _buildSettingsTab(ThemeData theme, ColorScheme colorScheme) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(DuruSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -490,7 +500,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(DuruSpacing.md),
             decoration: BoxDecoration(
               border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
               borderRadius: BorderRadius.circular(12),
@@ -548,7 +558,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(DuruSpacing.md),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),

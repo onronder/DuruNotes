@@ -1,6 +1,7 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -132,7 +133,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
       children: [
         ListTile(
           leading: Padding(
-            padding: EdgeInsets.only(left: depth * 16.0),
+            padding: EdgeInsets.only(left: depth * DuruSpacing.md),
             child: Icon(
               isExpanded ? Icons.folder_open : Icons.folder,
               size: 20,

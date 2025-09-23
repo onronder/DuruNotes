@@ -382,7 +382,7 @@ class ProductivityGoalsService {
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
-        color: Color(0xFF4CAF50), // Green for success
+        color: const Color(0xFF5FD0CB), // Duru accent color for success
       );
 
       const iosDetails = DarwinNotificationDetails(
