@@ -815,6 +815,22 @@ class NotesRepository {
         .get();
   }
 
+  /// Get child folders recursively (for undo operations)
+  Future<List<LocalFolder>> getChildFoldersRecursive(String parentId) async {
+    final result = <LocalFolder>[];
+    final directChildren = await getChildFolders(parentId);
+
+    result.addAll(directChildren);
+
+    // Recursively get children of children
+    for (final child in directChildren) {
+      final grandChildren = await getChildFoldersRecursive(child.id);
+      result.addAll(grandChildren);
+    }
+
+    return result;
+  }
+
   /// List all notes (compatibility)
   Future<List<LocalNote>> list({int? limit}) async {
     final query = db.select(db.localNotes)

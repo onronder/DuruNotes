@@ -3,6 +3,7 @@ import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_hierarchy_view.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
+import 'package:duru_notes/features/folders/folder_deletion_with_undo.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +19,7 @@ class FolderManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, FolderDeletionWithUndo {
   late TabController _tabController;
   LocalFolder? _selectedFolder;
 
@@ -174,10 +175,19 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
             _EmptyDetailsView(onCreateFolder: _showCreateFolderDialog),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateFolderDialog,
-        icon: const Icon(Icons.create_new_folder),
-        label: Text(l10n.createNewFolder),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Undo History FAB
+          const UndoHistoryFAB(),
+          const SizedBox(height: 16),
+          // Create Folder FAB
+          FloatingActionButton.extended(
+            onPressed: _showCreateFolderDialog,
+            icon: const Icon(Icons.create_new_folder),
+            label: Text(l10n.createNewFolder),
+          ),
+        ],
       ),
     );
   }
@@ -283,75 +293,11 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   }
 
   Future<void> _confirmDeleteFolder(LocalFolder folder) async {
-    final l10n = AppLocalizations.of(context);
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.confirmDeleteFolder),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.confirmDeleteFolderMessage),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: FolderIconHelpers.getFolderColor(folder.color) ??
-                          Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      FolderIconHelpers.getFolderIcon(folder.icon),
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      folder.name,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.confirmDeleteFolderAction),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed ?? false && mounted) {
-      final success =
-          await ref.read(folderProvider.notifier).deleteFolder(folder.id);
-
-      if (success) {
+    final success = await confirmAndDeleteFolder(
+      context,
+      ref,
+      folder,
+      onDeleted: () {
         // Clear selection if deleted folder was selected
         if (_selectedFolder?.id == folder.id) {
           setState(() {
@@ -359,27 +305,27 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           });
           _tabController.animateTo(0);
         }
+        // Refresh the folder providers
+        ref.read(folderProvider.notifier).refresh();
+        ref.read(folderHierarchyProvider.notifier).refresh();
+      },
+      onUndone: () {
+        // If folder was restored and was previously selected, reselect it
+        if (_selectedFolder?.id == folder.id) {
+          setState(() {
+            _selectedFolder = folder;
+          });
+          _tabController.animateTo(1);
+        }
+        // Refresh the folder providers
+        ref.read(folderProvider.notifier).refresh();
+        ref.read(folderHierarchyProvider.notifier).refresh();
+      },
+    );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Deleted folder "${folder.name}"'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed to delete folder: ${ref.read(folderProvider).error}',
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
-      }
+    // Additional success handling if needed
+    if (success) {
+      debugPrint('✅ Folder deletion completed with undo support');
     }
   }
 
