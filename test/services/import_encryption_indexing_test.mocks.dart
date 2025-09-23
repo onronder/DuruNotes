@@ -883,6 +883,18 @@ class MockNotesRepository extends _i1.Mock implements _i6.NotesRepository {
       ) as _i7.Future<List<_i2.LocalFolder>>);
 
   @override
+  _i7.Future<List<_i2.LocalFolder>> getChildFoldersRecursive(
+          String? parentId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getChildFoldersRecursive,
+          [parentId],
+        ),
+        returnValue:
+            _i7.Future<List<_i2.LocalFolder>>.value(<_i2.LocalFolder>[]),
+      ) as _i7.Future<List<_i2.LocalFolder>>);
+
+  @override
   _i7.Future<List<_i2.LocalNote>> list({int? limit}) => (super.noSuchMethod(
         Invocation.method(
           #list,

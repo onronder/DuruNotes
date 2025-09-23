@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Types of folder operations that can be undone
 enum FolderUndoType {
@@ -56,12 +59,15 @@ class FolderUndoOperation {
 
 /// Service for managing undo operations for folder actions
 class FolderUndoService {
-  FolderUndoService(this._folderRepository);
+  FolderUndoService(this._folderRepository) {
+    _logger = LoggerFactory.instance;
+  }
 
   final FolderRepository _folderRepository;
   final Queue<FolderUndoOperation> _undoHistory = Queue<FolderUndoOperation>();
   final StreamController<List<FolderUndoOperation>> _historyController =
       StreamController<List<FolderUndoOperation>>.broadcast();
+  late final AppLogger _logger;
 
   static const int _maxHistorySize = 10;
 
@@ -81,22 +87,54 @@ class FolderUndoService {
     required List<String> affectedNotes,
     required List<LocalFolder> affectedChildFolders,
   }) async {
-    final operationId = DateTime.now().millisecondsSinceEpoch.toString();
+    try {
+      final operationId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final operation = FolderUndoOperation(
-      id: operationId,
-      type: FolderUndoType.delete,
-      timestamp: DateTime.now(),
-      originalFolder: folder,
-      originalParentId: folder.parentId,
-      affectedNotes: affectedNotes,
-      affectedChildFolders: affectedChildFolders,
-    );
+      final operation = FolderUndoOperation(
+        id: operationId,
+        type: FolderUndoType.delete,
+        timestamp: DateTime.now(),
+        originalFolder: folder,
+        originalParentId: folder.parentId,
+        affectedNotes: affectedNotes,
+        affectedChildFolders: affectedChildFolders,
+      );
 
-    _addOperation(operation);
+      _addOperation(operation);
 
-    debugPrint('📝 Added delete operation for folder: ${folder.name}');
-    return operationId;
+      _logger.info('Added delete operation for folder', data: {
+        'folderId': folder.id,
+        'folderName': folder.name,
+        'operationId': operationId,
+        'affectedNotes': affectedNotes.length,
+        'childFolders': affectedChildFolders.length,
+      });
+
+      // Track in Sentry
+      await Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Folder delete operation added to undo history',
+          category: 'folder.undo',
+          data: {
+            'folderId': folder.id,
+            'operationId': operationId,
+          },
+        ),
+      );
+
+      return operationId;
+    } catch (e, stackTrace) {
+      _logger.error('Failed to add delete operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': folder.id,
+          'folderName': folder.name,
+        },
+      );
+      await Sentry.captureException(e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   /// Add a folder move operation to undo history
@@ -104,20 +142,36 @@ class FolderUndoService {
     required LocalFolder folder,
     required String? originalParentId,
   }) async {
-    final operationId = DateTime.now().millisecondsSinceEpoch.toString();
+    try {
+      final operationId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final operation = FolderUndoOperation(
-      id: operationId,
-      type: FolderUndoType.move,
-      timestamp: DateTime.now(),
-      originalFolder: folder,
-      originalParentId: originalParentId,
-    );
+      final operation = FolderUndoOperation(
+        id: operationId,
+        type: FolderUndoType.move,
+        timestamp: DateTime.now(),
+        originalFolder: folder,
+        originalParentId: originalParentId,
+      );
 
-    _addOperation(operation);
+      _addOperation(operation);
 
-    debugPrint('📝 Added move operation for folder: ${folder.name}');
-    return operationId;
+      _logger.info('Added move operation for folder', data: {
+        'folderId': folder.id,
+        'folderName': folder.name,
+        'operationId': operationId,
+        'originalParentId': originalParentId,
+      });
+
+      return operationId;
+    } catch (e, stackTrace) {
+      _logger.error('Failed to add move operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'folderId': folder.id},
+      );
+      await Sentry.captureException(e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   /// Add a folder rename operation to undo history
@@ -125,34 +179,61 @@ class FolderUndoService {
     required LocalFolder folder,
     required String originalName,
   }) async {
-    final operationId = DateTime.now().millisecondsSinceEpoch.toString();
+    try {
+      final operationId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final operation = FolderUndoOperation(
-      id: operationId,
-      type: FolderUndoType.rename,
-      timestamp: DateTime.now(),
-      originalFolder: folder,
-      originalName: originalName,
-    );
+      final operation = FolderUndoOperation(
+        id: operationId,
+        type: FolderUndoType.rename,
+        timestamp: DateTime.now(),
+        originalFolder: folder,
+        originalName: originalName,
+      );
 
-    _addOperation(operation);
+      _addOperation(operation);
 
-    debugPrint('📝 Added rename operation for folder: ${folder.name}');
-    return operationId;
+      _logger.info('Added rename operation for folder', data: {
+        'folderId': folder.id,
+        'operationId': operationId,
+        'originalName': originalName,
+        'newName': folder.name,
+      });
+
+      return operationId;
+    } catch (e, stackTrace) {
+      _logger.error('Failed to add rename operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': folder.id,
+          'originalName': originalName,
+        },
+      );
+      await Sentry.captureException(e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   /// Undo a specific operation by ID
   Future<bool> undoOperation(String operationId) async {
-    final operation = _undoHistory
-        .where((op) => op.id == operationId && !op.isExpired)
-        .firstOrNull;
-
-    if (operation == null) {
-      debugPrint('❌ Cannot undo: Operation not found or expired');
-      return false;
-    }
-
     try {
+      final operation = _undoHistory
+          .where((op) => op.id == operationId && !op.isExpired)
+          .firstOrNull;
+
+      if (operation == null) {
+        _logger.warning('Cannot undo: Operation not found or expired', data: {
+          'operationId': operationId,
+        });
+        return false;
+      }
+
+      _logger.info('Attempting to undo operation', data: {
+        'operationId': operationId,
+        'type': operation.type.name,
+        'folderId': operation.originalFolder.id,
+      });
+
       switch (operation.type) {
         case FolderUndoType.delete:
           await _undoDeleteOperation(operation);
@@ -166,10 +247,32 @@ class FolderUndoService {
       _undoHistory.removeWhere((op) => op.id == operationId);
       _notifyHistoryChanged();
 
-      debugPrint('✅ Successfully undid operation: ${operation.description}');
+      _logger.info('Successfully undid operation', data: {
+        'operationId': operationId,
+        'description': operation.description,
+      });
+
+      await Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Folder operation undone successfully',
+          category: 'folder.undo',
+          data: {
+            'operationId': operationId,
+            'type': operation.type.name,
+          },
+        ),
+      );
+
       return true;
-    } catch (e) {
-      debugPrint('❌ Failed to undo operation: $e');
+    } catch (e, stackTrace) {
+      _logger.error('Failed to undo operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'operationId': operationId,
+        },
+      );
+      await Sentry.captureException(e, stackTrace: stackTrace);
       return false;
     }
   }
@@ -182,9 +285,20 @@ class FolderUndoService {
 
   /// Clear all undo history
   void clearHistory() {
-    _undoHistory.clear();
-    _notifyHistoryChanged();
-    debugPrint('🧹 Cleared folder undo history');
+    try {
+      final count = _undoHistory.length;
+      _undoHistory.clear();
+      _notifyHistoryChanged();
+
+      _logger.info('Cleared folder undo history', data: {
+        'operationsCleared': count,
+      });
+    } catch (e, stackTrace) {
+      _logger.error('Failed to clear undo history',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Dispose the service
@@ -207,64 +321,159 @@ class FolderUndoService {
 
   void _cleanExpiredOperations() {
     _undoHistory.removeWhere((op) => op.isExpired);
-    _notifyHistoryChanged();
+    // Don't call _notifyHistoryChanged here to avoid infinite recursion
   }
 
   void _notifyHistoryChanged() {
-    _historyController.add(currentHistory);
+    // Clean expired operations without triggering another notification
+    _undoHistory.removeWhere((op) => op.isExpired);
+    // Now add the cleaned history to the stream
+    _historyController.add(_undoHistory.toList());
   }
 
   Future<void> _undoDeleteOperation(FolderUndoOperation operation) async {
-    // Restore the original folder
-    final restoredFolder = await _folderRepository.createLocalFolder(
-      id: operation.originalFolder.id,
-      name: operation.originalFolder.name,
-      parentId: operation.originalParentId,
-      color: operation.originalFolder.color,
-      icon: operation.originalFolder.icon,
-      description: operation.originalFolder.description,
-    );
+    try {
+      _logger.info('Undoing delete operation', data: {
+        'folderId': operation.originalFolder.id,
+        'folderName': operation.originalFolder.name,
+      });
 
-    if (restoredFolder == null) {
-      throw Exception('Failed to restore folder');
-    }
-
-    // Restore child folders
-    for (final childFolder in operation.affectedChildFolders) {
-      await _folderRepository.createLocalFolder(
-        id: childFolder.id,
-        name: childFolder.name,
-        parentId: childFolder.parentId,
-        color: childFolder.color,
-        icon: childFolder.icon,
-        description: childFolder.description,
+      // Restore the original folder
+      final restoredFolder = await _folderRepository.createLocalFolder(
+        id: operation.originalFolder.id,
+        name: operation.originalFolder.name,
+        parentId: operation.originalParentId,
+        color: operation.originalFolder.color,
+        icon: operation.originalFolder.icon,
+        description: operation.originalFolder.description,
       );
-    }
 
-    // Move affected notes back to the restored folder
-    for (final noteId in operation.affectedNotes) {
-      await _folderRepository.moveNoteToFolder(
-        noteId: noteId,
-        folderId: operation.originalFolder.id,
+      if (restoredFolder == null) {
+        throw Exception('Failed to restore folder: ${operation.originalFolder.name}');
+      }
+
+      _logger.debug('Restored folder', data: {'folderId': restoredFolder.id});
+
+      // Restore child folders
+      for (final childFolder in operation.affectedChildFolders) {
+        try {
+          await _folderRepository.createLocalFolder(
+            id: childFolder.id,
+            name: childFolder.name,
+            parentId: childFolder.parentId,
+            color: childFolder.color,
+            icon: childFolder.icon,
+            description: childFolder.description,
+          );
+        } catch (e) {
+          _logger.warning('Failed to restore child folder', data: {
+            'childFolderId': childFolder.id,
+            'error': e.toString(),
+          });
+        }
+      }
+
+      // Move affected notes back to the restored folder
+      for (final noteId in operation.affectedNotes) {
+        try {
+          await _folderRepository.moveNoteToFolder(
+            noteId: noteId,
+            folderId: operation.originalFolder.id,
+          );
+        } catch (e) {
+          _logger.warning('Failed to restore note to folder', data: {
+            'noteId': noteId,
+            'error': e.toString(),
+          });
+        }
+      }
+
+      _logger.info('Successfully undid delete operation', data: {
+        'folderId': operation.originalFolder.id,
+        'restoredChildFolders': operation.affectedChildFolders.length,
+        'restoredNotes': operation.affectedNotes.length,
+      });
+    } catch (e, stackTrace) {
+      _logger.error('Failed to undo delete operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': operation.originalFolder.id,
+          'folderName': operation.originalFolder.name,
+        },
       );
+      await Sentry.captureException(e, stackTrace: stackTrace, withScope: (scope) {
+        scope.setTag('operation', 'undo_delete');
+        scope.setContexts('folder', {
+          'id': operation.originalFolder.id,
+          'name': operation.originalFolder.name,
+        });
+      });
+      rethrow;
     }
   }
 
   Future<void> _undoMoveOperation(FolderUndoOperation operation) async {
-    // Move the folder back to its original parent
-    await _folderRepository.moveFolder(
-      folderId: operation.originalFolder.id,
-      newParentId: operation.originalParentId,
-    );
+    try {
+      _logger.info('Undoing move operation', data: {
+        'folderId': operation.originalFolder.id,
+        'originalParentId': operation.originalParentId,
+      });
+
+      // Move the folder back to its original parent
+      await _folderRepository.moveFolder(
+        folderId: operation.originalFolder.id,
+        newParentId: operation.originalParentId,
+      );
+
+      _logger.info('Successfully undid move operation', data: {
+        'folderId': operation.originalFolder.id,
+      });
+    } catch (e, stackTrace) {
+      _logger.error('Failed to undo move operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': operation.originalFolder.id,
+          'originalParentId': operation.originalParentId,
+        },
+      );
+      await Sentry.captureException(e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> _undoRenameOperation(FolderUndoOperation operation) async {
-    // Restore the original name
-    if (operation.originalName != null) {
-      await _folderRepository.renameFolder(
-        folderId: operation.originalFolder.id,
-        newName: operation.originalName!,
+    try {
+      _logger.info('Undoing rename operation', data: {
+        'folderId': operation.originalFolder.id,
+        'originalName': operation.originalName,
+        'currentName': operation.originalFolder.name,
+      });
+
+      // Restore the original name
+      if (operation.originalName != null) {
+        await _folderRepository.renameFolder(
+          folderId: operation.originalFolder.id,
+          newName: operation.originalName!,
+        );
+
+        _logger.info('Successfully undid rename operation', data: {
+          'folderId': operation.originalFolder.id,
+          'restoredName': operation.originalName,
+        });
+      }
+    } catch (e, stackTrace) {
+      _logger.error('Failed to undo rename operation',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': operation.originalFolder.id,
+          'originalName': operation.originalName,
+        },
       );
+      await Sentry.captureException(e, stackTrace: stackTrace);
+      rethrow;
     }
   }
 }
