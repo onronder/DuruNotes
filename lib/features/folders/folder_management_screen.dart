@@ -1,3 +1,4 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
@@ -6,8 +7,10 @@ import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_deletion_with_undo.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Comprehensive folder management screen with full CRUD operations
 class FolderManagementScreen extends ConsumerStatefulWidget {
@@ -21,18 +24,66 @@ class FolderManagementScreen extends ConsumerStatefulWidget {
 class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     with TickerProviderStateMixin, FolderDeletionWithUndo {
   late TabController _tabController;
+  late AppLogger _logger;
+  late AnalyticsService _analytics;
   LocalFolder? _selectedFolder;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _logger = LoggerFactory.instance;
 
-    // Load folders when screen opens
+    // Initialize analytics
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(folderProvider.notifier).refresh();
-      ref.read(folderHierarchyProvider.notifier).refresh();
+      try {
+        _analytics = ref.read(analyticsProvider);
+        _analytics.event('folder_management_opened');
+
+        _logger.info('FolderManagementScreen initialized');
+
+        // Track in Sentry
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Folder management screen opened',
+            category: 'navigation',
+          ),
+        );
+
+        // Load folders when screen opens
+        _loadFolders();
+      } catch (e, stackTrace) {
+        _logger.error('Failed to initialize FolderManagementScreen',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        Sentry.captureException(e, stackTrace: stackTrace);
+      }
     });
+  }
+
+  Future<void> _loadFolders() async {
+    try {
+      await ref.read(folderProvider.notifier).refresh();
+      await ref.read(folderHierarchyProvider.notifier).refresh();
+
+      _logger.debug('Folders loaded successfully');
+    } catch (e, stackTrace) {
+      _logger.error('Failed to load folders',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      Sentry.captureException(e, stackTrace: stackTrace);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load folders: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   @override

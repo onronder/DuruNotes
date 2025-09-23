@@ -7,6 +7,9 @@ import 'package:duru_notes/features/folders/create_folder_dialog.dart'
 import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
+import 'package:duru_notes/features/folders/enhanced_move_to_folder_dialog.dart';
+import 'package:duru_notes/features/folders/folder_management_screen.dart';
+import 'package:duru_notes/features/templates/template_gallery_screen.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/search/saved_search_registry.dart';
@@ -318,6 +321,22 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     child: ListTile(
                       leading: Icon(Icons.analytics_rounded),
                       title: Text('Productivity Analytics'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'folders',
+                    child: ListTile(
+                      leading: Icon(Icons.folder_rounded),
+                      title: Text('Manage Folders'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'templates',
+                    child: ListTile(
+                      leading: Icon(Icons.description_rounded),
+                      title: Text('Template Gallery'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -986,22 +1005,56 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     ],
                     if (folderName != null) ...[
                       const SizedBox(width: 12),
-                      Icon(
-                        Icons.folder_outlined,
-                        size: 12,
-                        color: folderColor?.withValues(alpha: 0.7) ??
-                            colorScheme.primary.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          folderName ?? '',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: folderColor?.withValues(alpha: 0.8) ??
-                                colorScheme.primary.withValues(alpha: 0.7),
+                      // Enhanced clickable folder chip
+                      Semantics(
+                        label: 'Filter by folder ${folderName!}',
+                        button: true,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _filterByFolder(folderId, folderName!),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (folderColor?.withValues(alpha: 0.1) ??
+                                        colorScheme.primary.withValues(alpha: 0.1)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: folderColor?.withValues(alpha: 0.3) ??
+                                      colorScheme.primary.withValues(alpha: 0.3),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.folder_rounded,
+                                    size: 12,
+                                    color: folderColor ??
+                                        colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      folderName!,
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: folderColor ??
+                                            colorScheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -2117,6 +2170,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           } else {
             group.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
           }
+        case NoteSortField.folder:
+          // Sort by folder name
+          if (sortSpec.direction == SortDirection.asc) {
+            group.sort((a, b) => _getFolderNameForNote(a).compareTo(_getFolderNameForNote(b)));
+          } else {
+            group.sort((a, b) => _getFolderNameForNote(b).compareTo(_getFolderNameForNote(a)));
+          }
         case NoteSortField.updatedAt:
         default:
           if (sortSpec.direction == SortDirection.asc) {
@@ -2132,6 +2192,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     // Return pinned notes first, then unpinned
     return [...pinnedNotes, ...unpinnedNotes];
+  }
+
+  /// Get folder name for sorting purposes
+  String _getFolderNameForNote(LocalNote note) {
+    try {
+      // Get folder information from the note-folder state
+      final noteFolderState = ref.read(noteFolderProvider);
+      final folderId = noteFolderState.noteFolders[note.id];
+
+      if (folderId == null) {
+        return 'Unfiled'; // Notes without folder go to "Unfiled"
+      }
+
+      // Get folder name from the folders hierarchy
+      final foldersState = ref.read(folderHierarchyProvider);
+      final folder = foldersState.getFolderById(folderId);
+
+      return folder?.name ?? 'Unknown Folder';
+    } catch (e) {
+      // Fallback in case of any errors
+      return 'Unknown';
+    }
   }
 
   Widget _buildModernListView(
@@ -2557,6 +2639,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _showTasksScreen(context);
       case 'analytics':
         _showAnalyticsScreen(context);
+      case 'folders':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const FolderManagementScreen(),
+          ),
+        );
+        // Track analytics
+        ref.read(analyticsProvider).event(
+          'folder_management_opened',
+          properties: {'source': 'menu'},
+        );
+      case 'templates':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const TemplateGalleryScreen(),
+          ),
+        );
+        // Track analytics
+        ref.read(analyticsProvider).event(
+          'template_gallery_opened',
+          properties: {'source': 'menu'},
+        );
       case 'settings':
         _showSettingsDialog(context);
       case 'help':
@@ -2627,6 +2731,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         icon = Icons.sort_by_alpha_rounded;
                       case NoteSortField.createdAt:
                         icon = Icons.access_time_rounded;
+                      case NoteSortField.folder:
+                        icon = Icons.folder_rounded;
                       case NoteSortField.updatedAt:
                       default:
                         icon = Icons.update_rounded;
@@ -3044,67 +3150,166 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   Future<void> _showAddToFolderDialog() async {
     if (_selectedNoteIds.isEmpty) return;
 
-    // Show folder picker
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => FolderPicker(
-        title: 'Move to Folder',
-        onFolderSelected: (folderId) async {
-          var successCount = 0;
-          var errorCount = 0;
+    // Get current folder ID for context
+    final currentFolder = ref.read(currentFolderProvider);
 
-          for (final noteId in _selectedNoteIds) {
-            try {
-              if (folderId != null) {
-                await ref
-                    .read(noteFolderProvider.notifier)
-                    .addNoteToFolder(noteId, folderId);
-              } else {
-                await ref
-                    .read(noteFolderProvider.notifier)
-                    .removeNoteFromFolder(noteId);
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => EnhancedMoveToFolderDialog(
+          noteIds: _selectedNoteIds.toList(),
+          currentFolderId: currentFolder?.id,
+          onMoveCompleted: (result) async {
+            _exitSelectionMode();
+
+            // Show result feedback
+            if (mounted) {
+              final theme = Theme.of(context);
+              Color? backgroundColor;
+
+              if (result.isCompleteSuccess) {
+                backgroundColor = theme.colorScheme.tertiary;
+              } else if (result.hasErrors) {
+                backgroundColor = theme.colorScheme.error;
               }
-              successCount++;
-            } catch (e) {
-              errorCount++;
-            }
-          }
 
-          _exitSelectionMode();
-
-          if (mounted) {
-            if (errorCount == 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    folderId != null
-                        ? 'Moved $successCount notes to folder'
-                        : 'Moved $successCount notes to Unfiled',
+                  content: Text(result.getStatusMessage()),
+                  backgroundColor: backgroundColor,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  backgroundColor: Theme.of(context).colorScheme.tertiary,
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '$successCount notes moved, $errorCount failed',
-                  ),
-                  backgroundColor: Theme.of(
-                    context,
-                  ).customColors.warningContainer,
+                  action: result.hasErrors && result.errors.isNotEmpty
+                      ? SnackBarAction(
+                          label: 'Details',
+                          onPressed: () {
+                            showDialog<void>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Move Errors'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: result.errors
+                                      .map((error) => Text('• $error'))
+                                      .toList(),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                      : null,
                 ),
               );
             }
-          }
 
-          // Refresh the current view
-          await ref.read(notesPageProvider.notifier).refresh();
-          await ref.read(folderHierarchyProvider.notifier).loadFolders();
+            // Refresh the current view
+            await ref.read(notesPageProvider.notifier).refresh();
+            await ref.read(folderHierarchyProvider.notifier).loadFolders();
+          },
+        ),
+      );
+    } catch (e) {
+      // Handle any dialog errors
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open move dialog: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Filter notes by folder when folder chip is clicked
+  void _filterByFolder(String? folderId, String folderName) async {
+    HapticFeedback.selectionClick();
+
+    try {
+      // Find the folder object if we have an ID
+      LocalFolder? targetFolder;
+      if (folderId != null) {
+        final foldersAsync = ref.read(rootFoldersProvider);
+        await foldersAsync.when(
+          data: (folders) {
+            targetFolder = folders.where((f) => f.id == folderId).firstOrNull;
+          },
+          loading: () async {
+            // Wait for folders to load
+            final folders = await ref.read(notesRepositoryProvider).listFolders();
+            targetFolder = folders.where((f) => f.id == folderId).firstOrNull;
+          },
+          error: (_, __) {
+            // Handle error
+          },
+        );
+      }
+
+      // Set the current folder filter
+      ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
+
+      // Save to preferences using the integration service
+      final integrationService = ref.read(noteFolderIntegrationServiceProvider);
+      await integrationService.setFolderFilterPreference(folderId);
+
+      // Show feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              targetFolder != null
+                  ? 'Filtering by "$folderName"'
+                  : 'Showing all notes',
+            ),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            action: targetFolder != null
+                ? SnackBarAction(
+                    label: 'Clear',
+                    onPressed: () {
+                      ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
+                      integrationService.setFolderFilterPreference(null);
+                    },
+                  )
+                : null,
+          ),
+        );
+      }
+
+      // Track analytics
+      ref.read(analyticsProvider).event(
+        'folder_filter_clicked',
+        properties: {
+          'folder_id': folderId,
+          'folder_name': folderName,
+          'source': 'note_tile',
         },
-      ),
-    );
+      );
+    } catch (e) {
+      // Handle errors
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to filter by folder: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   // Remove the old _buildFilterChip method as we're using DuruFolderChip component

@@ -444,6 +444,11 @@ class FolderAnalyticsService {
 
   // === UTILITY METHODS ===
 
+  /// Generic event tracking method for A/B testing and other analytics
+  void event(String eventName, {Map<String, dynamic>? properties}) {
+    _analyticsService.event(eventName, properties: properties);
+  }
+
   Map<String, dynamic> calculateUserEngagementMetrics({
     required String userId,
     required int folderCount,

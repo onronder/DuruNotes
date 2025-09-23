@@ -1,12 +1,15 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/analytics/folder_analytics.dart';
 import 'package:duru_notes/services/analytics/folder_ab_testing.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Example implementation of folder analytics in the folder service
 class FolderServiceWithAnalytics {
   final FolderAnalyticsService _folderAnalytics;
   final FolderABTestService _abTestService;
   final AnalyticsService _analyticsService;
+  final AppLogger _logger = LoggerFactory.instance;
 
   // User state tracking
   final Map<String, UserFolderMetrics> _userMetrics = {};
@@ -113,8 +116,34 @@ class FolderServiceWithAnalytics {
       );
 
       return folderId;
-    } catch (error) {
-      // Track error
+    } catch (error, stackTrace) {
+      // Log error
+      _logger.error('Failed to create folder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'folderName': folderName,
+          'parentFolderId': parentFolderId,
+          'userId': userId,
+        },
+      );
+
+      // Track in Sentry
+      await Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('operation', 'folder_create');
+          scope.setContexts('folder_creation', {
+            'folder_name': folderName,
+            'parent_id': parentFolderId,
+            'user_id': userId,
+            'duration_ms': stopwatch.elapsedMilliseconds,
+          });
+        },
+      );
+
+      // Track error in analytics
       _analyticsService.trackError(
         'Folder creation failed',
         context: 'createFolder',
@@ -148,7 +177,7 @@ class FolderServiceWithAnalytics {
       // Load folder contents (actual implementation)
       final contents = await _loadFolderContents(
         folderId,
-        navigationVariant?['navigation_type'] ?? 'list',
+        (navigationVariant?['navigation_type'] ?? 'list').toString(),
       );
 
       // End performance tracking
@@ -182,7 +211,32 @@ class FolderServiceWithAnalytics {
       await _updateFolderAccessMetrics(userId, folderId);
 
       return contents;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      // Log error
+      _logger.error('Failed to open folder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': folderId,
+          'userId': userId,
+          'navigationMethod': navigationMethod,
+        },
+      );
+
+      // Track in Sentry
+      await Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('operation', 'folder_open');
+          scope.setContexts('folder_load', {
+            'folder_id': folderId,
+            'navigation_method': navigationMethod,
+            'user_id': userId,
+          });
+        },
+      );
+
       // Track load failure
       _folderAnalytics.endFolderLoad(
         folderId: folderId,
@@ -243,7 +297,30 @@ class FolderServiceWithAnalytics {
       );
 
       return results;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.error('Folder search failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'query': query,
+          'folderId': folderId,
+          'scope': scope.toString(),
+        },
+      );
+
+      await Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (sentryScope) {
+          sentryScope.setTag('operation', 'folder_search');
+          sentryScope.setContexts('search', {
+            'query': query,
+            'folder_id': folderId,
+            'search_scope': scope.toString(),
+          });
+        },
+      );
+
       _analyticsService.trackError(
         'Folder search failed',
         context: 'searchInFolders',
@@ -321,7 +398,30 @@ class FolderServiceWithAnalytics {
         'organization_time_saved',
         timeSaved,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      _logger.error('Bulk folder operation failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'operationType': operationType,
+          'folderCount': folderIds.length,
+          'userId': userId,
+        },
+      );
+
+      await Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('operation', 'bulk_folder_operation');
+          scope.setContexts('bulk_operation', {
+            'operation_type': operationType,
+            'folder_count': folderIds.length,
+            'user_id': userId,
+          });
+        },
+      );
+
       _analyticsService.trackError(
         'Bulk operation failed',
         context: 'bulkFolderOperation',
