@@ -25,6 +25,17 @@ import 'package:duru_notes/domain/repositories/i_search_repository.dart';
 import 'package:duru_notes/domain/repositories/i_tag_repository.dart';
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
+// Note: Mappers are imported in state_migration_helper.dart
+import 'package:duru_notes/core/migration/migration_config.dart';
+import 'package:duru_notes/core/migration/state_migration_helper.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
+import 'package:duru_notes/domain/entities/template.dart' as domain_template;
+import 'package:duru_notes/domain/entities/task.dart' as domain_task;
 import 'package:duru_notes/repository/sync_service.dart';
 import 'package:duru_notes/repository/task_repository.dart';
 import 'package:duru_notes/repository/template_repository.dart';
@@ -37,13 +48,13 @@ import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/connection_manager.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/export_service.dart';
-import 'package:duru_notes/services/folder_realtime_service.dart';
+// import 'package:duru_notes/services/folder_realtime_service.dart'; // Unused
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
-import 'package:duru_notes/services/inbox_realtime_service.dart';
+// import 'package:duru_notes/services/inbox_realtime_service.dart'; // Unused
 import 'package:duru_notes/services/inbox_unread_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
-import 'package:duru_notes/services/notes_realtime_service.dart';
+// import 'package:duru_notes/services/notes_realtime_service.dart'; // Unused
 import 'package:duru_notes/services/notification_handler_service.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
@@ -62,7 +73,7 @@ import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:duru_notes/services/undo_redo_service.dart';
-import 'package:duru_notes/services/folder_undo_service.dart';
+// import 'package:duru_notes/services/folder_undo_service.dart'; // Unused
 import 'package:duru_notes/services/unified_realtime_service.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:flutter/material.dart';
@@ -166,6 +177,42 @@ final searchRepositoryProvider = Provider<ISearchRepository>((ref) {
   return SearchRepository(db: db);
 });
 
+// ===== MIGRATION CONFIGURATION =====
+
+/// Migration configuration provider - controls gradual domain model adoption
+final migrationConfigProvider = Provider<MigrationConfig>((ref) {
+  // Start with default config (all features disabled for safety)
+  // This can be overridden by feature flags or environment variables
+  return MigrationConfigFactory.phase4Provider(
+    enableNotes: false,    // Gradually enable per feature
+    enableFolders: false,
+    enableTemplates: false,
+  );
+});
+
+// ===== INFRASTRUCTURE REPOSITORY PROVIDERS =====
+
+/// Folder core repository provider (domain architecture)
+final folderCoreRepositoryProvider = Provider<IFolderRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  final client = Supabase.instance.client;
+  return FolderCoreRepository(db: db, client: client);
+});
+
+/// Template core repository provider (domain architecture)
+final templateCoreRepositoryProvider = Provider<ITemplateRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  final client = Supabase.instance.client;
+  return TemplateCoreRepository(db: db, client: client);
+});
+
+/// Task core repository provider (domain architecture)
+final taskCoreRepositoryProvider = Provider<ITaskRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  final client = Supabase.instance.client;
+  return TaskCoreRepository(db: db, client: client);
+});
+
 /// Template migration service provider
 final templateMigrationServiceProvider =
     Provider<TemplateMigrationService>((ref) {
@@ -204,6 +251,192 @@ final userTemplateListProvider =
     FutureProvider<List<LocalTemplate>>((ref) async {
   final repository = ref.watch(templateRepositoryProvider);
   return repository.getUserTemplates();
+});
+
+// ===== DOMAIN ENTITY PROVIDERS (Dual Provider Pattern) =====
+
+/// Domain notes provider - switches between legacy and domain based on config
+final domainNotesProvider = FutureProvider<List<domain.Note>>((ref) async {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('notes')) {
+    // Use domain repository
+    final repository = ref.watch(notesCoreRepositoryProvider);
+    return repository.list();
+  } else {
+    // Convert from legacy
+    final localNotes = ref.watch(currentNotesProvider);
+    final db = ref.watch(appDbProvider);
+    return StateMigrationHelper.convertNotesToDomain(localNotes, db);
+  }
+});
+
+/// Domain notes stream provider - real-time updates with dual support
+final domainNotesStreamProvider = StreamProvider<List<domain.Note>>((ref) async* {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('notes')) {
+    // Use domain repository stream
+    final repository = ref.watch(notesCoreRepositoryProvider);
+    yield* repository.watchNotes();
+  } else {
+    // Convert legacy data to domain format
+    final db = ref.watch(appDbProvider);
+    // Watch the current notes and convert them
+    final currentNotes = ref.watch(currentNotesProvider);
+    final domainNotes = await StateMigrationHelper.convertNotesToDomain(currentNotes, db);
+    yield domainNotes;
+  }
+});
+
+/// Domain folders provider - switches between legacy and domain
+final domainFoldersProvider = FutureProvider<List<domain_folder.Folder>>((ref) async {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('folders')) {
+    // Use domain repository
+    final repository = ref.watch(folderCoreRepositoryProvider);
+    return repository.listFolders();
+  } else {
+    // Convert from legacy
+    final localFolders = ref.watch(folderListProvider);
+    return StateMigrationHelper.convertFoldersToDomain(localFolders);
+  }
+});
+
+/// Domain folders stream provider
+final domainFoldersStreamProvider = StreamProvider<List<domain_folder.Folder>>((ref) {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('folders')) {
+    // Since domain folder repository doesn't have watchFolders,
+    // we'll watch the folder updates provider and convert each time
+    return ref.watch(folderUpdatesProvider.stream).asyncMap((_) async {
+      final repository = ref.read(folderCoreRepositoryProvider);
+      return repository.listFolders();
+    });
+  } else {
+    // Convert legacy stream - watch folder hierarchy changes
+    return ref.watch(folderUpdatesProvider.stream).map((_) {
+      final localFolders = ref.read(folderListProvider);
+      return StateMigrationHelper.convertFoldersToDomain(localFolders);
+    });
+  }
+});
+
+/// Domain templates provider - switches between legacy and domain
+final domainTemplatesProvider = FutureProvider<List<domain_template.Template>>((ref) async {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('templates')) {
+    // Use domain repository
+    final repository = ref.watch(templateCoreRepositoryProvider);
+    return repository.getAllTemplates();
+  } else {
+    // Convert from legacy
+    final localTemplates = await ref.watch(templateListProvider.future);
+    return StateMigrationHelper.convertTemplatesToDomain(localTemplates);
+  }
+});
+
+/// Domain templates stream provider
+final domainTemplatesStreamProvider = StreamProvider<List<domain_template.Template>>((ref) {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('templates')) {
+    final repository = ref.watch(templateCoreRepositoryProvider);
+    return repository.watchTemplates();
+  } else {
+    // Convert legacy stream by watching the stream provider and mapping its data
+    return ref.watch(templateListStreamProvider.stream).map(
+      (localTemplates) => StateMigrationHelper.convertTemplatesToDomain(localTemplates),
+    );
+  }
+});
+
+/// Domain tasks provider - switches between legacy and domain
+final domainTasksProvider = FutureProvider<List<domain_task.Task>>((ref) async {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('tasks')) {
+    // Use domain repository
+    final repository = ref.watch(taskCoreRepositoryProvider);
+    return repository.getAllTasks();
+  } else {
+    // Convert from legacy - get all tasks from all notes
+    final db = ref.watch(appDbProvider);
+    final allTasks = await db.select(db.noteTasks).get();
+    return StateMigrationHelper.convertTasksToDomain(allTasks);
+  }
+});
+
+/// Domain tasks for specific note provider
+final domainTasksForNoteProvider =
+    FutureProvider.family<List<domain_task.Task>, String>((ref, noteId) async {
+  final config = ref.watch(migrationConfigProvider);
+
+  if (config.isFeatureEnabled('tasks')) {
+    final repository = ref.watch(taskCoreRepositoryProvider);
+    return repository.getTasksForNote(noteId);
+  } else {
+    // Convert from legacy
+    final localTasks = await ref.watch(unifiedTasksForNoteProvider(noteId).future);
+    return StateMigrationHelper.convertTasksToDomain(localTasks);
+  }
+});
+
+// ===== MIGRATION UTILITY PROVIDERS =====
+
+/// Provider migration utilities for safe transitions
+class ProviderMigration {
+  /// Create a dual provider that switches based on feature flag
+  static Provider<T> createDualProvider<T>({
+    required Provider<T> legacyProvider,
+    required Provider<T> domainProvider,
+    required String feature,
+  }) {
+    return Provider<T>((ref) {
+      final config = ref.watch(migrationConfigProvider);
+      if (config.isFeatureEnabled(feature)) {
+        return ref.watch(domainProvider);
+      }
+      return ref.watch(legacyProvider);
+    });
+  }
+
+  /// Create a dual future provider with conversion
+  static FutureProvider<List<T>> createDualFutureProvider<TLocal, T>({
+    required FutureProvider<List<TLocal>> legacyProvider,
+    required FutureProvider<List<T>> domainProvider,
+    required T Function(TLocal) converter,
+    required String feature,
+  }) {
+    return FutureProvider<List<T>>((ref) async {
+      final config = ref.watch(migrationConfigProvider);
+      if (config.isFeatureEnabled(feature)) {
+        return ref.watch(domainProvider.future);
+      }
+
+      final legacyData = await ref.watch(legacyProvider.future);
+      return legacyData.map(converter).toList();
+    });
+  }
+}
+
+/// Migration status provider - tracks migration progress
+final migrationStatusProvider = Provider<Map<String, dynamic>>((ref) {
+  final config = ref.watch(migrationConfigProvider);
+  return {
+    'notes': config.isFeatureEnabled('notes'),
+    'folders': config.isFeatureEnabled('folders'),
+    'templates': config.isFeatureEnabled('templates'),
+    'tasks': config.isFeatureEnabled('tasks'),
+    'tags': config.isFeatureEnabled('tags'),
+    'search': config.isFeatureEnabled('search'),
+    'progress': config.migrationProgress,
+    'isValid': config.isValid,
+    'version': config.version,
+  };
 });
 
 /// Folder repository provider
