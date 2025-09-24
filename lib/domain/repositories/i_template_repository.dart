@@ -1,21 +1,28 @@
-import 'package:duru_notes/domain/entities/note.dart';
+import '../entities/template.dart';
 
 /// Domain interface for template operations
 abstract class ITemplateRepository {
-  /// List all templates
-  Future<List<Note>> listTemplates();
+  /// Get all templates
+  Future<List<Template>> getAllTemplates();
+
+  /// Get system templates
+  Future<List<Template>> getSystemTemplates();
+
+  /// Get user-created templates
+  Future<List<Template>> getUserTemplates();
+
+  /// Get template by ID
+  Future<Template?> getTemplateById(String id);
 
   /// Create a new template
-  Future<Note?> createTemplate({
-    required String title,
-    required String body,
-    List<String> tags = const [],
-    Map<String, dynamic>? metadata,
-  });
+  Future<Template> createTemplate(Template template);
 
-  /// Create a note from a template
-  Future<Note?> createNoteFromTemplate(String templateId);
+  /// Update an existing template
+  Future<Template> updateTemplate(Template template);
 
   /// Delete a template
-  Future<bool> deleteTemplate(String templateId);
+  Future<void> deleteTemplate(String id);
+
+  /// Watch templates stream
+  Stream<List<Template>> watchTemplates();
 }
