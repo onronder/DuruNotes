@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
@@ -130,7 +132,7 @@ class DataConsistencyChecker {
 
     try {
       // Get local notes
-      var localQuery = _localDb.select(_localDb.localNotes);
+      final localQuery = _localDb.select(_localDb.localNotes);
       if (since != null) {
         localQuery.where((t) => t.updatedAt.isBiggerThanValue(since));
       }
@@ -285,7 +287,7 @@ class DataConsistencyChecker {
 
     try {
       // Get local folders
-      var localQuery = _localDb.select(_localDb.localFolders);
+      final localQuery = _localDb.select(_localDb.localFolders);
       if (since != null) {
         localQuery.where((t) => t.updatedAt.isBiggerThanValue(since));
       }
@@ -481,7 +483,7 @@ class DataConsistencyChecker {
 
     try {
       // Get local tasks
-      var localQuery = _localDb.select(_localDb.noteTasks);
+      final localQuery = _localDb.select(_localDb.noteTasks);
       if (since != null) {
         localQuery.where((t) => t.updatedAt.isBiggerThanValue(since));
       }
@@ -550,7 +552,7 @@ class DataConsistencyChecker {
       }
 
       // Check status
-      final localStatus = localTask.status;
+      final localStatus = localTask.status.name;
       final remoteStatus = remoteTask['status'] as String;
 
       if (localStatus != remoteStatus) {

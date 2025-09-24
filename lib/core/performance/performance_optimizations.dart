@@ -132,7 +132,7 @@ class _LazyLoadWidgetState extends State<LazyLoadWidget> {
   @override
   void initState() {
     super.initState();
-    _widgetFuture = Future.delayed(widget.delay, widget.builder);
+    _widgetFuture = Future<Widget>.delayed(widget.delay, widget.builder);
   }
 
   @override

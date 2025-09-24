@@ -1,5 +1,8 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
+import 'package:duru_notes/ui/components/modern_task_card.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_item_widget.dart';
@@ -7,6 +10,7 @@ import 'package:duru_notes/ui/widgets/calendar_day_widget.dart';
 import 'package:duru_notes/ui/widgets/calendar_task_sheet.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -40,12 +44,143 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
     super.dispose();
   }
 
+  Widget _buildStatsHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final taskService = ref.watch(unifiedTaskServiceProvider);
+
+    return FutureBuilder<List<NoteTask>>(
+      future: taskService.getTasksForNote('standalone'),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Container(
+            height: 120,
+            margin: EdgeInsets.all(DuruSpacing.md),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final tasks = snapshot.data!;
+        final overdueTasks = tasks.where((t) =>
+            t.status != TaskStatus.completed &&
+            t.dueDate != null &&
+            t.dueDate!.isBefore(DateTime.now())).length;
+        final todayTasks = tasks.where((t) {
+          if (t.dueDate == null) return false;
+          final today = DateTime.now();
+          return t.dueDate!.year == today.year &&
+              t.dueDate!.month == today.month &&
+              t.dueDate!.day == today.day;
+        }).length;
+        final completedTasks = tasks.where((t) =>
+            t.status == TaskStatus.completed).length;
+        final pendingTasks = tasks.where((t) =>
+            t.status != TaskStatus.completed).length;
+
+        return Container(
+          margin: EdgeInsets.all(DuruSpacing.md),
+          padding: EdgeInsets.all(DuruSpacing.lg),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                DuruColors.primary.withOpacity(0.1),
+                DuruColors.accent.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.clock_fill,
+                value: pendingTasks.toString(),
+                label: 'Pending',
+                color: DuruColors.primary,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.calendar_today,
+                value: todayTasks.toString(),
+                label: 'Today',
+                color: DuruColors.accent,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.exclamationmark_triangle_fill,
+                value: overdueTasks.toString(),
+                label: 'Overdue',
+                color: overdueTasks > 0 ? DuruColors.error : DuruColors.surfaceVariant,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.checkmark_circle_fill,
+                value: completedTasks.toString(),
+                label: 'Done',
+                color: DuruColors.accent,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        SizedBox(height: DuruSpacing.xs),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tasks'),
-        bottom: TabBar(
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
+      appBar: ModernAppBar(
+        title: 'Enhanced Tasks',
+        subtitle: 'Smart organization & calendar view',
+        showGradient: true,
+        bottom: ModernTabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Smart Groups'),
@@ -55,55 +190,69 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         actions: [
           // View mode toggle
           PopupMenuButton<TaskViewMode>(
-            icon: const Icon(Icons.view_list),
+            icon: Icon(
+              CupertinoIcons.square_grid_2x2,
+              color: Colors.white,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             onSelected: (mode) => setState(() => _viewMode = mode),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: TaskViewMode.grouped,
                 child: Row(
                   children: [
-                    Icon(Icons.group_work, size: 18),
-                    SizedBox(width: 8),
-                    Text('Smart Groups'),
+                    Icon(CupertinoIcons.square_stack_3d_up, size: 18, color: DuruColors.primary),
+                    SizedBox(width: DuruSpacing.sm),
+                    const Text('Smart Groups'),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: TaskViewMode.list,
                 child: Row(
                   children: [
-                    Icon(Icons.list, size: 18),
-                    SizedBox(width: 8),
-                    Text('Simple List'),
+                    Icon(CupertinoIcons.list_bullet, size: 18, color: DuruColors.primary),
+                    SizedBox(width: DuruSpacing.sm),
+                    const Text('Simple List'),
                   ],
                 ),
               ),
             ],
           ),
           // Toggle completed
-          IconButton(
-            icon: Icon(
-              _showCompleted ? Icons.visibility_off : Icons.visibility,
-            ),
+          ModernAppBarAction(
+            icon: _showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          EnhancedTaskListView(
-            viewMode: _viewMode,
-            showCompleted: _showCompleted,
+          // Stats header
+          _buildStatsHeader(context),
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                EnhancedTaskListView(
+                  viewMode: _viewMode,
+                  showCompleted: _showCompleted,
+                ),
+                const _TaskCalendarView(),
+              ],
+            ),
           ),
-          const _TaskCalendarView(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateStandaloneTaskDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('New Task'),
+        backgroundColor: DuruColors.primary,
+        icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
+        label: const Text('New Task', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -461,7 +610,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
       if (note != null && context.mounted) {
         Navigator.of(context).push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => ModernEditNoteScreen(
               noteId: note.id,
               initialTitle: note.title,
@@ -774,7 +923,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
       if (note != null && mounted) {
         Navigator.of(context).push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => ModernEditNoteScreen(
               noteId: note.id,
               initialTitle: note.title,

@@ -208,7 +208,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
         await HapticFeedback.lightImpact();
 
         // Add small delay for better UX (show success state briefly)
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
         if (mounted) {
           Navigator.of(context).pop(folderToReturn);
         }

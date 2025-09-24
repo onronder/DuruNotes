@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 
 /// Setup migration tracking tables for unified migration system

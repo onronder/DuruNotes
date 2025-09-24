@@ -5,8 +5,11 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/ui/components/ios_style_toggle.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:duru_notes/ui/help_screen.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -151,27 +154,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final isCompact = MediaQuery.sizeOf(context).width < 380;
+    final user = Supabase.instance.client.auth.currentUser;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        surfaceTintColor: colorScheme.surfaceTint,
-        actionsIconTheme: isCompact ? const IconThemeData(size: 22) : null,
-        title: Text(
-          l10n.settingsTitle,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
+      appBar: ModernAppBar(
+        title: l10n.settingsTitle,
+        subtitle: 'Customize your experience',
+        showGradient: true,
+        actions: [
+          ModernAppBarAction(
+            icon: CupertinoIcons.question_circle,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+            ),
+            tooltip: 'Help',
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
-        ),
+        ],
       ),
       body: AppBreakpoints.clampControlsTextScale(
         context: context,
@@ -188,21 +190,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   children: [
                     _buildAccountSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildEmailInSection(context, l10n),
-                    const SizedBox(height: 16),
+                    _buildAISection(context, l10n),
                     _buildSyncSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildAppearanceSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildLanguageSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildNotificationsSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildSecuritySectionWithIOSToggles(context, l10n),
-                    const SizedBox(height: 16),
                     _buildImportExportSection(context, l10n),
-                    const SizedBox(height: 16),
                     _buildHelpAboutSection(context, l10n),
                     const SizedBox(height: 32), // Bottom padding
                   ],
@@ -223,23 +218,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.all(isCompact ? 12 : 16),
-      padding: EdgeInsets.all(isCompact ? 16 : 24),
+      margin: EdgeInsets.all(DuruSpacing.md),
+      padding: EdgeInsets.all(DuruSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            colorScheme.primaryContainer,
-            colorScheme.secondaryContainer,
+            DuruColors.primary.withOpacity(0.05),
+            DuruColors.accent.withOpacity(0.03),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.04),
             offset: const Offset(0, 4),
-            blurRadius: 12,
+            blurRadius: 10,
           ),
         ],
       ),
@@ -247,38 +246,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           // User avatar
           Container(
-            width: isCompact ? 64 : 80,
-            height: isCompact ? 64 : 80,
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: colorScheme.primary,
+              gradient: LinearGradient(
+                colors: [DuruColors.primary, DuruColors.accent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.3),
-                  offset: const Offset(0, 4),
-                  blurRadius: 12,
-                ),
-              ],
             ),
-            child: user != null && user.userMetadata?['avatar_url'] != null
-                ? ClipOval(
-                    child: Image.network(
-                      user.userMetadata!['avatar_url'] as String,
-                      width: isCompact ? 64 : 80,
-                      height: isCompact ? 64 : 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.person_rounded,
-                        size: isCompact ? 32 : 40,
-                        color: colorScheme.onPrimary,
+            child: Container(
+              width: isCompact ? 64 : 80,
+              height: isCompact ? 64 : 80,
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                shape: BoxShape.circle,
+              ),
+              child: user != null && user.userMetadata?['avatar_url'] != null
+                  ? ClipOval(
+                      child: Image.network(
+                        user.userMetadata!['avatar_url'] as String,
+                        width: isCompact ? 64 : 80,
+                        height: isCompact ? 64 : 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          CupertinoIcons.person_fill,
+                          size: isCompact ? 32 : 40,
+                          color: DuruColors.primary,
+                        ),
                       ),
+                    )
+                  : Icon(
+                      CupertinoIcons.person_fill,
+                      size: isCompact ? 32 : 40,
+                      color: DuruColors.primary,
                     ),
-                  )
-                : Icon(
-                    Icons.person_rounded,
-                    size: isCompact ? 32 : 40,
-                    color: colorScheme.onPrimary,
-                  ),
+            ),
           ),
           SizedBox(height: isCompact ? 12 : 16),
 
@@ -297,7 +300,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Signed in',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
               ),
             ),
           ] else ...[
@@ -319,58 +322,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required IconData icon,
     required List<Widget> children,
     Color? iconColor,
+    bool useGradient = false,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    return Container(
+      margin: EdgeInsets.only(bottom: DuruSpacing.md),
+      decoration: BoxDecoration(
+        gradient: useGradient
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  (iconColor ?? DuruColors.primary).withOpacity(0.05),
+                  colorScheme.surface,
+                ],
+              )
+            : null,
+        color: useGradient ? null : colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: (iconColor ?? colorScheme.outline).withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      color: colorScheme.surfaceContainerLow,
-      child: Padding(
-        padding: EdgeInsets.all(isCompact ? 12 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section header
-            Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: null,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: EdgeInsets.all(isCompact ? 12 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: EdgeInsets.all(isCompact ? 6 : 8),
-                  decoration: BoxDecoration(
-                    color: (iconColor ?? colorScheme.primary).withValues(
-                      alpha: 0.1,
+                // Section header
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(DuruSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: (iconColor ?? DuruColors.primary).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: isCompact ? 18 : 20,
+                        color: iconColor ?? DuruColors.primary,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: isCompact ? 18 : 20,
-                    color: iconColor ?? colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ),
+                SizedBox(height: isCompact ? 12 : 16),
+                // Section content
+                ...children,
               ],
             ),
-            SizedBox(height: isCompact ? 12 : 16),
-            // Section content
-            ...children,
-          ],
+          ),
         ),
       ),
     );
@@ -378,11 +407,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: DuruSpacing.sm),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
+              color: DuruColors.primary,
               fontWeight: FontWeight.w600,
             ),
       ),
@@ -584,6 +613,219 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildAISection(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // AI feature states (these would come from providers in production)
+    bool aiEnabled = true;
+    bool smartSuggestions = true;
+    bool semanticSearch = false;
+    bool onDeviceOnly = true;
+    String selectedModel = 'Nano (50MB)';
+
+    return _buildSectionCard(
+      title: 'AI Assistant',
+      icon: CupertinoIcons.sparkles,
+      iconColor: const Color(0xFF9333EA), // AI Purple
+      useGradient: true,
+      children: [
+        // AI Enable Toggle
+        SwitchListTile(
+          title: Text(
+            'Enable AI Features',
+            style: theme.textTheme.bodyLarge,
+          ),
+          subtitle: Text(
+            'Smart suggestions and semantic search',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+          value: aiEnabled,
+          onChanged: (value) {
+            // Toggle AI features
+            HapticFeedback.lightImpact();
+          },
+          activeColor: const Color(0xFF9333EA),
+        ),
+        const Divider(height: 24),
+
+        // Model Selection
+        ListTile(
+          title: Text(
+            'AI Model',
+            style: theme.textTheme.bodyLarge,
+          ),
+          subtitle: Text(
+            selectedModel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+          trailing: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: DuruSpacing.sm,
+              vertical: DuruSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF9333EA).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.cloud_download,
+                  size: 16,
+                  color: const Color(0xFF9333EA),
+                ),
+                SizedBox(width: DuruSpacing.xs),
+                Text(
+                  'Change',
+                  style: TextStyle(
+                    color: const Color(0xFF9333EA),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          onTap: () {
+            // Show model selection dialog
+            HapticFeedback.lightImpact();
+          },
+        ),
+        const Divider(height: 24),
+
+        // Feature Toggles
+        SwitchListTile(
+          title: Text(
+            'Smart Suggestions',
+            style: theme.textTheme.bodyMedium,
+          ),
+          subtitle: Text(
+            'AI-powered writing assistance',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+          value: smartSuggestions,
+          onChanged: aiEnabled ? (value) {
+            HapticFeedback.lightImpact();
+          } : null,
+          activeColor: const Color(0xFF9333EA),
+        ),
+
+        SwitchListTile(
+          title: Text(
+            'Semantic Search',
+            style: theme.textTheme.bodyMedium,
+          ),
+          subtitle: Text(
+            'Find notes by meaning, not just keywords',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
+          ),
+          value: semanticSearch,
+          onChanged: aiEnabled ? (value) {
+            HapticFeedback.lightImpact();
+          } : null,
+          activeColor: const Color(0xFF9333EA),
+        ),
+        const Divider(height: 24),
+
+        // Privacy Control
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.md),
+          decoration: BoxDecoration(
+            color: onDeviceOnly
+              ? Colors.green.withOpacity(0.1)
+              : Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: onDeviceOnly
+                ? Colors.green.withOpacity(0.3)
+                : Colors.orange.withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                onDeviceOnly
+                  ? CupertinoIcons.lock_shield_fill
+                  : CupertinoIcons.cloud,
+                color: onDeviceOnly ? Colors.green : Colors.orange,
+                size: 24,
+              ),
+              SizedBox(width: DuruSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      onDeviceOnly ? 'On-Device Processing' : 'Cloud Processing',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: DuruSpacing.xs),
+                    Text(
+                      onDeviceOnly
+                        ? 'All AI processing happens locally on your device'
+                        : 'Some features may use cloud processing',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: onDeviceOnly,
+                onChanged: (value) {
+                  HapticFeedback.lightImpact();
+                },
+                activeColor: Colors.green,
+              ),
+            ],
+          ),
+        ),
+
+        // Learn More Link
+        Padding(
+          padding: EdgeInsets.only(top: DuruSpacing.md),
+          child: InkWell(
+            onTap: () {
+              // Open AI features documentation
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.info_circle,
+                  size: 16,
+                  color: const Color(0xFF9333EA),
+                ),
+                SizedBox(width: DuruSpacing.xs),
+                Text(
+                  'Learn more about AI features',
+                  style: TextStyle(
+                    color: const Color(0xFF9333EA),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildAccountSection(BuildContext context, AppLocalizations l10n) {
     final user = Supabase.instance.client.auth.currentUser;
     final isCompact = MediaQuery.sizeOf(context).width < 380;
@@ -592,7 +834,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle(l10n.account),
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Column(
             children: [
               if (user != null) ...[
@@ -1114,7 +1370,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () {
                   Navigator.of(
                     context,
-                  ).push(MaterialPageRoute(builder: (_) => const HelpScreen()));
+                  ).push(MaterialPageRoute<void>(builder: (_) => const HelpScreen()));
                 },
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
@@ -1271,7 +1527,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await ref.read(folderHierarchyProvider.notifier).loadFolders();
 
         // Add a small delay to ensure UI updates
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
         // Get current notes count for feedback
         final currentNotes = ref.read(currentNotesProvider);

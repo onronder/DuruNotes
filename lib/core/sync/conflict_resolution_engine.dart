@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/models/note_kind.dart';
 
 /// Advanced conflict detection and resolution engine for bidirectional sync
 ///
@@ -222,7 +225,7 @@ class ConflictResolutionEngine {
       final recentlyDeleted = await _localDb.customSelect('''
         SELECT * FROM local_notes
         WHERE id = ? AND deleted = 1 AND updated_at > datetime('now', '-1 hour')
-      ''', [remoteId]).getSingleOrNull();
+      ''').getSingleOrNull();
 
       if (recentlyDeleted != null) {
         return DataConflict(
@@ -441,8 +444,8 @@ class ConflictResolutionEngine {
     if (localNote != null) {
       await _remoteApi.upsertEncryptedNote(
         id: localNote.id,
-        title: Value(localNote.title),
-        encryptedMetadata: Value(localNote.encryptedMetadata),
+        titleEnc: Uint8List.fromList(utf8.encode(localNote.title)),
+        propsEnc: Uint8List.fromList(utf8.encode(localNote.encryptedMetadata ?? '')),
         deleted: localNote.deleted,
       );
     }
@@ -459,11 +462,12 @@ class ConflictResolutionEngine {
     if (remoteNote.isNotEmpty) {
       await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
         LocalNotesCompanion.insert(
-          id: Value(noteId),
-          title: Value(remoteNote['title'] as String),
+          id: noteId,
+          title: Value(remoteNote['title'] as String? ?? ''),
+          body: Value(''),
+          noteType: Value(NoteKind.note),
           encryptedMetadata: Value(remoteNote['encrypted_metadata'] as String?),
-          createdAt: Value(DateTime.parse(remoteNote['created_at'] as String)),
-          updatedAt: Value(DateTime.parse(remoteNote['updated_at'] as String)),
+          updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
           deleted: Value(remoteNote['deleted'] as bool? ?? false),
         ),
       );
@@ -501,11 +505,12 @@ class ConflictResolutionEngine {
 
       await _localDb.into(_localDb.localNotes).insert(
         LocalNotesCompanion.insert(
-          id: Value(duplicateId),
+          id: duplicateId,
           title: Value(localNote.title),
+          body: Value(localNote.body),
+          noteType: Value(localNote.noteType),
           encryptedMetadata: Value(localNote.encryptedMetadata),
-          createdAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: DateTime.now(),
           deleted: Value(false),
         ),
       );

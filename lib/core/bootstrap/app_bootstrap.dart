@@ -11,6 +11,7 @@ import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/services/template_initialization_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -93,14 +94,7 @@ class AppBootstrap {
       warnings.addAll(loadResult.warnings);
       environmentSource = loadResult.source;
       if (loadResult.usedFallback) {
-        failures.add(
-          BootstrapFailure(
-            stage: BootstrapStage.environment,
-            error: StateError('Supabase configuration missing'),
-            stackTrace: StackTrace.current,
-            critical: true,
-          ),
-        );
+        warnings.add('Using fallback configuration - Supabase configuration missing');
       }
     } catch (error, stack) {
       failures.add(
@@ -108,11 +102,12 @@ class AppBootstrap {
           stage: BootstrapStage.environment,
           error: error,
           stackTrace: stack,
-          critical: true,
+          critical: false,
         ),
       );
       environment = EnvironmentConfig.fallback();
       environmentSource = 'fallback';
+      warnings.add('Using fallback configuration due to initialization error');
     }
 
     // 2. Logging
@@ -188,9 +183,10 @@ class AppBootstrap {
           stage: BootstrapStage.firebase,
           error: error,
           stackTrace: stack,
-          critical: true,
+          critical: false,
         ),
       );
+      logger.warning('Firebase initialization failed - some features may be unavailable');
     }
 
     // 6. Supabase
@@ -209,19 +205,14 @@ class AppBootstrap {
             stage: BootstrapStage.supabase,
             error: error,
             stackTrace: stack,
-            critical: true,
+            critical: false,
           ),
         );
+        logger.warning('Supabase initialization failed - running in local-only mode');
       }
     } else {
-      failures.add(
-        BootstrapFailure(
-          stage: BootstrapStage.supabase,
-          error: StateError('Supabase credentials are not configured'),
-          stackTrace: StackTrace.current,
-          critical: true,
-        ),
-      );
+      warnings.add('Supabase credentials not configured - using local-only mode');
+      logger.warning('Running in local-only mode without Supabase sync');
     }
 
     // 7. Migration System
@@ -231,6 +222,9 @@ class AppBootstrap {
         final appDb = AppDb();
         await MigrationTablesSetup.ensureMigrationTables(appDb);
         await MigrationTablesSetup.seedInitialMigrationData(appDb);
+
+        // Initialize default templates
+        await TemplateInitializationService.initializeDefaultTemplates(appDb);
 
         logger.info('Migration system initialized successfully');
       } else {

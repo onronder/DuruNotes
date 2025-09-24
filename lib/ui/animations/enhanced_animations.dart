@@ -96,7 +96,7 @@ class _BouncyScaleTransitionState extends State<BouncyScaleTransition>
       curve: widget.curve,
     ));
 
-    Future.delayed(widget.delay, () {
+    Future<void>.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
   }
@@ -588,7 +588,7 @@ class _StaggeredAnimationListState extends State<StaggeredAnimationList>
 
   void _startAnimations() async {
     for (int i = 0; i < _controllers.length; i++) {
-      await Future.delayed(widget.delay);
+      await Future<void>.delayed(widget.delay);
       if (mounted) {
         _controllers[i].forward();
       }

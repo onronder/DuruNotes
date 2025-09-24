@@ -77,7 +77,7 @@ class AndroidOptimizations {
       PaintingBinding.instance.imageCache.clearLiveImages();
 
       // Trigger garbage collection
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     } catch (e) {
       debugPrint('Cache cleanup error: $e');
     }

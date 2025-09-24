@@ -16,6 +16,15 @@ import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/providers/unified_reminder_provider.dart';
 import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/repository/notes_repository_refactored.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/search_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/tag_repository.dart';
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
+import 'package:duru_notes/domain/repositories/i_search_repository.dart';
+import 'package:duru_notes/domain/repositories/i_tag_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/domain/repositories/i_template_repository.dart';
 import 'package:duru_notes/repository/sync_service.dart';
 import 'package:duru_notes/repository/task_repository.dart';
 import 'package:duru_notes/repository/template_repository.dart';
@@ -90,7 +99,10 @@ final noteIndexerProvider = Provider<NoteIndexer>((ref) {
   return NoteIndexer(ref);
 });
 
-/// Notes repository provider
+/// Use refactored architecture flag - set to true to enable clean architecture
+const bool useRefactoredArchitecture = false;
+
+/// Notes repository provider - uses refactored version if flag is true
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   // Rebuild when auth state changes
   ref.watch(authStateChangesProvider);
@@ -105,7 +117,53 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 
   final api = SupabaseNoteApi(client);
 
-  return NotesRepository(db: db, crypto: crypto, api: api, client: client, indexer: indexer);
+  if (useRefactoredArchitecture) {
+    return NotesRepositoryRefactored(
+      db: db,
+      crypto: crypto,
+      api: api,
+      client: client,
+      indexer: indexer
+    ) as NotesRepository;
+  } else {
+    return NotesRepository(
+      db: db,
+      crypto: crypto,
+      api: api,
+      client: client,
+      indexer: indexer
+    );
+  }
+});
+
+/// Clean architecture repository providers
+/// Notes core repository provider
+final notesCoreRepositoryProvider = Provider<INotesRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  final crypto = ref.watch(cryptoBoxProvider);
+  final indexer = ref.watch(noteIndexerProvider);
+  final client = Supabase.instance.client;
+  final api = SupabaseNoteApi(client);
+
+  return NotesCoreRepository(
+    db: db,
+    crypto: crypto,
+    api: api,
+    client: client,
+    indexer: indexer,
+  );
+});
+
+/// Tag repository provider
+final tagRepositoryInterfaceProvider = Provider<ITagRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  return TagRepository(db: db);
+});
+
+/// Search repository provider
+final searchRepositoryProvider = Provider<ISearchRepository>((ref) {
+  final db = ref.watch(appDbProvider);
+  return SearchRepository(db: db);
 });
 
 /// Template migration service provider
@@ -591,35 +649,7 @@ final unifiedRealtimeServiceProvider =
   );
 });
 
-/// Legacy provider - Deprecated, use unifiedRealtimeServiceProvider
-/// This creates a stub service that doesn't actually start realtime subscriptions
-@Deprecated('Use unifiedRealtimeServiceProvider instead')
-final inboxRealtimeServiceProvider =
-    ChangeNotifierProvider<InboxRealtimeService>((
-  ref,
-) {
-  ref.watch(authStateChangesProvider);
-  final client = Supabase.instance.client;
 
-  if (client.auth.currentUser == null) {
-    throw StateError('InboxRealtimeService requested without authentication');
-  }
-
-  // Create a stub service but DON'T start it - unified service handles realtime
-  final service = InboxRealtimeService(supabase: client);
-  // IMPORTANT: We don't call service.start() here
-
-  ref.onDispose(service.stop);
-
-  return service;
-});
-
-/// Legacy provider - Deprecated, use unifiedRealtimeServiceProvider
-@Deprecated('Use unifiedRealtimeServiceProvider instead')
-final folderRealtimeServiceProvider = Provider<FolderRealtimeService?>((ref) {
-  // Return null - functionality moved to unified service
-  return null;
-});
 
 // Folder sync audit provider
 final folderSyncAuditProvider = Provider<FolderSyncAudit>((ref) {
@@ -648,13 +678,6 @@ final folderSyncCoordinatorProvider = Provider<FolderSyncCoordinator>((ref) {
   );
 });
 
-/// Legacy provider - Deprecated, use unifiedRealtimeServiceProvider
-@Deprecated('Use unifiedRealtimeServiceProvider instead')
-final notesRealtimeServiceProvider =
-    ChangeNotifierProvider<NotesRealtimeService?>((ref) {
-  // Return null - functionality moved to unified service
-  return null;
-});
 
 /// Inbox unread tracking service provider
 final inboxUnreadServiceProvider = ChangeNotifierProvider<InboxUnreadService?>((

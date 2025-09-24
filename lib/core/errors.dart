@@ -72,7 +72,7 @@ class NetworkError extends AppError {
   ]) {
     final statusCode = int.tryParse(e.code ?? '');
     return NetworkError(
-      message: e.message ?? 'Database error occurred',
+      message: e.message,
       code: e.code,
       statusCode: statusCode,
       responseBody: e.details?.toString(),

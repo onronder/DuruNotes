@@ -119,7 +119,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       });
 
       // Navigate back after a delay
-      Future.delayed(const Duration(seconds: 2), () {
+      Future<void>.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.of(context).pop();
         }

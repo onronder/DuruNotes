@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/cross_platform_tokens.dart';
+import 'widgets/modern_app_bar.dart';
 
 /// Help screen that displays the user guide and support information
 class HelpScreen extends StatefulWidget {
@@ -56,13 +59,22 @@ class _HelpScreenState extends State<HelpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Help & User Guide'),
-        elevation: 0,
+      appBar: ModernAppBar(
+        title: 'Help & Support',
+        gradientColors: [
+          DuruColors.primary,
+          DuruColors.accent,
+        ],
         actions: [
           IconButton(
-            icon: const Icon(Icons.feedback_outlined),
+            icon: Icon(
+              CupertinoIcons.chat_bubble_text,
+              color: isDark ? Colors.white : Colors.white,
+            ),
             onPressed: _showFeedbackDialog,
             tooltip: 'Send Feedback',
           ),
@@ -139,123 +151,220 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   Widget _buildHelpContent() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Column(
       children: [
+        // Hero Section with Gradient
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                DuruColors.primary.withOpacity(isDark ? 0.3 : 0.1),
+                DuruColors.accent.withOpacity(isDark ? 0.2 : 0.05),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Icon(
+                CupertinoIcons.question_circle_fill,
+                size: 64,
+                color: DuruColors.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'How can we help you?',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Find answers, contact support, or learn about features',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
         // Quick actions bar
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border(
-              bottom: BorderSide(color: Theme.of(context).dividerColor),
-            ),
-          ),
           child: Row(
             children: [
               Expanded(
-                child: _buildQuickActionButton(
-                  icon: Icons.search,
+                child: _buildModernActionCard(
+                  icon: CupertinoIcons.search,
                   label: 'Search Guide',
+                  color: DuruColors.primary,
                   onTap: _showSearchDialog,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildQuickActionButton(
-                  icon: Icons.support_agent,
+                child: _buildModernActionCard(
+                  icon: CupertinoIcons.chat_bubble_2,
                   label: 'Contact Support',
+                  color: DuruColors.accent,
                   onTap: _showContactSupport,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildQuickActionButton(
-                  icon: Icons.info_outline,
+                child: _buildModernActionCard(
+                  icon: CupertinoIcons.info_circle,
                   label: 'App Info',
+                  color: const Color(0xFF9333EA), // AI Purple
                   onTap: _showAppInfo,
                 ),
               ),
             ],
           ),
         ),
-        // User guide content
+        // User guide content with modern styling
         Expanded(
-          child: Markdown(
-            data: _userGuideContent,
-            onTapLink: (text, href, title) {
-              if (href != null) {
-                _launchUrl(href);
-              }
-            },
-            styleSheet: MarkdownStyleSheet(
-              h1: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Markdown(
+                data: _userGuideContent,
+                padding: const EdgeInsets.all(16),
+                onTapLink: (text, href, title) {
+                  if (href != null) {
+                    _launchUrl(href);
+                  }
+                },
+                styleSheet: MarkdownStyleSheet(
+              h1: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: DuruColors.primary,
                   ),
-              h2: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-              h3: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-              p: Theme.of(context).textTheme.bodyMedium,
-              code: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                  ),
+              h2: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              h3: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              p: theme.textTheme.bodyMedium?.copyWith(
+                color: (isDark ? Colors.white : Colors.black87).withOpacity(0.8),
+              ),
+              code: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: 'monospace',
+                backgroundColor: DuruColors.primary.withOpacity(0.1),
+                color: DuruColors.primary,
+              ),
               codeblockDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Theme.of(context).dividerColor),
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.primary.withOpacity(0.05),
+                    DuruColors.accent.withOpacity(0.02),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: DuruColors.primary.withOpacity(0.2),
+                ),
               ),
               blockquoteDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.accent.withOpacity(0.05),
+                    DuruColors.accent.withOpacity(0.02),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
                 border: Border(
                   left: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
+                    color: DuruColors.accent,
                     width: 4,
                   ),
                 ),
               ),
-              listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+              listBullet: theme.textTheme.bodyMedium?.copyWith(
+                color: DuruColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             selectable: true,
+          ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildQuickActionButton({
+  Widget _buildModernActionCard({
     required IconData icon,
     required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+          ),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -285,9 +394,17 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showContactSupport() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -338,47 +455,147 @@ class _HelpScreenState extends State<HelpScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () {
-        Navigator.of(context).pop();
-        onTap();
-      },
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Theme.of(context).dividerColor),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            DuruColors.primary.withOpacity(0.05),
+            DuruColors.accent.withOpacity(0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (isDark ? Colors.white : DuruColors.primary).withOpacity(0.1),
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: DuruColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: DuruColors.primary, size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+          ),
+        ),
+        trailing: Icon(
+          CupertinoIcons.chevron_forward,
+          size: 16,
+          color: (isDark ? Colors.white : Colors.black87).withOpacity(0.5),
+        ),
+        onTap: () {
+          Navigator.of(context).pop();
+          onTap();
+        },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
 
   void _showAppInfo() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('App Information'),
-        content: const Column(
+        backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [DuruColors.primary, DuruColors.accent],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                CupertinoIcons.app_badge,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('App Information'),
+          ],
+        ),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Duru Notes',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.primary.withOpacity(0.1),
+                    DuruColors.accent.withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Duru Notes',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: DuruColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Version: 1.0.0 • Build: 100',
+                    style: TextStyle(
+                      color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 8),
-            Text('Version: 1.0.0'),
-            Text('Build: 100'),
-            SizedBox(height: 16),
-            Text('Features:'),
-            Text('• Advanced reminders'),
-            Text('• Voice transcription'),
-            Text('• OCR text scanning'),
-            Text('• End-to-end encryption'),
-            Text('• Cross-platform sync'),
-            SizedBox(height: 16),
-            Text('Developed with ❤️ for productivity'),
+            const SizedBox(height: 16),
+            Text(
+              'Features',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._buildFeaturesList(context),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                'Crafted for productivity excellence',
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: DuruColors.accent,
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -559,6 +776,38 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 }
 
+  List<Widget> _buildFeaturesList(BuildContext context) {
+    final features = [
+      {'icon': CupertinoIcons.bell, 'text': 'Advanced reminders'},
+      {'icon': CupertinoIcons.mic, 'text': 'Voice transcription'},
+      {'icon': CupertinoIcons.camera, 'text': 'OCR text scanning'},
+      {'icon': CupertinoIcons.lock_shield, 'text': 'End-to-end encryption'},
+      {'icon': CupertinoIcons.cloud_upload, 'text': 'Cross-platform sync'},
+    ];
+
+    return features.map((feature) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            feature['icon'] as IconData,
+            size: 16,
+            color: DuruColors.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            feature['text'] as String,
+            style: TextStyle(
+              color: (Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black87).withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    )).toList();
+  }
+
 class _QuickHelpSection extends StatelessWidget {
   const _QuickHelpSection({required this.title, required this.items});
   final String title;
@@ -566,46 +815,81 @@ class _QuickHelpSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-          ),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            DuruColors.primary.withOpacity(0.05),
+            DuruColors.accent.withOpacity(0.02),
+          ],
         ),
-        ...items.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 8, right: 8),
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (isDark ? Colors.white : DuruColors.primary).withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: DuruColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-                Expanded(
-                  child: Text(
-                    item,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                child: Icon(
+                  CupertinoIcons.lightbulb,
+                  size: 16,
+                  color: DuruColors.primary,
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: DuruColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8, left: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, right: 8),
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: DuruColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: (isDark ? Colors.white : Colors.black87).withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-      ],
+        ],
+      ),
     );
   }
 }

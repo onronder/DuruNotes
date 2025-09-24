@@ -4,7 +4,9 @@ import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
 import 'package:duru_notes/services/unified_realtime_service.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -160,7 +162,7 @@ class _InboundEmailInboxWidgetState
           // Optionally navigate to the note immediately
           if (navigateToNote) {
             // Small delay to let the UI update
-            await Future.delayed(const Duration(milliseconds: 300));
+            await Future<void>.delayed(const Duration(milliseconds: 300));
             if (mounted) {
               _navigateToNote(noteId);
             }
@@ -283,34 +285,77 @@ class _InboundEmailInboxWidgetState
         children: [
           // User's email address card
           if (_userEmailAddress != null)
-            Card(
-              margin: const EdgeInsets.all(16),
+            Container(
+              margin: EdgeInsets.all(DuruSpacing.md),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.primary.withOpacity(0.05),
+                    DuruColors.accent.withOpacity(0.03),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                ),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(DuruSpacing.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Forward emails or use with Web Clipper:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(
-                          child: SelectableText(
-                            _userEmailAddress!,
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 14,
-                            ),
+                        Icon(
+                          CupertinoIcons.envelope_fill,
+                          size: 16,
+                          color: DuruColors.primary,
+                        ),
+                        SizedBox(width: DuruSpacing.sm),
+                        Text(
+                          'Forward emails or use with Web Clipper:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.copy, size: 20),
-                          onPressed: _copyEmailAddress,
-                        ),
                       ],
+                    ),
+                    SizedBox(height: DuruSpacing.sm),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: DuruSpacing.sm,
+                        vertical: DuruSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: SelectableText(
+                              _userEmailAddress!,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 14,
+                                color: DuruColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              CupertinoIcons.doc_on_clipboard,
+                              size: 20,
+                              color: DuruColors.primary,
+                            ),
+                            onPressed: _copyEmailAddress,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -326,20 +371,29 @@ class _InboundEmailInboxWidgetState
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.inbox,
-                                size: 64, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Your inbox is empty',
-                              style:
-                                  TextStyle(fontSize: 18, color: Colors.grey),
+                            Icon(
+                              CupertinoIcons.tray,
+                              size: 64,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: DuruSpacing.md),
+                            Text(
+                              'Your inbox is empty',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            SizedBox(height: DuruSpacing.sm),
                             if (_userEmailAddress != null)
                               Text(
-                                '📧 Send emails to:\n$_userEmailAddress\n\n🌐 Or use the Web Clipper extension',
+                                'Send emails to:\n$_userEmailAddress\n\nOr use the Web Clipper extension',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.grey),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
                               ),
                           ],
                         ),
@@ -379,21 +433,47 @@ class _InboundEmailInboxWidgetState
                                   return false; // Don't dismiss, we'll refresh
                                 }
                               },
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: item.isWebClip
-                                      ? Colors.blue.shade100
-                                      : Colors.grey.shade200,
-                                  child: item.isWebClip
-                                      ? Icon(
-                                          Icons.language,
-                                          color: Colors.blue.shade700,
-                                        )
-                                      : Icon(
-                                          Icons.email,
-                                          color: Colors.grey.shade700,
-                                        ),
+                              child: Container(
+                                margin: EdgeInsets.symmetric(
+                                  horizontal: DuruSpacing.md,
+                                  vertical: DuruSpacing.xs,
                                 ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.all(DuruSpacing.sm),
+                                  leading: Container(
+                                    padding: EdgeInsets.all(DuruSpacing.sm),
+                                    decoration: BoxDecoration(
+                                      color: item.isWebClip
+                                          ? DuruColors.accent.withOpacity(0.1)
+                                          : DuruColors.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: item.isWebClip
+                                        ? Icon(
+                                            CupertinoIcons.globe,
+                                            color: DuruColors.accent,
+                                            size: 20,
+                                          )
+                                        : Icon(
+                                            CupertinoIcons.envelope_fill,
+                                            color: DuruColors.primary,
+                                            size: 20,
+                                          ),
+                                  ),
                                 title: Text(
                                   item.displayTitle,
                                   maxLines: 1,
@@ -416,30 +496,42 @@ class _InboundEmailInboxWidgetState
                                       ),
                                   ],
                                 ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (item.hasAttachments)
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 4),
-                                        child: Icon(
-                                          Icons.attach_file,
-                                          size: 18,
-                                          color: Colors.grey[600],
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (item.hasAttachments)
+                                        Padding(
+                                          padding:
+                                              EdgeInsets.only(right: DuruSpacing.xs),
+                                          child: Icon(
+                                            CupertinoIcons.paperclip,
+                                            size: 18,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                          ),
+                                        ),
+                                      SizedBox(width: DuruSpacing.xs),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: DuruSpacing.sm,
+                                          vertical: DuruSpacing.xs,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _formatDate(item.createdAt),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _formatDate(item.createdAt),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
+                                  onTap: () => _showItemDetails(item),
                                 ),
-                                onTap: () => _showItemDetails(item),
                               ),
                             );
                           },

@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';

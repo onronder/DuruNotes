@@ -107,7 +107,7 @@ class NetworkAwareService {
 
           // Exponential backoff
           final delay = retryDelay * (attempt * 2);
-          await Future.delayed(delay);
+          await Future<void>.delayed(delay);
 
           // Check connectivity again before retry
           final stillOnline = await hasConnectivity();

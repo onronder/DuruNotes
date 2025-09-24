@@ -6,7 +6,6 @@ import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
-import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

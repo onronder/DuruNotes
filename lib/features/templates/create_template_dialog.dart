@@ -220,21 +220,29 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
               ),
               child: Row(
                 children: [
-                  // Preview button
-                  DuruButton(
-                    onPressed: _isLoading ? null : _previewTemplate,
-                    variant: DuruButtonVariant.outlined,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.preview),
-                        SizedBox(width: DuruSpacing.xs),
-                        const Text('Preview'),
-                      ],
+                  // Preview button (more compact)
+                  Expanded(
+                    child: DuruButton(
+                      onPressed: _isLoading ? null : _previewTemplate,
+                      variant: DuruButtonVariant.outlined,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.preview, size: 14),
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              'Preview',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(width: 8),
 
                   // Cancel button
                   TextButton(
@@ -242,22 +250,30 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                     child: const Text('Cancel'),
                   ),
 
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
 
-                  // Create button
-                  DuruButton(
-                    onPressed: _isLoading ? null : _createTemplate,
-                    variant: DuruButtonVariant.primary,
-                    isLoading: _isLoading,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!_isLoading) ...[
-                          const Icon(Icons.check),
-                          SizedBox(width: DuruSpacing.xs),
+                  // Create button (more compact)
+                  Expanded(
+                    child: DuruButton(
+                      onPressed: _isLoading ? null : _createTemplate,
+                      variant: DuruButtonVariant.primary,
+                      isLoading: _isLoading,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!_isLoading) ...[
+                            const Icon(Icons.check, size: 14),
+                            const SizedBox(width: 2),
+                          ],
+                          Flexible(
+                            child: Text(
+                              _isLoading ? 'Creating...' : 'Create',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
-                        Text(_isLoading ? 'Creating...' : 'Create'),
-                      ],
+                      ),
                     ),
                   ),
                 ],

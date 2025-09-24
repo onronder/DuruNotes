@@ -2,12 +2,17 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/dialogs/goals_dialog.dart';
 import 'package:duru_notes/ui/widgets/analytics/productivity_charts.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'widgets/modern_app_bar.dart';
+import '../theme/cross_platform_tokens.dart';
 
 /// Comprehensive productivity analytics dashboard
 class ProductivityAnalyticsScreen extends ConsumerStatefulWidget {
@@ -134,64 +139,151 @@ class _ProductivityAnalyticsScreenState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Productivity Analytics'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Overview', icon: Icon(Icons.dashboard)),
-            Tab(text: 'Time', icon: Icon(Icons.timer)),
-            Tab(text: 'Trends', icon: Icon(Icons.trending_up)),
-            Tab(text: 'Insights', icon: Icon(Icons.lightbulb)),
-          ],
-        ),
+      appBar: ModernAppBar(
+        title: 'Productivity Analytics',
+        gradientColors: [
+          DuruColors.primary,
+          DuruColors.accent,
+        ],
         actions: [
           IconButton(
-            icon: const Icon(Icons.flag),
+            icon: Icon(
+              CupertinoIcons.flag_fill,
+              color: Colors.white,
+            ),
             onPressed: _showGoalsDialog,
             tooltip: 'Set Goals',
           ),
           IconButton(
-            icon: const Icon(Icons.date_range),
+            icon: Icon(
+              CupertinoIcons.calendar,
+              color: Colors.white,
+            ),
             onPressed: _selectDateRange,
             tooltip: 'Select date range',
           ),
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: Icon(
+              CupertinoIcons.share,
+              color: Colors.white.withOpacity(_analytics != null ? 1.0 : 0.5),
+            ),
             onPressed: _analytics != null ? _exportData : null,
             tooltip: 'Export data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAnalytics,
-            tooltip: 'Refresh data',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Date range indicator
+          // Modern Tab Bar
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  DuruColors.primary.withOpacity(0.08),
+                  DuruColors.accent.withOpacity(0.04),
+                ],
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: DuruColors.primary,
+              indicatorWeight: 3,
+              labelColor: DuruColors.primary,
+              unselectedLabelColor: isDark ? Colors.white70 : Colors.grey,
+              tabs: [
+                Tab(
+                  text: 'Overview',
+                  icon: Icon(CupertinoIcons.chart_pie_fill, size: 20),
+                ),
+                Tab(
+                  text: 'Time',
+                  icon: Icon(CupertinoIcons.timer_fill, size: 20),
+                ),
+                Tab(
+                  text: 'Trends',
+                  icon: Icon(CupertinoIcons.graph_square_fill, size: 20),
+                ),
+                Tab(
+                  text: 'Insights',
+                  icon: Icon(CupertinoIcons.lightbulb_fill, size: 20),
+                ),
+              ],
+            ),
+          ),
+
+          // Date range indicator with glass morphism
           if (_selectedDateRange != null)
             Container(
-              padding: const EdgeInsets.all(16),
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.primary.withOpacity(0.08),
+                    DuruColors.accent.withOpacity(0.04),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: DuruColors.primary.withOpacity(0.2),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.date_range, color: colorScheme.primary, size: 20),
-                  const SizedBox(width: 8),
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          DuruColors.primary,
+                          DuruColors.accent,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      CupertinoIcons.calendar,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: DuruSpacing.sm),
                   Text(
                     '${DateFormat.yMMMd().format(_selectedDateRange!.start)} - ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: DuruColors.primary,
                     ),
                   ),
                   const Spacer(),
                   if (_analytics != null)
-                    Text(
-                      '${_analytics!.dateRange.days} days',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: DuruSpacing.sm,
+                        vertical: DuruSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: DuruColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${_analytics!.dateRange.days} days',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: DuruColors.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                 ],
@@ -220,20 +312,42 @@ class _ProductivityAnalyticsScreenState
   }
 
   Widget _buildErrorState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.analytics, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
+          Container(
+            padding: EdgeInsets.all(DuruSpacing.lg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  DuruColors.primary.withOpacity(0.1),
+                  DuruColors.accent.withOpacity(0.05),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              CupertinoIcons.chart_bar_square,
+              size: 64,
+              color: DuruColors.primary.withOpacity(0.5),
+            ),
+          ),
+          SizedBox(height: DuruSpacing.lg),
           Text(
             'No analytics data available',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: DuruSpacing.sm),
           Text(
             'Complete some tasks to see your productivity insights',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -243,42 +357,95 @@ class _ProductivityAnalyticsScreenState
 
   Widget _buildOverviewTab() {
     final analytics = _analytics!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Summary cards
+          // Welcome card with gradient
+          Container(
+            padding: EdgeInsets.all(24),
+            margin: EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  DuruColors.primary.withOpacity(0.15),
+                  DuruColors.accent.withOpacity(0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: DuruColors.primary.withOpacity(0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.chart_bar_alt_fill,
+                  size: 40,
+                  color: DuruColors.primary,
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Productivity Score',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                        ),
+                      ),
+                      Text(
+                        '${(analytics.completionStats.completionRate * 100).round()}%',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: DuruColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Summary cards with glass morphism
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             childAspectRatio: 1.5,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
             children: [
               AnalyticsSummaryCard(
                 title: 'Tasks Completed',
                 value: analytics.completionStats.totalCompleted.toString(),
                 subtitle:
                     '${(analytics.completionStats.completionRate * 100).round()}% completion rate',
-                icon: Icons.check_circle,
-                color: Colors.green,
+                icon: CupertinoIcons.check_mark_circled_solid,
+                color: DuruColors.accent,
               ),
               AnalyticsSummaryCard(
                 title: 'Average per Day',
                 value:
                     analytics.completionStats.averagePerDay.toStringAsFixed(1),
                 subtitle: 'tasks completed daily',
-                icon: Icons.today,
-                color: Colors.blue,
+                icon: CupertinoIcons.calendar_today,
+                color: DuruColors.primary,
               ),
               AnalyticsSummaryCard(
                 title: 'Current Streak',
                 value: analytics.completionStats.currentStreak.toString(),
                 subtitle: 'days with completed tasks',
-                icon: Icons.local_fire_department,
+                icon: CupertinoIcons.flame_fill,
                 color: Colors.orange,
               ),
               AnalyticsSummaryCard(
@@ -286,7 +453,7 @@ class _ProductivityAnalyticsScreenState
                 value:
                     '${(analytics.timeAccuracyStats.overallAccuracy * 100).round()}%',
                 subtitle: 'estimation accuracy',
-                icon: Icons.timer,
+                icon: CupertinoIcons.timer,
                 color: Colors.purple,
                 trend: analytics.timeAccuracyStats.improvementTrend,
               ),
@@ -295,19 +462,96 @@ class _ProductivityAnalyticsScreenState
 
           const SizedBox(height: 24),
 
-          // Completion chart
-          _buildChartSection(
-            'Task Completion Trends',
-            TaskCompletionChart(completionStats: analytics.completionStats),
+          // Completion chart with glass effect
+          _buildModernChartSection(
+            title: 'Task Completion Trends',
+            icon: CupertinoIcons.graph_square_fill,
+            child: TaskCompletionChart(completionStats: analytics.completionStats),
           ),
 
           const SizedBox(height: 24),
 
-          // Priority distribution
-          _buildChartSection(
-            'Priority Distribution',
-            PriorityDistributionChart(
+          // Priority distribution with glass effect
+          _buildModernChartSection(
+            title: 'Priority Distribution',
+            icon: CupertinoIcons.chart_pie_fill,
+            child: PriorityDistributionChart(
                 priorityDistribution: analytics.priorityDistribution),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernChartSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.05)
+            : Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  DuruColors.primary.withOpacity(0.05),
+                  DuruColors.accent.withOpacity(0.02),
+                ],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [DuruColors.primary, DuruColors.accent],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: child,
           ),
         ],
       ),
@@ -316,6 +560,7 @@ class _ProductivityAnalyticsScreenState
 
   Widget _buildTimeAnalysisTab() {
     final analytics = _analytics!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -352,6 +597,7 @@ class _ProductivityAnalyticsScreenState
 
           // Time accuracy chart
           _buildChartSection(
+            context,
             'Estimation Accuracy Over Time',
             TimeAccuracyChart(timeAccuracy: analytics.timeAccuracyStats),
           ),
@@ -402,6 +648,7 @@ class _ProductivityAnalyticsScreenState
 
           // Weekly trends
           _buildChartSection(
+            context,
             'Weekly Productivity',
             WeeklyTrendsChart(
                 weeklyTrends: analytics.productivityTrends.weeklyTrends),
@@ -411,6 +658,7 @@ class _ProductivityAnalyticsScreenState
 
           // Hourly distribution
           _buildChartSection(
+            context,
             'Most Productive Hours',
             HourlyProductivityChart(
                 hourlyDistribution:
@@ -421,6 +669,7 @@ class _ProductivityAnalyticsScreenState
 
           // Deadline adherence
           _buildChartSection(
+            context,
             'Deadline Adherence',
             DeadlineAdherenceChart(deadlineMetrics: analytics.deadlineMetrics),
           ),
@@ -511,27 +760,6 @@ class _ProductivityAnalyticsScreenState
     );
   }
 
-  Widget _buildChartSection(String title, Widget chart) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: chart,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildTimeBreakdownSection(ProductivityAnalytics analytics) {
     return Column(
@@ -777,6 +1005,41 @@ class _ProductivityAnalyticsScreenState
         return 'Urgent';
     }
   }
+
+  Widget _buildChartSection(BuildContext context, String title, Widget chart) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[900] : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          chart,
+        ],
+      ),
+    );
+  }
 }
 
 /// Quick analytics widget for dashboard inclusion
@@ -826,7 +1089,7 @@ class QuickAnalyticsWidget extends ConsumerWidget {
                     const Spacer(),
                     TextButton(
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
+                        MaterialPageRoute<void>(
                           builder: (context) =>
                               const ProductivityAnalyticsScreen(),
                         ),

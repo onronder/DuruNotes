@@ -245,7 +245,7 @@ class SmartFoldersWidget extends ConsumerWidget {
   void _showCreateSmartFolder(BuildContext context, WidgetRef ref) {
     Navigator.of(context)
         .push(
-      MaterialPageRoute(builder: (context) => const SmartFolderCreator()),
+      MaterialPageRoute<void>(builder: (context) => const SmartFolderCreator()),
     )
         .then((config) {
       if (config != null && config is SmartFolderConfig) {
@@ -266,7 +266,7 @@ class SmartFoldersWidget extends ConsumerWidget {
         onEdit: () {
           Navigator.of(context)
               .push(
-            MaterialPageRoute(
+            MaterialPageRoute<void>(
               builder: (context) => SmartFolderCreator(initialConfig: folder),
             ),
           )

@@ -118,7 +118,7 @@ class NetworkErrorRecovery extends ErrorRecoveryStrategy {
   @override
   Future<bool> recover(Object error, StackTrace? stackTrace) async {
     // Wait and retry
-    await Future.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(seconds: 2));
 
     // Check connectivity
     try {
@@ -148,7 +148,7 @@ class DatabaseErrorRecovery extends ErrorRecoveryStrategy {
   @override
   Future<bool> recover(Object error, StackTrace? stackTrace) async {
     // Wait for database to unlock
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
 
     // Could trigger database cleanup or migration here
     return true;
@@ -451,7 +451,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
                   FilledButton.icon(
                     onPressed: _retry,
                     icon: const Icon(Icons.refresh),
-                    label: Text(l10n.retry ?? 'Retry'),
+                    label: Text(l10n.retry),
                   ),
                 ],
               ),

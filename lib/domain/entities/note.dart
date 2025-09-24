@@ -1,0 +1,88 @@
+import 'package:duru_notes/models/note_kind.dart';
+
+/// Pure domain entity for Note
+/// This is infrastructure-agnostic and contains only business logic
+class Note {
+  final String id;
+  final String title;
+  final String body;
+  final DateTime updatedAt;
+  final bool deleted;
+  final String? encryptedMetadata;
+  final bool isPinned;
+  final NoteKind noteType;
+  final String? folderId;
+  final int version;
+  final String userId;
+  final String? attachmentMeta;
+  final String? metadata;
+  final List<String> tags;
+  final List<NoteLink> links;
+
+  const Note({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.updatedAt,
+    required this.deleted,
+    this.encryptedMetadata,
+    required this.isPinned,
+    required this.noteType,
+    this.folderId,
+    required this.version,
+    required this.userId,
+    this.attachmentMeta,
+    this.metadata,
+    this.tags = const [],
+    this.links = const [],
+  });
+
+  Note copyWith({
+    String? id,
+    String? title,
+    String? body,
+    DateTime? updatedAt,
+    bool? deleted,
+    String? encryptedMetadata,
+    bool? isPinned,
+    NoteKind? noteType,
+    String? folderId,
+    int? version,
+    String? userId,
+    String? attachmentMeta,
+    String? metadata,
+    List<String>? tags,
+    List<NoteLink>? links,
+  }) {
+    return Note(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deleted: deleted ?? this.deleted,
+      encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
+      isPinned: isPinned ?? this.isPinned,
+      noteType: noteType ?? this.noteType,
+      folderId: folderId ?? this.folderId,
+      version: version ?? this.version,
+      userId: userId ?? this.userId,
+      attachmentMeta: attachmentMeta ?? this.attachmentMeta,
+      metadata: metadata ?? this.metadata,
+      tags: tags ?? this.tags,
+      links: links ?? this.links,
+    );
+  }
+}
+
+/// Domain entity for Note links
+class NoteLink {
+  final String sourceId;
+  final String targetTitle;
+  final String? targetId;
+
+  const NoteLink({
+    required this.sourceId,
+    required this.targetTitle,
+    this.targetId,
+  });
+}

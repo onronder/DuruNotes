@@ -302,7 +302,7 @@ class NotificationHandlerService {
     final payload = _parseRemoteMessage(message);
 
     // Delay to ensure app is ready
-    await Future.delayed(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(seconds: 1));
 
     // Emit tap event
     _notificationTapSubject.add(payload);

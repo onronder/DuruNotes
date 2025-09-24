@@ -288,7 +288,7 @@ class DuruTextField extends StatelessWidget {
             color: Theme.of(context).colorScheme.surface,
             border: Border.all(
               color: errorText != null
-                  ? DuruColors.error(context)
+                  ? DuruColors.error
                   : Theme.of(context).colorScheme.outline.withOpacity(0.3),
             ),
             borderRadius: DuruBorderRadius.input(),
@@ -302,7 +302,7 @@ class DuruTextField extends StatelessWidget {
           Text(
             errorText!,
             style: DuruTypography.bodyLarge(context).copyWith(
-              color: DuruColors.error(context),
+              color: DuruColors.error,
               fontSize: 12,
             ),
           ),
