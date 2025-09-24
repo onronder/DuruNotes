@@ -175,8 +175,8 @@ class NotesCoreRepository implements INotesRepository {
   }
 
   @override
-  Future<List<LocalNote>> localNotes() async {
-    return await (db.select(db.localNotes)
+  Future<List<domain.Note>> localNotes() async {
+    final localNotes = await (db.select(db.localNotes)
           ..where((note) => note.deleted.equals(false))
           ..orderBy([
             (note) => OrderingTerm(
@@ -189,11 +189,27 @@ class NotesCoreRepository implements INotesRepository {
                 ),
           ]))
         .get();
+
+    // Convert to domain entities with tags and links
+    final List<domain.Note> domainNotes = [];
+    for (final localNote in localNotes) {
+      final tags = await db.getTagsForNote(localNote.id);
+      final links = await db.getLinksFromNote(localNote.id);
+      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+      domainNotes.add(NoteMapper.toDomain(
+        localNote,
+        tags: tags,
+        links: domainLinks,
+      ));
+    }
+
+    return domainNotes;
   }
 
   @override
-  Future<List<LocalNote>> getRecentlyViewedNotes({int limit = 5}) async {
-    return await (db.select(db.localNotes)
+  Future<List<domain.Note>> getRecentlyViewedNotes({int limit = 5}) async {
+    final localNotes = await (db.select(db.localNotes)
           ..where((note) => note.deleted.equals(false))
           ..orderBy([
             (note) => OrderingTerm(
@@ -203,10 +219,26 @@ class NotesCoreRepository implements INotesRepository {
           ])
           ..limit(limit))
         .get();
+
+    // Convert to domain entities with tags and links
+    final List<domain.Note> domainNotes = [];
+    for (final localNote in localNotes) {
+      final tags = await db.getTagsForNote(localNote.id);
+      final links = await db.getLinksFromNote(localNote.id);
+      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+      domainNotes.add(NoteMapper.toDomain(
+        localNote,
+        tags: tags,
+        links: domainLinks,
+      ));
+    }
+
+    return domainNotes;
   }
 
   @override
-  Future<List<LocalNote>> listAfter(DateTime? cursor, {int limit = 20}) async {
+  Future<List<domain.Note>> listAfter(DateTime? cursor, {int limit = 20}) async {
     final query = db.select(db.localNotes)
       ..where((note) => note.deleted.equals(false));
 
@@ -214,7 +246,7 @@ class NotesCoreRepository implements INotesRepository {
       query.where((note) => note.updatedAt.isSmallerThanValue(cursor));
     }
 
-    return await (query
+    final localNotes = await (query
           ..orderBy([
             (note) => OrderingTerm(
                   expression: note.updatedAt,
@@ -223,6 +255,22 @@ class NotesCoreRepository implements INotesRepository {
           ])
           ..limit(limit))
         .get();
+
+    // Convert to domain entities with tags and links
+    final List<domain.Note> domainNotes = [];
+    for (final localNote in localNotes) {
+      final tags = await db.getTagsForNote(localNote.id);
+      final links = await db.getLinksFromNote(localNote.id);
+      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+      domainNotes.add(NoteMapper.toDomain(
+        localNote,
+        tags: tags,
+        links: domainLinks,
+      ));
+    }
+
+    return domainNotes;
   }
 
   @override
@@ -233,10 +281,28 @@ class NotesCoreRepository implements INotesRepository {
       db.setNotePin(noteId, isPinned);
 
   @override
-  Future<List<LocalNote>> getPinnedNotes() => db.getPinnedNotes();
+  Future<List<domain.Note>> getPinnedNotes() async {
+    final localNotes = await db.getPinnedNotes();
+
+    // Convert to domain entities with tags and links
+    final List<domain.Note> domainNotes = [];
+    for (final localNote in localNotes) {
+      final tags = await db.getTagsForNote(localNote.id);
+      final links = await db.getLinksFromNote(localNote.id);
+      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+      domainNotes.add(NoteMapper.toDomain(
+        localNote,
+        tags: tags,
+        links: domainLinks,
+      ));
+    }
+
+    return domainNotes;
+  }
 
   @override
-  Stream<List<LocalNote>> watchNotes({
+  Stream<List<domain.Note>> watchNotes({
     String? folderId,
     List<String>? anyTags,
     List<String>? noneTags,
@@ -247,11 +313,26 @@ class NotesCoreRepository implements INotesRepository {
       anyTags: anyTags,
       noneTags: noneTags,
       pinnedFirst: pinnedFirst,
-    );
+    ).asyncMap((localNotes) async {
+      // Convert to domain entities with tags and links
+      final List<domain.Note> domainNotes = [];
+      for (final localNote in localNotes) {
+        final tags = await db.getTagsForNote(localNote.id);
+        final links = await db.getLinksFromNote(localNote.id);
+        final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+        domainNotes.add(NoteMapper.toDomain(
+          localNote,
+          tags: tags,
+          links: domainLinks,
+        ));
+      }
+      return domainNotes;
+    });
   }
 
   @override
-  Future<List<LocalNote>> list({int? limit}) async {
+  Future<List<domain.Note>> list({int? limit}) async {
     final query = db.select(db.localNotes)
       ..where((note) => note.deleted.equals(false))
       ..orderBy([
@@ -269,7 +350,23 @@ class NotesCoreRepository implements INotesRepository {
       query.limit(limit);
     }
 
-    return await query.get();
+    final localNotes = await query.get();
+
+    // Convert to domain entities with tags and links
+    final List<domain.Note> domainNotes = [];
+    for (final localNote in localNotes) {
+      final tags = await db.getTagsForNote(localNote.id);
+      final links = await db.getLinksFromNote(localNote.id);
+      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+
+      domainNotes.add(NoteMapper.toDomain(
+        localNote,
+        tags: tags,
+        links: domainLinks,
+      ));
+    }
+
+    return domainNotes;
   }
 
   @override
@@ -281,23 +378,83 @@ class NotesCoreRepository implements INotesRepository {
 
   @override
   Future<void> pushAllPending() async {
-    // Implementation would be moved here from original NotesRepository
-    // For now, keeping minimal to maintain compatibility
-    _logger.info('Pushing all pending changes');
-    // TODO: Implement push logic
+    try {
+      _logger.info('Starting push of all pending changes');
+
+      // Get all pending sync operations
+      final pendingOperations = await db.getPendingSyncOperations();
+
+      for (final operation in pendingOperations) {
+        try {
+          switch (operation.operation) {
+            case 'upsert_note':
+              final note = await getNoteById(operation.entityId);
+              if (note != null) {
+                await api.upsertNote(note);
+                await db.removeSyncOperation(operation.id);
+              }
+              break;
+            case 'delete':
+              await api.deleteNote(operation.entityId);
+              await db.removeSyncOperation(operation.id);
+              break;
+          }
+        } catch (e) {
+          _logger.error('Failed to push operation ${operation.id}', e);
+        }
+      }
+
+      _logger.info('Completed pushing pending changes');
+    } catch (e, stack) {
+      _logger.error('Failed to push pending changes', e, stack);
+      rethrow;
+    }
   }
 
   @override
   Future<void> pullSince(DateTime? since) async {
-    // Implementation would be moved here from original NotesRepository
-    // For now, keeping minimal to maintain compatibility
-    _logger.info('Pulling changes since $since');
-    // TODO: Implement pull logic
+    try {
+      _logger.info('Starting pull of changes since $since');
+
+      final remoteChanges = await api.getChangesSince(since);
+
+      for (final change in remoteChanges) {
+        try {
+          if (change.deleted) {
+            await updateLocalNote(change.id, deleted: true);
+          } else {
+            // Convert remote note to local and upsert
+            await createOrUpdate(
+              id: change.id,
+              title: change.title,
+              body: change.body,
+              folderId: change.folderId,
+              tags: change.tags ?? [],
+              isPinned: change.isPinned,
+            );
+          }
+        } catch (e) {
+          _logger.error('Failed to apply change ${change.id}', e);
+        }
+      }
+
+      // Update last sync time
+      await db.setLastSyncTime(DateTime.now().toUtc());
+
+      _logger.info('Completed pulling changes');
+    } catch (e, stack) {
+      _logger.error('Failed to pull changes', e, stack);
+      rethrow;
+    }
   }
 
   @override
   Future<DateTime?> getLastSyncTime() async {
-    // TODO: Implement proper sync metadata tracking
-    return null;
+    try {
+      return await db.getLastSyncTime();
+    } catch (e) {
+      _logger.error('Failed to get last sync time', e);
+      return null;
+    }
   }
 }
