@@ -256,7 +256,7 @@ class ErrorReportingService {
       }
 
       if (attempt < maxAttempts && retryDelay != null) {
-        await Future.delayed(retryDelay);
+        await Future<void>.delayed(retryDelay);
       }
     }
 

@@ -5,9 +5,13 @@ import 'package:duru_notes/main.dart'; // for global `ref.read(loggerProvider)`
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/providers/feature_flagged_providers.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 
 /// Screen for managing all reminders for a specific note
 class RemindersScreen extends ConsumerStatefulWidget {
@@ -68,26 +72,133 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reminders'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
+      appBar: ModernAppBar(
+        title: 'Reminders',
+        subtitle: widget.noteTitle.isNotEmpty ? widget.noteTitle : 'Manage notifications',
+        showGradient: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
+          ModernAppBarAction(
+            icon: CupertinoIcons.bell,
             onPressed: _showAddReminderDialog,
             tooltip: 'Add reminder',
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildRemindersList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddReminderDialog,
-        tooltip: 'Add reminder',
-        child: const Icon(Icons.add),
+      body: Column(
+        children: [
+          // Stats header
+          _buildStatsHeader(context),
+          // Reminders list
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildRemindersList(),
+          ),
+        ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddReminderDialog,
+        backgroundColor: DuruColors.primary,
+        icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),
+        label: const Text('Add Reminder', style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildStatsHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeReminders = _reminders.where((r) => r.isActive).length;
+    final recurringReminders = _reminders.where((r) =>
+        r.recurrencePattern != RecurrencePattern.none).length;
+    final locationReminders = _reminders.where((r) =>
+        r.type == ReminderType.location).length;
+
+    return Container(
+      margin: EdgeInsets.all(DuruSpacing.md),
+      padding: EdgeInsets.all(DuruSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            DuruColors.primary.withOpacity(0.1),
+            DuruColors.accent.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.bell_fill,
+            value: activeReminders.toString(),
+            label: 'Active',
+            color: DuruColors.primary,
+          ),
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.repeat,
+            value: recurringReminders.toString(),
+            label: 'Recurring',
+            color: DuruColors.accent,
+          ),
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.location_fill,
+            value: locationReminders.toString(),
+            label: 'Location',
+            color: DuruColors.warning,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        SizedBox(height: DuruSpacing.xs),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
     );
   }
 
@@ -97,35 +208,54 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.notifications_none,
-              size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            Container(
+              padding: EdgeInsets.all(DuruSpacing.lg),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    DuruColors.primary.withOpacity(0.1),
+                    DuruColors.accent.withOpacity(0.05),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                CupertinoIcons.bell_slash,
+                size: 64,
+                color: DuruColors.primary.withOpacity(0.5),
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: DuruSpacing.lg),
             Text(
               'No reminders set',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: DuruSpacing.sm),
             Text(
               'Add time-based or location-based reminders for this note',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
                   ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: DuruSpacing.xl),
             ElevatedButton.icon(
               onPressed: _showAddReminderDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Reminder'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DuruColors.primary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: DuruSpacing.lg,
+                  vertical: DuruSpacing.md,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),
+              label: const Text('Add Reminder', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -142,142 +272,343 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   }
 
   Widget _buildReminderCard(NoteReminder reminder) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _getReminderIcon(reminder.type),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reminder.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (reminder.body.isNotEmpty)
-                        Text(
-                          reminder.body,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-                _buildReminderStatusChip(reminder),
-                PopupMenuButton<String>(
-                  onSelected: (value) => _handleReminderAction(value, reminder),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: ListTile(
-                        leading: Icon(Icons.edit),
-                        title: Text('Edit'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    if (reminder.snoozedUntil != null)
-                      const PopupMenuItem(
-                        value: 'unsnooze',
-                        child: ListTile(
-                          leading: Icon(Icons.notifications_active),
-                          title: Text('Un-snooze'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    if (reminder.isActive)
-                      const PopupMenuItem(
-                        value: 'deactivate',
-                        child: ListTile(
-                          leading: Icon(Icons.pause),
-                          title: Text('Deactivate'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      )
-                    else
-                      const PopupMenuItem(
-                        value: 'activate',
-                        child: ListTile(
-                          leading: Icon(Icons.play_arrow),
-                          title: Text('Activate'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading: Icon(Icons.delete, color: Colors.red),
-                        title: Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ],
+    final theme = Theme.of(context);
+    final isSnoozed = reminder.snoozedUntil != null &&
+        reminder.snoozedUntil!.isAfter(DateTime.now());
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: DuruSpacing.md,
+        vertical: DuruSpacing.xs,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showEditReminderSheet(reminder),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  isSnoozed
+                      ? DuruColors.warning.withOpacity(0.05)
+                      : reminder.isActive
+                          ? DuruColors.accent.withOpacity(0.03)
+                          : theme.colorScheme.surface,
+                  theme.colorScheme.surface,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSnoozed
+                    ? DuruColors.warning.withOpacity(0.2)
+                    : reminder.isActive
+                        ? DuruColors.accent.withOpacity(0.2)
+                        : theme.colorScheme.outline.withOpacity(0.1),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
-            if (reminder.snoozedUntil != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Snoozed until ${reminder.snoozedUntil}',
-                  style: Theme.of(context).textTheme.bodySmall,
+            padding: EdgeInsets.all(DuruSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Reminder type icon with modern styling
+                    Container(
+                      padding: EdgeInsets.all(DuruSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: _getReminderColor(reminder).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _getReminderIcon(reminder.type),
+                    ),
+                    SizedBox(width: DuruSpacing.md),
+                    // Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reminder.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (reminder.body.isNotEmpty) ...[
+                            SizedBox(height: DuruSpacing.xs),
+                            Text(
+                              reminder.body,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // Status chip
+                    _buildReminderStatusChip(reminder),
+                    // Action menu
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        CupertinoIcons.ellipsis_vertical,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onSelected: (value) => _handleReminderAction(value, reminder),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(CupertinoIcons.pencil, color: DuruColors.primary),
+                            title: const Text('Edit'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        if (reminder.snoozedUntil != null)
+                          PopupMenuItem(
+                            value: 'unsnooze',
+                            child: ListTile(
+                              leading: Icon(CupertinoIcons.bell, color: DuruColors.primary),
+                              title: const Text('Un-snooze'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        if (reminder.isActive)
+                          PopupMenuItem(
+                            value: 'deactivate',
+                            child: ListTile(
+                              leading: Icon(CupertinoIcons.pause_fill, color: DuruColors.warning),
+                              title: const Text('Deactivate'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          )
+                        else
+                          PopupMenuItem(
+                            value: 'activate',
+                            child: ListTile(
+                              leading: Icon(CupertinoIcons.play_arrow_solid, color: DuruColors.accent),
+                              title: const Text('Activate'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(CupertinoIcons.trash, color: DuruColors.error),
+                            title: Text(
+                              'Delete',
+                              style: TextStyle(color: DuruColors.error),
+                            ),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-          ],
+                // Additional info section
+                if (reminder.snoozedUntil != null ||
+                    reminder.remindAt != null ||
+                    reminder.recurrencePattern != RecurrencePattern.none) ...[
+                  SizedBox(height: DuruSpacing.sm),
+                  Wrap(
+                    spacing: DuruSpacing.sm,
+                    runSpacing: DuruSpacing.xs,
+                    children: [
+                      if (reminder.snoozedUntil != null)
+                        _buildInfoBadge(
+                          icon: CupertinoIcons.moon_zzz_fill,
+                          label: 'Snoozed until ${_formatDateTime(reminder.snoozedUntil!)}',
+                          color: DuruColors.warning,
+                        ),
+                      if (reminder.remindAt != null)
+                        _buildInfoBadge(
+                          icon: CupertinoIcons.clock_fill,
+                          label: _formatDateTime(reminder.remindAt!),
+                          color: DuruColors.primary,
+                        ),
+                      if (reminder.recurrencePattern != RecurrencePattern.none)
+                        _buildInfoBadge(
+                          icon: CupertinoIcons.repeat,
+                          label: _getRecurrenceLabel(reminder.recurrencePattern),
+                          color: DuruColors.accent,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Icon _getReminderIcon(ReminderType type) {
+    final color = _getReminderColorByType(type);
     switch (type) {
       case ReminderType.time:
-        return const Icon(Icons.access_time);
+        return Icon(CupertinoIcons.clock_fill, color: color, size: 20);
       case ReminderType.location:
-        return const Icon(Icons.location_on);
+        return Icon(CupertinoIcons.location_fill, color: color, size: 20);
       case ReminderType.recurring:
-        return const Icon(Icons.refresh);
+        return Icon(CupertinoIcons.repeat, color: color, size: 20);
+    }
+  }
+
+  Color _getReminderColor(NoteReminder reminder) {
+    if (reminder.snoozedUntil != null &&
+        reminder.snoozedUntil!.isAfter(DateTime.now())) {
+      return DuruColors.warning;
+    }
+    return _getReminderColorByType(reminder.type);
+  }
+
+  Color _getReminderColorByType(ReminderType type) {
+    switch (type) {
+      case ReminderType.time:
+        return DuruColors.primary;
+      case ReminderType.location:
+        return DuruColors.accent;
+      case ReminderType.recurring:
+        return DuruColors.warning;
     }
   }
 
   Widget _buildReminderStatusChip(NoteReminder reminder) {
     late String label;
     late Color color;
+    late IconData icon;
+
     if (!reminder.isActive) {
       label = 'Inactive';
-      color = Colors.grey;
+      color = DuruColors.surfaceVariant;
+      icon = CupertinoIcons.pause_circle_fill;
     } else if (reminder.snoozedUntil != null &&
         reminder.snoozedUntil!.isAfter(DateTime.now())) {
       label = 'Snoozed';
-      color = Colors.orange;
+      color = DuruColors.warning;
+      icon = CupertinoIcons.moon_zzz_fill;
     } else {
       label = 'Active';
-      color = Colors.green;
+      color = DuruColors.accent;
+      icon = CupertinoIcons.checkmark_circle_fill;
     }
+
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+      margin: EdgeInsets.only(right: DuruSpacing.xs),
+      padding: EdgeInsets.symmetric(
+        horizontal: DuruSpacing.sm,
+        vertical: DuruSpacing.xs,
       ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontWeight: FontWeight.w500),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          SizedBox(width: DuruSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildInfoBadge({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: DuruSpacing.sm,
+        vertical: DuruSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          SizedBox(width: DuruSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    if (date == today) {
+      return 'Today ${DateFormat.jm().format(dateTime)}';
+    } else if (date == today.add(const Duration(days: 1))) {
+      return 'Tomorrow ${DateFormat.jm().format(dateTime)}';
+    } else if (date == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday ${DateFormat.jm().format(dateTime)}';
+    } else {
+      return DateFormat.MMMd().add_jm().format(dateTime);
+    }
+  }
+
+  String _getRecurrenceLabel(RecurrencePattern pattern) {
+    switch (pattern) {
+      case RecurrencePattern.none:
+        return 'One-time';
+      case RecurrencePattern.daily:
+        return 'Daily';
+      case RecurrencePattern.weekly:
+        return 'Weekly';
+      case RecurrencePattern.monthly:
+        return 'Monthly';
+      case RecurrencePattern.yearly:
+        return 'Yearly';
+    }
   }
 
   void _handleReminderAction(String action, NoteReminder reminder) {

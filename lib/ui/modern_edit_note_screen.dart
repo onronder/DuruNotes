@@ -11,11 +11,18 @@ import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
 import 'package:duru_notes/ui/widgets/note_tag_chips.dart';
 import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
+import 'package:duru_notes/features/templates/template_gallery_screen.dart';
+import 'package:duru_notes/features/templates/template_variable_dialog.dart';
+import 'package:duru_notes/models/template_model.dart';
+import 'package:duru_notes/services/template_variable_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../theme/cross_platform_tokens.dart';
+import 'widgets/modern_app_bar.dart';
 
 /// Modern Material 3 Note Editor with Unified Field (E2.9)
 /// Single text field design where first line becomes the title
@@ -67,6 +74,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   String? _initialText;
   late String _noteIdForTags; // Either real ID or temp ID for tags
   List<String> _currentTags = [];
+
+  // AI Assistant State
+  bool _showAISuggestions = false;
+  String? _aiSuggestion;
+  bool _isAIProcessing = false;
 
   // Material-3 Design Constants
   static const double kHeaderHeight = 64;
@@ -388,19 +400,113 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
+        appBar: ModernAppBar(
+          title: widget.isEditingTemplate
+              ? AppLocalizations.of(context).editingTemplate
+              : (widget.noteId == null ? 'New Note' : 'Edit Note'),
+          gradientColors: [
+            DuruColors.primary,
+            DuruColors.accent,
+          ],
+          leadingIcon: CupertinoIcons.arrow_left,
+          onLeadingPressed: () async {
+            if (_hasChanges) {
+              final shouldLeave = await _showDiscardDialog();
+              if (shouldLeave && mounted) {
+                Navigator.of(context).pop();
+              }
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+          actions: [
+            // Template button - only for new notes
+            if (widget.noteId == null && !widget.isEditingTemplate)
+              IconButton(
+                icon: Icon(
+                  CupertinoIcons.doc_text,
+                  color: Colors.white,
+                ),
+                onPressed: _showTemplatePicker,
+                tooltip: 'Use Template',
+              ),
+            // AI Assistant Toggle
+            IconButton(
+              icon: Icon(
+                CupertinoIcons.sparkles,
+                color: _showAISuggestions
+                    ? const Color(0xFF9333EA)
+                    : Colors.white.withOpacity(0.7),
+              ),
+              onPressed: () {
+                setState(() {
+                  _showAISuggestions = !_showAISuggestions;
+                });
+                HapticFeedback.lightImpact();
+                if (_showAISuggestions) {
+                  _requestAISuggestion();
+                }
+              },
+              tooltip: 'AI Assistant',
+            ),
+            // Preview toggle
+            IconButton(
+              icon: Icon(
+                _isPreviewMode
+                    ? CupertinoIcons.pencil
+                    : CupertinoIcons.eye,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                setState(() => _isPreviewMode = !_isPreviewMode);
+                HapticFeedback.lightImpact();
+              },
+              tooltip: _isPreviewMode ? 'Edit' : 'Preview',
+            ),
+            // Save button
+            if (_hasChanges)
+              IconButton(
+                icon: _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Icon(CupertinoIcons.checkmark_circle_fill, color: Colors.white),
+                onPressed: _isLoading ? null : () => _saveNote(),
+                tooltip: 'Save',
+              ),
+          ],
+        ),
         body: SafeArea(
           child: Column(
             children: [
-              // Custom header
-              _buildHeader(theme, colorScheme),
 
-              // Animated formatting toolbar
+              // AI Suggestion Card
+              _buildAISuggestionCard(theme, colorScheme),
+
+              // Animated formatting toolbar with glass effect
               AnimatedBuilder(
                 animation: _toolbarSlideAnimation,
                 builder: (context, child) {
                   return SlideTransition(
                     position: _toolbarSlideAnimation,
-                    child: _buildFormattingToolbar(colorScheme),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.white.withOpacity(0.9),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: colorScheme.outlineVariant.withOpacity(0.2),
+                          ),
+                        ),
+                      ),
+                      child: _buildFormattingToolbar(colorScheme),
+                    ),
                   );
                 },
               ),
@@ -435,178 +541,171 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      height: kHeaderHeight,
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: NavigationToolbar(
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back_rounded,
-                color: colorScheme.onSurface,
+  // AI Suggestion methods
+  Future<void> _requestAISuggestion() async {
+    if (_isAIProcessing || _noteController.text.isEmpty) return;
+
+    setState(() {
+      _isAIProcessing = true;
+    });
+
+    // Simulate AI processing (replace with actual AI service call)
+    await Future<void>.delayed(const Duration(seconds: 1));
+
+    setState(() {
+      _aiSuggestion = _generateContextualSuggestion();
+      _isAIProcessing = false;
+    });
+  }
+
+  String _generateContextualSuggestion() {
+    final text = _noteController.text.toLowerCase();
+
+    // Context-aware suggestions based on content
+    if (text.contains('meeting')) {
+      return 'Add action items from the meeting?';
+    } else if (text.contains('todo') || text.contains('task')) {
+      return 'Convert to checklist format?';
+    } else if (text.contains('idea')) {
+      return 'Expand on this idea with more details?';
+    } else if (text.length < 50) {
+      return 'Add more context to your note?';
+    } else {
+      return 'Organize with headings and sections?';
+    }
+  }
+
+  Widget _buildAISuggestionCard(ThemeData theme, ColorScheme colorScheme) {
+    final isDark = theme.brightness == Brightness.dark;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _showAISuggestions ? null : 0,
+      child: _showAISuggestions
+          ? Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF9333EA).withOpacity(0.1),
+                    const Color(0xFF3B82F6).withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFF9333EA).withOpacity(0.3),
+                ),
               ),
-              onPressed: () async {
-                if (_hasChanges) {
-                  final shouldLeave = await _showDiscardDialog();
-                  if (shouldLeave && mounted) {
-                    Navigator.of(context).pop();
-                  }
-                } else {
-                  Navigator.of(context).pop();
-                }
-              },
-              tooltip: 'Back',
-            ),
-            middle: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.edit_note_rounded,
-                  size: 20,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, // Prevent overflow
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          widget.isEditingTemplate
-                              ? AppLocalizations.of(context).editingTemplate
-                              : (widget.noteId == null
-                                  ? 'New Note'
-                                  : 'Edit Note'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9333EA).withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          CupertinoIcons.sparkles,
+                          size: 16,
+                          color: const Color(0xFF9333EA),
                         ),
                       ),
-                      if (_hasChanges)
-                        Flexible(
-                          child: Text(
-                            'Editing...',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                      const SizedBox(width: 8),
+                      Text(
+                        'AI Suggestion',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: const Color(0xFF9333EA),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_isAIProcessing)
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              const Color(0xFF9333EA),
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                     ],
                   ),
-                ),
-
-                // Action buttons container
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Preview toggle button
-                      _buildHeaderAction(
-                        icon: _isPreviewMode
-                            ? Icons.edit_note_rounded
-                            : Icons.preview_rounded,
-                        tooltip: _isPreviewMode ? 'Edit' : 'Preview',
-                        isActive: _isPreviewMode,
-                        onPressed: () {
-                          setState(() => _isPreviewMode = !_isPreviewMode);
-                          HapticFeedback.lightImpact();
-                        },
-                        colorScheme: colorScheme,
+                  const SizedBox(height: 8),
+                  if (_aiSuggestion != null && !_isAIProcessing) ...[
+                    Text(
+                      _aiSuggestion!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
-
-                      const SizedBox(width: 4),
-
-                      // Pin toggle button (only for existing notes)
-                      if (widget.noteId != null) ...[
-                        PinToggleButton(
-                          noteId: widget.noteId!,
-                          isPinned: _isPinned,
-                          size: 24,
-                          onToggled: () {
-                            setState(() {
-                              _isPinned = !_isPinned;
-                            });
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            // Apply AI suggestion
+                            HapticFeedback.lightImpact();
+                            _applyAISuggestion();
                           },
+                          icon: Icon(
+                            CupertinoIcons.checkmark_circle,
+                            size: 16,
+                          ),
+                          label: Text('Accept'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF9333EA),
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                        TextButton.icon(
+                          onPressed: () {
+                            _requestAISuggestion();
+                          },
+                          icon: Icon(
+                            CupertinoIcons.refresh,
+                            size: 16,
+                          ),
+                          label: Text('Try Another'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: isDark ? Colors.white70 : Colors.grey,
+                          ),
+                        ),
                       ],
-
-                      // Save button
-                      AnimatedBuilder(
-                        animation: _saveButtonScale,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: _saveButtonScale.value,
-                            child: _buildSaveButton(theme, colorScheme),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(width: 4),
-
-                      // More options menu
-                      PopupMenuButton<String>(
-                        icon: Icon(
-                          Icons.more_vert_rounded,
-                          size: 20,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        tooltip: 'More options',
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onSelected: (value) async {
-                          if (value == 'save_as_template') {
-                            await _saveAsTemplate();
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => [
-                          if (!widget.isEditingTemplate)
-                            PopupMenuItem<String>(
-                              value: 'save_as_template',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.dashboard_customize_rounded,
-                                      size: 20),
-                                  SizedBox(width: 12),
-                                  Text(AppLocalizations.of(context)
-                                      .saveAsTemplate),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          : const SizedBox.shrink(),
     );
+  }
+
+  void _applyAISuggestion() {
+    // Implement suggestion application logic
+    final text = _noteController.text;
+
+    if (_aiSuggestion?.contains('checklist') == true) {
+      // Convert to checklist
+      final lines = text.split('\n');
+      final checklist = lines.map((line) => '- [ ] $line').join('\n');
+      _noteController.text = checklist;
+    } else if (_aiSuggestion?.contains('headings') == true) {
+      // Add structure
+      final parts = _splitTitleBody(text);
+      _noteController.text = '# ${parts.title}\n\n## Overview\n${parts.body}';
+    }
+
+    setState(() {
+      _showAISuggestions = false;
+      _aiSuggestion = null;
+    });
   }
 
   Widget _buildHeaderAction({
@@ -634,6 +733,85 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         constraints: const BoxConstraints(
           minWidth: kMinTapTarget,
           minHeight: kMinTapTarget,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionBar(ThemeData theme, ColorScheme colorScheme) {
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            DuruColors.primary.withOpacity(0.05),
+            DuruColors.accent.withOpacity(0.02),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          // Folder selector
+          _buildQuickAction(
+            icon: CupertinoIcons.folder,
+            label: _selectedFolder?.name ?? 'No Folder',
+            onTap: () => _showFolderPicker(context),
+            color: DuruColors.primary,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          // Pin toggle (for existing notes)
+          if (widget.noteId != null)
+            _buildQuickAction(
+              icon: _isPinned ? CupertinoIcons.pin_fill : CupertinoIcons.pin,
+              label: _isPinned ? 'Pinned' : 'Pin',
+              onTap: () {
+                setState(() => _isPinned = !_isPinned);
+                HapticFeedback.lightImpact();
+              },
+              color: _isPinned ? DuruColors.accent : Colors.grey,
+              isDark: isDark,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -702,6 +880,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   }
 
   Widget _buildEditor(ThemeData theme, ColorScheme colorScheme) {
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       key: const Key('editor'),
       padding: const EdgeInsets.symmetric(horizontal: kScreenPadding),
@@ -737,71 +917,83 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
           const SizedBox(height: 16),
 
-          // Unified text field
+          // Unified text field with glass morphism
           Expanded(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: _contentHasFocus
-                    ? colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.08,
-                      )
-                    : colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.04,
-                      ),
-                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _contentHasFocus
+                      ? [
+                          DuruColors.primary.withOpacity(0.05),
+                          DuruColors.accent.withOpacity(0.02),
+                        ]
+                      : [
+                          Colors.white.withOpacity(isDark ? 0.05 : 0.95),
+                          Colors.white.withOpacity(isDark ? 0.03 : 0.9),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _contentHasFocus
-                      ? colorScheme.primary.withValues(alpha: 0.2)
-                      : Colors.transparent,
-                  width: 1.5,
+                      ? DuruColors.primary.withOpacity(0.3)
+                      : (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                  width: _contentHasFocus ? 2 : 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _noteController,
-                      focusNode: _contentFocusNode,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        height: 1.7,
-                        color: colorScheme.onSurface,
-                        fontSize: 16,
-                      ),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Note title\n\nStart writing your thoughts...\n\n'
-                            '💡 Tip: First line becomes the title',
-                        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _noteController,
+                        focusNode: _contentFocusNode,
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           height: 1.7,
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha:
-                                Theme.of(context).brightness == Brightness.light
-                                    ? 0.4
-                                    : 0.5,
-                          ),
+                          color: isDark ? Colors.white : Colors.black87,
                           fontSize: 16,
                         ),
-                        contentPadding: const EdgeInsets.all(kContentPadding),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Note title\n\nStart writing your thoughts...\n\n'
+                              'First line becomes the title',
+                          hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                            height: 1.7,
+                            color: (isDark ? Colors.white : Colors.black87).withOpacity(0.4),
+                            fontSize: 16,
+                          ),
+                          contentPadding: const EdgeInsets.all(24),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                        maxLines: null,
+                        textAlignVertical: TextAlignVertical.top,
+                        keyboardType: TextInputType.multiline,
                       ),
-                      maxLines: null,
-                      textAlignVertical: TextAlignVertical.top,
-                      keyboardType: TextInputType.multiline,
-                    ),
-                    // Add attachments section if available
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: kContentPadding,
+                      // Add attachments section if available
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kContentPadding,
+                        ),
+                        child: _buildAttachmentsIfAny(),
                       ),
-                      child: _buildAttachmentsIfAny(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1358,7 +1550,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _selectFolder,
+        onTap: () => _showFolderPicker(context),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1399,7 +1591,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
   }
 
-  Future<void> _selectFolder() async {
+  Future<void> _showFolderPicker(BuildContext context) async {
     HapticFeedback.lightImpact();
 
     final folder = await showModalBottomSheet<LocalFolder?>(
@@ -1574,24 +1766,32 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
   void _showInfoSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              Icons.info_outline_rounded,
-              color: Theme.of(context).colorScheme.onTertiaryContainer,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
+
+    // Clear any existing snackbars first
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    // Use a slight delay to ensure the UI is ready
+    Future<void>.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: Theme.of(context).colorScheme.onTertiaryContainer,
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
+          behavior: SnackBarBehavior.fixed,
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: Theme.of(context).colorScheme.tertiaryContainer,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+      );
+    });
   }
 
   void _showErrorSnack(String message) {
@@ -1642,5 +1842,103 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           ),
         ) ??
         false;
+  }
+
+  // Template picker and application
+  Future<void> _showTemplatePicker() async {
+    try {
+      // Navigate to template gallery screen
+      final Template? selectedTemplate = await Navigator.push<Template>(
+        context,
+        MaterialPageRoute<Template>(
+          builder: (context) => const TemplateGalleryScreen(
+            selectMode: true, // Enable selection mode
+          ),
+        ),
+      );
+
+      if (selectedTemplate != null && mounted) {
+        // Apply the template
+        await _applyTemplate(selectedTemplate);
+      }
+    } catch (e) {
+      debugPrint('Error showing template picker: $e');
+      _showErrorSnack('Failed to load templates');
+    }
+  }
+
+  Future<void> _applyTemplate(Template template) async {
+    try {
+      debugPrint('🔧 Applying template: ${template.title}');
+      final variableService = TemplateVariableService();
+
+      // Extract variables from template
+      final variables = variableService.extractVariables(template.body);
+      debugPrint('🔧 Extracted ${variables.length} variables');
+
+      String processedContent = template.body;
+
+      // If template has variables, show input dialog
+      if (variables.isNotEmpty) {
+        debugPrint('🔧 Showing variable dialog for ${variables.length} variables');
+        final values = await TemplateVariableDialog.show(
+          context,
+          variables: variables,
+          templateTitle: template.title,
+        );
+
+        if (values == null) {
+          debugPrint('🔧 User cancelled variable dialog');
+          return; // User cancelled
+        }
+
+        debugPrint('🔧 User provided values: ${values.keys.length}');
+        // Replace variables with user values
+        processedContent = variableService.replaceVariables(template.body, values);
+      } else {
+        debugPrint('🔧 No variables, replacing system variables only');
+        // No variables, just replace system variables
+        processedContent = variableService.replaceVariables(template.body, {});
+      }
+
+      debugPrint('🔧 Processed content ready, applying to editor');
+      // Apply template content to editor
+      setState(() {
+        // Combine template title and processed body
+        final newContent = '${template.title}\n${processedContent}';
+        _noteController.text = newContent;
+        _hasChanges = true;
+
+        // Apply template tags if any
+        if (template.tags.isNotEmpty) {
+          _currentTags.addAll(template.tags);
+        }
+
+        // Set template category as folder if applicable
+        // This could be enhanced to map template categories to folders
+      });
+
+      debugPrint('🔧 Template applied to editor successfully');
+      // Show success message
+      _showInfoSnack('Template applied successfully');
+
+      // Track analytics
+      try {
+        ref.read(analyticsProvider).event(
+          'template.applied',
+          properties: {
+            'template_id': template.id,
+            'template_title': template.title,
+            'has_variables': variables.isNotEmpty,
+          },
+        );
+      } catch (analyticsError) {
+        debugPrint('Analytics error: $analyticsError');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error applying template: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      _showErrorSnack('Failed to apply template: ${e.toString()}');
+    }
   }
 }

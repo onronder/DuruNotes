@@ -65,7 +65,7 @@ class _InboxBadgeWidgetState extends ConsumerState<InboxBadgeWidget> {
           icon: const Icon(Icons.inbox_rounded),
           onPressed: () async {
             await Navigator.of(context).push(
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (context) => const InboundEmailInboxWidget(),
               ),
             );

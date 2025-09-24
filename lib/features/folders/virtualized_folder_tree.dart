@@ -204,7 +204,7 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
       await _loadChildFolders(folderId);
 
       // Small delay to prevent overwhelming the system
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
 
     _isProcessingQueue = false;

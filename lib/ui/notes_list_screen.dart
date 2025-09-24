@@ -16,7 +16,10 @@ import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
-import 'package:duru_notes/theme/material3_theme.dart';
+import 'package:duru_notes/theme/material3_theme.dart' hide DuruColors;
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/modern_note_card.dart';
+import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:duru_notes/ui/help_screen.dart';
 import 'package:duru_notes/ui/inbox_badge_widget.dart';
@@ -29,10 +32,12 @@ import 'package:duru_notes/ui/widgets/folder_chip.dart';
 import 'package:duru_notes/ui/widgets/note_source_icon.dart';
 import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
 import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
-import 'package:duru_notes/ui/widgets/stats_card.dart';
+import 'package:duru_notes/ui/widgets/modern_stats_card.dart';
 import 'package:duru_notes/ui/widgets/template_picker_sheet.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -164,8 +169,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     final hasMore = ref.watch(hasMoreNotesProvider);
     final l10n = AppLocalizations.of(context);
 
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
       appBar: _buildModernAppBar(context, l10n),
       body: Column(
         children: [
@@ -192,8 +201,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             // Filter button removed - now always in AppBar
           ),
 
-          // User stats card with animation
-          if (user != null) _buildUserStatsCard(context, user),
+          // Modern stats section with gradient
+          if (user != null) _buildModernStatsSection(context, user),
 
           // Folder navigation
           _buildFolderNavigation(context),
@@ -211,71 +220,45 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     BuildContext context,
     AppLocalizations l10n,
   ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isCompact = MediaQuery.sizeOf(context).width < 380;
-
-    return AppBar(
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      title: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _isSelectionMode
-            ? Text(
-                '${_selectedNoteIds.length} selected',
-                key: const ValueKey('selection_title'),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            : Text(
-                l10n.notesListTitle,
-                key: const ValueKey('main_title'),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
+    return ModernAppBar(
+      title: _isSelectionMode ? '${_selectedNoteIds.length} selected' : l10n.notesListTitle,
+      subtitle: _isSelectionMode ? null : 'Your digital workspace',
+      showGradient: !_isSelectionMode,
       leading: _isSelectionMode
           ? IconButton(
-              icon: const Icon(Icons.close_rounded),
+              icon: const Icon(CupertinoIcons.xmark, color: Colors.white),
               onPressed: _exitSelectionMode,
               tooltip: 'Exit selection',
             )
           : null,
-      actionsIconTheme: isCompact ? const IconThemeData(size: 22) : null,
       actions: _isSelectionMode
           ? _buildSelectionActions()
           : [
               // Search toggle
-              IconButton(
-                icon: const Icon(Icons.search_rounded),
+              ModernAppBarAction(
+                icon: CupertinoIcons.search,
                 onPressed: _enterSearch,
                 tooltip: 'Search notes',
               ),
               // Inbox with badge
               const InboxBadgeWidget(),
-              // Filter button - always visible in AppBar
-              _buildFilterButton(context),
+              // Filter button
+              ModernAppBarAction(
+                icon: CupertinoIcons.line_horizontal_3_decrease_circle,
+                onPressed: () => _showFilterMenu(context),
+                tooltip: 'Filter',
+              ),
               // View toggle
-              IconButton(
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    _isGridView
-                        ? Icons.view_list_rounded
-                        : Icons.grid_view_rounded,
-                    key: ValueKey(_isGridView),
-                  ),
-                ),
+              ModernAppBarAction(
+                icon: _isGridView
+                    ? CupertinoIcons.list_bullet
+                    : CupertinoIcons.square_grid_2x2,
                 onPressed: _toggleViewMode,
                 tooltip: _isGridView ? 'List View' : 'Grid View',
               ),
               // Sort and more options
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
+                icon: const Icon(CupertinoIcons.ellipsis_circle, color: Colors.white),
                 tooltip: 'More options',
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -363,11 +346,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     child: ListTile(
                       leading: Icon(
                         Icons.logout_rounded,
-                        color: colorScheme.error,
+                        color: DuruColors.error,
                       ),
                       title: Text(
                         l10n.signOut,
-                        style: TextStyle(color: colorScheme.error),
+                        style: TextStyle(color: DuruColors.error),
                       ),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -378,9 +361,26 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Widget _buildUserStatsCard(BuildContext context, User user) {
-    return AnimatedBuilder(
-      animation: _headerFadeAnimation,
+  Widget _buildModernStatsSection(BuildContext context, User user) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: EdgeInsets.all(DuruSpacing.md),
+      padding: EdgeInsets.all(DuruSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            DuruColors.primary.withOpacity(0.1),
+            DuruColors.accent.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
       child: Consumer(
         builder: (context, ref, child) {
           final notesAsync = ref.watch(notesPageProvider);
@@ -394,104 +394,155 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     note.updatedAt.day == today.day;
               }).length;
 
+              final pinnedNotes = notesPage.items.where((n) => n.isPinned).length;
+
               final folderCountAsync = ref.watch(allFoldersCountProvider);
               final folderCount = folderCountAsync.maybeWhen(
                 data: (count) => count,
                 orElse: () => 0,
               );
 
-              return StatsCard(
-                greeting: _getGreeting(),
-                email: user.email ?? 'User',
-                stats: [
-                  StatItem(
-                    icon: Icons.note_rounded,
-                    value: '$totalNotes',
-                    label: 'Notes',
-                  ),
-                  StatItem(
-                    icon: Icons.today_rounded,
-                    value: '$todayNotes',
-                    label: 'Today',
-                  ),
-                  StatItem(
-                    icon: Icons.folder_rounded,
-                    value: '$folderCount',
-                    label: 'Folders',
-                  ),
-                ],
-                isCollapsed: _isHeaderCollapsed,
-                onToggleCollapse: () {
-                  setState(() {
-                    _isHeaderCollapsed = !_isHeaderCollapsed;
-                  });
-                  if (_isHeaderCollapsed) {
-                    _headerAnimationController.forward();
-                  } else {
-                    _headerAnimationController.reverse();
-                  }
-                },
-              );
-            },
-            orElse: () => const SizedBox.shrink(),
-          );
-        },
-      ),
-      builder: (context, child) {
-        return Column(
-          children: [
-            ClipRect(
-              child: Align(
-                alignment: Alignment.topCenter,
-                heightFactor: _headerHeightAnimation.value,
-                child: Opacity(
-                  opacity: _headerFadeAnimation.value,
-                  child: child,
-                ),
-              ),
-            ),
-            if (_isHeaderCollapsed)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _isHeaderCollapsed = false);
-                    _headerAnimationController.reverse();
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with greeting
+                  Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
+                        padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            colors: [DuruColors.primary, DuruColors.accent],
+                          ),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              (user.email ?? 'U').substring(0, 1).toUpperCase(),
+                              style: TextStyle(
+                                color: DuruColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: DuruSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.expand_more, size: 18),
-                            SizedBox(width: 6),
-                            Text('Show header'),
+                            Text(
+                              _getGreeting(),
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              user.email ?? 'User',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-          ],
-        );
-      },
+                  SizedBox(height: DuruSpacing.lg),
+                  // Stats grid
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                        context,
+                        icon: CupertinoIcons.doc_text_fill,
+                        value: totalNotes.toString(),
+                        label: 'Total',
+                        color: DuruColors.primary,
+                      ),
+                      _buildStatItem(
+                        context,
+                        icon: CupertinoIcons.calendar_today,
+                        value: todayNotes.toString(),
+                        label: 'Today',
+                        color: DuruColors.accent,
+                      ),
+                      _buildStatItem(
+                        context,
+                        icon: CupertinoIcons.pin_fill,
+                        value: pinnedNotes.toString(),
+                        label: 'Pinned',
+                        color: DuruColors.warning,
+                      ),
+                      _buildStatItem(
+                        context,
+                        icon: CupertinoIcons.folder_fill,
+                        value: folderCount.toString(),
+                        label: 'Folders',
+                        color: DuruColors.primary.withOpacity(0.7),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+            orElse: () => const Center(child: CircularProgressIndicator()),
+          );
+        },
+      ),
     );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        SizedBox(height: DuruSpacing.xs),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserStatsCard(BuildContext context, User user) {
+    // Deprecated - replaced by _buildModernStatsSection
+    return _buildModernStatsSection(context, user);
   }
 
   Widget _buildFolderNavigation(BuildContext context) {
@@ -797,7 +848,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       return _buildCompactGridCard(context, note);
     }
 
-    // List view card
+    // Use new modern note card component
     final isSelected = _selectedNoteIds.contains(note.id);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -835,237 +886,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
       },
-      child: Card(
-        elevation: isSelected ? 3 : 0.5,
-        shadowColor: colorScheme.shadow.withValues(alpha: 0.08),
-        color: isSelected
-            ? colorScheme.primaryContainer.withValues(alpha: 0.15)
-            : theme.customColors.noteCardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: isSelected
-                ? colorScheme.primary.withValues(alpha: 0.4)
-                : colorScheme.outlineVariant.withValues(alpha: 0.2),
-            width: isSelected ? 1.5 : 0.5,
-          ),
-        ),
-        child: InkWell(
-          onTap: () {
-            if (_isSelectionMode) {
-              _toggleNoteSelection(note.id);
-            } else {
-              _editNote(note);
-            }
-          },
-          onLongPress: () {
-            if (!_isSelectionMode) {
-              _enterSelectionMode(note.id);
-            }
-          },
-          onSecondaryTap: () => _showNoteOptions(note),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _getNoteIcon(note),
-                      size: 20,
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.primary.withValues(alpha: 0.8),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        note.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? colorScheme.onPrimaryContainer
-                              : null,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Pin toggle button
-                    PinToggleButton(noteId: note.id, isPinned: note.isPinned),
-                    const SizedBox(width: 4),
-                    // Source icon positioned to the left of menu
-                    NoteSourceIcon(
-                      note: note,
-                      size: 18,
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        Icons.more_vert,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      onSelected: (value) {
-                        switch (value) {
-                          case 'edit':
-                            _editNote(note);
-                          case 'move':
-                            _showAddToFolderForSingleNote(note);
-                          case 'duplicate':
-                            _duplicateNote(note);
-                          case 'delete':
-                            _deleteNote(note);
-                          case 'share':
-                            _shareNote(note);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        const PopupMenuItem(
-                          value: 'move',
-                          child: Text('Move to folder'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'share',
-                          child: Text('Share'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'duplicate',
-                          child: Text('Duplicate'),
-                        ),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ],
-                    ),
-                    if (isSelected)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          color: colorScheme.onPrimary,
-                          size: 16,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _generatePreview(note.body),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isSelected
-                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
-                        : colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    // Date with icon
-                    Icon(
-                      Icons.schedule_outlined,
-                      size: 12,
-                      color: colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(note.updatedAt),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
-                    // Small pin indicator in subtitle
-                    if (note.isPinned) ...[
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.push_pin,
-                        size: 12,
-                        color: colorScheme.tertiary.withValues(alpha: 0.7),
-                      ),
-                    ],
-                    if (folderName != null) ...[
-                      const SizedBox(width: 12),
-                      // Enhanced clickable folder chip
-                      Semantics(
-                        label: 'Filter by folder ${folderName!}',
-                        button: true,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _filterByFolder(folderId, folderName!),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (folderColor?.withValues(alpha: 0.1) ??
-                                        colorScheme.primary.withValues(alpha: 0.1)),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: folderColor?.withValues(alpha: 0.3) ??
-                                      colorScheme.primary.withValues(alpha: 0.3),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.folder_rounded,
-                                    size: 12,
-                                    color: folderColor ??
-                                        colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      folderName!,
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: folderColor ??
-                                            colorScheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    // Add additional indicators here if needed
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+      child: ModernNoteCard(
+        note: note,
+        isSelected: isSelected,
+        onTap: () {
+          if (_isSelectionMode) {
+            _toggleNoteSelection(note.id);
+          } else {
+            _editNote(note);
+          }
+        },
+        onLongPress: () {
+          if (!_isSelectionMode) {
+            _enterSelectionMode(note.id);
+          }
+        },
       ),
     );
   }
@@ -2528,7 +2363,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       // Note was selected from search results
       if (!context.mounted) return;
       Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) => ModernEditNoteScreen(noteId: result.id),
         ),
       );
@@ -2540,6 +2375,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     setState(() {
       _isGridView = !_isGridView;
     });
+  }
+
+  void _showFilterMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => FiltersBottomSheet(
+          onApply: (filterState) => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   Widget _buildFilterButton(BuildContext context) {
@@ -2641,7 +2495,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         _showAnalyticsScreen(context);
       case 'folders':
         Navigator.of(context).push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => const FolderManagementScreen(),
           ),
         );
@@ -2652,7 +2506,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         );
       case 'templates':
         Navigator.of(context).push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => const TemplateGalleryScreen(),
           ),
         );
@@ -3744,7 +3598,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _showSettingsDialog(BuildContext context) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
+    ).push(MaterialPageRoute<void>(builder: (context) => const SettingsScreen()));
   }
 
   void _confirmLogout(BuildContext context) {

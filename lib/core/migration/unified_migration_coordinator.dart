@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/migrations/migration_12_phase3_optimization.dart';

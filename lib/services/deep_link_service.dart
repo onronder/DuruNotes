@@ -156,7 +156,7 @@ class DeepLinkService {
       }
 
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) => ModernEditNoteScreen(
             noteId: note.id,
             initialTitle: note.title,
@@ -196,7 +196,7 @@ class DeepLinkService {
 
       // Open note with task highlighting
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) => ModernEditNoteScreen(
             noteId: note.id,
             initialTitle: note.title,
@@ -226,7 +226,7 @@ class DeepLinkService {
   Future<void> _openTaskList(BuildContext context) async {
     try {
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) => const EnhancedTaskListScreen(),
         ),
       );
@@ -247,7 +247,7 @@ class DeepLinkService {
   ) async {
     try {
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) => const EnhancedTaskListScreen(),
         ),
       );

@@ -8,7 +8,10 @@ import 'package:duru_notes/features/folders/folder_deletion_with_undo.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -92,26 +95,149 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     super.dispose();
   }
 
+  Widget _buildStatsHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final folderState = ref.watch(folderProvider);
+
+    if (folderState.isLoading) {
+      return Container(
+        height: 120,
+        margin: EdgeInsets.all(DuruSpacing.md),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Use folderListProvider to get folder list
+    final folders = ref.watch(folderListProvider);
+
+    final totalFolders = folders.length;
+    final rootFolders = folders.where((f) => f.parentId?.isEmpty ?? true).length;
+    // Simplified stats without note counts (since they're not available in FolderOperationState)
+    final subfolders = totalFolders - rootFolders;
+
+        return Container(
+          margin: EdgeInsets.all(DuruSpacing.md),
+          padding: EdgeInsets.all(DuruSpacing.lg),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                DuruColors.primary.withOpacity(0.1),
+                DuruColors.accent.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.folder_fill,
+                value: totalFolders.toString(),
+                label: 'Total',
+                color: DuruColors.primary,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.tree,
+                value: rootFolders.toString(),
+                label: 'Root',
+                color: DuruColors.accent,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.layers_fill,
+                value: subfolders.toString(),
+                label: 'Subfolders',
+                color: DuruColors.warning,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.time,
+                value: DateTime.now().hour.toString().padLeft(2, '0'),
+                label: 'Current Hour',
+                color: DuruColors.surfaceVariant,
+              ),
+            ],
+          ),
+        );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        SizedBox(height: DuruSpacing.xs),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Text(l10n.folderManagement),
-        centerTitle: true,
-        elevation: 0,
-        scrolledUnderElevation: 1,
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
+      appBar: ModernAppBar(
+        title: l10n.folderManagement,
+        subtitle: 'Organize your notes efficiently',
+        showGradient: true,
+        bottom: ModernTabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(icon: Icon(CupertinoIcons.folder_open), text: l10n.allFolders),
+            Tab(icon: Icon(CupertinoIcons.info_circle), text: 'Details'),
+          ],
+        ),
         actions: [
           // Bulk actions menu
           Consumer(
             builder: (context, ref, child) {
               final folderState = ref.watch(folderProvider);
               return PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
+                icon: Icon(
+                  CupertinoIcons.ellipsis_vertical,
+                  color: Colors.white,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 enabled: !folderState.isLoading,
                 onSelected: (value) async {
                   switch (value) {
@@ -131,7 +257,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'create_root_folder',
                     child: ListTile(
-                      leading: const Icon(Icons.create_new_folder),
+                      leading: Icon(CupertinoIcons.folder_badge_plus, color: DuruColors.primary),
                       title: Text(l10n.createNewFolder),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -140,7 +266,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'expand_all',
                     child: ListTile(
-                      leading: const Icon(Icons.unfold_more),
+                      leading: Icon(CupertinoIcons.arrow_down_to_line, color: DuruColors.primary),
                       title: Text(l10n.expandAll),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -148,27 +274,27 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'collapse_all',
                     child: ListTile(
-                      leading: const Icon(Icons.unfold_less),
+                      leading: Icon(CupertinoIcons.arrow_up_to_line, color: DuruColors.primary),
                       title: Text(l10n.collapseAll),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const PopupMenuDivider(),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'health_check',
                     child: ListTile(
-                      leading: Icon(Icons.health_and_safety),
-                      title: Text('Health Check'),
-                      subtitle: Text('Validate folder system integrity'),
+                      leading: Icon(CupertinoIcons.heart_fill, color: DuruColors.accent),
+                      title: const Text('Health Check'),
+                      subtitle: const Text('Validate folder system integrity'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'validate_structure',
                     child: ListTile(
-                      leading: Icon(Icons.account_tree),
-                      title: Text('Repair Structure'),
-                      subtitle: Text('Fix orphaned folders and paths'),
+                      leading: Icon(CupertinoIcons.tree, color: DuruColors.warning),
+                      title: const Text('Repair Structure'),
+                      subtitle: const Text('Fix orphaned folders and paths'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -177,53 +303,55 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(icon: const Icon(Icons.account_tree), text: l10n.allFolders),
-            const Tab(icon: Icon(Icons.info_outline), text: 'Details'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Folder hierarchy tab
-          RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(folderProvider.notifier).refresh();
-              await ref.read(folderHierarchyProvider.notifier).refresh();
-            },
-            child: FolderHierarchyView(
-              onFolderTap: (folder) {
-                setState(() {
-                  _selectedFolder = folder;
-                });
-                // Switch to details tab
-                _tabController.animateTo(1);
-              },
-              onFolderLongPress: _showFolderActions,
-              selectedFolderId: _selectedFolder?.id,
+          // Stats header
+          _buildStatsHeader(context),
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Folder hierarchy tab
+                RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(folderProvider.notifier).refresh();
+                    await ref.read(folderHierarchyProvider.notifier).refresh();
+                  },
+                  child: FolderHierarchyView(
+                    onFolderTap: (folder) {
+                      setState(() {
+                        _selectedFolder = folder;
+                      });
+                      // Switch to details tab
+                      _tabController.animateTo(1);
+                    },
+                    onFolderLongPress: _showFolderActions,
+                    selectedFolderId: _selectedFolder?.id,
+                  ),
+                ),
+
+                // Folder details tab
+                if (_selectedFolder != null)
+                  _FolderDetailsView(
+                    folder: _selectedFolder!,
+                    onFolderUpdated: () {
+                      ref.read(folderProvider.notifier).refresh();
+                      ref.read(folderHierarchyProvider.notifier).refresh();
+                    },
+                    onFolderDeleted: () {
+                      setState(() {
+                        _selectedFolder = null;
+                      });
+                      _tabController.animateTo(0);
+                    },
+                  )
+                else
+                  _EmptyDetailsView(onCreateFolder: _showCreateFolderDialog),
+              ],
             ),
           ),
-
-          // Folder details tab
-          if (_selectedFolder != null)
-            _FolderDetailsView(
-              folder: _selectedFolder!,
-              onFolderUpdated: () {
-                ref.read(folderProvider.notifier).refresh();
-                ref.read(folderHierarchyProvider.notifier).refresh();
-              },
-              onFolderDeleted: () {
-                setState(() {
-                  _selectedFolder = null;
-                });
-                _tabController.animateTo(0);
-              },
-            )
-          else
-            _EmptyDetailsView(onCreateFolder: _showCreateFolderDialog),
         ],
       ),
       floatingActionButton: Column(

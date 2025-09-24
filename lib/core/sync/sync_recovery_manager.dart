@@ -364,7 +364,7 @@ class SyncRecoveryManager {
       );
       final actualDelay = delay > _maxRetryDelay ? _maxRetryDelay : delay;
 
-      await Future.delayed(actualDelay);
+      await Future<void>.delayed(actualDelay);
 
       // Execute the retry based on operation type
       bool success = false;
@@ -632,7 +632,7 @@ class SyncRecoveryManager {
 
   Future<bool> _retryGenericOperation(FailedOperation failedOp) async {
     // Generic retry logic - placeholder for operation-specific retry
-    await Future.delayed(Duration(seconds: 1));
+    await Future<void>.delayed(Duration(seconds: 1));
     return false; // Conservative default
   }
 

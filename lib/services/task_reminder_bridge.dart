@@ -155,7 +155,7 @@ class TaskReminderBridge {
         }
 
         // Wait before retry with exponential backoff
-        await Future.delayed(_retryDelay * attempts);
+        await Future<void>.delayed(_retryDelay * attempts);
         _logger.warning(
           'Retrying task reminder creation',
           data: {'taskId': task.id, 'attempt': attempts, 'error': e.toString()},
@@ -496,7 +496,7 @@ class TaskReminderBridge {
           final taskId = data['taskId'] as String?;
           if (taskId != null) {
             await Navigator.of(context).push(
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (context) => const EnhancedTaskListScreen(),
               ),
             );
@@ -532,7 +532,7 @@ class TaskReminderBridge {
       if (context != null) {
         // Navigate directly to task or note
         await Navigator.of(context).push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => const EnhancedTaskListScreen(),
           ),
         );

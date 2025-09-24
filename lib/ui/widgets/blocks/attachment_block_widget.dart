@@ -265,7 +265,7 @@ class AttachmentBlockWidget extends StatelessWidget {
     if (_isImageFile(_attachmentData['filename']!)) {
       // Show image in full screen
       Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (context) =>
               AttachmentViewer(url: _attachmentData['path'] ?? ''),
         ),

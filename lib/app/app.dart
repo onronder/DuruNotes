@@ -485,7 +485,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       case 'email_received':
         debugPrint('📧 Navigating to email inbox');
         navigator.push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => const InboundEmailInboxWidget(),
           ),
         );
@@ -533,7 +533,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
       if (note != null) {
         navigator.push(
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => ModernEditNoteScreen(
               noteId: note.id,
               initialTitle: note.title,

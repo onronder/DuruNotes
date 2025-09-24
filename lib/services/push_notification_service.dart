@@ -166,7 +166,7 @@ class PushNotificationService {
             _logger.warning(
                 'APNs token not available yet, attempt ${retries + 1}/$maxRetries');
             if (retries < maxRetries - 1) {
-              await Future.delayed(retryDelay);
+              await Future<void>.delayed(retryDelay);
             }
             retries++;
           }

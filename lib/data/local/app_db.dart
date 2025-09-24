@@ -30,6 +30,12 @@ class LocalNotes extends Table {
   IntColumn get noteType => intEnum<NoteKind>()
       .withDefault(const Constant(0))(); // 0=note, 1=template
 
+  // Added for domain model migration
+  IntColumn get version => integer().withDefault(const Constant(1))();
+  TextColumn get userId => text().nullable()();
+  TextColumn get attachmentMeta => text().nullable()();
+  TextColumn get metadata => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -396,7 +402,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -521,6 +527,15 @@ class AppDb extends _$AppDb {
 
             // Apply Phase 3 optimizations (foreign keys and performance indexes)
             await Migration12Phase3Optimization.apply(this);
+          }
+
+          if (from < 13) {
+            // Version 13: Domain model migration - Add fields for clean architecture
+            // These fields support the migration from database models to domain entities
+            await m.addColumn(localNotes, localNotes.version);
+            await m.addColumn(localNotes, localNotes.userId);
+            await m.addColumn(localNotes, localNotes.attachmentMeta);
+            await m.addColumn(localNotes, localNotes.metadata);
           }
 
           // Always attempt Migration 12 (idempotent) to handle edge cases where

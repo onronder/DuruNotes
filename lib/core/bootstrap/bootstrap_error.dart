@@ -177,7 +177,7 @@ class RetryRecoveryStrategy implements BootstrapRecoveryStrategy {
         (currentRetries > 0 ? backoffMultiplier * currentRetries : 1))
         .round();
 
-    await Future.delayed(Duration(milliseconds: delay));
+    await Future<void>.delayed(Duration(milliseconds: delay));
 
     // Return true to signal retry should be attempted
     return true;

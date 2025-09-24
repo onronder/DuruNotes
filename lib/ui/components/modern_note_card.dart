@@ -134,10 +134,10 @@ class ModernNoteCard extends StatelessWidget {
                       ),
 
                       // Content preview with better truncation
-                      if (note.content.isNotEmpty) ...[
+                      if (note.body.isNotEmpty) ...[
                         SizedBox(height: DuruSpacing.sm),
                         Text(
-                          _cleanContent(note.content),
+                          _cleanContent(note.body),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                             height: 1.5,
@@ -158,7 +158,8 @@ class ModernNoteCard extends StatelessWidget {
                       Row(
                         children: [
                           // Folder indicator
-                          if (note.folderId != null) ...[
+                          // TODO: Add folder support via NoteFolders table
+                          /*if (note.folderId != null) ...[
                             Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: DuruSpacing.sm,
@@ -189,23 +190,24 @@ class ModernNoteCard extends StatelessWidget {
                               ),
                             ),
                             SizedBox(width: DuruSpacing.sm),
-                          ],
+                          ],*/
 
                           // Attachment indicator
-                          if (note.hasAttachments) ...[
+                          // TODO: Add attachment support
+                          /*if (note.hasAttachments) ...[
                             Icon(
                               CupertinoIcons.paperclip,
                               size: 14,
                               color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
                             ),
                             SizedBox(width: DuruSpacing.sm),
-                          ],
+                          ],*/
 
                           const Spacer(),
 
                           // Time indicator with smart formatting
                           Text(
-                            _formatTime(note.modifiedAt),
+                            _formatTime(note.updatedAt),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
                             ),
@@ -225,20 +227,22 @@ class ModernNoteCard extends StatelessWidget {
 
   IconData? _getIcon() {
     if (_hasChecklistItems()) return CupertinoIcons.checkmark_square;
-    if (note.hasAttachments) return CupertinoIcons.photo;
-    if (note.content.toLowerCase().contains('project')) return CupertinoIcons.briefcase;
+    // TODO: Add attachment support
+    // if (note.hasAttachments) return CupertinoIcons.photo;
+    if (note.body.toLowerCase().contains('project')) return CupertinoIcons.briefcase;
     return null;
   }
 
   Color _getIconColor() {
     if (_hasChecklistItems()) return DuruColors.accent;
-    if (note.hasAttachments) return Colors.orange;
-    if (note.content.toLowerCase().contains('project')) return DuruColors.primary;
+    // TODO: Add attachment support
+    // if (note.hasAttachments) return Colors.orange;
+    if (note.body.toLowerCase().contains('project')) return DuruColors.primary;
     return Colors.grey;
   }
 
   bool _hasChecklistItems() {
-    return note.content.contains('[ ]') || note.content.contains('[x]');
+    return note.body.contains('[ ]') || note.body.contains('[x]');
   }
 
   String _cleanContent(String content) {
@@ -250,8 +254,8 @@ class ModernNoteCard extends StatelessWidget {
   }
 
   Widget _buildTaskIndicator(BuildContext context) {
-    final completed = RegExp(r'\[x\]').allMatches(note.content).length;
-    final total = completed + RegExp(r'\[ \]').allMatches(note.content).length;
+    final completed = RegExp(r'\[x\]').allMatches(note.body).length;
+    final total = completed + RegExp(r'\[ \]').allMatches(note.body).length;
     final progress = total > 0 ? completed / total : 0.0;
 
     return Container(

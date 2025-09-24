@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/templates/template_preview_dialog.dart';
 import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/features/templates/edit_template_dialog.dart';
+import 'package:duru_notes/models/template_model.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/template_sharing_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:uuid/uuid.dart';
+import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,7 +55,12 @@ enum TemplateCategory {
 
 /// Comprehensive template gallery screen with CRUD operations
 class TemplateGalleryScreen extends ConsumerStatefulWidget {
-  const TemplateGalleryScreen({super.key});
+  const TemplateGalleryScreen({
+    super.key,
+    this.selectMode = false,
+  });
+
+  final bool selectMode; // If true, tapping a template returns it
 
   @override
   ConsumerState<TemplateGalleryScreen> createState() =>
@@ -268,129 +279,255 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     });
   }
 
+  Widget _buildStatsHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final templatesAsync = ref.watch(templateListProvider);
+
+    return templatesAsync.when(
+      data: (templates) {
+        final workTemplates = templates.where((t) => t.category == 'work').length;
+        final personalTemplates = templates.where((t) => t.category == 'personal').length;
+        // Use createdAt for recent templates since lastUsedAt doesn't exist
+        final recentTemplates = templates.where((t) {
+          final diff = DateTime.now().difference(t.createdAt);
+          return diff.inDays <= 7;
+        }).length;
+
+        return Container(
+          margin: EdgeInsets.all(DuruSpacing.md),
+          padding: EdgeInsets.all(DuruSpacing.lg),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                DuruColors.primary.withOpacity(0.1),
+                DuruColors.accent.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.doc_text_viewfinder,
+                value: templates.length.toString(),
+                label: 'Templates',
+                color: DuruColors.primary,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.briefcase_fill,
+                value: workTemplates.toString(),
+                label: 'Work',
+                color: DuruColors.accent,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.person_fill,
+                value: personalTemplates.toString(),
+                label: 'Personal',
+                color: DuruColors.warning,
+              ),
+              _buildStatItem(
+                context,
+                icon: CupertinoIcons.time,
+                value: recentTemplates.toString(),
+                label: 'Recent',
+                color: DuruColors.surfaceVariant,
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => Container(
+        height: 120,
+        margin: EdgeInsets.all(DuruSpacing.md),
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(DuruSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        SizedBox(height: DuruSpacing.xs),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     // final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
+      backgroundColor: theme.brightness == Brightness.dark
+          ? const Color(0xFF0A0A0A)
+          : const Color(0xFFF8FAFB),
+      appBar: ModernAppBar(
         title: _isSelectionMode
-            ? Text('${_selectedTemplates.length} selected')
-            : const Text('Template Gallery'),
-        centerTitle: !_isSelectionMode,
-        elevation: 0,
-        scrolledUnderElevation: 1,
+            ? '${_selectedTemplates.length} selected'
+            : 'Template Gallery',
+        subtitle: _isSelectionMode ? null : 'Ready-to-use note templates',
+        showGradient: !_isSelectionMode,
         leading: _isSelectionMode
             ? IconButton(
-                icon: const Icon(Icons.close),
+                icon: Icon(CupertinoIcons.xmark, color: Colors.white),
                 onPressed: _clearSelection,
               )
             : null,
         actions: _isSelectionMode
             ? _buildSelectionActions()
             : _buildNormalActions(),
-        bottom: _isSelectionMode ? null : PreferredSize(
-          preferredSize: const Size.fromHeight(120),
-          child: Column(
-            children: [
-              // Search bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _updateSearchQuery,
-                  decoration: InputDecoration(
-                    hintText: 'Search templates...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              _updateSearchQuery('');
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest,
-                  ),
-                ),
-              ),
-
-              // Filter and sort chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    // Category filter
-                    FilterChip(
-                      label: Text(_categoryFilter.label),
-                      selected: _categoryFilter != TemplateCategory.all,
-                      onSelected: (_) => _showCategoryFilter(),
-                      avatar: const Icon(Icons.category, size: 18),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Sort filter
-                    FilterChip(
-                      label: Text(_sortMode.label),
-                      selected: true,
-                      onSelected: (_) => _showSortOptions(),
-                      avatar: const Icon(Icons.sort, size: 18),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // View mode toggle
-                    IconButton(
-                      icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                      onPressed: _toggleViewMode,
-                      tooltip: _isGridView ? 'List View' : 'Grid View',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        backgroundColor: _isSelectionMode ? DuruColors.primary : null,
       ),
-      body: Consumer(
-        builder: (context, ref, child) {
-          final templatesAsync = ref.watch(templateListProvider);
-
-          return templatesAsync.when(
-            data: (templates) {
-              final filteredTemplates = _filterAndSortTemplates(templates);
-
-              if (filteredTemplates.isEmpty) {
-                return _buildEmptyState();
-              }
-
-              return RefreshIndicator(
-                onRefresh: _loadTemplates,
-                child: _isGridView
-                    ? _buildGridView(filteredTemplates)
-                    : _buildListView(filteredTemplates),
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator.adaptive(),
+      body: Column(
+        children: [
+          // Stats header
+          if (!_isSelectionMode) _buildStatsHeader(context),
+          // Search and filter bar
+          if (!_isSelectionMode)
+            Container(
+              padding: EdgeInsets.all(DuruSpacing.md),
+              child: Column(
+                children: [
+                  // Search bar
+                  TextField(
+                    controller: _searchController,
+                    onChanged: _updateSearchQuery,
+                    decoration: InputDecoration(
+                      hintText: 'Search templates...',
+                      prefixIcon: Icon(CupertinoIcons.search),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(CupertinoIcons.xmark_circle_fill),
+                              onPressed: () {
+                                _searchController.clear();
+                                _updateSearchQuery('');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                  SizedBox(height: DuruSpacing.sm),
+                  // Filter and sort chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        // Category filter
+                        FilterChip(
+                          label: Text(_categoryFilter.label),
+                          selected: _categoryFilter != TemplateCategory.all,
+                          onSelected: (_) => _showCategoryFilter(),
+                          avatar: Icon(CupertinoIcons.tag_fill, size: 16),
+                          backgroundColor: DuruColors.primary.withOpacity(0.1),
+                          selectedColor: DuruColors.primary.withOpacity(0.2),
+                        ),
+                        SizedBox(width: DuruSpacing.xs),
+                        // Sort filter
+                        FilterChip(
+                          label: Text(_sortMode.label),
+                          selected: true,
+                          onSelected: (_) => _showSortOptions(),
+                          avatar: Icon(CupertinoIcons.sort_down, size: 16),
+                          backgroundColor: DuruColors.accent.withOpacity(0.1),
+                          selectedColor: DuruColors.accent.withOpacity(0.2),
+                        ),
+                        SizedBox(width: DuruSpacing.xs),
+                        // View mode toggle
+                        IconButton(
+                          icon: Icon(
+                            _isGridView ? CupertinoIcons.list_bullet : CupertinoIcons.square_grid_2x2,
+                            color: DuruColors.primary,
+                          ),
+                          onPressed: _toggleViewMode,
+                          tooltip: _isGridView ? 'List View' : 'Grid View',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            error: (error, stackTrace) => _buildErrorState(error),
-          );
-        },
+          // Templates content
+          Expanded(
+            child: Consumer(
+              builder: (context, ref, child) {
+                final templatesAsync = ref.watch(templateListProvider);
+
+                return templatesAsync.when(
+                  data: (templates) {
+                    final filteredTemplates = _filterAndSortTemplates(templates);
+
+                    if (filteredTemplates.isEmpty) {
+                      return _buildEmptyState();
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: _loadTemplates,
+                      child: _isGridView
+                          ? _buildGridView(filteredTemplates)
+                          : _buildListView(filteredTemplates),
+                    );
+                  },
+                  loading: () => const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  ),
+                  error: (error, stackTrace) => _buildErrorState(error),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _isSelectionMode ? null : FloatingActionButton.extended(
         onPressed: _showCreateTemplateDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('New Template'),
+        backgroundColor: DuruColors.primary,
+        icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
+        label: const Text('New Template', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -398,17 +535,20 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   List<Widget> _buildSelectionActions() {
     return [
       IconButton(
-        icon: const Icon(Icons.share),
+        icon: Icon(CupertinoIcons.share, color: Colors.white),
         onPressed: _selectedTemplates.length == 1 ? _shareSelectedTemplate : null,
         tooltip: 'Share Template',
       ),
       IconButton(
-        icon: const Icon(Icons.copy),
+        icon: Icon(CupertinoIcons.doc_on_doc, color: Colors.white),
         onPressed: _duplicateSelectedTemplates,
         tooltip: 'Duplicate',
       ),
       PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert),
+        icon: Icon(CupertinoIcons.ellipsis_vertical, color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         onSelected: (value) {
           switch (value) {
             case 'delete':
@@ -418,19 +558,19 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           }
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'export',
             child: ListTile(
-              leading: Icon(Icons.download),
-              title: Text('Export'),
+              leading: Icon(CupertinoIcons.arrow_down_doc, color: DuruColors.primary),
+              title: const Text('Export'),
               contentPadding: EdgeInsets.zero,
             ),
           ),
           PopupMenuItem(
             value: 'delete',
             child: ListTile(
-              leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-              title: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              leading: Icon(CupertinoIcons.trash, color: DuruColors.error),
+              title: Text('Delete', style: TextStyle(color: DuruColors.error)),
               contentPadding: EdgeInsets.zero,
             ),
           ),
@@ -441,13 +581,16 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
   List<Widget> _buildNormalActions() {
     return [
-      IconButton(
-        icon: const Icon(Icons.refresh),
+      ModernAppBarAction(
+        icon: CupertinoIcons.refresh,
         onPressed: _loadTemplates,
         tooltip: 'Refresh',
       ),
       PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert),
+        icon: Icon(CupertinoIcons.ellipsis_vertical, color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         onSelected: (value) {
           switch (value) {
             case 'import':
@@ -457,19 +600,19 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           }
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'import',
             child: ListTile(
-              leading: Icon(Icons.upload_file),
-              title: Text('Import Templates'),
+              leading: Icon(CupertinoIcons.arrow_up_doc, color: DuruColors.primary),
+              title: const Text('Import Templates'),
               contentPadding: EdgeInsets.zero,
             ),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: 'statistics',
             child: ListTile(
-              leading: Icon(Icons.analytics),
-              title: Text('Usage Statistics'),
+              leading: Icon(CupertinoIcons.chart_bar_fill, color: DuruColors.accent),
+              title: const Text('Usage Statistics'),
               contentPadding: EdgeInsets.zero,
             ),
           ),
@@ -512,8 +655,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       child: InkWell(
         onTap: () => _isSelectionMode
             ? _toggleSelection(template.id)
-            : _showTemplatePreview(template),
-        onLongPress: () => _toggleSelection(template.id),
+            : widget.selectMode
+                ? _selectTemplate(template)
+                : _showTemplatePreview(template),
+        onLongPress: () => _showTemplateOptions(template),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(
@@ -664,8 +809,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       child: InkWell(
         onTap: () => _isSelectionMode
             ? _toggleSelection(template.id)
-            : _showTemplatePreview(template),
-        onLongPress: () => _toggleSelection(template.id),
+            : widget.selectMode
+                ? _selectTemplate(template)
+                : _showTemplatePreview(template),
+        onLongPress: () => _showTemplateOptions(template),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(
@@ -1177,8 +1324,172 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     }
   }
 
+  void _selectTemplate(LocalTemplate template) {
+    // Convert LocalTemplate to Template model and return it
+    // Parse tags from JSON string
+    List<String> tagsList = [];
+    try {
+      if (template.tags != null) {
+        tagsList = (jsonDecode(template.tags!) as List<dynamic>).cast<String>();
+      }
+    } catch (_) {
+      tagsList = [];
+    }
+
+    final templateModel = Template(
+      id: template.id,
+      title: template.title,
+      body: template.body,
+      tags: tagsList,
+      isSystem: false,
+      category: template.category,
+      description: template.description,
+      icon: template.icon,
+      sortOrder: template.sortOrder,
+      createdAt: template.createdAt,
+      updatedAt: template.updatedAt,
+      metadata: template.metadata != null ? jsonDecode(template.metadata!) : {},
+    );
+
+    Navigator.of(context).pop(templateModel);
+  }
+
+  void _showTemplateOptions(LocalTemplate template) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Edit Template'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editTemplate(template);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Export Template'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _exportTemplate(template);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Duplicate Template'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _duplicateTemplate(template);
+                },
+              ),
+              if (!template.isSystem)
+                ListTile(
+                  leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                  title: Text('Delete Template',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _deleteTemplate(template);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportTemplate(LocalTemplate template) async {
+    try {
+      final sharingService = TemplateSharingService();
+
+      // Parse tags from JSON string
+      List<String> tagsList = [];
+      try {
+        if (template.tags != null) {
+          tagsList = (jsonDecode(template.tags!) as List<dynamic>).cast<String>();
+        }
+      } catch (_) {
+        tagsList = [];
+      }
+
+      // Create Template model for export
+      final templateModel = Template(
+        id: template.id,
+        title: template.title,
+        body: template.body,
+        tags: tagsList,
+        isSystem: template.isSystem,
+        category: template.category,
+        description: template.description,
+        icon: template.icon,
+        sortOrder: template.sortOrder,
+        createdAt: template.createdAt,
+        updatedAt: template.updatedAt,
+        metadata: template.metadata != null ? jsonDecode(template.metadata!) : {},
+      );
+
+      final success = await sharingService.exportTemplate(templateModel);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Template exported successfully' : 'Export failed'),
+            backgroundColor: success ? Colors.green : Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export template: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _duplicateTemplate(LocalTemplate template) async {
+    try {
+      final repository = ref.read(templateRepositoryProvider);
+      final newId = Uuid().v4();
+
+      await repository.createUserTemplate(
+        title: '${template.title} (Copy)',
+        body: template.body,
+        tags: template.tags != null ? (jsonDecode(template.tags!) as List<dynamic>).cast<String>() : [],
+        category: template.category,
+        description: '${template.description} (Copy)',
+        icon: template.icon,
+      );
+
+      await _loadTemplates();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Template duplicated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to duplicate template: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   void _shareSelectedTemplate() {
-    // Implement template sharing
+    // Implement bulk template sharing
   }
 
   void _duplicateSelectedTemplates() {
@@ -1194,7 +1505,138 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   }
 
   void _showImportDialog() {
-    // Implement template import
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(CupertinoIcons.arrow_up_doc, color: DuruColors.primary),
+            SizedBox(width: 12),
+            Text('Import Templates'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Choose what you want to import:'),
+            SizedBox(height: 16),
+            ListTile(
+              leading: Icon(CupertinoIcons.doc, color: DuruColors.primary),
+              title: Text('Single Template'),
+              subtitle: Text('Import one template file (.tmpl)'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _importSingleTemplate();
+              },
+            ),
+            ListTile(
+              leading: Icon(CupertinoIcons.folder, color: DuruColors.accent),
+              title: Text('Template Pack'),
+              subtitle: Text('Import multiple templates (.tpack)'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _importTemplatePack();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importSingleTemplate() async {
+    try {
+      final sharingService = TemplateSharingService();
+      final repository = ref.read(templateRepositoryProvider);
+
+      final template = await sharingService.importTemplate();
+      if (template != null) {
+        // Save to repository
+        await repository.createUserTemplate(
+          title: template.title,
+          body: template.body,
+          tags: template.tags,
+          category: template.category,
+          description: template.description,
+          icon: template.icon,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Template "${template.title}" imported successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Refresh the templates list
+          ref.invalidate(templateRepositoryProvider);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to import template: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importTemplatePack() async {
+    try {
+      final sharingService = TemplateSharingService();
+      final repository = ref.read(templateRepositoryProvider);
+
+      final templates = await sharingService.importTemplatePack();
+      if (templates.isNotEmpty) {
+        int successCount = 0;
+
+        for (final template in templates) {
+          try {
+            await repository.createUserTemplate(
+              title: template.title,
+              body: template.body,
+              tags: template.tags,
+              category: template.category,
+              description: template.description,
+              icon: template.icon,
+            );
+            successCount++;
+          } catch (e) {
+            // Continue with next template if one fails
+            continue;
+          }
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully imported $successCount of ${templates.length} templates'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Refresh the templates list
+          ref.invalidate(templateRepositoryProvider);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to import template pack: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showStatistics() {

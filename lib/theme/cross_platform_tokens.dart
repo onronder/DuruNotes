@@ -58,10 +58,13 @@ class DuruColors {
   static const Color primary = Color(0xFF048ABF);
   static const Color accent = Color(0xFF5FD0CB);
 
-  // Status colors that respect platform conventions
+  // Static status colors for easier use
+  static const Color error = Color(0xFFEF4444);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color surfaceVariant = Color(0xFF9CA3AF);
+
+  // Status colors that respect platform conventions (for compatibility)
   static Color success(BuildContext context) => accent;
-  static Color error(BuildContext context) => Theme.of(context).colorScheme.error;
-  static Color warning(BuildContext context) => const Color(0xFFF59E0B);
   static Color info(BuildContext context) => primary;
 
   /// Get platform-appropriate navigation color
@@ -88,13 +91,13 @@ class DuruColors {
       case 'overdue':
       case 'error':
       case 'failed':
-        return error(context);
+        return error;
       case 'in_progress':
       case 'active':
         return primary;
       case 'pending':
       case 'waiting':
-        return warning(context);
+        return warning;
       default:
         return Theme.of(context).colorScheme.onSurfaceVariant;
     }

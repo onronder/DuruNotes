@@ -2,7 +2,6 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/folder_undo_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
@@ -150,7 +149,7 @@ mixin FolderDeletionWithUndo {
     // Gather data for undo operation before deletion
     final notesRepo = ref.read(notesRepositoryProvider);
     final undoService = ref.read(folderUndoServiceProvider);
-    final analytics = ref.read(analyticsProvider);
+    // final analytics = ref.read(analyticsProvider); // Not currently used
 
     try {
       // Get affected notes and child folders before deletion

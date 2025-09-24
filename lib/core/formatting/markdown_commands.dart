@@ -63,9 +63,10 @@ class MarkdownUtils {
     String text,
     TextSelection selection,
   ) {
-    final beforeSelection = text.substring(0, selection.start);
-    final inSelection = text.substring(selection.start, selection.end);
-    final afterSelection = text.substring(selection.end);
+    // Note: These are not used but kept for potential future use
+    // final beforeSelection = text.substring(0, selection.start);
+    // final inSelection = text.substring(selection.start, selection.end);
+    // final afterSelection = text.substring(selection.end);
 
     // Find line boundaries
     var lineStart = selection.start;

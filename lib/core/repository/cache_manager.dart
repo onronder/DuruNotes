@@ -345,6 +345,7 @@ abstract class TwoLevelCache<K, V> {
         _diskConfig = diskConfig ?? const CacheConfig();
 
   final CacheManager<K, V> _memoryCache;
+  // ignore: unused_field
   final CacheConfig _diskConfig;
 
   /// Read from persistent storage
