@@ -1,0 +1,57 @@
+{
+  "test_name": "circular_dependency_validation",
+  "timestamp": "2025-09-26T11:11:29.768841",
+  "results": {
+    "order_1": {
+      "success": true,
+      "resolvedProviders": [
+        "appDb",
+        "logger",
+        "taskService",
+        "enhancedTaskService",
+        "unifiedTaskService"
+      ],
+      "order": [
+        "appDb",
+        "logger",
+        "taskService",
+        "enhancedTaskService",
+        "unifiedTaskService"
+      ]
+    },
+    "order_2": {
+      "success": true,
+      "resolvedProviders": [
+        "unifiedTaskService",
+        "enhancedTaskService",
+        "taskService",
+        "logger",
+        "appDb"
+      ],
+      "order": [
+        "unifiedTaskService",
+        "enhancedTaskService",
+        "taskService",
+        "logger",
+        "appDb"
+      ]
+    },
+    "order_3": {
+      "success": true,
+      "resolvedProviders": [
+        "logger",
+        "unifiedTaskService",
+        "appDb",
+        "taskService",
+        "enhancedTaskService"
+      ],
+      "order": [
+        "logger",
+        "unifiedTaskService",
+        "appDb",
+        "taskService",
+        "enhancedTaskService"
+      ]
+    }
+  }
+}
