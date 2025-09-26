@@ -1,0 +1,1065 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/template.dart' as domain;
+import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart' as infra;
+import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
+import 'package:duru_notes/core/migration/migration_config.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/template_variable_service.dart';
+import 'package:duru_notes/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path/path.dart' as path;
+
+/// Unified type for templates
+typedef UnifiedTemplate = dynamic; // Can be LocalTemplate or domain.Template
+
+/// Template category types
+enum TemplateCategory {
+  general('General', 'folder'),
+  work('Work', 'business_center'),
+  personal('Personal', 'person'),
+  meeting('Meeting', 'meeting_room'),
+  project('Project', 'dashboard'),
+  daily('Daily', 'today'),
+  weekly('Weekly', 'date_range'),
+  custom('Custom', 'tune');
+
+  const TemplateCategory(this.displayName, this.icon);
+  final String displayName;
+  final String icon;
+}
+
+/// Template filter options
+class TemplateFilterOptions {
+  const TemplateFilterOptions({
+    this.category,
+    this.isSystem,
+    this.isFavorite,
+    this.tags = const [],
+    this.searchQuery,
+    this.sortBy = TemplateSortBy.usage,
+    this.sortDescending = false,
+    this.includeDeleted = false,
+  });
+
+  final TemplateCategory? category;
+  final bool? isSystem;
+  final bool? isFavorite;
+  final List<String> tags;
+  final String? searchQuery;
+  final TemplateSortBy sortBy;
+  final bool sortDescending;
+  final bool includeDeleted;
+}
+
+enum TemplateSortBy {
+  name,
+  category,
+  usage,
+  createdAt,
+  updatedAt,
+  favorite,
+}
+
+/// Template usage statistics
+class TemplateStatistics {
+  const TemplateStatistics({
+    required this.total,
+    required this.system,
+    required this.custom,
+    required this.favorites,
+    required this.recentlyUsed,
+    required this.mostUsed,
+    required this.categoryCounts,
+  });
+
+  final int total;
+  final int system;
+  final int custom;
+  final int favorites;
+  final int recentlyUsed;
+  final String? mostUsed;
+  final Map<String, int> categoryCounts;
+}
+
+/// Unified template service that works with both LocalTemplate and domain.Template
+class UnifiedTemplateService {
+  UnifiedTemplateService({
+    required this.ref,
+    required this.db,
+    required this.migrationConfig,
+  })  : _logger = LoggerFactory.instance,
+        _uuid = const Uuid(),
+        _variableService = TemplateVariableService();
+
+  final Ref ref;
+  final AppDb db;
+  final MigrationConfig migrationConfig;
+  final AppLogger _logger;
+  final Uuid _uuid;
+  final TemplateVariableService _variableService;
+
+  // Constants
+  static const String templateFileExtension = 'dntemplate';
+  static const String templatePackExtension = 'dntpack';
+  static const int currentVersion = 1;
+
+  /// Get all templates
+  Future<List<UnifiedTemplate>> getAllTemplates({
+    TemplateFilterOptions? filter,
+  }) async {
+    try {
+      _logger.info('[UnifiedTemplate] Getting all templates');
+
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Use domain repository
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+        final templates = await repository.getAllTemplates();
+
+        return _applyFilters(templates, filter);
+      } else {
+        // Use legacy database
+        var query = db.select(db.localTemplates);
+
+        // Apply basic filters
+        if (filter != null) {
+          if (filter.category != null) {
+            query = query..where((t) => t.category.equals(filter.category!.name));
+          }
+
+          if (filter.isSystem != null) {
+            query = query..where((t) => t.isSystem.equals(filter.isSystem!));
+          }
+
+          // LocalTemplatesTable doesn't have a deleted field
+          // Templates are permanently deleted, not soft deleted
+        }
+
+        // Apply sorting
+        query = _applySorting(query, filter?.sortBy, filter?.sortDescending);
+
+        final templates = await query.get();
+        return _applyFilters(templates, filter);
+      }
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to get templates', error: e, stackTrace: stack);
+      return [];
+    }
+  }
+
+  /// Get template by ID
+  Future<UnifiedTemplate?> getTemplateById(String templateId) async {
+    try {
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Use domain repository
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+        final template = await repository.getTemplateById(templateId);
+        return template;
+      } else {
+        // Use legacy database
+        return await (db.select(db.localTemplates)
+          ..where((t) => t.id.equals(templateId)))
+          .getSingleOrNull();
+      }
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to get template: $templateId', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Get system templates
+  Future<List<UnifiedTemplate>> getSystemTemplates() async {
+    return getAllTemplates(
+      filter: const TemplateFilterOptions(isSystem: true),
+    );
+  }
+
+  /// Get favorite templates
+  Future<List<UnifiedTemplate>> getFavoriteTemplates() async {
+    return getAllTemplates(
+      filter: const TemplateFilterOptions(isFavorite: true),
+    );
+  }
+
+  /// Get templates by category
+  Future<List<UnifiedTemplate>> getTemplatesByCategory(TemplateCategory category) async {
+    return getAllTemplates(
+      filter: TemplateFilterOptions(category: category),
+    );
+  }
+
+  /// Create a new template
+  Future<UnifiedTemplate?> createTemplate({
+    required String title,
+    required String body,
+    TemplateCategory category = TemplateCategory.general,
+    String? description,
+    String? icon,
+    List<String>? tags,
+    Map<String, dynamic>? metadata,
+    List<String>? variables,
+  }) async {
+    try {
+      _logger.info('[UnifiedTemplate] Creating template: $title');
+
+      // Extract variables from body if not provided
+      final List<TemplateVariable> detectedVariables = variables != null
+          ? variables.map((v) => TemplateVariable(name: v, defaultValue: '', type: VariableType.text)).toList()
+          : _variableService.extractVariables(body);
+
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Create domain template
+        final template = domain.Template(
+          id: _uuid.v4(),
+          name: title,
+          body: body,
+          variables: {for (TemplateVariable v in detectedVariables) v.name: v.defaultValue ?? ''},
+          isSystem: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+        await repository.createTemplate(template);
+
+        // Track analytics
+        await _trackTemplateCreated(category.name);
+
+        return template;
+      } else {
+        // Create legacy template
+        final templateId = _uuid.v4();
+        final companion = LocalTemplatesCompanion.insert(
+          id: templateId,
+          title: title,
+          body: body,
+          description: description ?? '',
+          category: category.name,
+          icon: icon ?? category.icon,
+          tags: tags != null ? Value(jsonEncode(tags)) : const Value.absent(),
+          metadata: metadata != null
+              ? Value(jsonEncode({
+                  ...metadata,
+                  'variables': detectedVariables,
+                }))
+              : Value(jsonEncode({'variables': detectedVariables})),
+          isSystem: const Value(false),
+          sortOrder: const Value(0),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        await db.into(db.localTemplates).insert(companion);
+
+        // Track analytics
+        await _trackTemplateCreated(category.name);
+
+        return await getTemplateById(templateId);
+      }
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to create template', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Update a template
+  Future<UnifiedTemplate?> updateTemplate(
+    String templateId, {
+    String? title,
+    String? body,
+    String? description,
+    TemplateCategory? category,
+    String? icon,
+    List<String>? tags,
+    Map<String, dynamic>? metadata,
+    bool? isFavorite,
+  }) async {
+    try {
+      _logger.info('[UnifiedTemplate] Updating template: $templateId');
+
+      final existingTemplate = await getTemplateById(templateId);
+      if (existingTemplate == null) {
+        _logger.warning('[UnifiedTemplate] Template not found: $templateId');
+        return null;
+      }
+
+      // Extract variables if body is updated
+      List<TemplateVariable>? detectedVariables;
+      List<String>? detectedVariableNames;
+      if (body != null) {
+        detectedVariables = _variableService.extractVariables(body);
+        detectedVariableNames = detectedVariables.map((v) => v.name).toList();
+      }
+
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Update domain template
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+
+        // Get existing template first
+        final existingTemplate = await repository.getTemplateById(templateId);
+
+        // Create updated template with new values
+        final updatedTemplate = existingTemplate!.copyWith(
+          name: title ?? existingTemplate.name,
+          body: body ?? existingTemplate.body,
+          variables: detectedVariableNames != null
+              ? {for (var name in detectedVariableNames) name: ''}
+              : existingTemplate.variables,
+          updatedAt: DateTime.now(),
+        );
+
+        await repository.updateTemplate(updatedTemplate);
+
+        return await getTemplateById(templateId);
+      } else {
+        // Update legacy template
+        final companion = LocalTemplatesCompanion(
+          title: title != null ? Value(title) : const Value.absent(),
+          body: body != null ? Value(body) : const Value.absent(),
+          description: description != null ? Value(description) : const Value.absent(),
+          category: category != null ? Value(category.name) : const Value.absent(),
+          icon: icon != null ? Value(icon) : const Value.absent(),
+          tags: tags != null ? Value(jsonEncode(tags)) : const Value.absent(),
+          metadata: detectedVariableNames != null || metadata != null
+              ? Value(jsonEncode({
+                  ...(metadata ?? {}),
+                  if (detectedVariableNames != null) 'variables': detectedVariableNames,
+                }))
+              : const Value.absent(),
+          updatedAt: Value(DateTime.now()),
+        );
+
+        await (db.update(db.localTemplates)
+          ..where((t) => t.id.equals(templateId)))
+          .write(companion);
+
+        return await getTemplateById(templateId);
+      }
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to update template: $templateId', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Delete a template
+  Future<bool> deleteTemplate(String templateId) async {
+    try {
+      _logger.info('[UnifiedTemplate] Deleting template: $templateId');
+
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Delete using repository
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+        await repository.deleteTemplate(templateId);
+      } else {
+        // Delete from legacy database
+        await (db.delete(db.localTemplates)
+          ..where((t) => t.id.equals(templateId)))
+          .go();
+      }
+
+      // Track analytics
+      await _trackTemplateDeleted();
+
+      return true;
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to delete template: $templateId', error: e, stackTrace: stack);
+      return false;
+    }
+  }
+
+  /// Toggle template favorite status
+  Future<bool> toggleFavorite(String templateId) async {
+    try {
+      final template = await getTemplateById(templateId);
+      if (template == null) return false;
+
+      final isFavorite = getTemplateIsFavorite(template);
+      return await updateTemplate(templateId, isFavorite: !isFavorite) != null;
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to toggle favorite: $templateId', error: e, stackTrace: stack);
+      return false;
+    }
+  }
+
+  /// Use a template to create a new note
+  Future<Map<String, String>> useTemplate(String templateId, {Map<String, String>? variables}) async {
+    try {
+      _logger.info('[UnifiedTemplate] Using template: $templateId');
+
+      final template = await getTemplateById(templateId);
+      if (template == null) {
+        throw Exception('Template not found');
+      }
+
+      // Process template with variables
+      String processedBody = getTemplateBody(template);
+      final templateVariables = getTemplateVariables(template);
+
+      // Replace variables
+      if (variables != null) {
+        processedBody = _variableService.replaceVariables(processedBody, variables);
+      } else if (templateVariables.isNotEmpty) {
+        // Return template with variable placeholders for user to fill
+        return {
+          'title': getTemplateTitle(template),
+          'body': processedBody,
+          'requiresVariables': 'true',
+        };
+      }
+
+      // Track usage
+      await _trackTemplateUsed(templateId);
+
+      // Update usage count
+      if (!migrationConfig.isFeatureEnabled('templates')) {
+        // Update usage in metadata
+        final currentMetadata = template is LocalTemplate && template.metadata != null
+            ? jsonDecode(template.metadata!) as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        currentMetadata['usageCount'] = (currentMetadata['usageCount'] as int? ?? 0) + 1;
+        currentMetadata['lastUsedAt'] = DateTime.now().toIso8601String();
+
+        await (db.update(db.localTemplates)
+          ..where((t) => t.id.equals(templateId)))
+          .write(LocalTemplatesCompanion(
+            metadata: Value(jsonEncode(currentMetadata)),
+            updatedAt: Value(DateTime.now()),
+          ));
+      }
+
+      return {
+        'title': getTemplateTitle(template),
+        'body': processedBody,
+      };
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to use template: $templateId', error: e, stackTrace: stack);
+      rethrow;
+    }
+  }
+
+  /// Duplicate a template
+  Future<UnifiedTemplate?> duplicateTemplate(String templateId, {String? newTitle}) async {
+    try {
+      final template = await getTemplateById(templateId);
+      if (template == null) return null;
+
+      final title = newTitle ?? '${getTemplateTitle(template)} (Copy)';
+      final body = getTemplateBody(template);
+      final category = _getCategoryFromTemplate(template);
+      final description = getTemplateDescription(template);
+      final tags = getTemplateTags(template);
+
+      return await createTemplate(
+        title: title,
+        body: body,
+        category: category,
+        description: description,
+        tags: tags,
+      );
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to duplicate template: $templateId', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Export a template to file
+  Future<File?> exportTemplate(String templateId) async {
+    try {
+      _logger.info('[UnifiedTemplate] Exporting template: $templateId');
+
+      final template = await getTemplateById(templateId);
+      if (template == null) return null;
+
+      final exportData = {
+        'version': currentVersion,
+        'template': {
+          'title': getTemplateTitle(template),
+          'body': getTemplateBody(template),
+          'category': getTemplateCategoryString(template),
+          'description': getTemplateDescription(template),
+          'tags': getTemplateTags(template),
+          'variables': getTemplateVariables(template),
+          'icon': getTemplateIcon(template),
+          'metadata': getTemplateMetadata(template),
+        },
+        'exportedAt': DateTime.now().toIso8601String(),
+      };
+
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      // Create temporary file
+      final tempDir = await getTemporaryDirectory();
+      final fileName = '${getTemplateTitle(template).replaceAll(RegExp(r'[^\w\s-]'), '')}_template.$templateFileExtension';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(jsonString);
+
+      _logger.info('[UnifiedTemplate] Template exported to: ${file.path}');
+      return file;
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to export template', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Import a template from file
+  Future<UnifiedTemplate?> importTemplate(File file) async {
+    try {
+      _logger.info('[UnifiedTemplate] Importing template from: ${file.path}');
+
+      final jsonString = await file.readAsString();
+      final data = json.decode(jsonString) as Map<String, dynamic>;
+
+      // Check version compatibility
+      final version = data['version'] as int? ?? 1;
+      if (version > currentVersion) {
+        throw Exception('Template version $version is not supported');
+      }
+
+      final templateData = data['template'] as Map<String, dynamic>;
+
+      return await createTemplate(
+        title: templateData['title'] as String,
+        body: templateData['body'] as String,
+        category: _parseCategory(templateData['category'] as String?),
+        description: templateData['description'] as String?,
+        icon: templateData['icon'] as String?,
+        tags: (templateData['tags'] as List?)?.cast<String>(),
+        metadata: templateData['metadata'] as Map<String, dynamic>?,
+        variables: (templateData['variables'] as List?)?.cast<String>(),
+      );
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to import template', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Export multiple templates as a template pack
+  Future<File?> exportTemplatePack(List<String> templateIds, String packName) async {
+    try {
+      _logger.info('[UnifiedTemplate] Exporting template pack: $packName');
+
+      final templates = <Map<String, dynamic>>[];
+
+      for (final id in templateIds) {
+        final template = await getTemplateById(id);
+        if (template != null) {
+          templates.add({
+            'title': getTemplateTitle(template),
+            'body': getTemplateBody(template),
+            'category': getTemplateCategoryString(template),
+            'description': getTemplateDescription(template),
+            'tags': getTemplateTags(template),
+            'variables': getTemplateVariables(template),
+            'icon': getTemplateIcon(template),
+            'metadata': getTemplateMetadata(template),
+          });
+        }
+      }
+
+      final exportData = {
+        'version': currentVersion,
+        'packName': packName,
+        'templates': templates,
+        'count': templates.length,
+        'exportedAt': DateTime.now().toIso8601String(),
+      };
+
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      // Create temporary file
+      final tempDir = await getTemporaryDirectory();
+      final fileName = '${packName.replaceAll(RegExp(r'[^\w\s-]'), '')}_pack.$templatePackExtension';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(jsonString);
+
+      _logger.info('[UnifiedTemplate] Template pack exported to: ${file.path}');
+      return file;
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to export template pack', error: e, stackTrace: stack);
+      return null;
+    }
+  }
+
+  /// Import templates from a template pack
+  Future<List<UnifiedTemplate>> importTemplatePack(File file) async {
+    try {
+      _logger.info('[UnifiedTemplate] Importing template pack from: ${file.path}');
+
+      final jsonString = await file.readAsString();
+      final data = json.decode(jsonString) as Map<String, dynamic>;
+
+      // Check version compatibility
+      final version = data['version'] as int? ?? 1;
+      if (version > currentVersion) {
+        throw Exception('Template pack version $version is not supported');
+      }
+
+      final templatesData = data['templates'] as List;
+      final importedTemplates = <UnifiedTemplate>[];
+
+      for (final templateData in templatesData) {
+        final template = await createTemplate(
+          title: templateData['title'] as String,
+          body: templateData['body'] as String,
+          category: _parseCategory(templateData['category'] as String?),
+          description: templateData['description'] as String?,
+          icon: templateData['icon'] as String?,
+          tags: (templateData['tags'] as List?)?.cast<String>(),
+          metadata: templateData['metadata'] as Map<String, dynamic>?,
+          variables: (templateData['variables'] as List?)?.cast<String>(),
+        );
+
+        if (template != null) {
+          importedTemplates.add(template);
+        }
+      }
+
+      _logger.info('[UnifiedTemplate] Imported ${importedTemplates.length} templates');
+      return importedTemplates;
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to import template pack', error: e, stackTrace: stack);
+      return [];
+    }
+  }
+
+  /// Get template statistics
+  Future<TemplateStatistics> getStatistics() async {
+    try {
+      final templates = await getAllTemplates(
+        filter: const TemplateFilterOptions(includeDeleted: false),
+      );
+
+      int system = 0;
+      int custom = 0;
+      int favorites = 0;
+      final categoryCounts = <String, int>{};
+
+      String? mostUsedId;
+      int maxUsageCount = 0;
+
+      for (final template in templates) {
+        // Count by type
+        if (getTemplateIsSystem(template)) {
+          system++;
+        } else {
+          custom++;
+        }
+
+        // Count favorites
+        if (getTemplateIsFavorite(template)) {
+          favorites++;
+        }
+
+        // Count by category
+        final category = getTemplateCategoryString(template);
+        categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+
+        // Track most used
+        final usageCount = getTemplateUsageCount(template);
+        if (usageCount > maxUsageCount) {
+          maxUsageCount = usageCount;
+          mostUsedId = getTemplateId(template);
+        }
+      }
+
+      // Count recently used (last 7 days)
+      final recentCutoff = DateTime.now().subtract(const Duration(days: 7));
+      final recentlyUsed = templates.where((t) {
+        final lastUsed = getTemplateLastUsedAt(t);
+        return lastUsed != null && lastUsed.isAfter(recentCutoff);
+      }).length;
+
+      return TemplateStatistics(
+        total: templates.length,
+        system: system,
+        custom: custom,
+        favorites: favorites,
+        recentlyUsed: recentlyUsed,
+        mostUsed: mostUsedId,
+        categoryCounts: categoryCounts,
+      );
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to get statistics', error: e, stackTrace: stack);
+      return TemplateStatistics(
+        total: 0,
+        system: 0,
+        custom: 0,
+        favorites: 0,
+        recentlyUsed: 0,
+        mostUsed: null,
+        categoryCounts: {},
+      );
+    }
+  }
+
+  /// Watch templates stream
+  Stream<List<UnifiedTemplate>> watchTemplates({
+    TemplateFilterOptions? filter,
+  }) {
+    try {
+      if (migrationConfig.isFeatureEnabled('templates')) {
+        // Use domain repository stream
+        final client = Supabase.instance.client;
+        final repository = infra.TemplateCoreRepository(db: db, client: client);
+        return Stream.periodic(const Duration(seconds: 1))
+            .asyncMap((_) async {
+          final templates = await repository.getAllTemplates();
+          // templates are already domain Templates from repository
+          return _applyFilters(templates, filter);
+        });
+      } else {
+        // Use legacy database stream
+        var query = db.select(db.localTemplates);
+
+        if (filter != null) {
+          if (filter.category != null) {
+            query = query..where((t) => t.category.equals(filter.category!.name));
+          }
+
+          if (filter.isSystem != null) {
+            query = query..where((t) => t.isSystem.equals(filter.isSystem!));
+          }
+
+          // LocalTemplatesTable doesn't have a deleted field
+          // Templates are permanently deleted, not soft deleted
+        }
+
+        query = _applySorting(query, filter?.sortBy, filter?.sortDescending);
+
+        return query.watch().map((templates) => _applyFilters(templates, filter));
+      }
+    } catch (e, stack) {
+      _logger.error('[UnifiedTemplate] Failed to watch templates', error: e, stackTrace: stack);
+      return Stream.value([]);
+    }
+  }
+
+  // ========== HELPER METHODS ==========
+
+  /// Get template ID regardless of type
+  String getTemplateId(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return template.id;
+    } else if (template is LocalTemplate) {
+      return template.id;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template title regardless of type
+  String getTemplateTitle(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return template.name;  // domain.Template uses 'name' not 'title'
+    } else if (template is LocalTemplate) {
+      return template.title;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template body regardless of type
+  String getTemplateBody(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return template.body;
+    } else if (template is LocalTemplate) {
+      return template.body;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template description regardless of type
+  String? getTemplateDescription(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return null;  // domain.Template doesn't have description
+    } else if (template is LocalTemplate) {
+      return template.description;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template category string regardless of type
+  String getTemplateCategoryString(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return 'General';  // domain.Template doesn't have category, use default
+    } else if (template is LocalTemplate) {
+      return template.category;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template icon regardless of type
+  String? getTemplateIcon(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return null;  // domain.Template doesn't have icon
+    } else if (template is LocalTemplate) {
+      return template.icon;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Check if template is system template
+  bool getTemplateIsSystem(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return template.isSystem;
+    } else if (template is LocalTemplate) {
+      return template.isSystem;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Check if template is favorite
+  bool getTemplateIsFavorite(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return false;  // domain.Template doesn't have isFavorite
+    } else if (template is LocalTemplate) {
+      // LocalTemplate doesn't have isFavorite field, check metadata
+      if (template.metadata != null) {
+        try {
+          final meta = json.decode(template.metadata!) as Map<String, dynamic>;
+          return meta['isFavorite'] == true;
+        } catch (_) {}
+      }
+      return false;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template usage count
+  int getTemplateUsageCount(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return 0;  // domain.Template doesn't have usageCount
+    } else if (template is LocalTemplate) {
+      return 0;  // LocalTemplate doesn't have usageCount either
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template last used date
+  DateTime? getTemplateLastUsedAt(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return null;  // domain.Template doesn't have lastUsedAt
+    } else if (template is LocalTemplate) {
+      return null;  // LocalTemplate doesn't have lastUsedAt either
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template tags
+  List<String> getTemplateTags(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return [];  // domain.Template doesn't have tags
+    } else if (template is LocalTemplate) {
+      try {
+        return List<String>.from(json.decode(template.tags) as List);
+      } catch (_) {}
+          return [];
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template variables
+  List<String> getTemplateVariables(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      return template.variables.keys.toList();
+    } else if (template is LocalTemplate) {
+      // LocalTemplate doesn't have variables field, extract from body
+      final variables = _variableService.extractVariables(template.body);
+      return variables.map((v) => v.name).toList();
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  /// Get template metadata
+  Map<String, dynamic>? getTemplateMetadata(UnifiedTemplate template) {
+    if (template is domain.Template) {
+      // Domain template doesn't have metadata field, return null
+      return null;
+    } else if (template is LocalTemplate) {
+      if (template.metadata != null) {
+        try {
+          return json.decode(template.metadata!) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      return null;
+    }
+    throw ArgumentError('Unknown template type: ${template.runtimeType}');
+  }
+
+  // ========== PRIVATE HELPER METHODS ==========
+
+  /// Apply filters to templates
+  List<UnifiedTemplate> _applyFilters(List<UnifiedTemplate> templates, TemplateFilterOptions? filter) {
+    if (filter == null) return templates;
+
+    return templates.where((template) {
+      // Search query filter
+      if (filter.searchQuery != null && filter.searchQuery!.isNotEmpty) {
+        final query = filter.searchQuery!.toLowerCase();
+        final title = getTemplateTitle(template).toLowerCase();
+        final body = getTemplateBody(template).toLowerCase();
+        final description = getTemplateDescription(template)?.toLowerCase() ?? '';
+        if (!title.contains(query) && !body.contains(query) && !description.contains(query)) {
+          return false;
+        }
+      }
+
+      // Favorite filter
+      if (filter.isFavorite != null && filter.isFavorite != getTemplateIsFavorite(template)) {
+        return false;
+      }
+
+      // Tags filter
+      if (filter.tags.isNotEmpty) {
+        final templateTags = getTemplateTags(template);
+        if (!filter.tags.any((tag) => templateTags.contains(tag))) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Apply sorting to query
+  SimpleSelectStatement<$LocalTemplatesTable, LocalTemplate> _applySorting(
+    SimpleSelectStatement<$LocalTemplatesTable, LocalTemplate> query,
+    TemplateSortBy? sortBy,
+    bool? descending,
+  ) {
+    final desc = descending ?? false;
+
+    switch (sortBy) {
+      case TemplateSortBy.name:
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.title,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      case TemplateSortBy.category:
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.category,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      case TemplateSortBy.usage:
+        // LocalTemplatesTable doesn't have usageCount, sort by updatedAt as proxy
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.updatedAt,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      case TemplateSortBy.createdAt:
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.createdAt,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      case TemplateSortBy.updatedAt:
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.updatedAt,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      case TemplateSortBy.favorite:
+        // Can't sort by favorite or usage in LocalTemplate, sort by updatedAt
+        return query..orderBy([
+          (t) => OrderingTerm(
+            expression: t.updatedAt,
+            mode: desc ? OrderingMode.desc : OrderingMode.asc,
+          ),
+        ]);
+      default:
+        return query;
+    }
+  }
+
+  /// Get category from template
+  TemplateCategory _getCategoryFromTemplate(UnifiedTemplate template) {
+    final categoryString = getTemplateCategoryString(template);
+    return _parseCategory(categoryString);
+  }
+
+  /// Parse category string to enum
+  TemplateCategory _parseCategory(String? category) {
+    if (category == null) return TemplateCategory.general;
+
+    try {
+      return TemplateCategory.values.firstWhere(
+        (c) => c.name == category,
+        orElse: () => TemplateCategory.general,
+      );
+    } catch (_) {
+      return TemplateCategory.general;
+    }
+  }
+
+  /// Track template created analytics
+  Future<void> _trackTemplateCreated(String category) async {
+    try {
+      final analytics = ref.read(analyticsProvider);
+      analytics.event('template_created', properties: {
+        'category': category,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      _logger.warning('[UnifiedTemplate] Failed to track template created');
+    }
+  }
+
+  /// Track template used analytics
+  Future<void> _trackTemplateUsed(String templateId) async {
+    try {
+      final analytics = ref.read(analyticsProvider);
+      analytics.event('template_used', properties: {
+        'template_id': templateId,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      _logger.warning('[UnifiedTemplate] Failed to track template used');
+    }
+  }
+
+  /// Track template deleted analytics
+  Future<void> _trackTemplateDeleted() async {
+    try {
+      final analytics = ref.read(analyticsProvider);
+      analytics.event('template_deleted', properties: {
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      _logger.warning('[UnifiedTemplate] Failed to track template deleted');
+    }
+  }
+}
+
+/// Provider for unified template service
+final unifiedTemplateServiceProvider = Provider<UnifiedTemplateService>((ref) {
+  final db = ref.watch(appDbProvider);
+  final config = ref.watch(migrationConfigProvider);
+
+  return UnifiedTemplateService(
+    ref: ref,
+    db: db,
+    migrationConfig: config,
+  );
+});

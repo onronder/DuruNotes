@@ -45,3 +45,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files - NEVER COMMIT
+*.env
+.env*
+assets/env/
+**/env/prod.env
+**/env/dev.env
+**/env/staging.env
+
+# Secrets and keys
+*.key
+*.pem
+*.p12
+*.pfx
+service-account.json
+google-services.json
+GoogleService-Info.plist
+
+# Local configuration
+.local/
+.secrets/
