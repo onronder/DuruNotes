@@ -89,11 +89,11 @@ class BlockTheme {
 /// for gradual migration.
 class UnifiedBlockEditor extends ConsumerStatefulWidget {
   final List<NoteBlock> blocks;
-  final Function(List<NoteBlock>) onBlocksChanged;
+  final void Function(List<NoteBlock>) onBlocksChanged;
   final BlockEditorConfig config;
   final String? noteId;
   final int? focusedBlockIndex;
-  final Function(int?)? onBlockFocusChanged;
+  final void Function(int?)? onBlockFocusChanged;
 
   const UnifiedBlockEditor({
     super.key,
@@ -708,7 +708,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
 @Deprecated('Use UnifiedBlockEditor instead')
 class BlockEditorWrapper extends StatelessWidget {
   final List<NoteBlock> blocks;
-  final Function(List<NoteBlock>) onChanged;
+  final void Function(List<NoteBlock>) onChanged;
 
   const BlockEditorWrapper({
     super.key,

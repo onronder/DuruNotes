@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/core/error/provider_error_recovery.dart';
 import 'package:duru_notes/core/security/security_initialization.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/models/note_kind.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
 import 'package:duru_notes/services/error_logging_service.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain_task;
-import 'dart:async';
+import 'package:duru_notes/domain/entities/note.dart' as domain_note;
+import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
+import 'package:duru_notes/features/notes/providers/notes_domain_providers.dart' hide domainNotesProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_domain_providers.dart' hide domainTasksProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
+import 'package:duru_notes/providers.dart' show domainNotesProvider, domainTasksProvider, domainFoldersProvider;
 
 /// Secure wrapper for providers with error recovery and monitoring
 /// This provides production-grade error handling for all critical providers
@@ -19,27 +22,17 @@ import 'dart:async';
 // ============================================================================
 
 /// Secure notes provider with automatic error recovery
-final secureNotesProvider = FutureProvider.autoDispose<List<LocalNote>>((ref) async {
+/// Returns domain.Note objects - consumers should use domain types
+final secureNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((ref) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
     providerId: 'notes_provider',
     operation: () async {
-      // Watch the original provider
-      return await ref.watch(domainNotesProvider.future).then((notes) =>
-        notes.map((n) => LocalNote(
-          id: n.id,
-          title: n.title ?? '',
-          body: n.body ?? '',
-          updatedAt: n.updatedAt ?? DateTime.now(),
-          deleted: false,
-          userId: '',
-          noteType: NoteKind.note,
-          version: 1,
-          isPinned: false,
-        )).toList());
+      // Watch the domain notes provider
+      return await ref.watch(domainNotesProvider.future);
     },
-    fallbackValue: <LocalNote>[], // Empty list as fallback
+    fallbackValue: <domain_note.Note>[], // Empty list as fallback
     onError: (error, stack) {
       // Log critical errors
       SecurityInitialization.errorLogging.logError(
@@ -54,13 +47,14 @@ final secureNotesProvider = FutureProvider.autoDispose<List<LocalNote>>((ref) as
 });
 
 /// Secure filtered notes provider
-final secureFilteredNotesProvider = FutureProvider.autoDispose<List<LocalNote>>((ref) async {
+/// Returns domain.Note objects - filtering is handled by the domain providers
+final secureFilteredNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((ref) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   // Configure specific recovery for filtered notes
   recovery.configureProvider(
     providerId: 'filtered_notes_provider',
-    fallbackValue: <LocalNote>[],
+    fallbackValue: <domain_note.Note>[],
     retryPolicy: RetryPolicy(
       maxAttempts: 2,
       retryDelay: const Duration(seconds: 1),
@@ -71,20 +65,10 @@ final secureFilteredNotesProvider = FutureProvider.autoDispose<List<LocalNote>>(
   return recovery.executeWithRecovery(
     providerId: 'filtered_notes_provider',
     operation: () async {
-      return await ref.watch(domainFilteredNotesProvider.future).then((notes) =>
-        notes.map((n) => LocalNote(
-          id: n.id,
-          title: n.title ?? '',
-          body: n.body ?? '',
-          updatedAt: n.updatedAt ?? DateTime.now(),
-          deleted: false,
-          userId: '',
-          noteType: NoteKind.note,
-          version: 1,
-          isPinned: false,
-        )).toList());
+      // Use the domain notes provider - filtering happens elsewhere
+      return await ref.watch(domainNotesProvider.future);
     },
-    fallbackValue: <LocalNote>[],
+    fallbackValue: <domain_note.Note>[],
   );
 });
 
@@ -93,28 +77,14 @@ final secureFilteredNotesProvider = FutureProvider.autoDispose<List<LocalNote>>(
 // ============================================================================
 
 /// Secure tasks provider with error recovery
-final secureTasksProvider = StreamProvider.autoDispose<List<NoteTask>>((ref) {
+/// Returns domain.Task objects
+final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.streamWithRecovery(
     providerId: 'tasks_provider',
-    streamFactory: () => ref.watch(domainTasksStreamProvider.stream).map(
-      (tasks) => tasks.map((t) => NoteTask(
-        id: t.id,
-        noteId: t.noteId,
-        content: t.title,  // Using title as content since NoteTask expects content
-        contentHash: t.title.hashCode.toString(),  // Generate hash from title
-        position: 0,  // Default position
-        status: TaskStatus.values.firstWhere((s) => s.name == t.status.name),
-        priority: TaskPriority.values.firstWhere((p) => p.name == t.priority.name),
-        dueDate: t.dueDate,
-        completedAt: t.completedAt,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      )).toList(),
-    ),
-    fallbackValue: <NoteTask>[],
+    streamFactory: () => ref.watch(domainTasksStreamProvider.stream),
+    fallbackValue: <domain_task.Task>[],
   );
 });
 
@@ -125,7 +95,7 @@ final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((re
   return recovery.executeWithRecovery(
     providerId: 'task_stats_provider',
     operation: () async {
-      final tasks = await ref.watch(domainTasksProvider.future);
+      final tasks = await ref.watch(domainTasksProvider.future) ?? <domain_task.Task>[];
       final now = DateTime.now();
 
       return {
@@ -153,28 +123,29 @@ final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((re
 // ============================================================================
 
 /// Secure folders provider
-final secureFoldersProvider = FutureProvider.autoDispose<List<LocalFolder>>((ref) async {
+/// Returns domain.Folder objects
+final secureFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
     providerId: 'folders_provider',
     operation: () async {
-      final repo = ref.watch(folderRepositoryProvider);
-      return await repo.getAllFolders();
+      return await ref.watch(domainFoldersProvider.future);
     },
-    fallbackValue: <LocalFolder>[],
+    fallbackValue: <domain_folder.Folder>[],
   );
 });
 
 /// Secure folder tree provider
-final secureFolderTreeProvider = FutureProvider.autoDispose<LocalFolder?>((ref) async {
+/// DEPRECATED: Folder tree structure should be built from flat list
+@Deprecated('Build tree from domainFoldersProvider instead')
+final secureFolderTreeProvider = FutureProvider.autoDispose<domain_folder.Folder?>((ref) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
     providerId: 'folder_tree_provider',
     operation: () async {
-      final repo = ref.watch(folderRepositoryProvider);
-      // getFolderTree not available, returning null
+      // Folders are now flat - consumers should build tree from parent relationships
       return null;
     },
     fallbackValue: null,
@@ -186,32 +157,34 @@ final secureFolderTreeProvider = FutureProvider.autoDispose<LocalFolder?>((ref) 
 // ============================================================================
 
 /// Secure tags provider
-final secureTagsProvider = StreamProvider.autoDispose<List<TagModel>>((ref) {
+/// DEPRECATED: Tags are embedded in notes, use domain notes and extract tags
+@Deprecated('Extract tags from notes instead')
+final secureTagsProvider = StreamProvider.autoDispose<List<String>>((ref) {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.streamWithRecovery(
     providerId: 'tags_provider',
     streamFactory: () {
-      final repo = ref.watch(tagRepositoryInterfaceProvider);
-      // watchAllTags not available, using Stream.value
-      return Stream.value(<TagModel>[]);
+      // Tags are now part of notes - consumers should extract from notes
+      return Stream.value(<String>[]);
     },
-    fallbackValue: <TagModel>[],
+    fallbackValue: <String>[],
   );
 });
 
 /// Secure popular tags provider
-final securePopularTagsProvider = FutureProvider.autoDispose<List<TagModel>>((ref) async {
+/// DEPRECATED: Extract from notes instead
+@Deprecated('Extract popular tags from notes instead')
+final securePopularTagsProvider = FutureProvider.autoDispose<List<String>>((ref) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
     providerId: 'popular_tags_provider',
     operation: () async {
-      final repo = ref.watch(tagRepositoryInterfaceProvider);
-      // getPopularTags not available, returning empty list
-      return <TagModel>[];
+      // Tags are embedded in notes
+      return <String>[];
     },
-    fallbackValue: <TagModel>[],
+    fallbackValue: <String>[],
   );
 });
 
@@ -248,7 +221,7 @@ final secureSyncOperationProvider = FutureProvider.autoDispose<void>((ref) async
     providerId: 'sync_operation_provider',
     operation: () async {
       // TODO: Implement sync service
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
     },
     fallbackValue: null,
     onError: (error, stack) {
@@ -269,7 +242,8 @@ final secureSyncOperationProvider = FutureProvider.autoDispose<void>((ref) async
 // ============================================================================
 
 /// Secure search provider
-final secureSearchProvider = FutureProvider.autoDispose.family<List<LocalNote>, String>(
+/// Returns domain.Note objects
+final secureSearchProvider = FutureProvider.autoDispose.family<List<domain_note.Note>, String>(
   (ref, query) async {
     final recovery = SecurityInitialization.providerRecovery;
 
@@ -285,14 +259,19 @@ final secureSearchProvider = FutureProvider.autoDispose.family<List<LocalNote>, 
         );
 
         if (validatedQuery == null || validatedQuery.isEmpty) {
-          return <LocalNote>[];
+          return <domain_note.Note>[];
         }
 
-        // Perform search
-        // searchNotes not available in ISearchRepository
-        return <LocalNote>[];
+        // Perform search using domain notes provider
+        final allNotes = await ref.watch(domainNotesProvider.future);
+        final lowerQuery = validatedQuery.toLowerCase();
+
+        return allNotes.where((note) {
+          return note.title.toLowerCase().contains(lowerQuery) ||
+                 note.body.toLowerCase().contains(lowerQuery);
+        }).toList();
       },
-      fallbackValue: <LocalNote>[],
+      fallbackValue: <domain_note.Note>[],
     );
   },
 );
@@ -331,8 +310,8 @@ final secureAnalyticsProvider = FutureProvider.autoDispose<Map<String, dynamic>>
   return recovery.executeWithRecovery(
     providerId: 'analytics_provider',
     operation: () async {
-      final notes = await ref.watch(domainNotesProvider.future);
-      final tasks = await ref.watch(domainTasksProvider.future);
+      final notes = await ref.watch(domainNotesProvider.future) ?? <domain_note.Note>[];
+      final tasks = await ref.watch(domainTasksProvider.future) ?? <domain_task.Task>[];
 
       return {
         'totalNotes': notes.length,

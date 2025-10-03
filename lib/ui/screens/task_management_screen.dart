@@ -1,7 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/unified_task_service.dart' as unified;
-import 'package:duru_notes/ui/widgets/tasks/task_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -245,10 +244,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                           Icons.radio_button_unchecked),
                       ...openTasks.map((task) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: TaskCard(
-                              dbTask: task,
-                              callbacks: taskService,
-                            ),
+                            child: _buildTaskCard(task, taskService, theme),
                           )),
                     ],
 
@@ -261,10 +257,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Opacity(
                               opacity: 0.7,
-                              child: TaskCard(
-                                dbTask: task,
-                                callbacks: taskService,
-                              ),
+                              child: _buildTaskCard(task, taskService, theme),
                             ),
                           )),
                     ],
@@ -278,10 +271,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Opacity(
                               opacity: 0.5,
-                              child: TaskCard(
-                                dbTask: task,
-                                callbacks: taskService,
-                              ),
+                              child: _buildTaskCard(task, taskService, theme),
                             ),
                           )),
                     ],
@@ -400,7 +390,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
   void _showQuickAddDialog(BuildContext context, unified.UnifiedTaskService service) {
     final controller = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Quick Add Task'),
@@ -446,7 +436,7 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
   }
 
   void _showStatistics(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Task Statistics'),
@@ -502,6 +492,42 @@ class _TaskManagementScreenState extends ConsumerState<TaskManagementScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(NoteTask task, unified.UnifiedTaskService service, ThemeData theme) {
+    return Card(
+      child: ListTile(
+        leading: Checkbox(
+          value: task.status == TaskStatus.completed,
+          onChanged: (checked) async {
+            if (checked == true) {
+              await service.completeTask(task.id);
+            } else {
+              await service.updateTask(
+                task.copyWith(status: TaskStatus.open),
+              );
+            }
+            setState(() {});
+          },
+        ),
+        title: Text(
+          task.content,
+          style: task.status == TaskStatus.completed
+              ? const TextStyle(decoration: TextDecoration.lineThrough)
+              : null,
+        ),
+        subtitle: task.dueDate != null
+            ? Text('Due: ${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}')
+            : null,
+        trailing: Icon(
+          Icons.flag,
+          color: _getPriorityColor(task.priority),
+        ),
+        onTap: () {
+          // Show task details
+        },
       ),
     );
   }

@@ -5,9 +5,12 @@ import 'package:crypto/crypto.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
 import 'package:duru_notes/services/sync/folder_remote_api.dart';
 import 'package:duru_notes/services/sync/folder_sync_audit.dart';
+
+// Legacy type alias for backward compatibility
+typedef FolderRepository = FolderCoreRepository;
 
 /// Coordinates folder sync operations with conflict resolution
 class FolderSyncCoordinator {
@@ -159,23 +162,31 @@ class FolderSyncCoordinator {
         }
       }
 
-      // Update locally
-      final updated = await repository.updateLocalFolder(
+      // Update locally - updateLocalFolder expects a LocalFolder object
+      final existingFolder = await repository.getFolderById(id);
+      if (existingFolder == null) {
+        throw Exception('Folder not found for update: $id');
+      }
+
+      final updatedFolder = LocalFolder(
         id: id,
         name: name,
         parentId: parentId,
-        color: color,
-        icon: icon,
-        description: description,
+        path: existingFolder.path, // Keep existing path
+        sortOrder: existingFolder.sortOrder,
+        color: color ?? existingFolder.color,
+        icon: icon ?? existingFolder.icon,
+        description: description ?? existingFolder.description,
+        createdAt: existingFolder.createdAt,
+        updatedAt: DateTime.now(),
+        deleted: false,
       );
 
-      if (!updated) {
-        throw Exception('Failed to update local folder');
-      }
+      await repository.updateLocalFolder(updatedFolder);
 
       // Get updated folder
-      final updatedFolder = await repository.getFolderById(id);
-      if (updatedFolder == null) {
+      final refreshedFolder = await repository.getFolderById(id);
+      if (refreshedFolder == null) {
         throw Exception('Updated folder not found');
       }
 
@@ -228,11 +239,8 @@ class FolderSyncCoordinator {
         folderName,
       );
 
-      // Delete locally
-      final deleted = await repository.deleteLocalFolder(id);
-      if (!deleted) {
-        throw Exception('Failed to delete local folder');
-      }
+      // Delete locally (returns void)
+      await repository.deleteLocalFolder(id);
 
       // Queue for sync
       _pendingOperations[id] = FolderOperation.delete(
@@ -541,14 +549,7 @@ class FolderSyncCoordinator {
       case ConflictResolution.merge:
         // Merge changes (implement merge logic)
         final merged = _mergeFolders(local, remote);
-        await repository.updateLocalFolder(
-          id: merged.id,
-          name: merged.name,
-          parentId: merged.parentId,
-          color: merged.color,
-          icon: merged.icon,
-          description: merged.description,
-        );
+        await repository.updateLocalFolder(merged);
         await _syncFolderToRemote(merged, 'conflict_merge');
         return true;
 
@@ -639,7 +640,8 @@ class FolderSyncCoordinator {
   }
 
   Future<void> _createFolderFromRemote(Map<String, dynamic> remote) async {
-    await repository.createLocalFolder(
+    // Use createOrUpdateFolder which accepts id parameter for sync
+    await repository.createOrUpdateFolder(
       id: remote['id'] as String,
       name: remote['name'] as String,
       parentId: remote['parent_id'] as String?,
@@ -653,14 +655,21 @@ class FolderSyncCoordinator {
     LocalFolder local,
     Map<String, dynamic> remote,
   ) async {
-    await repository.updateLocalFolder(
+    final updatedFolder = LocalFolder(
       id: local.id,
       name: remote['name'] as String,
       parentId: remote['parent_id'] as String?,
-      color: remote['color'] as String?,
-      icon: remote['icon'] as String?,
-      description: remote['description'] as String?,
+      path: local.path, // Keep existing path
+      sortOrder: local.sortOrder,
+      color: remote['color'] as String? ?? local.color,
+      icon: remote['icon'] as String? ?? local.icon,
+      description: remote['description'] as String? ?? local.description,
+      createdAt: local.createdAt,
+      updatedAt: DateTime.now(),
+      deleted: false,
     );
+
+    await repository.updateLocalFolder(updatedFolder);
   }
 
   Future<void> _processPendingOperation(FolderOperation op) async {

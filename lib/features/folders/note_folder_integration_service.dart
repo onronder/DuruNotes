@@ -2,20 +2,21 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:duru_notes/providers.dart'; // Import to get extension methods
 
 /// Service for handling note-folder integration operations with analytics and recent folder tracking
 class NoteFolderIntegrationService {
   NoteFolderIntegrationService({
-    required NotesRepository notesRepository,
+    required NotesCoreRepository notesRepository,
     required this.analyticsService,
   }) : _notesRepository = notesRepository,
        _logger = LoggerFactory.instance;
 
-  final NotesRepository _notesRepository;
+  final NotesCoreRepository _notesRepository;
   final AnalyticsService analyticsService;
   final AppLogger _logger;
 

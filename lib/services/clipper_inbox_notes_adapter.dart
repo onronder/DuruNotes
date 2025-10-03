@@ -1,6 +1,9 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 class CaptureNotesAdapter implements NotesCapturePort {
   CaptureNotesAdapter({required NotesRepository repository, required AppDb db})
@@ -48,7 +51,7 @@ class CaptureNotesAdapter implements NotesCapturePort {
       title: title,
       body: bodyWithTags,
       tags:
-          tagSet, // PRODUCTION FIX: Pass normalized tags to be stored in note_tags table
+          tagSet.toList(), // PRODUCTION FIX: Pass normalized tags to be stored in note_tags table
       metadataJson: metadataJson.isNotEmpty ? metadataJson : null,
     );
 

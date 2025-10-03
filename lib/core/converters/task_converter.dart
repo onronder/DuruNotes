@@ -10,7 +10,7 @@ class TaskConverter {
       id: local.id,
       noteId: local.noteId,
       title: local.content, // NoteTask uses 'content' for the task text
-      content: local.notes, // Optional extended content from notes field
+      description: local.notes, // Optional extended content from notes field
       status: _convertStatusToDomain(local.status),
       priority: _convertPriorityToDomain(local.priority),
       dueDate: local.dueDate,
@@ -32,7 +32,7 @@ class TaskConverter {
       dueDate: task.dueDate,
       completedAt: task.completedAt,
       position: 0, // Default position
-      notes: task.content, // Store extended content in notes field
+      notes: task.description, // Store extended content in notes field
       labels: _tagsToLabelsJson(task.tags), // Convert tags to JSON labels
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),

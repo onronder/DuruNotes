@@ -22,7 +22,7 @@ class TemplateConverter {
     return domain.Template(
       id: local.id,
       name: local.title, // LocalTemplate uses 'title', domain uses 'name'
-      body: local.body,
+      content: local.body,
       variables: variables,
       isSystem: local.isSystem,
       createdAt: local.createdAt,
@@ -43,7 +43,7 @@ class TemplateConverter {
     return LocalTemplate(
       id: template.id,
       title: template.name, // domain uses 'name', LocalTemplate uses 'title'
-      body: template.body,
+      body: template.content,
       tags: '[]', // Default empty tags JSON
       category: 'general', // Default category
       description: '', // Default empty description
@@ -113,7 +113,7 @@ class TemplateConverter {
   /// Get body from any template type
   static String getTemplateBody(dynamic template) {
     if (template is domain.Template) {
-      return template.body;
+      return template.content;
     } else if (template is LocalTemplate) {
       return template.body;
     } else {

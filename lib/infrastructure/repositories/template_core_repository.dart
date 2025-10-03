@@ -26,7 +26,7 @@ class TemplateCoreRepository implements ITemplateRepository {
       final localTemplates = await db.getAllTemplates();
       return TemplateMapper.toDomainList(localTemplates);
     } catch (e, stack) {
-      _logger.error('Failed to get all templates', e, stack);
+      _logger.error('Failed to get all templates', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -37,7 +37,7 @@ class TemplateCoreRepository implements ITemplateRepository {
       final localTemplates = await db.getSystemTemplates();
       return TemplateMapper.toDomainList(localTemplates);
     } catch (e, stack) {
-      _logger.error('Failed to get system templates', e, stack);
+      _logger.error('Failed to get system templates', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -48,7 +48,7 @@ class TemplateCoreRepository implements ITemplateRepository {
       final localTemplates = await db.getUserTemplates();
       return TemplateMapper.toDomainList(localTemplates);
     } catch (e, stack) {
-      _logger.error('Failed to get user templates', e, stack);
+      _logger.error('Failed to get user templates', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -61,7 +61,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return TemplateMapper.toDomain(localTemplate);
     } catch (e, stack) {
-      _logger.error('Failed to get template by id: $id', e, stack);
+      _logger.error('Failed to get template by id: $id', error: e, stackTrace: stack);
       return null;
     }
   }
@@ -92,7 +92,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return templateToCreate;
     } catch (e, stack) {
-      _logger.error('Failed to create template: ${template.name}', e, stack);
+      _logger.error('Failed to create template: ${template.name}', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -129,7 +129,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return updatedTemplate;
     } catch (e, stack) {
-      _logger.error('Failed to update template: ${template.id}', e, stack);
+      _logger.error('Failed to update template: ${template.id}', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -160,7 +160,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       _logger.info('Deleted template: $id');
     } catch (e, stack) {
-      _logger.error('Failed to delete template: $id', e, stack);
+      _logger.error('Failed to delete template: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -200,7 +200,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return controller.stream;
     } catch (e, stack) {
-      _logger.error('Failed to create template watch stream', e, stack);
+      _logger.error('Failed to create template watch stream', error: e, stackTrace: stack);
       return Stream.error(e, stack);
     }
   }
@@ -235,7 +235,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return await createTemplate(template);
     } catch (e, stack) {
-      _logger.error('Failed to create template from note', e, stack);
+      _logger.error('Failed to create template from note', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -270,7 +270,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return processedContent;
     } catch (e, stack) {
-      _logger.error('Failed to apply template: $templateId', e, stack);
+      _logger.error('Failed to apply template: $templateId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -289,7 +289,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return stats;
     } catch (e, stack) {
-      _logger.error('Failed to get template usage stats', e, stack);
+      _logger.error('Failed to get template usage stats', error: e, stackTrace: stack);
       return {};
     }
   }
@@ -310,7 +310,7 @@ class TemplateCoreRepository implements ITemplateRepository {
         return matchesName || matchesContent;
       }).toList();
     } catch (e, stack) {
-      _logger.error('Failed to search templates with query: $query', e, stack);
+      _logger.error('Failed to search templates with query: $query', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -338,7 +338,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return await createTemplate(duplicatedTemplate);
     } catch (e, stack) {
-      _logger.error('Failed to duplicate template: $templateId', e, stack);
+      _logger.error('Failed to duplicate template: $templateId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -373,7 +373,7 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return true;
     } catch (e, stack) {
-      _logger.error('Failed to validate template: ${template.id}', e, stack);
+      _logger.error('Failed to validate template: ${template.id}', error: e, stackTrace: stack);
       return false;
     }
   }
@@ -406,7 +406,7 @@ class TemplateCoreRepository implements ITemplateRepository {
         await _createDefaultSystemTemplates();
       }
     } catch (e, stack) {
-      _logger.error('Failed to ensure system templates exist', e, stack);
+      _logger.error('Failed to ensure system templates exist', error: e, stackTrace: stack);
     }
   }
 
@@ -536,7 +536,7 @@ class TemplateCoreRepository implements ITemplateRepository {
         final localTemplate = TemplateMapper.toInfrastructure(template);
         await db.upsertTemplate(localTemplate);
       } catch (e) {
-        _logger.error('Failed to create system template: ${template.name}', e);
+        _logger.error('Failed to create system template: ${template.name}', error: e);
       }
     }
 

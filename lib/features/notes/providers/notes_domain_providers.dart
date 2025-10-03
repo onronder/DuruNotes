@@ -7,7 +7,6 @@ import 'package:duru_notes/features/notes/providers/notes_pagination_providers.d
 import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart';
 import 'package:duru_notes/features/search/providers/search_providers.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
-import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Domain notes stream provider - provides clean stream of domain.Note entities

@@ -22,7 +22,7 @@ class EnhancedMoveToFolderDialog extends ConsumerStatefulWidget {
   });
 
   final List<String> noteIds;
-  final Function(BatchMoveResult result) onMoveCompleted;
+  final void Function(BatchMoveResult result) onMoveCompleted;
   final String? currentFolderId;
 
   @override

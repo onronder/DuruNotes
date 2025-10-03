@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';

@@ -245,7 +245,7 @@ class _InboundEmailInboxWidgetState
   }
 
   void _showItemDetails(InboxItem item) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => InboxItemDetailSheet(
@@ -290,15 +290,15 @@ class _InboundEmailInboxWidgetState
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.primary.withOpacity(0.05),
-                    DuruColors.accent.withOpacity(0.03),
+                    DuruColors.primary.withValues(alpha: 0.05),
+                    DuruColors.accent.withValues(alpha: 0.03),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
                 ),
               ),
               child: Padding(
@@ -374,7 +374,7 @@ class _InboundEmailInboxWidgetState
                             Icon(
                               CupertinoIcons.tray,
                               size: 64,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                             ),
                             SizedBox(height: DuruSpacing.md),
                             Text(
@@ -391,7 +391,7 @@ class _InboundEmailInboxWidgetState
                                 'Send emails to:\n$_userEmailAddress\n\nOr use the Web Clipper extension',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                   fontSize: 14,
                                 ),
                               ),
@@ -442,11 +442,11 @@ class _InboundEmailInboxWidgetState
                                   color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.04),
+                                      color: Colors.black.withValues(alpha: 0.04),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -458,8 +458,8 @@ class _InboundEmailInboxWidgetState
                                     padding: EdgeInsets.all(DuruSpacing.sm),
                                     decoration: BoxDecoration(
                                       color: item.isWebClip
-                                          ? DuruColors.accent.withOpacity(0.1)
-                                          : DuruColors.primary.withOpacity(0.1),
+                                          ? DuruColors.accent.withValues(alpha: 0.1)
+                                          : DuruColors.primary.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: item.isWebClip
@@ -506,7 +506,7 @@ class _InboundEmailInboxWidgetState
                                           child: Icon(
                                             CupertinoIcons.paperclip,
                                             size: 18,
-                                            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                           ),
                                         ),
                                       SizedBox(width: DuruSpacing.xs),
@@ -516,7 +516,7 @@ class _InboundEmailInboxWidgetState
                                           vertical: DuruSpacing.xs,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(

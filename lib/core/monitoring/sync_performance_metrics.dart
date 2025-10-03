@@ -138,7 +138,7 @@ class SyncPerformanceMetrics {
       'maxSyncTime': _maxSyncTime.inMilliseconds,
       'minSyncTime': _minSyncTime.inMilliseconds,
       'maxQueueDepth': _maxQueueDepth,
-      'currentQueueDepths': Map.from(_queueDepth),
+      'currentQueueDepths': Map<String, int>.from(_queueDepth),
     };
   }
 

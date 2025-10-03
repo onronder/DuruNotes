@@ -4,7 +4,15 @@
 import 'package:duru_notes/core/models/unified_task.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/features/notes/providers/notes_unified_providers.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// ============================================================================
+// DEPRECATION LAYER - Backward compatibility aliases
+// ============================================================================
+/// @deprecated Use taskCoreRepositoryProvider instead
+@Deprecated('Use taskCoreRepositoryProvider from tasks_repository_providers.dart')
+final unifiedTasksRepositoryProvider = taskCoreRepositoryProvider;
 
 /// Main tasks list provider using UnifiedTask type
 final tasksListProvider = StateNotifierProvider<TasksListNotifier, AsyncValue<UnifiedTaskList>>((ref) {
@@ -133,13 +141,20 @@ final completedTasksProvider = Provider<List<UnifiedTask>>((ref) {
 /// Overdue tasks provider
 final overdueTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
   final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return await repository.getOverdueUnified();
+  // TODO: Implement getOverdue in domain repository or filter from getAllTasks
+  final allTasks = await repository.getAllTasks();
+  final now = DateTime.now();
+  return allTasks.where((task) {
+    if (task.dueDate == null) return false;
+    return task.dueDate!.isBefore(now) && task.status != domain.TaskStatus.completed;
+  }).map((t) => UnifiedTask.fromDomain(t)).toList();
 });
 
 /// Tasks for note provider
 final tasksForNoteProvider = FutureProvider.family<List<UnifiedTask>, String>((ref, noteId) async {
   final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return await repository.getTasksForNoteUnified(noteId);
+  final tasks = await repository.getTasksForNote(noteId);
+  return tasks.map((t) => UnifiedTask.fromDomain(t)).toList();
 });
 
 /// Today's tasks provider
@@ -201,17 +216,32 @@ class TaskStatistics {
 /// Watch tasks stream
 final watchTasksProvider = StreamProvider<List<UnifiedTask>>((ref) {
   final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return repository.watchTasksUnified();
+  return repository.watchTasks().map((tasks) =>
+    tasks.map((t) => UnifiedTask.fromDomain(t)).toList()
+  );
 });
 
 /// Watch tasks for note stream
 final watchTasksForNoteProvider = StreamProvider.family<List<UnifiedTask>, String>((ref, noteId) {
   final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return repository.watchTasksForNoteUnified(noteId);
+  // TODO: Implement watchTasksForNote in domain repository
+  // For now, filter from watchTasks
+  return repository.watchTasks().map((tasks) =>
+    tasks.where((t) => t.noteId == noteId)
+         .map((t) => UnifiedTask.fromDomain(t))
+         .toList()
+  );
 });
 
 /// Watch overdue tasks stream
 final watchOverdueTasksProvider = StreamProvider<List<UnifiedTask>>((ref) {
   final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return repository.watchOverdueTasks();
+  final now = DateTime.now();
+  return repository.watchTasks().map((tasks) =>
+    tasks.where((t) =>
+      t.dueDate != null &&
+      t.dueDate!.isBefore(now) &&
+      t.status != domain.TaskStatus.completed
+    ).map((t) => UnifiedTask.fromDomain(t)).toList()
+  );
 });

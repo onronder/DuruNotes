@@ -6,6 +6,7 @@ import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Adapter to enable services to work with both local and domain models
@@ -93,30 +94,30 @@ class ServiceAdapter {
       return {
         'id': note.id,
         'title': note.title,
-        'content': note.content,
+        'body': note.body,
         'folder_id': note.folderId,
-        'is_starred': note.isStarred,
         'is_pinned': note.isPinned,
-        'is_archived': note.isArchived,
-        'color': note.color,
         'version': note.version,
         'tags': note.tags,
-        'created_at': note.createdAt.toIso8601String(),
         'updated_at': note.updatedAt.toIso8601String(),
+        'user_id': note.userId,
+        'deleted': note.deleted,
+        'note_type': note.noteType.index,
       };
     } else if (note is LocalNote) {
+      // LocalNote only has: id, title, body, updatedAt, deleted, encryptedMetadata,
+      // isPinned, noteType, version, userId, attachmentMeta, metadata
+      // It does NOT have: folderId, starred, archived, color, createdAt, tags (tags are in separate table)
       return {
         'id': note.id,
         'title': note.title,
-        'content': note.content,
-        'folder_id': note.folderId,
-        'is_starred': note.starred,
-        'is_pinned': note.pinned,
-        'is_archived': note.archived,
-        'color': note.color,
+        'body': note.body,
+        'is_pinned': note.isPinned,
         'version': note.version,
-        'created_at': note.createdAt.toIso8601String(),
         'updated_at': note.updatedAt.toIso8601String(),
+        'user_id': note.userId,
+        'deleted': note.deleted,
+        'note_type': note.noteType.index,
       };
     }
     throw ArgumentError('Unknown note type: ${note.runtimeType}');
@@ -184,21 +185,25 @@ class ServiceAdapter {
   dynamic createNoteFromSync(Map<String, dynamic> data) {
     if (useDomainModels) {
       return domain.Note(
-        id: data['id'],
-        title: data['title'] ?? '',
-        content: data['content'] ?? '',
-        folderId: data['folder_id'],
-        isStarred: data['is_starred'] ?? false,
-        isPinned: data['is_pinned'] ?? false,
-        isArchived: data['is_archived'] ?? false,
-        color: data['color'],
-        version: data['version'] ?? 1,
-        tags: List<String>.from(data['tags'] ?? []),
-        attachments: [],
-        links: [],
-        metadata: {},
-        createdAt: DateTime.parse(data['created_at']),
-        updatedAt: DateTime.parse(data['updated_at']),
+        id: data['id'] as String,
+        title: (data['title'] ?? '') as String,
+        body: (data['body'] ?? data['content'] ?? '') as String,
+        folderId: data['folder_id'] as String?,
+        isPinned: (data['is_pinned'] ?? false) as bool,
+        version: (data['version'] ?? 1) as int,
+        tags: data['tags'] != null
+            ? List<String>.from(data['tags'] as List<dynamic>)
+            : const <String>[],
+        links: [], // Links need to be populated separately
+        updatedAt: DateTime.parse(data['updated_at'] as String),
+        userId: (data['user_id'] ?? '') as String,
+        deleted: (data['deleted'] ?? false) as bool,
+        noteType: data['note_type'] != null
+            ? NoteKind.values[data['note_type'] as int]
+            : NoteKind.note,
+        encryptedMetadata: data['encrypted_metadata'] as String?,
+        attachmentMeta: data['attachment_meta'] as String?,
+        metadata: data['metadata'] as String?,
       );
     } else {
       // For local model, we'd need to create using companion
@@ -212,16 +217,20 @@ class ServiceAdapter {
   dynamic createTaskFromSync(Map<String, dynamic> data) {
     if (useDomainModels) {
       return domain.Task(
-        id: data['id'],
-        noteId: data['note_id'],
-        title: data['content'] ?? '',
-        description: data['notes'],
-        status: _parseDomainTaskStatus(data['status']),
-        priority: _parseDomainTaskPriority(data['priority']),
-        dueDate: data['due_date'] != null ? DateTime.parse(data['due_date']) : null,
-        completedAt: data['completed_at'] != null ? DateTime.parse(data['completed_at']) : null,
-        tags: List<String>.from(data['tags'] ?? data['labels']?.split(',') ?? []),
-        metadata: {},
+        id: data['id'] as String,
+        noteId: data['note_id'] as String,
+        title: (data['content'] ?? '') as String,
+        description: data['notes'] as String?,
+        status: _parseDomainTaskStatus(data['status'] as String?),
+        priority: _parseDomainTaskPriority(data['priority'] as String?),
+        dueDate: data['due_date'] != null ? DateTime.parse(data['due_date'] as String) : null,
+        completedAt: data['completed_at'] != null ? DateTime.parse(data['completed_at'] as String) : null,
+        tags: List<String>.from(
+          (data['tags'] as List<dynamic>?) ??
+          (data['labels'] as String?)?.split(',') ??
+          <String>[]
+        ),
+        metadata: const <String, dynamic>{},
       );
     } else {
       // For local model, handled by repository
@@ -234,16 +243,16 @@ class ServiceAdapter {
   dynamic createFolderFromSync(Map<String, dynamic> data) {
     if (useDomainModels) {
       return domain.Folder(
-        id: data['id'],
-        name: data['name'],
-        parentId: data['parent_id'],
-        color: data['color'],
-        icon: data['icon'],
-        sortOrder: data['sort_order'] ?? 0,
-        noteCount: 0, // Will be updated separately
-        metadata: {},
-        createdAt: DateTime.parse(data['created_at']),
-        updatedAt: DateTime.parse(data['updated_at']),
+        id: data['id'] as String,
+        name: data['name'] as String,
+        parentId: data['parent_id'] as String?,
+        color: data['color'] as String?,
+        icon: data['icon'] as String?,
+        description: data['description'] as String?,
+        sortOrder: (data['sort_order'] ?? 0) as int,
+        createdAt: DateTime.parse(data['created_at'] as String),
+        updatedAt: DateTime.parse(data['updated_at'] as String),
+        userId: (data['user_id'] ?? '') as String,
       );
     } else {
       // For local model, handled by repository

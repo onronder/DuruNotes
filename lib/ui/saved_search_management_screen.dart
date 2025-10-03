@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +29,7 @@ class _SavedSearchManagementScreenState
   Future<void> _loadSavedSearches() async {
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(searchRepositoryProvider);
       final searches = await repo.getSavedSearches();
       if (mounted) {
         setState(() {
@@ -54,7 +54,7 @@ class _SavedSearchManagementScreenState
     );
 
     if (result != null) {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(searchRepositoryProvider);
       final savedSearch = SavedSearch(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: result['name'] as String,
@@ -85,7 +85,7 @@ class _SavedSearchManagementScreenState
     );
 
     if (result != null) {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(searchRepositoryProvider);
       final updatedSearch = search.copyWith(
         name: result['name'] as String,
         query: result['query'] as String,
@@ -127,7 +127,7 @@ class _SavedSearchManagementScreenState
     );
 
     if (confirmed ?? false) {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(searchRepositoryProvider);
       await repo.deleteSavedSearch(search.id);
       await _loadSavedSearches();
       if (mounted) {
@@ -140,14 +140,14 @@ class _SavedSearchManagementScreenState
   }
 
   Future<void> _togglePin(SavedSearch search) async {
-    final repo = ref.read(notesRepositoryProvider);
+    final repo = ref.read(searchRepositoryProvider);
     await repo.toggleSavedSearchPin(search.id);
     await _loadSavedSearches();
     HapticFeedback.lightImpact();
   }
 
   Future<void> _saveReorder() async {
-    final repo = ref.read(notesRepositoryProvider);
+    final repo = ref.read(searchRepositoryProvider);
     await repo.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
     setState(() => _isReordering = false);
     HapticFeedback.mediumImpact();
@@ -327,7 +327,7 @@ class _SavedSearchManagementScreenState
       ),
       onTap: () async {
         // Track usage
-        final repo = ref.read(notesRepositoryProvider);
+        final repo = ref.read(searchRepositoryProvider);
         await repo.trackSavedSearchUsage(search.id);
 
         // Execute search

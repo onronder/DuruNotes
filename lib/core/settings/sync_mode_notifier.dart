@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/settings/sync_mode.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +19,7 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
     _loadSyncMode();
   }
 
-  final NotesRepository _notesRepository;
+  final NotesCoreRepository _notesRepository;
   final VoidCallback? _onSyncComplete;
   static const String _syncModeKey = 'sync_mode';
 
@@ -97,37 +97,16 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       }
       debugPrint('✅ Authenticated user: ${currentUser.id}');
 
-      // Always push locals first
-      debugPrint('📤 Pushing local changes...');
-      await _notesRepository.pushAllPending();
-      debugPrint('✅ Local changes pushed');
+      // Check local database
+      final localNotes = await _notesRepository.localNotes();
+      debugPrint('📊 Local database has ${localNotes.length} notes');
 
-      // Determine since: if no local notes, force full pull
-      final localCount = (await _notesRepository.db.allNotes()).length;
-      final since =
-          localCount == 0 ? null : DateTime.fromMillisecondsSinceEpoch(0);
-
-      // Then pull latest changes
-      debugPrint(
-        '📥 Pulling remote changes... (since: ${since == null ? 'beginning' : since.toIso8601String()})',
-      );
-      await _notesRepository.pullSince(null);
-      debugPrint('✅ Remote changes pulled');
-
-      // Check local database after sync
-      final localNotes = await _notesRepository.listAfter(null, limit: 100);
-      debugPrint('📊 Local database now has ${localNotes.length} notes');
+      // Sync is handled by the unified sync service, not here
+      // This is just for displaying current state
       for (final note in localNotes.take(5)) {
         debugPrint(
           '  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})',
         );
-      }
-
-      // Also check folders after sync
-      final localFolders = await _notesRepository.listFolders();
-      debugPrint('📁 Local database has ${localFolders.length} folders');
-      for (final folder in localFolders.take(5)) {
-        debugPrint('  - ${folder.name} (path: ${folder.path})');
       }
 
       debugPrint('🎉 Manual sync completed successfully');

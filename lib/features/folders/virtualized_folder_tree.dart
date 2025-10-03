@@ -30,7 +30,7 @@ class VirtualizedFolderTree extends ConsumerStatefulWidget {
     this.indentWidth = 24.0,
   });
 
-  final Function(LocalFolder?)? onFolderSelected;
+  final void Function(LocalFolder?)? onFolderSelected;
   final String? selectedFolderId;
   final int maxInitialItems;
   final double itemHeight;

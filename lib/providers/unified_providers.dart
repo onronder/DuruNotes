@@ -7,11 +7,9 @@ import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/domain/entities/template.dart' as domain;
-import 'package:duru_notes/infrastructure/repositories/optimized_notes_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
-import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers.dart';
 
@@ -36,13 +34,12 @@ final unifiedNotesProvider = FutureProvider<List<UnifiedNote>>((ref) async {
   try {
     logger.info('[UnifiedProvider] Loading notes with unified architecture');
 
-    // Always use optimized domain repository
-    final db = ref.watch(appDbProvider);
-    final repository = OptimizedNotesRepository(db: db);
-    final notes = await repository.getAll();
+    // Always use domain repository
+    final repository = ref.watch(notesCoreRepositoryProvider);
+    final notes = await repository.localNotes();
 
     // Convert to UnifiedNote type
-    return notes.map((n) => UnifiedNote.from(n)).toList();
+    return notes.map((domain.Note n) => UnifiedNote.from(n)).toList();
   } catch (e, stack) {
     logger.error('[UnifiedProvider] Failed to load notes', error: e, stackTrace: stack);
     return [];
@@ -92,22 +89,7 @@ final unifiedTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
 });
 
 // Note: The rest of this file will be removed once migration is complete
-// Legacy code below for reference only
-final _legacyTasksProvider = FutureProvider<List<dynamic>>((ref) async {
-  final logger = LoggerFactory.instance;
-  try {
-    logger.info('[UnifiedProvider] Using legacy tasks');
-
-    // Use legacy repository
-    final db = ref.watch(appDbProvider);
-    final tasks = await db.getAllTasks();
-
-    return tasks;
-  } catch (e, stack) {
-    logger.error('[UnifiedProvider] Failed to load tasks', error: e, stackTrace: stack);
-    return [];
-  }
-});
+// Legacy task provider removed - use unifiedTasksProvider instead
 
 /// Unified templates provider
 final unifiedTemplatesProvider = FutureProvider<List<UnifiedTemplate>>((ref) async {
@@ -242,6 +224,7 @@ bool getUnifiedTaskIsCompleted(UnifiedTask task) {
   if (task is domain.Task) {
     return task.status == domain.TaskStatus.completed;
   } else if (task is NoteTask) {
+    // Compare TaskStatus enum values properly
     return task.status == TaskStatus.completed;
   }
   throw ArgumentError('Unknown task type: ${task.runtimeType}');
@@ -256,12 +239,15 @@ final unifiedSearchProvider = FutureProvider.family<List<UnifiedNote>, String>((
     if (config.isFeatureEnabled('notes')) {
       logger.info('[UnifiedSearch] Using domain search for: $query');
 
-      // Use optimized domain repository
-      final db = ref.watch(appDbProvider);
-      final repository = OptimizedNotesRepository(db: db);
-      final notes = await repository.search(query);
+      // Use domain repository - search not available, use list and filter
+      final repository = ref.watch(notesCoreRepositoryProvider);
+      final allNotes = await repository.localNotes();
+      final notes = allNotes.where((n) =>
+        n.title.toLowerCase().contains(query.toLowerCase()) ||
+        n.body.toLowerCase().contains(query.toLowerCase())
+      ).toList();
 
-      return notes.map((n) => UnifiedNote.from(n)).toList();
+      return notes.map((domain.Note n) => UnifiedNote.from(n)).toList();
     } else {
       logger.info('[UnifiedSearch] Using legacy search for: $query');
 
@@ -286,18 +272,17 @@ final unifiedNoteByIdProvider = FutureProvider.family<UnifiedNote?, String>((ref
     if (config.isFeatureEnabled('notes')) {
       logger.info('[UnifiedProvider] Getting domain note: $noteId');
 
-      // Use optimized domain repository
-      final db = ref.watch(appDbProvider);
-      final repository = OptimizedNotesRepository(db: db);
-      final note = await repository.getById(noteId);
+      // Use domain repository
+      final repository = ref.watch(notesCoreRepositoryProvider);
+      final note = await repository.getNoteById(noteId);
 
       return note != null ? UnifiedNote.from(note) : null;
     } else {
       logger.info('[UnifiedProvider] Getting legacy note: $noteId');
 
-      // Use legacy repository
-      final repo = ref.watch(notesRepositoryProvider);
-      final note = await repo.getLocalNoteById(noteId);
+      // Use legacy database directly
+      final db = ref.watch(appDbProvider);
+      final note = await db.getNote(noteId);
 
       return note != null ? UnifiedNote.from(note) : null;
     }
@@ -327,33 +312,23 @@ class UnifiedNoteCreator {
       if (config.isFeatureEnabled('notes')) {
         logger.info('[UnifiedCreator] Creating domain note');
 
-        // Create domain note
-        final db = ref.read(appDbProvider);
-        final repository = OptimizedNotesRepository(db: db);
+        // Use domain repository's createOrUpdate method
+        final repository = ref.read(notesCoreRepositoryProvider);
 
-        final note = domain.Note(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+        final created = await repository.createOrUpdate(
           title: title,
           body: body,
           folderId: folderId,
-          isPinned: isPinned,
           tags: tags ?? [],
-          links: [],
-          version: 1,
-          updatedAt: DateTime.now(),
-          deleted: false,
-          noteType: NoteKind.note,
-          userId: '',
+          isPinned: isPinned,
         );
 
-        final created = await repository.create(note);
-        return UnifiedNote.from(created);
+        return created != null ? UnifiedNote.from(created) : null;
       } else {
         logger.info('[UnifiedCreator] Creating legacy note');
 
         // Create legacy note
         final db = ref.read(appDbProvider);
-        final repo = ref.read(notesRepositoryProvider);
         final noteId = const Uuid().v4();
         final now = DateTime.now();
         await db.into(db.localNotes).insert(
@@ -371,7 +346,9 @@ class UnifiedNoteCreator {
 
         // Add to folder if specified
         if (note != null && folderId != null) {
-          await repo.addNoteToFolder(note.id, folderId);
+          // Use folder repository to add note to folder
+          final folderRepo = ref.read(folderCoreRepositoryProvider);
+          await folderRepo.addNoteToFolder(note.id, folderId);
         }
 
         // Add tags if specified
@@ -423,7 +400,7 @@ String getUnifiedTemplateTitle(UnifiedTemplate template) {
 /// Helper to get template content/body regardless of type
 String getUnifiedTemplateContent(UnifiedTemplate template) {
   if (template is domain.Template) {
-    return template.body;
+    return template.content;
   } else if ((template as dynamic).body != null) {
     return (template as dynamic).body as String; // LocalTemplate from database
   }

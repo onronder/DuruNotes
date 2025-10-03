@@ -18,7 +18,7 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Future<domain.Attachment?> getById(String id) async {
     try {
-      final query = _db.select(_db.attachmentsTable)
+      final query = _db.select<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.id.equals(id));
       final result = await query.getSingleOrNull();
       return result != null ? AttachmentMapper.fromDatabase(result) : null;
@@ -31,11 +31,11 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Future<List<domain.Attachment>> getByNoteId(String noteId) async {
     try {
-      final query = _db.select(_db.attachmentsTable)
+      final query = _db.select<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.noteId.equals(noteId))
         ..orderBy([(a) => OrderingTerm.asc(a.createdAt)]);
       final results = await query.get();
-      return results.map(AttachmentMapper.fromDatabase).toList();
+      return results.map<domain.Attachment>(AttachmentMapper.fromDatabase).toList();
     } catch (e, stack) {
       _logger.error('Failed to get attachments for note: $noteId', error: e, stackTrace: stack);
       return [];
@@ -45,11 +45,11 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Future<List<domain.Attachment>> getByType(String mimeType) async {
     try {
-      final query = _db.select(_db.attachmentsTable)
+      final query = _db.select<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.mimeType.equals(mimeType))
         ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]);
       final results = await query.get();
-      return results.map(AttachmentMapper.fromDatabase).toList();
+      return results.map<domain.Attachment>(AttachmentMapper.fromDatabase).toList();
     } catch (e, stack) {
       _logger.error('Failed to get attachments by type: $mimeType', error: e, stackTrace: stack);
       return [];
@@ -60,7 +60,7 @@ class AttachmentRepository implements IAttachmentRepository {
   Future<domain.Attachment> create(domain.Attachment attachment) async {
     try {
       final companion = AttachmentMapper.toCompanion(attachment);
-      await _db.into(_db.attachmentsTable).insert(companion);
+      await _db.into<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable).insert(companion);
       _logger.info('Created attachment: ${attachment.id}');
       return attachment;
     } catch (e, stack) {
@@ -84,7 +84,7 @@ class AttachmentRepository implements IAttachmentRepository {
         metadata: const Value('{}'),
       );
 
-      final rows = await (_db.update(_db.attachmentsTable)
+      final rows = await (_db.update<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.id.equals(attachment.id)))
         .write(companion);
 
@@ -103,7 +103,7 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Future<void> delete(String id) async {
     try {
-      final rows = await (_db.delete(_db.attachmentsTable)
+      final rows = await (_db.delete<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.id.equals(id)))
         .go();
 
@@ -121,7 +121,7 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Future<void> deleteByNoteId(String noteId) async {
     try {
-      final rows = await (_db.delete(_db.attachmentsTable)
+      final rows = await (_db.delete<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.noteId.equals(noteId)))
         .go();
 
@@ -169,13 +169,13 @@ class AttachmentRepository implements IAttachmentRepository {
   Future<List<domain.Attachment>> search(String query) async {
     try {
       // Search in filename and metadata
-      final results = await (_db.select(_db.attachmentsTable)
+      final results = await (_db.select<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.filename.contains(query) |
                       a.metadata.contains(query))
         ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
         .get();
 
-      return results.map(AttachmentMapper.fromDatabase).toList();
+      return results.map<domain.Attachment>(AttachmentMapper.fromDatabase).toList();
     } catch (e, stack) {
       _logger.error('Failed to search attachments: $query', error: e, stackTrace: stack);
       return [];
@@ -185,12 +185,12 @@ class AttachmentRepository implements IAttachmentRepository {
   @override
   Stream<List<domain.Attachment>> watchByNoteId(String noteId) {
     try {
-      final query = _db.select(_db.attachmentsTable)
+      final query = _db.select<$AttachmentsTableTable, AttachmentsTableData>(_db.attachmentsTable)
         ..where((a) => a.noteId.equals(noteId))
         ..orderBy([(a) => OrderingTerm.asc(a.createdAt)]);
 
-      return query.watch().map((attachments) =>
-          attachments.map(AttachmentMapper.fromDatabase).toList());
+      return query.watch().map<List<domain.Attachment>>((attachments) =>
+          attachments.map<domain.Attachment>(AttachmentMapper.fromDatabase).toList());
     } catch (e, stack) {
       _logger.error('Failed to watch attachments for note: $noteId', error: e, stackTrace: stack);
       return Stream.value([]);

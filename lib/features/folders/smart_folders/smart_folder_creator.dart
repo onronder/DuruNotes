@@ -492,7 +492,7 @@ class _RuleBuilder extends StatelessWidget {
   });
 
   final SmartFolderRule rule;
-  final Function(SmartFolderRule) onChanged;
+  final void Function(SmartFolderRule) onChanged;
   final VoidCallback? onRemove;
 
   @override

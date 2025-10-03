@@ -265,7 +265,7 @@ class SecureApiWrapper {
 
       // Add delay between batches to prevent rate limiting
       if (i + batchSize < notes.length) {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
     }
   }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:collection/collection.dart';
 
@@ -9,8 +8,6 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
-import 'package:duru_notes/domain/entities/template.dart' as domain;
-import 'package:duru_notes/domain/entities/tag.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';

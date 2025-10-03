@@ -2,10 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/search/search_parser.dart';
-import 'package:duru_notes/ui/widgets/modern_app_bar.dart';
 import '../theme/cross_platform_tokens.dart';
 import 'package:intl/intl.dart';
 
@@ -68,10 +66,13 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
   }
 
   Future<void> _loadRecentNotes() async {
-    final notes = await ref.read(notesRepositoryProvider).getRecentlyViewedNotes(limit: 5);
+    // Get recent notes from database - recently updated notes as proxy for recently viewed
+    final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
+    final recentNotes = allNotes.where((n) => !n.deleted).take(5).toList();
+
     if (mounted) {
       setState(() {
-        _recentNotes = notes;
+        _recentNotes = recentNotes;
       });
     }
   }
@@ -97,10 +98,11 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
         results = await _performSemanticSearch(query);
       } else {
         // Use traditional search
-        final allNotes = await ref.read(notesRepositoryProvider).localNotes();
+        final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
         final searchQuery = SearchParser.parse(query);
 
         results = allNotes.where((note) {
+          if (note.deleted) return false;
           final searchableText = '${note.title} ${note.body}'.toLowerCase();
           return searchableText.contains(query.toLowerCase());
         }).toList();
@@ -128,10 +130,11 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
   Future<List<LocalNote>> _performSemanticSearch(String query) async {
     // Placeholder for semantic search implementation
     // In production, this would use vector embeddings and similarity search
-    final allNotes = await ref.read(notesRepositoryProvider).localNotes();
+    final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
 
     // Simulate semantic matching
     return allNotes.where((note) {
+      if (note.deleted) return false;
       final content = '${note.title} ${note.body}'.toLowerCase();
       // Simple keyword matching for now
       final keywords = query.toLowerCase().split(' ');
@@ -173,12 +176,15 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: ModernAppBar(
-        title: 'Search',
-        gradientColors: [
-          DuruColors.primary,
-          DuruColors.accent,
-        ],
+      appBar: AppBar(
+        title: const Text('Search'),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [DuruColors.primary, DuruColors.accent],
+            ),
+          ),
+        ),
         actions: [
           // Semantic search toggle
           IconButton(
@@ -186,7 +192,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               CupertinoIcons.sparkles,
               color: _useSemanticSearch
                   ? const Color(0xFF9333EA)
-                  : Colors.white.withOpacity(0.7),
+                  : Colors.white.withValues(alpha: 0.7),
             ),
             onPressed: () {
               setState(() {
@@ -212,20 +218,20 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               gradient: LinearGradient(
                 colors: [
                   isDark
-                      ? Colors.white.withOpacity(0.08)
+                      ? Colors.white.withValues(alpha: 0.08)
                       : Colors.white,
                   isDark
-                      ? Colors.white.withOpacity(0.05)
-                      : Colors.white.withOpacity(0.95),
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.white.withValues(alpha: 0.95),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -254,7 +260,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                             border: InputBorder.none,
                             hintStyle: TextStyle(
                               color: (isDark ? Colors.white : Colors.black87)
-                                  .withOpacity(0.4),
+                                  .withValues(alpha: 0.4),
                             ),
                           ),
                           style: TextStyle(
@@ -297,13 +303,13 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF9333EA).withOpacity(0.1),
-                          const Color(0xFF3B82F6).withOpacity(0.05),
+                          const Color(0xFF9333EA).withValues(alpha: 0.1),
+                          const Color(0xFF3B82F6).withValues(alpha: 0.05),
                         ],
                       ),
                       border: Border(
                         top: BorderSide(
-                          color: const Color(0xFF9333EA).withOpacity(0.2),
+                          color: const Color(0xFF9333EA).withValues(alpha: 0.2),
                         ),
                       ),
                     ),
@@ -328,7 +334,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                           'Threshold: ${(_semanticThreshold * 100).round()}%',
                           style: TextStyle(
                             fontSize: 11,
-                            color: const Color(0xFF9333EA).withOpacity(0.7),
+                            color: const Color(0xFF9333EA).withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -342,7 +348,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
-                          color: colorScheme.outlineVariant.withOpacity(0.2),
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.2),
                         ),
                       ),
                     ),
@@ -359,9 +365,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                                 _searchController.text = suggestion;
                                 _performSearch(suggestion);
                               },
-                              backgroundColor: DuruColors.primary.withOpacity(0.1),
+                              backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
                               side: BorderSide(
-                                color: DuruColors.primary.withOpacity(0.3),
+                                color: DuruColors.primary.withValues(alpha: 0.3),
                               ),
                             ),
                           );
@@ -444,7 +450,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
             Icon(
               CupertinoIcons.search,
               size: 64,
-              color: Colors.grey.withOpacity(0.5),
+              color: Colors.grey.withValues(alpha: 0.5),
             ),
             const SizedBox(height: DuruSpacing.md),
             Text(
@@ -461,7 +467,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                   ? 'Try rephrasing your query'
                   : 'Try different keywords or filters',
               style: TextStyle(
-                color: Colors.grey.withOpacity(0.7),
+                color: Colors.grey.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -526,20 +532,20 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
         gradient: LinearGradient(
           colors: [
             isDark
-                ? Colors.white.withOpacity(0.05)
+                ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white,
             isDark
-                ? Colors.white.withOpacity(0.03)
-                : Colors.white.withOpacity(0.95),
+                ? Colors.white.withValues(alpha: 0.03)
+                : Colors.white.withValues(alpha: 0.95),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+          color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 5,
             offset: const Offset(0, 1),
           ),
@@ -581,7 +587,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                     style: TextStyle(
                       fontSize: 12,
                       color: (isDark ? Colors.white : Colors.black87)
-                          .withOpacity(0.5),
+                          .withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -593,7 +599,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                   style: TextStyle(
                     fontSize: 14,
                     color: (isDark ? Colors.white : Colors.black87)
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                     height: 1.4,
                   ),
                   maxLines: 2,
@@ -616,13 +622,13 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            DuruColors.primary.withOpacity(0.05),
-            DuruColors.accent.withOpacity(0.02),
+            DuruColors.primary.withValues(alpha: 0.05),
+            DuruColors.accent.withValues(alpha: 0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: DuruColors.primary.withOpacity(0.1),
+          color: DuruColors.primary.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
@@ -630,7 +636,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: DuruColors.primary.withOpacity(0.1),
+              color: DuruColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -656,7 +662,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                   style: TextStyle(
                     fontSize: 12,
                     color: (isDark ? Colors.white : Colors.black87)
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ),
                 ),
               ],

@@ -10,7 +10,6 @@ import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
 import 'package:duru_notes/ui/widgets/note_tag_chips.dart';
-import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
 import 'package:duru_notes/features/templates/template_gallery_screen.dart';
 import 'package:duru_notes/features/templates/template_variable_dialog.dart';
 import 'package:duru_notes/models/template_model.dart';
@@ -22,7 +21,6 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../theme/cross_platform_tokens.dart';
-import 'widgets/modern_app_bar.dart';
 
 /// Modern Material 3 Note Editor with Unified Field (E2.9)
 /// Single text field design where first line becomes the title
@@ -208,7 +206,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             .getTagsForNote(widget.noteId!);
         if (mounted) {
           setState(() {
-            _currentTags = tags;
+            _currentTags = tags.cast<String>();
           });
         }
       }
@@ -345,7 +343,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         try {
           await ref
               .read(notesRepositoryProvider)
-              .addTag(noteId: realNoteId, tag: tag);
+              .addTag(realNoteId, tag);
         } catch (_) {
           // Continue with other tags even if one fails
         }
@@ -400,25 +398,33 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-        appBar: ModernAppBar(
-          title: widget.isEditingTemplate
+        appBar: AppBar(
+          title: Text(widget.isEditingTemplate
               ? AppLocalizations.of(context).editingTemplate
-              : (widget.noteId == null ? 'New Note' : 'Edit Note'),
-          gradientColors: [
-            DuruColors.primary,
-            DuruColors.accent,
-          ],
-          leadingIcon: CupertinoIcons.arrow_left,
-          onLeadingPressed: () async {
-            if (_hasChanges) {
-              final shouldLeave = await _showDiscardDialog();
-              if (shouldLeave && mounted) {
+              : (widget.noteId == null ? 'New Note' : 'Edit Note')),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  DuruColors.primary,
+                  DuruColors.accent,
+                ],
+              ),
+            ),
+          ),
+          leading: IconButton(
+            icon: const Icon(CupertinoIcons.arrow_left, color: Colors.white),
+            onPressed: () async {
+              if (_hasChanges) {
+                final shouldLeave = await _showDiscardDialog();
+                if (shouldLeave && mounted) {
+                  Navigator.of(context).pop();
+                }
+              } else {
                 Navigator.of(context).pop();
               }
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
+            },
+          ),
           actions: [
             // Template button - only for new notes
             if (widget.noteId == null && !widget.isEditingTemplate)
@@ -436,7 +442,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 CupertinoIcons.sparkles,
                 color: _showAISuggestions
                     ? const Color(0xFF9333EA)
-                    : Colors.white.withOpacity(0.7),
+                    : Colors.white.withValues(alpha: 0.7),
               ),
               onPressed: () {
                 setState(() {
@@ -497,11 +503,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                     child: Container(
                       decoration: BoxDecoration(
                         color: theme.brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.05)
-                            : Colors.white.withOpacity(0.9),
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.white.withValues(alpha: 0.9),
                         border: Border(
                           bottom: BorderSide(
-                            color: colorScheme.outlineVariant.withOpacity(0.2),
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
                           ),
                         ),
                       ),
@@ -590,13 +596,13 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF9333EA).withOpacity(0.1),
-                    const Color(0xFF3B82F6).withOpacity(0.05),
+                    const Color(0xFF9333EA).withValues(alpha: 0.1),
+                    const Color(0xFF3B82F6).withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: const Color(0xFF9333EA).withOpacity(0.3),
+                  color: const Color(0xFF9333EA).withValues(alpha: 0.3),
                 ),
               ),
               child: Column(
@@ -607,7 +613,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF9333EA).withOpacity(0.2),
+                          color: const Color(0xFF9333EA).withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -746,8 +752,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            DuruColors.primary.withOpacity(0.05),
-            DuruColors.accent.withOpacity(0.02),
+            DuruColors.primary.withValues(alpha: 0.05),
+            DuruColors.accent.withValues(alpha: 0.02),
           ],
         ),
       ),
@@ -792,10 +798,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -929,24 +935,24 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                   end: Alignment.bottomRight,
                   colors: _contentHasFocus
                       ? [
-                          DuruColors.primary.withOpacity(0.05),
-                          DuruColors.accent.withOpacity(0.02),
+                          DuruColors.primary.withValues(alpha: 0.05),
+                          DuruColors.accent.withValues(alpha: 0.02),
                         ]
                       : [
-                          Colors.white.withOpacity(isDark ? 0.05 : 0.95),
-                          Colors.white.withOpacity(isDark ? 0.03 : 0.9),
+                          Colors.white.withValues(alpha: isDark ? 0.05 : 0.95),
+                          Colors.white.withValues(alpha: isDark ? 0.03 : 0.9),
                         ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _contentHasFocus
-                      ? DuruColors.primary.withOpacity(0.3)
-                      : (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                      ? DuruColors.primary.withValues(alpha: 0.3)
+                      : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
                   width: _contentHasFocus ? 2 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -973,7 +979,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                               'First line becomes the title',
                           hintStyle: theme.textTheme.bodyLarge?.copyWith(
                             height: 1.7,
-                            color: (isDark ? Colors.white : Colors.black87).withOpacity(0.4),
+                            color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.4),
                             fontSize: 16,
                           ),
                           contentPadding: const EdgeInsets.all(24),
@@ -1401,7 +1407,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
   // PRODUCTION ENHANCEMENT: Show code type menu
   void _showCodeMenu() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),
@@ -1444,7 +1450,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     final urlController = TextEditingController();
     final textController = TextEditingController(text: selectedText);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Insert Link'),
@@ -1712,26 +1718,26 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
       // Create the user template
       final template = await templateRepository.createUserTemplate(
-        title: cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
-        body: cleanBody,
-        tags: _currentTags,
-        category: 'personal',
-        description: 'Template created from note',
-        icon: 'description',
+        cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
+        cleanBody,
         metadata: {
+          'tags': _currentTags,
+          'category': 'personal',
+          'description': 'Template created from note',
+          'icon': 'description',
           'createdFrom': widget.noteId ?? 'new_note',
           'createdAt': DateTime.now().toIso8601String(),
         },
       );
 
-      if (template == null) {
+      if (template.isEmpty) {
         throw Exception('Failed to create template');
       }
 
       // Track analytics event
       final analytics = ref.read(analyticsProvider);
       analytics.event('template_saved', properties: {
-        'template_id': template.id,
+        'template_id': template,
         'source_note_id': widget.noteId ?? 'new_note',
         'tags_count': _currentTags.length,
         'has_body': cleanBody.isNotEmpty,
@@ -1742,7 +1748,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
       // Show success message
       _showInfoSnack(
-          AppLocalizations.of(context).templateSaved(template.title));
+          AppLocalizations.of(context).templateSaved(cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle));
 
       // Optional: Navigate back or stay for further editing
       // Navigator.of(context).pop();

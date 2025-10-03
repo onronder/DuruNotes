@@ -7,7 +7,7 @@ class TagMapper {
   static domain.TagWithCount toDomain(TagCount tagCount) {
     return domain.TagWithCount(
       tag: tagCount.tag,
-      noteCount: tagCount.noteCount,
+      noteCount: tagCount.count, // TagCount has 'count', not 'noteCount'
     );
   }
 
@@ -15,7 +15,7 @@ class TagMapper {
   static TagCount toInfrastructure(domain.TagWithCount tag) {
     return TagCount(
       tag: tag.tag,
-      noteCount: tag.noteCount,
+      count: tag.noteCount, // TagCount has 'count', not 'noteCount'
     );
   }
 

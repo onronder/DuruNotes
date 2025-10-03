@@ -59,7 +59,7 @@ class ConflictResolutionDialog extends ConsumerStatefulWidget {
   });
 
   final SyncConflict conflict;
-  final Function(ResolutionStrategy strategy, Map<String, dynamic>? mergedData)?
+  final void Function(ResolutionStrategy strategy, Map<String, dynamic>? mergedData)?
       onResolved;
 
   @override

@@ -263,7 +263,7 @@ class SyncIntegrityValidator {
         // Validate content integrity using hashes
         final localHash = _calculateContentHash(localNote.title, localNote.encryptedMetadata);
         final remoteHash = _calculateContentHash(
-          remoteNote['title'] as String?,
+          remoteNote['title'] as String? ?? '',
           remoteNote['encrypted_metadata'] as String?,
         );
 
@@ -289,7 +289,7 @@ class SyncIntegrityValidator {
             severity: ValidationSeverity.warning,
             description: 'Note exists remotely but not locally',
             affectedTable: 'notes',
-            recordId: remoteNote['id'],
+            recordId: remoteNote['id'] as String? ?? '',
           ));
         }
       }
@@ -346,8 +346,8 @@ class SyncIntegrityValidator {
       final futureTimestamps = await _localDb.customSelect('''
         SELECT id, updated_at
         FROM local_notes
-        WHERE updated_at > ? AND deleted = 0
-      ''', [futureThreshold]).get();
+        WHERE updated_at > ?1 AND deleted = 0
+      ''', [futureThreshold.toIso8601String()]).get();
 
       for (final row in futureTimestamps) {
         issues.add(ValidationIssue(

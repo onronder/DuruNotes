@@ -10,14 +10,14 @@ class SavedSearchMapper {
       id: dbSearch.id,
       name: dbSearch.name,
       query: dbSearch.query,
-      filters: dbSearch.filters != null
-          ? domain.SearchFilters.fromJson(jsonDecode(dbSearch.filters!))
+      filters: dbSearch.parameters != null
+          ? domain.SearchFilters.fromJson(jsonDecode(dbSearch.parameters!))
           : null,
       isPinned: dbSearch.isPinned,
       createdAt: dbSearch.createdAt,
       lastUsedAt: dbSearch.lastUsedAt,
       usageCount: dbSearch.usageCount,
-      displayOrder: dbSearch.displayOrder,
+      displayOrder: dbSearch.sortOrder,
     );
   }
 
@@ -27,14 +27,15 @@ class SavedSearchMapper {
       id: search.id,
       name: search.name,
       query: search.query,
-      filters: search.filters != null
+      searchType: 'text', // Default to text search
+      parameters: search.filters != null
           ? jsonEncode(search.filters!.toJson())
           : null,
       isPinned: search.isPinned,
       createdAt: search.createdAt,
       lastUsedAt: search.lastUsedAt,
       usageCount: search.usageCount,
-      displayOrder: search.displayOrder,
+      sortOrder: search.displayOrder,
     );
   }
 

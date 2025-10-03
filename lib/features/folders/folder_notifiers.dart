@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:duru_notes/providers.dart'; // Import to get extension methods
+
+// Legacy type aliases for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
+typedef FolderRepository = FolderCoreRepository;
 
 /// Helper class for representing folder tree nodes with nesting
 class FolderTreeNode {
@@ -498,8 +503,8 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     try {
       state = state.copyWith(isUpdating: true);
 
-      await _repository.moveFolder(
-          folderId: folderId, newParentId: newParentId);
+      // moveFolder expects positional parameters, not named
+      await _repository.moveFolder(folderId, newParentId);
 
       state = state.copyWith(isUpdating: false);
       return true;
@@ -624,7 +629,12 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
   /// Get folder for note (async version that checks repository)
   Future<LocalFolder?> getFolderForNote(String noteId) async {
     try {
-      return await _repository.getFolderForNote(noteId);
+      // getFolderForNote returns folderId, not LocalFolder
+      final folderId = await _repository.getFolderForNote(noteId);
+      if (folderId == null) return null;
+
+      // Fetch the actual folder
+      return await _repository.getFolder(folderId);
     } catch (e) {
       if (kDebugMode) debugPrint('Error getting folder for note: $e');
       return null;

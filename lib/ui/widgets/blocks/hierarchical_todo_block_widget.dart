@@ -31,10 +31,10 @@ class HierarchicalTodoBlockWidget extends ConsumerStatefulWidget {
   final int position;
   final int indentLevel;
   final bool isFocused;
-  final Function(NoteBlock) onChanged;
-  final Function(bool) onFocusChanged;
+  final void Function(NoteBlock) onChanged;
+  final void Function(bool) onFocusChanged;
   final void Function() onNewLine;
-  final Function(int) onIndentChanged;
+  final void Function(int) onIndentChanged;
   final String? parentTaskId;
 
   @override

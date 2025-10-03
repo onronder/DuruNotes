@@ -246,7 +246,7 @@ class UnifiedMigrationCoordinator {
       final migrationSql = await _getPhase3PostgreSQLMigration();
 
       // Execute in transaction for atomicity
-      await _supabaseClient.rpc(
+      await _supabaseClient.rpc<void>(
         'execute_migration_sql',
         params: {
           'migration_sql': migrationSql,
@@ -328,7 +328,7 @@ class UnifiedMigrationCoordinator {
 
       // Update remote metadata (if function exists)
       try {
-        await _supabaseClient.rpc(
+        await _supabaseClient.rpc<void>(
           'record_migration_completion',
           params: {
             'migration_version': _phase3Version,

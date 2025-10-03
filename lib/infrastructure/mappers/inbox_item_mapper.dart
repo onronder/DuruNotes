@@ -30,7 +30,7 @@ class InboxItemMapper {
       noteId: Value(item.noteId),
       processedAt: item.isProcessed && item.noteId != null
           ? Value(DateTime.now())
-          : const Value.absent(),
+          : const Value<String?>.absent(),
     );
   }
 
@@ -43,7 +43,7 @@ class InboxItemMapper {
       noteId: Value(item.noteId),
       processedAt: item.isProcessed && item.noteId != null
           ? Value(DateTime.now())
-          : const Value.absent(),
+          : const Value<String?>.absent(),
     );
   }
 

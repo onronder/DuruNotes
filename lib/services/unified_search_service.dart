@@ -2,20 +2,8 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/domain/entities/note.dart' as domain;
-import 'package:duru_notes/domain/entities/folder.dart' as domain;
-import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
-import 'package:duru_notes/infrastructure/repositories/optimized_notes_repository.dart';
-import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
-import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
-import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
-import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
-import 'package:duru_notes/infrastructure/mappers/saved_search_mapper.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
@@ -232,34 +220,18 @@ class UnifiedSearchService {
   /// Search for notes
   Future<List<SearchResultItem>> _searchNotes(String query, SearchOptions options) async {
     try {
-      if (migrationConfig.isFeatureEnabled('notes')) {
-        // Use domain repository
-        final repository = OptimizedNotesRepository(db: db);
-        final notes = await repository.search(query);
+      // Use FTS search from database
+      final results = await db.searchNotes(query);
 
-        return notes.map((note) => SearchResultItem(
-          type: SearchResultType.note,
-          data: note,
-          title: note.title,
-          subtitle: _truncateText(note.body, 100),
-          score: _calculateRelevanceScore(query, note.title, note.body),
-          snippet: _extractSnippet(note.body, query),
-          highlights: _findHighlights(note.body, query),
-        )).toList();
-      } else {
-        // Use FTS search
-        final results = await db.searchNotes(query);
-
-        return results.map((note) => SearchResultItem(
-          type: SearchResultType.note,
-          data: note,
-          title: note.title,
-          subtitle: _truncateText(note.body, 100),
-          score: _calculateRelevanceScore(query, note.title, note.body),
-          snippet: _extractSnippet(note.body, query),
-          highlights: _findHighlights(note.body, query),
-        )).toList();
-      }
+      return results.map((note) => SearchResultItem(
+        type: SearchResultType.note,
+        data: note,
+        title: note.title,
+        subtitle: _truncateText(note.body, 100),
+        score: _calculateRelevanceScore(query, note.title, note.body),
+        snippet: _extractSnippet(note.body, query),
+        highlights: _findHighlights(note.body, query),
+      )).toList();
     } catch (e, stack) {
       _logger.error('[UnifiedSearch] Note search failed', error: e, stackTrace: stack);
       return [];
@@ -328,16 +300,16 @@ class UnifiedSearchService {
 
       // Filter by query
       final queryLower = query.toLowerCase();
-      final filtered = templates.where((LocalTemplate template) {
+      final filtered = templates.where((template) {
         final title = template.title.toLowerCase();
         final body = template.body.toLowerCase();
-        final description = template.description.toLowerCase() ?? '';
+        final description = (template.description ?? '').toLowerCase();
         return title.contains(queryLower) ||
                body.contains(queryLower) ||
                description.contains(queryLower);
       }).toList();
 
-      return filtered.map((LocalTemplate template) => SearchResultItem(
+      return filtered.map((template) => SearchResultItem(
         type: SearchResultType.template,
         data: template,
         title: template.title,
@@ -391,15 +363,12 @@ class UnifiedSearchService {
         id: _uuid.v4(),
         name: name,
         query: query,
-        searchType: 'note',
-        parameters: options != null
-            ? jsonEncode(_optionsToFilters(options))
-            : null,
-        sortOrder: 0,
+        filters: null, // TODO: Convert SearchOptions to SearchFilters
         isPinned: false,
         createdAt: DateTime.now(),
         lastUsedAt: null,
         usageCount: 0,
+        displayOrder: 0,
       );
 
       // Save to database
@@ -447,15 +416,12 @@ class UnifiedSearchService {
           id: search.id,
           name: search.name,
           query: search.query,
-          searchType: search.searchType ?? 'note',
-          parameters: search.parameters,
-          sortOrder: search.sortOrder ?? 0,
-          color: search.color,
-          icon: search.icon,
+          filters: null, // TODO: Convert from legacy parameters
           isPinned: search.isPinned,
           createdAt: search.createdAt,
           lastUsedAt: search.lastUsedAt,
           usageCount: search.usageCount ?? 0,
+          displayOrder: search.sortOrder ?? 0,
         )).toList();
       }
     } catch (e, stack) {

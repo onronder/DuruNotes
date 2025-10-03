@@ -58,14 +58,14 @@ class FiltersBottomSheet extends ConsumerStatefulWidget {
     this.initialState,
   });
   final FilterState? initialState;
-  final Function(FilterState) onApply;
+  final void Function(FilterState) onApply;
 
   static Future<void> show(
     BuildContext context, {
     required Function(FilterState) onApply,
     FilterState? initialState,
   }) {
-    return showModalBottomSheet(
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

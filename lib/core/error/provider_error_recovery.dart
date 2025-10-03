@@ -108,7 +108,7 @@ class ProviderErrorRecovery {
         }
 
         // Wait before retry
-        await Future.delayed(delay);
+        await Future<void>.delayed(delay);
       }
     }
 
@@ -159,7 +159,7 @@ class ProviderErrorRecovery {
 
               // Schedule reconnection
               final delay = _calculateRetryDelay(reconnectAttempts, retryPolicy);
-              await Future.delayed(delay);
+              await Future<void>.delayed(delay);
 
               // Reconnect
               subscription?.cancel();

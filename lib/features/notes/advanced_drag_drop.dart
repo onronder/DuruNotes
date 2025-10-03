@@ -36,8 +36,8 @@ class AdvancedDraggableNote extends ConsumerStatefulWidget {
   final bool isSelected;
   final Set<String> selectedNotes;
   final VoidCallback? onDragStarted;
-  final Function(DraggableDetails)? onDragEnd;
-  final Function(DragUpdateDetails)? onDragUpdate;
+  final void Function(DraggableDetails)? onDragEnd;
+  final void Function(DragUpdateDetails)? onDragUpdate;
   final DragAnchorStrategy? dragAnchorStrategy;
 
   @override
@@ -323,7 +323,7 @@ class AdvancedFolderDropTarget extends ConsumerStatefulWidget {
   final Future<void> Function(List<LocalNote> notes)? onAccept;
   final bool Function(List<LocalNote> notes)? onWillAccept;
   final VoidCallback? onLeave;
-  final Function(DragTargetDetails<List<LocalNote>>)? onMove;
+  final void Function(DragTargetDetails<List<LocalNote>>)? onMove;
 
   @override
   ConsumerState<AdvancedFolderDropTarget> createState() =>

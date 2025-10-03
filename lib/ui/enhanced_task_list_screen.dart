@@ -1,8 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/ui/components/modern_app_bar.dart';
-import 'package:duru_notes/ui/components/modern_task_card.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_item_widget.dart';
@@ -84,13 +82,13 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                DuruColors.primary.withOpacity(0.1),
-                DuruColors.accent.withOpacity(0.05),
+                DuruColors.primary.withValues(alpha: 0.1),
+                DuruColors.accent.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.1),
+              color: theme.colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
           child: Row(
@@ -143,7 +141,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -161,7 +159,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -176,11 +174,22 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
       backgroundColor: theme.brightness == Brightness.dark
           ? const Color(0xFF0A0A0A)
           : const Color(0xFFF8FAFB),
-      appBar: ModernAppBar(
-        title: 'Enhanced Tasks',
-        subtitle: 'Smart organization & calendar view',
-        showGradient: true,
-        bottom: ModernTabBar(
+      appBar: AppBar(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Enhanced Tasks'),
+            Text('Smart organization & calendar view', style: TextStyle(fontSize: 12)),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [DuruColors.primary, DuruColors.accent],
+            ),
+          ),
+        ),
+        bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Smart Groups'),
@@ -190,7 +199,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         actions: [
           // View mode toggle
           PopupMenuButton<TaskViewMode>(
-            icon: Icon(
+            icon: const Icon(
               CupertinoIcons.square_grid_2x2,
               color: Colors.white,
             ),
@@ -222,8 +231,8 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
             ],
           ),
           // Toggle completed
-          ModernAppBarAction(
-            icon: _showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+          IconButton(
+            icon: Icon(_showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye),
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
           ),
@@ -844,7 +853,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   }
 
   void _showTaskSheet(DateTime date, List<NoteTask> tasks) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

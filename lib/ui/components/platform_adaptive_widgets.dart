@@ -183,7 +183,7 @@ class DuruCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.surface,
           borderRadius: DuruBorderRadius.card(),
           border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -289,7 +289,7 @@ class DuruTextField extends StatelessWidget {
             border: Border.all(
               color: errorText != null
                   ? DuruColors.error
-                  : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             ),
             borderRadius: DuruBorderRadius.input(),
           ),
@@ -505,7 +505,7 @@ class DuruAppBar extends StatelessWidget implements PreferredSizeWidget {
               )
             : null,
         backgroundColor: backgroundColor ??
-            DuruColors.getNavigationColor(context).withOpacity(0.9),
+            DuruColors.getNavigationColor(context).withValues(alpha: 0.9),
         border: null,
       );
     }
@@ -576,7 +576,7 @@ class DuruDivider extends StatelessWidget {
     return Divider(
       height: height ?? DuruSpacing.md,
       thickness: thickness ?? 1,
-      color: color ?? Theme.of(context).colorScheme.outline.withOpacity(0.2),
+      color: color ?? Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
     );
   }
 }

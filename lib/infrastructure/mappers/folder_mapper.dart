@@ -1,10 +1,14 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Maps between domain Folder entity and infrastructure LocalFolder
 class FolderMapper {
   /// Convert infrastructure LocalFolder to domain Folder
   static domain.Folder toDomain(LocalFolder localFolder) {
+    // LocalFolder doesn't have userId field yet - use current user from Supabase
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
     return domain.Folder(
       id: localFolder.id,
       name: localFolder.name,
@@ -15,23 +19,25 @@ class FolderMapper {
       sortOrder: localFolder.sortOrder,
       createdAt: localFolder.createdAt,
       updatedAt: localFolder.updatedAt,
-      userId: localFolder.userId,
+      userId: userId,
     );
   }
 
   /// Convert domain Folder to infrastructure LocalFolder
   static LocalFolder toInfrastructure(domain.Folder folder) {
+    // LocalFolder doesn't have userId field - it's omitted from local storage
     return LocalFolder(
       id: folder.id,
       name: folder.name,
       parentId: folder.parentId,
-      color: folder.color,
-      icon: folder.icon,
-      description: folder.description,
+      path: '/${folder.name}', // Path will be computed properly by triggers
+      color: folder.color ?? '#048ABF',
+      icon: folder.icon ?? 'folder',
+      description: folder.description ?? '',
       sortOrder: folder.sortOrder,
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,
-      userId: folder.userId,
+      deleted: false,
     );
   }
 

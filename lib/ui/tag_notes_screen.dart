@@ -28,7 +28,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       final repo = ref.read(notesRepositoryProvider);
       final notes = await repo.queryNotesByTags(
         anyTags: [widget.tag],
-        noneTags: [],
+        noneTags: <LocalNote>[],
         sort: const SortSpec(),
       );
       if (mounted) {

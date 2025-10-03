@@ -8,7 +8,7 @@ class FolderBreadcrumbsWidget extends ConsumerWidget {
   const FolderBreadcrumbsWidget({super.key, this.folderId, this.onFolderTap});
 
   final String? folderId;
-  final Function(String? folderId)? onFolderTap;
+  final void Function(String? folderId)? onFolderTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

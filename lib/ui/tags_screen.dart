@@ -144,13 +144,13 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            DuruColors.primary.withOpacity(0.1),
-            DuruColors.accent.withOpacity(0.05),
+            DuruColors.primary.withValues(alpha: 0.1),
+            DuruColors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
@@ -203,7 +203,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -221,7 +221,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -271,7 +271,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
@@ -306,8 +306,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.1),
-                  DuruColors.accent.withOpacity(0.05),
+                  DuruColors.primary.withValues(alpha: 0.1),
+                  DuruColors.accent.withValues(alpha: 0.05),
                 ],
               ),
               shape: BoxShape.circle,
@@ -315,7 +315,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             child: Icon(
               isSearching ? CupertinoIcons.search : CupertinoIcons.tag_fill,
               size: 64,
-              color: DuruColors.primary.withOpacity(0.5),
+              color: DuruColors.primary.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 16),
@@ -330,7 +330,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             Text(
               'Tags will appear here when you add them to notes',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -373,18 +373,18 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _getTagColor(tagCount.tag, colorScheme).withOpacity(0.05),
+                      _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.05),
                       theme.colorScheme.surface,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _getTagColor(tagCount.tag, colorScheme).withOpacity(0.2),
+                    color: _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.2),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -398,7 +398,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: _getTagColor(tagCount.tag, colorScheme).withOpacity(0.1),
+                        color: _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -439,7 +439,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             '${tagCount.count} ${tagCount.count == 1 ? 'note' : 'notes'}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -466,7 +466,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             icon: Icon(
                               CupertinoIcons.ellipsis_vertical,
                               size: 20,
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),

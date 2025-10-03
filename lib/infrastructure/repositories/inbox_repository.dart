@@ -18,7 +18,7 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<domain.InboxItem?> getById(String id) async {
     try {
-      final query = _db.select(_db.inboxItems)
+      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.id.equals(id));
       final result = await query.getSingleOrNull();
       return result != null ? InboxItemMapper.toDomain(result) : null;
@@ -31,11 +31,11 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<List<domain.InboxItem>> getUnprocessed() async {
     try {
-      final query = _db.select(_db.inboxItems)
+      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.isProcessed.equals(false))
         ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
       final results = await query.get();
-      return results.map(InboxItemMapper.toDomain).toList();
+      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
     } catch (e, stack) {
       _logger.error('Failed to get unprocessed inbox items', error: e, stackTrace: stack);
       return [];
@@ -45,11 +45,11 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<List<domain.InboxItem>> getBySourceType(String sourceType) async {
     try {
-      final query = _db.select(_db.inboxItems)
+      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.sourceType.equals(sourceType))
         ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
       final results = await query.get();
-      return results.map(InboxItemMapper.toDomain).toList();
+      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
     } catch (e, stack) {
       _logger.error('Failed to get inbox items by source type: $sourceType', error: e, stackTrace: stack);
       return [];
@@ -59,12 +59,12 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<List<domain.InboxItem>> getByDateRange(DateTime start, DateTime end) async {
     try {
-      final query = _db.select(_db.inboxItems)
+      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.createdAt.isBetweenValues(start, end))
         ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
 
       final results = await query.get();
-      return results.map(InboxItemMapper.toDomain).toList();
+      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
     } catch (e, stack) {
       _logger.error('Failed to get inbox items by date range', error: e, stackTrace: stack);
       return [];
@@ -75,7 +75,7 @@ class InboxRepository implements IInboxRepository {
   Future<domain.InboxItem> create(domain.InboxItem item) async {
     try {
       final companion = InboxItemMapper.toCompanion(item);
-      await _db.into(_db.inboxItems).insert(companion);
+      await _db.into<$InboxItemsTable, InboxItem>(_db.inboxItems).insert(companion);
       _logger.info('Created inbox item: ${item.id}');
       return item;
     } catch (e, stack) {
@@ -89,7 +89,7 @@ class InboxRepository implements IInboxRepository {
     try {
       final companion = InboxItemMapper.toUpdateCompanion(item);
 
-      final rows = await (_db.update(_db.inboxItems)
+      final rows = await (_db.update<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.id.equals(item.id)))
         .write(companion);
 
@@ -113,7 +113,7 @@ class InboxRepository implements IInboxRepository {
         noteId: Value(noteId),
       );
 
-      final rows = await (_db.update(_db.inboxItems)
+      final rows = await (_db.update<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.id.equals(id)))
         .write(companion);
 
@@ -131,7 +131,7 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<void> delete(String id) async {
     try {
-      final rows = await (_db.delete(_db.inboxItems)
+      final rows = await (_db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.id.equals(id)))
         .go();
 
@@ -149,7 +149,7 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<void> deleteProcessed({int? olderThanDays}) async {
     try {
-      var query = _db.delete(_db.inboxItems)
+      var query = _db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.isProcessed.equals(true));
 
       if (olderThanDays != null) {
@@ -169,7 +169,7 @@ class InboxRepository implements IInboxRepository {
   Future<int> getUnprocessedCount() async {
     try {
       final countExp = _db.inboxItems.id.count();
-      final query = _db.selectOnly(_db.inboxItems)
+      final query = _db.selectOnly<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..addColumns([countExp])
         ..where(_db.inboxItems.isProcessed.equals(false));
 
@@ -184,12 +184,12 @@ class InboxRepository implements IInboxRepository {
   @override
   Stream<List<domain.InboxItem>> watchUnprocessed() {
     try {
-      final query = _db.select(_db.inboxItems)
+      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.isProcessed.equals(false))
         ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
 
       return query.watch().map((items) =>
-          items.map(InboxItemMapper.toDomain).toList());
+          items.map<domain.InboxItem>(InboxItemMapper.toDomain).toList());
     } catch (e, stack) {
       _logger.error('Failed to watch unprocessed inbox items', error: e, stackTrace: stack);
       return Stream.value([]);
@@ -200,7 +200,7 @@ class InboxRepository implements IInboxRepository {
   Stream<int> watchUnprocessedCount() {
     try {
       final countExp = _db.inboxItems.id.count();
-      final query = _db.selectOnly(_db.inboxItems)
+      final query = _db.selectOnly<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..addColumns([countExp])
         ..where(_db.inboxItems.isProcessed.equals(false));
 
@@ -248,7 +248,7 @@ class InboxRepository implements IInboxRepository {
   Future<void> cleanupOldItems({required int daysToKeep}) async {
     try {
       final cutoff = DateTime.now().subtract(Duration(days: daysToKeep));
-      final rows = await (_db.delete(_db.inboxItems)
+      final rows = await (_db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
         ..where((i) => i.createdAt.isSmallerThanValue(cutoff)))
         .go();
 

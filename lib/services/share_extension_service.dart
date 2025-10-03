@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/attachment_service.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// Service for handling shared content from iOS Share Extension and Android intents
 class ShareExtensionService {
@@ -443,7 +446,7 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
         title: title,
         body: bodyWithTags,
         tags:
-            tagSet, // PRODUCTION FIX: Pass tags to be stored in note_tags table
+            tagSet.toList(), // PRODUCTION FIX: Pass tags to be stored in note_tags table
         metadataJson: metadata,
       );
 

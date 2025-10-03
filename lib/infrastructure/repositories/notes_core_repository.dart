@@ -9,7 +9,6 @@ import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/models/note_kind.dart';
 import 'package:drift/drift.dart' hide Column;
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide SortBy;
 import 'package:uuid/uuid.dart';
 
@@ -44,15 +43,23 @@ class NotesCoreRepository implements INotesRepository {
 
     if (localNote == null) return null;
 
-    // Get tags and links for the note
-    final tags = await db.getTagsForNote(id);
-    final links = await db.getLinksFromNote(id);
+    // Query tags directly from note_tags table
+    final tagRecords = await (db.select(db.noteTags)
+          ..where((t) => t.noteId.equals(id)))
+        .get();
+    final tags = tagRecords.map((t) => t.tag).toList();
+
+    // Query links directly from note_links table
+    final linkRecords = await (db.select(db.noteLinks)
+          ..where((l) => l.sourceId.equals(id)))
+        .get();
+    final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
     // Map to domain entity
     return NoteMapper.toDomain(
       localNote,
       tags: tags,
-      links: links.map((l) => NoteMapper.linkToDomain(l)).toList(),
+      links: domainLinks,
     );
   }
 
@@ -89,8 +96,6 @@ class NotesCoreRepository implements INotesRepository {
       userId: userId,
       noteType: NoteKind.note,
       version: (existingNote?.version ?? 0) + 1,
-      conflictState: NoteConflictState.none,
-      folderId: folderId,
       attachmentMeta: attachmentMeta != null
           ? jsonEncode(attachmentMeta)
           : existingNote?.attachmentMeta,
@@ -100,16 +105,22 @@ class NotesCoreRepository implements INotesRepository {
       isPinned: isPinned ?? existingNote?.isPinned ?? false,
     ));
 
+    // Update folder relationship if provided
+    if (folderId != null) {
+      await db.moveNoteToFolder(noteId, folderId);
+    }
+
     // Update tags
     await db.replaceTagsForNote(noteId, tags.toSet());
 
     // Update links
     // TODO: Implement setLinksForNote method in AppDb or use existing method
 
-    // Index the note
+    // Index the note - convert domain.Note back to LocalNote for indexer
     final noteToIndex = await getNoteById(noteId);
     if (noteToIndex != null) {
-      await _indexer.indexNote(noteToIndex);
+      final localNote = NoteMapper.toInfrastructure(noteToIndex);
+      await _indexer.indexNote(localNote);
     }
 
     // Enqueue for sync
@@ -145,8 +156,6 @@ class NotesCoreRepository implements INotesRepository {
       userId: existing.userId,
       noteType: existing.noteType,
       version: existing.version + 1,
-      conflictState: existing.conflictState,
-      folderId: folderId ?? existing.folderId,
       attachmentMeta: attachmentMeta != null
           ? jsonEncode(attachmentMeta)
           : existing.attachmentMeta,
@@ -156,13 +165,19 @@ class NotesCoreRepository implements INotesRepository {
       isPinned: isPinned ?? existing.isPinned,
     ));
 
+    // Update folder relationship if provided
+    if (folderId != null) {
+      await db.moveNoteToFolder(id, folderId);
+    }
+
     // Update links if provided
     // TODO: Implement setLinksForNote method in AppDb or use existing method
 
-    // Re-index the note
+    // Re-index the note - convert domain.Note back to LocalNote for indexer
     final updated = await getNoteById(id);
     if (updated != null) {
-      await _indexer.indexNote(updated);
+      final localNote = NoteMapper.toInfrastructure(updated);
+      await _indexer.indexNote(localNote);
     }
 
     // Enqueue for sync
@@ -193,9 +208,17 @@ class NotesCoreRepository implements INotesRepository {
     // Convert to domain entities with tags and links
     final List<domain.Note> domainNotes = [];
     for (final localNote in localNotes) {
-      final tags = await db.getTagsForNote(localNote.id);
-      final links = await db.getLinksFromNote(localNote.id);
-      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+      // Query tags directly from note_tags table
+      final tagRecords = await (db.select(db.noteTags)
+            ..where((t) => t.noteId.equals(localNote.id)))
+          .get();
+      final tags = tagRecords.map((t) => t.tag).toList();
+
+      // Query links directly from note_links table
+      final linkRecords = await (db.select(db.noteLinks)
+            ..where((l) => l.sourceId.equals(localNote.id)))
+          .get();
+      final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
       domainNotes.add(NoteMapper.toDomain(
         localNote,
@@ -223,9 +246,17 @@ class NotesCoreRepository implements INotesRepository {
     // Convert to domain entities with tags and links
     final List<domain.Note> domainNotes = [];
     for (final localNote in localNotes) {
-      final tags = await db.getTagsForNote(localNote.id);
-      final links = await db.getLinksFromNote(localNote.id);
-      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+      // Query tags directly from note_tags table
+      final tagRecords = await (db.select(db.noteTags)
+            ..where((t) => t.noteId.equals(localNote.id)))
+          .get();
+      final tags = tagRecords.map((t) => t.tag).toList();
+
+      // Query links directly from note_links table
+      final linkRecords = await (db.select(db.noteLinks)
+            ..where((l) => l.sourceId.equals(localNote.id)))
+          .get();
+      final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
       domainNotes.add(NoteMapper.toDomain(
         localNote,
@@ -259,9 +290,17 @@ class NotesCoreRepository implements INotesRepository {
     // Convert to domain entities with tags and links
     final List<domain.Note> domainNotes = [];
     for (final localNote in localNotes) {
-      final tags = await db.getTagsForNote(localNote.id);
-      final links = await db.getLinksFromNote(localNote.id);
-      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+      // Query tags directly from note_tags table
+      final tagRecords = await (db.select(db.noteTags)
+            ..where((t) => t.noteId.equals(localNote.id)))
+          .get();
+      final tags = tagRecords.map((t) => t.tag).toList();
+
+      // Query links directly from note_links table
+      final linkRecords = await (db.select(db.noteLinks)
+            ..where((l) => l.sourceId.equals(localNote.id)))
+          .get();
+      final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
       domainNotes.add(NoteMapper.toDomain(
         localNote,
@@ -287,9 +326,17 @@ class NotesCoreRepository implements INotesRepository {
     // Convert to domain entities with tags and links
     final List<domain.Note> domainNotes = [];
     for (final localNote in localNotes) {
-      final tags = await db.getTagsForNote(localNote.id);
-      final links = await db.getLinksFromNote(localNote.id);
-      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+      // Query tags directly from note_tags table
+      final tagRecords = await (db.select(db.noteTags)
+            ..where((t) => t.noteId.equals(localNote.id)))
+          .get();
+      final tags = tagRecords.map((t) => t.tag).toList();
+
+      // Query links directly from note_links table
+      final linkRecords = await (db.select(db.noteLinks)
+            ..where((l) => l.sourceId.equals(localNote.id)))
+          .get();
+      final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
       domainNotes.add(NoteMapper.toDomain(
         localNote,
@@ -308,18 +355,29 @@ class NotesCoreRepository implements INotesRepository {
     List<String>? noneTags,
     bool pinnedFirst = true,
   }) {
-    return db.watchNotesWithFilters(
-      folderId: folderId,
-      anyTags: anyTags,
-      noneTags: noneTags,
-      pinnedFirst: pinnedFirst,
-    ).asyncMap((localNotes) async {
+    // Build query with filters
+    return (db.select(db.localNotes)
+      ..where((n) => n.deleted.equals(false))
+      ..orderBy([
+        if (pinnedFirst) (n) => OrderingTerm(expression: n.isPinned, mode: OrderingMode.desc),
+        (n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc),
+      ]))
+    .watch()
+    .asyncMap((localNotes) async {
       // Convert to domain entities with tags and links
       final List<domain.Note> domainNotes = [];
       for (final localNote in localNotes) {
-        final tags = await db.getTagsForNote(localNote.id);
-        final links = await db.getLinksFromNote(localNote.id);
-        final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+        // Query tags directly from note_tags table
+        final tagRecords = await (db.select(db.noteTags)
+              ..where((t) => t.noteId.equals(localNote.id)))
+            .get();
+        final tags = tagRecords.map((t) => t.tag).toList();
+
+        // Query links directly from note_links table
+        final linkRecords = await (db.select(db.noteLinks)
+              ..where((l) => l.sourceId.equals(localNote.id)))
+            .get();
+        final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
         domainNotes.add(NoteMapper.toDomain(
           localNote,
@@ -355,9 +413,17 @@ class NotesCoreRepository implements INotesRepository {
     // Convert to domain entities with tags and links
     final List<domain.Note> domainNotes = [];
     for (final localNote in localNotes) {
-      final tags = await db.getTagsForNote(localNote.id);
-      final links = await db.getLinksFromNote(localNote.id);
-      final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+      // Query tags directly from note_tags table
+      final tagRecords = await (db.select(db.noteTags)
+            ..where((t) => t.noteId.equals(localNote.id)))
+          .get();
+      final tags = tagRecords.map((t) => t.tag).toList();
+
+      // Query links directly from note_links table
+      final linkRecords = await (db.select(db.noteLinks)
+            ..where((l) => l.sourceId.equals(localNote.id)))
+          .get();
+      final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
       domainNotes.add(NoteMapper.toDomain(
         localNote,
@@ -378,83 +444,22 @@ class NotesCoreRepository implements INotesRepository {
 
   @override
   Future<void> pushAllPending() async {
-    try {
-      _logger.info('Starting push of all pending changes');
-
-      // Get all pending sync operations
-      final pendingOperations = await db.getPendingSyncOperations();
-
-      for (final operation in pendingOperations) {
-        try {
-          switch (operation.operation) {
-            case 'upsert_note':
-              final note = await getNoteById(operation.entityId);
-              if (note != null) {
-                await api.upsertNote(note);
-                await db.removeSyncOperation(operation.id);
-              }
-              break;
-            case 'delete':
-              await api.deleteNote(operation.entityId);
-              await db.removeSyncOperation(operation.id);
-              break;
-          }
-        } catch (e) {
-          _logger.error('Failed to push operation ${operation.id}', e);
-        }
-      }
-
-      _logger.info('Completed pushing pending changes');
-    } catch (e, stack) {
-      _logger.error('Failed to push pending changes', e, stack);
-      rethrow;
-    }
+    // TODO(sync): Implement when sync infrastructure is ready
+    // This requires database methods: getPendingSyncOperations, removeSyncOperation
+    _logger.warning('pushAllPending not yet implemented - sync infrastructure pending');
   }
 
   @override
   Future<void> pullSince(DateTime? since) async {
-    try {
-      _logger.info('Starting pull of changes since $since');
-
-      final remoteChanges = await api.getChangesSince(since);
-
-      for (final change in remoteChanges) {
-        try {
-          if (change.deleted) {
-            await updateLocalNote(change.id, deleted: true);
-          } else {
-            // Convert remote note to local and upsert
-            await createOrUpdate(
-              id: change.id,
-              title: change.title,
-              body: change.body,
-              folderId: change.folderId,
-              tags: change.tags ?? [],
-              isPinned: change.isPinned,
-            );
-          }
-        } catch (e) {
-          _logger.error('Failed to apply change ${change.id}', e);
-        }
-      }
-
-      // Update last sync time
-      await db.setLastSyncTime(DateTime.now().toUtc());
-
-      _logger.info('Completed pulling changes');
-    } catch (e, stack) {
-      _logger.error('Failed to pull changes', e, stack);
-      rethrow;
-    }
+    // TODO(sync): Implement when sync infrastructure is ready
+    // This requires API method: getChangesSince
+    _logger.warning('pullSince not yet implemented - sync infrastructure pending');
   }
 
   @override
   Future<DateTime?> getLastSyncTime() async {
-    try {
-      return await db.getLastSyncTime();
-    } catch (e) {
-      _logger.error('Failed to get last sync time', e);
-      return null;
-    }
+    // TODO(sync): Implement when sync infrastructure is ready
+    // This requires database method: getLastSyncTime
+    return null;
   }
 }

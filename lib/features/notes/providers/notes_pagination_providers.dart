@@ -1,18 +1,21 @@
 import 'package:duru_notes/core/providers/infrastructure_providers.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
-import 'package:duru_notes/features/notes/dual_pagination_notifier.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart';
 import 'package:duru_notes/features/search/providers/search_providers.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Export important types for easier importing
 export 'package:duru_notes/data/local/app_db.dart' show LocalNote;
 export 'package:duru_notes/features/notes/pagination_notifier.dart' show NotesPage;
 
-/// Provider for paginated notes
+/// Provider for paginated notes (domain architecture)
+///
+/// **PRODUCTION NOTE**: Legacy pagination has been removed.
+/// This now uses the domain repository exclusively.
 final notesPageProvider = StateNotifierProvider.autoDispose<
     NotesPaginationNotifier, AsyncValue<NotesPage>>((ref) {
   final repo = ref.watch(notesRepositoryProvider);
@@ -20,14 +23,11 @@ final notesPageProvider = StateNotifierProvider.autoDispose<
     ..loadMore(); // Load first page immediately
 });
 
-/// Dual pagination provider - works with both LocalNote and domain.Note
-final dualNotesPageProvider = StateNotifierProvider.autoDispose<
-    DualNotesPaginationNotifier, AsyncValue<DualNotesPage>>((ref) {
-  final repo = ref.watch(notesRepositoryProvider);
-  final config = ref.watch(migrationConfigProvider);
-  return DualNotesPaginationNotifier(ref, repo, config)
-    ..loadMore(); // Load first page immediately
-});
+/// Dual pagination provider - alias for backwards compatibility
+///
+/// **PRODUCTION NOTE**: This is now an alias to notesPageProvider.
+/// The dual pagination system has been removed.
+final dualNotesPageProvider = notesPageProvider;
 
 /// Provider to watch just the loading state
 final notesLoadingProvider = Provider<bool>((ref) {
@@ -45,13 +45,9 @@ final currentNotesProvider = Provider<List<LocalNote>>((ref) {
 });
 
 /// Provider to get current notes in the appropriate format
-final dualCurrentNotesProvider = Provider<List<dynamic>>((ref) {
-  final config = ref.watch(migrationConfigProvider);
-  return ref.watch(dualNotesPageProvider).when(
-    data: (page) => page.getNotes(config.isFeatureEnabled('notes')),
-    loading: () => [],
-    error: (_, __) => [],
-  );
+/// Returns domain notes for consistency across the app
+final dualCurrentNotesProvider = Provider<List<domain.Note>>((ref) {
+  return ref.watch(currentNotesProvider).cast<domain.Note>();
 });
 
 /// Provider to check if there are more notes to load
@@ -65,26 +61,20 @@ final hasMoreNotesProvider = Provider<bool>((ref) {
 
 /// Helper function to batch fetch tags for multiple notes
 Future<Map<String, Set<String>>> _batchFetchTags(
-  NotesRepository repo,
+  INotesRepository repo,
   List<String> noteIds,
 ) async {
   final result = <String, Set<String>>{};
 
-  // Batch fetch all tags in a single query
-  final db = repo.db;
-  final tagsQuery = db.select(db.noteTags)
-    ..where((t) => t.noteId.isIn(noteIds));
-
-  final allTags = await tagsQuery.get();
-
-  // Group tags by note ID
-  for (final tag in allTags) {
-    result.putIfAbsent(tag.noteId, () => {}).add(tag.tag);
-  }
-
-  // Ensure all noteIds have an entry (even if empty)
+  // Get all notes with tags from repository
+  // For now, fetch individually since batch operation is not in interface
   for (final noteId in noteIds) {
-    result.putIfAbsent(noteId, () => {});
+    final note = await repo.getNoteById(noteId);
+    if (note != null) {
+      result[noteId] = note.tags.toSet();
+    } else {
+      result[noteId] = {};
+    }
   }
 
   return result;

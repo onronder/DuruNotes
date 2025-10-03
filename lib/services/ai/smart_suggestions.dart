@@ -3,8 +3,8 @@ import 'dart:collection';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Smart folder suggestions service using ML-like algorithms
@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class SmartSuggestionsService {
   SmartSuggestionsService({required this.repository, required this.userId});
 
-  final NotesRepository repository;
+  final NotesCoreRepository repository;
   final String userId;
   final _logger = LoggerFactory.instance;
 
@@ -80,7 +80,7 @@ class SmartSuggestionsService {
     LocalNote note,
   ) async {
     final suggestions = <FolderSuggestion>[];
-    final folders = await repository.listFolders();
+    final folders = await repository.db.listFolders();
 
     // Extract keywords from note
     final keywords = _extractKeywords(note);
@@ -148,7 +148,7 @@ class SmartSuggestionsService {
 
     for (final usage in recentFolderUsage) {
       if (usage.confidence > minConfidence) {
-        final folder = await repository.getFolder(usage.folderId);
+        final folder = await repository.db.getFolderById(usage.folderId);
         if (folder != null && !folder.deleted) {
           suggestions.add(
             FolderSuggestion(
@@ -180,7 +180,7 @@ class SmartSuggestionsService {
         final matchScore = _matchesPattern(note, pattern);
 
         if (matchScore > minConfidence) {
-          final folder = await repository.getFolder(pattern.folderId);
+          final folder = await repository.db.getFolderById(pattern.folderId);
           if (folder != null && !folder.deleted) {
             suggestions.add(
               FolderSuggestion(
@@ -212,11 +212,13 @@ class SmartSuggestionsService {
     final folderCounts = <String, int>{};
 
     for (final similarNote in similarNotes) {
-      final folder = await repository.getFolderForNote(similarNote.noteId);
-      if (folder != null) {
-        folderScores[folder.id] =
-            (folderScores[folder.id] ?? 0.0) + similarNote.similarity;
-        folderCounts[folder.id] = (folderCounts[folder.id] ?? 0) + 1;
+      // Get folder ID from note_folders junction table
+      final noteFolders = await repository.db.getNoteFolders(similarNote.noteId);
+      if (noteFolders.isNotEmpty) {
+        final folderId = noteFolders.first.id;
+        folderScores[folderId] =
+            (folderScores[folderId] ?? 0.0) + similarNote.similarity;
+        folderCounts[folderId] = (folderCounts[folderId] ?? 0) + 1;
       }
     }
 
@@ -229,7 +231,7 @@ class SmartSuggestionsService {
       final confidence = (totalScore / count).clamp(0.0, 1.0).toDouble();
 
       if (confidence > minConfidence) {
-        final folder = await repository.getFolder(folderId);
+        final folder = await repository.db.getFolderById(folderId);
         if (folder != null && !folder.deleted) {
           suggestions.add(
             FolderSuggestion(

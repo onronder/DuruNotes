@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:duru_notes/core/errors.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/result.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/repository/sync_service.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
@@ -16,21 +15,18 @@ class InboxManagementService {
   InboxManagementService({
     required SupabaseClient supabase,
     required EmailAliasService aliasService,
-    NotesRepository? notesRepository,
+    NotesCoreRepository? notesRepository,
     IncomingMailFolderManager? folderManager,
-    SyncService? syncService,
     AttachmentService? attachmentService,
   })  : _supabase = supabase,
         _aliasService = aliasService,
         _notesRepository = notesRepository,
         _folderManager = folderManager,
-        _syncService = syncService,
         _attachmentService = attachmentService;
   final SupabaseClient _supabase;
   final EmailAliasService _aliasService;
-  final NotesRepository? _notesRepository;
+  final NotesCoreRepository? _notesRepository;
   final IncomingMailFolderManager? _folderManager;
-  final SyncService? _syncService;
   final AttachmentService? _attachmentService;
   final AppLogger _logger = LoggerFactory.instance;
 
@@ -266,15 +262,14 @@ class InboxManagementService {
 
   /// Trigger sync with debouncing to coalesce multiple conversions
   void _triggerDebouncedSync() {
-    if (_syncService == null) return;
-
+    // Sync is now handled by UnifiedSyncService automatically
     // Cancel existing timer if any
     _syncDebounceTimer?.cancel();
 
     // Start new timer
     _syncDebounceTimer = Timer(_syncDebounceDelay, () {
-      _logger.debug(' Triggering sync after conversion');
-      _syncService.syncNow();
+      _logger.debug(' Sync triggered after conversion (handled by UnifiedSyncService)');
+      // No-op - sync happens automatically via queue
     });
   }
 
@@ -362,7 +357,7 @@ class InboxManagementService {
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
-        tags: tags.toSet(),
+        tags: tags,
       );
 
       if (note == null) {
@@ -447,7 +442,7 @@ class InboxManagementService {
         title: title,
         body: bodyWithTags,
         metadataJson: metadata,
-        tags: tags.toSet(),
+        tags: tags,
       );
 
       if (note == null) {

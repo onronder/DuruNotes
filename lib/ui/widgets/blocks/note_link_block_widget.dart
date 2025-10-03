@@ -15,9 +15,9 @@ class NoteLinkBlockWidget extends ConsumerStatefulWidget {
 
   final NoteBlock block;
   final bool isFocused;
-  final Function(NoteBlock) onChanged;
-  final Function(bool) onFocusChanged;
-  final Function(LocalNote) onNoteSelected;
+  final void Function(NoteBlock) onChanged;
+  final void Function(bool) onFocusChanged;
+  final void Function(LocalNote) onNoteSelected;
 
   @override
   ConsumerState<NoteLinkBlockWidget> createState() =>

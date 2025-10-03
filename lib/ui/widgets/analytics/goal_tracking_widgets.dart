@@ -211,7 +211,7 @@ class CreateGoalDialog extends StatefulWidget {
     required this.onGoalCreated,
   });
 
-  final Function(ProductivityGoal) onGoalCreated;
+  final void Function(ProductivityGoal) onGoalCreated;
 
   @override
   State<CreateGoalDialog> createState() => _CreateGoalDialogState();
@@ -749,7 +749,7 @@ class SuggestedGoalsWidget extends StatelessWidget {
   });
 
   final List<ProductivityGoal> suggestedGoals;
-  final Function(ProductivityGoal) onGoalSelected;
+  final void Function(ProductivityGoal) onGoalSelected;
 
   @override
   Widget build(BuildContext context) {

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // TODO: Add dependency
-import '../theme/cross_platform_tokens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Modern onboarding screen with gradient design and smooth animations
@@ -169,7 +168,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   void _skipOnboarding() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
@@ -213,8 +212,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  _pages[_currentPage].gradientColors[0].withOpacity(0.1),
-                  _pages[_currentPage].gradientColors[1].withOpacity(0.05),
+                  _pages[_currentPage].gradientColors[0].withValues(alpha: 0.1),
+                  _pages[_currentPage].gradientColors[1].withValues(alpha: 0.05),
                 ],
               ),
             ),
@@ -278,7 +277,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                     boxShadow: [
                                       BoxShadow(
                                         color: page.gradientColors[0]
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                         blurRadius: 20,
                                         offset: const Offset(0, 10),
                                       ),
@@ -322,7 +321,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                   style: TextStyle(
                                     fontSize: 15,
                                     color: (isDark ? Colors.white : Colors.black87)
-                                        .withOpacity(0.7),
+                                        .withValues(alpha: 0.7),
                                     height: 1.5,
                                   ),
                                   textAlign: TextAlign.center,
@@ -343,14 +342,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
                                           colors: [
-                                            page.gradientColors[0].withOpacity(0.1),
-                                            page.gradientColors[1].withOpacity(0.05),
+                                            page.gradientColors[0].withValues(alpha: 0.1),
+                                            page.gradientColors[1].withValues(alpha: 0.05),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
                                           color: page.gradientColors[0]
-                                              .withOpacity(0.3),
+                                              .withValues(alpha: 0.3),
                                         ),
                                       ),
                                       child: Row(
@@ -403,7 +402,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                             decoration: BoxDecoration(
                               color: _currentPage == index
                                   ? _pages[_currentPage].gradientColors[0]
-                                  : Colors.grey.withOpacity(0.3),
+                                  : Colors.grey.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -432,7 +431,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                   ),
                                   side: BorderSide(
                                     color: _pages[_currentPage].gradientColors[0]
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: const Text('Back'),
@@ -452,7 +451,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                 boxShadow: [
                                   BoxShadow(
                                     color: _pages[_currentPage].gradientColors[0]
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),

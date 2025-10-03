@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
-import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -18,7 +16,6 @@ import 'package:duru_notes/infrastructure/adapters/service_adapter.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
-import 'package:duru_notes/services/account_key_service.dart';
 import 'package:duru_notes/core/sync/sync_coordinator.dart';
 import 'package:duru_notes/core/sync/transaction_manager.dart';
 
@@ -786,7 +783,7 @@ class UnifiedSyncService {
         // COMPATIBILITY: Read 'body' first, fall back to 'content'
         final propsJson = <String, dynamic>{
           'body': (noteData['body'] ?? noteData['content'] ?? ''),
-          'tags': (noteData['tags'] ?? []),
+          'tags': (noteData['tags'] ?? <Map<String, dynamic>>[]),
           'isPinned': (noteData['is_pinned'] ?? false),
           'updatedAt': DateTime.now().toIso8601String(),
         };
@@ -845,12 +842,20 @@ class UnifiedSyncService {
 
     try {
       for (final noteData in notes) {
-        final note = _adapter.createNoteFromSync(noteData);
         // Save through appropriate repository
         if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
-          await _domainNotesRepo!.createOrUpdate(note as domain.Note);
+          // Use createOrUpdate with proper parameters
+          await _domainNotesRepo!.createOrUpdate(
+            title: noteData['title'] as String? ?? '',
+            body: noteData['body'] as String? ?? '',
+            id: noteData['id'] as String?,
+            folderId: noteData['folder_id'] as String?,
+            tags: (noteData['tags'] as List?)?.cast<String>() ?? [],
+            isPinned: noteData['is_pinned'] as bool?,
+          );
         } else {
-          // For local notes, save directly to database
+          // For local notes, save directly to database using adapter
+          final note = _adapter.createNoteFromSync(noteData);
           final localNote = note as LocalNote;
           await _db.into(_db.localNotes).insertOnConflictUpdate(localNote);
         }
@@ -912,7 +917,7 @@ class UnifiedSyncService {
   // Helper methods for working with different model types
   Future<dynamic> _getNoteById(String id) async {
     if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
-      return await _domainNotesRepo!.getById(id);
+      return await _domainNotesRepo!.getNoteById(id);
     } else {
       return await _db.getNote(id);
     }
@@ -937,7 +942,7 @@ class UnifiedSyncService {
         id: id,
         noteId: noteId,
         title: title,
-        content: '',
+        description: null,
         status: completed ? domain.TaskStatus.completed : domain.TaskStatus.pending,
         priority: domain.TaskPriority.medium,
         dueDate: null,
@@ -987,9 +992,22 @@ class UnifiedSyncService {
 
   Future<void> _updateNoteContent(String noteId, String content) async {
     if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
-      final note = await _domainNotesRepo!.getById(noteId);
+      final note = await _domainNotesRepo!.getNoteById(noteId);
       if (note != null) {
-        await _domainNotesRepo!.createOrUpdate(note.copyWith(body: content));
+        // Use createOrUpdate with all required fields
+        await _domainNotesRepo!.createOrUpdate(
+          title: note.title,
+          body: content,
+          id: note.id,
+          folderId: note.folderId,
+          tags: note.tags,
+          links: note.links.map((l) => {
+            'sourceId': l.sourceId,
+            'targetTitle': l.targetTitle,
+            'targetId': l.targetId,
+          }).toList(),
+          isPinned: note.isPinned,
+        );
       }
     } else {
       await _db.updateNote(

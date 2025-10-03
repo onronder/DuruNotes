@@ -496,11 +496,11 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
     final templateRepository = ref.read(templateRepositoryProvider);
     final l10n = AppLocalizations.of(context);
 
-    final success = await templateRepository.deleteUserTemplate(template.id);
+    try {
+      await templateRepository.deleteUserTemplate(template.id);
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    if (success) {
       // Refresh the template list
       ref.invalidate(templateListProvider);
 
@@ -510,7 +510,9 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } else {
+    } catch (e) {
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.errorDeletingNote),

@@ -18,8 +18,8 @@ class DraggableFolderTree extends ConsumerStatefulWidget {
     this.showNoteCount = true,
   });
 
-  final Function(LocalFolder folder)? onFolderSelected;
-  final Function(String folderId, String? newParentId, int newPosition)?
+  final void Function(LocalFolder folder)? onFolderSelected;
+  final void Function(String folderId, String? newParentId, int newPosition)?
       onFolderMoved;
   final String? selectedFolderId;
   final bool showSearch;
@@ -398,11 +398,11 @@ class _DraggableFolderItem extends StatefulWidget {
   final bool allowReordering;
   final VoidCallback? onTap;
   final VoidCallback? onExpansionToggle;
-  final Function(String folderId)? onDragStarted;
-  final Function(DragUpdateDetails details)? onDragUpdate;
+  final void Function(String folderId)? onDragStarted;
+  final void Function(DragUpdateDetails details)? onDragUpdate;
   final VoidCallback? onDragEnd;
-  final Function(String draggedId, String targetId)? onAcceptDrop;
-  final Function(String folderId)? onHover;
+  final void Function(String draggedId, String targetId)? onAcceptDrop;
+  final void Function(String folderId)? onHover;
   final VoidCallback? onHoverEnd;
 
   @override

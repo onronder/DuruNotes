@@ -23,6 +23,44 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259019439896:android:dev0000000000000bbce86d",
+        "android_client_info": {
+          "package_name": "com.fittechs.duruNotesApp.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJ-1t6xUe0w7FMMV04tWGSmLnAQuC5M_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259019439896:android:stg0000000000000bbce86d",
+        "android_client_info": {
+          "package_name": "com.fittechs.duruNotesApp.staging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJ-1t6xUe0w7FMMV04tWGSmLnAQuC5M_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

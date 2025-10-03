@@ -50,7 +50,7 @@ class StateMigrationHelper {
 
       debugPrint('[$_logTag] Successfully migrated provider: $providerName '
           '(${localState.length} items)');
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('[$_logTag] Failed to migrate provider: $providerName - $e');
       rethrow;
     }

@@ -99,6 +99,7 @@ class UnifiedSearchService {
         deleted: row.read<bool>('deleted'),
         isPinned: row.read<bool>('is_pinned'),
         noteType: NoteKind.note, // Default to regular note
+        version: row.readNullable<int>('version') ?? 1, // Default version 1
       );
     }).toList();
   }

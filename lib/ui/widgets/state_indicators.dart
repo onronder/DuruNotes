@@ -42,8 +42,8 @@ class ModernEmptyState extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    colors[0].withOpacity(0.15),
-                    colors[1].withOpacity(0.08),
+                    colors[0].withValues(alpha: 0.15),
+                    colors[1].withValues(alpha: 0.08),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -53,7 +53,7 @@ class ModernEmptyState extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 48,
-                color: colors[0].withOpacity(0.5),
+                color: colors[0].withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 24.0),
@@ -77,7 +77,7 @@ class ModernEmptyState extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   color: (isDark ? Colors.white : Colors.black87)
-                      .withOpacity(0.6),
+                      .withValues(alpha: 0.6),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -156,8 +156,8 @@ class _ModernLoadingStateState extends State<ModernLoadingState>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.1),
-                  DuruColors.accent.withOpacity(0.05),
+                  DuruColors.primary.withValues(alpha: 0.1),
+                  DuruColors.accent.withValues(alpha: 0.05),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -221,7 +221,7 @@ class _ModernLoadingStateState extends State<ModernLoadingState>
               style: TextStyle(
                 fontSize: 14,
                 color: (isDark ? Colors.white : Colors.black87)
-                    .withOpacity(0.7),
+                    .withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -233,7 +233,7 @@ class _ModernLoadingStateState extends State<ModernLoadingState>
               width: 200,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -288,15 +288,15 @@ class ModernErrorState extends StatelessWidget {
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.white.withOpacity(0.05)
+                ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: errorColor.withOpacity(0.2),
+              color: errorColor.withValues(alpha: 0.2),
             ),
             boxShadow: [
               BoxShadow(
-                color: errorColor.withOpacity(0.1),
+                color: errorColor.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
@@ -312,8 +312,8 @@ class ModernErrorState extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      errorColor.withOpacity(0.15),
-                      errorColor.withOpacity(0.08),
+                      errorColor.withValues(alpha: 0.15),
+                      errorColor.withValues(alpha: 0.08),
                     ],
                   ),
                   shape: BoxShape.circle,
@@ -348,7 +348,7 @@ class ModernErrorState extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     color: (isDark ? Colors.white : Colors.black87)
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -363,14 +363,14 @@ class ModernErrorState extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: (isDark ? Colors.white : Colors.black87)
-                          .withOpacity(0.5),
+                          .withValues(alpha: 0.5),
                     ),
                   ),
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: SelectableText(
@@ -379,7 +379,7 @@ class ModernErrorState extends StatelessWidget {
                           fontSize: 11,
                           fontFamily: 'monospace',
                           color: (isDark ? Colors.white : Colors.black87)
-                              .withOpacity(0.6),
+                              .withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -477,14 +477,14 @@ class _ModernShimmerState extends State<ModernShimmer>
               end: Alignment(1.0 + _shimmerAnimation.value, 0.3),
               colors: isDark
                   ? [
-                      Colors.white.withOpacity(0.05),
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.05),
+                      Colors.white.withValues(alpha: 0.05),
+                      Colors.white.withValues(alpha: 0.1),
+                      Colors.white.withValues(alpha: 0.05),
                     ]
                   : [
-                      Colors.grey.withOpacity(0.2),
-                      Colors.grey.withOpacity(0.3),
-                      Colors.grey.withOpacity(0.2),
+                      Colors.grey.withValues(alpha: 0.2),
+                      Colors.grey.withValues(alpha: 0.3),
+                      Colors.grey.withValues(alpha: 0.2),
                     ],
             ),
           ),
@@ -514,11 +514,11 @@ class ModernContentSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.05)
+                ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
             ),
           ),
           child: Column(

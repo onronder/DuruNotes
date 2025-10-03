@@ -12,8 +12,8 @@ class TableBlockWidget extends StatefulWidget {
 
   final NoteBlock block;
   final bool isFocused;
-  final Function(NoteBlock) onChanged;
-  final Function(bool) onFocusChanged;
+  final void Function(NoteBlock) onChanged;
+  final void Function(bool) onFocusChanged;
 
   @override
   State<TableBlockWidget> createState() => _TableBlockWidgetState();
