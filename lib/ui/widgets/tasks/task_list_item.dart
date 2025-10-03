@@ -317,7 +317,7 @@ class TaskListItem extends StatelessWidget {
   }
 
   void _showPriorityDialog(BuildContext context, UiNoteTask task) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Set Priority'),
@@ -357,7 +357,7 @@ class TaskListItem extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, String taskId) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task'),

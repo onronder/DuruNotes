@@ -2,7 +2,6 @@ import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
@@ -533,7 +532,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     // Data format: "row1col1|row1col2\nrow2col1|row2col2"
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(8),

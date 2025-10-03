@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Modern home screen with improved visual design and UX
@@ -59,8 +58,8 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      DuruColors.primary.withOpacity(0.05),
-                      DuruColors.accent.withOpacity(0.03),
+                      DuruColors.primary.withValues(alpha: 0.05),
+                      DuruColors.accent.withValues(alpha: 0.03),
                     ],
                   ),
                 ),
@@ -126,7 +125,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: DuruColors.primary.withOpacity(0.3),
+                    color: DuruColors.primary.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -163,7 +162,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -189,7 +188,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
           ),
         ],
@@ -231,11 +230,11 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
                 HapticFeedback.lightImpact();
               },
               backgroundColor: Colors.transparent,
-              selectedColor: DuruColors.primary.withOpacity(0.2),
+              selectedColor: DuruColors.primary.withValues(alpha: 0.2),
               side: BorderSide(
                 color: isSelected
                     ? DuruColors.primary
-                    : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
               ),
               labelStyle: TextStyle(
                 color: isSelected
@@ -258,7 +257,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
       children: [
         Icon(
           icon,
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
           size: 20,
         ),
         SizedBox(height: DuruSpacing.xs),
@@ -273,7 +272,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 12,
           ),
         ),
@@ -360,7 +359,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
               ),
             ],
@@ -382,7 +381,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.3),
+                color: color.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),

@@ -1,7 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
@@ -26,8 +25,8 @@ class TodoBlockWidget extends ConsumerStatefulWidget {
   final String? noteId;
   final int position;
   final bool isFocused;
-  final Function(NoteBlock) onChanged;
-  final Function(bool) onFocusChanged;
+  final void Function(NoteBlock) onChanged;
+  final void Function(bool) onFocusChanged;
   final void Function() onNewLine;
 
   @override

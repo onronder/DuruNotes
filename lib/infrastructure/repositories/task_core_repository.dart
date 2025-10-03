@@ -27,7 +27,7 @@ class TaskCoreRepository implements ITaskRepository {
       final localTasks = await db.getTasksForNote(noteId);
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get tasks for note: $noteId', e, stack);
+      _logger.error('Failed to get tasks for note: $noteId', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -38,7 +38,7 @@ class TaskCoreRepository implements ITaskRepository {
       final localTasks = await db.getAllTasks();
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get all tasks', e, stack);
+      _logger.error('Failed to get all tasks', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -49,7 +49,7 @@ class TaskCoreRepository implements ITaskRepository {
       final localTasks = await db.getOpenTasks();
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get pending tasks', e, stack);
+      _logger.error('Failed to get pending tasks', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -62,7 +62,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       return TaskMapper.toDomain(localTask);
     } catch (e, stack) {
-      _logger.error('Failed to get task by id: $id', e, stack);
+      _logger.error('Failed to get task by id: $id', error: e, stackTrace: stack);
       return null;
     }
   }
@@ -113,7 +113,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       return taskToCreate;
     } catch (e, stack) {
-      _logger.error('Failed to create task: ${task.title}', e, stack);
+      _logger.error('Failed to create task: ${task.title}', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -158,7 +158,7 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedLocal = await db.getTaskById(task.id);
       return TaskMapper.toDomain(updatedLocal!);
     } catch (e, stack) {
-      _logger.error('Failed to update task: ${task.id}', e, stack);
+      _logger.error('Failed to update task: ${task.id}', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -181,7 +181,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       _logger.info('Deleted task: $id');
     } catch (e, stack) {
-      _logger.error('Failed to delete task: $id', e, stack);
+      _logger.error('Failed to delete task: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -197,7 +197,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       _logger.info('Completed task: $id');
     } catch (e, stack) {
-      _logger.error('Failed to complete task: $id', e, stack);
+      _logger.error('Failed to complete task: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -209,7 +209,7 @@ class TaskCoreRepository implements ITaskRepository {
         return TaskMapper.toDomainList(localTasks);
       });
     } catch (e, stack) {
-      _logger.error('Failed to create task watch stream', e, stack);
+      _logger.error('Failed to create task watch stream', error: e, stackTrace: stack);
       return Stream.error(e, stack);
     }
   }
@@ -221,7 +221,7 @@ class TaskCoreRepository implements ITaskRepository {
         return TaskMapper.toDomainList(localTasks);
       });
     } catch (e, stack) {
-      _logger.error('Failed to create task watch stream for note: $noteId', e, stack);
+      _logger.error('Failed to create task watch stream for note: $noteId', error: e, stackTrace: stack);
       return Stream.error(e, stack);
     }
   }
@@ -235,7 +235,7 @@ class TaskCoreRepository implements ITaskRepository {
       final localTasks = await db.getCompletedTasks(since: since, limit: limit);
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get completed tasks', e, stack);
+      _logger.error('Failed to get completed tasks', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -246,7 +246,7 @@ class TaskCoreRepository implements ITaskRepository {
       final localTasks = await db.getOverdueTasks();
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get overdue tasks', e, stack);
+      _logger.error('Failed to get overdue tasks', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -258,14 +258,21 @@ class TaskCoreRepository implements ITaskRepository {
     domain.TaskStatus? status,
   }) async {
     try {
+      // Database method uses 'start' and 'end' parameters
       final localTasks = await db.getTasksByDateRange(
-        startDate: startDate,
-        endDate: endDate,
-        status: status != null ? _mapStatusToDb(status) : null,
+        start: startDate,
+        end: endDate,
       );
-      return TaskMapper.toDomainList(localTasks);
+
+      // Filter by status if provided
+      List<domain.Task> tasks = TaskMapper.toDomainList(localTasks);
+      if (status != null) {
+        tasks = tasks.where((task) => task.status == status).toList();
+      }
+
+      return tasks;
     } catch (e, stack) {
-      _logger.error('Failed to get tasks by date range', e, stack);
+      _logger.error('Failed to get tasks by date range', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -280,7 +287,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       _logger.info('Toggled task status: $id');
     } catch (e, stack) {
-      _logger.error('Failed to toggle task status: $id', e, stack);
+      _logger.error('Failed to toggle task status: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -293,7 +300,7 @@ class TaskCoreRepository implements ITaskRepository {
       // Note: Individual task deletions will be handled by sync mechanism
       _logger.info('Deleted all tasks for note: $noteId');
     } catch (e, stack) {
-      _logger.error('Failed to delete tasks for note: $noteId', e, stack);
+      _logger.error('Failed to delete tasks for note: $noteId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -318,7 +325,7 @@ class TaskCoreRepository implements ITaskRepository {
         'overdue': overdueTasks.length,
       };
     } catch (e, stack) {
-      _logger.error('Failed to get task statistics', e, stack);
+      _logger.error('Failed to get task statistics', error: e, stackTrace: stack);
       return {};
     }
   }
@@ -329,7 +336,7 @@ class TaskCoreRepository implements ITaskRepository {
       final allTasks = await getAllTasks();
       return allTasks.where((task) => task.priority == priority).toList();
     } catch (e, stack) {
-      _logger.error('Failed to get tasks by priority: $priority', e, stack);
+      _logger.error('Failed to get tasks by priority: $priority', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -350,7 +357,7 @@ class TaskCoreRepository implements ITaskRepository {
         return matchesTitle || matchesDescription;
       }).toList();
     } catch (e, stack) {
-      _logger.error('Failed to search tasks with query: $query', e, stack);
+      _logger.error('Failed to search tasks with query: $query', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -366,7 +373,7 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(priority: priority);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to update task priority: $id', e, stack);
+      _logger.error('Failed to update task priority: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -382,7 +389,7 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(dueDate: dueDate);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to update task due date: $id', e, stack);
+      _logger.error('Failed to update task due date: $id', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -402,7 +409,7 @@ class TaskCoreRepository implements ITaskRepository {
         await updateTask(updatedTask);
       }
     } catch (e, stack) {
-      _logger.error('Failed to add tag to task: $taskId', e, stack);
+      _logger.error('Failed to add tag to task: $taskId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -419,7 +426,7 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(tags: updatedTags);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to remove tag from task: $taskId', e, stack);
+      _logger.error('Failed to remove tag from task: $taskId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -430,7 +437,7 @@ class TaskCoreRepository implements ITaskRepository {
       await db.syncTasksWithNoteContent(noteId, noteContent);
       _logger.info('Synced tasks with note content: $noteId');
     } catch (e, stack) {
-      _logger.error('Failed to sync tasks with note content: $noteId', e, stack);
+      _logger.error('Failed to sync tasks with note content: $noteId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -464,7 +471,7 @@ class TaskCoreRepository implements ITaskRepository {
 
       return await createTask(subtask);
     } catch (e, stack) {
-      _logger.error('Failed to create subtask for: $parentTaskId', e, stack);
+      _logger.error('Failed to create subtask for: $parentTaskId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -476,7 +483,7 @@ class TaskCoreRepository implements ITaskRepository {
       return allTasks.where((task) =>
           task.metadata['parentTaskId'] == parentTaskId).toList();
     } catch (e, stack) {
-      _logger.error('Failed to get subtasks for: $parentTaskId', e, stack);
+      _logger.error('Failed to get subtasks for: $parentTaskId', error: e, stackTrace: stack);
       return [];
     }
   }

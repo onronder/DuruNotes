@@ -6,7 +6,7 @@ import 'package:duru_notes/features/folders/providers/folders_state_providers.da
 import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart';
 import 'package:duru_notes/infrastructure/repositories/search_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/tag_repository.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/search/search_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';

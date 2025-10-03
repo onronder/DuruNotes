@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Maps between domain Note entity and infrastructure LocalNote
 class NoteMapper {
   /// Convert infrastructure LocalNote to domain Note
-  static domain.Note toDomain(LocalNote localNote, {List<String>? tags, List<domain.NoteLink>? links}) {
+  /// Note: folderId must be fetched separately from NoteFolders junction table
+  static domain.Note toDomain(LocalNote localNote, {String? folderId, List<String>? tags, List<domain.NoteLink>? links}) {
     return domain.Note(
       id: localNote.id,
       title: localNote.title,
@@ -15,9 +17,9 @@ class NoteMapper {
       encryptedMetadata: localNote.encryptedMetadata,
       isPinned: localNote.isPinned,
       noteType: localNote.noteType,
-      folderId: localNote.folderId,
+      folderId: folderId, // folderId is passed in, not stored directly on LocalNote
       version: localNote.version,
-      userId: localNote.userId,
+      userId: localNote.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '', // Handle null userId
       attachmentMeta: localNote.attachmentMeta,
       metadata: localNote.metadata,
       tags: tags ?? [],
@@ -26,6 +28,7 @@ class NoteMapper {
   }
 
   /// Convert domain Note to infrastructure LocalNote
+  /// Note: folderId relationship must be stored separately in NoteFolders junction table
   static LocalNote toInfrastructure(domain.Note note) {
     return LocalNote(
       id: note.id,
@@ -36,12 +39,12 @@ class NoteMapper {
       encryptedMetadata: note.encryptedMetadata,
       isPinned: note.isPinned,
       noteType: note.noteType,
-      folderId: note.folderId,
+      // folderId is NOT stored on LocalNote - it's in NoteFolders junction table
       version: note.version,
       userId: note.userId,
       attachmentMeta: note.attachmentMeta,
       metadata: note.metadata,
-      conflictState: NoteConflictState.none,
+      // conflictState is not part of LocalNote schema
     );
   }
 

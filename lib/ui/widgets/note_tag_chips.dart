@@ -49,7 +49,10 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     final tagCounts = await repo.listTagsWithCounts();
     if (mounted) {
       setState(() {
-        _availableTags = tagCounts.map((tc) => tc.tag).toList();
+        // tagCounts is List<Map<String, dynamic>>, extract tags
+        _availableTags = tagCounts.cast<Map<String, dynamic>>()
+            .map((tc) => tc['tag'] as String)
+            .toList();
       });
     }
   }
@@ -86,7 +89,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
 
     // Update in database
     final repo = ref.read(notesRepositoryProvider);
-    await repo.addTag(noteId: widget.noteId, tag: normalizedTag);
+    await repo.addTag(widget.noteId, normalizedTag);
 
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();
@@ -102,7 +105,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
 
     // Update in database
     final repo = ref.read(notesRepositoryProvider);
-    await repo.removeTag(noteId: widget.noteId, tag: tag);
+    await repo.removeTag(widget.noteId, tag);
 
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();

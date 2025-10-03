@@ -5,11 +5,14 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// AccountKeyService manages the Account Master Key (AMK) lifecycle:
 /// - generate a random AMK (32 bytes)

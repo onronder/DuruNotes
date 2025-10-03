@@ -115,7 +115,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
         });
 
         // Attempt to recover
-        Future.delayed(const Duration(milliseconds: 500), () {
+        Future<void>.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
             _attemptRecovery();
           }
@@ -218,7 +218,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: _getErrorColor(errorType).withOpacity(0.1),
+                            color: _getErrorColor(errorType).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -372,7 +372,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
   }
 
   void _showErrorDetails(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -600,7 +600,7 @@ ${_errorDetails?.stack}
 /// Error widget builder that catches widget build errors
 class ErrorWidgetBuilder extends StatefulWidget {
   final Widget child;
-  final Function(FlutterErrorDetails) onError;
+  final void Function(FlutterErrorDetails) onError;
 
   const ErrorWidgetBuilder({
     super.key,

@@ -6,7 +6,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
-import 'package:duru_notes/infrastructure/repositories/optimized_notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart' as infra;
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
@@ -344,8 +344,8 @@ class UnifiedImportService {
         notes.add({
           'title': fileName,
           'body': content,
-          'tags': [],
-          'metadata': {},
+          'tags': <Map<String, dynamic>>[],
+          'metadata': <String, dynamic>{},
           'format': 'markdown',
         });
       }
@@ -480,7 +480,7 @@ class UnifiedImportService {
           notes.add({
             'title': title,
             'body': body,
-            'tags': [],
+            'tags': <Map<String, dynamic>>[],
             'format': 'text',
           });
         }
@@ -492,7 +492,7 @@ class UnifiedImportService {
       return [{
         'title': fileName,
         'body': content,
-        'tags': [],
+        'tags': <String>[],
         'format': 'text',
       }];
     } catch (e, stack) {
@@ -620,7 +620,7 @@ class UnifiedImportService {
       notes.add({
         'title': title,
         'body': body.toString(),
-        'tags': parentTitle != null ? [parentTitle] : [],
+        'tags': parentTitle != null ? [parentTitle] : <String>[],
         'format': 'roam',
       });
     }
@@ -692,7 +692,7 @@ class UnifiedImportService {
                    data['updated'] ??
                    data['updated_at'] ??
                    data['modified'],
-      'metadata': data['metadata'] ?? {},
+      'metadata': data['metadata'] ?? <String, dynamic>{},
       'format': data['format'] ?? 'unknown',
     };
   }
@@ -817,7 +817,8 @@ class UnifiedImportService {
   Future<bool> _checkDuplicate(String title) async {
     try {
       if (migrationConfig.isFeatureEnabled('notes')) {
-        final repository = OptimizedNotesRepository(db: db);
+        final client = Supabase.instance.client;
+        final repository = NotesCoreRepository(db: db, client: client);
         final notes = await repository.getAll();
         return notes.any((n) => n.title == title);
       } else {
@@ -902,7 +903,8 @@ class UnifiedImportService {
     try {
       if (migrationConfig.isFeatureEnabled('notes')) {
         // Use domain repository
-        final repository = OptimizedNotesRepository(db: db);
+        final client = Supabase.instance.client;
+        final repository = NotesCoreRepository(db: db, client: client);
 
         final note = domain.Note(
           id: _uuid.v4(),

@@ -106,12 +106,12 @@ class _UnifiedTaskFromLocal implements UnifiedTask {
     id: _task.id,
     noteId: _task.noteId ?? '',
     title: _task.content,
-    content: null,
-    status: _task.status == '1'
+    description: null,
+    status: _task.status == TaskStatus.completed
         ? domain.TaskStatus.completed
         : domain.TaskStatus.pending,
     priority: domain.TaskPriority.values.firstWhere(
-      (p) => p.index == (_task.priority ?? 0),
+      (p) => p.index == _task.priority.index,
       orElse: () => domain.TaskPriority.medium,
     ),
     dueDate: _task.dueDate,
@@ -144,7 +144,7 @@ class _UnifiedTaskFromDomain implements UnifiedTask {
   String? get noteId => _task.noteId;
 
   @override
-  String? get description => _task.content;
+  String? get description => _task.description;
 
   @override
   DateTime? get dueDate => _task.dueDate;
@@ -201,7 +201,7 @@ class _UnifiedTaskFromDomain implements UnifiedTask {
     contentHash: _task.title.hashCode.toString(),
     reminderId: null,
     labels: _task.tags.join(','),
-    notes: _task.content,
+    notes: _task.description,
     estimatedMinutes: null,
     actualMinutes: null,
     parentTaskId: null,

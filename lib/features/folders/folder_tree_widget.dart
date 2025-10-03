@@ -1,6 +1,9 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +16,7 @@ class FolderTreeWidget extends ConsumerStatefulWidget {
     this.selectedFolderId,
   });
 
-  final Function(String? folderId)? onFolderSelected;
+  final void Function(String? folderId)? onFolderSelected;
   final String? selectedFolderId;
 
   @override
@@ -22,12 +25,10 @@ class FolderTreeWidget extends ConsumerStatefulWidget {
 
 class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   final Set<String> _expandedFolders = {};
-  final bool _showCreateDialog = false;
-  String? _parentFolderForCreate;
 
   @override
   Widget build(BuildContext context) {
-    final folderRepo = ref.watch(folderRepositoryProvider);
+    final folderRepo = ref.watch(folderCoreRepositoryProvider);
 
     return Column(
       children: [
@@ -59,8 +60,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           title: const Text('Inbox'),
           selected: widget.selectedFolderId == null,
           onTap: () => widget.onFolderSelected?.call(null),
-          trailing: StreamBuilder<List<LocalNote>>(
-            stream: folderRepo.watchNotesInFolder(sort: const FolderSortSpec()),
+          trailing: FutureBuilder<List<domain.Note>>(
+            future: folderRepo.getUnfiledNotes(),
             builder: (context, snapshot) {
               final count = snapshot.data?.length ?? 0;
               if (count == 0) return const SizedBox.shrink();
@@ -81,15 +82,15 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
         // Folder tree
         Expanded(
-          child: StreamBuilder<List<LocalFolder>>(
-            stream: folderRepo.watchFolders(),
+          child: FutureBuilder<List<domain.Folder>>(
+            future: folderRepo.getRootFolders(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final rootFolders = snapshot.data!;
-              if (rootFolders.isEmpty) {
+              final domainFolders = snapshot.data!;
+              if (domainFolders.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -111,6 +112,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 );
               }
 
+              // Convert to local folders for UI display
+              final rootFolders = domainFolders
+                  .map((df) => FolderMapper.toInfrastructure(df))
+                  .toList();
+
               return ListView.builder(
                 itemCount: rootFolders.length,
                 itemBuilder: (context, index) {
@@ -125,7 +131,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   }
 
   Widget _buildFolderTile(LocalFolder folder, int depth) {
-    final folderRepo = ref.watch(folderRepositoryProvider);
+    final folderRepo = ref.watch(folderCoreRepositoryProvider);
     final isExpanded = _expandedFolders.contains(folder.id);
     final isSelected = widget.selectedFolderId == folder.id;
 
@@ -156,12 +162,10 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Note count
-              StreamBuilder<int>(
-                stream: Stream.fromFuture(
-                  ref.watch(appDbProvider).getNotesCountInFolder(folder.id),
-                ),
+              FutureBuilder<List<domain.Note>>(
+                future: folderRepo.getNotesInFolder(folder.id),
                 builder: (context, snapshot) {
-                  final count = snapshot.data ?? 0;
+                  final count = snapshot.data?.length ?? 0;
                   if (count == 0) return const SizedBox.shrink();
                   return Container(
                     padding: const EdgeInsets.symmetric(
@@ -182,8 +186,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 },
               ),
               // Expand/collapse chevron
-              StreamBuilder<List<LocalFolder>>(
-                stream: folderRepo.watchFolders(parentId: folder.id),
+              FutureBuilder<List<domain.Folder>>(
+                future: folderRepo.getChildFolders(folder.id),
                 builder: (context, snapshot) {
                   final hasChildren = snapshot.data?.isNotEmpty ?? false;
                   if (!hasChildren) return const SizedBox(width: 24);
@@ -260,10 +264,13 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         ),
         // Show child folders if expanded
         if (isExpanded)
-          StreamBuilder<List<LocalFolder>>(
-            stream: folderRepo.watchFolders(parentId: folder.id),
+          FutureBuilder<List<domain.Folder>>(
+            future: folderRepo.getChildFolders(folder.id),
             builder: (context, snapshot) {
-              final children = snapshot.data ?? [];
+              final domainChildren = snapshot.data ?? [];
+              final children = domainChildren
+                  .map((df) => FolderMapper.toInfrastructure(df))
+                  .toList();
               return Column(
                 children: children
                     .map((child) => _buildFolderTile(child, depth + 1))
@@ -276,7 +283,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   }
 
   void _handleFolderAction(String action, LocalFolder folder) {
-    final folderRepo = ref.read(folderRepositoryProvider);
+    final folderRepo = ref.read(folderCoreRepositoryProvider);
 
     switch (action) {
       case 'create_subfolder':
@@ -298,7 +305,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(parentId == null ? 'Create Folder' : 'Create Subfolder'),
@@ -332,7 +339,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           FilledButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
-                final folderRepo = ref.read(folderRepositoryProvider);
+                final folderRepo = ref.read(folderCoreRepositoryProvider);
                 await folderRepo.createFolder(
                   name: nameController.text,
                   parentId: parentId,
@@ -353,7 +360,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   void _showRenameFolderDialog(LocalFolder folder) {
     final controller = TextEditingController(text: folder.name);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename Folder'),
@@ -371,11 +378,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             onPressed: () async {
               if (controller.text.isNotEmpty &&
                   controller.text != folder.name) {
-                final folderRepo = ref.read(folderRepositoryProvider);
-                await folderRepo.renameFolder(
-                  folderId: folder.id,
-                  newName: controller.text,
-                );
+                final folderRepo = ref.read(folderCoreRepositoryProvider);
+                await folderRepo.renameFolder(folder.id, controller.text);
                 if (context.mounted) {
                   Navigator.of(context).pop();
                 }
@@ -397,7 +401,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   }
 
   void _showDeleteConfirmation(LocalFolder folder) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Folder'),
@@ -412,8 +416,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
           ),
           FilledButton(
             onPressed: () async {
-              final folderRepo = ref.read(folderRepositoryProvider);
-              await folderRepo.deleteFolder(folderId: folder.id);
+              final folderRepo = ref.read(folderCoreRepositoryProvider);
+              await folderRepo.deleteFolder(folder.id);
               if (context.mounted) {
                 Navigator.of(context).pop();
                 // If deleted folder was selected, go back to inbox

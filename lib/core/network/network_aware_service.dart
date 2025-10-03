@@ -334,7 +334,7 @@ class NetworkAwareService {
           failure: (error) {
             errors.add(error);
             if (stopOnFirstError) {
-              return Result.failure(error);
+              return Result<List<T>, AppError>.failure(error);
             }
           },
         );

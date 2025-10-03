@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/features/templates/template_preview_dialog.dart';
 import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/features/templates/edit_template_dialog.dart';
@@ -301,13 +302,13 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                DuruColors.primary.withOpacity(0.1),
-                DuruColors.accent.withOpacity(0.05),
+                DuruColors.primary.withValues(alpha: 0.1),
+                DuruColors.accent.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.1),
+              color: theme.colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
           child: Row(
@@ -366,7 +367,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -384,7 +385,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -463,8 +464,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           selected: _categoryFilter != TemplateCategory.all,
                           onSelected: (_) => _showCategoryFilter(),
                           avatar: Icon(CupertinoIcons.tag_fill, size: 16),
-                          backgroundColor: DuruColors.primary.withOpacity(0.1),
-                          selectedColor: DuruColors.primary.withOpacity(0.2),
+                          backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
+                          selectedColor: DuruColors.primary.withValues(alpha: 0.2),
                         ),
                         SizedBox(width: DuruSpacing.xs),
                         // Sort filter
@@ -473,8 +474,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           selected: true,
                           onSelected: (_) => _showSortOptions(),
                           avatar: Icon(CupertinoIcons.sort_down, size: 16),
-                          backgroundColor: DuruColors.accent.withOpacity(0.1),
-                          selectedColor: DuruColors.accent.withOpacity(0.2),
+                          backgroundColor: DuruColors.accent.withValues(alpha: 0.1),
+                          selectedColor: DuruColors.accent.withValues(alpha: 0.2),
                         ),
                         SizedBox(width: DuruSpacing.xs),
                         // View mode toggle
@@ -1175,14 +1176,14 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         'is_system': template.isSystem,
       });
 
-      // Update usage count
+      // Apply template to create note
       final repository = ref.read(templateRepositoryProvider);
-      repository.trackTemplateUsage(template.id);
+      final noteId = await repository.applyTemplate(
+        templateId: template.id,
+        variableValues: {}, // Empty variables for now - will be replaced with note creation
+      );
 
-      // Create note from template
-      final noteData = repository.createNoteFromTemplate(template);
-      // TODO: Implement note creation from template
-      debugPrint('Template note data: $noteData');
+      debugPrint('Created note from template: $noteId');
 
       // Navigate to note editor with template data
       if (mounted) {
@@ -1275,22 +1276,20 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     if (confirmed ?? false) {
       try {
         final repository = ref.read(templateRepositoryProvider);
-        final success = await repository.deleteUserTemplate(template.id);
+        await repository.deleteTemplate(template.id);
 
-        if (success) {
-          await _loadTemplates();
-          _analytics.event('template_deleted', properties: {
-            'template_id': template.id,
-            'template_category': template.category,
-          });
+        await _loadTemplates();
+        _analytics.event('template_deleted', properties: {
+          'template_id': template.id,
+          'template_category': template.category,
+        });
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Deleted template "${template.title}"'),
-              ),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted template "${template.title}"'),
+            ),
+          );
         }
       } catch (e, stackTrace) {
         _logger.error(
@@ -1336,6 +1335,16 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       tagsList = [];
     }
 
+    Map<String, dynamic> metadataMap = {};
+    try {
+      if (template.metadata != null && template.metadata!.isNotEmpty) {
+        final decoded = jsonDecode(template.metadata!);
+        metadataMap = decoded is Map<String, dynamic> ? decoded : {};
+      }
+    } catch (_) {
+      metadataMap = {};
+    }
+
     final templateModel = Template(
       id: template.id,
       title: template.title,
@@ -1348,14 +1357,14 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       sortOrder: template.sortOrder,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
-      metadata: template.metadata != null ? jsonDecode(template.metadata!) : {},
+      metadata: metadataMap,
     );
 
     Navigator.of(context).pop(templateModel);
   }
 
   void _showTemplateOptions(LocalTemplate template) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) {
         return SafeArea(
@@ -1417,6 +1426,17 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         tagsList = [];
       }
 
+      // Parse metadata safely
+      Map<String, dynamic> metadataMap = {};
+      try {
+        if (template.metadata != null && template.metadata!.isNotEmpty) {
+          final decoded = jsonDecode(template.metadata!);
+          metadataMap = decoded is Map<String, dynamic> ? decoded : {};
+        }
+      } catch (_) {
+        metadataMap = {};
+      }
+
       // Create Template model for export
       final templateModel = Template(
         id: template.id,
@@ -1430,7 +1450,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         sortOrder: template.sortOrder,
         createdAt: template.createdAt,
         updatedAt: template.updatedAt,
-        metadata: template.metadata != null ? jsonDecode(template.metadata!) : {},
+        metadata: metadataMap,
       );
 
       final success = await sharingService.exportTemplate(templateModel);
@@ -1458,15 +1478,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _duplicateTemplate(LocalTemplate template) async {
     try {
       final repository = ref.read(templateRepositoryProvider);
-      final newId = Uuid().v4();
 
-      await repository.createUserTemplate(
-        title: '${template.title} (Copy)',
-        body: template.body,
-        tags: template.tags != null ? (jsonDecode(template.tags!) as List<dynamic>).cast<String>() : [],
-        category: template.category,
-        description: '${template.description} (Copy)',
-        icon: template.icon,
+      await repository.duplicateTemplate(
+        templateId: template.id,
+        newName: '${template.title} (Copy)',
       );
 
       await _loadTemplates();
@@ -1505,7 +1520,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   }
 
   void _showImportDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -1557,15 +1572,18 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
       final template = await sharingService.importTemplate();
       if (template != null) {
-        // Save to repository
-        await repository.createUserTemplate(
-          title: template.title,
-          body: template.body,
-          tags: template.tags,
-          category: template.category,
-          description: template.description,
-          icon: template.icon,
+        // Convert model to domain entity and save
+        final domainTemplate = domain.Template(
+          id: template.id,
+          name: template.title,
+          content: template.body,
+          variables: template.metadata ?? {},
+          isSystem: false, // Imported templates are user templates
+          createdAt: template.createdAt,
+          updatedAt: template.updatedAt,
         );
+
+        await repository.createTemplate(domainTemplate);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1601,14 +1619,18 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
         for (final template in templates) {
           try {
-            await repository.createUserTemplate(
-              title: template.title,
-              body: template.body,
-              tags: template.tags,
-              category: template.category,
-              description: template.description,
-              icon: template.icon,
+            // Convert model to domain entity and save
+            final domainTemplate = domain.Template(
+              id: template.id,
+              name: template.title,
+              content: template.body,
+              variables: template.metadata ?? {},
+              isSystem: false, // Imported templates are user templates
+              createdAt: template.createdAt,
+              updatedAt: template.updatedAt,
             );
+
+            await repository.createTemplate(domainTemplate);
             successCount++;
           } catch (e) {
             // Continue with next template if one fails

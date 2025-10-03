@@ -384,12 +384,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
             if (!mounted) return;
 
             final syncService = ref.read(syncServiceProvider);
-            final syncResult = await syncService.sync();
-
-            // Handle sync result silently - errors are already logged by SyncService
-            syncResult.onFailure((error) {
+            try {
+              await syncService.sync();
+            } catch (error) {
+              // Handle sync errors silently - errors are already logged by SyncService
               // Could show a user notification here if needed
-            });
+            }
 
             // Final mounted check
             if (!mounted) return;

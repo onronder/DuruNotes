@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/sync/sync_integrity_validator.dart';
 import 'package:duru_notes/core/sync/conflict_resolution_engine.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:drift/drift.dart';
 
 /// Comprehensive sync recovery manager for handling failed sync operations
 ///
@@ -571,10 +573,14 @@ class SyncRecoveryManager {
     try {
       final localNote = await _localDb.getNote(noteId);
       if (localNote != null) {
+        // Convert String to Uint8List for encrypted fields
+        final titleBytes = Uint8List.fromList((localNote.title).codeUnits);
+        final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
+
         await _remoteApi.upsertEncryptedNote(
           id: localNote.id,
-          title: localNote.title,
-          encrypted_metadata: localNote.encryptedMetadata,
+          titleEnc: titleBytes,
+          propsEnc: propsBytes,
           deleted: localNote.deleted,
         );
         return true;
@@ -588,12 +594,17 @@ class SyncRecoveryManager {
 
   Future<bool> _retryFolderSync(String folderId) async {
     try {
-      final localFolder = await _localDb.getFolder(folderId);
+      final localFolder = await (_localDb.select(_localDb.localFolders)
+        ..where((t) => t.id.equals(folderId))).getSingleOrNull();
       if (localFolder != null) {
+        // Convert String to Uint8List for encrypted fields
+        final nameBytes = Uint8List.fromList(localFolder.name.codeUnits);
+        final propsBytes = Uint8List.fromList(localFolder.description.codeUnits);
+
         await _remoteApi.upsertEncryptedFolder(
           id: localFolder.id,
-          name: localFolder.name,
-          description: localFolder.description,
+          nameEnc: nameBytes,
+          propsEnc: propsBytes,
           deleted: localFolder.deleted,
         );
         return true;
@@ -613,8 +624,8 @@ class SyncRecoveryManager {
           id: localTask.id,
           noteId: localTask.noteId,
           content: localTask.content,
-          status: localTask.status,
-          priority: localTask.priority,
+          status: localTask.status.name,
+          priority: localTask.priority.index,
           position: localTask.position,
           dueDate: localTask.dueDate,
           completedAt: localTask.completedAt,
@@ -653,22 +664,25 @@ class SyncRecoveryManager {
 
         if (localTime.isAfter(remoteTime)) {
           // Local is newer, push to remote
+          final titleBytes = Uint8List.fromList(localNote.title.codeUnits);
+          final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
+
           await _remoteApi.upsertEncryptedNote(
             id: localNote.id,
-            titleEnc: localNote.title,
-            propsEnc: localNote.encryptedMetadata,
+            titleEnc: titleBytes,
+            propsEnc: propsBytes,
             deleted: localNote.deleted,
           );
         } else {
           // Remote is newer, pull to local
           await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
             LocalNotesCompanion.insert(
-              id: Value(noteId),
-              title: Value(remoteNote['title']),
-              encryptedMetadata: Value(remoteNote['encrypted_metadata']),
-              createdAt: Value(DateTime.parse(remoteNote['created_at'])),
-              updatedAt: Value(DateTime.parse(remoteNote['updated_at'])),
-              deleted: Value(remoteNote['deleted'] ?? false),
+              id: noteId,
+              title: remoteNote['title'] as String? ?? '',
+              body: '',
+              updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
+              encryptedMetadata: const Value(null),
+              deleted: remoteNote['deleted'] as bool? ?? false,
             ),
           );
         }

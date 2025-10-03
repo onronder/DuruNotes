@@ -1,6 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/ui/widgets/folder_breadcrumbs_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,14 +30,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   final Map<String, TextEditingController> _editControllers = {};
 
   Future<List<LocalFolder>> _getFolderBreadcrumbs(
-    NotesRepository repo,
+    IFolderRepository repo,
     String folderId,
   ) async {
     final breadcrumbs = <LocalFolder>[];
     String? currentId = folderId;
 
     while (currentId != null) {
-      final folder = await repo.getFolder(currentId);
+      final folder = await repo.getById(currentId);
       if (folder == null) break;
       breadcrumbs.insert(0, folder);
       currentId = folder.parentId;
@@ -56,7 +56,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final notesRepo = ref.watch(notesRepositoryProvider);
+    final folderRepo = ref.watch(folderCoreRepositoryProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -65,7 +65,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         // Breadcrumbs
         if (widget.showBreadcrumbs && widget.selectedFolderId != null)
           FutureBuilder<List<LocalFolder>>(
-            future: _getFolderBreadcrumbs(notesRepo, widget.selectedFolderId!),
+            future: _getFolderBreadcrumbs(folderRepo, widget.selectedFolderId!),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                 return Padding(
@@ -86,7 +86,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         // Folder tree
         Expanded(
           child: FutureBuilder<List<LocalFolder>>(
-            future: notesRepo.listFolders(),
+            future: folderRepo.getAll(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -417,8 +417,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     }
 
     try {
-      final notesRepo = ref.read(notesRepositoryProvider);
-      await notesRepo.renameFolder(folder.id, newName.trim());
+      final folderRepo = ref.read(folderCoreRepositoryProvider);
+      await folderRepo.update(
+        id: folder.id,
+        name: newName.trim(),
+      );
       _cancelEdit();
       HapticFeedback.mediumImpact();
       if (mounted) {
@@ -465,8 +468,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
     if (result != null && result.trim().isNotEmpty) {
       try {
-        final notesRepo = ref.read(notesRepositoryProvider);
-        final folder = await notesRepo.createFolder(
+        final folderRepo = ref.read(folderCoreRepositoryProvider);
+        final folder = await folderRepo.create(
           name: result.trim(),
           parentId: parentId,
         );
@@ -541,8 +544,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
     if (result != null) {
       try {
-        final notesRepo = ref.read(notesRepositoryProvider);
-        await notesRepo.moveFolder(folder.id, result.isEmpty ? null : result);
+        final folderRepo = ref.read(folderCoreRepositoryProvider);
+        await folderRepo.update(
+          id: folder.id,
+          parentId: result.isEmpty ? null : result,
+        );
         HapticFeedback.mediumImpact();
         if (mounted) {
           ScaffoldMessenger.of(
@@ -587,8 +593,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
     if (confirmed ?? false) {
       try {
-        final notesRepo = ref.read(notesRepositoryProvider);
-        await notesRepo.deleteFolder(folder.id);
+        final folderRepo = ref.read(folderCoreRepositoryProvider);
+        await folderRepo.delete(folder.id);
         HapticFeedback.mediumImpact();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

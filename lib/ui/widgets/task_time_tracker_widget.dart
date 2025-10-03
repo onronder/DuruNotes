@@ -331,7 +331,7 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
   }
 
   void _resetTimer() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Timer?'),

@@ -17,7 +17,7 @@ class IOSStyleToggle extends StatefulWidget {
   });
 
   final bool value;
-  final Function(bool) onChanged;
+  final void Function(bool) onChanged;
   final Color? activeColor;
   final Color? inactiveColor;
   final Color? thumbColor;
@@ -182,7 +182,7 @@ class SettingsToggleTile extends StatelessWidget {
 
   final String title;
   final bool value;
-  final Function(bool) onChanged;
+  final void Function(bool) onChanged;
   final String? subtitle;
   final Widget? leading;
   final Color? activeColor;

@@ -5,7 +5,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/template.dart' as domain_template;
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
-import 'package:duru_notes/repository/template_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
 import 'package:duru_notes/services/template_migration_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

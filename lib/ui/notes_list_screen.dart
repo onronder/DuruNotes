@@ -18,8 +18,7 @@ import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart' hide DuruColors;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/ui/components/modern_note_card.dart';
-import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
+import 'package:duru_notes/ui/components/duru_note_card.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
 import 'package:duru_notes/ui/help_screen.dart';
 import 'package:duru_notes/ui/inbox_badge_widget.dart';
@@ -30,9 +29,7 @@ import 'package:duru_notes/ui/task_list_screen.dart';
 import 'package:duru_notes/ui/productivity_analytics_screen.dart';
 import 'package:duru_notes/ui/widgets/folder_chip.dart';
 import 'package:duru_notes/ui/widgets/note_source_icon.dart';
-import 'package:duru_notes/ui/widgets/pin_toggle_button.dart';
 import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
-import 'package:duru_notes/ui/widgets/modern_stats_card.dart';
 import 'package:duru_notes/ui/widgets/template_picker_sheet.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:file_picker/file_picker.dart';
@@ -372,13 +369,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            DuruColors.primary.withOpacity(0.1),
-            DuruColors.accent.withOpacity(0.05),
+            DuruColors.primary.withValues(alpha: 0.1),
+            DuruColors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Consumer(
@@ -450,7 +447,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                             Text(
                               user.email ?? 'User',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -489,7 +486,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                         icon: CupertinoIcons.folder_fill,
                         value: folderCount.toString(),
                         label: 'Folders',
-                        color: DuruColors.primary.withOpacity(0.7),
+                        color: DuruColors.primary.withValues(alpha: 0.7),
                       ),
                     ],
                   ),
@@ -515,7 +512,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -533,7 +530,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           label,
           style: TextStyle(
             fontSize: 11,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -886,7 +883,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
       },
-      child: ModernNoteCard(
+      child: DuruNoteCard(
         note: note,
         isSelected: isSelected,
         onTap: () {
@@ -1087,7 +1084,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
               try {
                 final repo = ref.read(notesRepositoryProvider);
-                await repo.delete(note.id);
+                await repo.deleteNote(note.id);
 
                 // Refresh the notes list
                 await ref.read(notesPageProvider.notifier).refresh();
@@ -2330,8 +2327,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
 
     // Get existing saved searches for duplicate checking
-    final existingSearches =
-        await ref.read(notesRepositoryProvider).getSavedSearches();
+    // Use appDb directly to get the Drift SavedSearch type
+    final db = ref.read(appDbProvider);
+    final existingSearches = await db.getSavedSearches();
 
     // Create and show search delegate
     final delegate = NoteSearchDelegate(
@@ -2378,7 +2376,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   void _showFilterMenu(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -2528,7 +2526,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     final currentSort = ref.read(currentSortSpecProvider);
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -2667,9 +2665,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     LocalFolder targetFolder,
   ) async {
     try {
-      final repo = ref.read(notesRepositoryProvider);
-      final previousFolder = await repo.getFolderForNote(note.id);
-      await repo.addNoteToFolder(note.id, targetFolder.id);
+      final folderRepo = ref.read(folderCoreRepositoryProvider);
+      final previousFolder = await folderRepo.getFolderForNote(note.id);
+      await folderRepo.addNoteToFolder(note.id, targetFolder.id);
 
       // Refresh the filtered notes
       ref.invalidate(filteredNotesProvider);
@@ -2688,9 +2686,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               label: 'Undo',
               onPressed: () async {
                 if (previousFolder != null) {
-                  await repo.moveNoteToFolder(note.id, previousFolder.id);
+                  await folderRepo.moveNoteToFolder(note.id, previousFolder.id);
                 } else {
-                  await repo.removeNoteFromFolder(note.id);
+                  await folderRepo.removeNoteFromFolder(note.id);
                 }
                 ref.invalidate(filteredNotesProvider);
                 await ref.read(folderHierarchyProvider.notifier).loadFolders();
@@ -2758,7 +2756,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   void _showNoteOptions(LocalNote note) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
@@ -2884,19 +2882,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       final analytics = ref.read(analyticsProvider);
 
       // Get the template
-      final template = await templateRepository.getTemplate(templateId);
+      final template = await templateRepository.getTemplateById(templateId);
       if (template == null) {
         throw StateError('Template not found');
       }
 
       // Create note data from template
-      final noteData = templateRepository.createNoteFromTemplate(template);
+      final noteData = {
+        'title': template.name,
+        'body': template.content,
+        'tags': <String>[], // Domain templates don't have tags
+      };
 
       // Create the actual note
       final newNote = await notesRepository.createOrUpdate(
         title: noteData['title'] as String,
         body: noteData['body'] as String,
-        tags: List<String>.from(noteData['tags'] as List).toSet(),
+        tags: (noteData['tags'] as List<String>),
       );
 
       if (newNote != null && mounted) {
@@ -2904,12 +2906,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         analytics.event('template_used', properties: {
           'template_id': templateId,
           'note_id': newNote.id,
-          'template_title': template.title,
+          'template_name': template.name,
           'is_system': template.isSystem,
         });
 
-        // Track template usage in repository
-        templateRepository.trackTemplateUsage(templateId);
+        // Track template usage - TODO: Implement in template service
+        // templateService.trackUsage(templateId);
 
         // Navigate to edit screen
         await Navigator.push<void>(
@@ -2985,7 +2987,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     if (confirmed ?? false) {
       final repo = ref.read(notesRepositoryProvider);
       for (final id in _selectedNoteIds) {
-        await repo.delete(id);
+        await repo.deleteNote(id);
       }
       await ref.read(notesPageProvider.notifier).refresh();
       _exitSelectionMode();
@@ -3169,7 +3171,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   // Remove the old _buildFilterChip method as we're using DuruFolderChip component
 
   void _showFolderActionsMenu(BuildContext context, LocalFolder folder) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) {
         return SafeArea(
@@ -3252,7 +3254,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _showRenameFolderDialog(BuildContext context, LocalFolder folder) {
     final controller = TextEditingController(text: folder.name);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename Folder'),
@@ -3364,7 +3366,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   void _confirmDeleteFolder(BuildContext context, LocalFolder folder) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Folder?'),
@@ -3459,7 +3461,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _showAddToFolderForSingleNote(LocalNote note) async {
     // Show folder picker for single note
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => FolderPicker(
@@ -3619,9 +3621,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               try {
                 final client = Supabase.instance.client;
                 final uid = client.auth.currentUser?.id;
-                // Clear local database and per-user last pull key via SyncService
-                final sync = ref.read(syncServiceProvider);
-                await sync.reset();
+                // TODO: Implement reset in SyncService or clear local data directly
+                // Clear local database and per-user last pull key
+                // final sync = ref.read(syncServiceProvider);
+                // await sync.reset();
+
                 // Delete per-user master key
                 if (uid != null && uid.isNotEmpty) {
                   await ref.read(keyManagerProvider).deleteMasterKey(uid);

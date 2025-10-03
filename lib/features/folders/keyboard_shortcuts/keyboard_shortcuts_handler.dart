@@ -382,7 +382,7 @@ class _KeyboardShortcutsHandlerState
   void _confirmDelete() {
     final count = ref.read(batchSelectionProvider).selectedCount;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Notes'),
@@ -408,7 +408,7 @@ class _KeyboardShortcutsHandlerState
   }
 
   void _showFolderPicker() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => FolderPicker(
@@ -424,7 +424,7 @@ class _KeyboardShortcutsHandlerState
   }
 
   void _showExportOptions() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Export Format'),
@@ -701,7 +701,7 @@ final keyboardShortcutsEnabledProvider = StateProvider<bool>((ref) => true);
 /// Extension to show keyboard shortcuts help
 extension KeyboardShortcutsContext on BuildContext {
   void showKeyboardShortcutsHelp() {
-    showDialog(
+    showDialog<void>(
       context: this,
       builder: (context) => const KeyboardShortcutsHelp(),
     );

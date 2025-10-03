@@ -41,14 +41,14 @@ class ModernStatsCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  DuruColors.primary.withOpacity(0.05),
-                  DuruColors.accent.withOpacity(0.03),
+                  DuruColors.primary.withValues(alpha: 0.05),
+                  DuruColors.accent.withValues(alpha: 0.03),
                 ],
                 stops: const [0.0, 1.0],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.1),
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -103,7 +103,7 @@ class ModernStatsCard extends StatelessWidget {
                           Text(
                             _getStatsummary(),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -117,7 +117,7 @@ class ModernStatsCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -143,7 +143,7 @@ class ModernStatsCard extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(DuruSpacing.sm),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.5),
+                          color: theme.colorScheme.surface.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -176,8 +176,8 @@ class ModernStatsCard extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                stat.color?.withOpacity(0.1) ?? DuruColors.primary.withOpacity(0.1),
-                stat.color?.withOpacity(0.05) ?? DuruColors.primary.withOpacity(0.05),
+                stat.color?.withValues(alpha: 0.1) ?? DuruColors.primary.withValues(alpha: 0.1),
+                stat.color?.withValues(alpha: 0.05) ?? DuruColors.primary.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
@@ -199,7 +199,7 @@ class ModernStatsCard extends StatelessWidget {
         Text(
           stat.label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             fontSize: 10,
           ),
         ),
@@ -260,7 +260,7 @@ class StatItem extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
           ),
         ),
       ],

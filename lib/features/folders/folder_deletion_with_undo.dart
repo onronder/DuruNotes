@@ -148,13 +148,14 @@ mixin FolderDeletionWithUndo {
 
     // Gather data for undo operation before deletion
     final notesRepo = ref.read(notesRepositoryProvider);
+    final folderRepo = ref.read(folderRepositoryProvider);
     final undoService = ref.read(folderUndoServiceProvider);
     // final analytics = ref.read(analyticsProvider); // Not currently used
 
     try {
       // Get affected notes and child folders before deletion
       final affectedNotes = await notesRepo.db.getNoteIdsInFolder(folder.id);
-      final affectedChildFolders = await notesRepo.getChildFoldersRecursive(folder.id);
+      final affectedChildFolders = await folderRepo.getChildFoldersRecursive(folder.id);
 
       _folderDeletionLogger.debug('Folder deletion metadata', data: {
         'affectedNotes': affectedNotes.length,
@@ -336,7 +337,7 @@ mixin FolderDeletionWithUndo {
       return;
     }
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Recent Folder Operations'),
@@ -446,7 +447,7 @@ class UndoHistoryFAB extends ConsumerWidget {
   ) async {
     final undoService = ref.read(folderUndoServiceProvider);
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Recent Operations'),

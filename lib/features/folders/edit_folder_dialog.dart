@@ -120,7 +120,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
   Future<void> _loadParentFolder() async {
     if (widget.folder.parentId != null) {
       final parent = await ref
-          .read(notesRepositoryProvider)
+          .read(folderRepositoryProvider)
           .getFolder(widget.folder.parentId!);
       if (mounted) {
         setState(() {
@@ -224,7 +224,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
   }
 
   Future<bool> _isDescendant(String potentialParentId, String folderId) async {
-    final repository = ref.read(notesRepositoryProvider);
+    final repository = ref.read(folderRepositoryProvider);
     String? currentId = potentialParentId;
 
     while (currentId != null) {

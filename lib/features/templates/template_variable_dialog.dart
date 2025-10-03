@@ -84,7 +84,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
                 gradient: LinearGradient(
                   colors: [
                     DuruColors.primary,
-                    DuruColors.accent.withOpacity(0.8),
+                    DuruColors.accent.withValues(alpha: 0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -121,7 +121,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
                   Text(
                     'For template: ${widget.templateTitle}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 14,
                     ),
                   ),
@@ -153,7 +153,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
+                    color: Colors.grey.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -217,7 +217,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: DuruColors.primary.withOpacity(0.1),
+                color: DuruColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -234,7 +234,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               variable.type.displayName,
               style: TextStyle(
                 fontSize: 12,
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -251,8 +251,8 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               hintText: variable.type.inputHint,
               filled: true,
               fillColor: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.grey.withOpacity(0.1),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.grey.withValues(alpha: 0.1),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -295,8 +295,8 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
             hintText: 'Tap to select date',
             filled: true,
             fillColor: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.withOpacity(0.1),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.grey.withValues(alpha: 0.1),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -338,8 +338,8 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
             hintText: 'Tap to select time',
             filled: true,
             fillColor: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.withOpacity(0.1),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.grey.withValues(alpha: 0.1),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

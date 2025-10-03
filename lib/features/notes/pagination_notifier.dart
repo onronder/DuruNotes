@@ -1,9 +1,12 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// Represents a page of notes with pagination state
 class NotesPage {
@@ -107,7 +110,7 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
 
       // Update state
       state = AsyncValue.data(
-        NotesPage(items: mergedItems, hasMore: hasMore, nextCursor: nextCursor),
+        NotesPage(items: mergedItems.cast<LocalNote>(), hasMore: hasMore, nextCursor: nextCursor),
       );
 
       // Analytics

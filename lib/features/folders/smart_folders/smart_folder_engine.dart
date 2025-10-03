@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_saved_search_presets.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:flutter/foundation.dart';
 
 /// Engine for evaluating smart folder rules and filtering notes
 class SmartFolderEngine {
   SmartFolderEngine(this._repository);
-  final NotesRepository _repository;
+  final NotesCoreRepository _repository;
   final Map<String, StreamController<List<LocalNote>>> _controllers = {};
   final Map<String, Timer> _refreshTimers = {};
 

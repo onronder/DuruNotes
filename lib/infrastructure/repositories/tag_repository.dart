@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_tag_repository.dart';
-import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/infrastructure/mappers/tag_mapper.dart';
+import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
+import 'package:duru_notes/domain/entities/tag.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 
 /// Tag repository implementation
 class TagRepository implements ITagRepository {
@@ -15,7 +16,10 @@ class TagRepository implements ITagRepository {
   final AppLogger _logger;
 
   @override
-  Future<List<TagCount>> listTagsWithCounts() => db.getTagsWithCounts();
+  Future<List<domain.TagWithCount>> listTagsWithCounts() async {
+    final tagCounts = await db.getTagsWithCounts();
+    return TagMapper.toDomainList(tagCounts);
+  }
 
   @override
   Future<void> addTag({required String noteId, required String tag}) async {
@@ -63,16 +67,22 @@ class TagRepository implements ITagRepository {
   }
 
   @override
-  Future<List<LocalNote>> queryNotesByTags({
+  Future<List<domain.Note>> queryNotesByTags({
     List<String> anyTags = const [],
     List<String> allTags = const [],
     List<String> noneTags = const [],
-  }) {
-    return db.notesByTags(
+  }) async {
+    final localNotes = await db.notesByTags(
       anyTags: anyTags,
       noneTags: noneTags,
       sort: const SortSpec(),
     );
+
+    // Convert LocalNote to domain Note
+    // Note: tags and folderId need to be fetched separately
+    return localNotes.map((localNote) {
+      return NoteMapper.toDomain(localNote);
+    }).toList();
   }
 
   @override

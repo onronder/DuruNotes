@@ -846,49 +846,45 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           .toList();
 
       // Update template
-      final success = await repository.updateUserTemplate(
-        id: widget.template.id,
-        title: _titleController.text.trim(),
-        body: _bodyController.text.trim(),
-        tags: tags,
-        category: _selectedCategory,
-        description: _descriptionController.text.trim(),
-        icon: _getIconName(_selectedIcon),
+      await repository.updateUserTemplate(
+        widget.template.id,
+        _titleController.text.trim(),
+        _bodyController.text.trim(),
         metadata: {
+          'tags': tags,
+          'category': _selectedCategory,
+          'description': _descriptionController.text.trim(),
+          'icon': _getIconName(_selectedIcon),
           'last_edited': DateTime.now().toIso8601String(),
           'icon_data': _selectedIcon.codePoint,
         },
       );
 
-      if (success) {
-        _logger.info(
-          'Template updated successfully',
-          data: {
-            'template_id': widget.template.id,
-            'category': _selectedCategory,
-            'has_variables': _hasVariables(_bodyController.text),
-            'content_length_change': _bodyController.text.length - widget.template.body.length,
-          },
-        );
-
-        // Track analytics
-        analytics.event('template_updated', properties: {
-          'template_category': _selectedCategory,
+      _logger.info(
+        'Template updated successfully',
+        data: {
+          'template_id': widget.template.id,
+          'category': _selectedCategory,
           'has_variables': _hasVariables(_bodyController.text),
-          'content_length': _bodyController.text.length,
-          'has_tags': tags.isNotEmpty,
-        });
+          'content_length_change': _bodyController.text.length - widget.template.body.length,
+        },
+      );
 
-        if (mounted) {
-          Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Template "${_titleController.text.trim()}" updated successfully'),
-            ),
-          );
-        }
-      } else {
-        throw Exception('Template update returned false');
+      // Track analytics
+      analytics.event('template_updated', properties: {
+        'template_category': _selectedCategory,
+        'has_variables': _hasVariables(_bodyController.text),
+        'content_length': _bodyController.text.length,
+        'has_tags': tags.isNotEmpty,
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Template "${_titleController.text.trim()}" updated successfully'),
+          ),
+        );
       }
     } catch (e, stackTrace) {
       _logger.error(

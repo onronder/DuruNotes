@@ -212,7 +212,7 @@ class DeploymentValidationTest {
         'critical_issues': result.criticalIssues.length,
         'consistency_rate': result.consistencyRate,
         'check_duration_ms': result.checkDuration.inMilliseconds,
-        'details': result.inconsistencies.map((inconsistency) => {
+        'details': result.inconsistencies.map((Map<String, dynamic> inconsistency) => {
           'table': inconsistency.tableName,
           'type': inconsistency.type.toString(),
           'severity': inconsistency.severity.toString(),
@@ -374,7 +374,7 @@ class DeploymentValidationTest {
         'warning_issues_count': report.warningIssuesCount,
         'backup_documentation_created': report.backupDocumentationPath != null,
         'validation_steps_completed': report.validationSteps.length,
-        'validation_steps': report.validationSteps.map((step) => {
+        'validation_steps': report.validationSteps.map((Map<String, dynamic> step) => {
           'step_name': step.stepName,
           'is_successful': step.isSuccessful,
           'duration_ms': step.duration.inMilliseconds,
@@ -417,7 +417,7 @@ class DeploymentValidationTest {
       'sync_integrity_valid': syncIntegrity['is_valid'] ?? false,
       'data_consistency_valid': dataConsistency['is_consistent'] ?? false,
       'conflicts_detected': conflictDetection['conflicts_found'] ?? -1,
-      'recommendations': preDeployment['recommendations'] ?? [],
+      'recommendations': preDeployment['recommendations'] ?? <String>[],
       'next_steps': _generateNextSteps(isHealthy, results),
     };
   }

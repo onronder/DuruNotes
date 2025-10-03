@@ -14,8 +14,8 @@ class ListBlockWidget extends StatefulWidget {
 
   final NoteBlock block;
   final bool isFocused;
-  final Function(NoteBlock) onChanged;
-  final Function(bool) onFocusChanged;
+  final void Function(NoteBlock) onChanged;
+  final void Function(bool) onFocusChanged;
   final VoidCallback onNewLine;
 
   @override

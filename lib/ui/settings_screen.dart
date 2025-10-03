@@ -223,20 +223,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            DuruColors.primary.withOpacity(0.05),
-            DuruColors.accent.withOpacity(0.03),
+            DuruColors.primary.withValues(alpha: 0.05),
+            DuruColors.accent.withValues(alpha: 0.03),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
+          color: colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             offset: const Offset(0, 4),
             blurRadius: 10,
           ),
@@ -300,7 +300,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Signed in',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ] else ...[
@@ -336,7 +336,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  (iconColor ?? DuruColors.primary).withOpacity(0.05),
+                  (iconColor ?? DuruColors.primary).withValues(alpha: 0.05),
                   colorScheme.surface,
                 ],
               )
@@ -344,12 +344,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: useGradient ? null : colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (iconColor ?? colorScheme.outline).withOpacity(0.1),
+          color: (iconColor ?? colorScheme.outline).withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -371,7 +371,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Container(
                       padding: EdgeInsets.all(DuruSpacing.sm),
                       decoration: BoxDecoration(
-                        color: (iconColor ?? DuruColors.primary).withOpacity(0.1),
+                        color: (iconColor ?? DuruColors.primary).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -639,7 +639,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(
             'Smart suggestions and semantic search',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
           value: aiEnabled,
@@ -660,7 +660,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(
             selectedModel,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
           trailing: Container(
@@ -669,7 +669,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               vertical: DuruSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF9333EA).withOpacity(0.1),
+              color: const Color(0xFF9333EA).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -708,7 +708,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(
             'AI-powered writing assistance',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
           value: smartSuggestions,
@@ -726,7 +726,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(
             'Find notes by meaning, not just keywords',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
           value: semanticSearch,
@@ -742,13 +742,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: EdgeInsets.all(DuruSpacing.md),
           decoration: BoxDecoration(
             color: onDeviceOnly
-              ? Colors.green.withOpacity(0.1)
-              : Colors.orange.withOpacity(0.1),
+              ? Colors.green.withValues(alpha: 0.1)
+              : Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: onDeviceOnly
-                ? Colors.green.withOpacity(0.3)
-                : Colors.orange.withOpacity(0.3),
+                ? Colors.green.withValues(alpha: 0.3)
+                : Colors.orange.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -777,7 +777,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ? 'All AI processing happens locally on your device'
                         : 'Some features may use cloud processing',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -839,11 +839,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1550,7 +1550,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : SnackBarAction(
                     label: 'Debug',
                     onPressed: () {
-                      showDialog(
+                      showDialog<void>(
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('Sync Debug Info'),
@@ -1599,7 +1599,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) async {
     final currentLocale = ref.read(localeProvider);
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.selectLanguage),
@@ -1657,7 +1657,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showImportDialog(BuildContext context, AppLocalizations l10n) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.importNotes),
@@ -1716,7 +1716,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showExportDialog(BuildContext context, AppLocalizations l10n) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.exportNotes),
@@ -1884,7 +1884,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Change encryption passphrase'),

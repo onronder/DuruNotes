@@ -2,7 +2,6 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/database_providers.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
-import 'package:duru_notes/providers.dart' show notesCoreRepositoryProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
@@ -43,7 +42,7 @@ final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
     reminderCoordinator: reminderCoordinator,
     advancedReminderService: advancedReminderService as AdvancedReminderService,
     taskService: taskService,
-    taskRepository: ref.read(taskCoreRepositoryProvider),
+    database: database,
     notificationPlugin: notificationPlugin,
   );
 
@@ -79,7 +78,7 @@ final productivityGoalsServiceProvider =
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
 
   final service = ProductivityGoalsService(
-    taskRepository: ref.read(taskCoreRepositoryProvider),
+    database: database,
     analyticsService: analyticsService,
   );
 
@@ -126,8 +125,7 @@ final unifiedTaskServiceProvider = Provider<unified.UnifiedTaskService>((ref) {
   );
 
   service = unified.UnifiedTaskService(
-    taskRepository: ref.read(taskCoreRepositoryProvider),
-    notesRepository: ref.read(notesCoreRepositoryProvider),
+    db: db,
     logger: logger,
     analytics: analytics,
     enhancedTaskService: enhancedService,

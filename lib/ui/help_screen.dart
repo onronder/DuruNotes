@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/cross_platform_tokens.dart';
-import 'widgets/modern_app_bar.dart';
 
 /// Help screen that displays the user guide and support information
 class HelpScreen extends StatefulWidget {
@@ -63,17 +62,15 @@ class _HelpScreenState extends State<HelpScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: ModernAppBar(
-        title: 'Help & Support',
-        gradientColors: [
-          DuruColors.primary,
-          DuruColors.accent,
-        ],
+      appBar: AppBar(
+        title: const Text('Help & Support'),
+        backgroundColor: DuruColors.primary,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               CupertinoIcons.chat_bubble_text,
-              color: isDark ? Colors.white : Colors.white,
+              color: Colors.white,
             ),
             onPressed: _showFeedbackDialog,
             tooltip: 'Send Feedback',
@@ -163,8 +160,8 @@ class _HelpScreenState extends State<HelpScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                DuruColors.primary.withOpacity(isDark ? 0.3 : 0.1),
-                DuruColors.accent.withOpacity(isDark ? 0.2 : 0.05),
+                DuruColors.primary.withValues(alpha: isDark ? 0.3 : 0.1),
+                DuruColors.accent.withValues(alpha: isDark ? 0.2 : 0.05),
               ],
             ),
           ),
@@ -188,7 +185,7 @@ class _HelpScreenState extends State<HelpScreen> {
               Text(
                 'Find answers, contact support, or learn about features',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                  color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -235,11 +232,11 @@ class _HelpScreenState extends State<HelpScreen> {
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark
-                ? Colors.white.withOpacity(0.05)
+                ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
               ),
             ),
             child: ClipRRect(
@@ -266,30 +263,30 @@ class _HelpScreenState extends State<HelpScreen> {
                 color: isDark ? Colors.white : Colors.black87,
               ),
               p: theme.textTheme.bodyMedium?.copyWith(
-                color: (isDark ? Colors.white : Colors.black87).withOpacity(0.8),
+                color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.8),
               ),
               code: theme.textTheme.bodyMedium?.copyWith(
                 fontFamily: 'monospace',
-                backgroundColor: DuruColors.primary.withOpacity(0.1),
+                backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
                 color: DuruColors.primary,
               ),
               codeblockDecoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.primary.withOpacity(0.05),
-                    DuruColors.accent.withOpacity(0.02),
+                    DuruColors.primary.withValues(alpha: 0.05),
+                    DuruColors.accent.withValues(alpha: 0.02),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: DuruColors.primary.withOpacity(0.2),
+                  color: DuruColors.primary.withValues(alpha: 0.2),
                 ),
               ),
               blockquoteDecoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.accent.withOpacity(0.05),
-                    DuruColors.accent.withOpacity(0.02),
+                    DuruColors.accent.withValues(alpha: 0.05),
+                    DuruColors.accent.withValues(alpha: 0.02),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -334,12 +331,12 @@ class _HelpScreenState extends State<HelpScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
             ],
           ),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -349,7 +346,7 @@ class _HelpScreenState extends State<HelpScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -376,7 +373,7 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showSearchDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Search User Guide'),
@@ -397,7 +394,7 @@ class _HelpScreenState extends State<HelpScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
@@ -462,20 +459,20 @@ class _HelpScreenState extends State<HelpScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            DuruColors.primary.withOpacity(0.05),
-            DuruColors.accent.withOpacity(0.02),
+            DuruColors.primary.withValues(alpha: 0.05),
+            DuruColors.accent.withValues(alpha: 0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isDark ? Colors.white : DuruColors.primary).withOpacity(0.1),
+          color: (isDark ? Colors.white : DuruColors.primary).withValues(alpha: 0.1),
         ),
       ),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: DuruColors.primary.withOpacity(0.1),
+            color: DuruColors.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: DuruColors.primary, size: 20),
@@ -490,13 +487,13 @@ class _HelpScreenState extends State<HelpScreen> {
         subtitle: Text(
           subtitle,
           style: TextStyle(
-            color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+            color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
           ),
         ),
         trailing: Icon(
           CupertinoIcons.chevron_forward,
           size: 16,
-          color: (isDark ? Colors.white : Colors.black87).withOpacity(0.5),
+          color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.5),
         ),
         onTap: () {
           Navigator.of(context).pop();
@@ -513,7 +510,7 @@ class _HelpScreenState extends State<HelpScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
@@ -549,8 +546,8 @@ class _HelpScreenState extends State<HelpScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.primary.withOpacity(0.1),
-                    DuruColors.accent.withOpacity(0.05),
+                    DuruColors.primary.withValues(alpha: 0.1),
+                    DuruColors.accent.withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -570,7 +567,7 @@ class _HelpScreenState extends State<HelpScreen> {
                   Text(
                     'Version: 1.0.0 • Build: 100',
                     style: TextStyle(
-                      color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                      color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -609,7 +606,7 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 
   void _showQuickHelp() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
@@ -677,7 +674,7 @@ class _HelpScreenState extends State<HelpScreen> {
     final feedbackController = TextEditingController();
     var feedbackType = 'Bug Report';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -800,7 +797,7 @@ class _HelpScreenState extends State<HelpScreen> {
             style: TextStyle(
               color: (Theme.of(context).brightness == Brightness.dark
                 ? Colors.white
-                : Colors.black87).withOpacity(0.8),
+                : Colors.black87).withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -824,13 +821,13 @@ class _QuickHelpSection extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            DuruColors.primary.withOpacity(0.05),
-            DuruColors.accent.withOpacity(0.02),
+            DuruColors.primary.withValues(alpha: 0.05),
+            DuruColors.accent.withValues(alpha: 0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isDark ? Colors.white : DuruColors.primary).withOpacity(0.1),
+          color: (isDark ? Colors.white : DuruColors.primary).withValues(alpha: 0.1),
         ),
       ),
       child: Column(
@@ -841,7 +838,7 @@ class _QuickHelpSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: DuruColors.primary.withOpacity(0.1),
+                  color: DuruColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -880,7 +877,7 @@ class _QuickHelpSection extends StatelessWidget {
                     child: Text(
                       item,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: (isDark ? Colors.white : Colors.black87).withOpacity(0.8),
+                        color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.8),
                       ),
                     ),
                   ),

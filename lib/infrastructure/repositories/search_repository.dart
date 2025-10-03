@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_search_repository.dart';
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/infrastructure/mappers/saved_search_mapper.dart';
+import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 
 /// Search repository implementation
 class SearchRepository implements ISearchRepository {
@@ -14,13 +17,14 @@ class SearchRepository implements ISearchRepository {
   final AppLogger _logger;
 
   @override
-  Future<void> createOrUpdateSavedSearch(SavedSearch savedSearch) async {
-    await db.upsertSavedSearch(savedSearch);
+  Future<void> createOrUpdateSavedSearch(domain.SavedSearch savedSearch) async {
+    final dbSearch = SavedSearchMapper.toInfrastructure(savedSearch);
+    await db.upsertSavedSearch(dbSearch);
     // Enqueue for sync
     await db.enqueue(
       savedSearch.id,
       'upsert_saved_search',
-      payload: jsonEncode(savedSearch.toJson()),
+      payload: jsonEncode(dbSearch.toJson()),
     );
   }
 
@@ -32,10 +36,17 @@ class SearchRepository implements ISearchRepository {
   }
 
   @override
-  Future<List<SavedSearch>> getSavedSearches() => db.getSavedSearches();
+  Future<List<domain.SavedSearch>> getSavedSearches() async {
+    final dbSearches = await db.getSavedSearches();
+    return SavedSearchMapper.toDomainList(dbSearches);
+  }
 
   @override
-  Stream<List<SavedSearch>> watchSavedSearches() => db.watchSavedSearches();
+  Stream<List<domain.SavedSearch>> watchSavedSearches() {
+    return db.watchSavedSearches().map((dbSearches) {
+      return SavedSearchMapper.toDomainList(dbSearches);
+    });
+  }
 
   @override
   Future<void> toggleSavedSearchPin(String id) => db.toggleSavedSearchPin(id);
@@ -49,16 +60,19 @@ class SearchRepository implements ISearchRepository {
       db.reorderSavedSearches(ids);
 
   @override
-  Future<List<LocalNote>> executeSavedSearch(SavedSearch savedSearch) async {
+  Future<List<domain.Note>> executeSavedSearch(domain.SavedSearch savedSearch) async {
+    // Convert domain SavedSearch to db SavedSearch
+    final dbSearch = SavedSearchMapper.toInfrastructure(savedSearch);
+
     // Parse the saved search query
-    final query = savedSearch.query;
-    final searchType = savedSearch.searchType;
+    final query = dbSearch.query;
+    final searchType = dbSearch.searchType;
 
     // Parse parameters JSON if present
     Map<String, dynamic>? params;
-    if (savedSearch.parameters != null) {
+    if (dbSearch.parameters != null) {
       try {
-        params = jsonDecode(savedSearch.parameters!) as Map<String, dynamic>;
+        params = jsonDecode(dbSearch.parameters!) as Map<String, dynamic>;
       } catch (e) {
         _logger.error('Failed to parse saved search parameters', error: e);
       }
@@ -67,23 +81,27 @@ class SearchRepository implements ISearchRepository {
     // Execute based on search type
     switch (searchType) {
       case 'text':
-        return db.searchNotes(query);
+        final results = await db.searchNotes(query);
+        return results.map((ln) => NoteMapper.toDomain(ln)).toList();
       case 'tags':
         final tags = (params?['tags'] as List?)?.cast<String>() ?? [];
-        return db.notesByTags(
+        final results = await db.notesByTags(
           anyTags: tags,
           noneTags: [],
           sort: const SortSpec(),
         );
+        return results.map<domain.Note>((ln) => NoteMapper.toDomain(ln)).toList();
       case 'folder':
         final folderId = params?['folderId'] as String?;
         if (folderId != null) {
-          return db.getNotesInFolder(folderId);
+          final results = await db.getNotesInFolder(folderId);
+          return results.map((ln) => NoteMapper.toDomain(ln)).toList();
         }
         return [];
       case 'advanced':
         // Advanced search with multiple criteria
-        return _executeAdvancedSearch(params ?? {});
+        final results = await _executeAdvancedSearch(params ?? {});
+        return results.map((ln) => NoteMapper.toDomain(ln)).toList();
       default:
         _logger.warning('Unknown search type: $searchType');
         return [];

@@ -370,7 +370,7 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
   }
 
   void _showFolderPicker() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => FolderPicker(
@@ -388,7 +388,7 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
   void _confirmDelete() {
     final count = ref.read(batchSelectionProvider).selectedCount;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Notes'),
@@ -452,7 +452,7 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
 
   void _exportNotes() {
     // Show export format options
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Export Format'),

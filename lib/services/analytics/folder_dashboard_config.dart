@@ -1,4 +1,3 @@
-import 'package:duru_notes/services/analytics/folder_analytics.dart';
 
 /// Dashboard configuration for folder analytics
 class FolderDashboardConfig {

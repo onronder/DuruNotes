@@ -21,10 +21,10 @@ class BlockEditor extends ConsumerStatefulWidget {
   });
 
   final List<NoteBlock> blocks;
-  final Function(List<NoteBlock>) onBlocksChanged;
+  final void Function(List<NoteBlock>) onBlocksChanged;
   final String? noteId;
   final int? focusedBlockIndex;
-  final Function(int?)? onBlockFocusChanged;
+  final void Function(int?)? onBlockFocusChanged;
 
   @override
   ConsumerState<BlockEditor> createState() => _BlockEditorState();

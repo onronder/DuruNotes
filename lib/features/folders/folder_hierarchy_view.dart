@@ -479,7 +479,7 @@ class _FolderTreeTile extends StatefulWidget {
   final VoidCallback onExpandToggle;
   final ValueChanged<String> onDragStarted;
   final VoidCallback onDragCompleted;
-  final Function(String, String) onAcceptDrop;
+  final void Function(String, String) onAcceptDrop;
   final bool isDragging;
   final List<Widget> children;
 

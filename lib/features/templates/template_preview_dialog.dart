@@ -73,7 +73,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   end: Alignment.bottomRight,
                   colors: [
                     _getCategoryColor(widget.template.category),
-                    _getCategoryColor(widget.template.category).withOpacity(0.8),
+                    _getCategoryColor(widget.template.category).withValues(alpha: 0.8),
                   ],
                 ),
               ),
@@ -107,7 +107,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -134,7 +134,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -154,7 +154,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                     Text(
                       widget.template.description,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -168,7 +168,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                 color: colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -208,7 +208,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                 color: colorScheme.surfaceContainerLowest,
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -284,7 +284,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: Column(
@@ -351,7 +351,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                                 Icon(
                                   Icons.article_outlined,
                                   size: 48,
-                                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -379,10 +379,10 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: colorScheme.tertiaryContainer.withOpacity(0.3),
+                color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: colorScheme.tertiary.withOpacity(0.3),
+                  color: colorScheme.tertiary.withValues(alpha: 0.3),
                 ),
               ),
               child: Padding(
@@ -423,7 +423,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: colorScheme.tertiary.withOpacity(0.2),
+                                color: colorScheme.tertiary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -589,7 +589,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.2),
+          color: colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -679,7 +679,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
       spans.add(TextSpan(
         text: match.group(0)!,
         style: theme.textTheme.bodyMedium?.copyWith(
-          backgroundColor: colorScheme.tertiary.withOpacity(0.2),
+          backgroundColor: colorScheme.tertiary.withValues(alpha: 0.2),
           color: colorScheme.tertiary,
           fontWeight: FontWeight.w600,
         ),

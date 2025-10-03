@@ -7,12 +7,9 @@ import 'package:duru_notes/ui/dialogs/goals_dialog.dart';
 import 'package:duru_notes/ui/widgets/analytics/productivity_charts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import 'widgets/modern_app_bar.dart';
-import '../theme/cross_platform_tokens.dart';
 
 /// Comprehensive productivity analytics dashboard
 class ProductivityAnalyticsScreen extends ConsumerStatefulWidget {
@@ -142,15 +139,18 @@ class _ProductivityAnalyticsScreenState
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: ModernAppBar(
-        title: 'Productivity Analytics',
-        gradientColors: [
-          DuruColors.primary,
-          DuruColors.accent,
-        ],
+      appBar: AppBar(
+        title: const Text('Productivity Analytics'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [DuruColors.primary, DuruColors.accent],
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               CupertinoIcons.flag_fill,
               color: Colors.white,
             ),
@@ -158,7 +158,7 @@ class _ProductivityAnalyticsScreenState
             tooltip: 'Set Goals',
           ),
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               CupertinoIcons.calendar,
               color: Colors.white,
             ),
@@ -168,7 +168,7 @@ class _ProductivityAnalyticsScreenState
           IconButton(
             icon: Icon(
               CupertinoIcons.share,
-              color: Colors.white.withOpacity(_analytics != null ? 1.0 : 0.5),
+              color: Colors.white.withValues(alpha: _analytics != null ? 1.0 : 0.5),
             ),
             onPressed: _analytics != null ? _exportData : null,
             tooltip: 'Export data',
@@ -182,8 +182,8 @@ class _ProductivityAnalyticsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.08),
-                  DuruColors.accent.withOpacity(0.04),
+                  DuruColors.primary.withValues(alpha: 0.08),
+                  DuruColors.accent.withValues(alpha: 0.04),
                 ],
               ),
             ),
@@ -222,19 +222,19 @@ class _ProductivityAnalyticsScreenState
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.primary.withOpacity(0.08),
-                    DuruColors.accent.withOpacity(0.04),
+                    DuruColors.primary.withValues(alpha: 0.08),
+                    DuruColors.accent.withValues(alpha: 0.04),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: DuruColors.primary.withOpacity(0.2),
+                  color: DuruColors.primary.withValues(alpha: 0.2),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -275,7 +275,7 @@ class _ProductivityAnalyticsScreenState
                         vertical: DuruSpacing.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: DuruColors.accent.withOpacity(0.1),
+                        color: DuruColors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -321,8 +321,8 @@ class _ProductivityAnalyticsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.1),
-                  DuruColors.accent.withOpacity(0.05),
+                  DuruColors.primary.withValues(alpha: 0.1),
+                  DuruColors.accent.withValues(alpha: 0.05),
                 ],
               ),
               shape: BoxShape.circle,
@@ -330,7 +330,7 @@ class _ProductivityAnalyticsScreenState
             child: Icon(
               CupertinoIcons.chart_bar_square,
               size: 64,
-              color: DuruColors.primary.withOpacity(0.5),
+              color: DuruColors.primary.withValues(alpha: 0.5),
             ),
           ),
           SizedBox(height: DuruSpacing.lg),
@@ -346,7 +346,7 @@ class _ProductivityAnalyticsScreenState
           Text(
             'Complete some tasks to see your productivity insights',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -371,15 +371,15 @@ class _ProductivityAnalyticsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.15),
-                  DuruColors.accent.withOpacity(0.08),
+                  DuruColors.primary.withValues(alpha: 0.15),
+                  DuruColors.accent.withValues(alpha: 0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: DuruColors.primary.withOpacity(0.2),
+                color: DuruColors.primary.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -398,7 +398,7 @@ class _ProductivityAnalyticsScreenState
                         'Your Productivity Score',
                         style: TextStyle(
                           fontSize: 14,
-                          color: (isDark ? Colors.white : Colors.black87).withOpacity(0.7),
+                          color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
@@ -493,15 +493,15 @@ class _ProductivityAnalyticsScreenState
     return Container(
       decoration: BoxDecoration(
         color: isDark
-            ? Colors.white.withOpacity(0.05)
-            : Colors.white.withOpacity(0.95),
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+          color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -515,8 +515,8 @@ class _ProductivityAnalyticsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  DuruColors.primary.withOpacity(0.05),
-                  DuruColors.accent.withOpacity(0.02),
+                  DuruColors.primary.withValues(alpha: 0.05),
+                  DuruColors.accent.withValues(alpha: 0.02),
                 ],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1018,7 +1018,7 @@ class _ProductivityAnalyticsScreenState
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

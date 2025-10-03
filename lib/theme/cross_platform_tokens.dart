@@ -71,13 +71,13 @@ class DuruColors {
   static Color getNavigationColor(BuildContext context) {
     if (DuruPlatform.isIOS) {
       // iOS prefers slightly transparent navigation
-      return primary.withOpacity(0.9);
+      return primary.withValues(alpha: 0.9);
     } else if (DuruPlatform.isAndroid) {
       // Material Design uses full opacity
       return primary;
     } else if (DuruPlatform.isWeb) {
       // Web uses slight transparency for performance
-      return primary.withOpacity(0.95);
+      return primary.withValues(alpha: 0.95);
     }
     return primary; // Desktop fallback
   }
@@ -110,17 +110,17 @@ class DuruColors {
 
     switch (category.toLowerCase()) {
       case 'work':
-        return primary.withOpacity(opacity);
+        return primary.withValues(alpha: opacity);
       case 'personal':
-        return accent.withOpacity(opacity);
+        return accent.withValues(alpha: opacity);
       case 'academic':
-        return const Color(0xFF8B5CF6).withOpacity(opacity);
+        return const Color(0xFF8B5CF6).withValues(alpha: opacity);
       case 'creative':
-        return const Color(0xFFEC4899).withOpacity(opacity);
+        return const Color(0xFFEC4899).withValues(alpha: opacity);
       case 'meeting':
-        return const Color(0xFF10B981).withOpacity(opacity);
+        return const Color(0xFF10B981).withValues(alpha: opacity);
       case 'planning':
-        return const Color(0xFFF59E0B).withOpacity(opacity);
+        return const Color(0xFFF59E0B).withValues(alpha: opacity);
       default:
         return Theme.of(context).colorScheme.primaryContainer;
     }

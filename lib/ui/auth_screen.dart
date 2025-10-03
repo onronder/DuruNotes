@@ -156,13 +156,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             colors: isDark
                 ? [
                     const Color(0xFF1A1A1A),
-                    DuruColors.primary.withOpacity(0.2),
-                    DuruColors.accent.withOpacity(0.1),
+                    DuruColors.primary.withValues(alpha: 0.2),
+                    DuruColors.accent.withValues(alpha: 0.1),
                   ]
                 : [
-                    DuruColors.primary.withOpacity(0.05),
+                    DuruColors.primary.withValues(alpha: 0.05),
                     Colors.white,
-                    DuruColors.accent.withOpacity(0.05),
+                    DuruColors.accent.withValues(alpha: 0.05),
                   ],
           ),
         ),
@@ -227,7 +227,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: DuruColors.primary.withOpacity(0.3),
+                      color: DuruColors.primary.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -282,11 +282,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -301,7 +301,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             // Tab Switcher
             Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -389,10 +389,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               Container(
                 padding: EdgeInsets.all(DuruSpacing.md),
                 decoration: BoxDecoration(
-                  color: DuruColors.primary.withOpacity(0.05),
+                  color: DuruColors.primary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: DuruColors.primary.withOpacity(0.2),
+                    color: DuruColors.primary.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Column(
@@ -538,7 +538,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           boxShadow: isActive
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -581,7 +581,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -589,7 +589,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -618,7 +618,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           children: [
             Expanded(
               child: Divider(
-                color: theme.colorScheme.outline.withOpacity(0.2),
+                color: theme.colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             Padding(
@@ -632,7 +632,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ),
             Expanded(
               child: Divider(
-                color: theme.colorScheme.outline.withOpacity(0.2),
+                color: theme.colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
           ],
@@ -690,7 +690,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         ),
         decoration: BoxDecoration(
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
           borderRadius: BorderRadius.circular(12),
         ),

@@ -1,10 +1,7 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/ui/components/modern_app_bar.dart';
-import 'package:duru_notes/ui/components/modern_task_card.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:flutter/material.dart';
@@ -48,11 +45,22 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
       backgroundColor: theme.brightness == Brightness.dark
           ? const Color(0xFF0A0A0A)
           : const Color(0xFFF8FAFB),
-      appBar: ModernAppBar(
-        title: 'Tasks',
-        subtitle: 'Manage your productivity',
-        showGradient: true,
-        bottom: ModernTabBar(
+      appBar: AppBar(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tasks'),
+            Text('Manage your productivity', style: TextStyle(fontSize: 12)),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [DuruColors.primary, DuruColors.accent],
+            ),
+          ),
+        ),
+        bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(
@@ -94,8 +102,8 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
             ],
           ),
           // Toggle completed
-          ModernAppBarAction(
-            icon: _showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+          IconButton(
+            icon: Icon(_showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye),
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
           ),
@@ -140,13 +148,13 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            DuruColors.primary.withOpacity(0.1),
-            DuruColors.accent.withOpacity(0.05),
+            DuruColors.primary.withValues(alpha: 0.1),
+            DuruColors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: StreamBuilder<List<NoteTask>>(
@@ -210,7 +218,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -228,7 +236,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -316,7 +324,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
     DateTime? selectedDate;
     TaskPriority selectedPriority = TaskPriority.medium;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -510,7 +518,7 @@ class _TaskListView extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.checkmark_circle, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)),
+                Icon(CupertinoIcons.checkmark_circle, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
                 const SizedBox(height: 16),
                 Text(
                   'No tasks found',
@@ -519,7 +527,7 @@ class _TaskListView extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Create a new task to get started',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                 ),
               ],
             ),
@@ -531,87 +539,7 @@ class _TaskListView extends ConsumerWidget {
           itemCount: tasks.length,
           itemBuilder: (context, index) {
             final task = tasks[index];
-            final taskService = ref.watch(unifiedTaskServiceProvider);
-
-            return ModernTaskCard(
-              task: task,
-              onToggle: () => taskService.toggleTaskStatus(task.id),
-              onEdit: () async {
-                // Show edit dialog inline here
-                final contentController = TextEditingController(text: task.content);
-                var selectedDate = task.dueDate;
-                var selectedPriority = task.priority;
-
-                await showDialog(
-                  context: context,
-                  builder: (context) => StatefulBuilder(
-                    builder: (context, setState) => AlertDialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      title: Row(
-                        children: [
-                          Icon(CupertinoIcons.pencil_circle_fill, color: DuruColors.primary, size: 28),
-                          SizedBox(width: DuruSpacing.sm),
-                          const Text('Edit Task'),
-                        ],
-                      ),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextField(
-                              controller: contentController,
-                              decoration: InputDecoration(
-                                labelText: 'Task description',
-                                prefixIcon: Icon(CupertinoIcons.text_alignleft, color: DuruColors.primary),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              maxLines: 3,
-                              minLines: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: DuruColors.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () async {
-                            if (contentController.text.isNotEmpty) {
-                              await taskService.updateTask(
-                                taskId: task.id,
-                                content: contentController.text,
-                                priority: selectedPriority,
-                                dueDate: selectedDate,
-                              );
-                              if (context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            }
-                          },
-                          child: const Text('Save', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              onDelete: () => taskService.deleteTask(task.id),
-              onOpenNote: task.noteId.isNotEmpty
-                  ? () => Navigator.pushNamed(context, '/note', arguments: task.noteId)
-                  : null,
-            );
+            return _TaskCard(task: task);
           },
         );
       },
@@ -691,17 +619,17 @@ class _TaskCard extends ConsumerWidget {
       margin: EdgeInsets.symmetric(vertical: DuruSpacing.xs, horizontal: DuruSpacing.md),
       decoration: BoxDecoration(
         color: isOverdue
-            ? DuruColors.error.withOpacity(0.05)
+            ? DuruColors.error.withValues(alpha: 0.05)
             : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isOverdue
-              ? DuruColors.error.withOpacity(0.2)
-              : Theme.of(context).colorScheme.outline.withOpacity(0.1),
+              ? DuruColors.error.withValues(alpha: 0.2)
+              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -713,8 +641,8 @@ class _TaskCard extends ConsumerWidget {
           padding: EdgeInsets.all(DuruSpacing.xs),
           decoration: BoxDecoration(
             color: task.status == TaskStatus.completed
-                ? DuruColors.accent.withOpacity(0.1)
-                : DuruColors.primary.withOpacity(0.05),
+                ? DuruColors.accent.withValues(alpha: 0.1)
+                : DuruColors.primary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Checkbox(
@@ -730,7 +658,7 @@ class _TaskCard extends ConsumerWidget {
                 ? TextDecoration.lineThrough
                 : null,
             color: task.status == TaskStatus.completed
-                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5)
+                ? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
                 : null,
           ),
         ),
@@ -740,13 +668,13 @@ class _TaskCard extends ConsumerWidget {
               Icon(
                 CupertinoIcons.clock,
                 size: 16,
-                color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               const SizedBox(width: 4),
               Text(
                 DateFormat.MMMd().add_jm().format(task.dueDate!),
                 style: TextStyle(
-                  color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   fontSize: 12,
                 ),
               ),
@@ -818,7 +746,7 @@ class _TaskCard extends ConsumerWidget {
     var selectedDate = task.dueDate;
     var selectedPriority = task.priority;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -1317,7 +1245,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
     DateTime date,
     List<NoteTask> tasks,
   ) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),

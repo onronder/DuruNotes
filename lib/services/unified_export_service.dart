@@ -1,17 +1,11 @@
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/core/parser/note_block_parser.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
-import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/export_service.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/providers/unified_providers.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -189,7 +183,7 @@ class UnifiedExportService {
         'title': note.title,
         'body': note.body,
         'isPinned': note.isPinned,
-        'tags': [], // Would need to query tags separately
+        'tags': <String>[], // Would need to query tags separately
         'folderId': null, // Would need to query folder separately
         'updatedAt': note.updatedAt,
         'version': note.version,

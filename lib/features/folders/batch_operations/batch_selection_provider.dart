@@ -150,6 +150,55 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
       selectionStartTime: state.selectionStartTime ?? DateTime.now(),
     );
   }
+
+  /// Quick select by search query
+  void selectBySearch(String query, List<LocalNote> allNotes) {
+    if (query.isEmpty) return;
+
+    final matchingIds = allNotes
+        .where(
+          (note) =>
+              note.title.toLowerCase().contains(query.toLowerCase()) ||
+              note.body.toLowerCase().contains(query.toLowerCase()),
+        )
+        .map((note) => note.id)
+        .toSet();
+
+    if (matchingIds.isNotEmpty) {
+      state = state.copyWith(
+        selectedNoteIds: matchingIds,
+        isSelectionMode: true,
+        selectionStartTime: state.selectionStartTime ?? DateTime.now(),
+      );
+    }
+  }
+
+  /// Select recently modified notes
+  void selectRecentlyModified(List<LocalNote> allNotes, {Duration? within}) {
+    final cutoff = DateTime.now().subtract(within ?? const Duration(days: 7));
+
+    final recentIds = allNotes
+        .where((note) => note.updatedAt.isAfter(cutoff))
+        .map((note) => note.id)
+        .toSet();
+
+    if (recentIds.isNotEmpty) {
+      state = state.copyWith(
+        selectedNoteIds: recentIds,
+        isSelectionMode: true,
+        selectionStartTime: state.selectionStartTime ?? DateTime.now(),
+      );
+    }
+  }
+
+  /// Get selection statistics
+  BatchSelectionStats getSelectionStats(List<LocalNote> allNotes) {
+    final selectedNotes = allNotes
+        .where((note) => state.selectedNoteIds.contains(note.id))
+        .toList();
+
+    return BatchSelectionStats.fromNotes(selectedNotes);
+  }
 }
 
 /// Provider for batch selection state
@@ -292,10 +341,10 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
 
     try {
-      final repository = _ref.read(notesRepositoryProvider);
+      final repository = _ref.read(notesCoreRepositoryProvider);
 
       for (final note in selectedNotes) {
-        await repository.delete(note.id);
+        await repository.deleteNote(note.id);
       }
 
       // Refresh notes list
@@ -421,58 +470,6 @@ final batchOperationsProvider =
     StateNotifierProvider<BatchOperationsNotifier, AsyncValue<void>>((ref) {
   return BatchOperationsNotifier(ref);
 });
-
-/// Helper extensions for batch selection
-extension BatchSelectionExtensions on BatchSelectionNotifier {
-  /// Quick select by search query
-  void selectBySearch(String query, List<LocalNote> allNotes) {
-    if (query.isEmpty) return;
-
-    final matchingIds = allNotes
-        .where(
-          (note) =>
-              note.title.toLowerCase().contains(query.toLowerCase()) ||
-              note.body.toLowerCase().contains(query.toLowerCase()),
-        )
-        .map((note) => note.id)
-        .toSet();
-
-    if (matchingIds.isNotEmpty) {
-      state = state.copyWith(
-        selectedNoteIds: matchingIds,
-        isSelectionMode: true,
-        selectionStartTime: state.selectionStartTime ?? DateTime.now(),
-      );
-    }
-  }
-
-  /// Select recently modified notes
-  void selectRecentlyModified(List<LocalNote> allNotes, {Duration? within}) {
-    final cutoff = DateTime.now().subtract(within ?? const Duration(days: 7));
-
-    final recentIds = allNotes
-        .where((note) => note.updatedAt.isAfter(cutoff))
-        .map((note) => note.id)
-        .toSet();
-
-    if (recentIds.isNotEmpty) {
-      state = state.copyWith(
-        selectedNoteIds: recentIds,
-        isSelectionMode: true,
-        selectionStartTime: state.selectionStartTime ?? DateTime.now(),
-      );
-    }
-  }
-
-  /// Get selection statistics
-  BatchSelectionStats getSelectionStats(List<LocalNote> allNotes) {
-    final selectedNotes = allNotes
-        .where((note) => state.selectedNoteIds.contains(note.id))
-        .toList();
-
-    return BatchSelectionStats.fromNotes(selectedNotes);
-  }
-}
 
 /// Statistics for current selection
 class BatchSelectionStats {

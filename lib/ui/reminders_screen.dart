@@ -1,10 +1,9 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart'
     show NoteReminder, NoteRemindersCompanion, RecurrencePattern, ReminderType;
-import 'package:duru_notes/main.dart'; // for global `ref.read(loggerProvider)`
+// for global `ref.read(loggerProvider)`
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/providers/feature_flagged_providers.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -127,13 +126,13 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            DuruColors.primary.withOpacity(0.1),
-            DuruColors.accent.withOpacity(0.05),
+            DuruColors.primary.withValues(alpha: 0.1),
+            DuruColors.accent.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
@@ -177,7 +176,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -195,7 +194,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -213,8 +212,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    DuruColors.primary.withOpacity(0.1),
-                    DuruColors.accent.withOpacity(0.05),
+                    DuruColors.primary.withValues(alpha: 0.1),
+                    DuruColors.accent.withValues(alpha: 0.05),
                   ],
                 ),
                 shape: BoxShape.circle,
@@ -222,7 +221,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
               child: Icon(
                 CupertinoIcons.bell_slash,
                 size: 64,
-                color: DuruColors.primary.withOpacity(0.5),
+                color: DuruColors.primary.withValues(alpha: 0.5),
               ),
             ),
             SizedBox(height: DuruSpacing.lg),
@@ -237,7 +236,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
             Text(
               'Add time-based or location-based reminders for this note',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -293,9 +292,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   isSnoozed
-                      ? DuruColors.warning.withOpacity(0.05)
+                      ? DuruColors.warning.withValues(alpha: 0.05)
                       : reminder.isActive
-                          ? DuruColors.accent.withOpacity(0.03)
+                          ? DuruColors.accent.withValues(alpha: 0.03)
                           : theme.colorScheme.surface,
                   theme.colorScheme.surface,
                 ],
@@ -303,15 +302,15 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSnoozed
-                    ? DuruColors.warning.withOpacity(0.2)
+                    ? DuruColors.warning.withValues(alpha: 0.2)
                     : reminder.isActive
-                        ? DuruColors.accent.withOpacity(0.2)
-                        : theme.colorScheme.outline.withOpacity(0.1),
+                        ? DuruColors.accent.withValues(alpha: 0.2)
+                        : theme.colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -327,7 +326,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                     Container(
                       padding: EdgeInsets.all(DuruSpacing.sm),
                       decoration: BoxDecoration(
-                        color: _getReminderColor(reminder).withOpacity(0.1),
+                        color: _getReminderColor(reminder).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: _getReminderIcon(reminder.type),
@@ -354,7 +353,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                               reminder.body,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -370,7 +369,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                       icon: Icon(
                         CupertinoIcons.ellipsis_vertical,
                         size: 20,
-                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -523,10 +522,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         vertical: DuruSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -559,7 +558,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         vertical: DuruSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

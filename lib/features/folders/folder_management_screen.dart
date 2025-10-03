@@ -9,7 +9,6 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -123,13 +122,13 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                DuruColors.primary.withOpacity(0.1),
-                DuruColors.accent.withOpacity(0.05),
+                DuruColors.primary.withValues(alpha: 0.1),
+                DuruColors.accent.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.1),
+              color: theme.colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
           child: Row(
@@ -180,7 +179,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         Container(
           padding: EdgeInsets.all(DuruSpacing.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -198,7 +197,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -214,15 +213,31 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       backgroundColor: theme.brightness == Brightness.dark
           ? const Color(0xFF0A0A0A)
           : const Color(0xFFF8FAFB),
-      appBar: ModernAppBar(
-        title: l10n.folderManagement,
-        subtitle: 'Organize your notes efficiently',
-        showGradient: true,
-        bottom: ModernTabBar(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.folderManagement),
+            Text(
+              'Organize your notes efficiently',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [DuruColors.primary, DuruColors.accent],
+            ),
+          ),
+        ),
+        bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(icon: Icon(CupertinoIcons.folder_open), text: l10n.allFolders),
-            Tab(icon: Icon(CupertinoIcons.info_circle), text: 'Details'),
+            Tab(icon: const Icon(CupertinoIcons.folder_open), text: l10n.allFolders),
+            Tab(icon: const Icon(CupertinoIcons.info_circle), text: 'Details'),
           ],
         ),
         actions: [
@@ -421,11 +436,13 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       ref.read(folderHierarchyProvider.notifier).refresh();
       // Update selected folder if it was the one being edited
       if (_selectedFolder?.id == folder.id) {
-        final updatedFolder =
-            await ref.read(notesRepositoryProvider).getFolder(folder.id);
-        setState(() {
-          _selectedFolder = updatedFolder;
-        });
+        // Get updated folder from database
+        final updatedFolder = await ref.read(notesRepositoryProvider).db.getFolderById(folder.id);
+        if (mounted && updatedFolder != null) {
+          setState(() {
+            _selectedFolder = updatedFolder;
+          });
+        }
       }
     }
   }
@@ -515,7 +532,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       final healthStats = await repo.performFolderHealthCheck();
 
       if (mounted) {
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Folder Health Check'),
@@ -641,7 +658,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
     try {
       // Show loading dialog
-      showDialog(
+      showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) => const AlertDialog(

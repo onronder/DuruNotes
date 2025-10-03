@@ -19,7 +19,7 @@ class DraggableNoteItem extends ConsumerStatefulWidget {
   final Widget child;
   final VoidCallback? onDragStarted;
   final VoidCallback? onDragEnd;
-  final Function(String folderId)? onDroppedOnFolder;
+  final void Function(String folderId)? onDroppedOnFolder;
   final bool enabled;
 
   @override
@@ -176,7 +176,7 @@ class FolderDropTarget extends ConsumerStatefulWidget {
 
   final LocalFolder? folder; // null for "Unfiled" option
   final Widget child;
-  final Function(LocalNote note, LocalFolder? folder)? onNoteDropped;
+  final void Function(LocalNote note, LocalFolder? folder)? onNoteDropped;
   final bool enabled;
 
   @override
@@ -325,7 +325,7 @@ class BatchNoteDragDrop extends ConsumerStatefulWidget {
 
   final List<LocalNote> selectedNotes;
   final Widget child;
-  final Function(List<LocalNote> notes, LocalFolder? folder)? onNotesDropped;
+  final void Function(List<LocalNote> notes, LocalFolder? folder)? onNotesDropped;
   final bool enabled;
 
   @override
@@ -554,7 +554,7 @@ class BatchFolderDropTarget extends FolderDropTarget {
     super.enabled = true,
   }) : super(onNoteDropped: null);
 
-  final Function(List<LocalNote> notes, LocalFolder? folder)?
+  final void Function(List<LocalNote> notes, LocalFolder? folder)?
       onBatchNotesDropped;
 
   @override

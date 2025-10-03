@@ -5,6 +5,7 @@ import 'package:duru_notes/core/haptic_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
@@ -184,8 +185,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
   }
 
   Future<void> _showCreateFolderSheet(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    await showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -423,7 +423,7 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
 
     if (!mounted) return;
 
-    await showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -543,12 +543,10 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                     // Check for duplicate name among siblings
                     final siblings = widget.folder.parentId != null
                         ? await ref
-                            .read(folderRepositoryProvider)
-                            .db
+                            .read(folderCoreRepositoryProvider)
                             .getChildFolders(widget.folder.parentId!)
                         : await ref
-                            .read(folderRepositoryProvider)
-                            .db
+                            .read(folderCoreRepositoryProvider)
                             .getRootFolders();
                     final isDuplicate = siblings.any(
                       (f) => f.id != widget.folder.id && f.name == name,
@@ -573,8 +571,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     if (newName != null && newName != widget.folder.name) {
       try {
         await ref
-            .read(folderRepositoryProvider)
-            .renameFolder(folderId: widget.folder.id, newName: newName);
+            .read(folderCoreRepositoryProvider)
+            .renameFolder(widget.folder.id, newName);
 
         await HapticUtils.success();
 
@@ -628,9 +626,9 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     if (selectedParentId != null &&
         selectedParentId != widget.folder.parentId) {
       try {
-        await ref.read(folderRepositoryProvider).moveFolder(
-              folderId: widget.folder.id,
-              newParentId: selectedParentId == 'root' ? null : selectedParentId,
+        await ref.read(folderCoreRepositoryProvider).moveFolder(
+              widget.folder.id,
+              selectedParentId == 'root' ? null : selectedParentId,
             );
 
         await HapticUtils.success();
@@ -694,8 +692,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
         final wasSelected = currentFolder?.id == widget.folder.id;
 
         await ref
-            .read(folderRepositoryProvider)
-            .deleteFolder(folderId: widget.folder.id);
+            .read(folderCoreRepositoryProvider)
+            .deleteFolder(widget.folder.id);
 
         await HapticUtils.success();
 
@@ -935,17 +933,20 @@ class FolderBreadcrumb extends ConsumerWidget {
     WidgetRef ref,
     LocalFolder folder,
   ) async {
-    final repository = ref.read(notesRepositoryProvider);
+    final repository = ref.read(folderCoreRepositoryProvider);
     final path = <LocalFolder>[];
 
-    LocalFolder? current = folder;
-    while (current != null) {
-      path.insert(0, current);
-      if (current.parentId != null) {
-        current = await repository.getFolder(current.parentId!);
-      } else {
-        break;
-      }
+    // Convert to domain folder first
+    var currentDomain = FolderMapper.toDomain(folder);
+    path.insert(0, folder);
+
+    while (currentDomain.parentId != null) {
+      final parentDomain = await repository.getFolder(currentDomain.parentId!);
+      if (parentDomain == null) break;
+
+      final parentLocal = FolderMapper.toInfrastructure(parentDomain);
+      path.insert(0, parentLocal);
+      currentDomain = parentDomain;
     }
 
     return path;
@@ -1120,10 +1121,9 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
       // Check for duplicate name among siblings
       final siblings = _selectedParentId != null
           ? await ref
-              .read(folderRepositoryProvider)
-              .db
+              .read(folderCoreRepositoryProvider)
               .getChildFolders(_selectedParentId!)
-          : await ref.read(folderRepositoryProvider).db.getRootFolders();
+          : await ref.read(folderCoreRepositoryProvider).getRootFolders();
 
       final isDuplicate = siblings.any((f) => f.name == name);
 
@@ -1137,7 +1137,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
 
       // Create the folder
       await ref
-          .read(folderRepositoryProvider)
+          .read(folderCoreRepositoryProvider)
           .createFolder(name: name, parentId: _selectedParentId);
 
       await HapticFeedback.mediumImpact();
@@ -1391,12 +1391,12 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
   }
 
   Future<void> _handleNoteDrop(LocalNote note) async {
-    final repository = ref.read(notesRepositoryProvider);
+    final folderRepository = ref.read(folderCoreRepositoryProvider);
     final undoService = ref.read(undoRedoServiceProvider);
     final l10n = AppLocalizations.of(context);
 
     // Get current folder info before unfiling
-    final currentFolder = await repository.getFolderForNote(note.id);
+    final currentFolder = await folderRepository.getFolderForNote(note.id);
 
     // Record the operation for undo
     undoService.recordNoteFolderChange(
@@ -1409,7 +1409,7 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
     );
 
     // Remove note from folder (unfile it)
-    await repository.removeNoteFromFolder(note.id);
+    await folderRepository.removeNoteFromFolder(note.id);
 
     // Show snackbar with undo action
     if (mounted) {
@@ -1436,14 +1436,13 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
   }
 
   Future<void> _handleBatchDrop(List<LocalNote> notes) async {
-    final repository = ref.read(notesRepositoryProvider);
+    final folderRepository = ref.read(folderCoreRepositoryProvider);
     final undoService = ref.read(undoRedoServiceProvider);
-    final l10n = AppLocalizations.of(context);
 
     // Collect previous folder info for all notes
     final previousFolderIds = <String, String?>{};
     for (final note in notes) {
-      final folder = await repository.getFolderForNote(note.id);
+      final folder = await folderRepository.getFolderForNote(note.id);
       previousFolderIds[note.id] = folder?.id;
     }
 
@@ -1457,7 +1456,7 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
 
     // Unfile all notes
     for (final note in notes) {
-      await repository.removeNoteFromFolder(note.id);
+      await folderRepository.removeNoteFromFolder(note.id);
     }
 
     // Show snackbar with undo action
@@ -1594,7 +1593,6 @@ class _InboxPresetChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
     final isActive = ref.watch(isInboxFilterActiveProvider);
 
     return FutureBuilder<String?>(
@@ -1626,20 +1624,21 @@ class _InboxPresetChip extends ConsumerWidget {
                 HapticUtils.selection();
 
                 // Toggle inbox filter
-                ref.read(isInboxFilterActiveProvider.notifier).state =
-                    !isActive;
+                final newActiveState = !isActive;
+                ref.read(isInboxFilterActiveProvider.notifier).update((_) => newActiveState);
 
-                if (!isActive) {
+                if (newActiveState) {
                   // Activate inbox filter - show only notes in incoming mail folder
-                  final folder = await ref
-                      .read(notesRepositoryProvider)
+                  final folderDomain = await ref
+                      .read(folderCoreRepositoryProvider)
                       .getFolder(folderId);
-                  if (folder != null) {
-                    ref.read(currentFolderProvider.notifier).state = folder;
+                  if (folderDomain != null) {
+                    final folderLocal = FolderMapper.toInfrastructure(folderDomain);
+                    ref.read(currentFolderProvider.notifier).setCurrentFolder(folderLocal);
                   }
                 } else {
                   // Deactivate inbox filter
-                  ref.read(currentFolderProvider.notifier).state = null;
+                  ref.read(currentFolderProvider.notifier).clearCurrentFolder();
                 }
               },
             );
@@ -1651,27 +1650,16 @@ class _InboxPresetChip extends ConsumerWidget {
 
   Future<String?> _getIncomingMailFolderId(WidgetRef ref) async {
     try {
-      final repository = ref.read(notesRepositoryProvider);
+      final repository = ref.read(folderCoreRepositoryProvider);
       final folders = await repository.listFolders();
 
-      // Look for "Incoming Mail" folder
+      // Look for "Incoming Mail" folder (domain folders don't have deleted field)
       final incomingMailFolder = folders.firstWhere(
-        (f) => f.name.toLowerCase() == 'incoming mail' && !f.deleted,
-        orElse: () => LocalFolder(
-          id: '',
-          name: '',
-          path: '',
-          color: '',
-          icon: '',
-          description: '',
-          sortOrder: 0,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          deleted: true,
-        ),
+        (f) => f.name.toLowerCase() == 'incoming mail',
+        orElse: () => throw Exception('Not found'),
       );
 
-      return incomingMailFolder.id.isNotEmpty ? incomingMailFolder.id : null;
+      return incomingMailFolder.id;
     } catch (e) {
       return null;
     }

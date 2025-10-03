@@ -39,6 +39,7 @@ class TaskMapper {
       parentTaskId: _extractParentTaskId(domain.metadata),
       createdAt: DateTime.now(), // Will be overridden by database if exists
       updatedAt: DateTime.now(), // Will be overridden by database
+      deleted: false, // Tasks are not deleted by default
     );
   }
 

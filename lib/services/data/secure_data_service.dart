@@ -391,7 +391,7 @@ class SecureDataService {
       final keys = prefs.getKeys().where((k) => k.startsWith('secure_'));
 
       for (final key in keys) {
-        final value = await getSecurePreference(key.substring(7));
+        final value = await getSecurePreference<String>(key.substring(7));
         if (value != null) {
           await storeSecurePreference(key.substring(7), value);
         }

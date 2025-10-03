@@ -221,6 +221,41 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
     state = state.copyWith();
   }
 
+  /// Duplicate a smart folder with a new name
+  Future<void> duplicateSmartFolder(String folderId, String newName) async {
+    final originalFolder = state.folders.firstWhere((f) => f.id == folderId);
+    final duplicatedFolder = originalFolder.copyWith(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: newName,
+    );
+    await saveSmartFolder(duplicatedFolder);
+  }
+
+  /// Export smart folder configuration
+  String exportSmartFolder(String folderId) {
+    final folder = state.folders.firstWhere((f) => f.id == folderId);
+    return jsonEncode(folder.toJson());
+  }
+
+  /// Import smart folder configuration
+  Future<void> importSmartFolder(String configJson) async {
+    try {
+      final config = SmartFolderConfig.fromJson(
+        jsonDecode(configJson) as Map<String, dynamic>,
+      );
+      await saveSmartFolder(config);
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to import smart folder: $e');
+    }
+  }
+
+  /// Reset to default smart folders (public method)
+  Future<void> resetToDefaults() async {
+    await _saveSmartFolders(SmartFolderTemplates.all);
+    state = state.copyWith(folders: SmartFolderTemplates.all);
+    await refreshAllFolders();
+  }
+
   @override
   void dispose() {
     _engine.dispose();
@@ -283,41 +318,3 @@ final smartFolderCountProvider = Provider<int>((ref) {
   final smartFoldersState = ref.watch(smartFoldersProvider);
   return smartFoldersState.folders.length;
 });
-
-/// Helper extensions for smart folder operations
-extension SmartFoldersNotifierExtensions on SmartFoldersNotifier {
-  /// Duplicate a smart folder with a new name
-  Future<void> duplicateSmartFolder(String folderId, String newName) async {
-    final originalFolder = state.folders.firstWhere((f) => f.id == folderId);
-    final duplicatedFolder = originalFolder.copyWith(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: newName,
-    );
-    await saveSmartFolder(duplicatedFolder);
-  }
-
-  /// Export smart folder configuration
-  String exportSmartFolder(String folderId) {
-    final folder = state.folders.firstWhere((f) => f.id == folderId);
-    return jsonEncode(folder.toJson());
-  }
-
-  /// Import smart folder configuration
-  Future<void> importSmartFolder(String configJson) async {
-    try {
-      final config = SmartFolderConfig.fromJson(
-        jsonDecode(configJson) as Map<String, dynamic>,
-      );
-      await saveSmartFolder(config);
-    } catch (e) {
-      state = state.copyWith(error: 'Failed to import smart folder: $e');
-    }
-  }
-
-  /// Reset to default smart folders
-  Future<void> resetToDefaults() async {
-    await _saveSmartFolders(SmartFolderTemplates.all);
-    state = state.copyWith(folders: SmartFolderTemplates.all);
-    await refreshAllFolders();
-  }
-}

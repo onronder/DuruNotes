@@ -2,7 +2,7 @@ import 'package:duru_notes/core/providers/database_providers.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart';
 import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
-import 'package:duru_notes/repository/task_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
 import 'package:duru_notes/services/task_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

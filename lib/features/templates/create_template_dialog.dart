@@ -693,24 +693,24 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
       // Create template
       final template = await repository.createUserTemplate(
-        title: _titleController.text.trim(),
-        body: _bodyController.text.trim(),
-        tags: tags,
-        category: _selectedCategory,
-        description: _descriptionController.text.trim(),
-        icon: _getIconName(_selectedIcon),
+        _titleController.text.trim(),
+        _bodyController.text.trim(),
         metadata: {
+          'tags': tags,
+          'category': _selectedCategory,
+          'description': _descriptionController.text.trim(),
+          'icon': _getIconName(_selectedIcon),
           'created_from_note': widget.sourceNote != null,
           'source_note_id': widget.sourceNote?.id,
           'icon_data': _selectedIcon.codePoint,
         },
       );
 
-      if (template != null) {
+      if (template.isNotEmpty) {
         _logger.info(
           'Template created successfully',
           data: {
-            'template_id': template.id,
+            'template_id': template,
             'category': _selectedCategory,
             'has_variables': _hasVariables(_bodyController.text),
             'created_from_note': widget.sourceNote != null,
@@ -730,7 +730,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Template "${template.title}" created successfully'),
+              content: Text('Template "${_titleController.text.trim()}" created successfully'),
               action: SnackBarAction(
                 label: 'Use Now',
                 onPressed: () {

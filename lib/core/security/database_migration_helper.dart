@@ -107,7 +107,7 @@ class DatabaseMigrationHelper {
         newDb.execute(createStatement);
 
         // Copy data
-        newDb.execute("INSERT INTO main.$tableName SELECT * FROM old_db.$tableName");
+        newDb.execute('INSERT INTO main.$tableName SELECT * FROM old_db.$tableName');
       }
 
       // Copy indices

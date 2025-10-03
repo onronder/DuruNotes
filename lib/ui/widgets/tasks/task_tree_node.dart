@@ -321,7 +321,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
 
   void _showAddSubtaskDialog(BuildContext context, String parentId) {
     final controller = TextEditingController();
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Subtask'),
@@ -354,7 +354,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
   }
 
   void _showPriorityDialog(BuildContext context, UiNoteTask task) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Set Priority'),
@@ -381,7 +381,7 @@ class _TaskTreeNodeState extends State<TaskTreeNode> {
   }
 
   void _confirmDelete(BuildContext context, String taskId, bool hasSubtasks) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(hasSubtasks ? 'Delete Task and Subtasks' : 'Delete Task'),

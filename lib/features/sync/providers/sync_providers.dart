@@ -4,112 +4,74 @@ import 'package:duru_notes/core/settings/sync_mode_notifier.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
 import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/repository/sync_service.dart';
 import 'package:duru_notes/services/connection_manager.dart';
 import 'package:duru_notes/services/sync/folder_remote_api.dart';
 import 'package:duru_notes/services/sync/folder_sync_audit.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:duru_notes/services/unified_realtime_service.dart';
+import 'package:duru_notes/services/unified_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Sync service provider
-final syncServiceProvider = Provider<SyncService>((ref) {
-  // Rebuild SyncService when repo or auth changes
+/// Unified sync service provider - replaces old SyncService
+final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
+  // Rebuild when repo or auth changes
   ref.watch(authStateChangesProvider);
-  final repo = ref.watch(notesRepositoryProvider);
-  final service = SyncService(repo as NotesRepository);
+  final notesRepo = ref.watch(notesCoreRepositoryProvider);
+  final foldersRepo = ref.watch(folderCoreRepositoryProvider);
+
+  final service = UnifiedSyncService(
+    notesRepository: notesRepo,
+    foldersRepository: foldersRepo,
+  );
 
   // Get unified realtime service if available
   final unifiedRealtime = ref.watch(unifiedRealtimeServiceProvider);
 
-  // Start realtime sync with unified service
-  service.startRealtime(unifiedService: unifiedRealtime);
-
-  // Listen to sync changes and refresh folders on completion
+  // Listen to sync changes and refresh providers on completion
   service.changes.listen((_) async {
     try {
-      // Refresh folders after successful sync
-      // This also triggers rootFoldersProvider rebuild automatically
-      // We'll need to import from folders module
-      // await ref.read(folderHierarchyProvider.notifier).loadFolders();
-      debugPrint('[Sync] Folders refreshed after sync completion');
+      debugPrint('[Sync] Sync completed, refreshing providers');
 
-      // Also refresh notes providers for immediate UI update
-      // We'll need to import from notes module
-      // ref.invalidate(filteredNotesProvider);
-      final config = ref.read(migrationConfigProvider);
-      if (config.isFeatureEnabled('notes')) {
-        // ref.read(dualNotesPageProvider.notifier).refresh();
-      } else {
-        // ref.read(notesPageProvider.notifier).refresh();
-      }
-      debugPrint('[Sync] Notes providers refreshed after sync completion');
+      // Invalidate providers to trigger refresh
+      ref.invalidate(notesCoreRepositoryProvider);
+      ref.invalidate(folderCoreRepositoryProvider);
 
-      // Run template migration after sync
-      // We'll need to import from templates module
-      // final migrationService = ref.read(templateMigrationServiceProvider);
-      // if (await migrationService.needsMigration()) {
-      //   debugPrint('[Sync] Running template migration...');
-      //   await migrationService.migrateTemplates();
-      //   ref.invalidate(templateListProvider);
-      //   debugPrint('[Sync] Template migration completed');
-      // }
+      debugPrint('[Sync] Providers refreshed after sync completion');
     } catch (e) {
       debugPrint('[Sync] Error refreshing after sync: $e');
     }
   });
 
   // Clean up on disposal
-  ref.onDispose(service.stopRealtime);
+  ref.onDispose(() {
+    service.dispose();
+  });
 
   return service;
 });
 
-/// Sync mode provider
+/// Sync mode provider - simplified without old NotesRepository
 final syncModeProvider = StateNotifierProvider<SyncModeNotifier, SyncMode>((
   ref,
 ) {
-  // We'll need to import notesRepositoryProvider from notes module
-  final repo = null; // ref.watch(notesRepositoryProvider);
+  final notesRepo = ref.watch(notesCoreRepositoryProvider);
 
   // Callback to refresh UI after successful sync
-  // Use a safe callback that checks if the provider is still alive
   void onSyncComplete() {
-    // Only refresh if the provider is still alive
     try {
-      // Check if we can still access providers and refresh conditionally
-      final config = ref.read(migrationConfigProvider);
-      if (config.isFeatureEnabled('notes')) {
-        // We'll need to import from notes module
-        // ref.read(dualNotesPageProvider.notifier).refresh();
-        // Load additional pages if there are more notes
-        // while (ref.read(conditionalHasMoreProvider)) {
-        //   ref.read(dualNotesPageProvider.notifier).loadMore();
-        // }
-      } else {
-        // We'll need to import from notes module
-        // ref.read(notesPageProvider.notifier).refresh();
-        // Load additional pages if there are more notes
-        // while (ref.read(hasMoreNotesProvider)) {
-        //   ref.read(notesPageProvider.notifier).loadMore();
-        // }
-      }
+      // Invalidate providers to trigger refresh
+      ref.invalidate(notesCoreRepositoryProvider);
+      ref.invalidate(folderCoreRepositoryProvider);
 
-      // Refresh folders as well
-      // We'll need to import from folders module
-      // ref.read(folderHierarchyProvider.notifier).loadFolders();
+      debugPrint('[SyncMode] Providers refreshed after sync');
     } catch (e) {
-      // Provider is disposed or ref is not available
-      // Silently ignore - this is expected when the provider is disposed
       debugPrint('[SyncMode] Cannot refresh after sync - provider disposed');
     }
   }
 
-  return SyncModeNotifier(repo as NotesRepository, onSyncComplete);
+  return SyncModeNotifier(notesRepo, onSyncComplete);
 });
 
 // Folder sync audit provider

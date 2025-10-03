@@ -1,5 +1,4 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/ui/widgets/tasks/task_card.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_list_item.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_tree_node.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
@@ -57,9 +56,10 @@ class TaskWidgetFactory {
         );
 
       case TaskDisplayMode.card:
-        return TaskCard(
+        // Use TaskListItem for card mode as TaskCard was deleted
+        return TaskListItem(
           dbTask: dbTask,
-          legacyTask: uiTask,
+          uiTask: uiTask,
           callbacks: callbacks,
           isSelected: isSelected,
           showSubtasks: showSubtasks,

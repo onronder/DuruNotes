@@ -3,17 +3,12 @@ import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/repository/notes_repository_refactored.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Use refactored architecture flag - set to true to enable clean architecture
-/// MIGRATION IN PROGRESS: Enabled for gradual migration
-const bool useRefactoredArchitecture = true;
-
-/// Notes repository provider - uses refactored version if flag is true
-final notesRepositoryProvider = Provider<NotesRepository>((ref) {
+/// Notes repository provider - uses domain architecture (NotesCoreRepository)
+/// This is the legacy name kept for backward compatibility
+final notesRepositoryProvider = Provider<NotesCoreRepository>((ref) {
   // Rebuild when auth state changes
   ref.watch(authStateChangesProvider);
   final db = ref.watch(appDbProvider);
@@ -27,23 +22,13 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 
   final api = SupabaseNoteApi(client);
 
-  if (useRefactoredArchitecture) {
-    return NotesRepositoryRefactored(
-      db: db,
-      crypto: crypto,
-      api: api,
-      client: client,
-      indexer: indexer
-    ) as NotesRepository;
-  } else {
-    return NotesRepository(
-      db: db,
-      crypto: crypto,
-      api: api,
-      client: client,
-      indexer: indexer
-    );
-  }
+  return NotesCoreRepository(
+    db: db,
+    crypto: crypto,
+    api: api,
+    client: client,
+    indexer: indexer,
+  );
 });
 
 /// Clean architecture repository providers

@@ -6,19 +6,14 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart' as infra;
-import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/template_variable_service.dart';
 import 'package:duru_notes/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path/path.dart' as path;
 
 /// Unified type for templates
 typedef UnifiedTemplate = dynamic; // Can be LocalTemplate or domain.Template
@@ -717,7 +712,7 @@ class UnifiedTemplateService {
         // Use domain repository stream
         final client = Supabase.instance.client;
         final repository = infra.TemplateCoreRepository(db: db, client: client);
-        return Stream.periodic(const Duration(seconds: 1))
+        return Stream<int>.periodic(const Duration(seconds: 1))
             .asyncMap((_) async {
           final templates = await repository.getAllTemplates();
           // templates are already domain Templates from repository

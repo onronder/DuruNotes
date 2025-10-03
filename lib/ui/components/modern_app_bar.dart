@@ -49,8 +49,8 @@ class ModernAppBar extends StatelessWidget implements PreferredSizeWidget {
                 end: Alignment.bottomRight,
                 colors: [
                   DuruColors.primary,
-                  DuruColors.primary.withOpacity(0.8),
-                  DuruColors.accent.withOpacity(0.6),
+                  DuruColors.primary.withValues(alpha: 0.8),
+                  DuruColors.accent.withValues(alpha: 0.6),
                 ],
               )
             : null,
@@ -60,7 +60,7 @@ class ModernAppBar extends StatelessWidget implements PreferredSizeWidget {
         boxShadow: elevation > 0
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: elevation * 2,
                   offset: Offset(0, elevation),
                 ),
@@ -118,7 +118,7 @@ class ModernAppBar extends StatelessWidget implements PreferredSizeWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 color: showGradient
-                                    ? Colors.white.withOpacity(0.8)
+                                    ? Colors.white.withValues(alpha: 0.8)
                                     : theme.colorScheme.onSurfaceVariant,
                               ),
                               maxLines: 1,
@@ -156,7 +156,7 @@ class ModernTabBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget> tabs;
   final TabController controller;
   final bool isScrollable;
-  final Function(int)? onTap;
+  final void Function(int)? onTap;
   final Color? indicatorColor;
   final Color? labelColor;
   final Color? unselectedLabelColor;
@@ -169,10 +169,10 @@ class ModernTabBar extends StatelessWidget implements PreferredSizeWidget {
     return Container(
       height: preferredSize.height,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             width: 0.5,
           ),
         ),
@@ -187,7 +187,7 @@ class ModernTabBar extends StatelessWidget implements PreferredSizeWidget {
         indicatorPadding: EdgeInsets.symmetric(horizontal: DuruSpacing.md),
         labelColor: labelColor ?? Colors.white,
         unselectedLabelColor:
-            unselectedLabelColor ?? Colors.white.withOpacity(0.7),
+            unselectedLabelColor ?? Colors.white.withValues(alpha: 0.7),
         labelStyle: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 14,
@@ -259,8 +259,8 @@ class ModernSliverAppBar extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     DuruColors.primary,
-                    DuruColors.primary.withOpacity(0.8),
-                    DuruColors.accent.withOpacity(0.6),
+                    DuruColors.primary.withValues(alpha: 0.8),
+                    DuruColors.accent.withValues(alpha: 0.6),
                   ],
                 ),
               ),
@@ -283,7 +283,7 @@ class ModernSliverAppBar extends StatelessWidget {
                             Text(
                               subtitle!,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 16,
                               ),
                             ),

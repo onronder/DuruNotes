@@ -7,12 +7,15 @@ import 'package:duru_notes/core/parser/note_indexer.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/models/note_kind.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// Progress callback for import operations
 typedef ProgressCallback = void Function(ImportProgress progress);
@@ -1033,6 +1036,7 @@ class ImportService {
         deleted: false,
         isPinned: false,
         noteType: NoteKind.note,
+        version: 1, // New note starts at version 1
       );
 
       // Index for search

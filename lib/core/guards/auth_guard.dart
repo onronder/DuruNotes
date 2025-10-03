@@ -377,7 +377,7 @@ class AuthenticationGuard {
   Future<bool> _validateCredentials(String username, String password) async {
     // In production, validate against backend
     // For now, return true for demonstration
-    await Future.delayed(const Duration(milliseconds: 100)); // Simulate network delay
+    await Future<void>.delayed(const Duration(milliseconds: 100)); // Simulate network delay
     return true;
   }
 

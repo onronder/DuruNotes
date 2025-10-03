@@ -155,13 +155,13 @@ class AddEncryptionDataConstraints {
     try {
       // Count total notes
       final totalNotes = await db.customSelect(
-        "SELECT COUNT(*) as count FROM local_notes",
+        'SELECT COUNT(*) as count FROM local_notes',
       ).getSingle();
       stats['total_notes'] = totalNotes.read<int>('count');
 
       // Count notes with encrypted metadata
       final encryptedNotes = await db.customSelect(
-        "SELECT COUNT(*) as count FROM local_notes WHERE encrypted_metadata IS NOT NULL",
+        'SELECT COUNT(*) as count FROM local_notes WHERE encrypted_metadata IS NOT NULL',
       ).getSingle();
       stats['encrypted_notes'] = encryptedNotes.read<int>('count');
 

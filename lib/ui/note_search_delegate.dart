@@ -1,12 +1,16 @@
 import 'dart:convert';
 
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/providers.dart'; // Import for extension methods
 import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 typedef FolderResolver = Future<String?> Function(String folderName);
 typedef FolderNoteIdsResolver = Future<Set<String>> Function(String folderId);

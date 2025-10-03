@@ -14,7 +14,7 @@ class TaskMetadataDialog extends ConsumerStatefulWidget {
 
   final NoteTask? task;
   final String taskContent;
-  final Function(TaskMetadata) onSave;
+  final void Function(TaskMetadata) onSave;
   final bool isNewTask;
 
   @override

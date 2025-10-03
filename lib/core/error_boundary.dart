@@ -190,7 +190,7 @@ class ErrorBoundary extends ConsumerStatefulWidget {
   });
 
   final Widget child;
-  final Function(Object error, StackTrace? stackTrace)? onError;
+  final void Function(Object error, StackTrace? stackTrace)? onError;
   final Widget? fallback;
   final bool showErrorDetails;
   final bool enableAutoRecovery;
@@ -481,7 +481,7 @@ class ErrorBoundaryLayer extends StatefulWidget {
   });
 
   final Widget child;
-  final Function(Object error, StackTrace? stackTrace) onError;
+  final void Function(Object error, StackTrace? stackTrace) onError;
 
   @override
   State<ErrorBoundaryLayer> createState() => _ErrorBoundaryLayerState();
@@ -513,7 +513,7 @@ class _ErrorBoundaryLayerState extends State<ErrorBoundaryLayer> {
 /// Extension to easily wrap widgets with error boundary
 extension ErrorBoundaryExtension on Widget {
   Widget withErrorBoundary({
-    Function(Object error, StackTrace? stackTrace)? onError,
+    void Function(Object error, StackTrace? stackTrace)? onError,
     Widget? fallback,
     bool showErrorDetails = true,
     bool enableAutoRecovery = true,

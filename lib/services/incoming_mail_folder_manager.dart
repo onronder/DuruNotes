@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:duru_notes/providers.dart'; // Import to get extension methods
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// Manager for ensuring an "Incoming Mail" folder exists and routing notes to it
 class IncomingMailFolderManager {

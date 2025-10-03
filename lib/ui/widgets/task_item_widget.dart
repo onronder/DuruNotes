@@ -430,7 +430,7 @@ class TaskItemWidget extends ConsumerWidget {
     HapticFeedback.mediumImpact();
     final unifiedService = ref.read(unifiedTaskServiceProvider);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => _TaskQuickActionsSheet(
         task: task,

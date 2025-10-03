@@ -14,8 +14,8 @@ class SmartFoldersWidget extends ConsumerWidget {
     this.showExpandedView = false,
   });
 
-  final Function(SmartFolderConfig folder)? onFolderTap;
-  final Function(LocalNote note)? onNoteTap;
+  final void Function(SmartFolderConfig folder)? onFolderTap;
+  final void Function(LocalNote note)? onNoteTap;
   final bool showExpandedView;
 
   @override
@@ -244,11 +244,11 @@ class SmartFoldersWidget extends ConsumerWidget {
 
   void _showCreateSmartFolder(BuildContext context, WidgetRef ref) {
     Navigator.of(context)
-        .push(
-      MaterialPageRoute<void>(builder: (context) => const SmartFolderCreator()),
+        .push<SmartFolderConfig>(
+      MaterialPageRoute<SmartFolderConfig>(builder: (context) => const SmartFolderCreator()),
     )
         .then((config) {
-      if (config != null && config is SmartFolderConfig) {
+      if (config != null) {
         ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
       }
     });
@@ -259,19 +259,19 @@ class SmartFoldersWidget extends ConsumerWidget {
     WidgetRef ref,
     SmartFolderConfig folder,
   ) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => _SmartFolderActionsSheet(
         folder: folder,
         onEdit: () {
           Navigator.of(context)
-              .push(
-            MaterialPageRoute<void>(
+              .push<SmartFolderConfig>(
+            MaterialPageRoute<SmartFolderConfig>(
               builder: (context) => SmartFolderCreator(initialConfig: folder),
             ),
           )
               .then((config) {
-            if (config != null && config is SmartFolderConfig) {
+            if (config != null) {
               ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
             }
           });
@@ -300,7 +300,7 @@ class SmartFoldersWidget extends ConsumerWidget {
   ) {
     final controller = TextEditingController(text: '${folder.name} Copy');
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Duplicate Smart Folder'),
@@ -335,7 +335,7 @@ class SmartFoldersWidget extends ConsumerWidget {
     WidgetRef ref,
     SmartFolderConfig folder,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Smart Folder'),
@@ -464,7 +464,7 @@ class _SmartFolderTile extends StatelessWidget {
   final SmartFolderStats? stats;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final Function(LocalNote note)? onNoteTap;
+  final void Function(LocalNote note)? onNoteTap;
 
   @override
   Widget build(BuildContext context) {

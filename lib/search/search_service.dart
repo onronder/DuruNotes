@@ -1,8 +1,11 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:duru_notes/search/search_unified.dart';
+
+// Legacy type alias for backward compatibility
+typedef NotesRepository = NotesCoreRepository;
 
 /// Service for executing searches with tag and folder support
 class SearchService {

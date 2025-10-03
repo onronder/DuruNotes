@@ -16,7 +16,7 @@ class FolderHierarchyWidget extends ConsumerStatefulWidget {
     this.maxHeight,
   });
 
-  final Function(LocalFolder folder)? onFolderSelected;
+  final void Function(LocalFolder folder)? onFolderSelected;
   final String? selectedFolderId;
   final bool showSearchBar;
   final bool showActions;
@@ -350,7 +350,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
   }
 
   void _showFolderContextMenu(LocalFolder folder) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => FolderContextMenu(folder: folder),
     );
@@ -444,7 +444,7 @@ class FolderContextMenu extends ConsumerWidget {
     WidgetRef ref,
     String parentId,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => CreateFolderDialog(parentId: parentId),
     );
@@ -477,7 +477,7 @@ class FolderContextMenu extends ConsumerWidget {
     WidgetRef ref,
     LocalFolder folder,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Folder'),

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
@@ -28,7 +29,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to get folder by id: $id', e, stack);
+      _logger.error('Failed to get folder by id: $id', error: e, stackTrace: stack);
       return null;
     }
   }
@@ -39,7 +40,7 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.allFolders();
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to list all folders', e, stack);
+      _logger.error('Failed to list all folders', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -50,7 +51,7 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.getRootFolders();
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to get root folders', e, stack);
+      _logger.error('Failed to get root folders', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -76,13 +77,14 @@ class FolderCoreRepository implements IFolderRepository {
         id: id,
         name: name,
         parentId: parentId,
+        path: parentId != null ? '' : '/$name', // Will be updated by trigger
         color: color ?? '#048ABF',
         icon: icon ?? 'folder',
-        description: description,
+        description: description ?? '',
         sortOrder: 0,
         createdAt: now,
         updatedAt: now,
-        userId: userId,
+        deleted: false,
       );
 
       await db.upsertFolder(localFolder);
@@ -92,7 +94,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to create folder: $name', e, stack);
+      _logger.error('Failed to create folder: $name', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -121,13 +123,14 @@ class FolderCoreRepository implements IFolderRepository {
         id: folderId,
         name: name,
         parentId: parentId,
+        path: existingFolder?.path ?? (parentId != null ? '' : '/$name'), // Will be updated by trigger
         color: color ?? existingFolder?.color ?? '#048ABF',
         icon: icon ?? existingFolder?.icon ?? 'folder',
-        description: description ?? existingFolder?.description,
+        description: description ?? existingFolder?.description ?? '',
         sortOrder: sortOrder ?? existingFolder?.sortOrder ?? 0,
         createdAt: existingFolder?.createdAt ?? now,
         updatedAt: now,
-        userId: userId,
+        deleted: existingFolder?.deleted ?? false,
       );
 
       await db.upsertFolder(localFolder);
@@ -137,7 +140,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return folderId;
     } catch (e, stack) {
-      _logger.error('Failed to create/update folder: $name', e, stack);
+      _logger.error('Failed to create/update folder: $name', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -154,13 +157,14 @@ class FolderCoreRepository implements IFolderRepository {
         id: existingFolder.id,
         name: newName,
         parentId: existingFolder.parentId,
+        path: existingFolder.path, // Will be updated by trigger
         color: existingFolder.color,
         icon: existingFolder.icon,
         description: existingFolder.description,
         sortOrder: existingFolder.sortOrder,
         createdAt: existingFolder.createdAt,
         updatedAt: DateTime.now().toUtc(),
-        userId: existingFolder.userId,
+        deleted: existingFolder.deleted,
       );
 
       await db.upsertFolder(updatedFolder);
@@ -168,7 +172,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue for sync
       await db.enqueue(folderId, 'upsert_folder');
     } catch (e, stack) {
-      _logger.error('Failed to rename folder: $folderId to $newName', e, stack);
+      _logger.error('Failed to rename folder: $folderId to $newName', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -190,13 +194,14 @@ class FolderCoreRepository implements IFolderRepository {
         id: existingFolder.id,
         name: existingFolder.name,
         parentId: newParentId,
+        path: existingFolder.path, // Will be updated by trigger
         color: existingFolder.color,
         icon: existingFolder.icon,
         description: existingFolder.description,
         sortOrder: existingFolder.sortOrder,
         createdAt: existingFolder.createdAt,
         updatedAt: DateTime.now().toUtc(),
-        userId: existingFolder.userId,
+        deleted: existingFolder.deleted,
       );
 
       await db.upsertFolder(updatedFolder);
@@ -204,7 +209,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue for sync
       await db.enqueue(folderId, 'upsert_folder');
     } catch (e, stack) {
-      _logger.error('Failed to move folder: $folderId to parent $newParentId', e, stack);
+      _logger.error('Failed to move folder: $folderId to parent $newParentId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -238,7 +243,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue for sync deletion
       await db.enqueue(folderId, 'delete_folder');
     } catch (e, stack) {
-      _logger.error('Failed to delete folder: $folderId', e, stack);
+      _logger.error('Failed to delete folder: $folderId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -251,9 +256,17 @@ class FolderCoreRepository implements IFolderRepository {
       // Convert to domain entities with tags and links
       final List<domain.Note> domainNotes = [];
       for (final localNote in localNotes) {
-        final tags = await db.getTagsForNote(localNote.id);
-        final links = await db.getLinksFromNote(localNote.id);
-        final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+        // Query tags directly from note_tags table
+        final tagRecords = await (db.select(db.noteTags)
+              ..where((t) => t.noteId.equals(localNote.id)))
+            .get();
+        final tags = tagRecords.map((t) => t.tag).toList();
+
+        // Query links directly from note_links table
+        final linkRecords = await (db.select(db.noteLinks)
+              ..where((l) => l.sourceId.equals(localNote.id)))
+            .get();
+        final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
         domainNotes.add(NoteMapper.toDomain(
           localNote,
@@ -264,7 +277,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return domainNotes;
     } catch (e, stack) {
-      _logger.error('Failed to get notes in folder: $folderId', e, stack);
+      _logger.error('Failed to get notes in folder: $folderId', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -272,17 +285,31 @@ class FolderCoreRepository implements IFolderRepository {
   @override
   Future<List<domain.Note>> getUnfiledNotes() async {
     try {
-      // Get notes with no folder assignment
+      // Get notes with no folder assignment using the NoteFolders junction table
+      final noteIdsWithFolders = await (db.select(db.noteFolders)
+            .map((nf) => nf.noteId))
+          .get();
+
       final localNotes = await (db.select(db.localNotes)
-            ..where((note) => note.folderId.isNull() & note.deleted.equals(false)))
+            ..where((note) =>
+                note.id.isNotIn(noteIdsWithFolders) &
+                note.deleted.equals(false)))
           .get();
 
       // Convert to domain entities with tags and links
       final List<domain.Note> domainNotes = [];
       for (final localNote in localNotes) {
-        final tags = await db.getTagsForNote(localNote.id);
-        final links = await db.getLinksFromNote(localNote.id);
-        final domainLinks = links.map(NoteMapper.linkToDomain).toList();
+        // Query tags directly from note_tags table
+        final tagRecords = await (db.select(db.noteTags)
+              ..where((t) => t.noteId.equals(localNote.id)))
+            .get();
+        final tags = tagRecords.map((t) => t.tag).toList();
+
+        // Query links directly from note_links table
+        final linkRecords = await (db.select(db.noteLinks)
+              ..where((l) => l.sourceId.equals(localNote.id)))
+            .get();
+        final domainLinks = linkRecords.map(NoteMapper.linkToDomain).toList();
 
         domainNotes.add(NoteMapper.toDomain(
           localNote,
@@ -293,7 +320,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return domainNotes;
     } catch (e, stack) {
-      _logger.error('Failed to get unfiled notes', e, stack);
+      _logger.error('Failed to get unfiled notes', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -306,7 +333,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue note update for sync
       await db.enqueue(noteId, 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to add note $noteId to folder $folderId', e, stack);
+      _logger.error('Failed to add note $noteId to folder $folderId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -319,7 +346,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue note update for sync
       await db.enqueue(noteId, 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to move note $noteId to folder $folderId', e, stack);
+      _logger.error('Failed to move note $noteId to folder $folderId', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -332,7 +359,7 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue note update for sync
       await db.enqueue(noteId, 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to remove note $noteId from folder', e, stack);
+      _logger.error('Failed to remove note $noteId from folder', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -342,7 +369,7 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       return await db.getFolderNoteCounts();
     } catch (e, stack) {
-      _logger.error('Failed to get folder note counts', e, stack);
+      _logger.error('Failed to get folder note counts', error: e, stackTrace: stack);
       return {};
     }
   }
@@ -355,7 +382,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to get folder for note: $noteId', e, stack);
+      _logger.error('Failed to get folder for note: $noteId', error: e, stackTrace: stack);
       return null;
     }
   }
@@ -366,7 +393,7 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.getChildFolders(parentId);
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to get child folders for: $parentId', e, stack);
+      _logger.error('Failed to get child folders for: $parentId', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -377,7 +404,7 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.getFolderSubtree(parentId);
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to get child folders recursively for: $parentId', e, stack);
+      _logger.error('Failed to get child folders recursively for: $parentId', error: e, stackTrace: stack);
       return [];
     }
   }
@@ -398,7 +425,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder integrity check completed');
     } catch (e, stack) {
-      _logger.error('Failed to ensure folder integrity', e, stack);
+      _logger.error('Failed to ensure folder integrity', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -438,7 +465,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       return results;
     } catch (e, stack) {
-      _logger.error('Failed to perform folder health check', e, stack);
+      _logger.error('Failed to perform folder health check', error: e, stackTrace: stack);
       return {
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
@@ -466,7 +493,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder structure validation and repair completed');
     } catch (e, stack) {
-      _logger.error('Failed to validate and repair folder structure', e, stack);
+      _logger.error('Failed to validate and repair folder structure', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -497,7 +524,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Cleanup of orphaned relationships completed');
     } catch (e, stack) {
-      _logger.error('Failed to cleanup orphaned relationships', e, stack);
+      _logger.error('Failed to cleanup orphaned relationships', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -515,7 +542,7 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder conflict resolution completed');
     } catch (e, stack) {
-      _logger.error('Failed to resolve folder conflicts', e, stack);
+      _logger.error('Failed to resolve folder conflicts', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -544,19 +571,15 @@ class FolderCoreRepository implements IFolderRepository {
   }
 
   Future<List<String>> _findOrphanedNotes() async {
-    // Find notes with folder IDs that don't exist
-    final notes = await (db.select(db.localNotes)
-          ..where((n) => n.folderId.isNotNull() & n.deleted.equals(false)))
-        .get();
+    // Find notes with folder references that don't exist in the folders table
+    final noteFolderRels = await db.select(db.noteFolders).get();
 
     final orphanedNotes = <String>[];
 
-    for (final note in notes) {
-      if (note.folderId != null) {
-        final folderExists = await db.getFolderById(note.folderId!) != null;
-        if (!folderExists) {
-          orphanedNotes.add(note.id);
-        }
+    for (final rel in noteFolderRels) {
+      final folderExists = await db.getFolderById(rel.folderId) != null;
+      if (!folderExists) {
+        orphanedNotes.add(rel.noteId);
       }
     }
 
@@ -578,7 +601,8 @@ class FolderCoreRepository implements IFolderRepository {
     final circularRefs = <String>[];
 
     for (final folder in allFolders) {
-      if (await _wouldCreateCircularReference(folder.id, folder.parentId)) {
+      if (folder.parentId != null &&
+          await _wouldCreateCircularReference(folder.id, folder.parentId!)) {
         circularRefs.add(folder.id);
       }
     }
@@ -696,5 +720,55 @@ class FolderCoreRepository implements IFolderRepository {
     }
 
     return score.clamp(0.0, 1.0);
+  }
+
+  // ===== Legacy method aliases for backward compatibility =====
+
+  /// Alias for getFolder() - returns LocalFolder for backward compatibility
+  Future<LocalFolder?> getFolderById(String id) async {
+    final folder = await getFolder(id);
+    if (folder == null) return null;
+    return FolderMapper.toInfrastructure(folder);
+  }
+
+  /// Alias for listFolders() - returns LocalFolders for backward compatibility
+  Future<List<LocalFolder>> getAllFolders() async {
+    final folders = await listFolders();
+    return FolderMapper.toInfrastructureList(folders);
+  }
+
+  /// Alias for createFolder() - returns LocalFolder for backward compatibility
+  Future<LocalFolder> createLocalFolder({
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+  }) async {
+    final folder = await createFolder(
+      name: name,
+      parentId: parentId,
+      color: color,
+      icon: icon,
+      description: description,
+    );
+    return FolderMapper.toInfrastructure(folder);
+  }
+
+  /// Alias for createOrUpdateFolder() - for backward compatibility
+  Future<void> updateLocalFolder(LocalFolder folder) async {
+    await createOrUpdateFolder(
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parentId,
+      color: folder.color,
+      icon: folder.icon,
+      description: folder.description,
+    );
+  }
+
+  /// Alias for deleteFolder() - for backward compatibility
+  Future<void> deleteLocalFolder(String folderId) async {
+    await deleteFolder(folderId);
   }
 }

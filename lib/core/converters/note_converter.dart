@@ -1,6 +1,5 @@
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
-import 'package:duru_notes/models/note_kind.dart';
 
 /// Converter utility for converting between LocalNote and domain.Note
 class NoteConverter {

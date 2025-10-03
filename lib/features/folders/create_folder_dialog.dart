@@ -129,7 +129,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
   Future<void> _loadParentFolder(String parentId) async {
     try {
       final folder =
-          await ref.read(notesRepositoryProvider).getFolder(parentId);
+          await ref.read(folderRepositoryProvider).getFolder(parentId);
       if (mounted && folder != null) {
         setState(() {
           _selectedParent = folder;
@@ -187,7 +187,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
 
         // Get the actual folder from the repository to ensure we have the correct data
         final realFolder =
-            await ref.read(notesRepositoryProvider).getFolder(realFolderId);
+            await ref.read(folderRepositoryProvider).getFolder(realFolderId);
 
         final folderToReturn = realFolder ??
             LocalFolder(
