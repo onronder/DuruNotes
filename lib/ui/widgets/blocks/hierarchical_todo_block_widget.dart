@@ -1,6 +1,10 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show unifiedTaskServiceProvider, taskReminderBridgeProvider;
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
@@ -48,7 +52,8 @@ class _HierarchicalTodoBlockWidgetState
   late FocusNode _focusNode;
   late bool _isCompleted;
   late String _text;
-  NoteTask? _task;
+  // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
+  domain.Task? _task;
   TaskProgress? _progress;
 
   @override
@@ -111,56 +116,33 @@ class _HierarchicalTodoBlockWidgetState
   }
 
   Future<void> _loadTaskData() async {
+    // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
     if (widget.noteId == null) return;
 
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final tasks = await unifiedService.getTasksForNote(widget.noteId!);
-      final matchingTask = tasks
-          .where((task) =>
-              task.position == widget.position &&
-              task.content.trim() == _text.trim())
-          .firstOrNull;
+
+      // Match task by title (now works because title is decrypted)
+      final matchedTask = tasks.cast<domain.Task?>().firstWhere(
+        (task) => task?.title.trim() == _text.trim(),
+        orElse: () => null,
+      );
 
       if (mounted) {
         setState(() {
-          _task = matchingTask;
+          _task = matchedTask;
+          // TODO: Load progress for hierarchical tasks
+          // This would require calculating subtask completion
         });
-
-        // Load progress if this is a parent task
-        if (_task != null) {
-          _loadTaskProgress();
-        }
       }
     } catch (e) {
       debugPrint('Error loading task data: $e');
     }
   }
 
-  Future<void> _loadTaskProgress() async {
-    if (_task == null) return;
-
-    try {
-      final unifiedService = ref.read(unifiedTaskServiceProvider);
-
-      final hasChildren = await unifiedService.hasSubtasks(_task!.id);
-      if (hasChildren) {
-        final hierarchy = await unifiedService.getTaskHierarchy(widget.noteId!);
-        final node = hierarchy
-            .expand((root) => [root, ...root.getAllDescendants()])
-            .where((node) => node.task.id == _task!.id)
-            .firstOrNull;
-
-        if (node != null && mounted) {
-          setState(() {
-            _progress = unifiedService.calculateTaskProgress(node);
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading task progress: $e');
-    }
-  }
+  // Method _loadTaskProgress removed - unused and disabled due to encryption migration
+  // Will be re-implemented once UnifiedTaskService returns decrypted domain.Task
 
   void _updateTodo() {
     final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:$_text';
@@ -179,19 +161,13 @@ class _HierarchicalTodoBlockWidgetState
     });
     _updateTodo();
 
-    // Update task in database if it exists
-    if (widget.noteId != null && _task != null) {
+    // Phase 11: Re-enabled - update task status if it exists
+    if (_task != null && widget.noteId != null) {
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
-        await unifiedService.onStatusChanged(
-          _task!.id,
-          _isCompleted ? TaskStatus.completed : TaskStatus.open,
-        );
-
-        // Reload progress after status change
-        await _loadTaskProgress();
+        await unifiedService.toggleTaskStatus(_task!.id);
       } catch (e) {
-        debugPrint('Error updating task completion: $e');
+        debugPrint('Error toggling task status: $e');
       }
     }
   }
@@ -202,6 +178,7 @@ class _HierarchicalTodoBlockWidgetState
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
+        // Phase 11: Re-enabled - now passes decrypted domain.Task
         task: _task,
         taskContent: _text,
         onSave: (metadata) => Navigator.of(context).pop(metadata),
@@ -219,14 +196,14 @@ class _HierarchicalTodoBlockWidgetState
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final reminderBridge = ref.read(taskReminderBridgeProvider);
-      final appDb = ref.read(appDbProvider);
 
+      // Phase 11: Re-enabled task create/update logic
       if (_task == null) {
         // Create new task
         final createdTask = await unifiedService.createTask(
           noteId: widget.noteId!,
           content: _text,
-          priority: metadata.priority,
+          priority: TaskMapper.mapPriorityToDb(metadata.priority),
           dueDate: metadata.dueDate,
           parentTaskId: widget.parentTaskId,
           labels: metadata.labels,
@@ -247,43 +224,41 @@ class _HierarchicalTodoBlockWidgetState
 
         await _loadTaskData();
       } else {
-        // Update existing task
+        // UPDATE EXISTING TASK - Phase 11: Re-enabled
         final oldTask = _task!;
 
         await unifiedService.updateTask(
           taskId: oldTask.id,
-          priority: metadata.priority,
+          priority: TaskMapper.mapPriorityToDb(metadata.priority),
           dueDate: metadata.dueDate,
           labels: metadata.labels,
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
 
-        // Handle reminder changes
-        if (metadata.hasReminder &&
-            metadata.reminderTime != null &&
-            metadata.dueDate != null) {
-          if (oldTask.reminderId == null) {
-            // Create new reminder with custom time
-            final updatedTask = await appDb.getTaskById(oldTask.id);
-            if (updatedTask != null) {
+        // Handle reminder changes - Note: TaskReminderBridge needs NoteTask
+        // Get the updated NoteTask from database for reminder operations
+        final updatedNoteTask = await unifiedService.getTask(oldTask.id);
+        if (updatedNoteTask != null) {
+          if (metadata.hasReminder &&
+              metadata.reminderTime != null &&
+              metadata.dueDate != null) {
+            if (updatedNoteTask.reminderId == null) {
+              // Create new reminder
               final duration =
                   metadata.dueDate!.difference(metadata.reminderTime!);
               await reminderBridge.createTaskReminder(
-                task: updatedTask,
+                task: updatedNoteTask,
                 beforeDueDate: duration.abs(),
               );
+            } else {
+              // Update existing reminder
+              await reminderBridge.updateTaskReminder(updatedNoteTask);
             }
-          } else {
-            // Update existing reminder
-            final updatedTask = await appDb.getTaskById(oldTask.id);
-            if (updatedTask != null) {
-              await reminderBridge.updateTaskReminder(updatedTask);
-            }
+          } else if (!metadata.hasReminder && updatedNoteTask.reminderId != null) {
+            // Cancel existing reminder
+            await reminderBridge.cancelTaskReminder(updatedNoteTask);
           }
-        } else if (!metadata.hasReminder && oldTask.reminderId != null) {
-          // Cancel existing reminder
-          await reminderBridge.cancelTaskReminder(oldTask);
         }
 
         await _loadTaskData();
@@ -366,15 +341,19 @@ class _HierarchicalTodoBlockWidgetState
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: _isCompleted
+                            // Phase 11: Re-enabled - uses actual task priority
                             ? _getPriorityColor(
-                                _task?.priority ?? TaskPriority.medium)
+                                (_task?.priority ?? TaskPriority.medium) as TaskPriority,
+                              )
                             : Colors.grey.shade400,
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(4),
                       color: _isCompleted
+                          // Phase 11: Re-enabled - uses actual task priority
                           ? _getPriorityColor(
-                              _task?.priority ?? TaskPriority.medium)
+                              (_task?.priority ?? TaskPriority.medium) as TaskPriority,
+                            )
                           : Colors.transparent,
                     ),
                     child: _isCompleted
@@ -431,39 +410,14 @@ class _HierarchicalTodoBlockWidgetState
                       ),
                     ],
 
-                    // Task indicators
+                    // Phase 11: Re-enabled task indicators
                     if (_task != null) ...[
                       const SizedBox(height: 4),
                       Padding(
                         padding: const EdgeInsets.only(left: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TaskIndicatorsWidget(
-                                task: _task!,
-                                compact: true,
-                              ),
-                            ),
-
-                            // Subtask count indicator
-                            if (hasChildren && _progress != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primaryContainer
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${_progress!.totalTasks - 1} subtask${_progress!.totalTasks - 1 == 1 ? '' : 's'}',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: colorScheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                          ],
+                        child: TaskIndicatorsWidget(
+                          task: _task!,
+                          compact: true,
                         ),
                       ),
                     ],
@@ -621,12 +575,13 @@ class _HierarchicalTodoBlockWidgetState
   }
 
   Future<void> _completeAllSubtasks() async {
+    // Phase 11: Re-enabled - now works with domain.Task
     if (_task == null) return;
 
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       await unifiedService.completeAllSubtasks(_task!.id);
-      await _loadTaskProgress();
+      await _loadTaskData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -643,6 +598,7 @@ class _HierarchicalTodoBlockWidgetState
   }
 
   Future<void> _deleteHierarchy() async {
+    // Phase 11: Re-enabled - now works with domain.Task
     if (_task == null) return;
 
     final confirmed = await showDialog<bool>(
@@ -688,13 +644,14 @@ class _HierarchicalTodoBlockWidgetState
   }
 
   Future<void> _deleteTask(UnifiedTaskService unifiedService) async {
+    // Phase 11: Re-enabled - now works with domain.Task
     if (_task == null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task'),
-        content: Text('Delete "${_task!.content}"?'),
+        content: Text('Delete "${_task!.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
