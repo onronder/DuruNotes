@@ -1,6 +1,9 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show unifiedTaskServiceProvider, taskReminderBridgeProvider;
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Todo block widget using UnifiedTaskService
 /// No VoidCallback usage - all actions go through the unified service
+/// Phase 11: Re-enabled task matching with decrypted domain.Task from repository
 class TodoBlockWidget extends ConsumerStatefulWidget {
   const TodoBlockWidget({
     required this.block,
@@ -38,7 +42,9 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   late FocusNode _focusNode;
   late bool _isCompleted;
   late String _text;
-  NoteTask? _task;
+
+  // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
+  domain.Task? _task;
 
   @override
   void initState() {
@@ -96,23 +102,22 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   }
 
   Future<void> _loadTaskData() async {
+    // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
     if (widget.noteId == null) return;
 
     try {
-      // Check if widget is still mounted before using ref
-      if (!mounted) return;
-
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final tasks = await unifiedService.getTasksForNote(widget.noteId!);
-      final matchingTask = tasks
-          .where((task) =>
-              task.position == widget.position &&
-              task.content.trim() == _text.trim())
-          .firstOrNull;
+
+      // Match task by title (now works because title is decrypted)
+      final matchedTask = tasks.cast<domain.Task?>().firstWhere(
+        (task) => task?.title.trim() == _text.trim(),
+        orElse: () => null,
+      );
 
       if (mounted) {
         setState(() {
-          _task = matchingTask;
+          _task = matchedTask;
         });
       }
     } catch (e) {
@@ -133,39 +138,18 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
 
   void _toggleCompleted() async {
     // Optimistic UI update
-    final previousState = _isCompleted;
     setState(() {
       _isCompleted = !_isCompleted;
     });
     _updateTodo();
 
-    // Track the optimistic state
-    final optimisticState = _isCompleted;
-
-    // Update task in database if it exists
-    if (widget.noteId != null && _task != null) {
+    // Phase 11: Re-enabled - update task status if it exists
+    if (_task != null && widget.noteId != null) {
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
-        await unifiedService.onStatusChanged(
-          _task!.id,
-          _isCompleted ? TaskStatus.completed : TaskStatus.open,
-        );
+        await unifiedService.toggleTaskStatus(_task!.id);
       } catch (e) {
-        // Revert on error
-        if (mounted && _isCompleted == optimisticState) {
-          setState(() {
-            _isCompleted = previousState;
-          });
-          _updateTodo();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update task: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        debugPrint('Error updating task completion: $e');
+        debugPrint('Error toggling task status: $e');
       }
     }
   }
@@ -176,6 +160,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
+        // Phase 11: Re-enabled - now passes decrypted domain.Task
         task: _task,
         taskContent: _text,
         onSave: (metadata) => Navigator.of(context).pop(metadata),
@@ -193,8 +178,8 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       final reminderBridge = ref.read(taskReminderBridgeProvider);
-      final appDb = ref.read(appDbProvider);
 
+      // Phase 11: Re-enabled task create/update logic
       if (_task == null) {
         // NEW TASK WITH OPTIONAL REMINDER
         if (metadata.hasReminder &&
@@ -204,7 +189,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
             noteId: widget.noteId!,
             content: _text,
             dueDate: metadata.dueDate,
-            priority: metadata.priority,
+            priority: TaskMapper.mapPriorityToDb(metadata.priority),
             labels: metadata.labels,
             notes: metadata.notes,
             estimatedMinutes: metadata.estimatedMinutes,
@@ -219,7 +204,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
           await unifiedService.createTask(
             noteId: widget.noteId!,
             content: _text,
-            priority: metadata.priority,
+            priority: TaskMapper.mapPriorityToDb(metadata.priority),
             dueDate: metadata.dueDate,
             labels: metadata.labels,
             notes: metadata.notes,
@@ -230,43 +215,41 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
         // Reload task data
         await _loadTaskData();
       } else {
-        // UPDATE EXISTING TASK
+        // UPDATE EXISTING TASK - Phase 11: Re-enabled
         final oldTask = _task!;
 
         await unifiedService.updateTask(
           taskId: oldTask.id,
-          priority: metadata.priority,
+          priority: TaskMapper.mapPriorityToDb(metadata.priority),
           dueDate: metadata.dueDate,
           labels: metadata.labels,
           notes: metadata.notes,
           estimatedMinutes: metadata.estimatedMinutes,
         );
 
-        // Handle reminder changes
-        if (metadata.hasReminder &&
-            metadata.reminderTime != null &&
-            metadata.dueDate != null) {
-          if (oldTask.reminderId == null) {
-            // Create new reminder
-            final updatedTask = await appDb.getTaskById(oldTask.id);
-            if (updatedTask != null) {
+        // Handle reminder changes - Note: TaskReminderBridge needs NoteTask
+        // Get the updated NoteTask from database for reminder operations
+        final updatedNoteTask = await unifiedService.getTask(oldTask.id);
+        if (updatedNoteTask != null) {
+          if (metadata.hasReminder &&
+              metadata.reminderTime != null &&
+              metadata.dueDate != null) {
+            if (updatedNoteTask.reminderId == null) {
+              // Create new reminder
               final duration =
                   metadata.dueDate!.difference(metadata.reminderTime!);
               await reminderBridge.createTaskReminder(
-                task: updatedTask,
+                task: updatedNoteTask,
                 beforeDueDate: duration.abs(),
               );
+            } else {
+              // Update existing reminder
+              await reminderBridge.updateTaskReminder(updatedNoteTask);
             }
-          } else {
-            // Update existing reminder
-            final updatedTask = await appDb.getTaskById(oldTask.id);
-            if (updatedTask != null) {
-              await reminderBridge.updateTaskReminder(updatedTask);
-            }
+          } else if (!metadata.hasReminder && updatedNoteTask.reminderId != null) {
+            // Cancel existing reminder
+            await reminderBridge.cancelTaskReminder(updatedNoteTask);
           }
-        } else if (!metadata.hasReminder && oldTask.reminderId != null) {
-          // Cancel existing reminder
-          await reminderBridge.cancelTaskReminder(oldTask);
         }
 
         // Reload task data
@@ -294,7 +277,6 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -367,7 +349,7 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
                       ),
                     ),
 
-                    // Task indicators
+                    // Phase 11: Re-enabled task indicators
                     if (_task != null) ...[
                       const SizedBox(height: 4),
                       Padding(

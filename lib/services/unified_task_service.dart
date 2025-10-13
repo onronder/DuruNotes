@@ -6,17 +6,21 @@ import 'package:drift/drift.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/task_sync_metrics.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
 
 /// Production-ready unified task service
 /// Handles all task operations with the database NoteTask model
+/// Post-encryption migration: Uses TaskDecryptionHelper for content access
 class UnifiedTaskService implements UnifiedTaskCallbacks {
   final AppDb _db;
   final AppLogger _logger;
   final AnalyticsService _analytics;
   final EnhancedTaskService _enhancedService;
+  final ITaskRepository _taskRepository;
 
   // Stream controllers for real-time updates
   final _taskUpdatesController = StreamController<TaskUpdate>.broadcast();
@@ -51,10 +55,12 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
     required AppLogger logger,
     required AnalyticsService analytics,
     required EnhancedTaskService enhancedTaskService,
+    required ITaskRepository taskRepository,
   })  : _db = db,
         _logger = logger,
         _analytics = analytics,
-        _enhancedService = enhancedTaskService;
+        _enhancedService = enhancedTaskService,
+        _taskRepository = taskRepository;
 
   // ===== CRUD Operations =====
 
@@ -125,12 +131,29 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
   }
 
   /// Get all tasks for a note
-  Future<List<NoteTask>> getTasksForNote(String noteId) async {
+  /// Phase 11: Now returns decrypted domain.Task objects via repository
+  Future<List<domain.Task>> getTasksForNote(String noteId) async {
+    try {
+      return await _taskRepository.getTasksForNote(noteId);
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to get tasks for note',
+        error: e,
+        stackTrace: stack,
+        data: {'note_id': noteId},
+      );
+      return [];
+    }
+  }
+
+  /// Internal helper: Get encrypted NoteTask objects from database
+  /// Used for sync operations and internal hierarchy building
+  Future<List<NoteTask>> _getTasksForNoteRaw(String noteId) async {
     try {
       return await _db.getTasksForNote(noteId);
     } catch (e, stack) {
       _logger.error(
-        'Failed to get tasks for note',
+        'Failed to get raw tasks for note',
         error: e,
         stackTrace: stack,
         data: {'note_id': noteId},
@@ -552,12 +575,14 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
   }
 
   /// Search tasks by content
+  /// DEPRECATED: Cannot efficiently search encrypted content.
+  /// Use TaskCoreRepository with decryption instead.
+  @Deprecated('Cannot efficiently search encrypted content. Use TaskCoreRepository with decryption instead.')
   Future<List<NoteTask>> searchTasks(String query) async {
     try {
-      final lowerQuery = query.toLowerCase();
-      return await (_db.select(_db.noteTasks)
-            ..where((t) => t.content.lower().contains(lowerQuery)))
-          .get();
+      // Cannot search encrypted content - return empty
+      _logger.warning('searchTasks deprecated: cannot search encrypted content');
+      return [];
     } catch (e, stack) {
       _logger.error(
         'Failed to search tasks',
@@ -656,7 +681,8 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
       final note = await _db.getNote(noteId);
       if (note != null) {
         // This creates any missing tasks with stable IDs based on content hash
-        await syncFromNoteToTasks(noteId, note.body);
+        // Note: note.body no longer exists - caller must decrypt first
+        // await syncFromNoteToTasks(noteId, decryptedBody);
 
         // Count tasks for logging
         final taskCount = await getTasksForNote(noteId).then((tasks) => tasks.length);
@@ -664,7 +690,8 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
         _logger.info('Initialized bidirectional sync for note', data: {
           'noteId': noteId,
           'taskCount': taskCount,
-          'hasCheckboxes': note.body.contains('- [ ]') || note.body.contains('- [x]'),
+          // TODO: Re-enable checkbox detection after adding decryption support
+          // 'hasCheckboxes': decryptedBody.contains('- [ ]') || decryptedBody.contains('- [x]'),
         });
       } else {
         _logger.warning('Note not found for bidirectional sync initialization',
@@ -703,8 +730,8 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
       final taskMappings = _parseTasksWithLineTracking(noteId, noteContent);
       taskCount = taskMappings.length;
 
-      // Get existing tasks from database
-      final existingTasks = await getTasksForNote(noteId);
+      // Get existing tasks from database (raw NoteTask for sync operations)
+      final existingTasks = await _getTasksForNoteRaw(noteId);
       final existingMap = {for (var task in existingTasks) task.id: task};
 
       // Process each parsed task
@@ -714,9 +741,10 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
           final existingTask = existingMap[mapping.taskId];
 
           if (existingTask != null) {
-            // Update existing task if content or status changed
-            if (existingTask.content != mapping.content ||
-                existingTask.status != (mapping.isCompleted ? TaskStatus.completed : TaskStatus.open)) {
+            // TODO: Re-implement with encryption support
+            // Cannot compare encrypted content without decrypting
+            // For now, just update status if changed
+            if (existingTask.status != (mapping.isCompleted ? TaskStatus.completed : TaskStatus.open)) {
               await updateTask(
                 taskId: mapping.taskId,
                 content: mapping.content,
@@ -724,42 +752,33 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
               );
             }
           } else {
-            // Create new task with explicit ID for consistency
-            final newTask = NoteTask(
-              id: mapping.taskId,
-              noteId: noteId,
-              content: mapping.content,
-              contentHash: _generateStableTaskId(noteId, mapping.content, mapping.lineIndex),
-              status: mapping.isCompleted ? TaskStatus.completed : TaskStatus.open,
-              priority: TaskPriority.medium,
-              position: mapping.position,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-              deleted: false,
-              dueDate: null,
-              completedAt: mapping.isCompleted ? DateTime.now() : null,
-              completedBy: null,
-              reminderId: null,
-              labels: null,
-              notes: null,
-              estimatedMinutes: null,
-              actualMinutes: null,
-              parentTaskId: null,
-            );
+            // FIXED: Re-enabled task creation with encryption support via EnhancedTaskService
+            _logger.info('Creating task from markdown sync',
+              data: {'taskId': mapping.taskId, 'noteId': noteId});
 
-            // Use database directly for sync operations to avoid circular calls
-            await _db.createTask(NoteTasksCompanion.insert(
-              id: newTask.id,
-              noteId: newTask.noteId,
-              content: newTask.content,
-              contentHash: newTask.contentHash,
-              status: Value(newTask.status),
-              priority: Value(newTask.priority),
-              position: Value(newTask.position),
-              createdAt: Value(newTask.createdAt),
-              updatedAt: Value(newTask.updatedAt),
-              deleted: Value(newTask.deleted),
-            ));
+            try {
+              // Use EnhancedTaskService which handles encryption properly
+              await _enhancedService.createTask(
+                noteId: noteId,
+                content: mapping.content,
+                status: mapping.isCompleted ? TaskStatus.completed : TaskStatus.open,
+                priority: TaskPriority.medium,
+                dueDate: null,
+                parentTaskId: null,
+                labels: null,
+                notes: null,
+                estimatedMinutes: null,
+                createReminder: false, // Don't create reminders for auto-synced tasks
+              );
+
+              _logger.info('Successfully created task from markdown',
+                data: {'taskId': mapping.taskId, 'noteId': noteId});
+            } catch (e) {
+              _logger.error('Failed to create task from markdown',
+                error: e,
+                data: {'taskId': mapping.taskId, 'noteId': noteId});
+              // Continue with other tasks even if one fails
+            }
           }
 
           // Cache the line mapping
@@ -856,7 +875,8 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
       // Watch for note changes
       _noteSubscriptions[noteId] = _db.watchNote(noteId).listen((note) {
         if (note != null) {
-          _handleNoteChange(noteId, note.body);
+          // Note: note.body no longer exists
+          // _handleNoteChange(noteId, decryptedBody);
         }
       });
 
@@ -895,43 +915,8 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
     }
   }
 
-  /// Handle note content changes with debouncing
-  void _handleNoteChange(String noteId, String newContent) {
-    // Skip if sync is already in progress
-    if (_syncInProgress.contains(noteId)) {
-      // Add to pending changes even during sync for later processing
-      _pendingChanges.putIfAbsent(noteId, () => []).add(
-        PendingChange(
-          type: ChangeType.content,
-          content: newContent,
-          timestamp: DateTime.now(),
-        ),
-      );
-      return;
-    }
-
-    // Add to pending changes
-    _pendingChanges.putIfAbsent(noteId, () => []).add(
-      PendingChange(
-        type: ChangeType.content,
-        content: newContent,
-        timestamp: DateTime.now(),
-      ),
-    );
-
-    // Cancel existing timer
-    _debounceTimers[noteId]?.cancel();
-
-    // Start new debounce timer with exponential backoff for frequent changes
-    final changeCount = _pendingChanges[noteId]?.length ?? 0;
-    final debounceDelay = changeCount > 5
-        ? Duration(milliseconds: 1000) // Longer delay for rapid changes
-        : _defaultDebounceDelay;
-
-    _debounceTimers[noteId] = Timer(debounceDelay, () {
-      _processPendingChanges(noteId);
-    });
-  }
+  // Note: _handleNoteChange removed - note content is now encrypted and cannot be accessed directly
+  // Sync is triggered manually when decrypted content is available
 
   /// Process pending changes for a note
   Future<void> _processPendingChanges(String noteId) async {
@@ -1172,7 +1157,7 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
     try {
       final tasks = noteIdOrAll == 'all'
           ? await _db.getAllTasks()
-          : await getTasksForNote(noteIdOrAll);
+          : await _getTasksForNoteRaw(noteIdOrAll);
 
       // Build hierarchy from flat list
       return _buildTaskHierarchy(tasks);
@@ -1314,7 +1299,7 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
           data: {'parentId': parentTaskId, 'count': subtasks.length});
     } catch (e) {
       _logger.error('[UnifiedTaskService] Failed to complete subtasks', error: e);
-      throw e;
+      rethrow;
     }
   }
 
@@ -1336,7 +1321,7 @@ class UnifiedTaskService implements UnifiedTaskCallbacks {
           data: {'taskId': taskId});
     } catch (e) {
       _logger.error('[UnifiedTaskService] Failed to delete hierarchy', error: e);
-      throw e;
+      rethrow;
     }
   }
 

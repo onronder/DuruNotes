@@ -1,5 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show unifiedTaskServiceProvider;
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
@@ -25,7 +26,7 @@ class HierarchicalTaskListView extends ConsumerStatefulWidget {
 
 class _HierarchicalTaskListViewState
     extends ConsumerState<HierarchicalTaskListView> {
-  final Set<String> _expandedNodes = <String>{};
+  // State tracking reserved for future expand/collapse functionality
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +361,8 @@ class TaskHierarchyPanel extends ConsumerWidget {
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
         final tasks = await unifiedService.getTasksForNote(noteId);
-        final rootTasks = tasks.where((t) => t.parentTaskId == null).toList();
+        // Phase 11: parentTaskId is stored in metadata map for domain.Task
+        final rootTasks = tasks.where((t) => t.metadata['parentTaskId'] == null).toList();
 
         for (final task in rootTasks) {
           await unifiedService.onStatusChanged(task.id, TaskStatus.completed);

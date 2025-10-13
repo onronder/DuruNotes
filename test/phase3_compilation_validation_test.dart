@@ -5,9 +5,10 @@ import 'package:duru_notes/providers/unified_reminder_provider.dart';
 import 'package:duru_notes/services/unified_task_service.dart' as unified;
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
-import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/feature_flags.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// Phase 11: Import repository providers directly
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart' show folderCoreRepositoryProvider;
 import 'dart:convert';
 import 'dart:io';
 
@@ -73,11 +74,11 @@ void main() {
         final results = <String, dynamic>{};
 
         try {
-          // Test basic task service
-          print('  📝 Testing TaskService provider...');
-          final taskService = container.read(taskServiceProvider);
-          expect(taskService, isNotNull);
-          results['taskService'] = {'success': true, 'type': taskService.runtimeType.toString()};
+          // Test task core repository (domain architecture)
+          print('  📝 Testing TaskCoreRepository provider...');
+          final taskRepo = container.read(taskCoreRepositoryProvider);
+          expect(taskRepo, isNotNull);
+          results['taskCoreRepository'] = {'success': true, 'type': taskRepo.runtimeType.toString()};
 
           // Test enhanced task service - CRITICAL for compilation fixes
           print('  🚀 Testing EnhancedTaskService provider...');
@@ -139,7 +140,7 @@ void main() {
           // Test notes repository - CRITICAL for sync system
           print('  📝 Testing NotesRepository provider...');
           try {
-            final notesRepo = container.read(notesRepositoryProvider);
+            final notesRepo = container.read(notesCoreRepositoryProvider);
             expect(notesRepo, isNotNull);
             results['notesRepository'] = {'success': true, 'type': notesRepo.runtimeType.toString()};
           } catch (e) {
@@ -155,7 +156,7 @@ void main() {
           // Test folder repository
           print('  📁 Testing FolderRepository provider...');
           try {
-            final folderRepo = container.read(folderRepositoryProvider);
+            final folderRepo = container.read(folderCoreRepositoryProvider);
             expect(folderRepo, isNotNull);
             results['folderRepository'] = {'success': true, 'type': folderRepo.runtimeType.toString()};
           } catch (e) {
@@ -208,7 +209,7 @@ void main() {
             'appDb', 'taskReminderBridge'
           ];
           dependencyMap['taskReminderBridge'] = [
-            'unifiedReminderCoordinator', 'advancedReminderService', 'taskService'
+            'unifiedReminderCoordinator', 'advancedReminderService', 'taskCoreRepository'
           ];
 
           // Test dependency resolution
@@ -248,8 +249,8 @@ void main() {
                     container.read(unifiedReminderCoordinatorProvider);
                     resolvedDependencies.add(dep);
                     break;
-                  case 'taskService':
-                    container.read(taskServiceProvider);
+                  case 'taskCoreRepository':
+                    container.read(taskCoreRepositoryProvider);
                     resolvedDependencies.add(dep);
                     break;
                   default:
@@ -291,9 +292,9 @@ void main() {
           // in different orders and ensuring no deadlocks
 
           final testOrders = [
-            ['appDb', 'logger', 'taskService', 'enhancedTaskService', 'unifiedTaskService'],
-            ['unifiedTaskService', 'enhancedTaskService', 'taskService', 'logger', 'appDb'],
-            ['logger', 'unifiedTaskService', 'appDb', 'taskService', 'enhancedTaskService'],
+            ['appDb', 'logger', 'taskCoreRepository', 'enhancedTaskService', 'unifiedTaskService'],
+            ['unifiedTaskService', 'enhancedTaskService', 'taskCoreRepository', 'logger', 'appDb'],
+            ['logger', 'unifiedTaskService', 'appDb', 'taskCoreRepository', 'enhancedTaskService'],
           ];
 
           for (int i = 0; i < testOrders.length; i++) {
@@ -314,8 +315,8 @@ void main() {
                     tempContainer.read(loggerProvider);
                     resolvedProviders.add(providerName);
                     break;
-                  case 'taskService':
-                    tempContainer.read(taskServiceProvider);
+                  case 'taskCoreRepository':
+                    tempContainer.read(taskCoreRepositoryProvider);
                     resolvedProviders.add(providerName);
                     break;
                   case 'enhancedTaskService':
@@ -378,7 +379,7 @@ void main() {
           expect(unifiedService.deleteTask, isA<Function>());
 
           // Test stream operations
-          expect(unifiedService.taskUpdates, isA<Stream>());
+          expect(unifiedService.taskUpdates, isA<Stream<dynamic>>());
           expect(unifiedService.watchOpenTasks, isA<Function>());
 
           // Test hierarchical operations
@@ -486,7 +487,7 @@ void main() {
           // Initialize some providers
           tempContainer.read(appDbProvider);
           tempContainer.read(loggerProvider);
-          tempContainer.read(taskServiceProvider);
+          tempContainer.read(taskCoreRepositoryProvider);
 
           // Dispose and check for cleanup
           tempContainer.dispose();
