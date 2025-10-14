@@ -1,7 +1,14 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show attachmentServiceProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// A block-based editor for composing notes. This widget renders a list of
 /// [NoteBlock]s and allows the user to edit each block independently. It
@@ -27,6 +34,8 @@ class BlockEditor extends ConsumerStatefulWidget {
 class _BlockEditorState extends ConsumerState<BlockEditor> {
   late List<NoteBlock> _blocks;
   List<TextEditingController?> _controllers = [];
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -70,13 +79,13 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
           case NoteBlockType.quote:
           case NoteBlockType.bulletList:
           case NoteBlockType.numberedList:
-            final text = block.data ?? '';
+            final text = block.data;
             return TextEditingController(text: text);
           case NoteBlockType.code:
-            final text = block.data ?? '';
+            final text = block.data;
             return TextEditingController(text: text);
           case NoteBlockType.todo:
-            final text = block.data ?? '';
+            final text = block.data;
             return TextEditingController(text: text);
           case NoteBlockType.table:
           case NoteBlockType.attachment:
@@ -100,7 +109,7 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
             case NoteBlockType.numberedList:
             case NoteBlockType.code:
             case NoteBlockType.todo:
-              newText = block.data ?? '';
+              newText = block.data;
             default:
               break;
           }
@@ -210,13 +219,27 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     AttachmentBlockData? data;
     try {
       data = await service.pickAndUpload();
-    } catch (e) {
+    } catch (error, stackTrace) {
       // Dismiss the dialog before showing error.
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Attachment upload failed: $e')));
+        _logger.error(
+          'Attachment upload failed in block editor',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                const Text('Could not upload attachment. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_createAttachmentBlock(insertIndex)),
+            ),
+          ),
+        );
       }
       return;
     }
@@ -703,51 +726,8 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     }
   }
 
-  /// Show dialog to edit attachment details
-  Future<void> _editAttachment(int index, AttachmentBlockData data) async {
-    final fileNameController = TextEditingController(text: data.fileName);
-    final urlController = TextEditingController(text: data.url);
-
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Attachment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: fileNameController,
-              decoration: const InputDecoration(
-                labelText: 'File name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: urlController,
-              decoration: const InputDecoration(
-                labelText: 'URL',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    fileNameController.dispose();
-    urlController.dispose();
-  }
+  // Legacy method _editAttachment removed - unused
+  // Attachment editing is now handled inline in _buildAttachmentBlock with simpler filename editing
 
   @override
   Widget build(BuildContext context) {

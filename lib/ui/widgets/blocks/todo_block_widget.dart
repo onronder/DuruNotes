@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:duru_notes/models/note_block.dart';
@@ -9,6 +14,7 @@ import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Todo block widget using UnifiedTaskService
 /// No VoidCallback usage - all actions go through the unified service
@@ -45,6 +51,8 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
 
   // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
   domain.Task? _task;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -120,8 +128,16 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
           _task = matchedTask;
         });
       }
-    } catch (e) {
-      debugPrint('Error loading task data: $e');
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to load task data for todo block',
+        data: {
+          'noteId': widget.noteId,
+          'text': _text.length > 50 ? '${_text.substring(0, 50)}…' : _text,
+          'error': e.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
     }
   }
 
@@ -148,8 +164,27 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
         await unifiedService.toggleTaskStatus(_task!.id);
-      } catch (e) {
-        debugPrint('Error toggling task status: $e');
+      } catch (e, stackTrace) {
+        _logger.error(
+          'Failed to toggle task status in todo block',
+          error: e,
+          stackTrace: stackTrace,
+          data: {'taskId': _task!.id, 'noteId': widget.noteId},
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to toggle task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: _toggleCompleted,
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -255,11 +290,29 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
         // Reload task data
         await _loadTaskData();
       }
-    } catch (e) {
-      debugPrint('Error saving task metadata: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to save task metadata in todo block',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'noteId': widget.noteId,
+          'hasTask': _task != null,
+          'priority': metadata.priority.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving task: $e')),
+          SnackBar(
+            content: const Text('Failed to save task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_saveTaskMetadata(metadata)),
+            ),
+          ),
         );
       }
     }

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Security Audit Trail Service
 /// Tracks security-related events for compliance and debugging
@@ -21,6 +24,27 @@ class SecurityAuditTrail {
 
   File? _auditFile;
   bool _initialized = false;
+
+  void _captureAuditException({
+    required String operation,
+    required Object error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'SecurityAuditTrail');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
 
   /// Stream of security events
   Stream<SecurityEvent> get eventStream => _eventController.stream;
@@ -47,8 +71,13 @@ class SecurityAuditTrail {
 
       _initialized = true;
       await logEvent(SecurityEventType.auditStarted, 'Security audit trail initialized');
-    } catch (e) {
-      _logger.error('Failed to initialize security audit trail', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to initialize security audit trail', error: error, stackTrace: stack);
+      _captureAuditException(
+        operation: 'initialize',
+        error: error,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -80,7 +109,17 @@ class SecurityAuditTrail {
     _eventController.add(event);
 
     // Write to audit file
-    await _writeToFile(event);
+    try {
+      await _writeToFile(event);
+    } catch (error, stack) {
+      _logger.error('Failed to write security event to audit file', error: error, stackTrace: stack);
+      _captureAuditException(
+        operation: 'writeToFile',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+      );
+    }
 
     // Log critical events
     if (severity == SecuritySeverity.critical) {
@@ -281,8 +320,13 @@ class SecurityAuditTrail {
   }
 
   String? _getCurrentUserId() {
-    // TODO: Get from auth service
-    return null;
+    try {
+      final client = Supabase.instance.client;
+      return client.auth.currentUser?.id;
+    } catch (e) {
+      _logger.warning('[SecurityAudit] Failed to get current user ID', data: {'error': e.toString()});
+      return null;
+    }
   }
 
   String _getDeviceId() {

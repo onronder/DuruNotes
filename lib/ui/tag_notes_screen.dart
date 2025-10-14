@@ -1,7 +1,13 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/note.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Screen that displays notes filtered by a specific tag
 class TagNotesScreen extends ConsumerStatefulWidget {
@@ -13,8 +19,9 @@ class TagNotesScreen extends ConsumerStatefulWidget {
 }
 
 class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
-  List<LocalNote> _notes = [];
+  List<Note> _notes = [];
   bool _isLoading = true;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -25,11 +32,9 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
   Future<void> _loadNotes() async {
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(notesRepositoryProvider);
-      final notes = await repo.queryNotesByTags(
+      final tagRepo = ref.read(tagRepositoryProvider);
+      final notes = await tagRepo.queryNotesByTags(
         anyTags: [widget.tag],
-        noneTags: <LocalNote>[],
-        sort: const SortSpec(),
       );
       if (mounted) {
         setState(() {
@@ -37,12 +42,26 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load notes for tag',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'tag': widget.tag},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load notes: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to load #${widget.tag} notes. Please retry.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadNotes()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -71,32 +90,51 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
 
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
+    final isEmailTag = widget.tag.toLowerCase() == 'email';
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.note_alt_outlined,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No notes with #${widget.tag}',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isEmailTag ? Icons.email_outlined : Icons.note_alt_outlined,
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Notes tagged with #${widget.tag} will appear here',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            const SizedBox(height: 16),
+            Text(
+              isEmailTag
+                  ? 'No converted email notes yet'
+                  : 'No notes with #${widget.tag}',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              isEmailTag
+                  ? 'Emails that you convert to notes will appear here.\n\nTo convert an email:\n1. Check your Inbox for new emails\n2. Open an email\n3. Tap "Convert to Note"'
+                  : 'Notes tagged with #${widget.tag} will appear here',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (isEmailTag) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Navigate to inbox - assuming inbox is a tab or route
+                },
+                icon: const Icon(Icons.inbox),
+                label: const Text('Go to Inbox'),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

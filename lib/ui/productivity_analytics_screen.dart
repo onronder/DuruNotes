@@ -1,5 +1,11 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show taskAnalyticsServiceProvider;
 import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
@@ -10,6 +16,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Comprehensive productivity analytics dashboard
 class ProductivityAnalyticsScreen extends ConsumerStatefulWidget {
@@ -28,6 +35,8 @@ class _ProductivityAnalyticsScreenState
   ProductivityAnalytics? _analytics;
   ProductivityInsights? _insights;
   bool _isLoading = false;
+  AppLogger get _logger => ref.read(loggerProvider);
+  bool _reportExportError = true;
 
   @override
   void initState() {
@@ -72,13 +81,36 @@ class _ProductivityAnalyticsScreenState
           _insights = insights;
           _isLoading = false;
         });
+        _logger.debug(
+          'Loaded productivity analytics',
+          data: {
+            'start': _selectedDateRange!.start.toIso8601String(),
+            'end': _selectedDateRange!.end.toIso8601String(),
+          },
+        );
       }
-    } catch (e) {
-      debugPrint('Error loading analytics: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load productivity analytics',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'start': _selectedDateRange?.start.toIso8601String(),
+          'end': _selectedDateRange?.end.toIso8601String(),
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading analytics: ${e.toString()}')),
+          SnackBar(
+            content: const Text('Unable to load analytics. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadAnalytics()),
+            ),
+          ),
         );
       }
     }
@@ -122,10 +154,33 @@ class _ProductivityAnalyticsScreenState
         subject:
             'Productivity Analytics - ${DateFormat.yMMMd().format(_selectedDateRange!.start)} to ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
       );
+      _logger.info(
+        'Exported productivity analytics',
+        data: {
+          'start': _selectedDateRange!.start.toIso8601String(),
+          'end': _selectedDateRange!.end.toIso8601String(),
+          'rows': _analytics!.completedTasks.length,
+        },
+      );
     } catch (e) {
       if (mounted) {
+        _logger.error(
+          'Failed to export analytics',
+          error: e,
+        );
+        if (_reportExportError) {
+          _reportExportError = false;
+          unawaited(Sentry.captureException(e));
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error exporting data: $e')),
+          SnackBar(
+            content: const Text('Error exporting data. Try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_exportData()),
+            ),
+          ),
         );
       }
     }
@@ -134,8 +189,6 @@ class _ProductivityAnalyticsScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -560,7 +613,6 @@ class _ProductivityAnalyticsScreenState
 
   Widget _buildTimeAnalysisTab() {
     final analytics = _analytics!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

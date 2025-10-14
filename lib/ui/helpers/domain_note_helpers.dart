@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/entities/note.dart';
 import 'package:duru_notes/models/note_kind.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Production-grade helper functions for working with domain.Note in UI
 ///
@@ -8,6 +12,24 @@ import 'package:duru_notes/models/note_kind.dart';
 /// needing to convert them to LocalNote. This maintains clean architecture
 /// while providing the functionality UI components need.
 class DomainNoteHelpers {
+  static final AppLogger _logger = LoggerFactory.instance;
+
+  static void _logParsingFailure(
+    String context,
+    Note note,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    _logger.warning(
+      'Failed to $context from note metadata',
+      data: {
+        'noteId': note.id,
+        'noteType': note.noteType.name,
+      },
+    );
+    unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+  }
+
   /// Check if a note has attachments
   static bool hasAttachments(Note note) {
     if (note.attachmentMeta == null) return false;
@@ -20,8 +42,8 @@ class DomainNoteHelpers {
         final meta = jsonDecode(note.attachmentMeta as String);
         return meta is Map && meta.isNotEmpty && meta['count'] != null && (meta['count'] as int? ?? 0) > 0;
       }
-    } catch (e) {
-      // If parsing fails, no attachments
+    } catch (error, stackTrace) {
+      _logParsingFailure('determine attachment presence', note, error, stackTrace);
       return false;
     }
     return false;
@@ -42,7 +64,8 @@ class DomainNoteHelpers {
           return meta['count'] as int? ?? 0;
         }
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logParsingFailure('read attachment count', note, error, stackTrace);
       return 0;
     }
     return 0;
@@ -63,7 +86,8 @@ class DomainNoteHelpers {
           return meta['source'] == 'email' || meta['source_type'] == 'email';
         }
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logParsingFailure('detect email source', note, error, stackTrace);
       return false;
     }
     return false;
@@ -88,7 +112,8 @@ class DomainNoteHelpers {
                  meta['source'] == 'clipper';
         }
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logParsingFailure('detect web source', note, error, stackTrace);
       return false;
     }
     return false;
@@ -112,7 +137,8 @@ class DomainNoteHelpers {
       if (files is List) {
         return files.cast<Map<String, dynamic>>();
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logParsingFailure('extract attachments list', note, error, stackTrace);
       return [];
     }
     return [];
@@ -228,11 +254,7 @@ class DomainNoteHelpers {
         });
         break;
       case 'createdAt':
-        sorted.sort((a, b) {
-          final comparison = a.createdAt.compareTo(b.createdAt);
-          return ascending ? comparison : -comparison;
-        });
-        break;
+        // Fall through to updatedAt (LocalNotes doesn't have createdAt)
       case 'updatedAt':
       default:
         sorted.sort((a, b) {

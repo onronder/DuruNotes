@@ -4,6 +4,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/connection_manager.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Event types for database changes
@@ -163,6 +164,28 @@ class UnifiedRealtimeService extends ChangeNotifier {
   final Map<String, Timer> _debounceTimers = {};
   static const Duration _debounceDuration = Duration(milliseconds: 300);
 
+  void _captureRealtimeException({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'UnifiedRealtimeService');
+          scope.setTag('operation', operation);
+          scope.setExtra('userId', userId);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
+
   /// Start the unified realtime subscription
   Future<void> start() async {
     if (_disposed) {
@@ -195,10 +218,15 @@ class UnifiedRealtimeService extends ChangeNotifier {
       await _subscribeToChannel();
     } on RealtimeException {
       rethrow;
-    } catch (e, stack) {
+    } catch (error, stack) {
       _logger.error(
         'Unexpected error during subscription',
-        error: e,
+        error: error,
+        stackTrace: stack,
+      );
+      _captureRealtimeException(
+        operation: 'start.subscription',
+        error: error,
         stackTrace: stack,
       );
       _isSubscribed = false;
@@ -206,7 +234,7 @@ class UnifiedRealtimeService extends ChangeNotifier {
         notifyListeners();
         await _scheduleReconnect();
       }
-      throw RealtimeException('Failed to start subscription', e);
+      throw RealtimeException('Failed to start subscription', error);
     }
   }
 
@@ -304,8 +332,14 @@ class UnifiedRealtimeService extends ChangeNotifier {
           throw RealtimeSubscriptionException('Subscription timeout');
         },
       );
-    } on TimeoutException catch (e) {
-      throw RealtimeSubscriptionException('Subscription timeout', e);
+    } on TimeoutException catch (error, stack) {
+      _captureRealtimeException(
+        operation: 'subscribe.timeout',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+      );
+      throw RealtimeSubscriptionException('Subscription timeout', error);
     }
   }
 
@@ -352,8 +386,15 @@ class UnifiedRealtimeService extends ChangeNotifier {
         'Event processed',
         data: {'table': table.name, 'eventType': payload.eventType.name},
       );
-    } catch (e, stack) {
-      _logger.error('Error handling change event', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Error handling change event', error: error, stackTrace: stack);
+      _captureRealtimeException(
+        operation: 'handleChange',
+        error: error,
+        stackTrace: stack,
+        data: {'table': table.name},
+        level: SentryLevel.warning,
+      );
     }
   }
 
@@ -385,8 +426,14 @@ class UnifiedRealtimeService extends ChangeNotifier {
       if (!_disposed) {
         notifyListeners();
       }
-    } catch (e, stack) {
-      _logger.error('Error emitting event', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Error emitting event', error: error, stackTrace: stack);
+      _captureRealtimeException(
+        operation: 'emitEvent',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+      );
     }
   }
 
@@ -414,8 +461,14 @@ class UnifiedRealtimeService extends ChangeNotifier {
       if (!_disposed) {
         notifyListeners();
         // Fire and forget the reconnect scheduling
-        _scheduleReconnect().catchError((Object e) {
-          _logger.error('Failed to schedule reconnect', error: e);
+        _scheduleReconnect().catchError((Object error, StackTrace stack) {
+          _logger.error('Failed to schedule reconnect', error: error, stackTrace: stack);
+          _captureRealtimeException(
+            operation: 'scheduleReconnect.defer',
+            error: error,
+            stackTrace: stack,
+            level: SentryLevel.warning,
+          );
         });
       }
     }
@@ -450,14 +503,25 @@ class UnifiedRealtimeService extends ChangeNotifier {
         try {
           await stop();
           await start();
-        } on RealtimeException catch (e) {
-          _logger.error('Reconnect failed', error: e);
+        } on RealtimeException catch (error, stack) {
+          _logger.error('Reconnect failed', error: error, stackTrace: stack);
+          _captureRealtimeException(
+            operation: 'scheduleReconnect.retry',
+            error: error,
+            stackTrace: stack,
+            level: SentryLevel.warning,
+          );
           // Continue with exponential backoff
           await _scheduleReconnect();
-        } catch (e, stack) {
+        } catch (error, stack) {
           _logger.error(
             'Unexpected error during reconnect',
-            error: e,
+            error: error,
+            stackTrace: stack,
+          );
+          _captureRealtimeException(
+            operation: 'scheduleReconnect.retryUnexpected',
+            error: error,
             stackTrace: stack,
           );
           // Continue with exponential backoff
@@ -479,8 +543,13 @@ class UnifiedRealtimeService extends ChangeNotifier {
         // Unregister from connection manager
         _connectionManager.unregisterRealtimeChannel(_channel!);
         await _channel!.unsubscribe();
-      } catch (e, stack) {
-        _logger.error('Error during unsubscribe', error: e, stackTrace: stack);
+      } catch (error, stack) {
+        _logger.error('Error during unsubscribe', error: error, stackTrace: stack);
+        _captureRealtimeException(
+          operation: 'stop.unsubscribe',
+          error: error,
+          stackTrace: stack,
+        );
       } finally {
         _channel = null;
       }
@@ -515,11 +584,17 @@ class UnifiedRealtimeService extends ChangeNotifier {
       };
 
       await _folderSyncCoordinator.handleRealtimeUpdate(payload);
-    } catch (e, stack) {
+    } catch (error, stack) {
       _logger.error(
         'Failed to handle folder realtime update',
-        error: e,
+        error: error,
         stackTrace: stack,
+      );
+      _captureRealtimeException(
+        operation: 'handleFolderRealtimeUpdate',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
       );
     }
   }

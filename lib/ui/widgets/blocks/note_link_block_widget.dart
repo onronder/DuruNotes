@@ -1,7 +1,17 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/note.dart';
+import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
+    show currentNotesProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 class NoteLinkBlockWidget extends ConsumerStatefulWidget {
   const NoteLinkBlockWidget({
@@ -17,7 +27,7 @@ class NoteLinkBlockWidget extends ConsumerStatefulWidget {
   final bool isFocused;
   final void Function(NoteBlock) onChanged;
   final void Function(bool) onFocusChanged;
-  final void Function(LocalNote) onNoteSelected;
+  final void Function(Note) onNoteSelected;
 
   @override
   ConsumerState<NoteLinkBlockWidget> createState() =>
@@ -27,7 +37,8 @@ class NoteLinkBlockWidget extends ConsumerStatefulWidget {
 class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
   late String _linkedNoteId;
   bool _isSelecting = false;
-  LocalNote? _linkedNote;
+  Note? _linkedNote;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -54,15 +65,23 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
   Future<void> _loadLinkedNote() async {
     if (_linkedNoteId.isNotEmpty) {
       try {
-        final notesRepository = ref.read(notesRepositoryProvider);
-        final note = await notesRepository.getNote(_linkedNoteId);
+        final notesRepository = ref.read(notesCoreRepositoryProvider);
+        final note = await notesRepository.getNoteById(_linkedNoteId);
         if (mounted) {
           setState(() {
             _linkedNote = note;
           });
         }
-      } catch (e) {
+      } catch (error, stackTrace) {
         // Note not found or error
+        _logger.warning(
+          'Failed to load linked note for note link block',
+          data: {
+            'linkedNoteId': _linkedNoteId,
+            'error': error.toString(),
+          },
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
           setState(() {
             _linkedNote = null;
@@ -91,7 +110,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
     });
   }
 
-  void _selectNote(LocalNote note) {
+  void _selectNote(Note note) {
     _updateNoteLink(note.id);
     _hideNoteSelector();
   }
@@ -284,13 +303,13 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                     return ListTile(
                       leading: const Icon(Icons.note, size: 16),
                       title: Text(
-                        note.title.isNotEmpty ?? false
+                        note.title.isNotEmpty
                             ? note.title
                             : 'Untitled',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: note.body.isNotEmpty ?? false
+                      subtitle: note.body.isNotEmpty
                           ? Text(
                               note.body,
                               maxLines: 1,

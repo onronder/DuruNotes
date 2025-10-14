@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,11 +14,11 @@ import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/infrastructure/adapters/service_adapter.dart';
+import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/sync/sync_coordinator.dart';
-import 'package:duru_notes/core/sync/transaction_manager.dart';
 
 /// Sync result with detailed information
 class SyncResult {
@@ -86,12 +87,11 @@ class UnifiedSyncService {
   final _logger = LoggerFactory.instance;
   final _uuid = const Uuid();
 
-  late final AppDb _db;
-  late final SupabaseClient _client;
-  late final MigrationConfig _migrationConfig;
-  late final ServiceAdapter _adapter;
-  late final CryptoBox _cryptoBox;
-  late final KeyManager _keyManager;
+  AppDb? _db;
+  SupabaseClient? _client;
+  MigrationConfig? _migrationConfig;
+  ServiceAdapter? _adapter;
+  CryptoBox? _cryptoBox;
 
   // Domain repositories
   INotesRepository? _domainNotesRepo;
@@ -99,18 +99,40 @@ class UnifiedSyncService {
 
   // Sync state - now managed by coordinator
   final SyncCoordinator _syncCoordinator = SyncCoordinator();
-  late final TransactionManager _transactionManager;
   DateTime? _lastSyncTime;
   final Set<String> _activeSyncOperations = {};
 
-  // Task sync caches
-  final Map<String, List<TaskMapping>> _taskMappingCache = {};
-  final Map<String, Map<int, String>> _embeddedIdCache = {};
+  // Initialization tracking
+  bool _isInitialized = false;
 
   // Sync configuration
-  int _maxRetries = 3;
-  Duration _retryDelay = const Duration(seconds: 2);
   bool _enableBidirectionalTaskSync = true;
+
+  // MEMORY OPTIMIZATION: Batch size for iOS (lower than Android due to stricter memory limits)
+  static const int _syncBatchSize = 5; // Process 5 notes at a time to prevent memory spikes
+
+  void _captureSyncException({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'UnifiedSyncService');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) {
+            scope.setExtra(key, value);
+          });
+        },
+      ),
+    );
+  }
 
   Future<void> initialize({
     required AppDb database,
@@ -121,12 +143,17 @@ class UnifiedSyncService {
     KeyManager? keyManager,
     CryptoBox? cryptoBox,
   }) async {
+    // Prevent re-initialization
+    if (_isInitialized) {
+      _logger.debug('UnifiedSyncService already initialized, skipping');
+      return;
+    }
+
     _db = database;
     _client = client;
     _migrationConfig = migrationConfig;
     _domainNotesRepo = domainNotesRepo;
     _domainTasksRepo = domainTasksRepo;
-    _transactionManager = TransactionManager(database);
 
     _adapter = ServiceAdapter(
       db: database,
@@ -134,19 +161,22 @@ class UnifiedSyncService {
       useDomainModels: migrationConfig.isFeatureEnabled('notes'),
     );
 
-    // Use provided KeyManager/CryptoBox or throw error if not provided
-    // These should be initialized by the providers that already exist in the app
-    if (keyManager == null || cryptoBox == null) {
-      throw ArgumentError('KeyManager and CryptoBox must be provided for encryption');
+    // Use provided CryptoBox or throw error if not provided
+    // This should be initialized by the providers that already exist in the app
+    if (cryptoBox == null) {
+      throw ArgumentError('CryptoBox must be provided for encryption');
     }
-    _keyManager = keyManager;
     _cryptoBox = cryptoBox;
 
+    _isInitialized = true;
     _logger.info('UnifiedSyncService initialized with CryptoBox encryption');
   }
 
   /// Check if currently syncing
   bool get isSyncing => _syncCoordinator.isSyncing;
+
+  /// Check if service is properly initialized
+  bool get isInitialized => _isInitialized;
 
   /// Get last sync time
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -157,8 +187,7 @@ class UnifiedSyncService {
     Duration? retryDelay,
     bool? enableBidirectionalTaskSync,
   }) {
-    if (maxRetries != null) _maxRetries = maxRetries;
-    if (retryDelay != null) _retryDelay = retryDelay;
+    // maxRetries and retryDelay parameters kept for API compatibility but not stored
     if (enableBidirectionalTaskSync != null) {
       _enableBidirectionalTaskSync = enableBidirectionalTaskSync;
     }
@@ -172,20 +201,46 @@ class UnifiedSyncService {
         () => _performSyncAll(),
         allowConcurrentTypes: false, // Full sync requires exclusive access
       );
-    } on SyncAlreadyRunningException {
+    } on SyncAlreadyRunningException catch (error, stack) {
       _logger.warning('Unified sync already in progress');
+      _captureSyncException(
+        operation: 'syncAll.alreadyRunning',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+      );
       return SyncResult(
         success: false,
         message: 'Unified sync already in progress',
       );
-    } on SyncConcurrencyException catch (e) {
-      _logger.warning('Unified sync blocked by other active syncs: ${e.activeSyncs}');
+    } on SyncConcurrencyException catch (error, stack) {
+      _logger.warning(
+        'Unified sync blocked by other active syncs: ${error.activeSyncs}',
+      );
+      _captureSyncException(
+        operation: 'syncAll.concurrency',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+        data: {'activeSyncs': error.activeSyncs},
+      );
       return SyncResult(
         success: false,
-        message: 'Sync blocked by other active operations: ${e.activeSyncs}',
+        message: 'Sync blocked by other active operations: ${error.activeSyncs}',
       );
-    } on SyncRateLimitedException catch (e) {
-      _logger.warning('Unified sync rate limited: ${e.timeSinceLastSync.inMilliseconds}ms since last');
+    } on SyncRateLimitedException catch (error, stack) {
+      _logger.warning(
+        'Unified sync rate limited: ${error.timeSinceLastSync.inMilliseconds}ms since last',
+      );
+      _captureSyncException(
+        operation: 'syncAll.rateLimited',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+        data: {
+          'timeSinceLastSyncMs': error.timeSinceLastSync.inMilliseconds,
+        },
+      );
       return SyncResult(
         success: false,
         message: 'Sync rate limited, try again in a moment',
@@ -197,6 +252,16 @@ class UnifiedSyncService {
     final startTime = DateTime.now();
 
     try {
+      // CRITICAL: Check initialization before syncing
+      if (!_isInitialized || _db == null || _client == null || _migrationConfig == null) {
+        _logger.error('UnifiedSyncService not properly initialized');
+        return SyncResult(
+          success: false,
+          message: 'Sync service not initialized',
+          errors: ['Service not initialized - please restart the app'],
+        );
+      }
+
       _logger.info('Starting full sync');
 
       // Sync in order: folders -> notes -> tasks
@@ -234,29 +299,33 @@ class UnifiedSyncService {
         errors: allErrors,
       );
 
-    } catch (e, stack) {
-      _logger.error('Unified sync failed', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Unified sync failed', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'performSyncAll',
+        error: error,
+        stackTrace: stack,
+      );
       return SyncResult(
         success: false,
-        message: 'Sync failed: ${e.toString()}',
-        errors: [e.toString()],
+        message: 'Sync failed: ${error.toString()}',
+        errors: [error.toString()],
       );
     }
   }
 
   /// Sync folders
   Future<SyncResult> _syncFolders() async {
+    final toUpload = <dynamic>[];
+    final toDownload = <Map<String, dynamic>>[];
+    final conflicts = <SyncConflict>[];
+
     try {
       _logger.debug('Syncing folders');
 
       // Get local and remote folders
       final localFolders = await _getLocalFolders();
       final remoteFolders = await _getRemoteFolders();
-
-      // Detect changes
-      final toUpload = <dynamic>[];
-      final toDownload = <Map<String, dynamic>>[];
-      final conflicts = <SyncConflict>[];
 
       // Compare and categorize
       for (final local in localFolders) {
@@ -293,17 +362,30 @@ class UnifiedSyncService {
         conflicts: conflicts,
       );
 
-    } catch (e, stack) {
-      _logger.error('Folder sync failed', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Folder sync failed', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'syncFolders',
+        error: error,
+        stackTrace: stack,
+        data: {
+          'pendingUploads': toUpload.length,
+          'pendingDownloads': toDownload.length,
+        },
+      );
       return SyncResult(
         success: false,
-        errors: ['Folder sync failed: ${e.toString()}'],
+        errors: ['Folder sync failed: ${error.toString()}'],
       );
     }
   }
 
   /// Sync notes with conflict resolution
   Future<SyncResult> _syncNotes() async {
+    final toUpload = <dynamic>[];
+    final toDownload = <Map<String, dynamic>>[];
+    final conflicts = <SyncConflict>[];
+
     try {
       _logger.debug('Syncing notes');
 
@@ -311,9 +393,8 @@ class UnifiedSyncService {
       final localNotes = await _getLocalNotes();
       final remoteNotes = await _getRemoteNotes();
 
-      final toUpload = <dynamic>[];
-      final toDownload = <Map<String, dynamic>>[];
-      final conflicts = <SyncConflict>[];
+      _logger.info('🔍 SYNC DEBUG: Found ${localNotes.length} local notes, ${remoteNotes.length} remote notes');
+      _logger.debug('🔍 SYNC DEBUG: Found ${localNotes.length} local notes, ${remoteNotes.length} remote notes');
 
       // Compare and categorize
       for (final local in localNotes) {
@@ -324,6 +405,8 @@ class UnifiedSyncService {
         );
 
         if (remote.isEmpty) {
+          _logger.info('📤 UPLOAD: Note $localId exists locally but not remotely');
+          _logger.debug('📤 UPLOAD: Note $localId exists locally but not remotely');
           toUpload.add(local);
         } else {
           final conflict = _detectConflict(local, remote, 'note');
@@ -342,9 +425,13 @@ class UnifiedSyncService {
         final remoteId = remote['id'] as String;
         final hasLocal = localNotes.any((l) => _getNoteId(l) == remoteId);
         if (!hasLocal) {
+          _logger.info('📥 DOWNLOAD: Note $remoteId exists remotely but not locally');
           toDownload.add(remote);
         }
       }
+
+      _logger.info('🔄 SYNC SUMMARY: Uploading ${toUpload.length} notes, Downloading ${toDownload.length} notes');
+      _logger.debug('🔄 SYNC SUMMARY: Uploading ${toUpload.length} notes, Downloading ${toDownload.length} notes');
 
       // Sync changes
       await _uploadNotes(toUpload);
@@ -363,27 +450,36 @@ class UnifiedSyncService {
         conflicts: conflicts,
       );
 
-    } catch (e, stack) {
-      _logger.error('Note sync failed', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Note sync failed', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'syncNotes',
+        error: error,
+        stackTrace: stack,
+        data: {
+          'pendingUploads': toUpload.length,
+          'pendingDownloads': toDownload.length,
+        },
+      );
       return SyncResult(
         success: false,
-        errors: ['Note sync failed: ${e.toString()}'],
+        errors: ['Note sync failed: ${error.toString()}'],
       );
     }
   }
 
   /// Sync tasks
   Future<SyncResult> _syncTasks() async {
+    final toUpload = <dynamic>[];
+    final toDownload = <Map<String, dynamic>>[];
+    final conflicts = <SyncConflict>[];
+
     try {
       _logger.debug('Syncing tasks');
 
       // Get local and remote tasks
       final localTasks = await _getLocalTasks();
       final remoteTasks = await _getRemoteTasks();
-
-      final toUpload = <dynamic>[];
-      final toDownload = <Map<String, dynamic>>[];
-      final conflicts = <SyncConflict>[];
 
       // Compare and sync
       for (final local in localTasks) {
@@ -421,11 +517,20 @@ class UnifiedSyncService {
         conflicts: conflicts,
       );
 
-    } catch (e, stack) {
-      _logger.error('Task sync failed', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Task sync failed', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'syncTasks',
+        error: error,
+        stackTrace: stack,
+        data: {
+          'pendingUploads': toUpload.length,
+          'pendingDownloads': toDownload.length,
+        },
+      );
       return SyncResult(
         success: false,
-        errors: ['Task sync failed: ${e.toString()}'],
+        errors: ['Task sync failed: ${error.toString()}'],
       );
     }
   }
@@ -484,8 +589,9 @@ class UnifiedSyncService {
             completed: isCompleted,
           );
 
-          // Add embedded ID
-          updatedContent.write('$indent- [${isCompleted ? 'x' : ' '}] $taskText <!-- task:$newTaskId -->');
+          // PRODUCTION FIX: Don't add task IDs to user-visible content
+          // Task IDs should only exist in the database, not in note content
+          updatedContent.write('$indent- [${isCompleted ? 'x' : ' '}] $taskText');
         } else {
           // Update existing task
           final taskCompleted = _isTaskCompleted(task);
@@ -493,7 +599,11 @@ class UnifiedSyncService {
             await _updateTaskCompletion(_getTaskId(task), isCompleted);
           }
 
-          updatedContent.write(match.group(0));
+          // Write the original line without task ID metadata
+          final matchText = match.group(0) ?? '';
+          // Remove any existing task ID comments from the line
+          final cleanedLine = matchText.replaceAll(RegExp(r'\s*<!--\s*task:[a-f0-9-]+\s*-->'), '');
+          updatedContent.write(cleanedLine);
         }
 
         lastIndex = match.end;
@@ -508,24 +618,18 @@ class UnifiedSyncService {
         await _updateNoteContent(noteId, newContent);
       }
 
-      // Sync tasks back to content
-      for (final task in tasks) {
-        final taskId = _getTaskId(task);
-        if (!content.contains('task:$taskId')) {
-          // Task exists in DB but not in content - add it
-          final taskTitle = _getTaskTitle(task);
-          final taskCompleted = _isTaskCompleted(task);
-          final taskLine = '- [${taskCompleted ? 'x' : ' '}] $taskTitle <!-- task:$taskId -->';
+      // PRODUCTION FIX: Don't inject task IDs into note content
+      // Tasks should be managed separately in the database
+      // User content should remain clean without metadata comments
 
-          await _updateNoteContent(
-            noteId,
-            '$newContent\n$taskLine',
-          );
-        }
-      }
-
-    } catch (e, stack) {
-      _logger.error('Failed to sync embedded tasks for note: $noteId', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Failed to sync embedded tasks for note: $noteId', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'syncEmbeddedTasks',
+        error: error,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
     } finally {
       _activeSyncOperations.remove(noteId);
     }
@@ -568,8 +672,15 @@ class UnifiedSyncService {
       }
 
       return null;
-    } catch (e) {
-      _logger.error('Failed to detect conflict', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to detect conflict', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'detectConflict',
+        error: error,
+        stackTrace: stack,
+        data: {'entityType': entityType},
+        level: SentryLevel.warning,
+      );
       return null;
     }
   }
@@ -595,107 +706,137 @@ class UnifiedSyncService {
 
   // Data fetching methods
   Future<List<dynamic>> _getLocalNotes() async {
-    if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
-      return await _domainNotesRepo!.localNotes();
+    final notesEnabled = _migrationConfig!.isFeatureEnabled('notes');
+    final repoAvailable = _domainNotesRepo != null;
+    _logger.debug('🔍 _getLocalNotes: notes enabled=$notesEnabled, repo available=$repoAvailable');
+
+    if (notesEnabled && repoAvailable) {
+      final notes = await _domainNotesRepo!.localNotes();
+      _logger.debug('🔍 Domain repo returned ${notes.length} notes');
+      return notes;
     } else {
-      return await _db.select(_db.localNotes).get();
+      final notes = await _db!.select(_db!.localNotes).get();
+      _logger.debug('🔍 Drift DB returned ${notes.length} notes');
+      return notes;
     }
   }
 
   Future<List<Map<String, dynamic>>> _getRemoteNotes() async {
     try {
       // Use proper encrypted note API with decryption
-      final api = SupabaseNoteApi(_client);
+      final api = SupabaseNoteApi(_client!);
       final encryptedNotes = await api.fetchEncryptedNotes();
-      final userId = _client.auth.currentUser?.id;
+      final userId = _client!.auth.currentUser?.id;
 
       if (userId == null) {
         _logger.error('No authenticated user for decryption');
         return [];
       }
 
-      // Decrypt and convert encrypted notes using CryptoBox (the working system)
+      _logger.info('📥 Fetching and decrypting ${encryptedNotes.length} remote notes (batch size: $_syncBatchSize)...');
+
+      // MEMORY OPTIMIZATION: Decrypt notes in batches to prevent memory spikes
       final List<Map<String, dynamic>> notes = [];
       int decryptionErrors = 0;
 
-      for (final note in encryptedNotes) {
-        try {
-          final noteId = note['id'] as String;
-          final titleEnc = note['title_enc'] as Uint8List;
-          final propsEnc = note['props_enc'] as Uint8List;
+      for (int i = 0; i < encryptedNotes.length; i += _syncBatchSize) {
+        final end = (i + _syncBatchSize).clamp(0, encryptedNotes.length);
+        final batch = encryptedNotes.sublist(i, end);
 
-          // Decrypt title using CryptoBox (same as existing working code)
-          String title;
+        _logger.debug('📦 Decrypting batch ${(i ~/ _syncBatchSize) + 1}/${(encryptedNotes.length / _syncBatchSize).ceil()}: notes $i-${end - 1}');
+
+        for (final note in batch) {
           try {
-            final titleJson = await _cryptoBox.decryptJsonForNote(
-              userId: userId,
-              noteId: noteId,
-              data: titleEnc,
-            );
-            title = titleJson['title'] as String? ?? '';
-          } catch (e) {
-            // Fallback: try as plain string
+            final noteId = note['id'] as String;
+            final titleEnc = note['title_enc'] as Uint8List;
+            final propsEnc = note['props_enc'] as Uint8List;
+
+            // Decrypt title using CryptoBox (same as existing working code)
+            String title;
             try {
-              title = await _cryptoBox.decryptStringForNote(
+              final titleJson = await _cryptoBox!.decryptJsonForNote(
                 userId: userId,
                 noteId: noteId,
                 data: titleEnc,
               );
-            } catch (_) {
-              title = 'Untitled (Decryption Failed)';
-              decryptionErrors++;
+              title = titleJson['title'] as String? ?? '';
+            } catch (e) {
+              // Fallback: try as plain string
+              try {
+                title = await _cryptoBox!.decryptStringForNote(
+                  userId: userId,
+                  noteId: noteId,
+                  data: titleEnc,
+                );
+              } catch (_) {
+                title = 'Untitled (Decryption Failed)';
+                decryptionErrors++;
+              }
             }
-          }
 
-          // Decrypt props using CryptoBox
-          String body;
-          List<String> tags;
-          bool isPinned;
+            // Decrypt props using CryptoBox
+            String body;
+            List<String> tags;
+            bool isPinned;
 
-          try {
-            final propsJson = await _cryptoBox.decryptJsonForNote(
-              userId: userId,
-              noteId: noteId,
-              data: propsEnc,
-            );
-            body = propsJson['body'] as String? ?? '';
-            tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
-            isPinned = propsJson['isPinned'] as bool? ?? false;
-          } catch (e) {
-            // Fallback: try with legacy key
             try {
-              final result = await _cryptoBox.decryptJsonForNoteWithFallback(
+              final propsJson = await _cryptoBox!.decryptJsonForNote(
                 userId: userId,
                 noteId: noteId,
                 data: propsEnc,
               );
-              body = result.value['body'] as String? ?? '';
-              tags = (result.value['tags'] as List?)?.cast<String>() ?? [];
-              isPinned = result.value['isPinned'] as bool? ?? false;
-              // Legacy key detection removed - no sensitive logging
-            } catch (_) {
-              body = 'Content could not be decrypted';
-              tags = [];
-              isPinned = false;
-              decryptionErrors++;
+              body = propsJson['body'] as String? ?? '';
+              tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
+              isPinned = propsJson['isPinned'] as bool? ?? false;
+            } catch (e) {
+              // Fallback: try with legacy key
+              try {
+                final result = await _cryptoBox!.decryptJsonForNoteWithFallback(
+                  userId: userId,
+                  noteId: noteId,
+                  data: propsEnc,
+                );
+                body = result.value['body'] as String? ?? '';
+                tags = (result.value['tags'] as List?)?.cast<String>() ?? [];
+                isPinned = result.value['isPinned'] as bool? ?? false;
+                // Legacy key detection removed - no sensitive logging
+              } catch (_) {
+                body = 'Content could not be decrypted';
+                tags = [];
+                isPinned = false;
+                decryptionErrors++;
+              }
             }
-          }
 
-          notes.add({
-            'id': noteId,
-            'title': title,
-            'body': body,
-            'folder_id': null, // Will be handled separately
-            'is_pinned': isPinned,
-            'tags': tags,
-            'created_at': note['created_at'],
-            'updated_at': note['updated_at'],
-            'deleted': note['deleted'] ?? false,
-            'user_id': note['user_id'],
-          });
-        } catch (e) {
-          _logger.error('Failed to decrypt note ${note['id']}: $e');
-          decryptionErrors++;
+            notes.add({
+              'id': noteId,
+              'title': title,
+              'body': body,
+              'folder_id': null, // Will be handled separately
+              'is_pinned': isPinned,
+              'tags': tags,
+              'created_at': note['created_at'],
+              'updated_at': note['updated_at'],
+              'deleted': note['deleted'] ?? false,
+              'user_id': note['user_id'],
+            });
+          } catch (error, stack) {
+            _logger.error('Failed to decrypt note ${note['id']}: $error', stackTrace: stack);
+            _captureSyncException(
+              operation: 'decryptRemoteNote',
+              error: error,
+              stackTrace: stack,
+              data: {'noteId': note['id']},
+              level: SentryLevel.warning,
+            );
+            decryptionErrors++;
+          }
+        }
+
+        // MEMORY OPTIMIZATION: Allow garbage collection between batches
+        if (i + _syncBatchSize < encryptedNotes.length) {
+          _logger.debug('⏸️  Batch decrypted, allowing GC before next batch...');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
         }
       }
 
@@ -703,109 +844,170 @@ class UnifiedSyncService {
         _logger.warning('Encountered $decryptionErrors decryption errors during sync');
       }
 
-      _logger.info('Fetched and decrypted ${notes.length} remote notes');
+      _logger.info('✅ Fetched and decrypted ${notes.length} remote notes');
       return notes;
-    } catch (e, stack) {
-      _logger.error('Failed to fetch remote notes', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      _logger.error('Failed to fetch remote notes', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'getRemoteNotes',
+        error: error,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   Future<List<dynamic>> _getLocalTasks() async {
-    if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
       return await _domainTasksRepo!.getAllTasks();
     } else {
-      return await _db.select(_db.noteTasks).get();
+      return await _db!.select(_db!.noteTasks).get();
     }
   }
 
   Future<List<Map<String, dynamic>>> _getRemoteTasks() async {
     try {
-      final response = await _client
-          .from('tasks')
+      final userId = _client!.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.error('Cannot fetch tasks without authenticated user');
+        return [];
+      }
+
+      final response = await _client!
+          .from('note_tasks')
           .select()
+          .eq('user_id', userId)  // CRITICAL: Filter by user_id for data isolation
           .order('updated_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
-    } catch (e) {
-      _logger.error('Failed to fetch remote tasks', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to fetch remote tasks', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'getRemoteTasks',
+        error: error,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   Future<List<dynamic>> _getLocalFolders() async {
-    if (_migrationConfig.isFeatureEnabled('folders')) {
+    if (_migrationConfig!.isFeatureEnabled('folders')) {
       // Would need folder repository
       return [];
     } else {
-      return await _db.select(_db.localFolders).get();
+      return await _db!.select(_db!.localFolders).get();
     }
   }
 
   Future<List<Map<String, dynamic>>> _getRemoteFolders() async {
     try {
-      final response = await _client
+      final userId = _client!.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.error('Cannot fetch folders without authenticated user');
+        return [];
+      }
+
+      final response = await _client!
           .from('folders')
           .select()
+          .eq('user_id', userId)  // CRITICAL: Filter by user_id for data isolation
           .order('updated_at', ascending: false);
       return List<Map<String, dynamic>>.from(response as List);
-    } catch (e) {
-      _logger.error('Failed to fetch remote folders', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to fetch remote folders', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'getRemoteFolders',
+        error: error,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   // Upload methods
   Future<void> _uploadNotes(List<dynamic> notes) async {
-    if (notes.isEmpty) return;
+    if (notes.isEmpty) {
+      _logger.info('⏭️ UPLOAD SKIP: No notes to upload');
+      _logger.debug('⏭️ UPLOAD SKIP: No notes to upload');
+      return;
+    }
+
+    _logger.info('📤 UPLOADING ${notes.length} notes to remote (batch size: $_syncBatchSize)...');
+    _logger.debug('📤 UPLOADING ${notes.length} notes to remote (batch size: $_syncBatchSize)...');
 
     try {
       // Use SupabaseNoteApi with CryptoBox to encrypt notes before uploading
-      final api = SupabaseNoteApi(_client);
-      final userId = _client.auth.currentUser?.id;
+      final api = SupabaseNoteApi(_client!);
+      final userId = _client!.auth.currentUser?.id;
 
       if (userId == null) {
-        _logger.error('No authenticated user for encryption');
+        _logger.error('❌ UPLOAD FAILED: No authenticated user for encryption');
         return;
       }
 
-      for (final note in notes) {
-        final noteData = _adapter.getNoteDataForSync(note);
-        final noteId = noteData['id'] as String;
+      // MEMORY OPTIMIZATION: Process notes in batches to prevent memory spikes
+      int uploadedCount = 0;
+      for (int i = 0; i < notes.length; i += _syncBatchSize) {
+        final end = (i + _syncBatchSize).clamp(0, notes.length);
+        final batch = notes.sublist(i, end);
 
-        // Encrypt title using CryptoBox (same as existing working code)
-        final encryptedTitle = await _cryptoBox.encryptJsonForNote(
-          userId: userId,
-          noteId: noteId,
-          json: {'title': noteData['title'] ?? ''},
-        );
+        _logger.debug('📦 Processing batch ${(i ~/ _syncBatchSize) + 1}/${(notes.length / _syncBatchSize).ceil()}: notes $i-${end - 1}');
 
-        // Encrypt props using CryptoBox
-        // COMPATIBILITY: Read 'body' first, fall back to 'content'
-        final propsJson = <String, dynamic>{
-          'body': (noteData['body'] ?? noteData['content'] ?? ''),
-          'tags': (noteData['tags'] ?? <Map<String, dynamic>>[]),
-          'isPinned': (noteData['is_pinned'] ?? false),
-          'updatedAt': DateTime.now().toIso8601String(),
-        };
+        for (final note in batch) {
+          final noteData = _adapter!.getNoteDataForSync(note);
+          final noteId = noteData['id'] as String;
+          _logger.info('📤 Uploading note: $noteId (title: ${noteData['title']})');
+          _logger.debug('📤 Uploading note: $noteId (title: ${noteData['title']})');
 
-        final encryptedProps = await _cryptoBox.encryptJsonForNote(
-          userId: userId,
-          noteId: noteId,
-          json: propsJson,
-        );
+          // Encrypt title using CryptoBox (same as existing working code)
+          final encryptedTitle = await _cryptoBox!.encryptJsonForNote(
+            userId: userId,
+            noteId: noteId,
+            json: {'title': noteData['title'] ?? ''},
+          );
 
-        // Upload using the encrypted API
-        await api.upsertEncryptedNote(
-          id: noteId,
-          titleEnc: encryptedTitle,
-          propsEnc: encryptedProps,
-          deleted: (noteData['deleted'] ?? false) as bool,
-        );
+          // Encrypt props using CryptoBox
+          // COMPATIBILITY: Read 'body' first, fall back to 'content'
+          final propsJson = <String, dynamic>{
+            'body': (noteData['body'] ?? noteData['content'] ?? ''),
+            'tags': (noteData['tags'] ?? <Map<String, dynamic>>[]),
+            'isPinned': (noteData['is_pinned'] ?? false),
+            'updatedAt': DateTime.now().toIso8601String(),
+          };
+
+          final encryptedProps = await _cryptoBox!.encryptJsonForNote(
+            userId: userId,
+            noteId: noteId,
+            json: propsJson,
+          );
+
+          // Upload using the encrypted API
+          await api.upsertEncryptedNote(
+            id: noteId,
+            titleEnc: encryptedTitle,
+            propsEnc: encryptedProps,
+            deleted: (noteData['deleted'] ?? false) as bool,
+          );
+          _logger.info('✅ Successfully uploaded note: $noteId');
+          uploadedCount++;
+        }
+
+        // MEMORY OPTIMIZATION: Allow garbage collection between batches
+        if (i + _syncBatchSize < notes.length) {
+          _logger.debug('⏸️  Batch complete, allowing GC before next batch...');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
       }
 
-      _logger.debug('Uploaded ${notes.length} encrypted notes');
-    } catch (e) {
-      _logger.error('Failed to upload notes', error: e);
+      _logger.info('✅ UPLOAD COMPLETE: Uploaded $uploadedCount encrypted notes');
+    } catch (error, stack) {
+      _logger.error('❌ UPLOAD FAILED: Failed to upload notes', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'uploadNotes',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedUploads': notes.length},
+      );
       rethrow;
     }
   }
@@ -814,11 +1016,17 @@ class UnifiedSyncService {
     if (tasks.isEmpty) return;
 
     try {
-      final data = tasks.map((task) => _adapter.getTaskDataForSync(task)).toList();
-      await _client.from('tasks').upsert(data);
+      final data = tasks.map((task) => _adapter!.getTaskDataForSync(task)).toList();
+      await _client!.from('note_tasks').upsert(data);
       _logger.debug('Uploaded ${tasks.length} tasks');
-    } catch (e) {
-      _logger.error('Failed to upload tasks', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to upload tasks', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'uploadTasks',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedUploads': tasks.length},
+      );
       rethrow;
     }
   }
@@ -827,11 +1035,17 @@ class UnifiedSyncService {
     if (folders.isEmpty) return;
 
     try {
-      final data = folders.map((folder) => _adapter.getFolderDataForSync(folder)).toList();
-      await _client.from('folders').upsert(data);
+      final data = folders.map((folder) => _adapter!.getFolderDataForSync(folder)).toList();
+      await _client!.from('folders').upsert(data);
       _logger.debug('Uploaded ${folders.length} folders');
-    } catch (e) {
-      _logger.error('Failed to upload folders', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to upload folders', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'uploadFolders',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedUploads': folders.length},
+      );
       rethrow;
     }
   }
@@ -843,7 +1057,7 @@ class UnifiedSyncService {
     try {
       for (final noteData in notes) {
         // Save through appropriate repository
-        if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
+        if (_migrationConfig!.isFeatureEnabled('notes') && _domainNotesRepo != null) {
           // Use createOrUpdate with proper parameters
           await _domainNotesRepo!.createOrUpdate(
             title: noteData['title'] as String? ?? '',
@@ -855,14 +1069,20 @@ class UnifiedSyncService {
           );
         } else {
           // For local notes, save directly to database using adapter
-          final note = _adapter.createNoteFromSync(noteData);
+          final note = _adapter!.createNoteFromSync(noteData);
           final localNote = note as LocalNote;
-          await _db.into(_db.localNotes).insertOnConflictUpdate(localNote);
+          await _db!.into(_db!.localNotes).insertOnConflictUpdate(localNote);
         }
       }
       _logger.debug('Downloaded ${notes.length} notes');
-    } catch (e) {
-      _logger.error('Failed to download notes', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to download notes', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'downloadNotes',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedDownloads': notes.length},
+      );
       rethrow;
     }
   }
@@ -872,19 +1092,25 @@ class UnifiedSyncService {
 
     try {
       for (final taskData in tasks) {
-        final task = _adapter.createTaskFromSync(taskData);
+        final task = _adapter!.createTaskFromSync(taskData);
         // Save through appropriate repository
-        if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+        if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
           await _domainTasksRepo!.createTask(task as domain.Task);
         } else {
           // For local tasks, save directly to database
           final noteTask = task as NoteTask;
-          await _db.into(_db.noteTasks).insertOnConflictUpdate(noteTask);
+          await _db!.into(_db!.noteTasks).insertOnConflictUpdate(noteTask);
         }
       }
       _logger.debug('Downloaded ${tasks.length} tasks');
-    } catch (e) {
-      _logger.error('Failed to download tasks', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to download tasks', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'downloadTasks',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedDownloads': tasks.length},
+      );
       rethrow;
     }
   }
@@ -894,40 +1120,49 @@ class UnifiedSyncService {
 
     try {
       for (final folderData in folders) {
-        final folder = _adapter.createFolderFromSync(folderData);
-        // Save through appropriate repository
-        if (_migrationConfig.isFeatureEnabled('folders')) {
-          // Domain folders are handled via database directly for now
-          // TODO: Add IFolderRepository when available
-          final localFolder = folder as LocalFolder;
-          await _db.into(_db.localFolders).insertOnConflictUpdate(localFolder);
+        final folder = _adapter!.createFolderFromSync(folderData);
+
+        // Handle both domain.Folder and LocalFolder types correctly
+        LocalFolder localFolder;
+        if (folder is domain.Folder) {
+          // Convert domain folder to LocalFolder using mapper
+          localFolder = FolderMapper.toInfrastructure(folder);
+        } else if (folder is LocalFolder) {
+          localFolder = folder;
         } else {
-          // For local folders, save directly to database
-          final localFolder = folder as LocalFolder;
-          await _db.into(_db.localFolders).insertOnConflictUpdate(localFolder);
+          _logger.error('Unknown folder type: ${folder.runtimeType}');
+          continue;
         }
+
+        await _db!.into(_db!.localFolders).insertOnConflictUpdate(localFolder);
       }
       _logger.debug('Downloaded ${folders.length} folders');
-    } catch (e) {
-      _logger.error('Failed to download folders', error: e);
+    } catch (error, stack) {
+      _logger.error('Failed to download folders', error: error, stackTrace: stack);
+      _captureSyncException(
+        operation: 'downloadFolders',
+        error: error,
+        stackTrace: stack,
+        data: {'attemptedDownloads': folders.length},
+      );
       rethrow;
     }
   }
 
   // Helper methods for working with different model types
   Future<dynamic> _getNoteById(String id) async {
-    if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('notes') && _domainNotesRepo != null) {
       return await _domainNotesRepo!.getNoteById(id);
     } else {
-      return await _db.getNote(id);
+      return await _db!.getNote(id);
     }
   }
 
   Future<List<dynamic>> _getNoteTasks(String noteId) async {
-    if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
       return await _domainTasksRepo!.getTasksForNote(noteId);
     } else {
-      return await _db.getTasksForNote(noteId);
+      return await _db!.getTasksForNote(noteId);
     }
   }
 
@@ -937,7 +1172,8 @@ class UnifiedSyncService {
     required String title,
     required bool completed,
   }) async {
-    if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+      final now = DateTime.now();
       final task = domain.Task(
         id: id,
         noteId: noteId,
@@ -946,30 +1182,32 @@ class UnifiedSyncService {
         status: completed ? domain.TaskStatus.completed : domain.TaskStatus.pending,
         priority: domain.TaskPriority.medium,
         dueDate: null,
-        completedAt: completed ? DateTime.now() : null,
+        completedAt: completed ? now : null,
+        createdAt: now,
+        updatedAt: now,
         tags: [],
         metadata: {},
       );
       await _domainTasksRepo!.createTask(task);
       return task;
     } else {
-      await _db.into(_db.noteTasks).insert(
+      await _db!.into(_db!.noteTasks).insert(
         NoteTasksCompanion(
           id: Value(id),
           noteId: Value(noteId),
-          content: Value(title),
+          contentEncrypted: Value(title), // Tasks use encrypted content now
           status: Value(completed ? TaskStatus.completed : TaskStatus.open),
           deleted: const Value(false),
           createdAt: Value(DateTime.now()),
           updatedAt: Value(DateTime.now()),
         ),
       );
-      return await _db.getTaskById(id);
+      return await _db!.getTaskById(id);
     }
   }
 
   Future<void> _updateTaskCompletion(String taskId, bool completed) async {
-    if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
       final task = await _domainTasksRepo!.getTaskById(taskId);
       if (task != null) {
         await _domainTasksRepo!.updateTask(
@@ -980,7 +1218,7 @@ class UnifiedSyncService {
         );
       }
     } else {
-      await (_db.update(_db.noteTasks)
+      await (_db!.update(_db!.noteTasks)
             ..where((t) => t.id.equals(taskId)))
           .write(NoteTasksCompanion(
             status: Value(completed ? TaskStatus.completed : TaskStatus.open),
@@ -991,7 +1229,7 @@ class UnifiedSyncService {
   }
 
   Future<void> _updateNoteContent(String noteId, String content) async {
-    if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
+    if (_migrationConfig!.isFeatureEnabled('notes') && _domainNotesRepo != null) {
       final note = await _domainNotesRepo!.getNoteById(noteId);
       if (note != null) {
         // Use createOrUpdate with all required fields
@@ -1010,10 +1248,10 @@ class UnifiedSyncService {
         );
       }
     } else {
-      await _db.updateNote(
+      await _db!.updateNote(
         noteId,
         LocalNotesCompanion(
-          body: Value(content),
+          bodyEncrypted: Value(content), // Notes use encrypted body now
           updatedAt: Value(DateTime.now()),
         ),
       );
@@ -1029,7 +1267,7 @@ class UnifiedSyncService {
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.body;
+    if (note is LocalNote) return note.bodyEncrypted ?? '';
     throw ArgumentError('Unknown note type');
   }
 
@@ -1047,7 +1285,7 @@ class UnifiedSyncService {
 
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
-    if (task is NoteTask) return task.content;
+    if (task is NoteTask) return task.contentEncrypted ?? '';
     throw ArgumentError('Unknown task type');
   }
 

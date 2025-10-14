@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
@@ -12,6 +17,7 @@ import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Enhanced todo block widget with hierarchical task support
 /// Uses UnifiedTaskService for all operations - no VoidCallback usage
@@ -55,6 +61,8 @@ class _HierarchicalTodoBlockWidgetState
   // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
   domain.Task? _task;
   TaskProgress? _progress;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -105,11 +113,19 @@ class _HierarchicalTodoBlockWidgetState
   }
 
   void _parseTodoData() {
+    // PRODUCTION-GRADE: Parse format "completed:level:text" or "incomplete:level:text"
     final parts = widget.block.data.split(':');
-    if (parts.length >= 2) {
+    if (parts.length >= 3) {
+      // New format with indent level
+      _isCompleted = parts[0] == 'completed';
+      // Indent level is at parts[1], but we use widget.indentLevel instead
+      _text = parts.skip(2).join(':');
+    } else if (parts.length >= 2) {
+      // Legacy format "completed:text" or "incomplete:text"
       _isCompleted = parts[0] == 'completed';
       _text = parts.skip(1).join(':');
     } else {
+      // Fallback for malformed data
       _isCompleted = false;
       _text = widget.block.data;
     }
@@ -136,8 +152,16 @@ class _HierarchicalTodoBlockWidgetState
           // This would require calculating subtask completion
         });
       }
-    } catch (e) {
-      debugPrint('Error loading task data: $e');
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to load task data for todo block',
+        data: {
+          'noteId': widget.noteId,
+          'text': _text.length > 50 ? '${_text.substring(0, 50)}…' : _text,
+          'error': e.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
     }
   }
 
@@ -145,7 +169,8 @@ class _HierarchicalTodoBlockWidgetState
   // Will be re-implemented once UnifiedTaskService returns decrypted domain.Task
 
   void _updateTodo() {
-    final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:$_text';
+    // PRODUCTION-GRADE: Save in format "completed:level:text" with indent level
+    final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:${widget.indentLevel}:$_text';
     final newBlock = widget.block.copyWith(data: todoData);
     widget.onChanged(newBlock);
   }
@@ -166,8 +191,27 @@ class _HierarchicalTodoBlockWidgetState
       try {
         final unifiedService = ref.read(unifiedTaskServiceProvider);
         await unifiedService.toggleTaskStatus(_task!.id);
-      } catch (e) {
-        debugPrint('Error toggling task status: $e');
+      } catch (e, stackTrace) {
+        _logger.error(
+          'Failed to toggle task status in todo block',
+          error: e,
+          stackTrace: stackTrace,
+          data: {'taskId': _task!.id, 'noteId': widget.noteId},
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to toggle task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: _toggleCompleted,
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -263,11 +307,29 @@ class _HierarchicalTodoBlockWidgetState
 
         await _loadTaskData();
       }
-    } catch (e) {
-      debugPrint('Error saving task metadata: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to save task metadata in todo block',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'noteId': widget.noteId,
+          'hasTask': _task != null,
+          'priority': metadata.priority.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving task: $e')),
+          SnackBar(
+            content: const Text('Failed to save task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_saveTaskMetadata(metadata)),
+            ),
+          ),
         );
       }
     }
@@ -588,10 +650,29 @@ class _HierarchicalTodoBlockWidgetState
           const SnackBar(content: Text('All subtasks completed')),
         );
       }
-    } catch (e) {
+      _logger.info(
+        'Completed all subtasks for todo block',
+        data: {'taskId': _task!.id},
+      );
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to complete all subtasks in todo block',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'taskId': _task?.id},
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error completing subtasks: $e')),
+          SnackBar(
+            content: const Text('Failed to complete subtasks. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _completeAllSubtasks,
+            ),
+          ),
         );
       }
     }
@@ -633,10 +714,29 @@ class _HierarchicalTodoBlockWidgetState
             const SnackBar(content: Text('Task hierarchy deleted')),
           );
         }
-      } catch (e) {
+        _logger.info(
+          'Deleted task hierarchy from todo block',
+          data: {'taskId': _task!.id},
+        );
+      } catch (e, stackTrace) {
+        _logger.error(
+          'Failed to delete task hierarchy in todo block',
+          error: e,
+          stackTrace: stackTrace,
+          data: {'taskId': _task?.id},
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting hierarchy: $e')),
+            SnackBar(
+              content: const Text('Failed to delete hierarchy. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: _deleteHierarchy,
+              ),
+            ),
           );
         }
       }
@@ -674,10 +774,29 @@ class _HierarchicalTodoBlockWidgetState
             const SnackBar(content: Text('Task deleted')),
           );
         }
-      } catch (e) {
+        _logger.info(
+          'Deleted task from todo block',
+          data: {'taskId': _task!.id, 'title': _task!.title},
+        );
+      } catch (e, stackTrace) {
+        _logger.error(
+          'Failed to delete task in todo block',
+          error: e,
+          stackTrace: stackTrace,
+          data: {'taskId': _task?.id},
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting task: $e')),
+            SnackBar(
+              content: const Text('Failed to delete task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_deleteTask(unifiedService)),
+              ),
+            ),
           );
         }
       }

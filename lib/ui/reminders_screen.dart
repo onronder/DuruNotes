@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/data/local/app_db.dart'
     show NoteReminder, NoteRemindersCompanion, RecurrencePattern, ReminderType;
-// for global `ref.read(loggerProvider)`
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/providers/feature_flagged_providers.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider, loggerProvider;
+import 'package:duru_notes/providers/feature_flagged_providers.dart'
+    show featureFlaggedReminderCoordinatorProvider, featureFlaggedAdvancedReminderServiceProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +15,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Screen for managing all reminders for a specific note
 class RemindersScreen extends ConsumerStatefulWidget {
@@ -32,6 +37,7 @@ class RemindersScreen extends ConsumerStatefulWidget {
 class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   List<NoteReminder> _reminders = [];
   bool _loading = true;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -48,6 +54,23 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
     );
   }
 
+  void _showErrorSnack(String message, {VoidCallback? onRetry}) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: onRetry,
+              )
+            : null,
+      ),
+    );
+  }
+
   Future<void> _loadReminders() async {
     try {
       // Load reminders from the coordinator service
@@ -58,13 +81,27 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           _reminders = reminders != null ? List<NoteReminder>.from(reminders as List) : [];
           _loading = false;
         });
+        _logger.debug(
+          'Loaded reminders for note',
+          data: {'noteId': widget.noteId, 'count': _reminders.length},
+        );
       }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error('Failed to load reminders', error: e, stackTrace: stack);
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load reminders',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
           _loading = false;
         });
+        _showErrorSnack(
+          'Unable to load reminders. Pull to refresh or retry.',
+          onRetry: () => unawaited(_loadReminders()),
+        );
       }
     }
   }
@@ -627,66 +664,98 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   Future<void> _unsnoozeReminder(NoteReminder reminder) async {
     try {
-      await ref.read(appDbProvider).clearSnooze(reminder.id);
+      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+      await reminderService.updateReminder(
+        reminder.id,
+        const NoteRemindersCompanion(snoozedUntil: Value(null)),
+      );
       await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Reminder un-snoozed')));
       }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error('Failed to unsnooze reminder', error: e, stackTrace: stack);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to unsnooze reminder')),
-        );
-      }
+      _logger.info(
+        'Reminder unsnoozed',
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to unsnooze reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to unsnooze reminder. Try again.',
+        onRetry: () => unawaited(_unsnoozeReminder(reminder)),
+      );
     }
   }
 
   Future<void> _deactivateReminder(NoteReminder reminder) async {
     try {
-      await ref.read(appDbProvider).deactivateReminder(reminder.id);
+      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+      await reminderService.updateReminder(
+        reminder.id,
+        const NoteRemindersCompanion(isActive: Value(false)),
+      );
       await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Reminder deactivated')));
       }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error(
-        'Failed to deactivate reminder',
-        error: e,
-        stackTrace: stack,
+      _logger.info(
+        'Reminder deactivated',
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to deactivate reminder')),
-        );
-      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to deactivate reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to deactivate reminder. Try again.',
+        onRetry: () => unawaited(_deactivateReminder(reminder)),
+      );
     }
   }
 
   Future<void> _activateReminder(NoteReminder reminder) async {
     try {
+      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
       // Mark isActive = true in database
-      await ref.read(appDbProvider).updateReminder(
-            reminder.id,
-            const NoteRemindersCompanion(isActive: Value(true)),
-          );
+      await reminderService.updateReminder(
+        reminder.id,
+        const NoteRemindersCompanion(isActive: Value(true)),
+      );
       await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Reminder activated')));
       }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error('Failed to activate reminder', error: e, stackTrace: stack);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to activate reminder')),
-        );
-      }
+      _logger.info(
+        'Reminder activated',
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to activate reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to activate reminder. Try again.',
+        onRetry: () => unawaited(_activateReminder(reminder)),
+      );
     }
   }
 
@@ -710,20 +779,30 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
     );
     if (confirmed ?? false) {
       try {
-        await ref.read(appDbProvider).deleteReminderById(reminder.id);
+        final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+        await reminderService.deleteReminder(reminder.id);
         await _loadReminders();
         if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Reminder deleted')));
         }
-      } catch (e, stack) {
-        ref.read(loggerProvider).error('Failed to delete reminder', error: e, stackTrace: stack);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete reminder')),
-          );
-        }
+        _logger.info(
+          'Reminder deleted',
+          data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to delete reminder',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'reminderId': reminder.id, 'noteId': reminder.noteId},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        _showErrorSnack(
+          'Failed to delete reminder. Try again.',
+          onRetry: () => unawaited(_deleteReminder(reminder)),
+        );
       }
     }
   }
@@ -926,6 +1005,24 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
   final _bodyController = TextEditingController();
   final _notificationTitleController = TextEditingController();
   final _notificationBodyController = TextEditingController();
+
+  AppLogger get _logger => ref.read(loggerProvider);
+
+  void _showErrorSnack(String message, {VoidCallback? onRetry}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: onRetry,
+              )
+            : null,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -1173,24 +1270,34 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
             const SnackBar(content: Text('Reminder created successfully')),
           );
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to create reminder')),
-          );
-        }
-      }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error(
-        'Failed to create time reminder',
-        error: e,
-        stackTrace: stack,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create reminder')),
+        _logger.info(
+          'Time reminder created',
+          data: {
+            'noteId': widget.noteId,
+            'recurrence': recPattern.name,
+            'recurrenceInterval': _recurrenceInterval,
+            'reminderId': reminderId,
+          },
         );
+      } else {
+        _logger.warning(
+          'Coordinator returned null reminder ID',
+          data: {'noteId': widget.noteId},
+        );
+        _showErrorSnack('Failed to create reminder. Please try again.');
       }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to create time reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId, 'recurrence': _recurrence},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to create reminder. Please try again.',
+        onRetry: () => unawaited(_createReminder()),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -1227,12 +1334,26 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
   final _locationNameController = TextEditingController();
   final _notificationTitleController = TextEditingController();
   final _notificationBodyController = TextEditingController();
+  AppLogger get _logger => ref.read(loggerProvider);
 
   double _latitude = 0;
   double _longitude = 0;
   double _radius = 100; // default radius in meters
   bool _hasLocation = false;
   bool _loading = false;
+
+  void _showErrorSnack(String message, {VoidCallback? onRetry}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(label: 'Retry', onPressed: onRetry)
+            : null,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -1422,17 +1543,22 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
         _longitude = position.longitude;
         _hasLocation = true;
       });
-    } catch (e, stack) {
-      ref.read(loggerProvider).error(
-        'Failed to get current location',
-        error: e,
-        stackTrace: stack,
+      _logger.info(
+        'Captured current location for reminder',
+        data: {'latitude': _latitude, 'longitude': _longitude, 'noteId': widget.noteId},
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to get current location')),
-        );
-      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to get current location',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to get current location. Check permissions and try again.',
+        onRetry: () => unawaited(_getCurrentLocation()),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -1545,24 +1671,35 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
             ),
           );
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to create location reminder')),
-          );
-        }
-      }
-    } catch (e, stack) {
-      ref.read(loggerProvider).error(
-        'Failed to create location reminder',
-        error: e,
-        stackTrace: stack,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create location reminder')),
+        _logger.info(
+          'Location reminder created',
+          data: {
+            'noteId': widget.noteId,
+            'reminderId': reminderId,
+            'latitude': _latitude,
+            'longitude': _longitude,
+            'radius': _radius,
+          },
         );
+      } else {
+        _logger.warning(
+          'Coordinator returned null for location reminder',
+          data: {'noteId': widget.noteId},
+        );
+        _showErrorSnack('Failed to create location reminder. Try again.');
       }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to create location reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack(
+        'Failed to create location reminder. Please try again.',
+        onRetry: () => unawaited(_createReminder()),
+      );
     } finally {
       if (mounted) {
         setState(() {

@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/cross_platform_tokens.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Help screen that displays the user guide and support information
 class HelpScreen extends StatefulWidget {
@@ -17,6 +21,7 @@ class _HelpScreenState extends State<HelpScreen> {
   String _userGuideContent = '';
   bool _isLoading = true;
   String? _errorMessage;
+  final AppLogger _logger = LoggerFactory.instance;
 
   @override
   void initState() {
@@ -33,10 +38,16 @@ class _HelpScreenState extends State<HelpScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load user guide markdown',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load user guide: $e';
+          _errorMessage = 'We could not load the help content. Please try again.';
           _isLoading = false;
         });
       }
@@ -47,20 +58,28 @@ class _HelpScreenState extends State<HelpScreen> {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
-      }
+    }
+
+    if (mounted) {
+      _logger.warning(
+        'Failed to launch help screen URL',
+        data: {'url': url},
+      );
+      unawaited(Sentry.captureException(
+        Exception('Could not launch help URL'),
+        stackTrace: StackTrace.current,
+      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not open the link. Please try again later.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Help & Support'),

@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/core/security/password_history_service.dart';
 import 'package:duru_notes/core/security/password_validator.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 // import '../ui/widgets/password_strength_meter.dart'; // Widget not available
 
 /// Secure password change screen with comprehensive validation
@@ -31,6 +36,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   String? _errorMessage;
   String? _successMessage;
   PasswordValidationResult? _passwordValidation;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -124,15 +130,22 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           Navigator.of(context).pop();
         }
       });
-    } on AuthException catch (e) {
+    } on AuthException catch (error, stackTrace) {
+      _logger.warning(
+        'Password change rejected by auth service',
+        data: {'statusCode': error.statusCode},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       setState(() {
-        _errorMessage = e.message;
+        _errorMessage = error.message;
       });
-    } catch (e) {
-      // Log error for debugging but don't expose details to user
-      if (kDebugMode) {
-        debugPrint('Password change error: $e');
-      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Unexpected error during password change',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
       });

@@ -1,6 +1,12 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Dialog for editing task metadata (due date, priority, reminders, etc.)
 class TaskMetadataDialog extends ConsumerStatefulWidget {
@@ -12,7 +18,7 @@ class TaskMetadataDialog extends ConsumerStatefulWidget {
     this.isNewTask = false,
   });
 
-  final NoteTask? task;
+  final domain.Task? task;
   final String taskContent;
   final void Function(TaskMetadata) onSave;
   final bool isNewTask;
@@ -24,7 +30,7 @@ class TaskMetadataDialog extends ConsumerStatefulWidget {
 class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
   late String _taskContent;
   late DateTime? _dueDate;
-  late TaskPriority _priority;
+  late domain.TaskPriority _priority;
   late bool _hasReminder;
   late DateTime? _reminderTime;
   late int? _estimatedMinutes;
@@ -38,6 +44,7 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
   final _contentFocusNode = FocusNode();
 
   String? _contentError;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -46,25 +53,68 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     // Initialize from existing task or defaults
     _taskContent = widget.taskContent;
     _dueDate = widget.task?.dueDate;
-    _priority = widget.task?.priority ?? TaskPriority.medium;
-    _hasReminder = widget.task?.reminderId != null;
+    _priority = widget.task?.priority ?? domain.TaskPriority.medium;
+    // Get reminderId and estimatedMinutes from metadata
+    final reminderId = widget.task?.metadata['reminderId'] as String?;
+    _hasReminder = reminderId != null;
     _reminderTime =
         _dueDate?.subtract(const Duration(hours: 1)); // Default 1 hour before
-    _estimatedMinutes = widget.task?.estimatedMinutes;
-    _notes = widget.task?.notes ?? '';
-    _labels =
-        widget.task?.labels?.split(',').where((l) => l.isNotEmpty).toList() ??
-            [];
+    _estimatedMinutes = widget.task?.metadata['estimatedMinutes'] as int?;
+
+    // Initialize with empty values - will be loaded asynchronously
+    _notes = '';
+    _labels = [];
 
     _taskContentController.text = _taskContent;
     _notesController.text = _notes;
     _estimateController.text = _estimatedMinutes?.toString() ?? '';
+
+    // Load encrypted task metadata asynchronously
+    if (widget.task != null) {
+      _loadEncryptedTaskMetadata();
+    }
 
     // Auto-focus on content field for new tasks
     if (widget.isNewTask && widget.taskContent.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         FocusScope.of(context).requestFocus(_contentFocusNode);
       });
+    }
+  }
+
+  /// Load and decrypt task notes and labels
+  Future<void> _loadEncryptedTaskMetadata() async {
+    if (widget.task == null) return;
+
+    try {
+      // Domain tasks store metadata in a Map (already decrypted)
+      // Notes and labels are in the metadata map
+      final decryptedNotes = widget.task!.metadata['notes']?.toString() ?? '';
+      final decryptedLabels = widget.task!.metadata['labels']?.toString() ?? '';
+
+      // Parse labels from comma-separated string
+      final labelsList = decryptedLabels.isNotEmpty
+          ? decryptedLabels.split(',').where((l) => l.trim().isNotEmpty).toList()
+          : <String>[];
+
+      if (mounted) {
+        setState(() {
+          _notes = decryptedNotes;
+          _labels = labelsList;
+        });
+
+        // Update controller after state is set
+        _notesController.text = _notes;
+      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load decrypted task metadata inside dialog',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': widget.task?.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      // Keep default empty values
     }
   }
 
@@ -336,7 +386,7 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: TaskPriority.values.map((priority) {
+                      children: domain.TaskPriority.values.map((priority) {
                         final isSelected = _priority == priority;
                         return ChoiceChip(
                           label: Text(_getPriorityLabel(priority)),
@@ -568,28 +618,28 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     );
   }
 
-  String _getPriorityLabel(TaskPriority priority) {
+  String _getPriorityLabel(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return 'Low';
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return 'Medium';
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return 'High';
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return 'Urgent';
     }
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
@@ -631,7 +681,7 @@ class TaskMetadata {
   const TaskMetadata({
     required this.taskContent,
     this.dueDate,
-    this.priority = TaskPriority.medium,
+    this.priority = domain.TaskPriority.medium,
     this.hasReminder = false,
     this.reminderTime,
     this.estimatedMinutes,
@@ -641,7 +691,7 @@ class TaskMetadata {
 
   final String taskContent;
   final DateTime? dueDate;
-  final TaskPriority priority;
+  final domain.TaskPriority priority;
   final bool hasReminder;
   final DateTime? reminderTime;
   final int? estimatedMinutes;

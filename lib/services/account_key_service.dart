@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -9,6 +10,7 @@ import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dar
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Legacy type alias for backward compatibility
@@ -33,6 +35,27 @@ class AccountKeyService {
   final FlutterSecureStorage _storage;
   AppLogger get _logger => _ref.read(loggerProvider);
   final SupabaseClient _client;
+
+  void _captureAccountKeyException({
+    required String operation,
+    required Object error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'AccountKeyService');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
 
   Future<Uint8List?> getLocalAmk({String? userId}) async {
     final uid = userId ?? _client.auth.currentUser?.id;
@@ -123,11 +146,18 @@ class AccountKeyService {
         'kdf': 'pbkdf2-hmac-sha256',
         'kdf_params': {'iterations': 150000, 'salt_b64': base64Encode(salt)},
       });
-    } catch (e) {
+    } catch (error, stack) {
       // If user_keys table isn't initialized yet, proceed with local-only AMK
       _logger.warning(
         'Remote user_keys not initialized; using local-only AMK',
-        data: {'error': e.toString()},
+        data: {'error': error.toString(), 'userId': uid},
+      );
+      _captureAccountKeyException(
+        operation: 'provisionAmkForUser.remoteUpsert',
+        error: error,
+        stackTrace: stack,
+        data: {'userId': uid},
+        level: SentryLevel.warning,
       );
       // Do not rethrow; app can function locally and sync plaintext-free data won't decrypt cross-device
     }
@@ -164,16 +194,32 @@ class AccountKeyService {
           .select('wrapped_key, kdf_params')
           .eq('user_id', uid)
           .maybeSingle();
-    } catch (e) {
+    } catch (error, stack) {
       // Table missing or other schema error => provision new AMK
-      if (e.toString().contains(
+      if (error.toString().contains(
             "Could not find the table 'public.user_keys'",
           )) {
         _logger.warning('user_keys table not found, provisioning new AMK');
+        _captureAccountKeyException(
+          operation: 'unlockAmk.fetchMissingTable',
+          error: error,
+          stackTrace: stack,
+          data: {'userId': uid},
+          level: SentryLevel.warning,
+        );
         await provisionAmkForUser(passphrase: passphrase, userId: uid);
         return true;
       }
-      _logger.error('Failed to fetch user_keys', data: {'error': e.toString()});
+      _logger.error(
+        'Failed to fetch user_keys',
+        data: {'error': error.toString(), 'userId': uid},
+      );
+      _captureAccountKeyException(
+        operation: 'unlockAmk.fetch',
+        error: error,
+        stackTrace: stack,
+        data: {'userId': uid},
+      );
       rethrow;
     }
 
@@ -244,10 +290,10 @@ class AccountKeyService {
       await setLocalAmk(amk, userId: uid);
       _logger.info('AMK successfully unlocked and stored for user $uid');
       return true;
-    } catch (e) {
-      _logger.error(
-        'Failed to unwrap AMK - incorrect passphrase?',
-        data: {'error': e.toString()},
+    } catch (error) {
+      _logger.warning(
+        'Failed to unwrap AMK - incorrect passphrase or corrupted data',
+        data: {'error': error.toString(), 'userId': uid},
       );
       return false;
     }
@@ -341,10 +387,17 @@ class AccountKeyService {
         'kdf': 'pbkdf2-hmac-sha256',
         'kdf_params': {'iterations': 150000, 'salt_b64': base64Encode(newSalt)},
       });
-    } catch (e) {
+    } catch (error, stack) {
       _logger.warning(
         'Failed to upsert user_keys during passphrase change',
-        data: {'error': e.toString()},
+        data: {'error': error.toString(), 'userId': uid},
+      );
+      _captureAccountKeyException(
+        operation: 'changePassphrase.remoteUpsert',
+        error: error,
+        stackTrace: stack,
+        data: {'userId': uid},
+        level: SentryLevel.warning,
       );
       // Continue to update local store even if remote fails
     }

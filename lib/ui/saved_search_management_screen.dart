@@ -1,9 +1,14 @@
-import 'package:drift/drift.dart' show Value;
-import 'package:duru_notes/data/local/app_db.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 // import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // TODO: Generate localization files
 
 class SavedSearchManagementScreen extends ConsumerStatefulWidget {
@@ -16,9 +21,11 @@ class SavedSearchManagementScreen extends ConsumerStatefulWidget {
 
 class _SavedSearchManagementScreenState
     extends ConsumerState<SavedSearchManagementScreen> {
-  List<SavedSearch> _savedSearches = [];
+  List<domain.SavedSearch> _savedSearches = [];
   bool _isLoading = true;
   bool _isReordering = false;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -37,11 +44,25 @@ class _SavedSearchManagementScreenState
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load saved searches',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load saved searches: $e')),
+          SnackBar(
+            content:
+                const Text('Could not load saved searches. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadSavedSearches()),
+            ),
+          ),
         );
       }
     }
@@ -54,57 +75,105 @@ class _SavedSearchManagementScreenState
     );
 
     if (result != null) {
-      final repo = ref.read(searchRepositoryProvider);
-      final savedSearch = SavedSearch(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: result['name'] as String,
-        query: result['query'] as String,
-        searchType: result['type'] as String,
-        sortOrder: 0,
-        color: result['color'] as String?,
-        icon: result['icon'] as String?,
-        isPinned: false,
-        createdAt: DateTime.now(),
-        usageCount: 0,
-      );
-      await repo.createOrUpdateSavedSearch(savedSearch);
-      await _loadSavedSearches();
-      if (mounted) {
-        HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Saved search created')));
+      try {
+        final repo = ref.read(searchRepositoryProvider);
+        final savedSearch = domain.SavedSearch(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: result['name'] as String,
+          query: result['query'] as String,
+          isPinned: false,
+          createdAt: DateTime.now(),
+          usageCount: 0,
+          displayOrder: 0,
+        );
+        await repo.createOrUpdateSavedSearch(savedSearch);
+        await _loadSavedSearches();
+        if (mounted) {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved search created')),
+          );
+        }
+        _logger.info(
+          'Saved search created',
+          data: {'searchName': savedSearch.name},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to create saved search',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'name': result['name'], 'query': result['query']},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  const Text('Could not create saved search. Please retry.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_createSavedSearch()),
+              ),
+            ),
+          );
+        }
       }
     }
   }
 
-  Future<void> _editSavedSearch(SavedSearch search) async {
+  Future<void> _editSavedSearch(domain.SavedSearch search) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _CreateSavedSearchDialog(initialSearch: search),
     );
 
     if (result != null) {
-      final repo = ref.read(searchRepositoryProvider);
-      final updatedSearch = search.copyWith(
-        name: result['name'] as String,
-        query: result['query'] as String,
-        searchType: result['type'] as String,
-        icon: Value(result['icon'] as String?),
-        color: Value(result['color'] as String?),
-      );
-      await repo.createOrUpdateSavedSearch(updatedSearch);
-      await _loadSavedSearches();
-      if (mounted) {
-        HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Saved search updated')));
+      try {
+        final repo = ref.read(searchRepositoryProvider);
+        final updatedSearch = search.copyWith(
+          name: result['name'] as String,
+          query: result['query'] as String,
+        );
+        await repo.createOrUpdateSavedSearch(updatedSearch);
+        await _loadSavedSearches();
+        if (mounted) {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved search updated')),
+          );
+        }
+        _logger.info(
+          'Saved search updated',
+          data: {'searchId': search.id},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to update saved search',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'searchId': search.id},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  const Text('Could not update saved search. Please retry.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_editSavedSearch(search)),
+              ),
+            ),
+          );
+        }
       }
     }
   }
 
-  Future<void> _deleteSavedSearch(SavedSearch search) async {
+  Future<void> _deleteSavedSearch(domain.SavedSearch search) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -127,40 +196,117 @@ class _SavedSearchManagementScreenState
     );
 
     if (confirmed ?? false) {
-      final repo = ref.read(searchRepositoryProvider);
-      await repo.deleteSavedSearch(search.id);
-      await _loadSavedSearches();
-      if (mounted) {
-        HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Saved search deleted')));
+      try {
+        final repo = ref.read(searchRepositoryProvider);
+        await repo.deleteSavedSearch(search.id);
+        await _loadSavedSearches();
+        if (mounted) {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved search deleted')),
+          );
+        }
+        _logger.info(
+          'Saved search deleted',
+          data: {'searchId': search.id},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to delete saved search',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'searchId': search.id},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  const Text('Could not delete saved search. Please retry.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_deleteSavedSearch(search)),
+              ),
+            ),
+          );
+        }
       }
     }
   }
 
-  Future<void> _togglePin(SavedSearch search) async {
-    final repo = ref.read(searchRepositoryProvider);
-    await repo.toggleSavedSearchPin(search.id);
-    await _loadSavedSearches();
-    HapticFeedback.lightImpact();
+  Future<void> _togglePin(domain.SavedSearch search) async {
+    try {
+      final repo = ref.read(searchRepositoryProvider);
+      await repo.toggleSavedSearchPin(search.id);
+      await _loadSavedSearches();
+      HapticFeedback.lightImpact();
+      _logger.info(
+        'Saved search pin toggled',
+        data: {'searchId': search.id, 'isPinned': search.isPinned},
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to toggle saved search pin',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'searchId': search.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Could not update saved search pin. Please retry.',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_togglePin(search)),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _saveReorder() async {
-    final repo = ref.read(searchRepositoryProvider);
-    await repo.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
-    setState(() => _isReordering = false);
-    HapticFeedback.mediumImpact();
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Order saved')));
+    try {
+      final repo = ref.read(searchRepositoryProvider);
+      await repo.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
+      setState(() => _isReordering = false);
+      HapticFeedback.mediumImpact();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order saved')),
+        );
+      }
+      _logger.info('Saved searches reordered');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to reorder saved searches',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                const Text('Could not save order. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_saveReorder()),
+            ),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // final l10n = AppLocalizations.of(context); // TODO: Enable when localization is generated
 
     return Scaffold(
@@ -258,9 +404,6 @@ class _SavedSearchManagementScreenState
           key: ValueKey(search.id),
           leading: Icon(
             _getIconForSearch(search),
-            color: search.color != null
-                ? Color(int.parse(search.color!.replaceFirst('#', '0xff')))
-                : null,
           ),
           title: Text(search.name),
           subtitle: Text(_getSubtitleForSearch(search)),
@@ -270,14 +413,11 @@ class _SavedSearchManagementScreenState
     );
   }
 
-  Widget _buildSearchTile(SavedSearch search) {
+  Widget _buildSearchTile(domain.SavedSearch search) {
     final theme = Theme.of(context);
     return ListTile(
       leading: Icon(
         _getIconForSearch(search),
-        color: search.color != null
-            ? Color(int.parse(search.color!.replaceFirst('#', '0xff')))
-            : null,
       ),
       title: Text(search.name),
       subtitle: Text(_getSubtitleForSearch(search)),
@@ -338,57 +478,20 @@ class _SavedSearchManagementScreenState
     );
   }
 
-  IconData _getIconForSearch(SavedSearch search) {
-    if (search.icon != null) {
-      // Map icon names to IconData
-      switch (search.icon) {
-        case 'star':
-          return Icons.star;
-        case 'folder':
-          return Icons.folder;
-        case 'tag':
-          return Icons.tag;
-        case 'calendar':
-          return Icons.calendar_today;
-        default:
-          return Icons.search;
-      }
-    }
-
-    // Default icons based on type
-    switch (search.searchType) {
-      case 'tag':
-        return Icons.tag;
-      case 'folder':
-        return Icons.folder;
-      case 'date_range':
-        return Icons.date_range;
-      case 'compound':
-        return Icons.filter_alt;
-      default:
-        return Icons.search;
-    }
+  IconData _getIconForSearch(domain.SavedSearch search) {
+    // domain.SavedSearch doesn't have icon/searchType - return default
+    return Icons.search;
   }
 
-  String _getSubtitleForSearch(SavedSearch search) {
-    switch (search.searchType) {
-      case 'tag':
-        return 'Tag: ${search.query}';
-      case 'folder':
-        return 'Folder search';
-      case 'date_range':
-        return 'Date range search';
-      case 'compound':
-        return 'Advanced search';
-      default:
-        return 'Text: ${search.query}';
-    }
+  String _getSubtitleForSearch(domain.SavedSearch search) {
+    // domain.SavedSearch doesn't have searchType - just show query
+    return search.query;
   }
 }
 
 class _CreateSavedSearchDialog extends StatefulWidget {
   const _CreateSavedSearchDialog({this.initialSearch});
-  final SavedSearch? initialSearch;
+  final domain.SavedSearch? initialSearch;
 
   @override
   State<_CreateSavedSearchDialog> createState() =>
@@ -434,9 +537,10 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
     _queryController = TextEditingController(
       text: widget.initialSearch?.query ?? '',
     );
-    _searchType = widget.initialSearch?.searchType ?? 'text';
-    _selectedIcon = widget.initialSearch?.icon;
-    _selectedColor = widget.initialSearch?.color;
+    // domain.SavedSearch doesn't have searchType, icon, color - use defaults
+    _searchType = 'text';
+    _selectedIcon = null;
+    _selectedColor = null;
   }
 
   @override

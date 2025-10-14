@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show unifiedTaskServiceProvider;
@@ -6,6 +11,7 @@ import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Hierarchical task list view with tree structure and progress tracking
 /// Uses UnifiedTaskService for all task operations - no VoidCallback usage
@@ -27,6 +33,7 @@ class HierarchicalTaskListView extends ConsumerStatefulWidget {
 class _HierarchicalTaskListViewState
     extends ConsumerState<HierarchicalTaskListView> {
   // State tracking reserved for future expand/collapse functionality
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -175,10 +182,31 @@ class _HierarchicalTaskListViewState
             const SnackBar(content: Text('Task created successfully')),
           );
         }
-      } catch (e) {
+        _logger.info(
+          'Created hierarchical task',
+          data: {
+            'noteId': widget.noteId,
+            'hasCustomContent': taskContent != 'New Task',
+          },
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to create hierarchical task',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': widget.noteId},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating task: $e')),
+            SnackBar(
+              content: const Text('Could not create task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_showCreateTaskDialog(context)),
+              ),
+            ),
           );
         }
       }
@@ -373,10 +401,28 @@ class TaskHierarchyPanel extends ConsumerWidget {
             SnackBar(content: Text('Completed ${rootTasks.length} root tasks')),
           );
         }
-      } catch (e) {
+        _logger.info(
+          'Completed all root tasks',
+          data: {'noteId': noteId, 'count': rootTasks.length},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to complete all root tasks',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': noteId},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error completing tasks: $e')),
+            SnackBar(
+              content: const Text('Could not complete tasks. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_completeAllRootTasks(context, ref, noteId)),
+              ),
+            ),
           );
         }
       }
@@ -424,10 +470,28 @@ class TaskHierarchyPanel extends ConsumerWidget {
                     Text('Archived ${completedTasks.length} completed tasks')),
           );
         }
-      } catch (e) {
+        _logger.info(
+          'Archived completed tasks',
+          data: {'noteId': noteId, 'count': completedTasks.length},
+        );
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to archive completed tasks',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': noteId},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error archiving tasks: $e')),
+            SnackBar(
+              content: const Text('Could not archive tasks. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_cleanupCompletedTasks(context, ref)),
+              ),
+            ),
           );
         }
       }

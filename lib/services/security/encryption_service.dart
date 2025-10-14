@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart' hide Key; // Hide Key to avoid conflict
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Production-grade Encryption Service
 /// Provides comprehensive encryption features:
@@ -21,6 +23,8 @@ class EncryptionService {
   static final EncryptionService _instance = EncryptionService._internal();
   factory EncryptionService() => _instance;
   EncryptionService._internal();
+
+  final AppLogger _logger = LoggerFactory.instance;
 
   // Encryption configuration
   static const int _keySize = 32; // 256 bits
@@ -49,6 +53,27 @@ class EncryptionService {
   DateTime? _lastKeyRotation;
   bool _initialized = false;
 
+  void _captureEncryptionException({
+    required String operation,
+    required Object error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'EncryptionService');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
+
   /// Initialize encryption service
   Future<void> initialize() async {
     if (_initialized) return;
@@ -70,10 +95,17 @@ class EncryptionService {
       _initialized = true;
 
       // Initialization complete - no sensitive logging
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ Failed to initialize EncryptionService: $e');
-      }
+    } catch (error, stack) {
+      _logger.error(
+        'Failed to initialize EncryptionService',
+        error: error,
+        stackTrace: stack,
+      );
+      _captureEncryptionException(
+        operation: 'initialize',
+        error: error,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -131,16 +163,28 @@ class EncryptionService {
       await _storeEncryptionMetadata(encryptedData);
 
       return encryptedData;
-    } catch (e) {
+    } catch (error, stack) {
       // Log encryption failure
       await SecurityAuditTrail().logEncryption(
         dataType: data.runtimeType.toString(),
         dataSize: 0,
         keyId: keyId ?? 'unknown',
         success: false,
-        error: e.toString(),
+        error: error.toString(),
       );
-      throw EncryptionException('Encryption failed: ${e.toString()}');
+      _logger.error(
+        'Encryption failed',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': keyId ?? _currentKeyId, 'dataType': data.runtimeType.toString()},
+      );
+      _captureEncryptionException(
+        operation: 'encryptData',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': keyId ?? _currentKeyId},
+      );
+      throw EncryptionException('Encryption failed: ${error.toString()}');
     }
   }
 
@@ -195,16 +239,28 @@ class EncryptionService {
       } catch (_) {
         return plaintext;
       }
-    } catch (e) {
+    } catch (error, stack) {
       // Log decryption failure
       await SecurityAuditTrail().logDecryption(
         dataType: 'encrypted_data',
         keyId: encryptedData.keyId,
         success: false,
-        error: e.toString(),
+        error: error.toString(),
       );
-      if (e is EncryptionException) rethrow;
-      throw EncryptionException('Decryption failed: ${e.toString()}');
+      _logger.error(
+        'Decryption failed',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': encryptedData.keyId},
+      );
+      _captureEncryptionException(
+        operation: 'decryptData',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': encryptedData.keyId},
+      );
+      if (error is EncryptionException) rethrow;
+      throw EncryptionException('Decryption failed: ${error.toString()}');
     }
   }
 
@@ -271,8 +327,18 @@ class EncryptionService {
       if (kDebugMode) {
         // Key rotation completed - no sensitive logging
       }
-    } catch (e) {
-      throw EncryptionException('Key rotation failed: ${e.toString()}');
+    } catch (error, stack) {
+      _logger.error(
+        'Key rotation failed',
+        error: error,
+        stackTrace: stack,
+      );
+      _captureEncryptionException(
+        operation: 'rotateKey',
+        error: error,
+        stackTrace: stack,
+      );
+      throw EncryptionException('Key rotation failed: ${error.toString()}');
     }
   }
 
@@ -467,7 +533,6 @@ class EncryptionService {
   }
 
   Future<void> _cleanupOldKeys() async {
-    final prefs = await SharedPreferences.getInstance();
     final allKeys = await _secureStorage.readAll();
 
     final keyEntries = allKeys.entries
@@ -540,10 +605,17 @@ class EncryptionService {
           await prefs.remove('current_key_id');
         }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        // Failed to load keys - error logged without sensitive details
-      }
+    } catch (error, stack) {
+      _logger.warning(
+        'Failed to load encryption keys from storage',
+        data: {'error': error.toString()},
+      );
+      _captureEncryptionException(
+        operation: '_loadKeys',
+        error: error,
+        stackTrace: stack,
+        level: SentryLevel.warning,
+      );
       // Reset state on load failure
       _currentKeyId = null;
       _lastKeyRotation = null;
