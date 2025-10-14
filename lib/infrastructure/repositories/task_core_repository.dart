@@ -8,6 +8,7 @@ import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Core task repository implementation
 class TaskCoreRepository implements ITaskRepository {
@@ -21,6 +22,28 @@ class TaskCoreRepository implements ITaskRepository {
   final AppLogger _logger;
   final _uuid = const Uuid();
 
+  void _captureRepositoryException({
+    required String method,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('layer', 'repository');
+          scope.setTag('repository', 'TaskCoreRepository');
+          scope.setTag('method', method);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
+
   @override
   Future<List<domain.Task>> getTasksForNote(String noteId) async {
     try {
@@ -28,7 +51,13 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get tasks for note: $noteId', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getTasksForNote',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -39,7 +68,12 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get all tasks', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getAllTasks',
+        error: e,
+        stackTrace: stack,
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -50,7 +84,12 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get pending tasks', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getPendingTasks',
+        error: e,
+        stackTrace: stack,
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -63,6 +102,12 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomain(localTask);
     } catch (e, stack) {
       _logger.error('Failed to get task by id: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'getTaskById',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
       return null;
     }
   }
@@ -72,7 +117,19 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        throw Exception('Cannot create task without authenticated user');
+        final authorizationError = StateError('Cannot create task without authenticated user');
+        _logger.warning(
+          'Cannot create task without authenticated user',
+          data: {'noteId': task.noteId, 'taskTitle': task.title},
+        );
+        _captureRepositoryException(
+          method: 'createTask',
+          error: authorizationError,
+          stackTrace: StackTrace.current,
+          data: {'noteId': task.noteId, 'taskTitle': task.title},
+          level: SentryLevel.warning,
+        );
+        throw authorizationError;
       }
 
       // Create task with new ID if not provided
@@ -114,6 +171,12 @@ class TaskCoreRepository implements ITaskRepository {
       return taskToCreate;
     } catch (e, stack) {
       _logger.error('Failed to create task: ${task.title}', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'createTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': task.id, 'noteId': task.noteId},
+      );
       rethrow;
     }
   }
@@ -124,7 +187,19 @@ class TaskCoreRepository implements ITaskRepository {
       // Verify task exists
       final existing = await db.getTaskById(task.id);
       if (existing == null) {
-        throw Exception('Task not found: ${task.id}');
+        final missingError = StateError('Task not found');
+        _logger.warning(
+          'Attempted to update non-existent task',
+          data: {'taskId': task.id},
+        );
+        _captureRepositoryException(
+          method: 'updateTask',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'taskId': task.id},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       // Map to infrastructure model
@@ -159,6 +234,12 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomain(updatedLocal!);
     } catch (e, stack) {
       _logger.error('Failed to update task: ${task.id}', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'updateTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': task.id},
+      );
       rethrow;
     }
   }
@@ -170,6 +251,13 @@ class TaskCoreRepository implements ITaskRepository {
       final existing = await db.getTaskById(id);
       if (existing == null) {
         _logger.warning('Attempted to delete non-existent task: $id');
+        _captureRepositoryException(
+          method: 'deleteTask',
+          error: StateError('Task not found for deletion'),
+          stackTrace: StackTrace.current,
+          data: {'taskId': id},
+          level: SentryLevel.warning,
+        );
         return;
       }
 
@@ -182,6 +270,12 @@ class TaskCoreRepository implements ITaskRepository {
       _logger.info('Deleted task: $id');
     } catch (e, stack) {
       _logger.error('Failed to delete task: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'deleteTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
       rethrow;
     }
   }
@@ -198,6 +292,12 @@ class TaskCoreRepository implements ITaskRepository {
       _logger.info('Completed task: $id');
     } catch (e, stack) {
       _logger.error('Failed to complete task: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'completeTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
       rethrow;
     }
   }
@@ -210,6 +310,11 @@ class TaskCoreRepository implements ITaskRepository {
       });
     } catch (e, stack) {
       _logger.error('Failed to create task watch stream', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'watchTasks',
+        error: e,
+        stackTrace: stack,
+      );
       return Stream.error(e, stack);
     }
   }
@@ -222,6 +327,12 @@ class TaskCoreRepository implements ITaskRepository {
       });
     } catch (e, stack) {
       _logger.error('Failed to create task watch stream for note: $noteId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'watchTasksForNote',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
       return Stream.error(e, stack);
     }
   }
@@ -236,7 +347,16 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get completed tasks', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getCompletedTasks',
+        error: e,
+        stackTrace: stack,
+        data: {
+          'since': since?.toIso8601String(),
+          'limit': limit,
+        },
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -247,7 +367,12 @@ class TaskCoreRepository implements ITaskRepository {
       return TaskMapper.toDomainList(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get overdue tasks', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getOverdueTasks',
+        error: e,
+        stackTrace: stack,
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -273,7 +398,17 @@ class TaskCoreRepository implements ITaskRepository {
       return tasks;
     } catch (e, stack) {
       _logger.error('Failed to get tasks by date range', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getTasksByDateRange',
+        error: e,
+        stackTrace: stack,
+        data: {
+          'start': startDate.toIso8601String(),
+          'end': endDate.toIso8601String(),
+          'status': status?.name,
+        },
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -288,6 +423,12 @@ class TaskCoreRepository implements ITaskRepository {
       _logger.info('Toggled task status: $id');
     } catch (e, stack) {
       _logger.error('Failed to toggle task status: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'toggleTaskStatus',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
       rethrow;
     }
   }
@@ -301,6 +442,12 @@ class TaskCoreRepository implements ITaskRepository {
       _logger.info('Deleted all tasks for note: $noteId');
     } catch (e, stack) {
       _logger.error('Failed to delete tasks for note: $noteId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'deleteTasksForNote',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
       rethrow;
     }
   }
@@ -326,7 +473,12 @@ class TaskCoreRepository implements ITaskRepository {
       };
     } catch (e, stack) {
       _logger.error('Failed to get task statistics', error: e, stackTrace: stack);
-      return {};
+      _captureRepositoryException(
+        method: 'getTaskStatistics',
+        error: e,
+        stackTrace: stack,
+      );
+      return const <String, int>{};
     }
   }
 
@@ -337,7 +489,13 @@ class TaskCoreRepository implements ITaskRepository {
       return allTasks.where((task) => task.priority == priority).toList();
     } catch (e, stack) {
       _logger.error('Failed to get tasks by priority: $priority', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getTasksByPriority',
+        error: e,
+        stackTrace: stack,
+        data: {'priority': priority.name},
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -358,7 +516,13 @@ class TaskCoreRepository implements ITaskRepository {
       }).toList();
     } catch (e, stack) {
       _logger.error('Failed to search tasks with query: $query', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'searchTasks',
+        error: e,
+        stackTrace: stack,
+        data: {'queryLength': query.length},
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -367,13 +531,31 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final task = await getTaskById(id);
       if (task == null) {
-        throw Exception('Task not found: $id');
+        final missingError = StateError('Task not found');
+        _logger.warning(
+          'Attempted to update priority for non-existent task',
+          data: {'taskId': id},
+        );
+        _captureRepositoryException(
+          method: 'updateTaskPriority',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'taskId': id},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       final updatedTask = task.copyWith(priority: priority);
       await updateTask(updatedTask);
     } catch (e, stack) {
       _logger.error('Failed to update task priority: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'updateTaskPriority',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id, 'priority': priority.name},
+      );
       rethrow;
     }
   }
@@ -383,13 +565,31 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final task = await getTaskById(id);
       if (task == null) {
-        throw Exception('Task not found: $id');
+        final missingError = StateError('Task not found');
+        _logger.warning(
+          'Attempted to update due date for non-existent task',
+          data: {'taskId': id},
+        );
+        _captureRepositoryException(
+          method: 'updateTaskDueDate',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'taskId': id},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       final updatedTask = task.copyWith(dueDate: dueDate);
       await updateTask(updatedTask);
     } catch (e, stack) {
       _logger.error('Failed to update task due date: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'updateTaskDueDate',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id, 'dueDate': dueDate?.toIso8601String()},
+      );
       rethrow;
     }
   }
@@ -399,7 +599,19 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final task = await getTaskById(taskId);
       if (task == null) {
-        throw Exception('Task not found: $taskId');
+        final missingError = StateError('Task not found');
+        _logger.warning(
+          'Attempted to add tag to non-existent task',
+          data: {'taskId': taskId, 'tag': tag},
+        );
+        _captureRepositoryException(
+          method: 'addTagToTask',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'taskId': taskId, 'tag': tag},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       final updatedTags = [...task.tags];
@@ -410,6 +622,12 @@ class TaskCoreRepository implements ITaskRepository {
       }
     } catch (e, stack) {
       _logger.error('Failed to add tag to task: $taskId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'addTagToTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'tag': tag},
+      );
       rethrow;
     }
   }
@@ -419,7 +637,19 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final task = await getTaskById(taskId);
       if (task == null) {
-        throw Exception('Task not found: $taskId');
+        final missingError = StateError('Task not found');
+        _logger.warning(
+          'Attempted to remove tag from non-existent task',
+          data: {'taskId': taskId, 'tag': tag},
+        );
+        _captureRepositoryException(
+          method: 'removeTagFromTask',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'taskId': taskId, 'tag': tag},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       final updatedTags = task.tags.where((t) => t != tag).toList();
@@ -427,6 +657,12 @@ class TaskCoreRepository implements ITaskRepository {
       await updateTask(updatedTask);
     } catch (e, stack) {
       _logger.error('Failed to remove tag from task: $taskId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'removeTagFromTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'tag': tag},
+      );
       rethrow;
     }
   }
@@ -438,6 +674,12 @@ class TaskCoreRepository implements ITaskRepository {
       _logger.info('Synced tasks with note content: $noteId');
     } catch (e, stack) {
       _logger.error('Failed to sync tasks with note content: $noteId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'syncTasksWithNoteContent',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId, 'contentLength': noteContent.length},
+      );
       rethrow;
     }
   }
@@ -453,7 +695,19 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final parentTask = await getTaskById(parentTaskId);
       if (parentTask == null) {
-        throw Exception('Parent task not found: $parentTaskId');
+        final missingError = StateError('Parent task not found');
+        _logger.warning(
+          'Attempted to create subtask for non-existent parent task',
+          data: {'parentTaskId': parentTaskId},
+        );
+        _captureRepositoryException(
+          method: 'createSubtask',
+          error: missingError,
+          stackTrace: StackTrace.current,
+          data: {'parentTaskId': parentTaskId},
+          level: SentryLevel.warning,
+        );
+        throw missingError;
       }
 
       final subtask = domain.Task(
@@ -472,6 +726,12 @@ class TaskCoreRepository implements ITaskRepository {
       return await createTask(subtask);
     } catch (e, stack) {
       _logger.error('Failed to create subtask for: $parentTaskId', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'createSubtask',
+        error: e,
+        stackTrace: stack,
+        data: {'parentTaskId': parentTaskId},
+      );
       rethrow;
     }
   }
@@ -484,7 +744,13 @@ class TaskCoreRepository implements ITaskRepository {
           task.metadata['parentTaskId'] == parentTaskId).toList();
     } catch (e, stack) {
       _logger.error('Failed to get subtasks for: $parentTaskId', error: e, stackTrace: stack);
-      return [];
+      _captureRepositoryException(
+        method: 'getSubtasks',
+        error: e,
+        stackTrace: stack,
+        data: {'parentTaskId': parentTaskId},
+      );
+      return const <domain.Task>[];
     }
   }
 

@@ -1,29 +1,88 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'dart:async';
+
 import 'package:duru_notes/domain/entities/inbox_item.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_inbox_repository.dart';
 import 'package:duru_notes/infrastructure/mappers/inbox_item_mapper.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:drift/drift.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
-/// Implementation of IInboxRepository using the local database
+/// Repository for managing inbox items from Supabase clipper_inbox table.
+///
+/// Inbox items are temporary content from various sources (email, web clips)
+/// that need to be processed into notes. They are stored in Supabase's
+/// clipper_inbox table, not in the local database.
+///
+/// NOTE: This repository does NOT use encryption because:
+/// 1. Inbox items are temporary (deleted after conversion to notes)
+/// 2. The notes created from inbox items ARE encrypted
+/// 3. Supabase provides secure storage via RLS policies
 class InboxRepository implements IInboxRepository {
   InboxRepository({
-    required AppDb db,
-  })  : _db = db,
+    required SupabaseClient client,
+  })  : _client = client,
         _logger = LoggerFactory.instance;
 
-  final AppDb _db;
+  final SupabaseClient _client;
   final AppLogger _logger;
+
+  void _captureRepositoryException({
+    required String method,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('layer', 'repository');
+          scope.setTag('repository', 'InboxRepository');
+          scope.setTag('method', method);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
+
+  /// Name of the Supabase table
+  static const String _tableName = 'clipper_inbox';
 
   @override
   Future<domain.InboxItem?> getById(String id) async {
     try {
-      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.id.equals(id));
-      final result = await query.getSingleOrNull();
-      return result != null ? InboxItemMapper.toDomain(result) : null;
-    } catch (e, stack) {
-      _logger.error('Failed to get inbox item by id: $id', error: e, stackTrace: stack);
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get inbox item without authenticated user');
+        return null;
+      }
+
+      final response = await _client
+          .from(_tableName)
+          .select()
+          .eq('id', id)
+          .eq('user_id', userId) // Security: enforce user isolation
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      return InboxItemMapper.fromJson(response);
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get inbox item by id',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id},
+      );
+      _captureRepositoryException(
+        method: 'getById',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id},
+      );
       return null;
     }
   }
@@ -31,55 +90,173 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<List<domain.InboxItem>> getUnprocessed() async {
     try {
-      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.isProcessed.equals(false))
-        ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
-      final results = await query.get();
-      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
-    } catch (e, stack) {
-      _logger.error('Failed to get unprocessed inbox items', error: e, stackTrace: stack);
-      return [];
+      final userId = _client.auth.currentUser?.id;
+
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get unprocessed items without authenticated user');
+        return const <domain.InboxItem>[];
+      }
+
+      _logger.debug(
+        'Fetching unprocessed inbox items',
+        data: {'userId': userId},
+      );
+
+      final response = await _client
+          .from(_tableName)
+          .select()
+          .eq('user_id', userId) // Security: enforce user isolation
+          .or('is_processed.is.null,is_processed.eq.false')
+          .order('created_at', ascending: false);
+
+      final results = (response as List)
+          .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      _logger.debug(
+        'Fetched unprocessed inbox items',
+        data: {'count': results.length},
+      );
+
+      return results;
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get unprocessed inbox items',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _captureRepositoryException(
+        method: 'getUnprocessed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return const <domain.InboxItem>[];
     }
   }
 
   @override
   Future<List<domain.InboxItem>> getBySourceType(String sourceType) async {
     try {
-      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.sourceType.equals(sourceType))
-        ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
-      final results = await query.get();
-      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
-    } catch (e, stack) {
-      _logger.error('Failed to get inbox items by source type: $sourceType', error: e, stackTrace: stack);
-      return [];
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get items by source type without authenticated user');
+        return const <domain.InboxItem>[];
+      }
+
+      final response = await _client
+          .from(_tableName)
+          .select()
+          .eq('user_id', userId) // Security: enforce user isolation
+          .eq('source_type', sourceType)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get inbox items by source type',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'sourceType': sourceType},
+      );
+      _captureRepositoryException(
+        method: 'getBySourceType',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'sourceType': sourceType},
+      );
+      return const <domain.InboxItem>[];
     }
   }
 
   @override
-  Future<List<domain.InboxItem>> getByDateRange(DateTime start, DateTime end) async {
+  Future<List<domain.InboxItem>> getByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
     try {
-      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.createdAt.isBetweenValues(start, end))
-        ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get items by date range without authenticated user');
+        return const <domain.InboxItem>[];
+      }
 
-      final results = await query.get();
-      return results.map<domain.InboxItem>(InboxItemMapper.toDomain).toList();
-    } catch (e, stack) {
-      _logger.error('Failed to get inbox items by date range', error: e, stackTrace: stack);
-      return [];
+      final response = await _client
+          .from(_tableName)
+          .select()
+          .eq('user_id', userId) // Security: enforce user isolation
+          .gte('created_at', start.toIso8601String())
+          .lte('created_at', end.toIso8601String())
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get inbox items by date range',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'start': start.toIso8601String(),
+          'end': end.toIso8601String(),
+        },
+      );
+      _captureRepositoryException(
+        method: 'getByDateRange',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'start': start.toIso8601String(),
+          'end': end.toIso8601String(),
+        },
+      );
+      return const <domain.InboxItem>[];
     }
   }
 
   @override
   Future<domain.InboxItem> create(domain.InboxItem item) async {
     try {
-      final companion = InboxItemMapper.toCompanion(item);
-      await _db.into<$InboxItemsTable, InboxItem>(_db.inboxItems).insert(companion);
-      _logger.info('Created inbox item: ${item.id}');
-      return item;
-    } catch (e, stack) {
-      _logger.error('Failed to create inbox item', error: e, stackTrace: stack);
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        final authorizationError = StateError('Cannot create inbox item without authenticated user');
+        _logger.warning('Cannot create inbox item without authenticated user');
+        _captureRepositoryException(
+          method: 'create',
+          error: authorizationError,
+          stackTrace: StackTrace.current,
+          level: SentryLevel.warning,
+        );
+        throw authorizationError;
+      }
+
+      // Ensure user_id matches current user (security)
+      final itemToCreate = item.userId != userId
+          ? item.copyWith(userId: userId)
+          : item;
+
+      final json = InboxItemMapper.toJson(itemToCreate);
+
+      await _client.from(_tableName).insert(json);
+
+      _logger.info('Created inbox item', data: {'id': item.id, 'sourceType': item.sourceType});
+
+      return itemToCreate;
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to create inbox item',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': item.id, 'sourceType': item.sourceType},
+      );
+      _captureRepositoryException(
+        method: 'create',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': item.id, 'sourceType': item.sourceType},
+      );
       rethrow;
     }
   }
@@ -87,20 +264,43 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<domain.InboxItem> update(domain.InboxItem item) async {
     try {
-      final companion = InboxItemMapper.toUpdateCompanion(item);
-
-      final rows = await (_db.update<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.id.equals(item.id)))
-        .write(companion);
-
-      if (rows > 0) {
-        _logger.info('Updated inbox item: ${item.id}');
-        return item;
-      } else {
-        throw Exception('Inbox item not found: ${item.id}');
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        final authorizationError = StateError('Cannot update inbox item without authenticated user');
+        _logger.warning('Cannot update inbox item without authenticated user');
+        _captureRepositoryException(
+          method: 'update',
+          error: authorizationError,
+          stackTrace: StackTrace.current,
+          level: SentryLevel.warning,
+        );
+        throw authorizationError;
       }
-    } catch (e, stack) {
-      _logger.error('Failed to update inbox item: ${item.id}', error: e, stackTrace: stack);
+
+      final json = InboxItemMapper.toJson(item);
+
+      await _client
+          .from(_tableName)
+          .update(json)
+          .eq('id', item.id)
+          .eq('user_id', userId); // Security: enforce user isolation
+
+      _logger.info('Updated inbox item', data: {'id': item.id});
+
+      return item;
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to update inbox item',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': item.id},
+      );
+      _captureRepositoryException(
+        method: 'update',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': item.id},
+      );
       rethrow;
     }
   }
@@ -108,22 +308,36 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<void> markAsProcessed(String id, {String? noteId}) async {
     try {
-      final companion = InboxItemsCompanion(
-        isProcessed: const Value(true),
-        noteId: Value(noteId),
-      );
-
-      final rows = await (_db.update<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.id.equals(id)))
-        .write(companion);
-
-      if (rows > 0) {
-        _logger.info('Marked inbox item as processed: $id');
-      } else {
-        _logger.warning('Inbox item not found for marking as processed: $id');
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot mark item as processed without authenticated user');
+        return;
       }
-    } catch (e, stack) {
-      _logger.error('Failed to mark inbox item as processed: $id', error: e, stackTrace: stack);
+
+      await _client
+          .from(_tableName)
+          .update({
+            'is_processed': true,
+            if (noteId != null) 'note_id': noteId,
+            'processed_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', id)
+          .eq('user_id', userId); // Security: enforce user isolation
+
+      _logger.info('Marked inbox item as processed', data: {'id': id, 'noteId': noteId});
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to mark inbox item as processed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id, 'noteId': noteId},
+      );
+      _captureRepositoryException(
+        method: 'markAsProcessed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id, 'noteId': noteId},
+      );
       rethrow;
     }
   }
@@ -131,17 +345,32 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<void> delete(String id) async {
     try {
-      final rows = await (_db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.id.equals(id)))
-        .go();
-
-      if (rows > 0) {
-        _logger.info('Deleted inbox item: $id');
-      } else {
-        _logger.warning('Inbox item not found for deletion: $id');
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot delete inbox item without authenticated user');
+        return;
       }
-    } catch (e, stack) {
-      _logger.error('Failed to delete inbox item: $id', error: e, stackTrace: stack);
+
+      await _client
+          .from(_tableName)
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId); // Security: enforce user isolation
+
+      _logger.info('Deleted inbox item', data: {'id': id});
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to delete inbox item',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id},
+      );
+      _captureRepositoryException(
+        method: 'delete',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'id': id},
+      );
       rethrow;
     }
   }
@@ -149,18 +378,39 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<void> deleteProcessed({int? olderThanDays}) async {
     try {
-      var query = _db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.isProcessed.equals(true));
-
-      if (olderThanDays != null) {
-        final cutoff = DateTime.now().subtract(Duration(days: olderThanDays));
-        query = query..where((i) => i.createdAt.isSmallerThanValue(cutoff));
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot delete processed items without authenticated user');
+        return;
       }
 
-      final rows = await query.go();
-      _logger.info('Deleted $rows processed inbox items');
-    } catch (e, stack) {
-      _logger.error('Failed to delete processed inbox items', error: e, stackTrace: stack);
+      var query = _client
+          .from(_tableName)
+          .delete()
+          .eq('user_id', userId) // Security: enforce user isolation
+          .eq('is_processed', true);
+
+      if (olderThanDays != null) {
+        final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
+        query = query.lt('processed_at', cutoffDate.toIso8601String());
+      }
+
+      await query;
+
+      _logger.info('Deleted processed inbox items', data: {'olderThanDays': olderThanDays});
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to delete processed inbox items',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'olderThanDays': olderThanDays},
+      );
+      _captureRepositoryException(
+        method: 'deleteProcessed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'olderThanDays': olderThanDays},
+      );
       rethrow;
     }
   }
@@ -168,93 +418,214 @@ class InboxRepository implements IInboxRepository {
   @override
   Future<int> getUnprocessedCount() async {
     try {
-      final countExp = _db.inboxItems.id.count();
-      final query = _db.selectOnly<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..addColumns([countExp])
-        ..where(_db.inboxItems.isProcessed.equals(false));
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get unprocessed count without authenticated user');
+        return 0;
+      }
 
-      final result = await query.getSingleOrNull();
-      return result?.read(countExp) ?? 0;
-    } catch (e, stack) {
-      _logger.error('Failed to get unprocessed count', error: e, stackTrace: stack);
+      final response = await _client
+          .from(_tableName)
+          .select('id')
+          .eq('user_id', userId) // Security: enforce user isolation
+          .or('is_processed.is.null,is_processed.eq.false');
+
+      return (response as List).length;
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get unprocessed count',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _captureRepositoryException(
+        method: 'getUnprocessedCount',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return 0;
     }
   }
 
   @override
   Stream<List<domain.InboxItem>> watchUnprocessed() {
-    try {
-      final query = _db.select<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.isProcessed.equals(false))
-        ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]);
-
-      return query.watch().map((items) =>
-          items.map<domain.InboxItem>(InboxItemMapper.toDomain).toList());
-    } catch (e, stack) {
-      _logger.error('Failed to watch unprocessed inbox items', error: e, stackTrace: stack);
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      _logger.warning('Cannot watch unprocessed items without authenticated user');
       return Stream.value([]);
+    }
+
+    try {
+      return _client
+          .from(_tableName)
+          .stream(primaryKey: ['id'])
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .map((data) {
+            try {
+              final items = (data as List)
+                  .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+                  .toList();
+              return items.where((item) => !item.isProcessed).toList();
+            } catch (error, stackTrace) {
+              _logger.error(
+                'Failed to map unprocessed inbox items stream',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              _captureRepositoryException(
+                method: 'watchUnprocessed.map',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              return const <domain.InboxItem>[];
+            }
+          });
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to create watch stream for unprocessed items',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _captureRepositoryException(
+        method: 'watchUnprocessed',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      return Stream<List<domain.InboxItem>>.error(e, stackTrace);
     }
   }
 
   @override
   Stream<int> watchUnprocessedCount() {
-    try {
-      final countExp = _db.inboxItems.id.count();
-      final query = _db.selectOnly<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..addColumns([countExp])
-        ..where(_db.inboxItems.isProcessed.equals(false));
-
-      return query.watchSingleOrNull().map((result) =>
-          result?.read(countExp) ?? 0);
-    } catch (e, stack) {
-      _logger.error('Failed to watch unprocessed count', error: e, stackTrace: stack);
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      _logger.warning('Cannot watch unprocessed count without authenticated user');
       return Stream.value(0);
+    }
+
+    try {
+      // Note: Supabase stream doesn't support .or() filters
+      // We filter in-memory after receiving the data
+      return _client
+          .from(_tableName)
+          .stream(primaryKey: ['id'])
+          .eq('user_id', userId) // Security: enforce user isolation
+          .map((data) {
+            try {
+              final items = (data as List)
+                  .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+                  .toList();
+              return items.where((item) => !item.isProcessed).length;
+            } catch (error, stackTrace) {
+              _logger.error(
+                'Failed to map unprocessed count stream',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              _captureRepositoryException(
+                method: 'watchUnprocessedCount.map',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              return 0;
+            }
+          });
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to create watch stream for unprocessed count',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _captureRepositoryException(
+        method: 'watchUnprocessedCount',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      return Stream<int>.error(e, stackTrace);
     }
   }
 
   @override
   Future<void> processItem(String id, String noteId) async {
-    try {
-      await markAsProcessed(id, noteId: noteId);
-    } catch (e, stack) {
-      _logger.error('Failed to process inbox item: $id', error: e, stackTrace: stack);
-      rethrow;
-    }
+    await markAsProcessed(id, noteId: noteId);
   }
 
   @override
   Future<Map<String, int>> getStatsBySourceType() async {
     try {
-      final results = await _db.customSelect(
-        '''SELECT source_type, COUNT(*) as count
-           FROM inbox_items
-           GROUP BY source_type''',
-        readsFrom: {_db.inboxItems},
-      ).get();
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot get stats without authenticated user');
+        return {};
+      }
 
+      // Get all items for current user
+      final response = await _client
+          .from(_tableName)
+          .select('source_type')
+          .eq('user_id', userId); // Security: enforce user isolation
+
+      // Count by source type
       final stats = <String, int>{};
-      for (final row in results) {
-        stats[row.read<String>('source_type')] = row.read<int>('count');
+      for (final item in response as List) {
+        final sourceType = item['source_type'] as String;
+        stats[sourceType] = (stats[sourceType] ?? 0) + 1;
       }
 
       return stats;
-    } catch (e, stack) {
-      _logger.error('Failed to get inbox stats by source type', error: e, stackTrace: stack);
-      return {};
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to get stats by source type',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _captureRepositoryException(
+        method: 'getStatsBySourceType',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return const <String, int>{};
     }
   }
 
   @override
   Future<void> cleanupOldItems({required int daysToKeep}) async {
     try {
-      final cutoff = DateTime.now().subtract(Duration(days: daysToKeep));
-      final rows = await (_db.delete<$InboxItemsTable, InboxItem>(_db.inboxItems)
-        ..where((i) => i.createdAt.isSmallerThanValue(cutoff)))
-        .go();
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning('Cannot cleanup old items without authenticated user');
+        return;
+      }
 
-      _logger.info('Cleaned up $rows old inbox items');
-    } catch (e, stack) {
-      _logger.error('Failed to cleanup old inbox items', error: e, stackTrace: stack);
+      final cutoffDate = DateTime.now().subtract(Duration(days: daysToKeep));
+
+      await _client
+          .from(_tableName)
+          .delete()
+          .eq('user_id', userId) // Security: enforce user isolation
+          .lt('created_at', cutoffDate.toIso8601String());
+
+      _logger.info('Cleaned up old inbox items', data: {'daysToKeep': daysToKeep});
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to cleanup old items',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'daysToKeep': daysToKeep},
+      );
+      _captureRepositoryException(
+        method: 'cleanupOldItems',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'daysToKeep': daysToKeep},
+      );
+      rethrow;
     }
   }
 }
