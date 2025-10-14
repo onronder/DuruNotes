@@ -1,10 +1,17 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateListProvider, templateCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Template picker sheet for selecting templates
 class TemplatePickerSheet extends ConsumerStatefulWidget {
@@ -13,7 +20,7 @@ class TemplatePickerSheet extends ConsumerStatefulWidget {
     required this.onTemplateSelected,
   });
 
-  final Function(String?) onTemplateSelected;
+  final void Function(String?) onTemplateSelected;
 
   @override
   ConsumerState<TemplatePickerSheet> createState() =>
@@ -21,6 +28,9 @@ class TemplatePickerSheet extends ConsumerStatefulWidget {
 }
 
 class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
+  AppLogger get _logger => ref.read(loggerProvider);
+  bool _loggedError = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -93,6 +103,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
               Expanded(
                 child: templatesAsync.when(
                   data: (templates) {
+                    _loggedError = false;
                     return ListView(
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -186,34 +197,60 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  error: (error, stack) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.error_outline_rounded,
-                            size: 48,
-                            color: colorScheme.error,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load templates',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            error.toString(),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                  error: (error, stackTrace) {
+                    if (!_loggedError) {
+                      _loggedError = true;
+                      _logger.error(
+                        'Failed to load templates for picker',
+                        error: error,
+                        stackTrace: stackTrace,
+                      );
+                      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Unable to load templates. Please try again.'),
+                              backgroundColor: colorScheme.error,
+                              action: SnackBarAction(
+                                label: 'Retry',
+                                onPressed: () =>
+                                    ref.invalidate(templateListProvider),
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                          );
+                        }
+                      });
+                    }
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.error_outline_rounded,
+                              size: 48,
+                              color: colorScheme.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Failed to load templates',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Please check your connection and try again.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -340,19 +377,9 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
     );
   }
 
-  String _getPreviewSnippet(String body) {
-    // Remove markdown formatting for preview
-    final cleanBody = body
-        .replaceAll(RegExp(r'[#*_`\[\]()!]'), '')
-        .replaceAll(RegExp(r'\n+'), ' ')
-        .trim();
-
-    // Return first 100 characters
-    if (cleanBody.length <= 100) {
-      return cleanBody;
-    }
-    return '${cleanBody.substring(0, 100)}...';
-  }
+  // Method _getPreviewSnippet removed - unused
+  // Template previews now use the description field directly in _buildTemplateOption (line 300)
+  // instead of generating a preview from the body content
 
   void _showTemplateOptions(
       BuildContext context, LocalTemplate template, bool isDefault) {
@@ -493,11 +520,12 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
 
   Future<void> _deleteTemplate(
       BuildContext context, LocalTemplate template) async {
-    final templateRepository = ref.read(templateRepositoryProvider);
+    final templateRepository = ref.read(templateCoreRepositoryProvider);
     final l10n = AppLocalizations.of(context);
+    final logger = ref.read(loggerProvider);
 
     try {
-      await templateRepository.deleteUserTemplate(template.id);
+      await templateRepository.deleteTemplate(template.id);
 
       if (!context.mounted) return;
 
@@ -510,14 +538,30 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (e) {
+      logger.info(
+        'Template deleted from picker',
+        data: {'templateId': template.id, 'isSystem': template.isSystem},
+      );
+    } catch (error) {
       if (!context.mounted) return;
 
+      logger.error(
+        'Failed to delete template from picker',
+        error: error,
+        stackTrace: StackTrace.current,
+        data: {'templateId': template.id},
+      );
+      unawaited(Sentry.captureException(error));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.errorDeletingNote),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: l10n.retry,
+            onPressed: () =>
+                unawaited(_deleteTemplate(context, template)),
+          ),
         ),
       );
     }
@@ -527,7 +571,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
 /// Show the template picker modal sheet
 Future<void> showTemplatePickerSheet({
   required BuildContext context,
-  required Function(String?) onTemplateSelected,
+  required void Function(String?) onTemplateSelected,
 }) async {
   await showModalBottomSheet<void>(
     context: context,

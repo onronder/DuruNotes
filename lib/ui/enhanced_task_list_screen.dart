@@ -1,5 +1,19 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/data/local/app_db.dart' show NoteTask, TaskStatus, TaskPriority;
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show unifiedTaskServiceProvider;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/security_providers.dart' show cryptoBoxProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
@@ -10,7 +24,7 @@ import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Task view modes
 enum TaskViewMode { grouped, list }
@@ -30,6 +44,8 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
   TaskViewMode _viewMode = TaskViewMode.grouped;
   bool _showCompleted = false;
 
+  AppLogger get _logger => ref.read(loggerProvider);
+
   @override
   void initState() {
     super.initState();
@@ -44,10 +60,24 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
 
   Widget _buildStatsHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final taskService = ref.watch(unifiedTaskServiceProvider);
+    final taskRepo = ref.watch(taskCoreRepositoryProvider);
 
-    return FutureBuilder<List<NoteTask>>(
-      future: taskService.getTasksForNote('standalone'),
+    // Handle nullable repository
+    if (taskRepo == null) {
+      return Container(
+        height: 120,
+        margin: EdgeInsets.all(DuruSpacing.md),
+        child: Center(
+          child: Text(
+            'Sign in to view task statistics',
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+
+    return FutureBuilder<List<domain.Task>>(
+      future: taskRepo.getAllTasks(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Container(
@@ -59,7 +89,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
 
         final tasks = snapshot.data!;
         final overdueTasks = tasks.where((t) =>
-            t.status != TaskStatus.completed &&
+            t.status != domain.TaskStatus.completed &&
             t.dueDate != null &&
             t.dueDate!.isBefore(DateTime.now())).length;
         final todayTasks = tasks.where((t) {
@@ -70,9 +100,9 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
               t.dueDate!.day == today.day;
         }).length;
         final completedTasks = tasks.where((t) =>
-            t.status == TaskStatus.completed).length;
+            t.status == domain.TaskStatus.completed).length;
         final pendingTasks = tasks.where((t) =>
-            t.status != TaskStatus.completed).length;
+            t.status != domain.TaskStatus.completed).length;
 
         return Container(
           margin: EdgeInsets.all(DuruSpacing.md),
@@ -283,7 +313,8 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
     try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
+      // Note: taskService not needed as we're using taskRepo directly
+      // final taskService = ref.read(unifiedTaskServiceProvider);
 
       // USE USER'S INPUT instead of hardcoded "New Task"
       final taskContent = metadata.taskContent.trim();
@@ -301,28 +332,46 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         return;
       }
 
-      // Create task with user's content
-      final task = await taskService.createTask(
-        noteId: 'standalone', // Special identifier for standalone tasks
-        content: taskContent, // USE ACTUAL USER INPUT
+      // Create task using repository
+      final taskRepo = ref.read(taskCoreRepositoryProvider);
+
+      // Handle nullable repository
+      if (taskRepo == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Task creation requires authentication')),
+          );
+        }
+        return;
+      }
+
+      final now = DateTime.now();
+      final newTask = domain.Task(
+        id: '',
+        noteId: 'standalone',
+        title: taskContent,
+        description: metadata.notes,
+        status: domain.TaskStatus.pending,
         priority: metadata.priority,
         dueDate: metadata.dueDate,
-        labels: metadata.labels,
-        notes: metadata.notes,
-        estimatedMinutes: metadata.estimatedMinutes,
-        createReminder: metadata.hasReminder && metadata.dueDate != null,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        tags: metadata.labels,
+        metadata: {
+          if (metadata.estimatedMinutes != null)
+            'estimatedMinutes': metadata.estimatedMinutes,
+        },
       );
+      final createdTask = await taskRepo.createTask(newTask);
 
-      // Handle custom reminder time if specified
+      // TODO: Handle custom reminder time
+      // Reminder functionality will be updated when TaskReminderBridge supports domain.Task
       if (metadata.hasReminder &&
           metadata.reminderTime != null &&
           metadata.dueDate != null &&
           metadata.reminderTime != metadata.dueDate) {
-        final duration = metadata.dueDate!.difference(metadata.reminderTime!);
-        await ref.read(taskReminderBridgeProvider).createTaskReminder(
-              task: task,
-              beforeDueDate: duration.abs(),
-            );
+        debugPrint('TODO: Create reminder for task ${createdTask.id}');
       }
 
       if (mounted) {
@@ -339,10 +388,29 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           ),
         );
       }
-    } on Exception catch (e) {
+      _logger.info(
+        'Created standalone task',
+        data: {'taskContent': taskContent, 'hasDueDate': metadata.dueDate != null},
+      );
+    } on Exception catch (e, stackTrace) {
+      _logger.error(
+        'Failed to create standalone task',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'taskContent': metadata.taskContent},
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating task: $e')),
+          SnackBar(
+            content: const Text('Failed to create task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_createStandaloneTask(metadata)),
+            ),
+          ),
         );
       }
     }
@@ -360,12 +428,16 @@ class EnhancedTaskListView extends ConsumerWidget {
   final TaskViewMode viewMode;
   final bool showCompleted;
 
+  // Removed _toDomainTask helper - now using domain.Task directly from repository
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(unifiedTaskServiceProvider);
+    // Note: taskService not needed as we're using taskRepo stream directly
+    // final taskService = ref.watch(unifiedTaskServiceProvider);
+    final taskRepo = ref.watch(taskCoreRepositoryProvider);
 
-    return StreamBuilder<List<NoteTask>>(
-      stream: taskService.watchOpenTasks(),
+    return StreamBuilder<List<domain.Task>>(
+      stream: taskRepo?.watchAllTasks() ?? Stream.value([]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -381,7 +453,7 @@ class EnhancedTaskListView extends ConsumerWidget {
                 Text('Error: ${snapshot.error}'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.refresh(taskServiceProvider),
+                  onPressed: () => ref.refresh(taskCoreRepositoryProvider),
                   child: const Text('Retry'),
                 ),
               ],
@@ -393,7 +465,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
         // Filter completed tasks if needed
         if (!showCompleted) {
-          tasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
+          tasks = tasks.where((t) => t.status != domain.TaskStatus.completed).toList();
         }
 
         if (tasks.isEmpty) {
@@ -414,7 +486,7 @@ class EnhancedTaskListView extends ConsumerWidget {
   }
 
   Widget _buildGroupedView(
-      BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
+      BuildContext context, WidgetRef ref, List<domain.Task> tasks) {
     final groupedTasks = _groupTasksByDueDate(tasks);
     final groups =
         groupedTasks.entries.where((entry) => entry.value.isNotEmpty).toList();
@@ -453,7 +525,7 @@ class EnhancedTaskListView extends ConsumerWidget {
   }
 
   Widget _buildListView(
-      BuildContext context, WidgetRef ref, List<NoteTask> tasks) {
+      BuildContext context, WidgetRef ref, List<domain.Task> tasks) {
     // Sort tasks by due date and priority
     final sortedTasks = _sortTasks(tasks);
 
@@ -470,13 +542,13 @@ class EnhancedTaskListView extends ConsumerWidget {
     );
   }
 
-  Map<String, List<NoteTask>> _groupTasksByDueDate(List<NoteTask> tasks) {
+  Map<String, List<domain.Task>> _groupTasksByDueDate(List<domain.Task> tasks) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
     final thisWeek = today.add(const Duration(days: 7));
 
-    final groups = <String, List<NoteTask>>{
+    final groups = <String, List<domain.Task>>{
       'Overdue': [],
       'Today': [],
       'Tomorrow': [],
@@ -525,8 +597,8 @@ class EnhancedTaskListView extends ConsumerWidget {
     return groups;
   }
 
-  List<NoteTask> _sortTasks(List<NoteTask> tasks) {
-    final sortedTasks = List<NoteTask>.from(tasks);
+  List<domain.Task> _sortTasks(List<domain.Task> tasks) {
+    final sortedTasks = List<domain.Task>.from(tasks);
     sortedTasks.sort((a, b) {
       // First by completion status (incomplete first)
       final statusCompare = a.status.index.compareTo(b.status.index);
@@ -558,171 +630,10 @@ class EnhancedTaskListView extends ConsumerWidget {
         date1.day == date2.day;
   }
 
-  Future<void> _toggleTask(WidgetRef ref, NoteTask task) async {
-    try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
-      await taskService.toggleTaskStatus(task.id);
-    } catch (e) {
-      debugPrint('Error toggling task: $e');
-    }
-  }
-
-  Future<void> _editTask(
-      BuildContext context, WidgetRef ref, NoteTask task) async {
-    final result = await showDialog<TaskMetadata>(
-      context: context,
-      builder: (context) => TaskMetadataDialog(
-        task: task,
-        taskContent: task.content,
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
-      ),
-    );
-
-    if (result != null) {
-      await _updateTask(ref, task, result);
-    }
-  }
-
-  Future<void> _updateTask(
-      WidgetRef ref, NoteTask task, TaskMetadata metadata) async {
-    try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
-      await taskService.updateTask(
-        taskId: task.id,
-        priority: metadata.priority,
-        dueDate: metadata.dueDate,
-        labels: metadata.labels,
-        notes: metadata.notes,
-        estimatedMinutes: metadata.estimatedMinutes,
-      );
-    } catch (e) {
-      debugPrint('Error updating task: $e');
-    }
-  }
-
-  Future<void> _deleteTask(WidgetRef ref, NoteTask task) async {
-    try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
-      await taskService.deleteTask(task.id);
-    } catch (e) {
-      debugPrint('Error deleting task: $e');
-    }
-  }
-
-  Future<void> _openSourceNote(
-      BuildContext context, WidgetRef ref, NoteTask task) async {
-    if (task.noteId == 'standalone') return;
-
-    try {
-      final notesRepo = ref.read(notesRepositoryProvider);
-      final note = await notesRepo.getNote(task.noteId);
-
-      if (note != null && context.mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (context) => ModernEditNoteScreen(
-              noteId: note.id,
-              initialTitle: note.title,
-              initialBody: note.body,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error opening source note: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open source note')),
-        );
-      }
-    }
-  }
-
-  Future<void> _snoozeTask(
-      BuildContext context, WidgetRef ref, NoteTask task) async {
-    final newDueDate = await showDatePicker(
-      context: context,
-      initialDate: task.dueDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (newDueDate != null) {
-      final newTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(
-          task.dueDate ?? DateTime.now().add(const Duration(hours: 1)),
-        ),
-      );
-
-      if (newTime != null) {
-        final snoozeDateTime = DateTime(
-          newDueDate.year,
-          newDueDate.month,
-          newDueDate.day,
-          newTime.hour,
-          newTime.minute,
-        );
-
-        try {
-          final taskService = ref.read(unifiedTaskServiceProvider);
-          await taskService.updateTask(
-            taskId: task.id,
-            dueDate: snoozeDateTime,
-          );
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Task snoozed until ${DateFormat.yMd().add_jm().format(snoozeDateTime)}',
-                ),
-              ),
-            );
-          }
-        } catch (e) {
-          debugPrint('Error snoozing task: $e');
-        }
-      }
-    }
-  }
-
-  void _showCreateTaskDialog(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<TaskMetadata>(
-      context: context,
-      builder: (context) => TaskMetadataDialog(
-        taskContent: 'New Task',
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
-      ),
-    );
-
-    if (result != null) {
-      try {
-        final taskService = ref.read(unifiedTaskServiceProvider);
-        await taskService.createTask(
-          noteId: 'standalone',
-          content: 'New Task',
-          priority: result.priority,
-          dueDate: result.dueDate,
-          labels: result.labels,
-          notes: result.notes,
-          estimatedMinutes: result.estimatedMinutes,
-        );
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task created successfully')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating task: $e')),
-          );
-        }
-      }
-    }
-  }
+  // Legacy callback methods removed - replaced by:
+  // - TaskItemWidget using UnifiedTaskCallbacks directly
+  // - _TaskCalendarViewState methods for calendar view callbacks
+  // (_toggleTask, _editTask, _updateTask, _deleteTask, _openSourceNote, _snoozeTask, _showCreateTaskDialog)
 }
 
 /// Advanced calendar view with task visualization
@@ -740,6 +651,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   Map<DateTime, List<NoteTask>> _tasksByDate = {};
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -782,7 +695,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         lastDay.add(const Duration(days: 1)),
       );
 
-      // Group tasks by date
+      // Group tasks by date (using NoteTask for now until full migration)
       final tasksByDate = <DateTime, List<NoteTask>>{};
       for (final task in tasks) {
         if (task.dueDate != null) {
@@ -800,8 +713,17 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
           _tasksByDate = tasksByDate;
         });
       }
-    } catch (e) {
-      debugPrint('Error loading tasks for month: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to load tasks for calendar month',
+        error: e,
+        stackTrace: stackTrace,
+        data: {
+          'month': _currentMonth.month,
+          'year': _currentMonth.year,
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
     }
   }
 
@@ -852,7 +774,26 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     }
   }
 
-  void _showTaskSheet(DateTime date, List<NoteTask> tasks) {
+  void _showTaskSheet(DateTime date, List<NoteTask> tasks) async {
+    // Convert NoteTask to domain.Task with decryption
+    final List<domain.Task> domainTasks = [];
+    final decryptHelper = TaskDecryptionHelper(ref.read(cryptoBoxProvider));
+
+    for (final task in tasks) {
+      final content = await decryptHelper.decryptContent(task, task.noteId);
+      final notes = await decryptHelper.decryptNotes(task, task.noteId);
+      final labels = await decryptHelper.decryptLabels(task, task.noteId);
+
+      domainTasks.add(TaskMapper.toDomain(
+        task,
+        content: content,
+        notes: notes,
+        labels: labels,
+      ));
+    }
+
+    if (!mounted) return;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -864,32 +805,60 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         ),
         child: CalendarTaskSheet(
           selectedDate: date,
-          tasks: tasks,
-          onTaskToggle: (task) => _toggleTask(task),
-          onTaskEdit: (task) => _editTask(task),
-          onTaskDelete: (task) => _deleteTask(task),
-          onOpenNote: (task) => _openSourceNote(task),
+          tasks: domainTasks,
+          onTaskToggle: (domainTask) {
+            _toggleTask(domainTask);
+          },
+          onTaskEdit: (domainTask) {
+            _editTask(domainTask);
+          },
+          onTaskDelete: (domainTask) {
+            _deleteTask(domainTask);
+          },
+          onOpenNote: (domainTask) {
+            _openSourceNote(domainTask);
+          },
         ),
       ),
     );
   }
 
-  Future<void> _toggleTask(NoteTask task) async {
+  Future<void> _toggleTask(domain.Task task) async {
     try {
       final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.toggleTaskStatus(task.id);
       await _loadTasksForMonth(); // Refresh calendar
-    } catch (e) {
-      debugPrint('Error toggling task: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to toggle task status in calendar',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id, 'title': task.title},
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to toggle task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_toggleTask(task)),
+            ),
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _editTask(NoteTask task) async {
+  Future<void> _editTask(domain.Task task) async {
+    // Task is already domain.Task with decrypted content
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
         task: task,
-        taskContent: task.content,
+        taskContent: task.title, // Use decrypted title from domain.Task
         onSave: (metadata) => Navigator.of(context).pop(metadata),
       ),
     );
@@ -899,36 +868,74 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         final taskService = ref.read(unifiedTaskServiceProvider);
         await taskService.updateTask(
           taskId: task.id,
-          content: task.content, // Keep existing content
-          priority: result.priority,
+          content: task.title, // Use decrypted title from domain.Task
+          priority: TaskMapper.mapPriorityToDb(result.priority),
           dueDate: result.dueDate,
           labels: result.labels,
           notes: result.notes,
           estimatedMinutes: result.estimatedMinutes,
         );
         await _loadTasksForMonth(); // Refresh calendar
-      } catch (e) {
-        debugPrint('Error updating task: $e');
+      } catch (e, stackTrace) {
+        _logger.error(
+          'Failed to update task in calendar',
+          error: e,
+          stackTrace: stackTrace,
+          data: {'taskId': task.id, 'title': task.title},
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to update task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_editTask(task)),
+              ),
+            ),
+          );
+        }
       }
     }
   }
 
-  Future<void> _deleteTask(NoteTask task) async {
+  Future<void> _deleteTask(domain.Task task) async {
     try {
       final taskService = ref.read(unifiedTaskServiceProvider);
       await taskService.deleteTask(task.id);
       await _loadTasksForMonth(); // Refresh calendar
-    } catch (e) {
-      debugPrint('Error deleting task: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to delete task in calendar',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id, 'title': task.title},
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to delete task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_deleteTask(task)),
+            ),
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _openSourceNote(NoteTask task) async {
+  Future<void> _openSourceNote(domain.Task task) async {
     if (task.noteId == 'standalone') return;
 
     try {
-      final notesRepo = ref.read(notesRepositoryProvider);
-      final note = await notesRepo.getNote(task.noteId);
+      final notesRepo = ref.read(notesCoreRepositoryProvider);
+      final note = await notesRepo.getNoteById(task.noteId);
 
       if (note != null && mounted) {
         Navigator.of(context).push(
@@ -941,11 +948,25 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Error opening source note: $e');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to open source note from calendar',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id, 'noteId': task.noteId},
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open source note')),
+          SnackBar(
+            content: const Text('Failed to open note. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_openSourceNote(task)),
+            ),
+          ),
         );
       }
     }
@@ -1005,18 +1026,20 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     final colorScheme = theme.colorScheme;
 
     // Calculate stats for current month
-    final allTasks = _tasksByDate.values.expand((tasks) => tasks).toList();
+    final List<NoteTask> allTasks = _tasksByDate.values.expand((tasks) => tasks).toList();
     final totalTasks = allTasks.length;
+    // NoteTask uses database TaskStatus enum
     final completedTasks =
-        allTasks.where((t) => t.status == TaskStatus.completed).length;
+        allTasks.where((NoteTask t) => t.status == TaskStatus.completed).length;
     final overdueTasks = allTasks
-        .where((t) =>
+        .where((NoteTask t) =>
             t.dueDate != null &&
             t.dueDate!.isBefore(DateTime.now()) &&
             t.status != TaskStatus.completed)
         .length;
+    // NoteTask uses database TaskPriority enum
     final highPriorityTasks = allTasks
-        .where((t) =>
+        .where((NoteTask t) =>
             t.priority == TaskPriority.high ||
             t.priority == TaskPriority.urgent)
         .length;

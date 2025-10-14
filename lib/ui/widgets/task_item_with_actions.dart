@@ -1,10 +1,19 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show unifiedTaskServiceProvider, taskReminderBridgeProvider;
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_time_tracker_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Enhanced task item widget with actions and time tracking
 /// Uses UnifiedTaskService for all operations - no VoidCallback usage
@@ -12,9 +21,15 @@ class TaskItemWithActions extends ConsumerStatefulWidget {
   const TaskItemWithActions({
     super.key,
     required this.task,
+    required this.content,
+    this.notes,
+    this.labels,
   });
 
   final NoteTask task;
+  final String content;  // Decrypted content
+  final String? notes;   // Decrypted notes
+  final String? labels;  // Decrypted labels
 
   @override
   ConsumerState<TaskItemWithActions> createState() =>
@@ -23,6 +38,8 @@ class TaskItemWithActions extends ConsumerStatefulWidget {
 
 class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
   bool _isExpanded = false;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   Future<void> _toggleTaskStatus() async {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
@@ -34,82 +51,107 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
   }
 
   Future<void> _editTask() async {
+    // Convert NoteTask to domain.Task for the dialog
+    final domainTask = TaskMapper.toDomain(
+      widget.task,
+      content: widget.content,
+      notes: widget.notes,
+      labels: widget.labels,
+    );
+
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
-        task: widget.task,
-        taskContent: widget.task.content,
+        task: domainTask,
+        taskContent: widget.content,
         onSave: (metadata) => Navigator.of(context).pop(metadata),
       ),
     );
 
     if (result != null) {
-      try {
-        final unifiedService = ref.read(unifiedTaskServiceProvider);
-        final appDb = ref.read(appDbProvider);
+      await _applyTaskUpdates(result);
+    }
+  }
 
-        // Update task priority
-        if (result.priority != widget.task.priority) {
-          await unifiedService.onPriorityChanged(
-              widget.task.id, result.priority);
-        }
+  Future<void> _applyTaskUpdates(TaskMetadata metadata) async {
+    try {
+      final unifiedService = ref.read(unifiedTaskServiceProvider);
 
-        // Update due date
-        if (result.dueDate != widget.task.dueDate) {
-          await unifiedService.onDueDateChanged(widget.task.id, result.dueDate);
-        }
+      // Update task priority (convert domain to database priority)
+      final dbPriority = TaskMapper.mapPriorityToDb(metadata.priority);
+      if (dbPriority != widget.task.priority) {
+        await unifiedService.onPriorityChanged(widget.task.id, dbPriority);
+      }
 
-        // Update other fields through the service
-        await unifiedService.updateTask(
-          taskId: widget.task.id,
-          content: widget.task.content,
-          priority: result.priority,
-          dueDate: result.dueDate,
-          estimatedMinutes: result.estimatedMinutes,
-          labels: result.labels,
-          notes: result.notes,
-        );
+      // Update due date
+      if (metadata.dueDate != widget.task.dueDate) {
+        await unifiedService.onDueDateChanged(widget.task.id, metadata.dueDate);
+      }
 
-        // Handle reminder changes
-        if (result.hasReminder &&
-            result.reminderTime != null &&
-            result.dueDate != null) {
-          final reminderBridge = ref.read(taskReminderBridgeProvider);
+      // Update other fields through the service
+      await unifiedService.updateTask(
+        taskId: widget.task.id,
+        content: widget.content,
+        priority: dbPriority,
+        dueDate: metadata.dueDate,
+        estimatedMinutes: metadata.estimatedMinutes,
+        labels: metadata.labels,
+        notes: metadata.notes,
+      );
 
-          if (widget.task.reminderId == null) {
-            // Create new reminder
-            final updatedTask = await appDb.getTaskById(widget.task.id);
-            if (updatedTask != null) {
-              final duration = result.dueDate!.difference(result.reminderTime!);
-              await reminderBridge.createTaskReminder(
-                task: updatedTask,
-                beforeDueDate: duration.abs(),
-              );
-            }
-          } else {
-            // Update existing reminder
-            final updatedTask = await appDb.getTaskById(widget.task.id);
-            if (updatedTask != null) {
-              await reminderBridge.updateTaskReminder(updatedTask);
-            }
+      // Handle reminder changes
+      if (metadata.hasReminder &&
+          metadata.reminderTime != null &&
+          metadata.dueDate != null) {
+        final reminderBridge = ref.read(taskReminderBridgeProvider);
+
+        if (widget.task.reminderId == null) {
+          // Create new reminder
+          final updatedTask = await unifiedService.getTask(widget.task.id);
+          if (updatedTask != null) {
+            final duration = metadata.dueDate!.difference(metadata.reminderTime!);
+            await reminderBridge.createTaskReminder(
+              task: updatedTask,
+              beforeDueDate: duration.abs(),
+            );
           }
-        } else if (!result.hasReminder && widget.task.reminderId != null) {
-          // Cancel existing reminder
-          final reminderBridge = ref.read(taskReminderBridgeProvider);
-          await reminderBridge.cancelTaskReminder(widget.task);
+        } else {
+          // Update existing reminder
+          final updatedTask = await unifiedService.getTask(widget.task.id);
+          if (updatedTask != null) {
+            await reminderBridge.updateTaskReminder(updatedTask);
+          }
         }
+      } else if (!metadata.hasReminder && widget.task.reminderId != null) {
+        // Cancel existing reminder
+        final reminderBridge = ref.read(taskReminderBridgeProvider);
+        await reminderBridge.cancelTaskReminder(widget.task);
+      }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task updated')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error updating task: $e')),
-          );
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task updated')),
+        );
+      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to update task',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': widget.task.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not update task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_applyTaskUpdates(metadata)),
+            ),
+          ),
+        );
       }
     }
   }
@@ -146,10 +188,20 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
             const SnackBar(content: Text('Task deleted')),
           );
         }
-      } catch (e) {
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to delete task',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'taskId': widget.task.id},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting task: $e')),
+            SnackBar(
+              content: const Text('Could not delete task. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
           );
         }
       }
@@ -161,7 +213,6 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final task = widget.task;
-    final unifiedService = ref.watch(unifiedTaskServiceProvider);
 
     final isCompleted = task.status == TaskStatus.completed;
     final isOverdue = task.dueDate != null &&
@@ -198,7 +249,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
               activeColor: colorScheme.primary,
             ),
             title: Text(
-              task.content,
+              widget.content,
               style: theme.textTheme.bodyLarge?.copyWith(
                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                 color: isCompleted
@@ -209,11 +260,11 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (task.notes?.isNotEmpty == true)
+                if (widget.notes?.isNotEmpty == true)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      task.notes!,
+                      widget.notes!,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -322,8 +373,8 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
                     CompactTimeTracker(task: task),
 
                     // Labels
-                    if (task.labels?.isNotEmpty == true)
-                      ...task.labels!.split(',').map(
+                    if (widget.labels?.isNotEmpty == true)
+                      ...widget.labels!.split(',').map(
                             (label) => Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -332,7 +383,7 @@ class _TaskItemWithActionsState extends ConsumerState<TaskItemWithActions> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                label.trim(),
+                                label.trim().toString(),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: colorScheme.onSecondaryContainer,
                                 ),

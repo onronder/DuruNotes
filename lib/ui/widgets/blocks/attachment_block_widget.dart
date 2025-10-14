@@ -1,6 +1,12 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/ui/widgets/attachment_image.dart';
 import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+final AppLogger _logger = LoggerFactory.instance;
 
 /// Widget for rendering and editing attachment blocks.
 ///
@@ -323,12 +329,28 @@ class AttachmentBlockWidget extends StatelessWidget {
       //   final updatedBlock = block.copyWith(data: newAttachment);
       //   onChanged(updatedBlock);
       // }
-    } catch (e) {
+    } catch (error, stackTrace) {
       // Dismiss loading dialog
       if (context.mounted) {
         Navigator.of(context).pop();
+        _logger.error(
+          'Attachment replacement failed (placeholder path)',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'filename': _attachmentData['filename']},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to replace attachment: $e')),
+          SnackBar(
+            content: const Text(
+              'Could not replace the attachment. Please try again.',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_replaceAttachment(context)),
+            ),
+          ),
         );
       }
     }

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Remote API for folder synchronization
@@ -24,6 +27,25 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
 
   static const String _tableName = 'folders';
 
+  void _captureRemoteException({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('service', 'FolderRemoteApi');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
+
   @override
   Future<List<Map<String, dynamic>>> fetchFolders() async {
     try {
@@ -33,8 +55,13 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .order('updated_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response as List);
-    } catch (e, stack) {
-      logger.error('Failed to fetch folders', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      logger.error('Failed to fetch folders', error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'fetchFolders',
+        error: error,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -49,8 +76,14 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .maybeSingle();
 
       return response;
-    } catch (e, stack) {
-      logger.error('Failed to fetch folder', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      logger.error('Failed to fetch folder', error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'fetchFolder',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+      );
       rethrow;
     }
   }
@@ -71,8 +104,14 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
         'updated_at': folder.updatedAt.toIso8601String(),
         'deleted': folder.deleted,
       });
-    } catch (e, stack) {
-      logger.error('Failed to upsert folder', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      logger.error('Failed to upsert folder', error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'upsertFolder',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folder.id},
+      );
       rethrow;
     }
   }
@@ -82,8 +121,14 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
     try {
       // Hard delete
       await client.from(_tableName).delete().eq('id', folderId);
-    } catch (e, stack) {
-      logger.error('Failed to delete folder', error: e, stackTrace: stack);
+    } catch (error, stack) {
+      logger.error('Failed to delete folder', error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'deleteFolder',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+      );
       rethrow;
     }
   }
@@ -96,9 +141,15 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
         'deleted': true,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', folderId);
-    } catch (e, stack) {
+    } catch (error, stack) {
       logger.error('Failed to mark folder as deleted',
-          error: e, stackTrace: stack);
+          error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'markFolderDeleted',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+      );
       rethrow;
     }
   }
@@ -123,9 +174,15 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
           .toList();
 
       await client.from(_tableName).upsert(data);
-    } catch (e, stack) {
+    } catch (error, stack) {
       logger.error('Failed to batch upsert folders',
-          error: e, stackTrace: stack);
+          error: error, stackTrace: stack);
+      _captureRemoteException(
+        operation: 'batchUpsertFolders',
+        error: error,
+        stackTrace: stack,
+        data: {'count': folders.length},
+      );
       rethrow;
     }
   }

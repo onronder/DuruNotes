@@ -1,10 +1,24 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show unifiedTaskServiceProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show cryptoBoxProvider;
 import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// TreeView-like widget for displaying hierarchical tasks using UnifiedTaskService
 /// No VoidCallback usage - all actions go through the unified service
@@ -99,6 +113,7 @@ class TaskTreeNodeWidget extends ConsumerWidget {
     final isCompleted = task.status == TaskStatus.completed;
     final hasChildren = node.children.isNotEmpty;
     final unifiedService = ref.watch(unifiedTaskServiceProvider);
+    final logger = ref.read(loggerProvider);
 
     // Calculate progress if this is a parent task
     TaskProgress? progress;
@@ -150,10 +165,40 @@ class TaskTreeNodeWidget extends ConsumerWidget {
                     GestureDetector(
                       onTap: () async {
                         HapticFeedback.lightImpact();
-                        await unifiedService.onStatusChanged(
-                          task.id,
-                          isCompleted ? TaskStatus.open : TaskStatus.completed,
-                        );
+                        try {
+                          await unifiedService.onStatusChanged(
+                            task.id,
+                            isCompleted ? TaskStatus.open : TaskStatus.completed,
+                          );
+                          logger.debug(
+                            'Toggled task status in tree',
+                            data: {
+                              'taskId': task.id,
+                              'isCompleted': !isCompleted,
+                            },
+                          );
+                        } catch (error, stackTrace) {
+                          logger.error(
+                            'Failed to toggle task status in tree',
+                            error: error,
+                            stackTrace: stackTrace,
+                            data: {'taskId': task.id},
+                          );
+                          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Could not update task status. Retry?'),
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              action: SnackBarAction(
+                                label: 'Retry',
+                                onPressed: () => unawaited(unifiedService.onStatusChanged(
+                                  task.id,
+                                  isCompleted ? TaskStatus.open : TaskStatus.completed,
+                                )),
+                              ),
+                            ),
+                          );
+                        }
                       },
                       child: Container(
                         width: 22,
@@ -182,50 +227,69 @@ class TaskTreeNodeWidget extends ConsumerWidget {
 
                     const SizedBox(width: 12),
 
-                    // Task content
+                    // Task content - decrypt and convert to domain.Task
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Task title
-                          Text(
-                            task.content,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              decoration: isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                              color: isCompleted
-                                  ? colorScheme.onSurfaceVariant
-                                  : colorScheme.onSurface,
-                              fontWeight: hasChildren
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
+                      child: FutureBuilder<domain.Task>(
+                        future: _convertToDomainTask(ref, task),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                          logger.error(
+                              'Failed to convert task to domain for tree node',
+                              error: snapshot.error,
+                              stackTrace: snapshot.stackTrace,
+                              data: {'taskId': task.id},
+                            );
+                            unawaited(Sentry.captureException(
+                              snapshot.error ?? 'Task conversion error',
+                              stackTrace: snapshot.stackTrace,
+                            ));
+                          }
+                          final content = snapshot.data?.title ?? 'Loading...';
+                          final domainTask = snapshot.data;
 
-                          // Progress bar for parent tasks
-                          if (progress != null && hasChildren) ...[
-                            const SizedBox(height: 6),
-                            TaskProgressBar(
-                              progress: progress,
-                              compact: true,
-                            ),
-                          ],
-
-                          // Task indicators
-                          const SizedBox(height: 4),
-                          Row(
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: TaskIndicatorsWidget(
-                                  task: task,
-                                  compact: true,
+                              // Task title
+                              Text(
+                                content,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  decoration: isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                  color: isCompleted
+                                      ? colorScheme.onSurfaceVariant
+                                      : colorScheme.onSurface,
+                                  fontWeight: hasChildren
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                                 ),
                               ),
 
-                              // Children count indicator
-                              if (hasChildren)
-                                Container(
+                              // Progress bar for parent tasks
+                              if (progress != null && hasChildren) ...[
+                                const SizedBox(height: 6),
+                                TaskProgressBar(
+                                  progress: progress,
+                                  compact: true,
+                                ),
+                              ],
+
+                              // Task indicators
+                              if (domainTask != null) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TaskIndicatorsWidget(
+                                        task: domainTask,
+                                        compact: true,
+                                      ),
+                                    ),
+
+                                    // Children count indicator
+                                    if (hasChildren)
+                                      Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -279,9 +343,12 @@ class TaskTreeNodeWidget extends ConsumerWidget {
                                     ),
                                   ),
                                 ),
+                                  ],
+                                ),
+                              ],
                             ],
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
 
@@ -379,6 +446,42 @@ class TaskTreeNodeWidget extends ConsumerWidget {
     unifiedService.onEdit(node.task.id);
   }
 
+  /// Convert NoteTask to domain.Task with decryption
+  Future<domain.Task> _convertToDomainTask(WidgetRef ref, NoteTask task) async {
+    try {
+      final taskRepository = ref.read(taskCoreRepositoryProvider);
+      if (taskRepository != null) {
+        final domainTask = await taskRepository.getTaskById(task.id);
+        if (domainTask != null) {
+          return domainTask;
+        }
+      }
+
+      // Fallback: decrypt manually when repository access is unavailable
+      final decryptHelper = TaskDecryptionHelper(ref.read(cryptoBoxProvider));
+      final content = await decryptHelper.decryptContent(task, task.noteId);
+      final notes = await decryptHelper.decryptNotes(task, task.noteId);
+      final labels = await decryptHelper.decryptLabels(task, task.noteId);
+
+      return TaskMapper.toDomain(
+        task,
+        content: content,
+        notes: notes,
+        labels: labels,
+      );
+    } catch (error, stackTrace) {
+      final logger = ref.read(loggerProvider);
+      logger.error(
+        'Failed to convert tree node task to domain',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      rethrow;
+    }
+  }
+
   void _handleAction(BuildContext context, WidgetRef ref, String action) {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
 
@@ -402,6 +505,7 @@ class TaskTreeNodeWidget extends ConsumerWidget {
   }
 
   Future<void> _completeAllSubtasks(BuildContext context, WidgetRef ref) async {
+    final logger = ref.read(loggerProvider);
     try {
       final unifiedService = ref.read(unifiedTaskServiceProvider);
       await unifiedService.completeAllSubtasks(node.task.id);
@@ -411,10 +515,28 @@ class TaskTreeNodeWidget extends ConsumerWidget {
           const SnackBar(content: Text('All subtasks completed')),
         );
       }
-    } catch (e) {
+      logger.info(
+        'Completed all subtasks from task tree',
+        data: {'taskId': node.task.id},
+      );
+    } catch (error, stackTrace) {
+      logger.error(
+        'Failed to complete subtasks from task tree',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': node.task.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error completing subtasks: $e')),
+          SnackBar(
+            content: const Text('Unable to complete subtasks. Retry?'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_completeAllSubtasks(context, ref)),
+            ),
+          ),
         );
       }
     }
@@ -429,11 +551,15 @@ class TaskTreeNodeWidget extends ConsumerWidget {
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final unifiedService = ref.read(unifiedTaskServiceProvider);
 
+    // Decrypt content for dialog
+    final decryptHelper = TaskDecryptionHelper(ref.read(cryptoBoxProvider));
+    final content = await decryptHelper.decryptContent(node.task, node.task.noteId);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task'),
-        content: Text('Delete "${node.task.content}"?'),
+        content: Text('Delete "$content"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -456,12 +582,16 @@ class TaskTreeNodeWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref) async {
     final totalTasks = 1 + node.getAllDescendants().length;
 
+    // Decrypt content for dialog
+    final decryptHelper = TaskDecryptionHelper(ref.read(cryptoBoxProvider));
+    final content = await decryptHelper.decryptContent(node.task, node.task.noteId);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task Hierarchy'),
         content: Text(
-          'Delete "${node.task.content}" and all $totalTasks subtasks?\n\n'
+          'Delete "$content" and all $totalTasks subtasks?\n\n'
           'This action cannot be undone.',
         ),
         actions: [

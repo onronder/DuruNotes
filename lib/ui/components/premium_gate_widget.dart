@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Widget that gates premium features behind subscription
 class PremiumGateWidget extends ConsumerWidget {
@@ -15,6 +20,22 @@ class PremiumGateWidget extends ConsumerWidget {
   final String featureName;
   final String placementId;
   final Widget? fallbackWidget;
+
+  void _showErrorSnack(
+    BuildContext context,
+    String message, {
+    VoidCallback? onRetry,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(label: 'Retry', onPressed: onRetry)
+            : null,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -106,6 +127,7 @@ class PremiumGateWidget extends ConsumerWidget {
   Future<void> _showPaywall(BuildContext context, WidgetRef ref) async {
     try {
       final subscriptionService = ref.read(subscriptionServiceProvider);
+      final logger = ref.read(loggerProvider);
 
       final success = await subscriptionService.presentPaywall(
         placementId: placementId,
@@ -124,14 +146,30 @@ class PremiumGateWidget extends ConsumerWidget {
             ),
           );
         }
+        logger.info(
+          'Premium paywall completed successfully',
+          data: {'placementId': placementId, 'featureName': featureName},
+        );
+      } else {
+        logger.warning(
+          'Premium paywall dismissed or failed',
+          data: {'placementId': placementId, 'featureName': featureName},
+        );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      final logger = ref.read(loggerProvider);
+      logger.error(
+        'Failed to present premium paywall',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'placementId': placementId, 'featureName': featureName},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to load subscription options: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        _showErrorSnack(
+          context,
+          'Unable to load subscription options. Please try again.',
+          onRetry: () => unawaited(_showPaywall(context, ref)),
         );
       }
     }
@@ -140,6 +178,7 @@ class PremiumGateWidget extends ConsumerWidget {
   Future<void> _restorePurchases(BuildContext context, WidgetRef ref) async {
     try {
       final subscriptionService = ref.read(subscriptionServiceProvider);
+      final logger = ref.read(loggerProvider);
 
       final success = await subscriptionService.restorePurchases();
 
@@ -155,20 +194,35 @@ class PremiumGateWidget extends ConsumerWidget {
             ),
           );
         }
+        logger.info(
+          'Premium purchases restored',
+          data: {'featureName': featureName},
+        );
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No purchases found to restore')),
           );
         }
+        logger.warning(
+          'No purchases found during restore',
+          data: {'featureName': featureName},
+        );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      final logger = ref.read(loggerProvider);
+      logger.error(
+        'Failed to restore purchases',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'featureName': featureName},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to restore purchases: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        _showErrorSnack(
+          context,
+          'Failed to restore purchases. Please try again.',
+          onRetry: () => unawaited(_restorePurchases(context, ref)),
         );
       }
     }
@@ -187,7 +241,7 @@ class PremiumFeatureChecker extends ConsumerWidget {
     return premiumAccess.when(
       data: builder,
       loading: () => builder(false), // Default to free during loading
-      error: (_, __) => builder(false), // Default to free on error
+      error: (_, _) => builder(false), // Default to free on error
     );
   }
 }

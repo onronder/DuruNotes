@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:cryptography/cryptography.dart';
@@ -5,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Production-grade Encryption Service with actual AES-256-GCM encryption
 /// This implementation properly encrypts data at rest using industry-standard algorithms
@@ -15,6 +18,8 @@ class ProperEncryptionService {
 
   // Use AES-256-GCM for authenticated encryption
   final _algorithm = AesGcm.with256bits();
+
+  final AppLogger _logger = LoggerFactory.instance;
 
   // Secure storage for encryption keys
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
@@ -29,10 +34,31 @@ class ProperEncryptionService {
 
   // Key management
   SecretKey? _masterKey;
-  final Map<String, SecretKey> _keyCache = <String, dynamic>{};
+  final Map<String, SecretKey> _keyCache = {};
   String? _currentKeyId;
   DateTime? _lastKeyRotation;
   bool _initialized = false;
+
+  void _captureProperEncryptionException({
+    required String operation,
+    required Object error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'ProperEncryptionService');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
 
   // Configuration
   static const int _keyRotationDays = 90;
@@ -62,10 +88,17 @@ class ProperEncryptionService {
       if (kDebugMode) {
         debugPrint('✅ ProperEncryptionService initialized successfully');
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ Failed to initialize ProperEncryptionService: $e');
-      }
+    } catch (error, stack) {
+      _logger.error(
+        'Failed to initialize ProperEncryptionService',
+        error: error,
+        stackTrace: stack,
+      );
+      _captureProperEncryptionException(
+        operation: 'initialize',
+        error: error,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -118,16 +151,28 @@ class ProperEncryptionService {
       );
 
       return encryptedData;
-    } catch (e) {
+    } catch (error, stack) {
       // Log encryption failure
       await SecurityAuditTrail().logEncryption(
         dataType: data.runtimeType.toString(),
         dataSize: 0,
         keyId: keyId ?? 'unknown',
         success: false,
-        error: e.toString(),
+        error: error.toString(),
       );
-      throw EncryptionException('Encryption failed: ${e.toString()}');
+      _logger.error(
+        'Proper encryption failed',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': keyId ?? _currentKeyId, 'dataType': data.runtimeType.toString()},
+      );
+      _captureProperEncryptionException(
+        operation: 'encryptData',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': keyId ?? _currentKeyId},
+      );
+      throw EncryptionException('Encryption failed: ${error.toString()}');
     }
   }
 
@@ -173,17 +218,30 @@ class ProperEncryptionService {
       } catch (_) {
         return plaintext;
       }
-    } catch (e) {
+    } catch (error, stack) {
       // Log decryption failure
       await SecurityAuditTrail().logDecryption(
         dataType: 'encrypted_data',
         keyId: encryptedData.keyId,
         success: false,
-        error: e.toString(),
+        error: error.toString(),
       );
 
-      if (e is EncryptionException) rethrow;
-      throw EncryptionException('Decryption failed: ${e.toString()}');
+      _logger.error(
+        'Proper decryption failed',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': encryptedData.keyId},
+      );
+      _captureProperEncryptionException(
+        operation: 'decryptData',
+        error: error,
+        stackTrace: stack,
+        data: {'keyId': encryptedData.keyId},
+      );
+
+      if (error is EncryptionException) rethrow;
+      throw EncryptionException('Decryption failed: ${error.toString()}');
     }
   }
 
@@ -266,8 +324,18 @@ class ProperEncryptionService {
       if (kDebugMode) {
         debugPrint('✅ Key rotation completed successfully');
       }
-    } catch (e) {
-      throw EncryptionException('Key rotation failed: ${e.toString()}');
+    } catch (error, stack) {
+      _logger.error(
+        'Proper encryption key rotation failed',
+        error: error,
+        stackTrace: stack,
+      );
+      _captureProperEncryptionException(
+        operation: 'rotateKeys',
+        error: error,
+        stackTrace: stack,
+      );
+      throw EncryptionException('Key rotation failed: ${error.toString()}');
     }
   }
 

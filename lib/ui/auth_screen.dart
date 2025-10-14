@@ -1,9 +1,23 @@
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/features/encryption/encryption_feature_flag.dart';
+import 'package:duru_notes/features/encryption/pending_onboarding_provider.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/core/errors.dart';
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show accountKeyServiceProvider;
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show pushNotificationServiceProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Modern authentication screen with gradient design
@@ -16,6 +30,8 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen>
     with TickerProviderStateMixin {
+  AppLogger get _logger => ref.read(loggerProvider);
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
@@ -78,17 +94,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   Future<void> _authenticate() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
     setState(() => _isLoading = true);
     HapticFeedback.lightImpact();
 
     try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
-
       if (_isSignUp) {
         final signUpRes = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
+        );
+
+        _logger.info(
+          'User sign-up completed',
+          data: {
+            'flow': 'signUp',
+            'emailDomain': _extractEmailDomain(email),
+          },
         );
 
         // Get the user ID from the signup response or current auth state
@@ -99,6 +123,47 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           final passphrase = _passphraseController.text;
           final svc = ref.read(accountKeyServiceProvider);
           await svc.provisionAmkForUser(passphrase: passphrase, userId: uid);
+
+          // OPTIONAL: Cross-device encryption onboarding
+          // SAFETY: Completely non-blocking, user can skip, feature flag controlled
+          // If disabled (default), this is a no-op
+          if (kDebugMode) {
+            debugPrint('[Auth] 📝 Sign-up successful, checking cross-device encryption...');
+            debugPrint('[Auth] Feature flag enabled: ${EncryptionFeatureFlags.enableCrossDeviceEncryption}');
+          }
+
+          try {
+            if (EncryptionFeatureFlags.enableCrossDeviceEncryption && EncryptionFeatureFlags.showOnSignUp) {
+              if (kDebugMode) {
+                debugPrint('[Auth] ✅ Cross-device encryption enabled, flagging for onboarding');
+              }
+
+              // Set flag for AuthWrapper to show onboarding
+              // This prevents unmounting issues
+              ref.read(pendingOnboardingProvider.notifier).setPending();
+            } else {
+              if (kDebugMode) {
+                debugPrint('[Auth] ⏭️ Cross-device encryption disabled by feature flag, skipping onboarding');
+              }
+            }
+          } catch (e, stack) {
+            _logger.error(
+              'Cross-device encryption onboarding failed',
+              error: e,
+              stackTrace: stack,
+              data: {
+                'flow': 'signUp',
+                'featureEnabled': EncryptionFeatureFlags.enableCrossDeviceEncryption,
+              },
+            );
+            unawaited(Sentry.captureException(e, stackTrace: stack));
+            if (kDebugMode) {
+              debugPrint(
+                '[Auth] ❌ Cross-device encryption onboarding failed (non-critical): $e',
+              );
+              debugPrint('[Auth] Stack trace: $stack');
+            }
+          }
         }
 
         if (mounted) {
@@ -114,15 +179,48 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           email: email,
           password: password,
         );
+
+        _logger.info(
+          'User sign-in completed',
+          data: {
+            'flow': 'signIn',
+            'emailDomain': _extractEmailDomain(email),
+          },
+        );
+
         // Register push token after successful login
         _registerPushTokenInBackground();
       }
-    } catch (error) {
+    } catch (error, stack) {
+      final appError = ErrorFactory.fromException(error, stack);
+      final logData = <String, dynamic>{
+        'flow': _isSignUp ? 'signUp' : 'signIn',
+        'emailDomain': _extractEmailDomain(email),
+        'recoverable': appError.isRecoverable,
+      };
+      if (appError.code != null) {
+        logData['code'] = appError.code;
+      }
+
+      _logger.error(
+        'Authentication flow failed',
+        error: error,
+        stackTrace: stack,
+        data: logData,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stack));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error.toString()),
+            content: Text(appError.userMessage),
             backgroundColor: DuruColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () {
+                unawaited(_authenticate());
+              },
+            ),
           ),
         );
       }
@@ -137,9 +235,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     try {
       final pushService = ref.read(pushNotificationServiceProvider);
       await pushService.registerWithBackend();
-    } catch (e) {
-      debugPrint('Failed to register push token: $e');
+      _logger.debug(
+        'Push token registration executed',
+        data: {'flow': _isSignUp ? 'signUp' : 'signIn'},
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to register push token',
+        error: e,
+        stackTrace: stack,
+      );
     }
+  }
+
+  String? _extractEmailDomain(String email) {
+    final atIndex = email.indexOf('@');
+    if (atIndex <= 0 || atIndex == email.length - 1) {
+      return null;
+    }
+    return email.substring(atIndex + 1).toLowerCase();
   }
 
   @override

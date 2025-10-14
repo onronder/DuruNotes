@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:duru_notes/services/security/encryption_service.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/security/fallback_note.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Service to handle encryption fallbacks when decryption fails
 class EncryptionFallbackService {
@@ -14,6 +16,27 @@ class EncryptionFallbackService {
 
   final AppLogger _logger = LoggerFactory.instance;
   final Map<String, FallbackNote> _fallbackCache = {};
+
+  void _captureFallbackException({
+    required String operation,
+    required Object error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.warning,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'EncryptionFallbackService');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
 
 
   /// Attempt to decrypt note with fallback handling
@@ -36,8 +59,14 @@ class EncryptionFallbackService {
       if (titleEnc != null) {
         title = await _decryptField(titleEnc, encryptionService, 'title');
       }
-    } catch (e) {
-      _logger.warning('Failed to decrypt title for note $noteId: $e');
+    } catch (error, stack) {
+      _logger.warning('Failed to decrypt title for note $noteId', data: {'error': error.toString()});
+      _captureFallbackException(
+        operation: 'decryptNote.title',
+        error: error,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
       title = await _createFallbackTitle(noteId, titleEnc);
       decryptionFailed = true;
     }
@@ -51,9 +80,15 @@ class EncryptionFallbackService {
         isPinned = props['is_pinned'] as bool? ?? false;
         tags = (props['tags'] as List<dynamic>?)?.cast<String>() ?? [];
       }
-    } catch (e) {
-      _logger.warning('Failed to decrypt props for note $noteId: $e');
-      final fallbackProps = await _createFallbackProps(noteId, propsEnc, e.toString());
+    } catch (error, stack) {
+      _logger.warning('Failed to decrypt props for note $noteId', data: {'error': error.toString()});
+      _captureFallbackException(
+        operation: 'decryptNote.props',
+        error: error,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
+      final fallbackProps = await _createFallbackProps(noteId, propsEnc, error.toString());
       body = fallbackProps['body'] as String;
       folderId = fallbackProps['folder_id'] as String?;
       isPinned = fallbackProps['is_pinned'] as bool;
@@ -308,8 +343,13 @@ The original encrypted data has been preserved and may be recoverable with a fut
       }
 
       await prefs.setStringList('fallback_notes', fallbackData);
-    } catch (e) {
-      _logger.error('Failed to store fallback note: $e');
+    } catch (error, stack) {
+      _logger.error('Failed to store fallback note', error: error, stackTrace: stack);
+      _captureFallbackException(
+        operation: 'storeFallbackNote',
+        error: error,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -364,7 +404,7 @@ The original encrypted data has been preserved and may be recoverable with a fut
   Uint8List _asBytes(dynamic data) {
     if (data is Uint8List) return data;
     if (data is List<int>) return Uint8List.fromList(data);
-    if (data is String) return utf8.encode(data) as Uint8List;
+    if (data is String) return utf8.encode(data);
     throw ArgumentError('Cannot convert to bytes: ${data.runtimeType}');
   }
 

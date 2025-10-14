@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -34,6 +35,27 @@ class FolderSyncCoordinator {
   final _conflictCache = <String, ConflictResolution>{};
   static const _conflictCacheExpiry = Duration(minutes: 5);
   final _conflictTimestamps = <String, DateTime>{};
+
+  void _captureCoordinatorException({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+    SentryLevel level = SentryLevel.error,
+  }) {
+    unawaited(
+      Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.level = level;
+          scope.setTag('service', 'FolderSyncCoordinator');
+          scope.setTag('operation', operation);
+          data?.forEach((key, value) => scope.setExtra(key, value));
+        },
+      ),
+    );
+  }
 
   /// Check if currently syncing
   bool get isSyncing => _isSyncing;
@@ -71,12 +93,6 @@ class FolderSyncCoordinator {
         description: description,
       );
 
-      if (localFolder == null) {
-        logger
-            .error('❌ FolderSyncCoordinator: createLocalFolder returned null');
-        throw Exception('Failed to create local folder');
-      }
-
       logger.info(
           '✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}');
 
@@ -98,9 +114,19 @@ class FolderSyncCoordinator {
           localFolder.id,
           name,
         );
-      } catch (e) {
+      } catch (error, stack) {
         logger.warning(
-            '⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $e');
+            '⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $error');
+        _captureCoordinatorException(
+          operation: 'createFolder.remoteSync',
+          error: error,
+          stackTrace: stack,
+          data: {
+            'operationId': operationId,
+            'folderId': localFolder.id,
+          },
+          level: SentryLevel.warning,
+        );
         // Don't fail the entire operation - folder was created locally
         // Remote sync will be retried later via pending operations
       }
@@ -116,6 +142,12 @@ class FolderSyncCoordinator {
         name,
       );
       logger.error('Failed to create folder', error: e, stackTrace: stack);
+      _captureCoordinatorException(
+        operation: 'createFolder',
+        error: e,
+        stackTrace: stack,
+        data: {'operationId': operationId, 'tempId': tempId},
+      );
       return null;
     }
   }
@@ -170,6 +202,7 @@ class FolderSyncCoordinator {
 
       final updatedFolder = LocalFolder(
         id: id,
+        userId: existingFolder.userId,
         name: name,
         parentId: parentId,
         path: existingFolder.path, // Keep existing path
@@ -218,6 +251,12 @@ class FolderSyncCoordinator {
         name,
       );
       logger.error('Failed to update folder', error: e, stackTrace: stack);
+      _captureCoordinatorException(
+        operation: 'updateFolder',
+        error: e,
+        stackTrace: stack,
+        data: {'operationId': operationId, 'folderId': id},
+      );
       return false;
     }
   }
@@ -269,6 +308,12 @@ class FolderSyncCoordinator {
         stack,
       );
       logger.error('Failed to delete folder', error: e, stackTrace: stack);
+      _captureCoordinatorException(
+        operation: 'deleteFolder',
+        error: e,
+        stackTrace: stack,
+        data: {'operationId': operationId, 'folderId': id},
+      );
       return false;
     }
   }
@@ -324,6 +369,11 @@ class FolderSyncCoordinator {
         stack,
       );
       logger.error('Folder sync failed', error: e, stackTrace: stack);
+      _captureCoordinatorException(
+        operation: 'syncAllFolders',
+        error: e,
+        stackTrace: stack,
+      );
     } finally {
       _isSyncing = false;
     }
@@ -381,6 +431,13 @@ class FolderSyncCoordinator {
         stackTrace: stack,
         data: {'folderId': folderId},
       );
+      _captureCoordinatorException(
+        operation: 'handleRealtimeUpdate',
+        error: e,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+        level: SentryLevel.warning,
+      );
     }
   }
 
@@ -408,11 +465,18 @@ class FolderSyncCoordinator {
       );
 
       _pendingOperations.remove(folder.id);
-    } catch (e) {
+    } catch (error, stack) {
       logger.error(
         'Failed to sync folder to remote',
-        error: e,
+        error: error,
+        stackTrace: stack,
         data: {'folderId': folder.id},
+      );
+      _captureCoordinatorException(
+        operation: 'syncFolderToRemote',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folder.id, 'operationId': operationId},
       );
       rethrow;
     }
@@ -435,11 +499,18 @@ class FolderSyncCoordinator {
       );
 
       _pendingOperations.remove(folderId);
-    } catch (e) {
+    } catch (error, stack) {
       logger.error(
         'Failed to sync folder deletion to remote',
-        error: e,
+        error: error,
+        stackTrace: stack,
         data: {'folderId': folderId},
+      );
+      _captureCoordinatorException(
+        operation: 'syncFolderDeletionToRemote',
+        error: error,
+        stackTrace: stack,
+        data: {'folderId': folderId, 'operationId': operationId},
       );
       rethrow;
     }
@@ -572,6 +643,7 @@ class FolderSyncCoordinator {
     // Note: copyWith in drift requires Value() wrapper for nullable fields
     return LocalFolder(
       id: local.id,
+      userId: local.userId,
       name: remote['name'] as String? ?? local.name,
       parentId: remote['parent_id'] as String?,
       path:
@@ -657,6 +729,7 @@ class FolderSyncCoordinator {
   ) async {
     final updatedFolder = LocalFolder(
       id: local.id,
+      userId: local.userId,
       name: remote['name'] as String,
       parentId: remote['parent_id'] as String?,
       path: local.path, // Keep existing path

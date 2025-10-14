@@ -1,14 +1,25 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show unifiedTaskServiceProvider;
 import 'package:duru_notes/services/unified_task_service.dart';
+import 'package:duru_notes/ui/utils/accessibility_helper.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Enhanced task item widget using UnifiedTaskService
 /// No VoidCallback usage - all actions go through the unified service
+///
+/// POST-ENCRYPTION: Now uses domain.Task with decrypted content
 class TaskItemWidget extends ConsumerWidget {
   const TaskItemWidget({
     super.key,
@@ -16,14 +27,14 @@ class TaskItemWidget extends ConsumerWidget {
     this.showSourceNote = true,
   });
 
-  final NoteTask task;
+  final domain.Task task;
   final bool showSourceNote;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isCompleted = task.status == TaskStatus.completed;
+    final isCompleted = task.status == domain.TaskStatus.completed;
     final unifiedService = ref.watch(unifiedTaskServiceProvider);
 
     return Dismissible(
@@ -50,6 +61,10 @@ class TaskItemWidget extends ConsumerWidget {
             task.id,
             isCompleted ? TaskStatus.open : TaskStatus.completed,
           );
+          A11yHelper.announce(
+            context,
+            isCompleted ? 'Task reopened' : 'Task completed',
+          );
           return false; // Don't dismiss, just toggle
         } else if (direction == DismissDirection.endToStart) {
           // Delete action
@@ -57,7 +72,19 @@ class TaskItemWidget extends ConsumerWidget {
         }
         return false;
       },
-      child: Container(
+      child: A11yHelper.taskCard(
+        title: task.title,
+        description: task.description,
+        isCompleted: isCompleted,
+        dueDate: task.dueDate != null ? _getRelativeTime(task.dueDate!, DateTime.now()) : null,
+        priority: task.priority.toString().split('.').last,
+        tags: task.tags,
+        onTap: () => unifiedService.onEdit(task.id),
+        onToggle: (value) => unifiedService.onStatusChanged(
+          task.id,
+          value == true ? TaskStatus.completed : TaskStatus.open,
+        ),
+        child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Material(
           elevation: 1,
@@ -77,7 +104,10 @@ class TaskItemWidget extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Checkbox
-                      GestureDetector(
+                      A11yHelper.checkbox(
+                        label: task.title,
+                        value: isCompleted,
+                        hint: isCompleted ? 'Swipe right to reopen task' : 'Swipe right to complete task',
                         onTap: () async {
                           await unifiedService.onStatusChanged(
                             task.id,
@@ -86,28 +116,38 @@ class TaskItemWidget extends ConsumerWidget {
                                 : TaskStatus.completed,
                           );
                         },
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            border: Border.all(
+                        child: GestureDetector(
+                          onTap: () async {
+                            await unifiedService.onStatusChanged(
+                              task.id,
+                              isCompleted
+                                  ? TaskStatus.open
+                                  : TaskStatus.completed,
+                            );
+                          },
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: isCompleted
+                                    ? _getPriorityColor(task.priority)
+                                    : colorScheme.outline,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
                               color: isCompleted
                                   ? _getPriorityColor(task.priority)
-                                  : colorScheme.outline,
-                              width: 2,
+                                  : Colors.transparent,
                             ),
-                            borderRadius: BorderRadius.circular(6),
-                            color: isCompleted
-                                ? _getPriorityColor(task.priority)
-                                : Colors.transparent,
+                            child: isCompleted
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: Colors.white,
+                                  )
+                                : null,
                           ),
-                          child: isCompleted
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.white,
-                                )
-                              : null,
                         ),
                       ),
 
@@ -115,129 +155,156 @@ class TaskItemWidget extends ConsumerWidget {
 
                       // Task content
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Task title
-                            Text(
-                              task.content,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                decoration: isCompleted
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                                color: isCompleted
-                                    ? colorScheme.onSurfaceVariant
-                                    : colorScheme.onSurface,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-
-                            // Task description/notes
-                            if (task.notes?.isNotEmpty == true) ...[
-                              const SizedBox(height: 4),
+                        child: ExcludeSemantics(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Task title
                               Text(
-                                task.notes!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
+                                task.title,
+                                style: theme.textTheme.bodyLarge?.copyWith(
                                   decoration: isCompleted
                                       ? TextDecoration.lineThrough
                                       : TextDecoration.none,
+                                  color: isCompleted
+                                      ? colorScheme.onSurfaceVariant
+                                      : colorScheme.onSurface,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                              ),
+
+                              // Task description/notes (domain.Task has description field)
+                              if (task.description?.isNotEmpty == true) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  task.description!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+
+                              // Due date with relative time
+                              if (task.dueDate != null) ...[
+                                const SizedBox(height: 8),
+                                _buildDueDateChip(context, task.dueDate!),
+                              ],
+
+                              // Task indicators
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TaskIndicatorsWidget(
+                                      task: task,
+                                      compact: true,
+                                    ),
+                                  ),
+
+                                  // Source note indicator
+                                  if (showSourceNote &&
+                                      task.noteId != 'standalone')
+                                    _buildSourceNoteChip(context, ref),
+                                ],
                               ),
                             ],
-
-                            // Due date with relative time
-                            if (task.dueDate != null) ...[
-                              const SizedBox(height: 8),
-                              _buildDueDateChip(context, task.dueDate!),
-                            ],
-
-                            // Task indicators
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TaskIndicatorsWidget(
-                                    task: task,
-                                    compact: true,
-                                  ),
-                                ),
-
-                                // Source note indicator
-                                if (showSourceNote &&
-                                    task.noteId != 'standalone')
-                                  _buildSourceNoteChip(context, ref),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
 
                       // Quick actions menu
-                      PopupMenuButton<String>(
-                        icon: Icon(
-                          Icons.more_vert,
-                          size: 20,
-                          color: colorScheme.onSurfaceVariant,
+                      A11yHelper.iconButton(
+                        label: 'More options for task: ${task.title}',
+                        hint: 'Open menu with edit, complete, snooze, and delete actions',
+                        enabled: true,
+                        child: PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.more_vert,
+                            size: 20,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onSelected: (action) =>
+                              _handleQuickAction(context, ref, action),
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Semantics(
+                                label: 'Edit task',
+                                hint: 'Edit this task',
+                                button: true,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit,
+                                        size: 18, color: colorScheme.primary),
+                                    const SizedBox(width: 8),
+                                    const Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (task.noteId != 'standalone')
+                              PopupMenuItem(
+                                value: 'open_note',
+                                child: Semantics(
+                                  label: 'Open note',
+                                  hint: 'Open the note containing this task',
+                                  button: true,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.note,
+                                          size: 18, color: colorScheme.secondary),
+                                      const SizedBox(width: 8),
+                                      const Text('Open Note'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (task.dueDate != null && !isCompleted)
+                              PopupMenuItem(
+                                value: 'snooze',
+                                child: Semantics(
+                                  label: 'Snooze task',
+                                  hint: 'Postpone task due date',
+                                  button: true,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.snooze,
+                                          size: 18, color: Colors.orange),
+                                      const SizedBox(width: 8),
+                                      const Text('Snooze'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Semantics(
+                                label: 'Delete task',
+                                hint: 'Delete this task permanently',
+                                button: true,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, size: 18, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    const Text('Delete'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        onSelected: (action) =>
-                            _handleQuickAction(context, ref, action),
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit,
-                                    size: 18, color: colorScheme.primary),
-                                const SizedBox(width: 8),
-                                const Text('Edit'),
-                              ],
-                            ),
-                          ),
-                          if (task.noteId != 'standalone')
-                            PopupMenuItem(
-                              value: 'open_note',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.note,
-                                      size: 18, color: colorScheme.secondary),
-                                  const SizedBox(width: 8),
-                                  const Text('Open Note'),
-                                ],
-                              ),
-                            ),
-                          if (task.dueDate != null && !isCompleted)
-                            PopupMenuItem(
-                              value: 'snooze',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.snooze,
-                                      size: 18, color: Colors.orange),
-                                  const SizedBox(width: 8),
-                                  const Text('Snooze'),
-                                ],
-                              ),
-                            ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, size: 18, color: Colors.red),
-                                const SizedBox(width: 8),
-                                const Text('Delete'),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
 
-                  // Time tracking (if available)
-                  if (task.estimatedMinutes != null ||
-                      task.actualMinutes != null) ...[
+                  // Time tracking (if available) - access from metadata
+                  if ((task.metadata['estimatedMinutes'] as int?) != null ||
+                      (task.metadata['actualMinutes'] as int?) != null) ...[
                     const SizedBox(height: 8),
                     _buildTimeTracking(context),
                   ],
@@ -247,6 +314,7 @@ class TaskItemWidget extends ConsumerWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -257,7 +325,8 @@ class TaskItemWidget extends ConsumerWidget {
     required IconData icon,
     required String label,
   }) {
-    return Container(
+    return A11yHelper.decorative(
+      Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: color,
@@ -281,6 +350,7 @@ class TaskItemWidget extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -288,7 +358,7 @@ class TaskItemWidget extends ConsumerWidget {
     final theme = Theme.of(context);
     final now = DateTime.now();
     final isOverdue =
-        dueDate.isBefore(now) && task.status != TaskStatus.completed;
+        dueDate.isBefore(now) && task.status != domain.TaskStatus.completed;
     final isToday = _isSameDay(dueDate, now);
     final isTomorrow = _isSameDay(dueDate, now.add(const Duration(days: 1)));
 
@@ -342,7 +412,6 @@ class TaskItemWidget extends ConsumerWidget {
   Widget _buildSourceNoteChip(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final unifiedService = ref.read(unifiedTaskServiceProvider);
 
     return GestureDetector(
       onTap: () => _openSourceNote(context, ref),
@@ -379,8 +448,9 @@ class TaskItemWidget extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final estimated = task.estimatedMinutes;
-    final actual = task.actualMinutes;
+    // Access time tracking from metadata
+    final estimated = task.metadata['estimatedMinutes'] as int?;
+    final actual = task.metadata['actualMinutes'] as int?;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -464,11 +534,25 @@ class TaskItemWidget extends ConsumerWidget {
     try {
       // Navigate to note - implementation depends on your navigation setup
       Navigator.of(context).pushNamed('/note', arguments: task.noteId);
-    } catch (e) {
-      debugPrint('Error opening source note: $e');
+      ref.read(loggerProvider).info(
+            'Navigating to task source note',
+            data: {'taskId': task.id, 'noteId': task.noteId},
+          );
+    } catch (error, stackTrace) {
+      final logger = ref.read(loggerProvider);
+      logger.error(
+        'Failed to open source note from task item',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id, 'noteId': task.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open source note')),
+          SnackBar(
+            content: const Text('Could not open source note. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -528,15 +612,15 @@ class TaskItemWidget extends ConsumerWidget {
     _showDeleteConfirmation(context, ref);
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
@@ -588,13 +672,13 @@ class _TaskQuickActionsSheet extends StatelessWidget {
     required this.unifiedService,
   });
 
-  final NoteTask task;
+  final domain.Task task;
   final UnifiedTaskService unifiedService;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isCompleted = task.status == TaskStatus.completed;
+    final isCompleted = task.status == domain.TaskStatus.completed;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -615,7 +699,7 @@ class _TaskQuickActionsSheet extends StatelessWidget {
 
           // Task title
           Text(
-            task.content,
+            task.title,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),

@@ -1,10 +1,15 @@
 import 'dart:async';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show enhancedTaskServiceProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Widget for tracking actual time spent on a task
 class TaskTimeTrackerWidget extends ConsumerStatefulWidget {
@@ -27,6 +32,8 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
   bool _isTracking = false;
   int _elapsedSeconds = 0;
   DateTime? _startTime;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   static const String _activeTaskKey = 'active_task_tracking';
   static const String _startTimeKey = 'task_tracking_start_time';
@@ -97,6 +104,10 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
           duration: const Duration(seconds: 2),
         ),
       );
+      _logger.info(
+        'Stopping tracking on another task before starting new session',
+        data: {'previousTaskId': activeTaskId, 'newTaskId': widget.task.id},
+      );
     }
 
     // Start tracking this task
@@ -135,8 +146,31 @@ class _TaskTimeTrackerWidgetState extends ConsumerState<TaskTimeTrackerWidget> {
         taskId: widget.task.id,
         actualMinutes: actualMinutes,
       );
-    } catch (e) {
-      debugPrint('Failed to save time tracking: $e');
+      _logger.debug(
+        'Task time tracking saved',
+        data: {'taskId': widget.task.id, 'actualMinutes': actualMinutes},
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to save time tracking',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': widget.task.id, 'elapsedSeconds': _elapsedSeconds},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                const Text('Could not save tracked time. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_saveTimeToDatabase()),
+            ),
+          ),
+        );
+      }
     }
   }
 

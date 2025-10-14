@@ -1,7 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+final AppLogger _logger = LoggerFactory.instance;
 
 /// Widget that displays an icon indicating the source of a note
 class NoteSourceIcon extends StatelessWidget {
@@ -11,64 +16,85 @@ class NoteSourceIcon extends StatelessWidget {
     this.size = 16,
     this.color,
   });
-  final LocalNote note;
+  final domain.Note note;
   final double size;
   final Color? color;
 
+  Map<String, dynamic>? _decodeJsonMap(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Failed to decode note metadata JSON for source icon',
+        data: {
+          'noteId': note.id,
+          'error': error.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+    }
+    return null;
+  }
+
+  bool _hasAttachments(dynamic attachments) {
+    if (attachments is List) {
+      return attachments.isNotEmpty;
+    }
+    if (attachments is Map<String, dynamic>) {
+      final files = attachments['files'];
+      if (files is List && files.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  bool _hasAttachmentMetadata(Map<String, dynamic>? metadata) {
+    if (metadata == null) return false;
+    final attachments = metadata['attachments'];
+    if (_hasAttachments(attachments)) return true;
+    return false;
+  }
+
+  bool _hasAttachmentFromNote(domain.Note note, Map<String, dynamic>? metadata) {
+    if (_hasAttachmentMetadata(metadata)) return true;
+
+    final attachmentMeta = _decodeJsonMap(note.attachmentMeta);
+    return _hasAttachmentMetadata(attachmentMeta);
+  }
+
   /// Determines the source type of the note
   NoteSourceType _getNoteSourceType() {
-    // Check encrypted metadata first (most reliable)
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        final source = meta['source'] as String?;
+    // Prefer decrypted metadata when available, fall back to legacy field.
+    final metadata =
+        _decodeJsonMap(note.metadata) ?? _decodeJsonMap(note.encryptedMetadata);
+    final source = (metadata?['source'] as String?)?.toLowerCase().trim();
+    final tags = note.tags.map((tag) => tag.toLowerCase()).toSet();
+    final hasAttachments = _hasAttachmentFromNote(note, metadata);
 
-        if (source == 'email_in') {
-          // Check if it has attachments
-          final attachments = meta['attachments']?['files'] as List?;
-          if (attachments != null && attachments.isNotEmpty) {
-            return NoteSourceType.emailWithAttachment;
-          }
-          return NoteSourceType.email;
-        } else if (source == 'web') {
-          return NoteSourceType.web;
-        }
-      } catch (e) {
-        // Fall through to tag-based detection
-      }
+    bool looksLikeEmail() =>
+        source == 'email_in' ||
+        source == 'email_inbox' ||
+        source == 'email' ||
+        tags.contains('email');
+    bool looksLikeWeb() =>
+        source == 'web' ||
+        source == 'webclipper' ||
+        tags.contains('web') ||
+        tags.contains('webclipper');
+
+    if (looksLikeEmail()) {
+      return hasAttachments ? NoteSourceType.emailWithAttachment : NoteSourceType.email;
     }
 
-    // Fallback to tag-based detection
-    final body = note.body.toLowerCase();
-    if (body.contains('#email')) {
-      // Check for attachments in metadata or body
-      if (note.encryptedMetadata != null) {
-        try {
-          final meta = jsonDecode(note.encryptedMetadata!);
-          final attachments = meta['attachments']?['files'] as List?;
-          if (attachments != null && attachments.isNotEmpty) {
-            return NoteSourceType.emailWithAttachment;
-          }
-        } catch (_) {}
-      }
-      // Check for attachment tag
-      if (body.contains('#attachment')) {
-        return NoteSourceType.emailWithAttachment;
-      }
-      return NoteSourceType.email;
-    } else if (body.contains('#web')) {
+    if (looksLikeWeb()) {
       return NoteSourceType.web;
     }
 
-    // Check for standalone attachments
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        final attachments = meta['attachments']?['files'] as List?;
-        if (attachments != null && attachments.isNotEmpty) {
-          return NoteSourceType.attachment;
-        }
-      } catch (_) {}
+    if (hasAttachments || tags.contains('attachment')) {
+      return NoteSourceType.attachment;
     }
 
     // Default to regular note

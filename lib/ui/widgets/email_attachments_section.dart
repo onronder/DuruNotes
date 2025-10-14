@@ -1,5 +1,11 @@
 import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,15 +15,19 @@ class EmailAttachmentRef {
     required this.filename,
     required this.mimeType,
     required this.sizeBytes,
+    this.url,  // CRITICAL FIX: Pre-signed URL from backend
+    this.urlExpiresAt,  // When the URL expires
   });
 
-  final String path; // "<user_id>/<folder>/file.ext"
+  final String path; // "temp/<user_id>/file.ext" or "<user_id>/<folder>/file.ext"
   final String filename; // "file.ext"
   final String mimeType; // "image/png", "application/pdf", ...
   final int sizeBytes;
+  final String? url; // Pre-signed URL from backend (if available)
+  final DateTime? urlExpiresAt; // URL expiration time
 }
 
-class EmailAttachmentsSection extends StatefulWidget {
+class EmailAttachmentsSection extends ConsumerStatefulWidget {
   const EmailAttachmentsSection({
     required this.files,
     super.key,
@@ -30,12 +40,15 @@ class EmailAttachmentsSection extends StatefulWidget {
   final int signedUrlTtlSeconds;
 
   @override
-  State<EmailAttachmentsSection> createState() =>
+  ConsumerState<EmailAttachmentsSection> createState() =>
       _EmailAttachmentsSectionState();
 }
 
-class _EmailAttachmentsSectionState extends State<EmailAttachmentsSection> {
+class _EmailAttachmentsSectionState
+    extends ConsumerState<EmailAttachmentsSection> {
   final _cache = <String, _SignedUrlCache>{}; // path -> signed url cache
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +108,32 @@ class _EmailAttachmentsSectionState extends State<EmailAttachmentsSection> {
 
   Future<void> _openAttachment(EmailAttachmentRef f) async {
     try {
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final now = DateTime.now();
+
+      // OPTIMIZATION: Use pre-signed URL from backend if available and not expired
+      if (f.url != null &&
+          f.urlExpiresAt != null &&
+          f.urlExpiresAt!.isAfter(now)) {
+        _logger.debug(
+          'Opening attachment with backend pre-signed URL',
+          data: {'filename': f.filename, 'path': f.path},
+        );
+        await _launch(f.url!);
+        return;
+      }
+
+      // Check local cache (for regenerated URLs)
       final cached = _cache[f.path];
-      if (cached != null && cached.expiresAtMs > nowMs) {
+      if (cached != null && cached.expiresAtMs > now.millisecondsSinceEpoch) {
+        _logger.debug(
+          'Opening attachment with cached signed URL',
+          data: {'filename': f.filename, 'path': f.path},
+        );
         await _launch(cached.url);
         return;
       }
 
-      // Show loading indicator
+      // Need to generate a new signed URL
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -125,15 +156,28 @@ class _EmailAttachmentsSectionState extends State<EmailAttachmentsSection> {
             .millisecondsSinceEpoch,
       );
 
-      debugPrint('[attachments] open ${f.filename} (${f.mimeType})');
+      _logger.debug(
+        'Generated new signed URL for attachment',
+        data: {'filename': f.filename, 'path': f.path},
+      );
       await _launch(signed);
-    } catch (e) {
-      debugPrint('[attachments] open failed for ${f.path}: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to open attachment',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'filename': f.filename, 'path': f.path},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open attachment'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Could not open attachment. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_openAttachment(f)),
+            ),
           ),
         );
       }

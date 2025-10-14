@@ -1,10 +1,17 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/features/search/providers/search_providers.dart' show tagRepositoryInterfaceProvider;
+import 'package:duru_notes/domain/entities/tag.dart' show TagWithCount;
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Filter state for the bottom sheet
 class FilterState {
@@ -62,7 +69,7 @@ class FiltersBottomSheet extends ConsumerStatefulWidget {
 
   static Future<void> show(
     BuildContext context, {
-    required Function(FilterState) onApply,
+    required void Function(FilterState) onApply,
     FilterState? initialState,
   }) {
     return showModalBottomSheet<void>(
@@ -83,9 +90,10 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
   late FilterState _filterState;
   late TabController _tabController;
   final _searchController = TextEditingController();
-  List<TagCount> _allTags = [];
-  List<TagCount> _filteredTags = [];
+  List<TagWithCount> _allTags = [];
+  List<TagWithCount> _filteredTags = [];
   bool _isLoading = true;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -104,18 +112,39 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
 
   Future<void> _loadTags() async {
     try {
-      final db = ref.read(appDbProvider);
-      final tags = await db.getTagsWithCounts();
+      // Phase 10: Use TagRepository instead of direct DB access
+      final tagRepo = ref.read(tagRepositoryInterfaceProvider);
+      final tags = await tagRepo.listTagsWithCounts();
       if (mounted) {
         setState(() {
           _allTags = tags;
           _filteredTags = tags;
           _isLoading = false;
         });
+        _logger.debug(
+          'Loaded tags for filter sheet',
+          data: {'tagCount': tags.length},
+        );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load tags for filter sheet',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to load tags. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadTags()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -487,9 +516,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
   }
 
   Widget _buildTagList({
-    required List<TagCount> tags,
+    required List<TagWithCount> tags,
     required Set<String> selectedTags,
-    required Function(String) onToggle,
+    required void Function(String) onToggle,
     required String emptyMessage,
     required Color color,
   }) {
@@ -519,7 +548,7 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
           value: isSelected,
           onChanged: (_) => onToggle(tag.tag),
           title: Text(tag.tag),
-          subtitle: Text('${tag.count} notes'),
+          subtitle: Text('${tag.noteCount} notes'),
           secondary: Icon(
             Icons.tag,
             size: 20,

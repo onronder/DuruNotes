@@ -1,13 +1,23 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show enhancedTaskServiceProvider;
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Bottom sheet showing tasks for a selected date
+///
+/// POST-ENCRYPTION: Now uses domain.Task with decrypted content
 class CalendarTaskSheet extends ConsumerWidget {
   const CalendarTaskSheet({
     super.key,
@@ -20,11 +30,11 @@ class CalendarTaskSheet extends ConsumerWidget {
   });
 
   final DateTime selectedDate;
-  final List<NoteTask> tasks;
-  final Function(NoteTask) onTaskToggle;
-  final Function(NoteTask) onTaskEdit;
-  final Function(NoteTask) onTaskDelete;
-  final Function(NoteTask)? onOpenNote;
+  final List<domain.Task> tasks;
+  final void Function(domain.Task) onTaskToggle;
+  final void Function(domain.Task) onTaskEdit;
+  final void Function(domain.Task) onTaskDelete;
+  final void Function(domain.Task)? onOpenNote;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,9 +44,9 @@ class CalendarTaskSheet extends ConsumerWidget {
 
     // Separate completed and incomplete tasks
     final incompleteTasks =
-        tasks.where((t) => t.status != TaskStatus.completed).toList();
+        tasks.where((t) => t.status != domain.TaskStatus.completed).toList();
     final completedTasks =
-        tasks.where((t) => t.status == TaskStatus.completed).toList();
+        tasks.where((t) => t.status == domain.TaskStatus.completed).toList();
 
     // Sort tasks by priority and due time
     incompleteTasks.sort((a, b) {
@@ -46,7 +56,16 @@ class CalendarTaskSheet extends ConsumerWidget {
       if (a.dueDate != null && b.dueDate != null) {
         return a.dueDate!.compareTo(b.dueDate!);
       }
-      return a.createdAt.compareTo(b.createdAt);
+
+      // Get createdAt from metadata
+      final aCreatedAt = a.metadata['createdAt'] != null
+          ? DateTime.parse(a.metadata['createdAt'] as String)
+          : DateTime.now();
+      final bCreatedAt = b.metadata['createdAt'] != null
+          ? DateTime.parse(b.metadata['createdAt'] as String)
+          : DateTime.now();
+
+      return aCreatedAt.compareTo(bCreatedAt);
     });
 
     return Container(
@@ -201,13 +220,14 @@ class CalendarTaskSheet extends ConsumerWidget {
 
   Future<void> _createTaskForDate(
       BuildContext context, WidgetRef ref, TaskMetadata metadata) async {
+    final logger = ref.read(loggerProvider);
     try {
       final taskService = ref.read(enhancedTaskServiceProvider);
       await taskService.createTask(
         noteId: 'standalone',
         content:
             metadata.notes?.isNotEmpty == true ? metadata.notes! : 'New Task',
-        priority: metadata.priority,
+        priority: TaskMapper.mapPriorityToDb(metadata.priority),
         dueDate: metadata.dueDate ?? selectedDate,
         labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
         notes: metadata.notes,
@@ -219,10 +239,25 @@ class CalendarTaskSheet extends ConsumerWidget {
           const SnackBar(content: Text('Task created successfully')),
         );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      logger.error(
+        'Failed to create calendar task for date',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'selectedDate': selectedDate.toIso8601String()},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating task: $e')),
+          SnackBar(
+            content: const Text('Unable to create task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () =>
+                  unawaited(_createTaskForDate(context, ref, metadata)),
+            ),
+          ),
         );
       }
     }
@@ -252,7 +287,7 @@ class CalendarTaskSheet extends ConsumerWidget {
     }
   }
 
-  String _getTaskSummary(List<NoteTask> incomplete, List<NoteTask> completed) {
+  String _getTaskSummary(List<domain.Task> incomplete, List<domain.Task> completed) {
     final total = incomplete.length + completed.length;
     if (completed.isEmpty) {
       return '$total ${total == 1 ? 'task' : 'tasks'}';
@@ -275,7 +310,7 @@ class CalendarTaskItem extends StatelessWidget {
     this.onOpenNote,
   });
 
-  final NoteTask task;
+  final domain.Task task;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -285,7 +320,7 @@ class CalendarTaskItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isCompleted = task.status == TaskStatus.completed;
+    final isCompleted = task.status == domain.TaskStatus.completed;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -341,7 +376,7 @@ class CalendarTaskItem extends StatelessWidget {
                     children: [
                       // Task title
                       Text(
-                        task.content,
+                        task.title,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           decoration: isCompleted
                               ? TextDecoration.lineThrough
@@ -504,15 +539,15 @@ class CalendarTaskItem extends StatelessWidget {
     }
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
@@ -529,11 +564,11 @@ class CompletedTasksSection extends StatefulWidget {
     this.onOpenNote,
   });
 
-  final List<NoteTask> tasks;
-  final Function(NoteTask) onTaskToggle;
-  final Function(NoteTask) onTaskEdit;
-  final Function(NoteTask) onTaskDelete;
-  final Function(NoteTask)? onOpenNote;
+  final List<domain.Task> tasks;
+  final void Function(domain.Task) onTaskToggle;
+  final void Function(domain.Task) onTaskEdit;
+  final void Function(domain.Task) onTaskDelete;
+  final void Function(domain.Task)? onOpenNote;
 
   @override
   State<CompletedTasksSection> createState() => _CompletedTasksSectionState();
@@ -647,7 +682,7 @@ extension TaskMetadataCopyWith on TaskMetadata {
   TaskMetadata copyWith({
     String? taskContent,
     DateTime? dueDate,
-    TaskPriority? priority,
+    domain.TaskPriority? priority,
     bool? hasReminder,
     DateTime? reminderTime,
     int? estimatedMinutes,
