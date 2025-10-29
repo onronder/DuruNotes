@@ -258,7 +258,7 @@ serve(async (req) => {
 
     // Parse the request body based on content type
     const contentType = req.headers.get("content-type") || "";
-    let body: any = {};
+    let body: Record<string, unknown> = {};
 
     if (contentType.includes("application/json")) {
       body = await req.json();
