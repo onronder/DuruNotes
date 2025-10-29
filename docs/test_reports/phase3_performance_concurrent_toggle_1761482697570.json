@@ -1,8 +1,0 @@
-{
-  "test_name": "concurrent_toggle",
-  "timestamp": "2025-10-26T15:44:57.570906",
-  "results": {
-    "durationMs": 1,
-    "taskCount": 10
-  }
-}

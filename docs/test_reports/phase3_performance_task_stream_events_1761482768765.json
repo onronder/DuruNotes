@@ -1,8 +1,0 @@
-{
-  "test_name": "task_stream_events",
-  "timestamp": "2025-10-26T15:46:08.766246",
-  "results": {
-    "eventCount": 21,
-    "finalSize": 20
-  }
-}
