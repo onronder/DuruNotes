@@ -9,6 +9,9 @@ on:
     # Run nightly tests at 2 AM UTC
     - cron: '0 2 * * *'
 
+permissions:
+  contents: read
+
 env:
   FLUTTER_VERSION: '3.x'
   DART_VERSION: 'stable'
