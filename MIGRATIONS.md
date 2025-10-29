@@ -24,4 +24,14 @@ We follow a strict naming and authoring scheme to keep migrations predictable ac
 3. Document the change in `docs/SUPABASE_SCHEMA_INVENTORY.md` / `docs/SUPABASE_SCHEMA_BLUEPRINT.md`.
 4. Never rename a migration after it has been applied in any environment; create a follow-up migration instead.
 
-Adhering to these rules prevents ordering conflicts and keeps review/rollback safe.*** End Patch*** End Patch to=functions.apply_patch  otutu? wait formatting ok. 
+Adhering to these rules prevents ordering conflicts and keeps review/rollback safe.
+
+## Local (Drift) Schema Version Tracker
+
+| Version | Migration | Purpose | Data Safety Notes |
+|---------|-----------|---------|-------------------|
+| 36 | Inline (AppDb) | Add `created_at` column to `local_notes` | Backfills with prior `updated_at` timestamp; guarded by timestamp comparison to avoid repeated writes. |
+| 37 | `migration_37_note_tags_links_userid.dart` | Add `user_id` columns to `note_tags` and `note_links`, rebuild tables | Backfills from parent note ownership; orphaned rows removed post-migration; indexes re-applied idempotently. |
+| 38 | `migration_38_note_folders_userid.dart` | Add `user_id` column to `note_folders` | Backfills from owning note or folder; rows with unresolved ownership deleted before indexes restored. |
+
+> _Note:_ Earlier schema versions (≤35) are documented inline in `AppDb.onUpgrade` and remain unchanged.

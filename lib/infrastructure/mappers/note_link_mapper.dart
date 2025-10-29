@@ -21,11 +21,15 @@ class NoteLinkMapper {
   }
 
   /// Convert domain entity to database NoteLink
-  static NoteLink toInfrastructure(domain.NoteLink domainLink) {
+  static NoteLink toInfrastructure(
+    domain.NoteLink domainLink, {
+    required String userId,
+  }) {
     return NoteLink(
       sourceId: domainLink.fromNoteId,
       targetTitle: domainLink.linkText ?? domainLink.toNoteId,
       targetId: domainLink.toNoteId.isNotEmpty ? domainLink.toNoteId : null,
+      userId: userId,
     );
   }
 
@@ -55,8 +59,13 @@ class NoteLinkMapper {
   }
 
   /// Convert list of domain entities to database links
-  static List<NoteLink> toInfrastructureList(List<domain.NoteLink> domainLinks) {
-    return domainLinks.map(toInfrastructure).toList();
+  static List<NoteLink> toInfrastructureList(
+    List<domain.NoteLink> domainLinks, {
+    required String userId,
+  }) {
+    return domainLinks
+        .map((link) => toInfrastructure(link, userId: userId))
+        .toList();
   }
 
   /// Create domain entity from JSON (for API/storage)

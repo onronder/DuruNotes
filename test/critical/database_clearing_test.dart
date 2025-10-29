@@ -69,7 +69,9 @@ void main() {
 Future<void> _seedDatabase(AppDb db, String userId) async {
   final now = DateTime.utc(2025, 1, 1);
 
-  await db.into(db.localNotes).insert(
+  await db
+      .into(db.localNotes)
+      .insert(
         LocalNotesCompanion.insert(
           id: 'note-1',
           titleEncrypted: const Value('enc::title'),
@@ -84,7 +86,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.localFolders).insert(
+  await db
+      .into(db.localFolders)
+      .insert(
         LocalFoldersCompanion.insert(
           id: 'folder-1',
           userId: userId,
@@ -95,30 +99,41 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.noteFolders).insert(
+  await db
+      .into(db.noteFolders)
+      .insert(
         NoteFoldersCompanion.insert(
           noteId: 'note-1',
           folderId: 'folder-1',
           addedAt: now,
+          userId: userId,
         ),
       );
 
-  await db.into(db.noteTags).insert(
+  await db
+      .into(db.noteTags)
+      .insert(
         NoteTagsCompanion.insert(
           noteId: 'note-1',
           tag: 'security',
+          userId: userId,
         ),
       );
 
-  await db.into(db.noteLinks).insert(
+  await db
+      .into(db.noteLinks)
+      .insert(
         NoteLinksCompanion.insert(
           sourceId: 'note-1',
           targetTitle: 'Other Note',
           targetId: const Value('note-2'),
+          userId: userId,
         ),
       );
 
-  await db.into(db.noteReminders).insert(
+  await db
+      .into(db.noteReminders)
+      .insert(
         NoteRemindersCompanion.insert(
           noteId: 'note-1',
           userId: userId,
@@ -129,7 +144,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.noteTasks).insert(
+  await db
+      .into(db.noteTasks)
+      .insert(
         NoteTasksCompanion.insert(
           id: 'task-1',
           noteId: 'note-1',
@@ -142,7 +159,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.savedSearches).insert(
+  await db
+      .into(db.savedSearches)
+      .insert(
         SavedSearchesCompanion.insert(
           id: 'search-1',
           name: 'Important',
@@ -152,7 +171,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.localTemplates).insert(
+  await db
+      .into(db.localTemplates)
+      .insert(
         LocalTemplatesCompanion.insert(
           id: 'template-1',
           userId: Value(userId),
@@ -166,7 +187,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.attachments).insert(
+  await db
+      .into(db.attachments)
+      .insert(
         AttachmentsCompanion.insert(
           id: 'attachment-1',
           userId: userId,
@@ -178,7 +201,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.inboxItems).insert(
+  await db
+      .into(db.inboxItems)
+      .insert(
         InboxItemsCompanion.insert(
           id: 'inbox-1',
           userId: userId,
@@ -188,7 +213,9 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
         ),
       );
 
-  await db.into(db.pendingOps).insert(
+  await db
+      .into(db.pendingOps)
+      .insert(
         PendingOpsCompanion.insert(
           entityId: 'note-1',
           kind: 'delete_note',
@@ -211,7 +238,8 @@ Future<void> _seedDatabase(AppDb db, String userId) async {
 }
 
 Future<int> _ftsCount(AppDb db) async {
-  final row =
-      await db.customSelect('SELECT COUNT(*) AS count FROM fts_notes').getSingle();
+  final row = await db
+      .customSelect('SELECT COUNT(*) AS count FROM fts_notes')
+      .getSingle();
   return row.read<int>('count');
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:duru_notes/core/providers/infrastructure_providers.dart'
 import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:duru_notes/services/notifications/notification_bootstrap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -31,6 +33,7 @@ class AdvancedReminderService {
   final AppDb _db;
   AppLogger get logger => _ref.read(loggerProvider);
   AnalyticsService get analytics => _ref.read(analyticsProvider);
+  final SecurityAuditTrail _auditTrail = SecurityAuditTrail();
 
   /// P0.5 SECURITY: Get current user ID for reminder operations
   String? get _currentUserId {
@@ -40,6 +43,16 @@ class AdvancedReminderService {
       logger.warning('Failed to get current user ID: $e');
       return null;
     }
+  }
+
+  void _audit(String action, {required bool granted, String? reason}) {
+    unawaited(
+      _auditTrail.logAccess(
+        resource: 'advancedReminder.$action',
+        granted: granted,
+        reason: reason,
+      ),
+    );
   }
 
   static const String _channelId = 'notes_reminders';
@@ -278,6 +291,7 @@ class AdvancedReminderService {
       final userId = _currentUserId;
       if (userId == null) {
         logger.warn('Cannot create reminder - no authenticated user');
+        _audit('createTimeReminder', granted: false, reason: 'missing_user');
         return null;
       }
 
@@ -331,6 +345,12 @@ class AdvancedReminderService {
         },
       );
 
+      _audit(
+        'createTimeReminder',
+        granted: true,
+        reason: 'reminderId=$reminderId',
+      );
+
       return reminderId;
     } catch (e, stack) {
       logger.error(
@@ -341,6 +361,11 @@ class AdvancedReminderService {
       analytics.event(
         'reminder.create_error',
         properties: {'type': 'time', 'error': e.toString()},
+      );
+      _audit(
+        'createTimeReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return null;
     }
@@ -357,6 +382,7 @@ class AdvancedReminderService {
     final userId = _currentUserId;
     if (userId == null) {
       logger.warn('Cannot schedule next recurrence - no authenticated user');
+      _audit('scheduleNextRecurrence', granted: false, reason: 'missing_user');
       return;
     }
 
@@ -392,6 +418,12 @@ class AdvancedReminderService {
       reminderId,
       userId, // P0.5 SECURITY
       NoteRemindersCompanion(remindAt: Value(nextTime.toUtc())),
+    );
+
+    _audit(
+      'scheduleNextRecurrence',
+      granted: true,
+      reason: 'reminderId=$reminderId',
     );
 
     // Schedule the next notification
@@ -633,11 +665,15 @@ class AdvancedReminderService {
       final userId = _currentUserId;
       if (userId == null) {
         logger.warn('Cannot snooze reminder - no authenticated user');
+        _audit('snoozeReminder', granted: false, reason: 'missing_user');
         return;
       }
 
       final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
-      if (reminder == null) return;
+      if (reminder == null) {
+        _audit('snoozeReminder', granted: false, reason: 'not_found');
+        return;
+      }
 
       final snoozeUntil = _calculateSnoozeTime(duration);
 
@@ -666,8 +702,10 @@ class AdvancedReminderService {
           'snooze_count': reminder.snoozeCount + 1,
         },
       );
+      _audit('snoozeReminder', granted: true, reason: 'reminderId=$reminderId');
     } catch (e, stack) {
       logger.error('Failed to snooze reminder', error: e, stackTrace: stack);
+      _audit('snoozeReminder', granted: false, reason: 'error=${e.runtimeType}');
     }
   }
 
@@ -721,10 +759,12 @@ class AdvancedReminderService {
     final userId = _currentUserId;
     if (userId == null) {
       logger.warn('Cannot update reminder - no authenticated user');
+      _audit('updateReminder', granted: false, reason: 'missing_user');
       return;
     }
 
     await _db.updateReminder(reminderId, userId, updates); // P0.5 SECURITY
+    _audit('updateReminder', granted: true, reason: 'reminderId=$reminderId');
   }
 
   /// Delete a reminder
@@ -734,6 +774,7 @@ class AdvancedReminderService {
       final userId = _currentUserId;
       if (userId == null) {
         logger.warn('Cannot delete reminder - no authenticated user');
+        _audit('deleteReminder', granted: false, reason: 'missing_user');
         return;
       }
 
@@ -742,7 +783,12 @@ class AdvancedReminderService {
 
       // Remove geofence if location reminder
       final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
-      if (reminder?.type == ReminderType.location) {
+      if (reminder == null) {
+        _audit('deleteReminder', granted: false, reason: 'not_found');
+        return;
+      }
+
+      if (reminder.type == ReminderType.location) {
         await _removeGeofence(reminderId);
       }
 
@@ -753,8 +799,10 @@ class AdvancedReminderService {
         AnalyticsEvents.reminderRemoved,
         properties: {'reminder_id': reminderId},
       );
+      _audit('deleteReminder', granted: true, reason: 'reminderId=$reminderId');
     } catch (e, stack) {
       logger.error('Failed to delete reminder', error: e, stackTrace: stack);
+      _audit('deleteReminder', granted: false, reason: 'error=${e.runtimeType}');
     }
   }
 
@@ -789,6 +837,7 @@ class AdvancedReminderService {
       final userId = _currentUserId;
       if (userId == null) {
         logger.warn('Cannot handle notification action - no authenticated user');
+        _audit('handleAction', granted: false, reason: 'missing_user');
         return;
       }
 
@@ -806,12 +855,15 @@ class AdvancedReminderService {
           await _db.deactivateReminder(reminderId, userId); // P0.5 SECURITY
           analytics.event('reminder.completed_from_notification');
       }
+
+      _audit('handleAction', granted: true, reason: 'action=$action');
     } catch (e, stack) {
       logger.error(
         'Failed to handle notification action',
         error: e,
         stackTrace: stack,
       );
+      _audit('handleAction', granted: false, reason: 'error=${e.runtimeType}');
     }
   }
 

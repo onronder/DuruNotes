@@ -8,6 +8,7 @@ import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/infrastructure/mappers/saved_search_mapper.dart';
 import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/infrastructure/helpers/note_decryption_helper.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/note_link.dart';
@@ -31,6 +32,7 @@ class SearchRepository implements ISearchRepository {
   final AppLogger _logger;
   final NoteDecryptionHelper _decryptHelper;
   final IFolderRepository _folderRepository;
+  final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
 
   String? get _currentUserId => client.auth.currentUser?.id;
 
@@ -80,6 +82,33 @@ class SearchRepository implements ISearchRepository {
     );
   }
 
+  void _auditAccess(String resource, {required bool granted, String? reason}) {
+    unawaited(
+      _securityAuditTrail.logAccess(
+        resource: resource,
+        granted: granted,
+        reason: reason,
+      ),
+    );
+  }
+
+  String? _requireUserId({required String method, Map<String, dynamic>? data}) {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) {
+      _logger.warning('$method denied - unauthenticated user', data: data);
+      _captureRepositoryException(
+        method: method,
+        error: StateError('Unauthenticated access'),
+        stackTrace: StackTrace.current,
+        data: data,
+        level: SentryLevel.warning,
+      );
+      _auditAccess('search.$method', granted: false, reason: 'missing_user');
+      return null;
+    }
+    return userId;
+  }
+
   /// Helper method to convert LocalNote to domain.Note with decryption.
   ///
   /// Ensures all plaintext access happens inside the infrastructure layer so
@@ -90,14 +119,20 @@ class SearchRepository implements ISearchRepository {
       final body = await _decryptHelper.decryptBody(localNote);
 
       // Query tags and links from database
-      final tagRecords = await (db.select(
-        db.noteTags,
-      )..where((t) => t.noteId.equals(localNote.id))).get();
+      final tagQuery = db.select(db.noteTags)
+        ..where((t) => t.noteId.equals(localNote.id));
+      if (localNote.userId != null && localNote.userId!.isNotEmpty) {
+        tagQuery.where((t) => t.userId.equals(localNote.userId!));
+      }
+      final tagRecords = await tagQuery.get();
       final tags = tagRecords.map((t) => t.tag).toList();
 
-      final List<appdb.NoteLink> linkRecords = await (db.select(
-        db.noteLinks,
-      )..where((l) => l.sourceId.equals(localNote.id))).get();
+      final linkQuery = db.select(db.noteLinks)
+        ..where((l) => l.sourceId.equals(localNote.id));
+      if (localNote.userId != null && localNote.userId!.isNotEmpty) {
+        linkQuery.where((l) => l.userId.equals(localNote.userId!));
+      }
+      final List<appdb.NoteLink> linkRecords = await linkQuery.get();
       final links = linkRecords
           .map<NoteLink>((link) => NoteMapper.linkToDomain(link))
           .toList();
@@ -130,23 +165,14 @@ class SearchRepository implements ISearchRepository {
   Future<void> createOrUpdateSavedSearch(domain.SavedSearch savedSearch) async {
     try {
       // Security: Verify user is authenticated
-      final userId = client.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
+      final userId = _requireUserId(
+        method: 'createOrUpdateSavedSearch',
+        data: {'savedSearchId': savedSearch.id},
+      );
+      if (userId == null) {
+        throw StateError(
           'Cannot create/update saved search without authenticated user',
         );
-        _logger.warning(
-          'Cannot create/update saved search without authenticated user',
-          data: {'savedSearchId': savedSearch.id},
-        );
-        _captureRepositoryException(
-          method: 'createOrUpdateSavedSearch',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'savedSearchId': savedSearch.id},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
       }
 
       // Security: If updating, verify belongs to user
@@ -172,17 +198,29 @@ class SearchRepository implements ISearchRepository {
             data: {'savedSearchId': savedSearch.id, 'userId': userId},
             level: SentryLevel.warning,
           );
+          _auditAccess(
+            'search.createOrUpdateSavedSearch',
+            granted: false,
+            reason: 'not_found',
+          );
           throw missingError;
         }
       }
 
-      final dbSearch = SavedSearchMapper.toInfrastructure(savedSearch);
+      final dbSearch = SavedSearchMapper.toInfrastructure(
+        savedSearch,
+      ).copyWith(userId: Value(userId));
       await db.upsertSavedSearch(dbSearch);
       // Enqueue for sync
       await _enqueuePendingOp(
         entityId: savedSearch.id,
         kind: 'upsert_saved_search',
         payload: jsonEncode(dbSearch.toJson()),
+      );
+      _auditAccess(
+        'search.createOrUpdateSavedSearch',
+        granted: true,
+        reason: 'savedSearchId=${savedSearch.id}',
       );
     } catch (error, stackTrace) {
       _logger.error(
@@ -197,6 +235,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'savedSearchId': savedSearch.id},
       );
+      _auditAccess(
+        'search.createOrUpdateSavedSearch',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -205,23 +248,14 @@ class SearchRepository implements ISearchRepository {
   Future<void> deleteSavedSearch(String id) async {
     try {
       // Security: Verify user is authenticated
-      final userId = client.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
+      final userId = _requireUserId(
+        method: 'deleteSavedSearch',
+        data: {'savedSearchId': id},
+      );
+      if (userId == null) {
+        throw StateError(
           'Cannot delete saved search without authenticated user',
         );
-        _logger.warning(
-          'Cannot delete saved search without authenticated user',
-          data: {'savedSearchId': id},
-        );
-        _captureRepositoryException(
-          method: 'deleteSavedSearch',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'savedSearchId': id},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
       }
 
       // Security: Verify saved search belongs to user
@@ -234,6 +268,11 @@ class SearchRepository implements ISearchRepository {
       if (existing == null) {
         _logger.warning(
           'Saved search $id not found or does not belong to user $userId',
+        );
+        _auditAccess(
+          'search.deleteSavedSearch',
+          granted: false,
+          reason: 'not_found',
         );
         _captureRepositoryException(
           method: 'deleteSavedSearch',
@@ -250,6 +289,11 @@ class SearchRepository implements ISearchRepository {
       await db.deleteSavedSearch(id);
       // Enqueue for sync
       await _enqueuePendingOp(entityId: id, kind: 'delete_saved_search');
+      _auditAccess(
+        'search.deleteSavedSearch',
+        granted: true,
+        reason: 'savedSearchId=$id',
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to delete saved search',
@@ -263,6 +307,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'savedSearchId': id},
       );
+      _auditAccess(
+        'search.deleteSavedSearch',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -271,9 +320,8 @@ class SearchRepository implements ISearchRepository {
   Future<List<domain.SavedSearch>> getSavedSearches() async {
     try {
       // Security: Only return user's saved searches
-      final userId = client.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get saved searches without authenticated user');
+      final userId = _requireUserId(method: 'getSavedSearches');
+      if (userId == null) {
         return const <domain.SavedSearch>[];
       }
 
@@ -283,7 +331,13 @@ class SearchRepository implements ISearchRepository {
                 ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
               .get();
 
-      return SavedSearchMapper.toDomainList(dbSearches);
+      final searches = SavedSearchMapper.toDomainList(dbSearches);
+      _auditAccess(
+        'search.getSavedSearches',
+        granted: true,
+        reason: 'count=${searches.length}',
+      );
+      return searches;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to load saved searches',
@@ -295,6 +349,11 @@ class SearchRepository implements ISearchRepository {
         error: error,
         stackTrace: stackTrace,
       );
+      _auditAccess(
+        'search.getSavedSearches',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       return const <domain.SavedSearch>[];
     }
   }
@@ -302,13 +361,23 @@ class SearchRepository implements ISearchRepository {
   @override
   Stream<List<domain.SavedSearch>> watchSavedSearches() {
     // Security: Only watch user's saved searches
-    final userId = client.auth.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
       _logger.warning('Cannot watch saved searches without authenticated user');
-      return Stream.value([]);
+      _auditAccess(
+        'search.watchSavedSearches',
+        granted: false,
+        reason: 'missing_user',
+      );
+      return Stream.value(const <domain.SavedSearch>[]);
     }
 
     try {
+      _auditAccess(
+        'search.watchSavedSearches',
+        granted: true,
+        reason: 'stream_start',
+      );
       return (db.select(db.savedSearches)
             ..where((s) => s.userId.equals(userId))
             ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
@@ -329,6 +398,11 @@ class SearchRepository implements ISearchRepository {
                 stackTrace: stackTrace,
                 data: {'userId': userId},
               );
+              _auditAccess(
+                'search.watchSavedSearches',
+                granted: false,
+                reason: 'map_error=${error.runtimeType}',
+              );
               return const <domain.SavedSearch>[];
             }
           });
@@ -344,6 +418,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'userId': userId},
       );
+      _auditAccess(
+        'search.watchSavedSearches',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       return Stream.error(error, stackTrace);
     }
   }
@@ -351,7 +430,34 @@ class SearchRepository implements ISearchRepository {
   @override
   Future<void> toggleSavedSearchPin(String id) async {
     try {
+      final userId = _requireUserId(
+        method: 'toggleSavedSearchPin',
+        data: {'savedSearchId': id},
+      );
+      if (userId == null) {
+        return;
+      }
+
+      final existing =
+          await (db.select(db.savedSearches)
+                ..where((s) => s.id.equals(id))
+                ..where((s) => s.userId.equals(userId)))
+              .getSingleOrNull();
+      if (existing == null) {
+        _auditAccess(
+          'search.toggleSavedSearchPin',
+          granted: false,
+          reason: 'not_found',
+        );
+        return;
+      }
+
       await db.toggleSavedSearchPin(id);
+      _auditAccess(
+        'search.toggleSavedSearchPin',
+        granted: true,
+        reason: 'savedSearchId=$id',
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to toggle saved search pin',
@@ -365,6 +471,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'savedSearchId': id},
       );
+      _auditAccess(
+        'search.toggleSavedSearchPin',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -372,7 +483,34 @@ class SearchRepository implements ISearchRepository {
   @override
   Future<void> trackSavedSearchUsage(String id) async {
     try {
+      final userId = _requireUserId(
+        method: 'trackSavedSearchUsage',
+        data: {'savedSearchId': id},
+      );
+      if (userId == null) {
+        return;
+      }
+
+      final exists =
+          await (db.select(db.savedSearches)
+                ..where((s) => s.id.equals(id))
+                ..where((s) => s.userId.equals(userId)))
+              .getSingleOrNull();
+      if (exists == null) {
+        _auditAccess(
+          'search.trackSavedSearchUsage',
+          granted: false,
+          reason: 'not_found',
+        );
+        return;
+      }
+
       await db.updateSavedSearchUsage(id);
+      _auditAccess(
+        'search.trackSavedSearchUsage',
+        granted: true,
+        reason: 'savedSearchId=$id',
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to track saved search usage',
@@ -386,6 +524,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'savedSearchId': id},
       );
+      _auditAccess(
+        'search.trackSavedSearchUsage',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -393,7 +536,33 @@ class SearchRepository implements ISearchRepository {
   @override
   Future<void> reorderSavedSearches(List<String> ids) async {
     try {
+      final userId = _requireUserId(
+        method: 'reorderSavedSearches',
+        data: {'count': ids.length},
+      );
+      if (userId == null) {
+        return;
+      }
+
+      final userSearches = await (db.select(
+        db.savedSearches,
+      )..where((s) => s.userId.equals(userId))).get();
+      final userIds = userSearches.map((s) => s.id).toSet();
+      if (!ids.every(userIds.contains)) {
+        _auditAccess(
+          'search.reorderSavedSearches',
+          granted: false,
+          reason: 'contains_foreign_ids',
+        );
+        throw StateError('Cannot reorder saved searches owned by another user');
+      }
+
       await db.reorderSavedSearches(ids);
+      _auditAccess(
+        'search.reorderSavedSearches',
+        granted: true,
+        reason: 'count=${ids.length}',
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to reorder saved searches',
@@ -407,6 +576,11 @@ class SearchRepository implements ISearchRepository {
         stackTrace: stackTrace,
         data: {'savedSearchCount': ids.length},
       );
+      _auditAccess(
+        'search.reorderSavedSearches',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -417,21 +591,11 @@ class SearchRepository implements ISearchRepository {
   ) async {
     try {
       // Security: Verify user is authenticated
-      final userId = client.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
-          'Cannot execute saved search without authenticated user',
-        );
-        _logger.warning(
-          'Cannot execute saved search without authenticated user',
-        );
-        _captureRepositoryException(
-          method: 'executeSavedSearch',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'savedSearchId': savedSearch.id},
-          level: SentryLevel.warning,
-        );
+      final userId = _requireUserId(
+        method: 'executeSavedSearch',
+        data: {'savedSearchId': savedSearch.id},
+      );
+      if (userId == null) {
         return const <domain.Note>[];
       }
 
@@ -464,28 +628,30 @@ class SearchRepository implements ISearchRepository {
       }
 
       // Execute based on search type
+      List<domain.Note> notes = const <domain.Note>[];
       switch (searchType) {
         case 'text':
-          final results = await db.searchNotes(query);
+          final results = await db.searchNotes(query, userId: userId);
           final userResults = results.where((n) => n.userId == userId).toList();
-          final List<domain.Note> notes = [];
+          notes = [];
           for (final ln in userResults) {
             notes.add(await _toDomainNote(ln));
           }
-          return notes;
+          break;
         case 'tags':
           final tags = (params?['tags'] as List?)?.cast<String>() ?? [];
           final results = await db.notesByTags(
             anyTags: tags,
             noneTags: const [],
             sort: const appdb.SortSpec(),
+            userId: userId,
           );
           final userResults = results.where((n) => n.userId == userId).toList();
-          final List<domain.Note> notes = [];
+          notes = [];
           for (final ln in userResults) {
             notes.add(await _toDomainNote(ln));
           }
-          return notes;
+          break;
         case 'folder':
           final folderId = params?['folderId'] as String?;
           if (folderId == null || folderId.isEmpty) {
@@ -500,19 +666,24 @@ class SearchRepository implements ISearchRepository {
               data: {'savedSearchId': savedSearch.id},
               level: SentryLevel.warning,
             );
+            _auditAccess(
+              'search.executeSavedSearch',
+              granted: false,
+              reason: 'missing_folder_param',
+            );
             return const <domain.Note>[];
           }
 
-          final notes = await _folderRepository.getNotesInFolder(folderId);
-          return notes;
+          notes = await _folderRepository.getNotesInFolder(folderId);
+          break;
         case 'advanced':
           final results = await _executeAdvancedSearch(params ?? {});
           final userResults = results.where((n) => n.userId == userId).toList();
-          final List<domain.Note> notes = [];
+          notes = [];
           for (final ln in userResults) {
             notes.add(await _toDomainNote(ln));
           }
-          return notes;
+          break;
         default:
           _logger.warning('Unknown search type: $searchType');
           _captureRepositoryException(
@@ -522,8 +693,24 @@ class SearchRepository implements ISearchRepository {
             data: {'savedSearchId': savedSearch.id, 'searchType': searchType},
             level: SentryLevel.warning,
           );
+          _auditAccess(
+            'search.executeSavedSearch',
+            granted: false,
+            reason: 'unknown_type=$searchType',
+          );
           return const <domain.Note>[];
       }
+
+      if (userId.isNotEmpty) {
+        notes = notes.where((note) => note.userId == userId).toList();
+      }
+
+      _auditAccess(
+        'search.executeSavedSearch',
+        granted: true,
+        reason: 'type=$searchType count=${notes.length}',
+      );
+      return notes;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to execute saved search',
@@ -536,6 +723,11 @@ class SearchRepository implements ISearchRepository {
         error: error,
         stackTrace: stackTrace,
         data: {'savedSearchId': savedSearch.id},
+      );
+      _auditAccess(
+        'search.executeSavedSearch',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
       );
       return const <domain.Note>[];
     }

@@ -14,8 +14,10 @@ import 'package:duru_notes/data/migrations/migration_24_drop_plaintext_columns.d
 import 'package:duru_notes/data/migrations/migration_26_saved_searches_userid.dart';
 import 'package:duru_notes/data/migrations/migration_27_performance_indexes.dart';
 import 'package:duru_notes/data/migrations/migration_32_phase1_performance_indexes.dart';
-import 'package:duru_notes/data/migrations/migration_34_note_tasks_userid.dart';
 import 'package:duru_notes/data/migrations/migration_33_pending_ops_userid.dart';
+import 'package:duru_notes/data/migrations/migration_34_note_tasks_userid.dart';
+import 'package:duru_notes/data/migrations/migration_37_note_tags_links_userid.dart';
+import 'package:duru_notes/data/migrations/migration_38_note_folders_userid.dart';
 import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
@@ -74,6 +76,7 @@ class PendingOps extends Table {
 class NoteTags extends Table {
   TextColumn get noteId => text()();
   TextColumn get tag => text()();
+  TextColumn get userId => text()();
 
   @override
   Set<Column> get primaryKey => {noteId, tag};
@@ -84,6 +87,7 @@ class NoteLinks extends Table {
   TextColumn get sourceId => text()();
   TextColumn get targetTitle => text()();
   TextColumn get targetId => text().nullable()();
+  TextColumn get userId => text()();
 
   @override
   Set<Column> get primaryKey => {sourceId, targetTitle};
@@ -330,6 +334,9 @@ class NoteFolders extends Table {
   /// Last update timestamp for sorting and performance indexes
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
+  /// User ID who owns this relationship
+  TextColumn get userId => text()();
+
   @override
   Set<Column> get primaryKey => {noteId}; // One folder per note
 }
@@ -504,8 +511,7 @@ class QuickCaptureQueueEntries extends Table {
   TextColumn get platform => text().nullable()();
   IntColumn get retryCount =>
       integer().named('retry_count').withDefault(const Constant(0))();
-  BoolColumn get processed =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get processed => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt =>
       dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
@@ -561,7 +567,7 @@ class AppDb extends _$AppDb {
   AppDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 36; // Added created_at column to local_notes (36)
+  int get schemaVersion => 38; // Migration 38: note_tags/links/folders user isolation
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -856,8 +862,18 @@ class AppDb extends _$AppDb {
         );
 
         if (kDebugMode) {
-          print('✓ Migration 36: Added created_at column to local_notes with defensive backfill');
+          print(
+            '✓ Migration 36: Added created_at column to local_notes with defensive backfill',
+          );
         }
+      }
+
+      if (from < 37) {
+        await Migration37NoteTagsLinksUserId.run(this);
+      }
+
+      if (from < 38) {
+        await Migration38NoteFoldersUserId.run(this);
       }
 
       // Always attempt Migration 12 (idempotent) to handle edge cases where
@@ -1267,14 +1283,22 @@ class AppDb extends _$AppDb {
     return rows.map((e) => e.id).toSet();
   }
 
-  // ----------------------
-  // Tags & Links index
-  // ----------------------
+  Future<String?> _resolveNoteOwner(String noteId) async {
+    final note = await (select(
+      localNotes,
+    )..where((n) => n.id.equals(noteId))).getSingleOrNull();
+    return note?.userId;
+  }
+
   Future<void> replaceTagsForNote(String noteId, Set<String> tags) async {
     await transaction(() async {
       await (delete(noteTags)..where((t) => t.noteId.equals(noteId))).go();
       if (tags.isNotEmpty) {
-        // Normalize tags to lowercase for consistent storage
+        final ownerId = await _resolveNoteOwner(noteId);
+        if (ownerId == null || ownerId.isEmpty) {
+          return;
+        }
+
         final normalizedTags = tags
             .map((t) => t.trim().toLowerCase())
             .where((t) => t.isNotEmpty)
@@ -1284,7 +1308,11 @@ class AppDb extends _$AppDb {
           b.insertAll(
             noteTags,
             normalizedTags.map(
-              (t) => NoteTagsCompanion.insert(noteId: noteId, tag: t),
+              (t) => NoteTagsCompanion.insert(
+                noteId: noteId,
+                tag: t,
+                userId: ownerId,
+              ),
             ),
           );
         });
@@ -1299,6 +1327,11 @@ class AppDb extends _$AppDb {
     await transaction(() async {
       await (delete(noteLinks)..where((t) => t.sourceId.equals(noteId))).go();
       if (links.isNotEmpty) {
+        final ownerId = await _resolveNoteOwner(noteId);
+        if (ownerId == null || ownerId.isEmpty) {
+          return;
+        }
+
         await batch((b) {
           b.insertAll(
             noteLinks,
@@ -1307,6 +1340,7 @@ class AppDb extends _$AppDb {
                 sourceId: noteId,
                 targetTitle: l['title'] ?? '',
                 targetId: Value(l['id']),
+                userId: ownerId,
               ),
             ),
           );
@@ -1315,33 +1349,60 @@ class AppDb extends _$AppDb {
     });
   }
 
-  Future<List<String>> distinctTags() async {
-    final rows = await customSelect(
-      '''
+  Future<List<String>> distinctTags({String? userId}) async {
+    final buffer = StringBuffer('''
       SELECT DISTINCT t.tag AS tag
       FROM note_tags t
       JOIN local_notes n ON n.id = t.note_id
       WHERE n.deleted = 0 AND n.note_type = 0
-      ORDER BY LOWER(t.tag) ASC
-      ''',
+    ''');
+    final variables = <Variable>[];
+    if (userId != null && userId.isNotEmpty) {
+      buffer.write(' AND t.user_id = ?');
+      variables.add(Variable(userId));
+    }
+    buffer.write(' ORDER BY LOWER(t.tag) ASC');
+
+    final rows = await customSelect(
+      buffer.toString(),
+      variables: variables,
       readsFrom: {noteTags, localNotes},
     ).get();
 
     return rows.map((r) => r.read<String>('tag')).toList();
   }
 
-  /// Get tags with their note counts (normalized, excludes deleted notes)
-  Future<List<TagCount>> getTagsWithCounts() async {
+  /// Get tags with their note counts (normalized, excludes deleted notes).
+  ///
+  /// SECURITY: Requires [userId]. Returns an empty list if userId is missing to
+  /// prevent accidental cross-user aggregation when invoked from unauthenticated
+  /// contexts (e.g. legacy background jobs).
+  Future<List<TagCount>> getTagsWithCounts({String? userId}) async {
+    final owner = userId?.trim();
+    if (owner == null || owner.isEmpty) {
+      LoggerFactory.instance.warning(
+        '[AppDb] getTagsWithCounts denied - missing userId',
+      );
+      return const <TagCount>[];
+    }
+
     final rows = await customSelect(
       '''
       SELECT nt.tag AS tag, COUNT(*) AS count
       FROM note_tags nt
       JOIN local_notes n ON n.id = nt.note_id
-      WHERE n.deleted = 0 AND n.note_type = 0
+      WHERE n.deleted = 0
+        AND n.note_type = 0
+        AND nt.user_id = ?
+        AND n.user_id = ?
       GROUP BY nt.tag
       ORDER BY count DESC, tag ASC
       ''',
       readsFrom: {noteTags, localNotes},
+      variables: [
+        Variable<String>(owner),
+        Variable<String>(owner),
+      ],
     ).get();
 
     return rows
@@ -1355,9 +1416,19 @@ class AppDb extends _$AppDb {
   /// Add tag to note (normalized, idempotent)
   Future<void> addTagToNote(String noteId, String rawTag) async {
     final tag = rawTag.trim().toLowerCase();
+    if (tag.isEmpty) return;
+
+    final ownerId = await _resolveNoteOwner(noteId);
+    if (ownerId == null || ownerId.isEmpty) {
+      LoggerFactory.instance.warning(
+        '[AppDb] addTagToNote skipped - note missing userId',
+        data: {'noteId': noteId, 'tag': rawTag},
+      );
+      return;
+    }
 
     await into(noteTags).insert(
-      NoteTag(noteId: noteId, tag: tag),
+      NoteTagsCompanion.insert(noteId: noteId, tag: tag, userId: ownerId),
       mode: InsertMode.insertOrIgnore, // idempotent
     );
   }
@@ -1365,22 +1436,51 @@ class AppDb extends _$AppDb {
   /// Remove tag from note
   Future<void> removeTagFromNote(String noteId, String rawTag) async {
     final tag = rawTag.trim().toLowerCase();
-    await (delete(
-      noteTags,
-    )..where((t) => t.noteId.equals(noteId) & t.tag.equals(tag))).go();
+    if (tag.isEmpty) return;
+
+    final ownerId = await _resolveNoteOwner(noteId);
+    if (ownerId == null || ownerId.isEmpty) {
+      LoggerFactory.instance.warning(
+        '[AppDb] removeTagFromNote skipped - note missing userId',
+        data: {'noteId': noteId, 'tag': rawTag},
+      );
+      return;
+    }
+
+    await (delete(noteTags)..where(
+          (t) =>
+              t.noteId.equals(noteId) &
+              t.tag.equals(tag) &
+              t.userId.equals(ownerId),
+        ))
+        .go();
   }
 
   /// Rename/merge tag across all notes
-  Future<int> renameTagEverywhere(String fromRaw, String toRaw) async {
+  Future<int> renameTagEverywhere(
+    String fromRaw,
+    String toRaw, {
+    String? userId,
+  }) async {
     final from = fromRaw.trim().toLowerCase();
     final to = toRaw.trim().toLowerCase();
 
     if (from == to) return 0;
 
+    final buffer = StringBuffer(
+      'UPDATE OR IGNORE note_tags SET tag = ? WHERE tag = ?',
+    );
+    final variables = <Variable>[Variable<String>(to), Variable<String>(from)];
+
+    if (userId != null && userId.isNotEmpty) {
+      buffer.write(' AND user_id = ?');
+      variables.add(Variable<String>(userId));
+    }
+
     // Use custom update to handle potential conflicts
     return customUpdate(
-      'UPDATE OR IGNORE note_tags SET tag = ? WHERE tag = ?',
-      variables: [Variable<String>(to), Variable<String>(from)],
+      buffer.toString(),
+      variables: variables,
       updates: {noteTags},
     );
   }
@@ -1390,11 +1490,16 @@ class AppDb extends _$AppDb {
     required List<String> anyTags,
     required SortSpec sort,
     List<String> noneTags = const [],
+    String? userId,
   }) async {
     final tagsAny = anyTags.map((t) => t.trim().toLowerCase()).toList();
     final tagsNone = noneTags.map((t) => t.trim().toLowerCase()).toList();
 
     final q = select(localNotes)..where((n) => noteIsVisible(n));
+
+    if (userId != null && userId.isNotEmpty) {
+      q.where((n) => n.userId.equals(userId));
+    }
 
     if (tagsAny.isNotEmpty) {
       final sub = selectOnly(noteTags)
@@ -1455,44 +1560,55 @@ class AppDb extends _$AppDb {
   }
 
   /// Search tags by prefix (normalized)
-  Future<List<String>> searchTags(String prefix) async {
-    if (prefix.trim().isEmpty) return distinctTags();
+  Future<List<String>> searchTags(String prefix, {String? userId}) async {
+    if (prefix.trim().isEmpty) return distinctTags(userId: userId);
 
     final normalizedPrefix = prefix.trim().toLowerCase();
-
-    final rows = await customSelect(
-      '''
+    final queryBuffer = StringBuffer('''
       SELECT DISTINCT t.tag AS tag
       FROM note_tags t
       JOIN local_notes n ON n.id = t.note_id
       WHERE n.deleted = 0 AND n.note_type = 0 AND t.tag LIKE ?
-      ORDER BY t.tag ASC
-      LIMIT 20
-      ''',
-      variables: [Variable('$normalizedPrefix%')],
+    ''');
+    final variables = <Variable>[Variable('$normalizedPrefix%')];
+    if (userId != null && userId.isNotEmpty) {
+      queryBuffer.write(' AND t.user_id = ?');
+      variables.add(Variable(userId));
+    }
+    queryBuffer.write(' ORDER BY t.tag ASC LIMIT 20');
+
+    final rows = await customSelect(
+      queryBuffer.toString(),
+      variables: variables,
       readsFrom: {noteTags, localNotes},
     ).get();
 
     return rows.map((r) => r.read<String>('tag')).toList();
   }
 
-  Future<List<LocalNote>> notesWithTag(String tag) async {
-    // Normalize tag for query
+  Future<List<LocalNote>> notesWithTag(String tag, {String? userId}) async {
     final normalizedTag = tag.trim().toLowerCase();
 
-    final list = await customSelect(
-      '''
-      SELECT n.*
-      FROM local_notes n
-      JOIN note_tags t ON n.id = t.note_id
-      WHERE n.deleted = 0 AND n.note_type = 0 AND t.tag = ?
-      ORDER BY n.is_pinned DESC, n.updated_at DESC
-      ''',
-      variables: [Variable(normalizedTag)],
-      readsFrom: {localNotes, noteTags},
-    ).map<LocalNote>((row) => localNotes.map(row.data)).get();
+    final query =
+        select(localNotes).join([
+          innerJoin(noteTags, noteTags.noteId.equalsExp(localNotes.id)),
+        ])..where(
+          localNotes.deleted.equals(false) &
+              localNotes.noteType.equals(0) &
+              noteTags.tag.equals(normalizedTag),
+        );
 
-    return list;
+    if (userId != null && userId.isNotEmpty) {
+      query.where(noteTags.userId.equals(userId));
+    }
+
+    query.orderBy([
+      OrderingTerm.desc(localNotes.isPinned),
+      OrderingTerm.desc(localNotes.updatedAt),
+    ]);
+
+    final results = await query.get();
+    return results.map((row) => row.readTable(localNotes)).toList();
   }
 
   /// Get notes for saved search with authoritative filtering
@@ -1796,10 +1912,18 @@ class AppDb extends _$AppDb {
   }
 
   /// `#tag` => etiket, diğerleri => FTS5 MATCH (LIKE fallback)
-  Future<List<LocalNote>> searchNotes(String raw) async {
+  Future<List<LocalNote>> searchNotes(String raw, {String? userId}) async {
     final q = raw.trim();
+    String? owner = userId?.trim().isEmpty ?? true ? null : userId;
+
     if (q.isEmpty) {
-      return allNotes();
+      final query = select(localNotes)
+        ..where((t) => noteIsVisible(t))
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+      if (owner != null) {
+        query.where((t) => t.userId.equals(owner));
+      }
+      return query.get();
     }
 
     String likeWrap(String s) {
@@ -1811,17 +1935,23 @@ class AppDb extends _$AppDb {
       final needle = q.substring(1).trim();
       if (needle.isEmpty) return allNotes();
 
-      final tagRows = await (select(
-        noteTags,
-      )..where((t) => t.tag.like(likeWrap(needle)))).get();
+      final tagQuery = select(noteTags)
+        ..where((t) => t.tag.like(likeWrap(needle)));
+      if (owner != null) {
+        tagQuery.where((t) => t.userId.equals(owner));
+      }
+      final tagRows = await tagQuery.get();
 
       final ids = tagRows.map((e) => e.noteId).toSet().toList();
       if (ids.isEmpty) return const <LocalNote>[];
 
-      return (select(localNotes)
-            ..where((t) => noteIsVisible(t) & t.id.isIn(ids))
-            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
-          .get();
+      final noteQuery = select(localNotes)
+        ..where((t) => noteIsVisible(t) & t.id.isIn(ids))
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+      if (owner != null) {
+        noteQuery.where((t) => t.userId.equals(owner));
+      }
+      return noteQuery.get();
     }
 
     final match = _ftsQuery(q);
@@ -1841,7 +1971,11 @@ class AppDb extends _$AppDb {
         readsFrom: {localNotes},
       ).map<LocalNote>((row) => localNotes.map(row.data)).get();
 
-      return res;
+      var filtered = res;
+      if (owner != null) {
+        filtered = filtered.where((note) => note.userId == owner).toList();
+      }
+      return filtered;
     } catch (error, stack) {
       LoggerFactory.instance.warning(
         '[AppDb] Application-side FTS lookup failed, returning empty result',
@@ -2850,6 +2984,7 @@ class AppDb extends _$AppDb {
           folderId: folderId,
           addedAt: now,
           updatedAt: Value(now),
+          userId: ownerId,
         ),
       );
     } else {

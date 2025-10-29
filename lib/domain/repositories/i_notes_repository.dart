@@ -32,6 +32,7 @@ abstract class INotesRepository {
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   });
 
   /// Delete a note

@@ -65,13 +65,15 @@ void main() {
 
       // Verify User A notes are in database
       final userANotes = await database.select(database.localNotes).get();
-      expect(userANotes.length, 5,
-        reason: 'User A should have 5 notes in database');
+      expect(
+        userANotes.length,
+        5,
+        reason: 'User A should have 5 notes in database',
+      );
 
       // Verify all notes belong to User A
       for (final note in userANotes) {
-        expect(note.userId, userA,
-          reason: 'All notes should belong to User A');
+        expect(note.userId, userA, reason: 'All notes should belong to User A');
       }
 
       // === PHASE 2: Clear database (simulating logout) ===
@@ -80,8 +82,12 @@ void main() {
 
       // CRITICAL: Verify database is completely empty
       final notesAfterClear = await database.select(database.localNotes).get();
-      expect(notesAfterClear.length, 0,
-        reason: 'Database MUST be empty after clearAll() - SECURITY BREACH if not!');
+      expect(
+        notesAfterClear.length,
+        0,
+        reason:
+            'Database MUST be empty after clearAll() - SECURITY BREACH if not!',
+      );
 
       // === PHASE 3: User B creates notes ===
 
@@ -110,15 +116,16 @@ void main() {
 
       // Verify User B has only their notes
       final userBNotes = await database.select(database.localNotes).get();
-      expect(userBNotes.length, 3,
-        reason: 'User B should have only 3 notes');
+      expect(userBNotes.length, 3, reason: 'User B should have only 3 notes');
 
       // Verify no User A data exists
       for (final note in userBNotes) {
-        expect(note.userId, userB,
-          reason: 'All notes should belong to User B');
-        expect(note.id, isNot(startsWith('note-a')),
-          reason: 'No User A notes should exist - DATA LEAK!');
+        expect(note.userId, userB, reason: 'All notes should belong to User B');
+        expect(
+          note.id,
+          isNot(startsWith('note-a')),
+          reason: 'No User A notes should exist - DATA LEAK!',
+        );
       }
     });
 
@@ -126,116 +133,154 @@ void main() {
       // === PHASE 1: Create comprehensive data for User A ===
 
       // 1. Notes
-      await database.into(database.localNotes).insert(
-        () {
-          final createdAt = DateTime.now();
-          return LocalNote(
-            id: 'note-comprehensive',
-            titleEncrypted: 'Note A',
-            bodyEncrypted: 'Body A',
-            createdAt: createdAt,
-            updatedAt: createdAt,
-            deleted: false,
-            isPinned: true,
-            noteType: NoteKind.note,
-            version: 1,
-            userId: userA,
-            encryptionVersion: 1,
-            encryptedMetadata: null,
-            metadataEncrypted: null,
-            attachmentMeta: null,
-            metadata: null,
-          );
-        }(),
-      );
+      await database.into(database.localNotes).insert(() {
+        final createdAt = DateTime.now();
+        return LocalNote(
+          id: 'note-comprehensive',
+          titleEncrypted: 'Note A',
+          bodyEncrypted: 'Body A',
+          createdAt: createdAt,
+          updatedAt: createdAt,
+          deleted: false,
+          isPinned: true,
+          noteType: NoteKind.note,
+          version: 1,
+          userId: userA,
+          encryptionVersion: 1,
+          encryptedMetadata: null,
+          metadataEncrypted: null,
+          attachmentMeta: null,
+          metadata: null,
+        );
+      }());
 
       // 2. Folders
-      await database.into(database.localFolders).insert(
-        LocalFoldersCompanion.insert(
-          id: 'folder-a',
-          name: 'Folder A',
-          path: '/Folder A',
-          userId: userA,
-          updatedAt: DateTime.now(),
-          createdAt: DateTime.now(),
-        ),
-      );
+      await database
+          .into(database.localFolders)
+          .insert(
+            LocalFoldersCompanion.insert(
+              id: 'folder-a',
+              name: 'Folder A',
+              path: '/Folder A',
+              userId: userA,
+              updatedAt: DateTime.now(),
+              createdAt: DateTime.now(),
+            ),
+          );
 
       // 3. Note-Folder relationships
-      await database.into(database.noteFolders).insert(
-        NoteFoldersCompanion.insert(
-          noteId: 'note-comprehensive',
-          folderId: 'folder-a',
-          addedAt: DateTime.now(),
-        ),
-      );
+      await database
+          .into(database.noteFolders)
+          .insert(
+            NoteFoldersCompanion.insert(
+              noteId: 'note-comprehensive',
+              folderId: 'folder-a',
+              addedAt: DateTime.now(),
+              userId: userA,
+            ),
+          );
 
       // 4. Tags
-      await database.into(database.noteTags).insert(
-        NoteTagsCompanion.insert(
-          noteId: 'note-comprehensive',
-          tag: 'important',
-        ),
-      );
+      await database
+          .into(database.noteTags)
+          .insert(
+            NoteTagsCompanion.insert(
+              noteId: 'note-comprehensive',
+              tag: 'important',
+              userId: userA,
+            ),
+          );
 
       // 5. Tasks
-      await database.into(database.noteTasks).insert(
-        NoteTasksCompanion.insert(
-          id: 'task-a',
-          noteId: 'note-comprehensive',
-          userId: userA,
-          contentEncrypted: 'Task content',
-          contentHash: 'hash123',
-        ),
-      );
+      await database
+          .into(database.noteTasks)
+          .insert(
+            NoteTasksCompanion.insert(
+              id: 'task-a',
+              noteId: 'note-comprehensive',
+              userId: userA,
+              contentEncrypted: 'Task content',
+              contentHash: 'hash123',
+            ),
+          );
 
       // 6. Reminders
-      await database.into(database.noteReminders).insert(
-        NoteRemindersCompanion.insert(
-          noteId: 'note-comprehensive',
-          userId: userA,
-          type: ReminderType.time,
-        ),
-      );
+      await database
+          .into(database.noteReminders)
+          .insert(
+            NoteRemindersCompanion.insert(
+              noteId: 'note-comprehensive',
+              userId: userA,
+              type: ReminderType.time,
+            ),
+          );
 
       // 7. Saved Searches
-      await database.into(database.savedSearches).insert(
-        SavedSearchesCompanion.insert(
-          id: 'search-a',
-          name: 'My Search',
-          query: 'test',
-          userId: Value(userA),
-          createdAt: DateTime.now(),
-        ),
-      );
+      await database
+          .into(database.savedSearches)
+          .insert(
+            SavedSearchesCompanion.insert(
+              id: 'search-a',
+              name: 'My Search',
+              query: 'test',
+              userId: Value(userA),
+              createdAt: DateTime.now(),
+            ),
+          );
 
       // 8. Pending operations
-      await database.into(database.pendingOps).insert(
-        PendingOpsCompanion.insert(
-          entityId: 'note-comprehensive',
-          kind: 'upsert_note',
-          userId: userA,
-          payload: const Value('{}'),
-        ),
-      );
+      await database
+          .into(database.pendingOps)
+          .insert(
+            PendingOpsCompanion.insert(
+              entityId: 'note-comprehensive',
+              kind: 'upsert_note',
+              userId: userA,
+              payload: const Value('{}'),
+            ),
+          );
 
       // Verify all data exists
-      expect(await database.select(database.localNotes).get(), isNotEmpty,
-        reason: 'Notes should exist before clear');
-      expect(await database.select(database.localFolders).get(), isNotEmpty,
-        reason: 'Folders should exist before clear');
-      expect(await database.select(database.noteFolders).get(), isNotEmpty,
-        reason: 'Note-folder relationships should exist before clear');
-      expect(await database.select(database.noteTags).get(), isNotEmpty,
-        reason: 'Tags should exist before clear');
-      expect(await database.select(database.noteTasks).get(), isNotEmpty,
-        reason: 'Tasks should exist before clear');
-      expect(await database.select(database.noteReminders).get(), isNotEmpty,
-        reason: 'Reminders should exist before clear');
-      expect(await database.select(database.savedSearches).get(), isNotEmpty,
-        reason: 'Saved searches should exist before clear');
-      expect(await database.select(database.pendingOps).get(), isNotEmpty,
-        reason: 'Pending ops should exist before clear');
+      expect(
+        await database.select(database.localNotes).get(),
+        isNotEmpty,
+        reason: 'Notes should exist before clear',
+      );
+      expect(
+        await database.select(database.localFolders).get(),
+        isNotEmpty,
+        reason: 'Folders should exist before clear',
+      );
+      expect(
+        await database.select(database.noteFolders).get(),
+        isNotEmpty,
+        reason: 'Note-folder relationships should exist before clear',
+      );
+      expect(
+        await database.select(database.noteTags).get(),
+        isNotEmpty,
+        reason: 'Tags should exist before clear',
+      );
+      expect(
+        await database.select(database.noteTasks).get(),
+        isNotEmpty,
+        reason: 'Tasks should exist before clear',
+      );
+      expect(
+        await database.select(database.noteReminders).get(),
+        isNotEmpty,
+        reason: 'Reminders should exist before clear',
+      );
+      expect(
+        await database.select(database.savedSearches).get(),
+        isNotEmpty,
+        reason: 'Saved searches should exist before clear',
+      );
+      expect(
+        await database.select(database.pendingOps).get(),
+        isNotEmpty,
+        reason: 'Pending ops should exist before clear',
+      );
 
       // === PHASE 2: Clear all data ===
 
@@ -243,31 +288,61 @@ void main() {
 
       // === PHASE 3: Verify EVERY table is empty ===
 
-      expect(await database.select(database.localNotes).get(), isEmpty,
-        reason: 'Notes table MUST be empty after clearAll()');
-      expect(await database.select(database.localFolders).get(), isEmpty,
-        reason: 'Folders table MUST be empty after clearAll()');
-      expect(await database.select(database.noteFolders).get(), isEmpty,
-        reason: 'NoteFolders table MUST be empty after clearAll()');
-      expect(await database.select(database.noteTags).get(), isEmpty,
-        reason: 'Tags table MUST be empty after clearAll()');
-      expect(await database.select(database.noteTasks).get(), isEmpty,
-        reason: 'NoteTasks table MUST be empty after clearAll()');
-      expect(await database.select(database.noteLinks).get(), isEmpty,
-        reason: 'Links table MUST be empty after clearAll()');
-      expect(await database.select(database.noteReminders).get(), isEmpty,
-        reason: 'Reminders table MUST be empty after clearAll()');
-      expect(await database.select(database.savedSearches).get(), isEmpty,
-        reason: 'SavedSearches table MUST be empty after clearAll()');
-      expect(await database.select(database.pendingOps).get(), isEmpty,
-        reason: 'PendingOps table MUST be empty after clearAll()');
+      expect(
+        await database.select(database.localNotes).get(),
+        isEmpty,
+        reason: 'Notes table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.localFolders).get(),
+        isEmpty,
+        reason: 'Folders table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.noteFolders).get(),
+        isEmpty,
+        reason: 'NoteFolders table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.noteTags).get(),
+        isEmpty,
+        reason: 'Tags table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.noteTasks).get(),
+        isEmpty,
+        reason: 'NoteTasks table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.noteLinks).get(),
+        isEmpty,
+        reason: 'Links table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.noteReminders).get(),
+        isEmpty,
+        reason: 'Reminders table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.savedSearches).get(),
+        isEmpty,
+        reason: 'SavedSearches table MUST be empty after clearAll()',
+      );
+      expect(
+        await database.select(database.pendingOps).get(),
+        isEmpty,
+        reason: 'PendingOps table MUST be empty after clearAll()',
+      );
 
       // Also check FTS index is cleared
-      final ftsResults = await database.customSelect(
-        'SELECT * FROM fts_notes',
-      ).get();
-      expect(ftsResults, isEmpty,
-        reason: 'FTS index MUST be empty after clearAll()');
+      final ftsResults = await database
+          .customSelect('SELECT * FROM fts_notes')
+          .get();
+      expect(
+        ftsResults,
+        isEmpty,
+        reason: 'FTS index MUST be empty after clearAll()',
+      );
     });
 
     test('Rapid user switching maintains isolation', () async {
@@ -276,15 +351,14 @@ void main() {
         // === User A session ===
 
         // Create a note for User A
-        await database.into(database.localNotes).insert(
-          () {
-            final createdAt = DateTime.now();
-            return LocalNote(
-              id: 'rapid-note-a-$iteration',
-              titleEncrypted: 'Rapid Note A$iteration',
-              bodyEncrypted: 'Body',
-              createdAt: createdAt,
-              updatedAt: createdAt,
+        await database.into(database.localNotes).insert(() {
+          final createdAt = DateTime.now();
+          return LocalNote(
+            id: 'rapid-note-a-$iteration',
+            titleEncrypted: 'Rapid Note A$iteration',
+            bodyEncrypted: 'Body',
+            createdAt: createdAt,
+            updatedAt: createdAt,
             deleted: false,
             isPinned: false,
             noteType: NoteKind.note,
@@ -295,16 +369,17 @@ void main() {
             metadataEncrypted: null,
             attachmentMeta: null,
             metadata: null,
-            );
-          }(),
-        );
+          );
+        }());
 
         // Verify note exists
         var notes = await database.select(database.localNotes).get();
-        expect(notes.length, 1,
-          reason: 'Should have 1 note after creation');
-        expect(notes.first.userId, userA,
-          reason: 'Note should belong to User A');
+        expect(notes.length, 1, reason: 'Should have 1 note after creation');
+        expect(
+          notes.first.userId,
+          userA,
+          reason: 'Note should belong to User A',
+        );
 
         // === Simulate logout ===
 
@@ -312,21 +387,23 @@ void main() {
 
         // Verify database is empty
         notes = await database.select(database.localNotes).get();
-        expect(notes.length, 0,
-          reason: 'Database must be empty after clearAll()');
+        expect(
+          notes.length,
+          0,
+          reason: 'Database must be empty after clearAll()',
+        );
 
         // === User B session ===
 
         // Create a note for User B
-        await database.into(database.localNotes).insert(
-          () {
-            final createdAt = DateTime.now();
-            return LocalNote(
-              id: 'rapid-note-b-$iteration',
-              titleEncrypted: 'Rapid Note B$iteration',
-              bodyEncrypted: 'Body',
-              createdAt: createdAt,
-              updatedAt: createdAt,
+        await database.into(database.localNotes).insert(() {
+          final createdAt = DateTime.now();
+          return LocalNote(
+            id: 'rapid-note-b-$iteration',
+            titleEncrypted: 'Rapid Note B$iteration',
+            bodyEncrypted: 'Body',
+            createdAt: createdAt,
+            updatedAt: createdAt,
             deleted: false,
             isPinned: false,
             noteType: NoteKind.note,
@@ -337,18 +414,22 @@ void main() {
             metadataEncrypted: null,
             attachmentMeta: null,
             metadata: null,
-            );
-          }(),
-        );
+          );
+        }());
 
         // Verify User B has only their note
         notes = await database.select(database.localNotes).get();
-        expect(notes.length, 1,
-          reason: 'User B should have only 1 note');
-        expect(notes.first.userId, userB,
-          reason: 'Note should belong to User B');
-        expect(notes.first.id, startsWith('rapid-note-b'),
-          reason: 'Should be User B\'s note');
+        expect(notes.length, 1, reason: 'User B should have only 1 note');
+        expect(
+          notes.first.userId,
+          userB,
+          reason: 'Note should belong to User B',
+        );
+        expect(
+          notes.first.id,
+          startsWith('rapid-note-b'),
+          reason: 'Should be User B\'s note',
+        );
 
         // === Clean up for next iteration ===
 
@@ -362,15 +443,14 @@ void main() {
 
       // Create 1000 notes
       for (int i = 0; i < 1000; i++) {
-        await database.into(database.localNotes).insert(
-          () {
-            final createdAt = DateTime.now();
-            return LocalNote(
-              id: 'perf-note-$i',
-              titleEncrypted: 'Perf Note $i',
-              bodyEncrypted: 'Body $i',
-              createdAt: createdAt,
-              updatedAt: createdAt,
+        await database.into(database.localNotes).insert(() {
+          final createdAt = DateTime.now();
+          return LocalNote(
+            id: 'perf-note-$i',
+            titleEncrypted: 'Perf Note $i',
+            bodyEncrypted: 'Body $i',
+            createdAt: createdAt,
+            updatedAt: createdAt,
             deleted: false,
             isPinned: false,
             noteType: NoteKind.note,
@@ -381,9 +461,8 @@ void main() {
             metadataEncrypted: null,
             attachmentMeta: null,
             metadata: null,
-            );
-          }(),
-        );
+          );
+        }());
       }
 
       stopwatch.stop();
@@ -403,13 +482,16 @@ void main() {
       print('Cleared 1000 notes in ${stopwatch.elapsedMilliseconds}ms');
 
       // Assert performance requirement
-      expect(stopwatch.elapsedMilliseconds, lessThan(2000),
-        reason: 'clearAll() should complete in less than 2 seconds for 1000 notes');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(2000),
+        reason:
+            'clearAll() should complete in less than 2 seconds for 1000 notes',
+      );
 
       // Verify complete clearing
       final notesAfterClear = await database.select(database.localNotes).get();
-      expect(notesAfterClear, isEmpty,
-        reason: 'All notes must be cleared');
+      expect(notesAfterClear, isEmpty, reason: 'All notes must be cleared');
     });
 
     test('No cross-contamination with mixed userId data', () async {
@@ -418,55 +500,68 @@ void main() {
 
       for (final userId in userIds) {
         for (int i = 0; i < 3; i++) {
-          await database.into(database.localNotes).insert(
-            () {
-              final createdAt = DateTime.now();
-              return LocalNote(
-                id: 'note-$userId-$i',
-                titleEncrypted: 'Note for $userId #$i',
-                bodyEncrypted: 'Content',
-                createdAt: createdAt,
-                updatedAt: createdAt,
-                deleted: false,
-                isPinned: false,
-                noteType: NoteKind.note,
-                version: 1,
-                userId: userId,
-                encryptionVersion: 1,
-                encryptedMetadata: null,
-                metadataEncrypted: null,
-                attachmentMeta: null,
-                metadata: null,
-              );
-            }(),
-          );
+          await database.into(database.localNotes).insert(() {
+            final createdAt = DateTime.now();
+            return LocalNote(
+              id: 'note-$userId-$i',
+              titleEncrypted: 'Note for $userId #$i',
+              bodyEncrypted: 'Content',
+              createdAt: createdAt,
+              updatedAt: createdAt,
+              deleted: false,
+              isPinned: false,
+              noteType: NoteKind.note,
+              version: 1,
+              userId: userId,
+              encryptionVersion: 1,
+              encryptedMetadata: null,
+              metadataEncrypted: null,
+              attachmentMeta: null,
+              metadata: null,
+            );
+          }());
         }
       }
 
       // Verify total count
       final allNotes = await database.select(database.localNotes).get();
-      expect(allNotes.length, 9,
-        reason: 'Should have 9 notes total (3 users × 3 notes)');
+      expect(
+        allNotes.length,
+        9,
+        reason: 'Should have 9 notes total (3 users × 3 notes)',
+      );
 
       // Simulate query for specific user (would be filtered in repository layer)
       final user1Notes = allNotes.where((n) => n.userId == 'user-1').toList();
-      expect(user1Notes.length, 3,
-        reason: 'User 1 should have exactly 3 notes');
+      expect(
+        user1Notes.length,
+        3,
+        reason: 'User 1 should have exactly 3 notes',
+      );
 
       // Verify no cross-contamination
       for (final note in user1Notes) {
-        expect(note.userId, 'user-1',
-          reason: 'All filtered notes should belong to user-1');
-        expect(note.titleEncrypted, contains('user-1'),
-          reason: 'Note title should be for user-1');
+        expect(
+          note.userId,
+          'user-1',
+          reason: 'All filtered notes should belong to user-1',
+        );
+        expect(
+          note.titleEncrypted,
+          contains('user-1'),
+          reason: 'Note title should be for user-1',
+        );
       }
 
       // Clear all and verify
       await database.clearAll();
 
       final notesAfterClear = await database.select(database.localNotes).get();
-      expect(notesAfterClear, isEmpty,
-        reason: 'All notes must be cleared regardless of userId');
+      expect(
+        notesAfterClear,
+        isEmpty,
+        reason: 'All notes must be cleared regardless of userId',
+      );
     });
   });
 }

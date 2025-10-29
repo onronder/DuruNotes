@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
@@ -19,6 +20,7 @@ import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
 import 'package:duru_notes/services/reminders/recurring_reminder_service.dart';
 import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 
 /// Unified coordinator for all reminder services
 ///
@@ -49,6 +51,7 @@ class ReminderCoordinator {
   AnalyticsService get analytics => _ref.read(analyticsProvider);
   final FeatureFlags _featureFlags = FeatureFlags.instance;
   final PermissionManager _permissionManager = PermissionManager.instance;
+  final SecurityAuditTrail _auditTrail = SecurityAuditTrail();
 
   /// P0.5 SECURITY: Get current user ID for reminder operations
   String? get currentUserId {
@@ -58,6 +61,16 @@ class ReminderCoordinator {
       logger.warning('Failed to get current user ID: $e');
       return null;
     }
+  }
+
+  void _audit(String action, {required bool granted, String? reason}) {
+    unawaited(
+      _auditTrail.logAccess(
+        resource: 'reminderCoordinator.$action',
+        granted: granted,
+        reason: reason,
+      ),
+    );
   }
 
   /// Get the snooze service for external use
@@ -187,6 +200,12 @@ class ReminderCoordinator {
       }
     }
 
+    final userId = currentUserId;
+    if (userId == null || userId.isEmpty) {
+      _audit('createTimeReminder', granted: false, reason: 'missing_user');
+      return null;
+    }
+
     final config = ReminderConfig(
       noteId: noteId,
       title: title,
@@ -209,54 +228,59 @@ class ReminderCoordinator {
       debugPrint('[ReminderCoordinator] time reminder created id=$reminderId');
 
       // PRODUCTION: Enqueue reminder for sync to Supabase
-      final userId = currentUserId;
-      if (userId != null) {
-        try {
-          await _db.enqueue(
-            userId: userId,
-            entityId: reminderId.toString(),
-            kind: 'upsert_reminder',
-            payload: jsonEncode({
-              'noteId': noteId,
-              'type': 'time',
-              'recurrence': recurrence.name,
-              'scheduledTime': scheduledTime.toIso8601String(),
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
-          );
-          logger.info(
-            'Reminder enqueued for sync',
-            data: {'reminderId': reminderId, 'type': 'time'},
-          );
-        } catch (enqueueError, enqueueStack) {
-          logger.error(
-            'Failed to enqueue reminder for sync',
-            error: enqueueError,
-            stackTrace: enqueueStack,
-            data: {'reminderId': reminderId},
-          );
-          // Non-critical - reminder still created locally, will sync on next manual sync
-        }
-      } else {
-        logger.warning(
-          'Unable to enqueue reminder sync op - no authenticated user',
+      try {
+        await _db.enqueue(
+          userId: userId,
+          entityId: reminderId.toString(),
+          kind: 'upsert_reminder',
+          payload: jsonEncode({
+            'noteId': noteId,
+            'type': 'time',
+            'recurrence': recurrence.name,
+            'scheduledTime': scheduledTime.toIso8601String(),
+            'timestamp': DateTime.now().toIso8601String(),
+          }),
+        );
+        logger.info(
+          'Reminder enqueued for sync',
+          data: {'reminderId': reminderId, 'type': 'time'},
+        );
+      } catch (enqueueError, enqueueStack) {
+        logger.error(
+          'Failed to enqueue reminder for sync',
+          error: enqueueError,
+          stackTrace: enqueueStack,
           data: {'reminderId': reminderId},
         );
+        // Non-critical - reminder still created locally, will sync on next manual sync
       }
+
+      _audit(
+        'createTimeReminder',
+        granted: true,
+        reason: 'reminderId=$reminderId',
+      );
+
+      analytics.event(
+        'reminder.created',
+        properties: {'reminder_id': reminderId, 'type': 'time'},
+      );
 
       MutationEventBus.instance.emitReminder(
         kind: MutationKind.created,
         reminderId: reminderId.toString(),
         noteId: noteId,
         metadata: {
+          'type': 'time',
           'recurrence': recurrence.name,
           'remindAt': scheduledTime.toIso8601String(),
         },
       );
-    } else {
-      debugPrint('[ReminderCoordinator] createTimeReminder returned null');
+
+      return reminderId;
     }
 
+    _audit('createTimeReminder', granted: false, reason: 'creation_failed');
     return reminderId;
   }
 
@@ -294,6 +318,12 @@ class ReminderCoordinator {
       }
     }
 
+    final userId = currentUserId;
+    if (userId == null || userId.isEmpty) {
+      _audit('createLocationReminder', granted: false, reason: 'missing_user');
+      return null;
+    }
+
     final config = ReminderConfig(
       noteId: noteId,
       title: title,
@@ -321,41 +351,33 @@ class ReminderCoordinator {
       );
 
       // PRODUCTION: Enqueue reminder for sync to Supabase
-      final userId = currentUserId;
-      if (userId != null) {
-        try {
-          await _db.enqueue(
-            userId: userId,
-            entityId: reminderId.toString(),
-            kind: 'upsert_reminder',
-            payload: jsonEncode({
-              'noteId': noteId,
-              'type': 'location',
-              'latitude': latitude,
-              'longitude': longitude,
-              'radius': radius,
-              'locationName': locationName,
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
-          );
-          logger.info(
-            'Reminder enqueued for sync',
-            data: {'reminderId': reminderId, 'type': 'location'},
-          );
-        } catch (enqueueError, enqueueStack) {
-          logger.error(
-            'Failed to enqueue reminder for sync',
-            error: enqueueError,
-            stackTrace: enqueueStack,
-            data: {'reminderId': reminderId},
-          );
-          // Non-critical - reminder still created locally, will sync on next manual sync
-        }
-      } else {
-        logger.warning(
-          'Unable to enqueue location reminder sync op - no authenticated user',
+      try {
+        await _db.enqueue(
+          userId: userId,
+          entityId: reminderId.toString(),
+          kind: 'upsert_reminder',
+          payload: jsonEncode({
+            'noteId': noteId,
+            'type': 'location',
+            'latitude': latitude,
+            'longitude': longitude,
+            'radius': radius,
+            'locationName': locationName,
+            'timestamp': DateTime.now().toIso8601String(),
+          }),
+        );
+        logger.info(
+          'Reminder enqueued for sync',
+          data: {'reminderId': reminderId, 'type': 'location'},
+        );
+      } catch (enqueueError, enqueueStack) {
+        logger.error(
+          'Failed to enqueue reminder for sync',
+          error: enqueueError,
+          stackTrace: enqueueStack,
           data: {'reminderId': reminderId},
         );
+        // Non-critical - reminder still created locally, will sync on next manual sync
       }
 
       MutationEventBus.instance.emitReminder(
@@ -368,10 +390,20 @@ class ReminderCoordinator {
           'longitude': longitude,
         },
       );
+
+      _audit(
+        'createLocationReminder',
+        granted: true,
+        reason: 'reminderId=$reminderId',
+      );
+      return reminderId;
     } else {
       debugPrint('[ReminderCoordinator] createLocationReminder returned null');
     }
 
+    if (reminderId == null) {
+      _audit('createLocationReminder', granted: false, reason: 'creation_failed');
+    }
     return reminderId;
   }
 
@@ -495,6 +527,7 @@ class ReminderCoordinator {
       final userId = currentUserId;
       if (userId == null) {
         logger.warning('Cannot cancel reminder - no authenticated user');
+        _audit('cancelReminder', granted: false, reason: 'missing_user');
         return;
       }
 
@@ -505,6 +538,7 @@ class ReminderCoordinator {
           'Cannot cancel reminder - not found',
           data: {'id': reminderId},
         );
+        _audit('cancelReminder', granted: false, reason: 'not_found');
         return;
       }
 
@@ -528,6 +562,7 @@ class ReminderCoordinator {
       }
 
       logger.info('Cancelled reminder', data: {'id': reminderId});
+      _audit('cancelReminder', granted: true, reason: 'reminderId=$reminderId');
 
       // PRODUCTION: Enqueue reminder deletion for sync to Supabase
       try {
@@ -573,6 +608,7 @@ class ReminderCoordinator {
         stackTrace: stack,
         data: {'id': reminderId},
       );
+      _audit('cancelReminder', granted: false, reason: 'error=${e.runtimeType}');
     }
   }
 
@@ -605,6 +641,12 @@ class ReminderCoordinator {
   Future<void> processDueReminders() async {
     if (!_initialized) return;
 
+    final userId = currentUserId;
+    if (userId == null) {
+      _audit('processDueReminders', granted: false, reason: 'missing_user');
+      return;
+    }
+
     try {
       // Process recurring reminders
       if (_recurringService is RecurringReminderService) {
@@ -615,12 +657,14 @@ class ReminderCoordinator {
       if (_snoozeService is SnoozeReminderService) {
         await (_snoozeService).processSnoozedReminders();
       }
+      _audit('processDueReminders', granted: true, reason: 'user=$userId');
     } catch (e, stack) {
       logger.error(
         'Failed to process due reminders',
         error: e,
         stackTrace: stack,
       );
+      _audit('processDueReminders', granted: false, reason: 'error=${e.runtimeType}');
     }
   }
 

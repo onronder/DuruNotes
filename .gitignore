@@ -39,6 +39,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Test execution artifacts - Generated snapshots, not source code
+docs/test_reports/phase3_*.json
+
 # Symbolication related
 app.*.symbols
 

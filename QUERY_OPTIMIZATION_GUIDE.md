@@ -350,8 +350,8 @@ ORDER BY count DESC, LOWER(t.tag) ASC;
 
 **Optimized Dart Implementation:**
 ```dart
-Future<List<TagCount>> getTagsWithCounts() async {
-  final userId = currentUserId;
+Future<List<TagCount>> getTagsWithCounts({String? userId}) async {
+  if (userId == null || userId.isEmpty) return const [];
 
   final query = customSelect(
     '''
@@ -369,10 +369,14 @@ Future<List<TagCount>> getTagsWithCounts() async {
   );
 
   final results = await query.get();
-  return results.map((row) => TagCount(
-    tag: row.read<String>('tag'),
-    count: row.read<int>('count'),
-  )).toList();
+  return results
+      .map(
+        (row) => TagCount(
+          tag: row.read<String>('tag'),
+          count: row.read<int>('count'),
+        ),
+      )
+      .toList();
 }
 ```
 

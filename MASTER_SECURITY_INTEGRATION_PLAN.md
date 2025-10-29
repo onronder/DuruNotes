@@ -139,6 +139,24 @@ await (db.select(db.noteReminders)
 **Deploy**: Weeks 2-3
 **Impact**: Adds defense-in-depth, prevents ID-based attacks
 
+#### 2025-10-27 Full-Stack Audit Status (Agent Check-in)
+
+**Validated ✅**
+- Drift migrations 37 & 38 rebuild `note_tags`, `note_links`, and `note_folders` with `user_id`, purge orphans, and reapply Phase 1 indexes (see `AppDb.onUpgrade`).
+- Repository layer now injects `SecurityAuditTrail` access logs across Notes/Tasks/Folders/Templates/Search services and enforces `_requireUserId` before mutating data.
+- Supabase adapters (`SupabaseNoteApi`, folder/task fetch) scope all remote queries with `.eq('user_id', currentUser)` and preserve encrypted payload handling.
+- Timestamp preservation regression suite (`test/repositories/timestamp_preservation_test.dart`) covers the newly documented production fix flow.
+- Authorization suites for notes and tags have been rebuilt on the new architecture (`test/security/notes_repository_authorization_test.dart`, `test/security/tag_repository_authorization_test.dart`), keeping CI coverage aligned with the isolation work.
+
+**Outstanding ⚠️ (must close before Phase 1 sign-off)**
+- Complete audit coverage for repositories still marked partial/non-migrated in the table below (templates, attachments, inbox, search, reminder services).
+- Wire user-id rollout flag into the operational checklist (document toggle procedure and rollout playbook).
+
+**Next Actions 🎯**
+1. Prioritise remaining repository audits (Template, Attachment, Inbox, Search, Reminder services) and backfill user-isolation tests where missing.
+2. Document the `enable_userid_filtering` rollout sequence and update the service integration guide with toggle/rollback steps.
+3. Keep performance/benchmark harnesses on a regular cadence to catch regressions during Phase 1 rollout.
+
 #### 2025-10-XX – Repository Isolation Audit (in progress)
 
 | Repository / Service | Current Coverage | Security Gap | Next Action |
@@ -146,9 +164,9 @@ await (db.select(db.noteReminders)
 | `TaskCoreRepository` / `EnhancedTaskService` | ✅ New isolation suites (Oct 2025) | — | Maintain |
 | `NotesCoreRepository` | 🔄 Partial: isolation tests now cover create/list/get/watch plus pin + folder metrics (Oct 2025 update) | Remaining hotspots: Supabase sync helpers still bypass `userId`; template apply path unverified; legacy null-owner notes need migration plan | Audit sync pull/push flows & legacy data, extend integration tests |
 | `FolderCoreRepository` | 🔄 Partial: new isolation checks for move/remove enforce user ownership (Oct 2025 update) | Folder hierarchy + bulk cleanup utilities still unverified post-migration | Port remaining suites (hierarchy, conflict resolution, analytics) and ensure deletes respect ownership |
-| `TagRepository` | Legacy tests disabled | Tag queries may leak across users | Recreate tests covering list/search/tagging |
-| `TemplateCoreRepository` | Legacy tests disabled | User templates vs system templates not validated | Add isolation tests, confirm template clone paths |
-| `AttachmentRepository` | Legacy tests disabled | File metadata/cleanup not exercised | Build tests for per-user attachment CRUD |
+| `TagRepository` | ✅ Authorization + list/search isolation suites restored (Oct 2025) | — | Maintain |
+| `TemplateCoreRepository` | ✅ Authorization + apply-template suites restored (Oct 2025) | — | Maintain |
+| `AttachmentRepository` | N/A – feature stubbed out | Attachments table not implemented; repository is deprecated stub | Defer until attachments feature lands (documented in repository stub) |
 | `InboxRepository` | Legacy tests disabled | Inbox items/pending ops isolation not tested | Port minimal isolation checks |
 | `SearchRepository` / FTS | Legacy suites removed | Cross-user search dedupe unverified | Add user-scoped search tests |
 | Reminder services (`TaskReminderBridge`, snooze, recurring) | No current suites | Reminder CRUD / snooze could cross users | Add targeted tests after repository coverage |
@@ -263,14 +281,15 @@ Future<Note?> getNoteById(String id) async {
 - ⚠️ Follow-up: regenerate / update remaining test fixtures (`NoteTasksCompanion.insert` helpers, legacy TaskService stubs) and execute the 10k-task QA matrix; telemetry wiring for `SecurityAuditTrail().logAccess` will land alongside the diagnostics workstream.
 
 #### Day 4 – NoteTags & NoteLinks userId Migration (2025-10-28)
-- Build `migration_35_note_tags_links_userid.dart` introducing `user_id` to both tables, backfilling from `local_notes` (source) and enforcing composite indexes (`idx_note_tags_user_tag`, `idx_note_links_user_source`).
+- Build `migration_37_note_tags_links_userid.dart` (plan milestone “Migration 35”) introducing `user_id` to both tables, backfilling from `local_notes` (source) and enforcing composite indexes (`idx_note_tags_user_tag`, `idx_note_links_user_source`).
+- [⚙️] TagRepository now logs SecurityAuditTrail access events for list/search/mutate flows (initial instrumentation landed; remaining repositories still pending).
 - Update data layer: adjust `lib/infrastructure/repositories/tag_repository.dart`, `lib/infrastructure/repositories/notes_core_repository.dart`, `lib/infrastructure/repositories/search_repository.dart`, and `lib/infrastructure/cache/batch_loader.dart` to pass `userId` into every tag/link query and batched loader.
 - Harden services: modify `lib/services/unified_search_service.dart` and `lib/search/search_unified.dart` to require authenticated user context before performing tag or backlink searches.
 - Diagnostics: enrich `lib/services/fts_service.dart` to log `SecurityAuditTrail` events when cross-user tag/link access is blocked and capture query timings with `PerformanceMonitor` span `search.tags_with_userid`.
 - Regression checks: run `scripts/run_critical_tests.sh --filter search` and export new explain plans into `logs/perf/search-userid-2025-10-28.json`.
 
 #### Day 5 – NoteFolders userId Migration (2025-10-29)
-- Implement `migration_36_note_folders_userid.dart` adding `user_id` with cascade backfill (note + folder user alignment) and indexes (`idx_note_folders_user_folder`, `idx_note_folders_user_note`); ensure conflicts default to deleting orphaned relations.
+- Implement `migration_38_note_folders_userid.dart` (plan milestone “Migration 36”) adding `user_id` with cascade backfill (note + folder user alignment) and indexes (`idx_note_folders_user_folder`, `idx_note_folders_user_note`); ensure conflicts default to deleting orphaned relations.
 - Repository updates: ensure `lib/infrastructure/repositories/folder_core_repository.dart`, `lib/infrastructure/repositories/notes_core_repository.dart`, and `lib/features/folders/folder_notifiers.dart` thread `userId` through loaders, write paths, and in-memory caches.
 - Sync layer: guard folder sync reconciliation inside `lib/services/sync/folder_sync_coordinator.dart` and `lib/services/unified_sync_service.dart` with user-scoped filters and double-check remote payloads.
 - Observability: hook into `SecurityAuditTrail` when orphaned folder relationships are pruned and expose live counts through `PerformanceMonitor` span `folders.relationship_rebuild`.
@@ -760,23 +779,52 @@ ALTER TABLE local_notes ALTER COLUMN user_id DROP NOT NULL;
 
 ## 📞 Next Actions
 
-### ✅ Immediate (COMPLETED - 2025-10-24)
-1. [✅] Review this master plan (Leadership approval)
-2. [✅] Review agent deliverables (detailed understanding)
-3. [✅] Allocate resources (2 developers × 10 weeks)
-4. [✅] Schedule P0.5 implementation (2-3 days)
+### ✅ Phase 0 / 0.5 status (2025-10-28)
+- [✅] Emergency fixes shipped (clearAll, pending_ops user isolation, attachment userId, reminder/user sync hardening)
+- [✅] Migration 32–34 applied and wired
+- [⚠️] Comprehensive suite run + post-fix monitoring still pending (folded into Week 1)
 
-### ⏳ This Week (IN PROGRESS)
-1. [✅] Implement P0.5 urgent fixes - COMPLETE
-2. [⏳] Run comprehensive test suite - NEXT
-3. [⏳] Deploy P0.5 to production - AFTER TESTS
-4. [⏳] Monitor for 24 hours - AFTER DEPLOY
+### 🔄 Current Execution Timeline (6 weeks, Security First)
 
-### Next 2 Weeks
-1. [ ] Begin P1 implementation
-2. [ ] Staged rollout (1% → 10% → 100%)
-3. [ ] Performance validation
-4. [ ] User feedback collection
+> **Development policy:** Tag/link/folder feature work is blocked until Migration 35/36 land. Only bug fixes, perf optimisations, UI polish, and test work are allowed in parallel.
+
+#### Week 1 – Critical Security Gaps (Phase 1 completion)
+- **Days 1–2:** Migration 35 (`note_tags`/`note_links` userId), repository updates, isolation tests, manual cross-user verification.
+- **Day 3:** Migration 36 (`note_folders` userId), repo updates/tests, manual folder isolation checks.
+- **Day 4:** Instrument `SecurityAuditTrail.logAccess()` across Notes/Tasks/Folders/Search/Templates/Tags repositories; ensure auth failures and gated queries emit audit records.
+- **Day 5:** Multi-user validation (tags, backlinks, folders), audit-log review, full `flutter test`.
+
+#### Week 2 – Monitoring & Infrastructure
+- **Days 1–2:** Feature flag scaffolding (`enable_userid_filtering`, staged rollout percentages, remote-config hooks, rollback playbook).
+- **Day 3:** Performance benchmarks (pre/post metrics for tags/folders/note list/search).
+- **Days 4–5:** Service-layer audit (`UnifiedSyncService`, `EnhancedTaskService`, `FolderSyncCoordinator`, template flows); plug remaining audit logs and document findings.
+  - ✅ `_syncReminders()` implemented in `UnifiedSyncService` with SecureApiWrapper, SecurityAuditTrail coverage, and reminder upload/download flows validated by unit tests.
+
+#### Week 3 – Phase 1 wrap-up / Phase 2 planning
+- **Days 1–2:** Comprehensive regression testing (security + isolation suites, multi-device sync); verify timestamp fixes.
+- **Days 3–4:** Design Phase 2 NOT NULL migrations (notes, tasks, reminders, saved searches, templates exception), orphan-handling strategy, validation tooling.
+- **Day 5:** Documentation pass (`MASTER_SECURITY_INTEGRATION_PLAN.md`, migration specs, code-review checklist).
+
+#### Week 4 – Phase 2 execution (database enforcement)
+- **Days 1–3:** Implement migrations 37–40 for NOT NULL enforcement and validation routines; dry-run on dev DB.
+- **Days 4–5:** Integrity sweep (orphan cleanup, FK checks), perf regression tests, document outcomes.
+
+#### Week 5 – Phase 2 completion / Phase 3 preparation
+- **Days 1–2:** Design lazy encryption upgrade (`_migrateNoteEncryption`), map legacy formats, compatibility plan.
+- **Days 3–5:** Deploy monitoring dashboards + alerting (cross-user access attempts, perf regressions, migration failures); validate in dev.
+
+#### Week 6 – Phase 3 architecture uplift
+- **Days 1–2:** Implement `UnifiedEncryptionService` (merge AccountKeyService, EncryptionSyncService, EncryptionService, ProperEncryptionService) with full test coverage.
+- **Days 3–4:** Implement `ProviderLifecycleManager` for automatic provider invalidation on auth events.
+- **Day 5:** Final regression run, coverage review (target ≥95 % on security-critical code), documentation updates, release readiness review.
+
+### Testing Requirements per Phase
+- ✅ All automated suites green (`flutter test`)
+- ✅ New/updated isolation tests green
+- ✅ Manual multi-user verification
+- ✅ Audit logs reviewed
+- ✅ Performance benchmarks captured
+- ✅ Security regression checklist signed off
 
 ---
 

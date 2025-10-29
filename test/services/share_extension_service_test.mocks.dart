@@ -113,6 +113,8 @@ class MockNotesCoreRepository extends _i1.Mock
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdate, [], {
@@ -125,6 +127,8 @@ class MockNotesCoreRepository extends _i1.Mock
               #attachmentMeta: attachmentMeta,
               #metadataJson: metadataJson,
               #isPinned: isPinned,
+              #createdAt: createdAt,
+              #updatedAt: updatedAt,
             }),
             returnValue: _i6.Future<_i7.Note?>.value(),
             returnValueForMissingStub: _i6.Future<_i7.Note?>.value(),
@@ -143,6 +147,7 @@ class MockNotesCoreRepository extends _i1.Mock
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
@@ -158,6 +163,7 @@ class MockNotesCoreRepository extends _i1.Mock
                 #metadata: metadata,
                 #links: links,
                 #isPinned: isPinned,
+                #updatedAt: updatedAt,
               },
             ),
             returnValue: _i6.Future<void>.value(),

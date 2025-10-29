@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
-import 'package:duru_notes/core/providers/search_providers.dart' show noteIndexerProvider;
+import 'package:duru_notes/core/providers/search_providers.dart'
+    show noteIndexerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/models/note_kind.dart';
@@ -15,14 +16,14 @@ import '../helpers/security_test_setup.dart';
 class _StubGoTrueClient extends GoTrueClient {
   _StubGoTrueClient(User? user)
     : _session = user == null
-            ? null
-            : Session(
-                accessToken: 'stub-access-token',
-                refreshToken: 'stub-refresh-token',
-                tokenType: 'bearer',
-                expiresIn: 3600,
-                user: user,
-              ),
+          ? null
+          : Session(
+              accessToken: 'stub-access-token',
+              refreshToken: 'stub-refresh-token',
+              tokenType: 'bearer',
+              expiresIn: 3600,
+              user: user,
+            ),
       super(
         url: 'https://stub.supabase.co/auth/v1',
         headers: const {},
@@ -45,8 +46,9 @@ class _StubSupabaseClient extends SupabaseClient {
         'https://stub.supabase.co',
         'stub-public-anon-key',
         authOptions: const AuthClientOptions(autoRefreshToken: false),
-        realtimeClientOptions:
-            const RealtimeClientOptions(logLevel: RealtimeLogLevel.error),
+        realtimeClientOptions: const RealtimeClientOptions(
+          logLevel: RealtimeLogLevel.error,
+        ),
       );
 
   final GoTrueClient _auth;
@@ -74,68 +76,76 @@ void main() {
       await db.close();
     });
 
-    test('NotesCoreRepository returns data scoped to authenticated user', () async {
-      await _seedSampleData(db);
+    test(
+      'NotesCoreRepository returns data scoped to authenticated user',
+      () async {
+        await _seedSampleData(db);
 
-      final crypto = SecurityTestSetup.createTestCryptoBox();
+        final crypto = SecurityTestSetup.createTestCryptoBox();
 
-      final repoUserA = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _stubClientFor(userId: 'user-a'),
-        indexer: indexer,
-      );
+        final repoUserA = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _stubClientFor(userId: 'user-a'),
+          indexer: indexer,
+        );
 
-      final repoUserB = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _stubClientFor(userId: 'user-b'),
-        indexer: indexer,
-      );
+        final repoUserB = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _stubClientFor(userId: 'user-b'),
+          indexer: indexer,
+        );
 
-      final userALocal = await repoUserA.localNotes();
-      expect(
-        userALocal.map((n) => n.id).toList(),
-        equals(['note-a-1', 'note-a-2']),
-        reason: 'User A should see only their notes',
-      );
+        final userALocal = await repoUserA.localNotes();
+        expect(
+          userALocal.map((n) => n.id).toList(),
+          equals(['note-a-1', 'note-a-2']),
+          reason: 'User A should see only their notes',
+        );
 
-      final userBLocal = await repoUserB.localNotes();
-      expect(
-        userBLocal.map((n) => n.id).toList(),
-        equals(['note-b-1']),
-        reason: 'User B should see only their notes',
-      );
+        final userBLocal = await repoUserB.localNotes();
+        expect(
+          userBLocal.map((n) => n.id).toList(),
+          equals(['note-b-1']),
+          reason: 'User B should see only their notes',
+        );
 
-      final userAIds =
-          await repoUserA.getNoteIdsInFolder('folder-a-projects');
-      expect(userAIds, equals(['note-a-1']));
+        final userAIds = await repoUserA.getNoteIdsInFolder(
+          'folder-a-projects',
+        );
+        expect(userAIds, equals(['note-a-1']));
 
-      final userBIds =
-          await repoUserB.getNoteIdsInFolder('folder-b-research');
-      expect(userBIds, equals(['note-b-1']));
+        final userBIds = await repoUserB.getNoteIdsInFolder(
+          'folder-b-research',
+        );
+        expect(userBIds, equals(['note-b-1']));
 
-      expect(
-        await repoUserA.getNotesCountInFolder('folder-b-research'),
-        equals(0),
-        reason: 'User A must not access User B folders',
-      );
-    });
+        expect(
+          await repoUserA.getNotesCountInFolder('folder-b-research'),
+          equals(0),
+          reason: 'User A must not access User B folders',
+        );
+      },
+    );
 
-    test('NotesCoreRepository returns empty results when unauthenticated', () async {
-      await _seedSampleData(db);
-      final crypto = SecurityTestSetup.createTestCryptoBox();
+    test(
+      'NotesCoreRepository returns empty results when unauthenticated',
+      () async {
+        await _seedSampleData(db);
+        final crypto = SecurityTestSetup.createTestCryptoBox();
 
-      final repo = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _stubClientFor(userId: null),
-        indexer: indexer,
-      );
+        final repo = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _stubClientFor(userId: null),
+          indexer: indexer,
+        );
 
-      expect(await repo.localNotes(), isEmpty);
-      expect(await repo.localNotesForSync(), isEmpty);
-    });
+        expect(await repo.localNotes(), isEmpty);
+        expect(await repo.localNotesForSync(), isEmpty);
+      },
+    );
   });
 }
 
@@ -211,16 +221,20 @@ Future<void> _seedSampleData(AppDb db) async {
         noteId: 'note-a-1',
         folderId: 'folder-a-projects',
         addedAt: now,
+        userId: 'user-a',
       ),
       NoteFoldersCompanion.insert(
         noteId: 'note-b-1',
         folderId: 'folder-b-research',
         addedAt: now,
+        userId: 'user-b',
       ),
     ]);
   });
 
-  await db.into(db.noteTasks).insert(
+  await db
+      .into(db.noteTasks)
+      .insert(
         NoteTasksCompanion.insert(
           id: 'task-a-1',
           noteId: 'note-a-1',
@@ -233,14 +247,19 @@ Future<void> _seedSampleData(AppDb db) async {
         ),
       );
 
-  await db.into(db.noteTags).insert(
+  await db
+      .into(db.noteTags)
+      .insert(
         NoteTagsCompanion.insert(
           noteId: 'note-a-1',
           tag: 'priority',
+          userId: 'user-a',
         ),
       );
 
-  await db.into(db.noteReminders).insert(
+  await db
+      .into(db.noteReminders)
+      .insert(
         NoteRemindersCompanion.insert(
           noteId: 'note-a-2',
           userId: 'user-a',
@@ -249,7 +268,9 @@ Future<void> _seedSampleData(AppDb db) async {
       );
 
   // User B note
-  await db.into(db.localNotes).insert(
+  await db
+      .into(db.localNotes)
+      .insert(
         LocalNotesCompanion.insert(
           id: 'note-b-1',
           titleEncrypted: const Value('enc::B1'),

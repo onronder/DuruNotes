@@ -32,6 +32,14 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
   }
 
   @override
+  bool get enableUserIdFiltering =>
+      (super.noSuchMethod(
+            Invocation.getter(#enableUserIdFiltering),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   bool get useNewBlockEditor =>
       (super.noSuchMethod(
             Invocation.getter(#useNewBlockEditor),
@@ -72,6 +80,14 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
           as bool);
 
   @override
+  bool isEnabledForUser(String? flagName, {String? userId}) =>
+      (super.noSuchMethod(
+            Invocation.method(#isEnabledForUser, [flagName], {#userId: userId}),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   void setOverride(String? flagName, bool? value) => super.noSuchMethod(
     Invocation.method(#setOverride, [flagName, value]),
     returnValueForMissingStub: null,
@@ -91,4 +107,19 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  void setRolloutPercentage(String? flagName, double? percentage) =>
+      super.noSuchMethod(
+        Invocation.method(#setRolloutPercentage, [flagName, percentage]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  bool enableUserIdFilteringFor(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#enableUserIdFilteringFor, [userId]),
+            returnValue: false,
+          )
+          as bool);
 }
