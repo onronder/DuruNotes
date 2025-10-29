@@ -13,16 +13,18 @@ class BatchOperations {
   final AppLogger _logger;
 
   /// Batch get tags for multiple notes (eliminates N+1 in tag repository)
-  Future<Map<String, List<String>>> getTagsForNotes(List<String> noteIds) async {
+  Future<Map<String, List<String>>> getTagsForNotes(
+    List<String> noteIds,
+  ) async {
     if (noteIds.isEmpty) return {};
 
     final stopwatch = Stopwatch()..start();
 
     try {
       // Single query to get all tags for all notes
-      final tags = await (db.select(db.noteTags)
-        ..where((t) => t.noteId.isIn(noteIds)))
-        .get();
+      final tags = await (db.select(
+        db.noteTags,
+      )..where((t) => t.noteId.isIn(noteIds))).get();
 
       // Group by note ID
       final result = <String, List<String>>{};
@@ -35,15 +37,22 @@ class BatchOperations {
         result.putIfAbsent(noteId, () => []);
       }
 
-      _logger.debug('Batch getTagsForNotes completed', data: {
-        'note_count': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'tags_found': tags.length,
-      });
+      _logger.debug(
+        'Batch getTagsForNotes completed',
+        data: {
+          'note_count': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'tags_found': tags.length,
+        },
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Batch getTagsForNotes failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch getTagsForNotes failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -51,16 +60,18 @@ class BatchOperations {
   }
 
   /// Batch get links for multiple notes
-  Future<Map<String, List<NoteLink>>> getLinksForNotes(List<String> noteIds) async {
+  Future<Map<String, List<NoteLink>>> getLinksForNotes(
+    List<String> noteIds,
+  ) async {
     if (noteIds.isEmpty) return {};
 
     final stopwatch = Stopwatch()..start();
 
     try {
       // Single query to get all links for all notes
-      final links = await (db.select(db.noteLinks)
-        ..where((l) => l.sourceId.isIn(noteIds)))
-        .get();
+      final links = await (db.select(
+        db.noteLinks,
+      )..where((l) => l.sourceId.isIn(noteIds))).get();
 
       // Group by note ID
       final result = <String, List<NoteLink>>{};
@@ -73,15 +84,22 @@ class BatchOperations {
         result.putIfAbsent(noteId, () => []);
       }
 
-      _logger.debug('Batch getLinksForNotes completed', data: {
-        'note_count': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'links_found': links.length,
-      });
+      _logger.debug(
+        'Batch getLinksForNotes completed',
+        data: {
+          'note_count': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'links_found': links.length,
+        },
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Batch getLinksForNotes failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch getLinksForNotes failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -92,7 +110,9 @@ class BatchOperations {
   ///
   /// TODO(schema): Implement when LocalAttachments table is created
   /// For now returns empty lists to maintain API compatibility
-  Future<Map<String, List<dynamic>>> getAttachmentsForNotes(List<String> noteIds) async {
+  Future<Map<String, List<dynamic>>> getAttachmentsForNotes(
+    List<String> noteIds,
+  ) async {
     if (noteIds.isEmpty) return {};
 
     final stopwatch = Stopwatch()..start();
@@ -106,15 +126,22 @@ class BatchOperations {
         result[noteId] = [];
       }
 
-      _logger.debug('Batch getAttachmentsForNotes completed (stubbed)', data: {
-        'note_count': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'attachments_found': 0,
-      });
+      _logger.debug(
+        'Batch getAttachmentsForNotes completed (stubbed)',
+        data: {
+          'note_count': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'attachments_found': 0,
+        },
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Batch getAttachmentsForNotes failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch getAttachmentsForNotes failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -122,17 +149,20 @@ class BatchOperations {
   }
 
   /// Batch get tasks for multiple notes
-  Future<Map<String, List<NoteTask>>> getTasksForNotes(List<String> noteIds) async {
+  Future<Map<String, List<NoteTask>>> getTasksForNotes(
+    List<String> noteIds,
+  ) async {
     if (noteIds.isEmpty) return {};
 
     final stopwatch = Stopwatch()..start();
 
     try {
       // Single query to get all tasks for all notes
-      final tasks = await (db.select(db.noteTasks)
-        ..where((t) => t.noteId.isIn(noteIds) & t.deleted.equals(false))
-        ..orderBy([(t) => OrderingTerm(expression: t.position)]))
-        .get();
+      final tasks =
+          await (db.select(db.noteTasks)
+                ..where((t) => t.noteId.isIn(noteIds) & t.deleted.equals(false))
+                ..orderBy([(t) => OrderingTerm(expression: t.position)]))
+              .get();
 
       // Group by note ID
       final result = <String, List<NoteTask>>{};
@@ -145,15 +175,22 @@ class BatchOperations {
         result.putIfAbsent(noteId, () => []);
       }
 
-      _logger.debug('Batch getTasksForNotes completed', data: {
-        'note_count': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'tasks_found': tasks.length,
-      });
+      _logger.debug(
+        'Batch getTasksForNotes completed',
+        data: {
+          'note_count': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'tasks_found': tasks.length,
+        },
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Batch getTasksForNotes failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch getTasksForNotes failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -168,9 +205,9 @@ class BatchOperations {
 
     try {
       // Single query to check all folder existence
-      final existingFolders = await (db.select(db.localFolders)
-        ..where((f) => f.id.isIn(folderIds) & f.deleted.equals(false)))
-        .get();
+      final existingFolders = await (db.select(
+        db.localFolders,
+      )..where((f) => f.id.isIn(folderIds) & f.deleted.equals(false))).get();
 
       final existingIds = existingFolders.map((f) => f.id).toSet();
 
@@ -180,15 +217,22 @@ class BatchOperations {
         result[folderId] = existingIds.contains(folderId);
       }
 
-      _logger.debug('Batch checkFoldersExist completed', data: {
-        'folder_count': folderIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'existing_count': existingFolders.length,
-      });
+      _logger.debug(
+        'Batch checkFoldersExist completed',
+        data: {
+          'folder_count': folderIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'existing_count': existingFolders.length,
+        },
+      );
 
       return result;
     } catch (e, stackTrace) {
-      _logger.error('Batch checkFoldersExist failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch checkFoldersExist failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -205,19 +249,36 @@ class BatchOperations {
       await db.transaction(() async {
         // First, delete existing tags for all notes
         final noteIds = noteTagMap.keys.toList();
-        await (db.delete(db.noteTags)..where((t) => t.noteId.isIn(noteIds))).go();
+        await (db.delete(
+          db.noteTags,
+        )..where((t) => t.noteId.isIn(noteIds))).go();
 
         // Then insert new tags in batch
         final tagsToInsert = <NoteTagsCompanion>[];
         for (final entry in noteTagMap.entries) {
           final noteId = entry.key;
           final tags = entry.value;
+          final note = await (db.select(
+            db.localNotes,
+          )..where((n) => n.id.equals(noteId))).getSingleOrNull();
+          final ownerId = note?.userId;
+
+          if (ownerId == null || ownerId.isEmpty) {
+            _logger.warning(
+              'Skipping tag batch insert - missing userId',
+              data: {'noteId': noteId, 'tags': tags},
+            );
+            continue;
+          }
 
           for (final tag in tags) {
-            tagsToInsert.add(NoteTagsCompanion(
-              noteId: Value(noteId),
-              tag: Value(tag),
-            ));
+            tagsToInsert.add(
+              NoteTagsCompanion(
+                noteId: Value(noteId),
+                tag: Value(tag),
+                userId: Value(ownerId),
+              ),
+            );
           }
         }
 
@@ -228,14 +289,20 @@ class BatchOperations {
         }
       });
 
-      _logger.debug('Batch updateTagsForNotes completed', data: {
-        'note_count': noteTagMap.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'total_tags': noteTagMap.values.expand((tags) => tags).length,
-      });
-
+      _logger.debug(
+        'Batch updateTagsForNotes completed',
+        data: {
+          'note_count': noteTagMap.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'total_tags': noteTagMap.values.expand((tags) => tags).length,
+        },
+      );
     } catch (e, stackTrace) {
-      _logger.error('Batch updateTagsForNotes failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch updateTagsForNotes failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -243,16 +310,18 @@ class BatchOperations {
   }
 
   /// Batch get notes by IDs with all relations
-  Future<List<NoteWithAllRelations>> getNotesWithAllRelations(List<String> noteIds) async {
+  Future<List<NoteWithAllRelations>> getNotesWithAllRelations(
+    List<String> noteIds,
+  ) async {
     if (noteIds.isEmpty) return [];
 
     final stopwatch = Stopwatch()..start();
 
     try {
       // Get all notes
-      final notes = await (db.select(db.localNotes)
-        ..where((n) => n.id.isIn(noteIds) & n.deleted.equals(false)))
-        .get();
+      final notes = await (db.select(
+        db.localNotes,
+      )..where((n) => n.id.isIn(noteIds) & n.deleted.equals(false))).get();
 
       // Batch load all relations
       final futures = await Future.wait<Map<String, List<dynamic>>>([
@@ -264,7 +333,8 @@ class BatchOperations {
 
       final tagsByNote = futures[0] as Map<String, List<String>>;
       final linksByNote = futures[1] as Map<String, List<NoteLink>>;
-      final attachmentsByNote = futures[2]; // Already Map<String, List<dynamic>>
+      final attachmentsByNote =
+          futures[2]; // Already Map<String, List<dynamic>>
       final tasksByNote = futures[3] as Map<String, List<NoteTask>>;
 
       // Build results
@@ -278,16 +348,22 @@ class BatchOperations {
         );
       }).toList();
 
-      _logger.debug('Batch getNotesWithAllRelations completed', data: {
-        'note_count': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-        'results_count': results.length,
-      });
+      _logger.debug(
+        'Batch getNotesWithAllRelations completed',
+        data: {
+          'note_count': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+          'results_count': results.length,
+        },
+      );
 
       return results;
-
     } catch (e, stackTrace) {
-      _logger.error('Batch getNotesWithAllRelations failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch getNotesWithAllRelations failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();
@@ -300,9 +376,9 @@ class BatchOperations {
 
     try {
       // Get all notes with the old tag in a single query
-      final notesWithTag = await (db.select(db.noteTags)
-        ..where((t) => t.tag.equals(oldTag)))
-        .get();
+      final notesWithTag = await (db.select(
+        db.noteTags,
+      )..where((t) => t.tag.equals(oldTag))).get();
 
       if (notesWithTag.isEmpty) return 0;
 
@@ -310,32 +386,49 @@ class BatchOperations {
 
       await db.transaction(() async {
         // Delete old tag entries
-        await (db.delete(db.noteTags)
-          ..where((t) => t.tag.equals(oldTag)))
-          .go();
+        await (db.delete(db.noteTags)..where((t) => t.tag.equals(oldTag))).go();
 
         // Insert new tag entries only if they don't already exist
-        for (final noteId in noteIds) {
-          await db.into(db.noteTags).insertOnConflictUpdate(
-            NoteTagsCompanion(
-              noteId: Value(noteId),
-              tag: Value(newTag),
-            ),
-          );
+        for (final tagRow in notesWithTag) {
+          final noteId = tagRow.noteId;
+          final ownerId = tagRow.userId;
+          if (ownerId.isEmpty) {
+            _logger.warning(
+              'Skipping batchRenameTag insert - missing userId',
+              data: {'noteId': noteId, 'oldTag': oldTag, 'newTag': newTag},
+            );
+            continue;
+          }
+
+          await db
+              .into(db.noteTags)
+              .insertOnConflictUpdate(
+                NoteTagsCompanion(
+                  noteId: Value(noteId),
+                  tag: Value(newTag),
+                  userId: Value(ownerId),
+                ),
+              );
         }
       });
 
-      _logger.debug('Batch batchRenameTag completed', data: {
-        'old_tag': oldTag,
-        'new_tag': newTag,
-        'affected_notes': noteIds.length,
-        'execution_time_ms': stopwatch.elapsedMilliseconds,
-      });
+      _logger.debug(
+        'Batch batchRenameTag completed',
+        data: {
+          'old_tag': oldTag,
+          'new_tag': newTag,
+          'affected_notes': noteIds.length,
+          'execution_time_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
       return noteIds.length;
-
     } catch (e, stackTrace) {
-      _logger.error('Batch batchRenameTag failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Batch batchRenameTag failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     } finally {
       stopwatch.stop();

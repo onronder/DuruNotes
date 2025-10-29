@@ -54,6 +54,7 @@ class NotesCoreRepository implements INotesRepository {
     if (userId == null || userId.isEmpty) {
       final error = StateError('Unauthenticated access');
       _logger.warning('$method called without authenticated user', data: data);
+      _auditAccess('notes.$method', granted: false, reason: 'missing_user');
       _captureRepositoryException(
         method: method,
         error: error,
@@ -112,11 +113,25 @@ class NotesCoreRepository implements INotesRepository {
     );
   }
 
+  void _auditAccess(String resource, {required bool granted, String? reason}) {
+    unawaited(
+      _securityAuditTrail.logAccess(
+        resource: resource,
+        granted: granted,
+        reason: reason,
+      ),
+    );
+  }
+
   Future<List<String>> _loadTags(String noteId) async {
     try {
-      final tagRecords = await (db.select(
-        db.noteTags,
-      )..where((t) => t.noteId.equals(noteId))).get();
+      final tagQuery = db.select(db.noteTags)
+        ..where((t) => t.noteId.equals(noteId));
+      final userId = _currentUserId;
+      if (userId != null && userId.isNotEmpty) {
+        tagQuery.where((t) => t.userId.equals(userId));
+      }
+      final tagRecords = await tagQuery.get();
       return tagRecords.map((t) => t.tag).toList();
     } catch (error, stackTrace) {
       _logger.error(
@@ -137,9 +152,13 @@ class NotesCoreRepository implements INotesRepository {
 
   Future<List<NoteLink>> _loadDomainLinks(String noteId) async {
     try {
-      final linkRecords = await (db.select(
-        db.noteLinks,
-      )..where((l) => l.sourceId.equals(noteId))).get();
+      final linkQuery = db.select(db.noteLinks)
+        ..where((l) => l.sourceId.equals(noteId));
+      final userId = _currentUserId;
+      if (userId != null && userId.isNotEmpty) {
+        linkQuery.where((l) => l.userId.equals(userId));
+      }
+      final linkRecords = await linkQuery.get();
       return linkRecords.map(NoteMapper.linkToDomain).toList();
     } catch (error, stackTrace) {
       _logger.error(
@@ -449,6 +468,9 @@ class NotesCoreRepository implements INotesRepository {
   bool _isTemplateOp(String kind) =>
       kind == 'upsert_template' || kind == 'delete_template';
 
+  bool _isReminderOp(String kind) =>
+      kind == 'upsert_reminder' || kind == 'delete_reminder';
+
   Future<bool> _executeWithRetry({
     required String operation,
     required Future<void> Function() run,
@@ -600,6 +622,65 @@ class NotesCoreRepository implements INotesRepository {
       index = TaskPriority.values.length - 1;
     }
     return TaskPriority.values[index];
+  }
+
+  String _mapReminderType(ReminderType type) {
+    // Keep values aligned with Supabase reminders.type enum
+    switch (type) {
+      case ReminderType.time:
+        return 'time';
+      case ReminderType.location:
+        return 'location';
+      case ReminderType.recurring:
+        return 'recurring';
+    }
+  }
+
+  String _mapRecurrencePattern(RecurrencePattern pattern) {
+    switch (pattern) {
+      case RecurrencePattern.none:
+        return 'none';
+      case RecurrencePattern.daily:
+        return 'daily';
+      case RecurrencePattern.weekly:
+        return 'weekly';
+      case RecurrencePattern.monthly:
+        return 'monthly';
+      case RecurrencePattern.yearly:
+        return 'yearly';
+    }
+  }
+
+  String? _toUtcIsoString(DateTime? value) => value?.toUtc().toIso8601String();
+
+  Map<String, dynamic> _buildReminderPayload(NoteReminder reminder) {
+    return {
+      'id': reminder.id,
+      'note_id': reminder.noteId,
+      'user_id': reminder.userId,
+      'title': reminder.title,
+      'body': reminder.body,
+      'type': _mapReminderType(reminder.type),
+      'remind_at': _toUtcIsoString(reminder.remindAt),
+      'is_active': reminder.isActive,
+      'recurrence_pattern': _mapRecurrencePattern(reminder.recurrencePattern),
+      'recurrence_interval': reminder.recurrenceInterval,
+      'recurrence_end_date': _toUtcIsoString(reminder.recurrenceEndDate),
+      'latitude': reminder.latitude,
+      'longitude': reminder.longitude,
+      'radius': reminder.radius,
+      'location_name': reminder.locationName,
+      'snoozed_until': _toUtcIsoString(reminder.snoozedUntil),
+      'snooze_count': reminder.snoozeCount,
+      'trigger_count': reminder.triggerCount,
+      'last_triggered': _toUtcIsoString(reminder.lastTriggered),
+      'notification_title': reminder.notificationTitle,
+      'notification_body': reminder.notificationBody,
+      'notification_image': reminder.notificationImage,
+      'time_zone': reminder.timeZone,
+      'created_at': _toUtcIsoString(reminder.createdAt),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
   }
 
   Future<String> _encryptTemplateField({
@@ -1067,6 +1148,126 @@ class NotesCoreRepository implements INotesRepository {
     }
   }
 
+  Future<bool> _pushReminderOp(PendingOp op) async {
+    final reminderIdRaw = op.entityId;
+    final reminderId = int.tryParse(reminderIdRaw);
+
+    if (op.kind == 'delete_reminder') {
+      if (reminderIdRaw.isEmpty) {
+        _logger.warning(
+          'Pending reminder delete has empty id',
+          data: {'opId': op.id},
+        );
+        await _securityAuditTrail.logAccess(
+          resource: 'reminders.push.delete',
+          granted: false,
+          reason: 'missing_id',
+        );
+        return true;
+      }
+
+      final success = await _executeWithRetry(
+        operation: 'reminders.delete',
+        metadata: {'reminderId': reminderIdRaw},
+        run: () => _secureApi.deleteReminder(reminderIdRaw),
+      );
+
+      await _securityAuditTrail.logAccess(
+        resource: 'reminders.push.delete',
+        granted: success,
+        reason: success ? 'id=$reminderIdRaw' : 'api_failure',
+      );
+      return success;
+    }
+
+    if (reminderId == null) {
+      _logger.warning(
+        'Pending reminder operation has non-integer id',
+        data: {'entityId': reminderIdRaw, 'opId': op.id, 'kind': op.kind},
+      );
+      await _securityAuditTrail.logAccess(
+        resource: 'reminders.push.upsert',
+        granted: false,
+        reason: 'invalid_id',
+      );
+      return true;
+    }
+
+    try {
+      final userId = op.userId.isNotEmpty
+          ? op.userId
+          : (_supabase.auth.currentUser?.id ?? '');
+      if (userId.isEmpty) {
+        _logger.warning(
+          'Cannot push reminder operation - missing authenticated user',
+          data: {'reminderId': reminderId, 'kind': op.kind},
+        );
+        await _securityAuditTrail.logAccess(
+          resource: 'reminders.push.upsert',
+          granted: false,
+          reason: 'missing_user',
+        );
+        return false;
+      }
+
+      final reminder = await db.getReminderById(reminderId, userId);
+      if (reminder == null) {
+        _logger.warning(
+          'Pending reminder operation references missing reminder',
+          data: {'reminderId': reminderId, 'kind': op.kind, 'userId': userId},
+        );
+        await _securityAuditTrail.logAccess(
+          resource: 'reminders.push.upsert',
+          granted: false,
+          reason: 'missing_local',
+        );
+        return true;
+      }
+
+      final payload = _buildReminderPayload(reminder);
+      final success = await _executeWithRetry(
+        operation: 'reminders.upsert',
+        metadata: {
+          'reminderId': reminderId,
+          'noteId': reminder.noteId,
+          'userId': userId,
+          'kind': op.kind,
+        },
+        run: () => _secureApi.upsertReminder(payload),
+      );
+
+      await _securityAuditTrail.logAccess(
+        resource: 'reminders.push.upsert',
+        granted: success,
+        reason: success
+            ? 'id=$reminderId'
+            : 'api_failure',
+      );
+
+      return success;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to push reminder operation',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'entityId': reminderId, 'kind': op.kind, 'opId': op.id},
+      );
+      _captureRepositoryException(
+        method: '_pushReminderOp',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'entityId': reminderId, 'kind': op.kind, 'opId': op.id},
+        level: SentryLevel.warning,
+      );
+      await _securityAuditTrail.logAccess(
+        resource: 'reminders.push.upsert',
+        granted: false,
+        reason: 'exception',
+      );
+      return false;
+    }
+  }
+
   Future<void> _applyRemoteNote(Map<String, dynamic> remoteNote) async {
     final noteId = remoteNote['id'] as String;
     try {
@@ -1119,30 +1320,38 @@ class NotesCoreRepository implements INotesRepository {
       // PRODUCTION SAFETY: Fail fast on invalid timestamps instead of silent corruption
       // Using DateTime.now() as fallback would create incorrect note ages
       final createdAtStr = remoteNote['created_at']?.toString();
-      final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
+      final createdAt = createdAtStr != null
+          ? DateTime.tryParse(createdAtStr)
+          : null;
       if (createdAt == null) {
         _logger.error(
           'Invalid created_at timestamp from remote - skipping note',
           data: {'noteId': noteId, 'created_at_value': createdAtStr},
         );
-        unawaited(Sentry.captureMessage(
-          'Timestamp corruption prevented: Invalid created_at from remote',
-          level: SentryLevel.warning,
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'Timestamp corruption prevented: Invalid created_at from remote',
+            level: SentryLevel.warning,
+          ),
+        );
         return; // Skip this note instead of corrupting local data
       }
 
       final updatedAtStr = remoteNote['updated_at']?.toString();
-      final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
+      final updatedAt = updatedAtStr != null
+          ? DateTime.tryParse(updatedAtStr)
+          : null;
       if (updatedAt == null) {
         _logger.error(
           'Invalid updated_at timestamp from remote - skipping note',
           data: {'noteId': noteId, 'updated_at_value': updatedAtStr},
         );
-        unawaited(Sentry.captureMessage(
-          'Timestamp corruption prevented: Invalid updated_at from remote',
-          level: SentryLevel.warning,
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'Timestamp corruption prevented: Invalid updated_at from remote',
+            level: SentryLevel.warning,
+          ),
+        );
         return; // Skip this note instead of corrupting local data
       }
       final noteTypeIndex =
@@ -1278,30 +1487,38 @@ class NotesCoreRepository implements INotesRepository {
 
       // PRODUCTION SAFETY: Fail fast on invalid timestamps
       final createdAtStr = remoteFolder['created_at']?.toString();
-      final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
+      final createdAt = createdAtStr != null
+          ? DateTime.tryParse(createdAtStr)
+          : null;
       if (createdAt == null) {
         _logger.error(
           'Invalid created_at timestamp from remote folder - skipping',
           data: {'folderId': folderId, 'created_at_value': createdAtStr},
         );
-        unawaited(Sentry.captureMessage(
-          'Timestamp corruption prevented: Invalid folder created_at',
-          level: SentryLevel.warning,
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'Timestamp corruption prevented: Invalid folder created_at',
+            level: SentryLevel.warning,
+          ),
+        );
         return;
       }
 
       final updatedAtStr = remoteFolder['updated_at']?.toString();
-      final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
+      final updatedAt = updatedAtStr != null
+          ? DateTime.tryParse(updatedAtStr)
+          : null;
       if (updatedAt == null) {
         _logger.error(
           'Invalid updated_at timestamp from remote folder - skipping',
           data: {'folderId': folderId, 'updated_at_value': updatedAtStr},
         );
-        unawaited(Sentry.captureMessage(
-          'Timestamp corruption prevented: Invalid folder updated_at',
-          level: SentryLevel.warning,
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'Timestamp corruption prevented: Invalid folder updated_at',
+            level: SentryLevel.warning,
+          ),
+        );
         return;
       }
 
@@ -1443,40 +1660,44 @@ class NotesCoreRepository implements INotesRepository {
         remoteTask['parent_id'] as String? ??
             metadata['parentTaskId'] as String?,
       ),
-      createdAt: Value(
-        () {
-          final createdAtStr = remoteTask['created_at'] as String?;
-          final parsed = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
-          if (parsed == null) {
-            _logger.error(
-              'Invalid created_at timestamp from remote task - using current time',
-              data: {'taskId': taskId, 'created_at_value': createdAtStr},
-            );
-            unawaited(Sentry.captureMessage(
+      createdAt: Value(() {
+        final createdAtStr = remoteTask['created_at'] as String?;
+        final parsed = createdAtStr != null
+            ? DateTime.tryParse(createdAtStr)
+            : null;
+        if (parsed == null) {
+          _logger.error(
+            'Invalid created_at timestamp from remote task - using current time',
+            data: {'taskId': taskId, 'created_at_value': createdAtStr},
+          );
+          unawaited(
+            Sentry.captureMessage(
               'Timestamp fallback: Invalid task created_at',
               level: SentryLevel.warning,
-            ));
-          }
-          return parsed ?? DateTime.now().toUtc();
-        }(),
-      ),
-      updatedAt: Value(
-        () {
-          final updatedAtStr = remoteTask['updated_at'] as String?;
-          final parsed = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
-          if (parsed == null) {
-            _logger.error(
-              'Invalid updated_at timestamp from remote task - using current time',
-              data: {'taskId': taskId, 'updated_at_value': updatedAtStr},
-            );
-            unawaited(Sentry.captureMessage(
+            ),
+          );
+        }
+        return parsed ?? DateTime.now().toUtc();
+      }()),
+      updatedAt: Value(() {
+        final updatedAtStr = remoteTask['updated_at'] as String?;
+        final parsed = updatedAtStr != null
+            ? DateTime.tryParse(updatedAtStr)
+            : null;
+        if (parsed == null) {
+          _logger.error(
+            'Invalid updated_at timestamp from remote task - using current time',
+            data: {'taskId': taskId, 'updated_at_value': updatedAtStr},
+          );
+          unawaited(
+            Sentry.captureMessage(
               'Timestamp fallback: Invalid task updated_at',
               level: SentryLevel.warning,
-            ));
-          }
-          return parsed ?? DateTime.now().toUtc();
-        }(),
-      ),
+            ),
+          );
+        }
+        return parsed ?? DateTime.now().toUtc();
+      }()),
       deleted: const Value(false),
       encryptionVersion: const Value(1),
     );
@@ -1561,31 +1782,39 @@ class NotesCoreRepository implements INotesRepository {
       metadata: metadata,
       createdAt: () {
         final createdAtStr = remoteTemplate['created_at'] as String?;
-        final parsed = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
+        final parsed = createdAtStr != null
+            ? DateTime.tryParse(createdAtStr)
+            : null;
         if (parsed == null) {
           _logger.error(
             'Invalid created_at timestamp from remote template - using current time',
             data: {'templateId': templateId, 'created_at_value': createdAtStr},
           );
-          unawaited(Sentry.captureMessage(
-            'Timestamp fallback: Invalid template created_at',
-            level: SentryLevel.warning,
-          ));
+          unawaited(
+            Sentry.captureMessage(
+              'Timestamp fallback: Invalid template created_at',
+              level: SentryLevel.warning,
+            ),
+          );
         }
         return parsed ?? DateTime.now().toUtc();
       }(),
       updatedAt: () {
         final updatedAtStr = remoteTemplate['updated_at'] as String?;
-        final parsed = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
+        final parsed = updatedAtStr != null
+            ? DateTime.tryParse(updatedAtStr)
+            : null;
         if (parsed == null) {
           _logger.error(
             'Invalid updated_at timestamp from remote template - using current time',
             data: {'templateId': templateId, 'updated_at_value': updatedAtStr},
           );
-          unawaited(Sentry.captureMessage(
-            'Timestamp fallback: Invalid template updated_at',
-            level: SentryLevel.warning,
-          ));
+          unawaited(
+            Sentry.captureMessage(
+              'Timestamp fallback: Invalid template updated_at',
+              level: SentryLevel.warning,
+            ),
+          );
         }
         return parsed ?? DateTime.now().toUtc();
       }(),
@@ -1646,10 +1875,17 @@ class NotesCoreRepository implements INotesRepository {
               .getSingleOrNull();
 
       if (localNote == null) {
+        _auditAccess('notes.getNoteById', granted: false, reason: 'not_found');
         return null;
       }
 
-      return await _hydrateDomainNote(localNote);
+      final hydrated = await _hydrateDomainNote(localNote);
+      _auditAccess(
+        'notes.getNoteById',
+        granted: hydrated != null,
+        reason: hydrated != null ? 'found' : 'hydrate_failed',
+      );
+      return hydrated;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to get note by id',
@@ -1662,6 +1898,11 @@ class NotesCoreRepository implements INotesRepository {
         error: error,
         stackTrace: stackTrace,
         data: {'noteId': id},
+      );
+      _auditAccess(
+        'notes.getNoteById',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
       );
       return null;
     }
@@ -1685,38 +1926,25 @@ class NotesCoreRepository implements INotesRepository {
     final traceId = TraceContext.currentNoteSaveTrace;
 
     try {
-      final existingNote = await (db.select(
-        db.localNotes,
-      )..where((note) => note.id.equals(noteId))).getSingleOrNull();
+      final userId = _requireUserId(
+        method: 'createOrUpdate',
+        data: {'noteId': noteId, 'hasIncomingId': id != null},
+      );
+      if (userId == null) {
+        return null;
+      }
+
+      final existingNote =
+          await (db.select(db.localNotes)..where(
+                (note) => note.id.equals(noteId) & note.userId.equals(userId),
+              ))
+              .getSingleOrNull();
 
       final now = DateTime.now().toUtc();
       // SYNC FIX: Use provided timestamps if available (from sync), otherwise use now (user creation)
       final finalCreatedAt = createdAt ?? existingNote?.createdAt ?? now;
       // TIMESTAMP FIX: Preserve existing updated_at unless explicitly provided or creating new note
       final finalUpdatedAt = updatedAt ?? existingNote?.updatedAt ?? now;
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        _logger.warning(
-          'createOrUpdate called without authenticated user',
-          data: {'noteId': noteId, 'hasIncomingId': id != null},
-        );
-        final authorizationError = StateError(
-          'Cannot create note without authenticated user',
-        );
-        _logger.warning(
-          'Cannot create note without authenticated user',
-          data: {'noteId': noteId, 'hasIncomingId': id != null},
-        );
-        _captureRepositoryException(
-          method: 'createOrUpdate',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'noteId': noteId, 'hasIncomingId': id != null},
-          level: SentryLevel.warning,
-        );
-        return null;
-      }
-
       _logger.info(
         'Creating/updating note locally',
         data: {
@@ -1819,7 +2047,15 @@ class NotesCoreRepository implements INotesRepository {
         'folder=${folderId ?? "null"} tagCount=${tags.length} traceId=${traceId ?? "none"}',
       );
 
-      return await getNoteById(noteId);
+      final hydrated = await getNoteById(noteId);
+      _auditAccess(
+        'notes.createOrUpdate',
+        granted: hydrated != null,
+        reason: hydrated != null
+            ? 'noteId=$noteId isUpdate=${existingNote != null}'
+            : 'hydrate_failed',
+      );
+      return hydrated;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to create or update note',
@@ -1847,6 +2083,11 @@ class NotesCoreRepository implements INotesRepository {
           'tagCount': tags.length,
         },
       );
+      _auditAccess(
+        'notes.createOrUpdate',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -1863,6 +2104,7 @@ class NotesCoreRepository implements INotesRepository {
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   }) async {
     final traceId = TraceContext.currentNoteSaveTrace;
 
@@ -1883,6 +2125,11 @@ class NotesCoreRepository implements INotesRepository {
           stackTrace: StackTrace.current,
           data: {'noteId': id, if (traceId != null) 'traceId': traceId},
           level: SentryLevel.warning,
+        );
+        _auditAccess(
+          'notes.updateLocalNote',
+          granted: false,
+          reason: 'not_found',
         );
         return;
       }
@@ -1940,6 +2187,8 @@ class NotesCoreRepository implements INotesRepository {
         bodyEncrypted = base64.encode(bodyEncryptedBytes);
       }
 
+      final effectiveUpdatedAt = updatedAt ?? existing.updatedAt;
+
       await db.upsertNote(
         LocalNote(
           id: id,
@@ -1947,7 +2196,7 @@ class NotesCoreRepository implements INotesRepository {
           bodyEncrypted: bodyEncrypted,
           deleted: deleted ?? existing.deleted,
           createdAt: existing.createdAt,
-          updatedAt: DateTime.now().toUtc(),
+          updatedAt: effectiveUpdatedAt,
           userId: existing.userId,
           noteType: existing.noteType,
           version: existing.version + 1,
@@ -1996,6 +2245,11 @@ class NotesCoreRepository implements INotesRepository {
           if (folderId != null) 'folderId': folderId,
         },
       );
+      _auditAccess(
+        'notes.updateLocalNote',
+        granted: true,
+        reason: deleted == true ? 'noteId=$id deleted' : 'noteId=$id updated',
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to update local note',
@@ -2017,13 +2271,22 @@ class NotesCoreRepository implements INotesRepository {
           if (traceId != null) 'traceId': traceId,
         },
       );
+      _auditAccess(
+        'notes.updateLocalNote',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
+      );
       rethrow;
     }
   }
 
   @override
   Future<void> deleteNote(String id) async {
-    await updateLocalNote(id, deleted: true);
+    await updateLocalNote(
+      id,
+      deleted: true,
+      updatedAt: DateTime.now().toUtc(),
+    );
   }
 
   @override
@@ -2057,6 +2320,11 @@ class NotesCoreRepository implements INotesRepository {
           notes.add(hydrated); // Include ALL notes for sync
         }
       }
+      _auditAccess(
+        'notes.localNotesForSync',
+        granted: true,
+        reason: 'count=${notes.length}',
+      );
       return notes;
     } catch (error, stackTrace) {
       _logger.error(
@@ -2068,6 +2336,11 @@ class NotesCoreRepository implements INotesRepository {
         method: 'localNotesForSync',
         error: error,
         stackTrace: stackTrace,
+      );
+      _auditAccess(
+        'notes.localNotesForSync',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
       );
       return [];
     }
@@ -2100,7 +2373,13 @@ class NotesCoreRepository implements INotesRepository {
                 ]))
               .get();
 
-      return await _hydrateDomainNotes(localNotes);
+      final notes = await _hydrateDomainNotes(localNotes);
+      _auditAccess(
+        'notes.localNotes',
+        granted: true,
+        reason: 'count=${notes.length}',
+      );
+      return notes;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to load local notes',
@@ -2111,6 +2390,11 @@ class NotesCoreRepository implements INotesRepository {
         method: 'localNotes',
         error: error,
         stackTrace: stackTrace,
+      );
+      _auditAccess(
+        'notes.localNotes',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
       );
       return const <domain.Note>[];
     }
@@ -2142,7 +2426,13 @@ class NotesCoreRepository implements INotesRepository {
                 ..limit(limit))
               .get();
 
-      return await _hydrateDomainNotes(localNotes);
+      final notes = await _hydrateDomainNotes(localNotes);
+      _auditAccess(
+        'notes.getRecentlyViewedNotes',
+        granted: true,
+        reason: 'count=${notes.length}',
+      );
+      return notes;
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to load recently viewed notes',
@@ -2155,6 +2445,11 @@ class NotesCoreRepository implements INotesRepository {
         error: error,
         stackTrace: stackTrace,
         data: {'limit': limit},
+      );
+      _auditAccess(
+        'notes.getRecentlyViewedNotes',
+        granted: false,
+        reason: 'error=${error.runtimeType}',
       );
       return const <domain.Note>[];
     }
@@ -2531,6 +2826,7 @@ class NotesCoreRepository implements INotesRepository {
       final folderOps = <PendingOp>[];
       final taskOps = <PendingOp>[];
       final templateOps = <PendingOp>[];
+      final reminderOps = <PendingOp>[];
       final unknownOps = <PendingOp>[];
 
       for (final op in pendingOps) {
@@ -2542,6 +2838,8 @@ class NotesCoreRepository implements INotesRepository {
           taskOps.add(op);
         } else if (_isTemplateOp(op.kind)) {
           templateOps.add(op);
+        } else if (_isReminderOp(op.kind)) {
+          reminderOps.add(op);
         } else {
           unknownOps.add(op);
         }
@@ -2569,6 +2867,12 @@ class NotesCoreRepository implements INotesRepository {
 
       for (final op in templateOps) {
         if (await _pushTemplateOp(op)) {
+          processedIds.add(op.id);
+        }
+      }
+
+      for (final op in reminderOps) {
+        if (await _pushReminderOp(op)) {
           processedIds.add(op.id);
         }
       }

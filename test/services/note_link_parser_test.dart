@@ -142,6 +142,8 @@ class InMemoryNotesRepository implements INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) => throw UnimplementedError();
 
   @override
@@ -203,6 +205,7 @@ class InMemoryNotesRepository implements INotesRepository {
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   }) => throw UnimplementedError();
 
   @override

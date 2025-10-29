@@ -146,6 +146,83 @@ void main() {
     expect(remaining, isEmpty);
   });
 
+  test('pushAllPending uploads reminder operations to Supabase', () async {
+    when(mockApi.upsertReminder(any)).thenAnswer((_) async {});
+
+    final createdAt = DateTime.utc(2025, 1, 1, 10);
+    final remindAt = DateTime.utc(2025, 1, 1, 12);
+
+    await db
+        .into(db.localNotes)
+        .insert(
+          LocalNotesCompanion.insert(
+            id: 'note-1',
+            titleEncrypted: const Value('title'),
+            bodyEncrypted: const Value('body'),
+            createdAt: createdAt,
+            updatedAt: createdAt,
+            deleted: const Value(false),
+            userId: const Value('user-123'),
+            noteType: Value(NoteKind.note),
+            isPinned: const Value(false),
+            version: const Value(1),
+          ),
+        );
+
+    final reminderId = await db.createReminder(
+      NoteRemindersCompanion.insert(
+        noteId: 'note-1',
+        userId: 'user-123',
+        type: ReminderType.time,
+        title: const Value('Reminder Title'),
+        body: const Value('Do the thing'),
+        remindAt: Value(remindAt),
+        snoozeCount: const Value(0),
+        triggerCount: const Value(0),
+        createdAt: Value(createdAt),
+        isActive: const Value(true),
+        recurrencePattern: const Value(RecurrencePattern.none),
+        recurrenceInterval: const Value(1),
+      ),
+    );
+
+    await db.enqueue(
+      userId: 'user-123',
+      entityId: reminderId.toString(),
+      kind: 'upsert_reminder',
+    );
+
+    await repository.pushAllPending();
+
+    final captured = verify(mockApi.upsertReminder(captureAny)).captured.single
+        as Map<String, dynamic>;
+    expect(captured['id'], reminderId);
+    expect(captured['note_id'], 'note-1');
+    expect(captured['user_id'], 'user-123');
+    expect(captured['type'], 'time');
+    expect(captured['title'], 'Reminder Title');
+    expect(DateTime.parse(captured['remind_at'] as String).toUtc(), remindAt);
+
+    final remaining = await db.getPendingOpsForUser('user-123');
+    expect(remaining, isEmpty);
+  });
+
+  test('pushAllPending deletes remote reminder when delete op enqueued', () async {
+    when(mockApi.deleteReminder(any)).thenAnswer((_) async {});
+
+    await db.enqueue(
+      userId: 'user-123',
+      entityId: '42',
+      kind: 'delete_reminder',
+    );
+
+    await repository.pushAllPending();
+
+    verify(mockApi.deleteReminder('42')).called(1);
+    final remaining = await db.getPendingOpsForUser('user-123');
+    expect(remaining, isEmpty);
+  });
+
   test(
     'pullSince ingests remote notes and updates last sync timestamp',
     () async {
@@ -220,6 +297,7 @@ void main() {
           {
             'id': 'note-remote',
             'user_id': 'user-123',
+            'created_at': DateTime.now().toUtc().toIso8601String(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
             'deleted': false,
             'title_enc': titleBytes,

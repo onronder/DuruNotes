@@ -123,14 +123,16 @@ class _FakeNotesRepository implements INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     final timestamp = DateTime.now();
     final note = note_domain.Note(
       id: id ?? 'note-${createdNotes.length + 1}',
       title: title,
       body: body,
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt: createdAt ?? timestamp,
+      updatedAt: updatedAt ?? timestamp,
       deleted: false,
       isPinned: isPinned ?? false,
       noteType: NoteKind.note,
@@ -167,6 +169,7 @@ class _FakeNotesRepository implements INotesRepository {
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   }) => throw UnsupportedError('updateLocalNote not supported');
   @override
   Future<void> deleteNote(String id) =>

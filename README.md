@@ -385,7 +385,7 @@ The app has successfully migrated from dual architecture to unified domain-drive
 
 <body>
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with Claude Code (npm i -g @anthropic-ai/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
@@ -415,7 +415,7 @@ Proprietary. All rights reserved.
 - **Flutter Team**: Cross-platform framework
 - **Supabase**: Backend infrastructure
 - **Drift**: Local database ORM
-- **Anthropic**: Claude Code AI assistant
+- **Anthropic**: Claude Code AI assistant (`@anthropic-ai/claude-code`)
 
 ---
 

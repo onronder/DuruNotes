@@ -18,6 +18,7 @@ import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 
 /// Bridge service that connects task management with the reminder system
 /// PRODUCTION: Uses AppDb directly - no longer depends on deprecated TaskService
@@ -44,6 +45,7 @@ class TaskReminderBridge {
   final FlutterLocalNotificationsPlugin _notificationPlugin;
   final TaskDecryptionHelper _decryptionHelper;
   final ITaskRepository? _taskRepository;
+  final SecurityAuditTrail _auditTrail = SecurityAuditTrail();
   static const Uuid _uuid = Uuid();
   GlobalKey<NavigatorState> get _navigatorKey =>
       _ref.read(navigatorKeyProvider);
@@ -65,9 +67,20 @@ class TaskReminderBridge {
       _logger.warning(
         'TaskReminderBridge: cannot perform "$action" without userId',
       );
+      _audit(action, granted: false, reason: 'missing_user');
       return null;
     }
     return userId;
+  }
+
+  void _audit(String action, {required bool granted, String? reason}) {
+    unawaited(
+      _auditTrail.logAccess(
+        resource: 'taskReminderBridge.$action',
+        granted: granted,
+        reason: reason,
+      ),
+    );
   }
 
   static const String _taskChannelId = 'task_reminders';
@@ -178,17 +191,29 @@ class TaskReminderBridge {
                 updatedAt: Value(DateTime.now()),
               ),
             );
-          }
 
-          _logger.info(
-            'Created and linked task reminder',
-            data: {
-              'taskId': task.id,
-              'reminderId': reminderId,
-              'reminderTime': reminderTimeUtc.toIso8601String(),
-              'attempts': attempts + 1,
-            },
-          );
+            _logger.info(
+              'Created and linked task reminder',
+              data: {
+                'taskId': task.id,
+                'reminderId': reminderId,
+                'reminderTime': reminderTimeUtc.toIso8601String(),
+                'attempts': attempts + 1,
+              },
+            );
+
+            _audit(
+              'createTaskReminder',
+              granted: true,
+              reason: 'reminderId=$reminderId',
+            );
+          } else {
+            _audit(
+              'createTaskReminder',
+              granted: false,
+              reason: 'missing_user',
+            );
+          }
 
           await _syncRemoteReminder(
             task: task,
@@ -213,6 +238,11 @@ class TaskReminderBridge {
             error: e,
             stackTrace: stack,
             data: {'taskId': task.id},
+          );
+          _audit(
+            'createTaskReminder',
+            granted: false,
+            reason: 'error=${e.runtimeType}',
           );
           return null;
         }
@@ -292,12 +322,23 @@ class TaskReminderBridge {
             updatedAt: Value(DateTime.now()),
           ),
         );
-      }
+        _logger.info(
+          'Cancelled task reminder',
+          data: {'taskId': task.id, 'reminderId': task.reminderId},
+        );
 
-      _logger.info(
-        'Cancelled task reminder',
-        data: {'taskId': task.id, 'reminderId': task.reminderId},
-      );
+        _audit(
+          'cancelTaskReminder',
+          granted: true,
+          reason: 'reminderId=${task.reminderId}',
+        );
+      } else {
+        _audit(
+          'cancelTaskReminder',
+          granted: false,
+          reason: 'missing_user',
+        );
+      }
 
       await _deactivateRemoteReminder(task);
     } catch (e, stack) {
@@ -306,6 +347,11 @@ class TaskReminderBridge {
         error: e,
         stackTrace: stack,
         data: {'taskId': task.id, 'reminderId': task.reminderId},
+      );
+      _audit(
+        'cancelTaskReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
     }
   }
@@ -322,6 +368,7 @@ class TaskReminderBridge {
       final userId = _currentUserId;
       if (userId == null) {
         _logger.warning('Cannot snooze task reminder - no authenticated user');
+        _audit('snoozeTaskReminder', granted: false, reason: 'missing_user');
         return;
       }
 
@@ -329,6 +376,7 @@ class TaskReminderBridge {
       final reminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
       if (reminder == null) {
         _logger.warning('Reminder not found for task ${task.id}');
+        _audit('snoozeTaskReminder', granted: false, reason: 'not_found');
         return;
       }
 
@@ -359,12 +407,17 @@ class TaskReminderBridge {
 
         // Notify user via notification
         await _notifyMaxSnoozeReached(task);
+        _audit(
+          'snoozeTaskReminder',
+          granted: false,
+          reason: 'snooze_limit',
+        );
         return;
       }
 
       // Get the updated reminder to get new snooze time
       final updatedReminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
-      if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
+        if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
         _logger.info(
           'Snoozed task reminder via SnoozeService',
           data: {
@@ -376,25 +429,36 @@ class TaskReminderBridge {
           },
         );
 
-        await _syncRemoteReminder(
-          task: task,
-          scheduledAtUtc: updatedReminder.snoozedUntil!,
-          title: _formatTaskNotificationTitle(task, isSnoozed: true),
-          body: await _formatTaskNotificationBody(task),
-          metadata: {
-            'reminderId': task.reminderId,
-            'snoozeCount': updatedReminder.snoozeCount,
-            'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
-          },
-          isActive: true,
-        );
-      }
+          await _syncRemoteReminder(
+            task: task,
+            scheduledAtUtc: updatedReminder.snoozedUntil!,
+            title: _formatTaskNotificationTitle(task, isSnoozed: true),
+            body: await _formatTaskNotificationBody(task),
+            metadata: {
+              'reminderId': task.reminderId,
+              'snoozeCount': updatedReminder.snoozeCount,
+              'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
+            },
+            isActive: true,
+          );
+
+          _audit(
+            'snoozeTaskReminder',
+            granted: true,
+            reason: 'reminderId=${task.reminderId}',
+          );
+        }
     } catch (e, stack) {
       _logger.error(
         'Failed to snooze task reminder',
         error: e,
         stackTrace: stack,
         data: {'taskId': task.id},
+      );
+      _audit(
+        'snoozeTaskReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
     }
   }

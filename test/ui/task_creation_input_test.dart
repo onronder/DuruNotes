@@ -189,6 +189,8 @@ class _MockNotesRepository implements INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     // Return a minimal note for testing
     return Note(
@@ -200,8 +202,8 @@ class _MockNotesRepository implements INotesRepository {
       version: 1,
       tags: tags,
       links: [],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now(),
       userId: 'test-user',
       deleted: false,
       noteType: NoteKind.note,

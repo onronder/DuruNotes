@@ -156,6 +156,8 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createOrUpdate, [], {
@@ -168,6 +170,8 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
               #attachmentMeta: attachmentMeta,
               #metadataJson: metadataJson,
               #isPinned: isPinned,
+              #createdAt: createdAt,
+              #updatedAt: updatedAt,
             }),
             returnValue: _i3.Future<_i5.Note?>.value(),
           )
@@ -185,6 +189,7 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
     bool? isPinned,
+    DateTime? updatedAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
@@ -200,6 +205,7 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
                 #metadata: metadata,
                 #links: links,
                 #isPinned: isPinned,
+                #updatedAt: updatedAt,
               },
             ),
             returnValue: _i3.Future<void>.value(),

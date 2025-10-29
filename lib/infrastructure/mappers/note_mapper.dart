@@ -28,9 +28,13 @@ class NoteMapper {
       encryptedMetadata: localNote.encryptedMetadata,
       isPinned: localNote.isPinned,
       noteType: localNote.noteType,
-      folderId: folderId, // folderId is passed in, not stored directly on LocalNote
+      folderId:
+          folderId, // folderId is passed in, not stored directly on LocalNote
       version: localNote.version,
-      userId: localNote.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '', // Handle null userId
+      userId:
+          localNote.userId ??
+          Supabase.instance.client.auth.currentUser?.id ??
+          '', // Handle null userId
       attachmentMeta: localNote.attachmentMeta,
       metadata: localNote.metadata,
       tags: tags ?? [],
@@ -78,11 +82,15 @@ class NoteMapper {
   }
 
   /// Convert domain NoteLink entity to database NoteLink
-  static db.NoteLink linkToInfrastructure(NoteLink link) {
+  static db.NoteLink linkToInfrastructure(
+    NoteLink link, {
+    required String userId,
+  }) {
     return db.NoteLink(
       sourceId: link.fromNoteId,
       targetTitle: link.linkText ?? link.toNoteId,
       targetId: link.toNoteId.isEmpty ? null : link.toNoteId,
+      userId: userId,
     );
   }
 

@@ -12,6 +12,7 @@ import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -28,13 +29,34 @@ class TaskCoreRepository implements ITaskRepository {
   final CryptoBox crypto;
   final AppLogger _logger;
   final _uuid = const Uuid();
+  final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
 
   String? get _currentUserId => client.auth.currentUser?.id;
 
-  String _requireUserId() {
+  void _auditAccess(String resource, {required bool granted, String? reason}) {
+    unawaited(
+      _securityAuditTrail.logAccess(
+        resource: resource,
+        granted: granted,
+        reason: reason,
+      ),
+    );
+  }
+
+  String _requireUserId({required String method, Map<String, dynamic>? data}) {
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
-      throw StateError('No authenticated user for task operation');
+      final error = StateError('No authenticated user for task operation');
+      _logger.warning('$method denied - unauthenticated user', data: data);
+      _captureRepositoryException(
+        method: method,
+        error: error,
+        stackTrace: StackTrace.current,
+        data: data,
+        level: SentryLevel.warning,
+      );
+      _auditAccess('tasks.$method', granted: false, reason: 'missing_user');
+      throw error;
     }
     return userId;
   }
@@ -172,9 +194,18 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getTasksForNote(String noteId) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'getTasksForNote',
+        data: {'noteId': noteId},
+      );
       final localTasks = await db.getTasksForNote(noteId, userId: userId);
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getTasksForNote',
+        granted: true,
+        reason: 'noteId=$noteId count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error(
         'Failed to get tasks for note: $noteId',
@@ -187,6 +218,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'noteId': noteId},
       );
+      _auditAccess(
+        'tasks.getTasksForNote',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return const <domain.Task>[];
     }
   }
@@ -194,15 +230,26 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getAllTasks() async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'getAllTasks');
       final localTasks = await db.getAllTasks(userId);
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getAllTasks',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error('Failed to get all tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
         method: 'getAllTasks',
         error: e,
         stackTrace: stack,
+      );
+      _auditAccess(
+        'tasks.getAllTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <domain.Task>[];
     }
@@ -211,15 +258,26 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getPendingTasks() async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'getPendingTasks');
       final localTasks = await db.getOpenTasks(userId: userId);
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getPendingTasks',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error('Failed to get pending tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
         method: 'getPendingTasks',
         error: e,
         stackTrace: stack,
+      );
+      _auditAccess(
+        'tasks.getPendingTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <domain.Task>[];
     }
@@ -234,12 +292,22 @@ class TaskCoreRepository implements ITaskRepository {
           'Cannot get task without authenticated user',
           data: {'taskId': id},
         );
+        _auditAccess(
+          'tasks.getTaskById',
+          granted: false,
+          reason: 'missing_user',
+        );
         return null;
       }
       final localTask = await db.getTaskById(id, userId: userId);
-      if (localTask == null) return null;
+      if (localTask == null) {
+        _auditAccess('tasks.getTaskById', granted: false, reason: 'not_found');
+        return null;
+      }
 
-      return await _decryptTask(localTask);
+      final task = await _decryptTask(localTask);
+      _auditAccess('tasks.getTaskById', granted: true, reason: 'taskId=$id');
+      return task;
     } catch (e, stack) {
       _logger.error(
         'Failed to get task by id: $id',
@@ -252,6 +320,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': id},
       );
+      _auditAccess(
+        'tasks.getTaskById',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return null;
     }
   }
@@ -259,7 +332,10 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<domain.Task> createTask(domain.Task task) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'createTask',
+        data: {'noteId': task.noteId},
+      );
 
       // Create task with new ID if not provided
       final taskToCreate = task.id.isEmpty
@@ -367,7 +443,13 @@ class TaskCoreRepository implements ITaskRepository {
           existingWithHash.id,
           userId: userId,
         );
-        return await _decryptTask(refreshed!);
+        final dedupedTask = await _decryptTask(refreshed!);
+        _auditAccess(
+          'tasks.createTask',
+          granted: true,
+          reason: 'deduped existing=${existingWithHash.id}',
+        );
+        return dedupedTask;
       }
 
       // Create task companion for insertion
@@ -417,6 +499,11 @@ class TaskCoreRepository implements ITaskRepository {
         },
       );
 
+      _auditAccess(
+        'tasks.createTask',
+        granted: true,
+        reason: 'taskId=${taskToCreate.id}',
+      );
       return taskToCreate;
     } catch (e, stack) {
       _logger.error(
@@ -430,6 +517,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': task.id, 'noteId': task.noteId},
       );
+      _auditAccess(
+        'tasks.createTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -437,7 +529,10 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<domain.Task> updateTask(domain.Task task) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'updateTask',
+        data: {'taskId': task.id, 'noteId': task.noteId},
+      );
       // Verify task exists
       final existing = await db.getTaskById(task.id, userId: userId);
       if (existing == null) {
@@ -453,6 +548,7 @@ class TaskCoreRepository implements ITaskRepository {
           data: {'taskId': task.id},
           level: SentryLevel.warning,
         );
+        _auditAccess('tasks.updateTask', granted: false, reason: 'not_found');
         throw missingError;
       }
 
@@ -527,7 +623,13 @@ class TaskCoreRepository implements ITaskRepository {
 
       // Return updated task
       final updatedLocal = await db.getTaskById(task.id, userId: userId);
-      return await _decryptTask(updatedLocal!);
+      final updatedTask = await _decryptTask(updatedLocal!);
+      _auditAccess(
+        'tasks.updateTask',
+        granted: true,
+        reason: 'taskId=${task.id}',
+      );
+      return updatedTask;
     } catch (e, stack) {
       _logger.error(
         'Failed to update task: ${task.id}',
@@ -540,6 +642,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': task.id},
       );
+      _auditAccess(
+        'tasks.updateTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -547,7 +654,7 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> deleteTask(String id) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'deleteTask', data: {'taskId': id});
       // Verify task exists
       final existing = await db.getTaskById(id, userId: userId);
       if (existing == null) {
@@ -559,6 +666,7 @@ class TaskCoreRepository implements ITaskRepository {
           data: {'taskId': id},
           level: SentryLevel.warning,
         );
+        _auditAccess('tasks.deleteTask', granted: false, reason: 'not_found');
         return;
       }
 
@@ -579,6 +687,7 @@ class TaskCoreRepository implements ITaskRepository {
       );
 
       _logger.info('Deleted task: $id');
+      _auditAccess('tasks.deleteTask', granted: true, reason: 'taskId=$id');
     } catch (e, stack) {
       _logger.error('Failed to delete task: $id', error: e, stackTrace: stack);
       _captureRepositoryException(
@@ -587,6 +696,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': id},
       );
+      _auditAccess(
+        'tasks.deleteTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -594,7 +708,10 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> completeTask(String id) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'completeTask',
+        data: {'taskId': id},
+      );
       await db.completeTask(id, userId, completedBy: userId);
 
       final existing = await db.getTaskById(id, userId: userId);
@@ -615,6 +732,7 @@ class TaskCoreRepository implements ITaskRepository {
       );
 
       _logger.info('Completed task: $id');
+      _auditAccess('tasks.completeTask', granted: true, reason: 'taskId=$id');
     } catch (e, stack) {
       _logger.error(
         'Failed to complete task: $id',
@@ -627,6 +745,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': id},
       );
+      _auditAccess(
+        'tasks.completeTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -634,9 +757,29 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Stream<List<domain.Task>> watchTasks() {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'watchTasks');
+      _auditAccess('tasks.watchTasks', granted: true, reason: 'stream_start');
       return db.watchOpenTasks(userId).asyncMap((localTasks) async {
-        return await _decryptTasks(localTasks);
+        try {
+          return await _decryptTasks(localTasks);
+        } catch (error, stackTrace) {
+          _logger.error(
+            'Failed to decrypt tasks in watchTasks stream',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          _captureRepositoryException(
+            method: 'watchTasks.stream',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          _auditAccess(
+            'tasks.watchTasks',
+            granted: false,
+            reason: 'stream_error=${error.runtimeType}',
+          );
+          return const <domain.Task>[];
+        }
       });
     } catch (e, stack) {
       _logger.error(
@@ -649,6 +792,11 @@ class TaskCoreRepository implements ITaskRepository {
         error: e,
         stackTrace: stack,
       );
+      _auditAccess(
+        'tasks.watchTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return Stream.error(e, stack);
     }
   }
@@ -656,7 +804,12 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Stream<List<domain.Task>> watchAllTasks() {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'watchAllTasks');
+      _auditAccess(
+        'tasks.watchAllTasks',
+        granted: true,
+        reason: 'stream_start',
+      );
       // Watch all non-deleted tasks (both open and completed)
       return (db.select(db.noteTasks)
             ..where((t) => t.deleted.equals(false) & t.userId.equals(userId))
@@ -668,7 +821,26 @@ class TaskCoreRepository implements ITaskRepository {
             ]))
           .watch()
           .asyncMap((localTasks) async {
-            return await _decryptTasks(localTasks);
+            try {
+              return await _decryptTasks(localTasks);
+            } catch (error, stackTrace) {
+              _logger.error(
+                'Failed to decrypt tasks in watchAllTasks stream',
+                error: error,
+                stackTrace: stackTrace,
+              );
+              _captureRepositoryException(
+                method: 'watchAllTasks.stream',
+                error: error,
+                stackTrace: stackTrace,
+              );
+              _auditAccess(
+                'tasks.watchAllTasks',
+                granted: false,
+                reason: 'stream_error=${error.runtimeType}',
+              );
+              return const <domain.Task>[];
+            }
           });
     } catch (e, stack) {
       _logger.error(
@@ -681,6 +853,11 @@ class TaskCoreRepository implements ITaskRepository {
         error: e,
         stackTrace: stack,
       );
+      _auditAccess(
+        'tasks.watchAllTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return Stream.error(e, stack);
     }
   }
@@ -689,9 +866,38 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Stream<List<domain.Task>> watchTasksForNote(String noteId) {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'watchTasksForNote',
+        data: {'noteId': noteId},
+      );
+      _auditAccess(
+        'tasks.watchTasksForNote',
+        granted: true,
+        reason: 'noteId=$noteId stream_start',
+      );
       return db.watchTasksForNote(noteId, userId).asyncMap((localTasks) async {
-        return await _decryptTasks(localTasks);
+        try {
+          return await _decryptTasks(localTasks);
+        } catch (error, stackTrace) {
+          _logger.error(
+            'Failed to decrypt tasks in watchTasksForNote stream',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'noteId': noteId},
+          );
+          _captureRepositoryException(
+            method: 'watchTasksForNote.stream',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'noteId': noteId},
+          );
+          _auditAccess(
+            'tasks.watchTasksForNote',
+            granted: false,
+            reason: 'stream_error=${error.runtimeType}',
+          );
+          return const <domain.Task>[];
+        }
       });
     } catch (e, stack) {
       _logger.error(
@@ -705,6 +911,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'noteId': noteId},
       );
+      _auditAccess(
+        'tasks.watchTasksForNote',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return Stream.error(e, stack);
     }
   }
@@ -716,13 +927,22 @@ class TaskCoreRepository implements ITaskRepository {
     int? limit,
   }) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'getCompletedTasks',
+        data: {'since': since?.toIso8601String(), 'limit': limit},
+      );
       final localTasks = await db.getCompletedTasks(
         userId: userId,
         since: since,
         limit: limit,
       );
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getCompletedTasks',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error(
         'Failed to get completed tasks',
@@ -735,6 +955,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'since': since?.toIso8601String(), 'limit': limit},
       );
+      _auditAccess(
+        'tasks.getCompletedTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return const <domain.Task>[];
     }
   }
@@ -743,15 +968,26 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getOverdueTasks() async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(method: 'getOverdueTasks');
       final localTasks = await db.getOverdueTasks(userId);
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getOverdueTasks',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error('Failed to get overdue tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
         method: 'getOverdueTasks',
         error: e,
         stackTrace: stack,
+      );
+      _auditAccess(
+        'tasks.getOverdueTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <domain.Task>[];
     }
@@ -764,7 +1000,10 @@ class TaskCoreRepository implements ITaskRepository {
     required DateTime end,
   }) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'getTasksByDateRange',
+        data: {'start': start.toIso8601String(), 'end': end.toIso8601String()},
+      );
       // Database method uses 'start' and 'end' parameters
       final localTasks = await db.getTasksByDateRange(
         userId: userId,
@@ -772,7 +1011,13 @@ class TaskCoreRepository implements ITaskRepository {
         end: end,
       );
 
-      return await _decryptTasks(localTasks);
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getTasksByDateRange',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
     } catch (e, stack) {
       _logger.error(
         'Failed to get tasks by date range',
@@ -785,6 +1030,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'start': start.toIso8601String(), 'end': end.toIso8601String()},
       );
+      _auditAccess(
+        'tasks.getTasksByDateRange',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return const <domain.Task>[];
     }
   }
@@ -793,7 +1043,10 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> toggleTaskStatus(String id) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'toggleTaskStatus',
+        data: {'taskId': id},
+      );
       await db.toggleTaskStatus(id, userId);
       final task = await db.getTaskById(id, userId: userId);
 
@@ -805,6 +1058,11 @@ class TaskCoreRepository implements ITaskRepository {
       );
 
       _logger.info('Toggled task status: $id');
+      _auditAccess(
+        'tasks.toggleTaskStatus',
+        granted: true,
+        reason: 'taskId=$id',
+      );
     } catch (e, stack) {
       _logger.error(
         'Failed to toggle task status: $id',
@@ -817,6 +1075,11 @@ class TaskCoreRepository implements ITaskRepository {
         stackTrace: stack,
         data: {'taskId': id},
       );
+      _auditAccess(
+        'tasks.toggleTaskStatus',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -825,11 +1088,19 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> deleteTasksForNote(String noteId) async {
     try {
-      final userId = _requireUserId();
+      final userId = _requireUserId(
+        method: 'deleteTasksForNote',
+        data: {'noteId': noteId},
+      );
       await db.deleteTasksForNote(noteId, userId);
 
       // Note: Individual task deletions will be handled by sync mechanism
       _logger.info('Deleted all tasks for note: $noteId');
+      _auditAccess(
+        'tasks.deleteTasksForNote',
+        granted: true,
+        reason: 'noteId=$noteId',
+      );
 
       MutationEventBus.instance.emitNote(
         kind: MutationKind.updated,
@@ -847,6 +1118,11 @@ class TaskCoreRepository implements ITaskRepository {
         error: e,
         stackTrace: stack,
         data: {'noteId': noteId},
+      );
+      _auditAccess(
+        'tasks.deleteTasksForNote',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       rethrow;
     }

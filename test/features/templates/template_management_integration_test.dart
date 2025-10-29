@@ -24,14 +24,16 @@ class _CapturingNotesRepository implements INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     final timestamp = DateTime.now();
     final note = note_domain.Note(
       id: id ?? 'note-${createdNotes.length + 1}',
       title: title,
       body: body,
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      createdAt: createdAt ?? timestamp,
+      updatedAt: updatedAt ?? timestamp,
       deleted: false,
       encryptedMetadata: null,
       isPinned: isPinned ?? false,

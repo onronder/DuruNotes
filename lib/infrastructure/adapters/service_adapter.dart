@@ -145,6 +145,7 @@ class ServiceAdapter {
       return {
         'id': task.id,
         'note_id': task.noteId,
+        'user_id': userId,
 
         // ENCRYPTED COLUMNS (new)
         'content_enc': contentEncrypted,
@@ -180,6 +181,7 @@ class ServiceAdapter {
     if (folder is domain.Folder) {
       return {
         'id': folder.id,
+        'user_id': folder.userId,
         'name': folder.name,
         'parent_id': folder.parentId,
         'color': folder.color,
@@ -191,6 +193,7 @@ class ServiceAdapter {
     } else if (folder is LocalFolder) {
       return {
         'id': folder.id,
+        'user_id': folder.userId,
         'name': folder.name,
         'parent_id': folder.parentId,
         'color': folder.color,
@@ -336,6 +339,7 @@ class ServiceAdapter {
         ..putIfAbsent('position', () => data['position'])
         ..putIfAbsent('parentTaskId', () => data['parent_id'])
         ..putIfAbsent('deleted', () => data['deleted'])
+        ..putIfAbsent('userId', () => (data['user_id'] as String?) ?? userId ?? '')
         ..removeWhere((key, value) => value == null);
 
       // Extract description and tags if not already decrypted

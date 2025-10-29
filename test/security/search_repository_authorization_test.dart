@@ -1,557 +1,251 @@
-/// Integration tests for SearchRepository authorization
-///
-/// These tests verify that the search repository correctly enforces
-/// authorization rules for all saved search operations.
-///
-/// Test coverage:
-/// - Authentication requirements
-/// - Saved search ownership verification
-/// - Cross-user access prevention
-/// - List and query operation filtering
-/// - Search execution security
-library;
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/data/local/app_db.dart' as app_db;
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/search_repository.dart';
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'search_repository_authorization_test.mocks.dart';
 
+const _userA = 'user-a';
+const _userB = 'user-b';
 
+@GenerateNiceMocks([
+  MockSpec<SupabaseClient>(),
+  MockSpec<GoTrueClient>(),
+  MockSpec<User>(),
+  MockSpec<CryptoBox>(),
+  MockSpec<IFolderRepository>(),
+])
 void main() {
-  /* COMMENTED OUT - 27 errors - old search repository
-   * This test uses old models/APIs that no longer exist after domain migration.
-   * Needs complete rewrite to use new domain models and architecture.
-   *
-   * TODO: Rewrite test for new architecture
-   */
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-  /*
-  group('SearchRepository Authorization', () {
-    late AppDb testDb;
-    late MockSupabaseClient mockClient;
-    late MockGoTrueClient mockAuth;
-    late MockUser mockUserA;
-    late MockUser mockUserB;
-    late AuthorizationService authService;
-    late SearchRepository repository;
+  setUpAll(() async {
+    try {
+      // If Supabase is not yet initialized, this will throw.
+      Supabase.instance.client;
+    } catch (_) {
+      SharedPreferences.setMockInitialValues(const {});
+      await Supabase.initialize(
+        url: 'https://test.supabase.co',
+        anonKey: 'test-anon-key',
+      );
+    }
+  });
 
-    setUp(() async {
-      // Create in-memory database
-      testDb = AppDb();
+  late app_db.AppDb db;
+  late SearchRepository repository;
+  late MockSupabaseClient mockClient;
+  late MockGoTrueClient mockAuth;
+  late MockUser mockUser;
+  late MockCryptoBox mockCrypto;
+  late MockIFolderRepository mockFolderRepository;
 
-      // Set up mock Supabase
-      mockClient = MockSupabaseClient();
-      mockAuth = MockGoTrueClient();
-      mockUserA = MockUser();
-      mockUserB = MockUser();
+  setUp(() async {
+    db = app_db.AppDb.forTesting(NativeDatabase.memory());
+    mockClient = MockSupabaseClient();
+    mockAuth = MockGoTrueClient();
+    mockUser = MockUser();
+    mockCrypto = MockCryptoBox();
+    mockFolderRepository = MockIFolderRepository();
 
-      when(mockClient.auth).thenReturn(mockAuth);
-      when(mockUserA.id).thenReturn('user-a');
-      when(mockUserB.id).thenReturn('user-b');
+    when(mockClient.auth).thenReturn(mockAuth);
 
-      // Create authorization service
-      authService = AuthorizationService(supabase: mockClient);
+    repository = SearchRepository(
+      db: db,
+      client: mockClient,
+      crypto: mockCrypto,
+      folderRepository: mockFolderRepository,
+    );
+  });
 
-      // Create repository with correct constructor parameters
-      repository = SearchRepository(
-        db: testDb,
-        authService: authService,
+  tearDown(() async {
+    await db.close();
+  });
+
+  domain.SavedSearch newSavedSearch({
+    required String id,
+    DateTime? createdAt,
+    int displayOrder = 0,
+  }) {
+    final timestamp = createdAt ?? DateTime.utc(2025, 10, 29);
+    return domain.SavedSearch(
+      id: id,
+      name: 'Search $id',
+      query: 'body:$id',
+      filters: null,
+      isPinned: false,
+      createdAt: timestamp,
+      lastUsedAt: null,
+      usageCount: 0,
+      displayOrder: displayOrder,
+    );
+  }
+
+  Future<void> seedSavedSearch({
+    required String id,
+    required String userId,
+    bool isPinned = false,
+    int usageCount = 0,
+    int sortOrder = 0,
+  }) async {
+    final now = DateTime.utc(2025, 10, 29);
+    await db.upsertSavedSearch(
+      app_db.SavedSearch(
+        id: id,
+        userId: userId,
+        name: 'Search $id',
+        query: 'body:$id',
+        searchType: 'text',
+        parameters: null,
+        sortOrder: sortOrder,
+        color: null,
+        icon: null,
+        isPinned: isPinned,
+        createdAt: now,
+        lastUsedAt: null,
+        usageCount: usageCount,
+      ),
+    );
+  }
+
+  Future<void> authenticate(String userId) async {
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.id).thenReturn(userId);
+  }
+
+  group('SearchRepository saved search isolation', () {
+    test(
+      'createOrUpdateSavedSearch updates owned record and enqueues sync',
+      () async {
+        await seedSavedSearch(id: 'search-1', userId: _userA, sortOrder: 1);
+        await authenticate(_userA);
+        final search = newSavedSearch(id: 'search-1', displayOrder: 5);
+
+        await repository.createOrUpdateSavedSearch(search);
+
+        final stored = await db.getSavedSearchById('search-1');
+        expect(stored, isNotNull);
+        expect(stored!.userId, equals(_userA));
+        expect(stored.sortOrder, equals(5));
+
+        final pendingOps = await db.getPendingOpsForUser(_userA);
+        expect(pendingOps, hasLength(1));
+        expect(pendingOps.first.kind, equals('upsert_saved_search'));
+        expect(pendingOps.first.entityId, equals('search-1'));
+      },
+    );
+
+    test('createOrUpdateSavedSearch throws when unauthenticated', () async {
+      when(mockAuth.currentUser).thenReturn(null);
+      final search = newSavedSearch(id: 'search-unauth');
+
+      await expectLater(
+        repository.createOrUpdateSavedSearch(search),
+        throwsStateError,
       );
 
-      // Create test data
-      await _createTestData(testDb);
+      final stored = await db.getSavedSearchById('search-unauth');
+      expect(stored, isNull);
     });
 
-    tearDown(() async {
-      await testDb.close();
+    test('deleteSavedSearch only removes records for owning user', () async {
+      await seedSavedSearch(id: 'search-owned', userId: _userA);
+      await seedSavedSearch(id: 'search-other', userId: _userB);
+      await authenticate(_userA);
+
+      await repository.deleteSavedSearch('search-owned');
+      await repository.deleteSavedSearch('search-other');
+
+      final owned = await db.getSavedSearchById('search-owned');
+      final other = await db.getSavedSearchById('search-other');
+      expect(owned, isNull);
+      expect(other, isNotNull, reason: 'Cross-user delete should not succeed');
+
+      final pendingOps = await db.getPendingOpsForUser(_userA);
+      expect(pendingOps.single.kind, equals('delete_saved_search'));
+      expect(pendingOps.single.entityId, equals('search-owned'));
     });
 
-    group('getSavedSearches Authorization', () {
-      test('requires authentication', () async {
+    test('getSavedSearches returns only current user entries', () async {
+      await seedSavedSearch(id: 'search-a1', userId: _userA, sortOrder: 1);
+      await seedSavedSearch(id: 'search-b1', userId: _userB, sortOrder: 2);
+      await authenticate(_userA);
+
+      final results = await repository.getSavedSearches();
+
+      expect(results, hasLength(1));
+      expect(results.first.id, equals('search-a1'));
+    });
+
+    test('getSavedSearches returns empty list when unauthenticated', () async {
+      when(mockAuth.currentUser).thenReturn(null);
+
+      final results = await repository.getSavedSearches();
+
+      expect(results, isEmpty);
+    });
+
+    test('toggleSavedSearchPin affects only owning user records', () async {
+      await seedSavedSearch(
+        id: 'search-toggle-own',
+        userId: _userA,
+        isPinned: false,
+      );
+      await seedSavedSearch(
+        id: 'search-toggle-other',
+        userId: _userB,
+        isPinned: false,
+      );
+      await authenticate(_userA);
+
+      await repository.toggleSavedSearchPin('search-toggle-own');
+      await repository.toggleSavedSearchPin('search-toggle-other');
+
+      final own = await db.getSavedSearchById('search-toggle-own');
+      final other = await db.getSavedSearchById('search-toggle-other');
+      expect(own!.isPinned, isTrue);
+      expect(other!.isPinned, isFalse);
+    });
+
+    test('trackSavedSearchUsage updates only current user entries', () async {
+      await seedSavedSearch(id: 'usage-own', userId: _userA, usageCount: 1);
+      await seedSavedSearch(id: 'usage-other', userId: _userB, usageCount: 1);
+      await authenticate(_userA);
+
+      await repository.trackSavedSearchUsage('usage-own');
+      await repository.trackSavedSearchUsage('usage-other');
+
+      final own = await db.getSavedSearchById('usage-own');
+      final other = await db.getSavedSearchById('usage-other');
+      expect(own!.usageCount, equals(2));
+      expect(other!.usageCount, equals(1));
+    });
+
+    test(
+      'watchSavedSearches emits empty list for unauthenticated users',
+      () async {
         when(mockAuth.currentUser).thenReturn(null);
 
-        expect(
-          () => repository.getSavedSearches(),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
+        final values = await repository.watchSavedSearches().first;
 
-      test('only returns saved searches for authenticated user', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
+        expect(values, isEmpty);
+      },
+    );
 
-        final searches = await repository.getSavedSearches();
+    test('watchSavedSearches streams user-scoped updates', () async {
+      await authenticate(_userA);
+      await seedSavedSearch(id: 'watch-search', userId: _userA);
 
-        // Should only contain searches for user A
-        expect(searches.isNotEmpty, isTrue);
-        expect(
-          searches.every((search) => search.userId == 'user-a'),
-          isTrue,
-          reason: 'Should only return saved searches owned by user A',
-        );
-      });
+      final stream = repository.watchSavedSearches();
+      final firstEmission = await stream.first;
 
-      test('different users see different saved searches', () async {
-        // User A
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-        final searchesA = await repository.getSavedSearches();
-
-        // User B
-        when(mockAuth.currentUser).thenReturn(mockUserB);
-        final searchesB = await repository.getSavedSearches();
-
-        // Verify isolation
-        expect(searchesA.isNotEmpty, isTrue);
-        expect(searchesB.isNotEmpty, isTrue);
-        expect(
-          searchesA.every((search) => !searchesB.any((b) => b.id == search.id)),
-          isTrue,
-          reason: 'User A and User B should have completely separate saved searches',
-        );
-      });
-    });
-
-    group('createOrUpdateSavedSearch Authorization', () {
-      test('requires authentication for create', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        final newSearch = domain.SavedSearch(
-          id: const Uuid().v4(),
-          userId: 'user-a',
-          name: 'New Search',
-          query: 'test query',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        expect(
-          () => repository.createOrUpdateSavedSearch(newSearch),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from creating searches for user B', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final newSearch = domain.SavedSearch(
-          id: const Uuid().v4(),
-          userId: 'user-b', // Trying to create for user B
-          name: 'New Search',
-          query: 'test query',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        expect(
-          () => repository.createOrUpdateSavedSearch(newSearch),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to create own saved searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final newSearch = domain.SavedSearch(
-          id: const Uuid().v4(),
-          userId: 'user-a',
-          name: 'New Search',
-          query: 'test query',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        await repository.createOrUpdateSavedSearch(newSearch);
-
-        // Verify creation
-        final searches = await repository.getSavedSearches();
-        expect(searches.any((s) => s.name == 'New Search'), isTrue);
-      });
-
-      test('prevents user A from updating user B searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final search = await testDb.getSavedSearch('search-user-b-1');
-        final domainSearch = domain.SavedSearch(
-          id: search!.id,
-          userId: search.userId,
-          name: 'Updated',
-          query: search.query,
-          filters: null,
-          isPinned: search.isPinned,
-          displayOrder: search.sortOrder,
-          usageCount: search.usageCount,
-          createdAt: search.createdAt,
-        );
-
-        expect(
-          () => repository.createOrUpdateSavedSearch(domainSearch),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to update own saved searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final search = await testDb.getSavedSearch('search-user-a-1');
-        final domainSearch = domain.SavedSearch(
-          id: search!.id,
-          userId: search.userId,
-          name: 'Updated Name',
-          query: search.query,
-          filters: null,
-          isPinned: search.isPinned,
-          displayOrder: search.sortOrder,
-          usageCount: search.usageCount,
-          createdAt: search.createdAt,
-        );
-
-        await repository.createOrUpdateSavedSearch(domainSearch);
-
-        // Verify update
-        final searches = await repository.getSavedSearches();
-        expect(searches.any((s) => s.name == 'Updated Name'), isTrue);
-      });
-    });
-
-    group('deleteSavedSearch Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        expect(
-          () => repository.deleteSavedSearch('search-user-a-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from deleting user B searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        expect(
-          () => repository.deleteSavedSearch('search-user-b-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to delete own saved searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        await repository.deleteSavedSearch('search-user-a-1');
-
-        // Verify deletion
-        final searches = await repository.getSavedSearches();
-        expect(searches.any((s) => s.id == 'search-user-a-1'), isFalse);
-      });
-    });
-
-    group('toggleSavedSearchPin Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        expect(
-          () => repository.toggleSavedSearchPin('search-user-a-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from toggling user B search pins', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        expect(
-          () => repository.toggleSavedSearchPin('search-user-b-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to toggle own search pins', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        // Toggle unpinned search
-        await repository.toggleSavedSearchPin('search-user-a-2');
-
-        final searches = await repository.getSavedSearches();
-        final search = searches.firstWhere((s) => s.id == 'search-user-a-2');
-        expect(search.isPinned, isTrue);
-
-        // Toggle it back
-        await repository.toggleSavedSearchPin('search-user-a-2');
-
-        final searchesAfter = await repository.getSavedSearches();
-        final searchAfter = searchesAfter.firstWhere((s) => s.id == 'search-user-a-2');
-        expect(searchAfter.isPinned, isFalse);
-      });
-    });
-
-    group('trackSavedSearchUsage Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        expect(
-          () => repository.trackSavedSearchUsage('search-user-a-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from tracking user B search usage', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        expect(
-          () => repository.trackSavedSearchUsage('search-user-b-1'),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to track own search usage', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final searchBefore = await testDb.getSavedSearch('search-user-a-1');
-        final beforeCount = searchBefore!.usageCount;
-
-        await repository.trackSavedSearchUsage('search-user-a-1');
-
-        final searchAfter = await testDb.getSavedSearch('search-user-a-1');
-        expect(searchAfter!.usageCount, equals(beforeCount + 1));
-      });
-    });
-
-    group('reorderSavedSearches Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        expect(
-          () => repository.reorderSavedSearches(['search-user-a-1', 'search-user-a-2']),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from reordering user B searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        expect(
-          () => repository.reorderSavedSearches(['search-user-b-1', 'search-user-b-2']),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('allows user to reorder own searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        await repository.reorderSavedSearches(['search-user-a-2', 'search-user-a-1']);
-
-        final searches = await repository.getSavedSearches();
-        final search1 = searches.firstWhere((s) => s.id == 'search-user-a-1');
-        final search2 = searches.firstWhere((s) => s.id == 'search-user-a-2');
-
-        expect(search2.displayOrder, lessThan(search1.displayOrder));
-      });
-    });
-
-    group('watchSavedSearches Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        expect(
-          () => repository.watchSavedSearches().first,
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('only streams saved searches for authenticated user', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final stream = repository.watchSavedSearches();
-        final searches = await stream.first;
-
-        // Should only contain searches for user A
-        expect(searches.isNotEmpty, isTrue);
-        expect(
-          searches.every((search) => search.userId == 'user-a'),
-          isTrue,
-          reason: 'Stream should only emit saved searches owned by user A',
-        );
-      });
-    });
-
-    group('executeSavedSearch Authorization', () {
-      test('requires authentication', () async {
-        when(mockAuth.currentUser).thenReturn(null);
-
-        final search = domain.SavedSearch(
-          id: 'search-user-a-1',
-          userId: 'user-a',
-          name: 'Test Search',
-          query: 'test',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        expect(
-          () => repository.executeSavedSearch(search),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authenticated'))),
-        );
-      });
-
-      test('prevents user A from executing user B searches', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final search = domain.SavedSearch(
-          id: 'search-user-b-1',
-          userId: 'user-b',
-          name: 'User B Search',
-          query: 'urgent',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        expect(
-          () => repository.executeSavedSearch(search),
-          throwsA(isA<AuthorizationException>()
-              .having((e) => e.message, 'message', contains('not authorized'))),
-        );
-      });
-
-      test('executes search and returns only user-owned notes', () async {
-        when(mockAuth.currentUser).thenReturn(mockUserA);
-
-        final search = domain.SavedSearch(
-          id: 'search-user-a-1',
-          userId: 'user-a',
-          name: 'Test Search',
-          query: 'User A',
-          filters: null,
-          isPinned: false,
-          usageCount: 0,
-          displayOrder: 0,
-          updatedAt: DateTime.now(),
-        );
-
-        final results = await repository.executeSavedSearch(search);
-
-        // Should only return notes owned by user A
-        expect(results, isNotEmpty);
-        expect(
-          results.every((note) => note.userId == 'user-a'),
-          isTrue,
-          reason: 'Should only return notes owned by the authenticated user',
-        );
-      });
+      expect(firstEmission.map((s) => s.id), contains('watch-search'));
     });
   });
-}
-
-/// Helper to create test data
-Future<void> _createTestData(AppDb db) async {
-  // Create notes for both users (needed for search context)
-  await db.into(db.localNotes).insert(
-    LocalLocalNotesCompanion(
-      id: const Value('note-user-a-1'),
-      userId: const Value('user-a'),
-      title: const Value('User A Note'),
-      body: const Value('Content'),
-      updatedAt: Value(DateTime.now()),
-      deleted: const Value(false),
-      version: const Value(1),
-    ),
-  );
-
-  await db.into(db.localNotes).insert(
-    LocalLocalNotesCompanion(
-      id: const Value('note-user-b-1'),
-      userId: const Value('user-b'),
-      title: const Value('User B Note'),
-      body: const Value('Content'),
-      updatedAt: Value(DateTime.now()),
-      deleted: const Value(false),
-      version: const Value(1),
-    ),
-  );
-
-  // Create saved searches for user A
-  await db.into(db.savedSearches).insert(
-    SavedSearchesCompanion(
-      id: const Value('search-user-a-1'),
-      userId: const Value('user-a'),
-      name: const Value('User A Search 1'),
-      query: const Value('test'),
-      parameters: const Value('{}'),
-      isPinned: const Value(true),
-      sortOrder: const Value(0),
-      createdAt: Value(DateTime.now()),
-      usageCount: const Value(5),
-    ),
-  );
-
-  await db.into(db.savedSearches).insert(
-    SavedSearchesCompanion(
-      id: const Value('search-user-a-2'),
-      userId: const Value('user-a'),
-      name: const Value('User A Search 2'),
-      query: const Value('important'),
-      parameters: const Value('{}'),
-      isPinned: const Value(false),
-      sortOrder: const Value(1),
-      createdAt: Value(DateTime.now()),
-      usageCount: const Value(2),
-    ),
-  );
-
-  // Create saved searches for user B
-  await db.into(db.savedSearches).insert(
-    SavedSearchesCompanion(
-      id: const Value('search-user-b-1'),
-      userId: const Value('user-b'),
-      name: const Value('User B Search 1'),
-      query: const Value('urgent'),
-      parameters: const Value('{}'),
-      isPinned: const Value(true),
-      sortOrder: const Value(0),
-      createdAt: Value(DateTime.now()),
-      usageCount: const Value(3),
-    ),
-  );
-
-  await db.into(db.savedSearches).insert(
-    SavedSearchesCompanion(
-      id: const Value('search-user-b-2'),
-      userId: const Value('user-b'),
-      name: const Value('User B Search 2'),
-      query: const Value('project'),
-      parameters: const Value('{}'),
-      isPinned: const Value(false),
-      sortOrder: const Value(1),
-      createdAt: Value(DateTime.now()),
-      usageCount: const Value(1),
-    ),
-  );
-}
-
-/// Extension to add helper method to AppDb
-extension AppDbSearchHelper on AppDb {
-  Future<SavedSearch?> getSavedSearch(String id) async {
-    return (select(savedSearches)..where((t) => t.id.equals(id))).getSingleOrNull();
-  }
-  */
 }

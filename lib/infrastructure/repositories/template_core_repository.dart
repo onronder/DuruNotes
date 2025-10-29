@@ -7,6 +7,7 @@ import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
 import 'package:duru_notes/domain/entities/template.dart';
 import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -29,6 +30,7 @@ class TemplateCoreRepository implements ITemplateRepository {
   final _uuid = const Uuid();
   final INotesRepository _notesRepository;
   final String? Function()? _userIdResolver;
+  final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
 
   String? _currentUserId() =>
       _userIdResolver?.call() ?? client.auth.currentUser?.id;
@@ -79,6 +81,44 @@ class TemplateCoreRepository implements ITemplateRepository {
     );
   }
 
+  void _auditAccess(
+    String resource, {
+    required bool granted,
+    String? reason,
+  }) {
+    unawaited(
+      _securityAuditTrail.logAccess(
+        resource: resource,
+        granted: granted,
+        reason: reason,
+      ),
+    );
+  }
+
+  String? _requireUserId({required String method, Map<String, dynamic>? data}) {
+    final userId = _currentUserId();
+    if (userId == null || userId.isEmpty) {
+      _logger.warning(
+        '$method denied - unauthenticated user',
+        data: data,
+      );
+      _captureRepositoryException(
+        method: method,
+        error: StateError('Unauthenticated access'),
+        stackTrace: StackTrace.current,
+        data: data,
+        level: SentryLevel.warning,
+      );
+      _auditAccess(
+        'templates.$method',
+        granted: false,
+        reason: 'missing_user',
+      );
+      return null;
+    }
+    return userId;
+  }
+
   @override
   Future<List<Template>> getAllTemplates() async {
     try {
@@ -89,7 +129,13 @@ class TemplateCoreRepository implements ITemplateRepository {
           'Cannot get templates without authenticated user, returning system templates only',
         );
         final systemTemplates = await db.getSystemTemplates();
-        return TemplateMapper.toDomainList(systemTemplates);
+        final templates = TemplateMapper.toDomainList(systemTemplates);
+        _auditAccess(
+          'templates.getAllTemplates',
+          granted: true,
+          reason: 'system_only count=${templates.length}',
+        );
+        return templates;
       }
 
       final allTemplates =
@@ -104,13 +150,24 @@ class TemplateCoreRepository implements ITemplateRepository {
                 ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
               .get();
 
-      return TemplateMapper.toDomainList(allTemplates);
+      final templates = TemplateMapper.toDomainList(allTemplates);
+      _auditAccess(
+        'templates.getAllTemplates',
+        granted: true,
+        reason: 'count=${templates.length}',
+      );
+      return templates;
     } catch (e, stack) {
       _logger.error('Failed to get all templates', error: e, stackTrace: stack);
       _captureRepositoryException(
         method: 'getAllTemplates',
         error: e,
         stackTrace: stack,
+      );
+      _auditAccess(
+        'templates.getAllTemplates',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <Template>[];
     }
@@ -121,7 +178,13 @@ class TemplateCoreRepository implements ITemplateRepository {
     try {
       // System templates are available to all users
       final localTemplates = await db.getSystemTemplates();
-      return TemplateMapper.toDomainList(localTemplates);
+      final templates = TemplateMapper.toDomainList(localTemplates);
+      _auditAccess(
+        'templates.getSystemTemplates',
+        granted: true,
+        reason: 'count=${templates.length}',
+      );
+      return templates;
     } catch (e, stack) {
       _logger.error(
         'Failed to get system templates',
@@ -133,6 +196,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
       );
+      _auditAccess(
+        'templates.getSystemTemplates',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return const <Template>[];
     }
   }
@@ -141,10 +209,9 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<List<Template>> getUserTemplates() async {
     try {
       // Security: Only return templates belonging to current user
-      final userId = _currentUserId();
-      if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get user templates without authenticated user');
-        return [];
+      final userId = _requireUserId(method: 'getUserTemplates');
+      if (userId == null) {
+        return const <Template>[];
       }
 
       final localTemplates =
@@ -154,7 +221,13 @@ class TemplateCoreRepository implements ITemplateRepository {
                 ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
               .get();
 
-      return TemplateMapper.toDomainList(localTemplates);
+      final templates = TemplateMapper.toDomainList(localTemplates);
+      _auditAccess(
+        'templates.getUserTemplates',
+        granted: true,
+        reason: 'count=${templates.length}',
+      );
+      return templates;
     } catch (e, stack) {
       _logger.error(
         'Failed to get user templates',
@@ -165,6 +238,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         method: 'getUserTemplates',
         error: e,
         stackTrace: stack,
+      );
+      _auditAccess(
+        'templates.getUserTemplates',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <Template>[];
     }
@@ -184,9 +262,20 @@ class TemplateCoreRepository implements ITemplateRepository {
                   ..where((t) => t.id.equals(id))
                   ..where((t) => t.isSystem.equals(true)))
                 .getSingleOrNull();
-        return systemTemplate != null
-            ? TemplateMapper.toDomain(systemTemplate)
-            : null;
+        if (systemTemplate == null) {
+          _auditAccess(
+            'templates.getTemplateById',
+            granted: false,
+            reason: 'unauthenticated_not_found',
+          );
+          return null;
+        }
+        _auditAccess(
+          'templates.getTemplateById',
+          granted: true,
+          reason: 'system_template',
+        );
+        return TemplateMapper.toDomain(systemTemplate);
       }
 
       final localTemplate =
@@ -201,9 +290,23 @@ class TemplateCoreRepository implements ITemplateRepository {
                 )) // User's own templates
               .getSingleOrNull();
 
-      if (localTemplate == null) return null;
+      if (localTemplate == null) {
+        _auditAccess(
+          'templates.getTemplateById',
+          granted: false,
+          reason: 'not_found',
+        );
+        return null;
+      }
 
-      return TemplateMapper.toDomain(localTemplate);
+      final template = TemplateMapper.toDomain(localTemplate);
+      _auditAccess(
+        'templates.getTemplateById',
+        granted: true,
+        reason: 'templateId=$id',
+      );
+
+      return template;
     } catch (e, stack) {
       _logger.error(
         'Failed to get template by id: $id',
@@ -216,6 +319,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         stackTrace: stack,
         data: {'templateId': id},
       );
+      _auditAccess(
+        'templates.getTemplateById',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return null;
     }
   }
@@ -223,23 +331,12 @@ class TemplateCoreRepository implements ITemplateRepository {
   @override
   Future<Template> createTemplate(Template template) async {
     try {
-      final userId = _currentUserId();
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
-          'Cannot create template without authenticated user',
-        );
-        _logger.warning(
-          'Cannot create template without authenticated user',
-          data: {'templateName': template.name},
-        );
-        _captureRepositoryException(
-          method: 'createTemplate',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'templateName': template.name},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
+      final userId = _requireUserId(
+        method: 'createTemplate',
+        data: {'templateName': template.name},
+      );
+      if (userId == null) {
+        throw StateError('Cannot create template without authenticated user');
       }
 
       // Create template with new ID if not provided
@@ -264,6 +361,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         );
       }
 
+      _auditAccess(
+        'templates.createTemplate',
+        granted: true,
+        reason: 'templateId=${templateToCreate.id}',
+      );
       return templateToCreate;
     } catch (e, stack) {
       _logger.error(
@@ -277,6 +379,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         stackTrace: stack,
         data: {'templateId': template.id, 'templateName': template.name},
       );
+      _auditAccess(
+        'templates.createTemplate',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -285,23 +392,12 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<Template> updateTemplate(Template template) async {
     try {
       // Security: Verify user is authenticated
-      final userId = _currentUserId();
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
-          'Cannot update template without authenticated user',
-        );
-        _logger.warning(
-          'Cannot update template without authenticated user',
-          data: {'templateId': template.id},
-        );
-        _captureRepositoryException(
-          method: 'updateTemplate',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'templateId': template.id},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
+      final userId = _requireUserId(
+        method: 'updateTemplate',
+        data: {'templateId': template.id},
+      );
+      if (userId == null) {
+        throw StateError('Cannot update template without authenticated user');
       }
 
       // Security: Verify template exists and belongs to user (or is system template)
@@ -332,6 +428,11 @@ class TemplateCoreRepository implements ITemplateRepository {
           data: {'templateId': template.id, 'userId': userId},
           level: SentryLevel.warning,
         );
+        _auditAccess(
+          'templates.updateTemplate',
+          granted: false,
+          reason: 'not_found',
+        );
         throw missingError;
       }
 
@@ -348,6 +449,11 @@ class TemplateCoreRepository implements ITemplateRepository {
           stackTrace: StackTrace.current,
           data: {'templateId': template.id},
           level: SentryLevel.warning,
+        );
+        _auditAccess(
+          'templates.updateTemplate',
+          granted: false,
+          reason: 'system_template',
         );
         throw systemTemplateError;
       }
@@ -375,6 +481,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         }),
       );
 
+      _auditAccess(
+        'templates.updateTemplate',
+        granted: true,
+        reason: 'templateId=${updatedTemplate.id}',
+      );
       return updatedTemplate;
     } catch (e, stack) {
       _logger.error(
@@ -388,6 +499,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         stackTrace: stack,
         data: {'templateId': template.id},
       );
+      _auditAccess(
+        'templates.updateTemplate',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -396,23 +512,12 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<void> deleteTemplate(String id) async {
     try {
       // Security: Verify user is authenticated
-      final userId = _currentUserId();
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
-          'Cannot delete template without authenticated user',
-        );
-        _logger.warning(
-          'Cannot delete template without authenticated user',
-          data: {'templateId': id},
-        );
-        _captureRepositoryException(
-          method: 'deleteTemplate',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'templateId': id},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
+      final userId = _requireUserId(
+        method: 'deleteTemplate',
+        data: {'templateId': id},
+      );
+      if (userId == null) {
+        throw StateError('Cannot delete template without authenticated user');
       }
 
       // Security: Verify template exists and belongs to user
@@ -425,6 +530,11 @@ class TemplateCoreRepository implements ITemplateRepository {
       if (existing == null) {
         _logger.warning(
           'Template $id not found or does not belong to user $userId',
+        );
+        _auditAccess(
+          'templates.deleteTemplate',
+          granted: false,
+          reason: 'not_found',
         );
         return;
       }
@@ -442,6 +552,11 @@ class TemplateCoreRepository implements ITemplateRepository {
           stackTrace: StackTrace.current,
           data: {'templateId': id},
           level: SentryLevel.warning,
+        );
+        _auditAccess(
+          'templates.deleteTemplate',
+          granted: false,
+          reason: 'system_template',
         );
         throw systemTemplateError;
       }
@@ -463,6 +578,11 @@ class TemplateCoreRepository implements ITemplateRepository {
       );
 
       _logger.info('Deleted template: $id');
+      _auditAccess(
+        'templates.deleteTemplate',
+        granted: true,
+        reason: 'templateId=$id',
+      );
     } catch (e, stack) {
       _logger.error(
         'Failed to delete template: $id',
@@ -474,6 +594,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
         data: {'templateId': id},
+      );
+      _auditAccess(
+        'templates.deleteTemplate',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       rethrow;
     }
@@ -550,23 +675,12 @@ class TemplateCoreRepository implements ITemplateRepository {
     Map<String, dynamic> variables = const {},
   }) async {
     try {
-      final userId = _currentUserId();
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError(
-          'Cannot create template without authenticated user',
-        );
-        _logger.warning(
-          'Cannot create template from note without authenticated user',
-          data: {'templateName': templateName, 'noteTitle': noteTitle},
-        );
-        _captureRepositoryException(
-          method: 'createTemplateFromNote',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'templateName': templateName, 'noteTitle': noteTitle},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
+      final userId = _requireUserId(
+        method: 'createTemplateFromNote',
+        data: {'templateName': templateName, 'noteTitle': noteTitle},
+      );
+      if (userId == null) {
+        throw StateError('Cannot create template without authenticated user');
       }
 
       // Extract variables from note content (simple implementation)
@@ -596,6 +710,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         stackTrace: stack,
         data: {'templateName': templateName},
       );
+      _auditAccess(
+        'templates.createTemplateFromNote',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       rethrow;
     }
   }
@@ -621,6 +740,11 @@ class TemplateCoreRepository implements ITemplateRepository {
           stackTrace: StackTrace.current,
           data: {'templateId': templateId},
           level: SentryLevel.warning,
+        );
+        _auditAccess(
+          'templates.applyTemplate',
+          granted: false,
+          reason: 'not_found',
         );
         throw missingError;
       }
@@ -652,24 +776,12 @@ class TemplateCoreRepository implements ITemplateRepository {
         }
       }
 
-      final userId = _currentUserId();
-
+      final userId = _requireUserId(
+        method: 'applyTemplate',
+        data: {'templateId': templateId},
+      );
       if (userId == null) {
-        final authorizationError = StateError(
-          'User must be authenticated to create note from template',
-        );
-        _logger.warning(
-          'Cannot apply template without authenticated user',
-          data: {'templateId': templateId},
-        );
-        _captureRepositoryException(
-          method: 'applyTemplate',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'templateId': templateId},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
+        throw StateError('User must be authenticated to create note from template');
       }
 
       String? resolveStringValue(Map<String, dynamic> source, String key) {
@@ -826,6 +938,11 @@ class TemplateCoreRepository implements ITemplateRepository {
           'links': links.length,
         },
       );
+      _auditAccess(
+        'templates.applyTemplate',
+        granted: true,
+        reason: 'templateId=$templateId noteId=${createdNote.id}',
+      );
 
       return createdNote.id;
     } catch (e, stack) {
@@ -839,6 +956,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
         data: {'templateId': templateId},
+      );
+      _auditAccess(
+        'templates.applyTemplate',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       rethrow;
     }
@@ -856,6 +978,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         stats[template.id] = 0; // Placeholder for actual usage count
       }
 
+      _auditAccess(
+        'templates.getTemplateUsageStats',
+        granted: true,
+        reason: 'count=${stats.length}',
+      );
       return stats;
     } catch (e, stack) {
       _logger.error(
@@ -868,6 +995,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
       );
+      _auditAccess(
+        'templates.getTemplateUsageStats',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
       return const <String, int>{};
     }
   }
@@ -876,13 +1008,19 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<List<Template>> searchTemplates(String query) async {
     try {
       if (query.isEmpty) {
-        return await getAllTemplates();
+        final templates = await getAllTemplates();
+        _auditAccess(
+          'templates.searchTemplates',
+          granted: true,
+          reason: 'empty_query count=${templates.length}',
+        );
+        return templates;
       }
 
       final allTemplates = await getAllTemplates();
       final normalizedQuery = query.toLowerCase();
 
-      return allTemplates.where((template) {
+      final results = allTemplates.where((template) {
         final matchesName = template.name.toLowerCase().contains(
           normalizedQuery,
         );
@@ -891,6 +1029,13 @@ class TemplateCoreRepository implements ITemplateRepository {
         );
         return matchesName || matchesContent;
       }).toList();
+
+      _auditAccess(
+        'templates.searchTemplates',
+        granted: true,
+        reason: 'queryLength=${query.length} count=${results.length}',
+      );
+      return results;
     } catch (e, stack) {
       _logger.error(
         'Failed to search templates with query: $query',
@@ -902,6 +1047,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
         data: {'queryLength': query.length},
+      );
+      _auditAccess(
+        'templates.searchTemplates',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       return const <Template>[];
     }
@@ -941,7 +1091,13 @@ class TemplateCoreRepository implements ITemplateRepository {
         updatedAt: DateTime.now().toUtc(),
       );
 
-      return await createTemplate(duplicatedTemplate);
+      final created = await createTemplate(duplicatedTemplate);
+      _auditAccess(
+        'templates.duplicateTemplate',
+        granted: true,
+        reason: 'source=$templateId duplicate=${created.id}',
+      );
+      return created;
     } catch (e, stack) {
       _logger.error(
         'Failed to duplicate template: $templateId',
@@ -953,6 +1109,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         error: e,
         stackTrace: stack,
         data: {'templateId': templateId},
+      );
+      _auditAccess(
+        'templates.duplicateTemplate',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
       );
       rethrow;
     }

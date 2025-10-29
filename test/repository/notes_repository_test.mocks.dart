@@ -1103,9 +1103,9 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<List<String>> distinctTags() =>
+  _i5.Future<List<String>> distinctTags({String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#distinctTags, []),
+            Invocation.method(#distinctTags, [], {#userId: userId}),
             returnValue: _i5.Future<List<String>>.value(<String>[]),
             returnValueForMissingStub: _i5.Future<List<String>>.value(
               <String>[],
@@ -1114,9 +1114,9 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<List<String>>);
 
   @override
-  _i5.Future<List<_i3.TagCount>> getTagsWithCounts() =>
+  _i5.Future<List<_i3.TagCount>> getTagsWithCounts({String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#getTagsWithCounts, []),
+            Invocation.method(#getTagsWithCounts, [], {#userId: userId}),
             returnValue: _i5.Future<List<_i3.TagCount>>.value(<_i3.TagCount>[]),
             returnValueForMissingStub: _i5.Future<List<_i3.TagCount>>.value(
               <_i3.TagCount>[],
@@ -1143,9 +1143,17 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<int> renameTagEverywhere(String? fromRaw, String? toRaw) =>
+  _i5.Future<int> renameTagEverywhere(
+    String? fromRaw,
+    String? toRaw, {
+    String? userId,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#renameTagEverywhere, [fromRaw, toRaw]),
+            Invocation.method(
+              #renameTagEverywhere,
+              [fromRaw, toRaw],
+              {#userId: userId},
+            ),
             returnValue: _i5.Future<int>.value(0),
             returnValueForMissingStub: _i5.Future<int>.value(0),
           )
@@ -1156,12 +1164,14 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
     required List<String>? anyTags,
     required _i3.SortSpec? sort,
     List<String>? noneTags = const [],
+    String? userId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#notesByTags, [], {
               #anyTags: anyTags,
               #sort: sort,
               #noneTags: noneTags,
+              #userId: userId,
             }),
             returnValue: _i5.Future<List<_i3.LocalNote>>.value(
               <_i3.LocalNote>[],
@@ -1173,9 +1183,9 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<List<_i3.LocalNote>>);
 
   @override
-  _i5.Future<List<String>> searchTags(String? prefix) =>
+  _i5.Future<List<String>> searchTags(String? prefix, {String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#searchTags, [prefix]),
+            Invocation.method(#searchTags, [prefix], {#userId: userId}),
             returnValue: _i5.Future<List<String>>.value(<String>[]),
             returnValueForMissingStub: _i5.Future<List<String>>.value(
               <String>[],
@@ -1184,9 +1194,9 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<List<String>>);
 
   @override
-  _i5.Future<List<_i3.LocalNote>> notesWithTag(String? tag) =>
+  _i5.Future<List<_i3.LocalNote>> notesWithTag(String? tag, {String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#notesWithTag, [tag]),
+            Invocation.method(#notesWithTag, [tag], {#userId: userId}),
             returnValue: _i5.Future<List<_i3.LocalNote>>.value(
               <_i3.LocalNote>[],
             ),
@@ -1238,9 +1248,9 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<List<_i3.BacklinkPair>>);
 
   @override
-  _i5.Future<List<_i3.LocalNote>> searchNotes(String? raw) =>
+  _i5.Future<List<_i3.LocalNote>> searchNotes(String? raw, {String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#searchNotes, [raw]),
+            Invocation.method(#searchNotes, [raw], {#userId: userId}),
             returnValue: _i5.Future<List<_i3.LocalNote>>.value(
               <_i3.LocalNote>[],
             ),
@@ -5471,19 +5481,19 @@ class MockCryptoBox extends _i1.Mock implements _i7.CryptoBox {
 class MockSupabaseNoteApi extends _i1.Mock implements _i10.SupabaseNoteApi {
   @override
   _i5.Future<void> upsertEncryptedNote({
-    DateTime? createdAt,
     required String? id,
     required _i9.Uint8List? titleEnc,
     required _i9.Uint8List? propsEnc,
     required bool? deleted,
+    DateTime? createdAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#upsertEncryptedNote, [], {
-              #createdAt: createdAt,
               #id: id,
               #titleEnc: titleEnc,
               #propsEnc: propsEnc,
               #deleted: deleted,
+              #createdAt: createdAt,
             }),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),

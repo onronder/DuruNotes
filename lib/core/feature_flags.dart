@@ -15,6 +15,12 @@ class FeatureFlags {
     'use_refactored_components': true, // ENABLED for development
     'use_unified_permission_manager': true, // ENABLED for development
     'use_block_editor_for_notes': false, // ❌ DISABLED - Breaks regular note creation, needs proper integration
+    'enable_userid_filtering': false, // SECURITY: Gradual rollout gate
+  };
+
+  // Cohort rollout percentages (0.0 → disabled, 1.0 → 100% users)
+  final Map<String, double> _rolloutPercentages = {
+    'enable_userid_filtering': 0.0,
   };
 
   // Override flags for testing/development
@@ -28,6 +34,31 @@ class FeatureFlags {
     }
     // Fall back to default value
     return _flags[flagName] ?? false;
+  }
+
+  /// Evaluate flag with rollout percentage using a stable per-user bucket.
+  ///
+  /// When [userId] is null, only the base flag value is considered.
+  /// Rollout values are [0.0, 1.0]. Example: 0.1 == 10% of users.
+  bool isEnabledForUser(String flagName, {String? userId}) {
+    if (!isEnabled(flagName)) return false;
+
+    final rollout = _rolloutPercentages[flagName];
+    if (rollout == null) {
+      return true; // No staged rollout configured
+    }
+
+    if (rollout >= 1.0) {
+      return true; // 100% rollout
+    }
+
+    if (userId == null || userId.isEmpty) {
+      // Without a stable identifier we cannot bucket deterministically
+      return false;
+    }
+
+    final bucket = _stableBucket(userId);
+    return bucket < (rollout * 100).ceil();
   }
 
   /// Set an override for testing purposes
@@ -46,6 +77,18 @@ class FeatureFlags {
     // For now, we'll use local defaults
   }
 
+  /// Set rollout percentage for a flag (0.0 → disabled, 1.0 → 100%).
+  void setRolloutPercentage(String flagName, double percentage) {
+    _rolloutPercentages[flagName] = percentage.clamp(0.0, 1.0);
+  }
+
+  /// Convenience accessor for security rollout flag.
+  bool get enableUserIdFiltering => isEnabled('enable_userid_filtering');
+
+  /// Evaluate security rollout flag for a specific user.
+  bool enableUserIdFilteringFor(String? userId) =>
+      isEnabledForUser('enable_userid_filtering', userId: userId);
+
   // Convenience getters for specific flags
   bool get useNewBlockEditor => isEnabled('use_new_block_editor');
   bool get useRefactoredComponents => isEnabled('use_refactored_components');
@@ -55,4 +98,9 @@ class FeatureFlags {
   /// Sprint 1: Use BlockEditor for notes instead of plain TextField
   /// When enabled, notes are parsed into blocks and todos become interactive
   bool get useBlockEditorForNotes => isEnabled('use_block_editor_for_notes');
+
+  int _stableBucket(String userId) {
+    final hash = userId.hashCode & 0x7fffffff;
+    return hash % 100;
+  }
 }

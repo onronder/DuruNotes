@@ -342,6 +342,36 @@ class SecureApiWrapper {
     );
   }
 
+  /// Upsert reminder with rate limiting
+  Future<void> upsertReminder(Map<String, dynamic> reminderData) async {
+    return _executeWithProtection(
+      endpoint: '/api/reminders/upsert',
+      operation: () => _api.upsertReminder(reminderData),
+      metadata: {
+        'reminderId': reminderData['id'],
+        'noteId': reminderData['note_id'],
+        'isActive': reminderData['is_active'],
+      },
+    );
+  }
+
+  /// Delete reminder with rate limiting
+  Future<void> deleteReminder(String reminderId) async {
+    return _executeWithProtection(
+      endpoint: '/api/reminders/delete',
+      operation: () => _api.deleteReminder(reminderId),
+      metadata: {'reminderId': reminderId},
+    );
+  }
+
+  /// Fetch reminders with rate limiting
+  Future<List<Map<String, dynamic>>> fetchReminders() async {
+    return _executeWithProtection(
+      endpoint: '/api/reminders/fetch',
+      operation: () => _api.getReminders(),
+    );
+  }
+
   /// Upsert template with rate limiting
   Future<void> upsertTemplate({
     required String id,

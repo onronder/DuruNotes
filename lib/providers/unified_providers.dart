@@ -8,7 +8,8 @@ import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show migrationConfigProvider;
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
     show notesCoreRepositoryProvider;
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
@@ -27,6 +28,7 @@ import 'package:duru_notes/services/unified_search_service.dart'
 import 'package:duru_notes/core/models/unified_note.dart' as models;
 import 'package:duru_notes/core/models/unified_task.dart' as models;
 import 'package:duru_notes/core/models/unified_folder.dart' as models;
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 /// Unified types now use the strongly typed models
 typedef UnifiedNote = models.UnifiedNote;
@@ -35,7 +37,9 @@ typedef UnifiedTask = models.UnifiedTask;
 typedef UnifiedTemplate = dynamic; // Still need to create UnifiedTemplate
 
 /// Unified notes provider - no more feature flags!
-final unifiedNotesProvider = FutureProvider.autoDispose<List<UnifiedNote>>((ref) async {
+final unifiedNotesProvider = FutureProvider.autoDispose<List<UnifiedNote>>((
+  ref,
+) async {
   final logger = LoggerFactory.instance;
 
   try {
@@ -48,13 +52,19 @@ final unifiedNotesProvider = FutureProvider.autoDispose<List<UnifiedNote>>((ref)
     // Convert to UnifiedNote type
     return notes.map((domain.Note n) => UnifiedNote.from(n)).toList();
   } catch (e, stack) {
-    logger.error('[UnifiedProvider] Failed to load notes', error: e, stackTrace: stack);
+    logger.error(
+      '[UnifiedProvider] Failed to load notes',
+      error: e,
+      stackTrace: stack,
+    );
     return [];
   }
 });
 
 /// Unified folders provider - no more feature flags!
-final unifiedFoldersProvider = FutureProvider.autoDispose<List<UnifiedFolder>>((ref) async {
+final unifiedFoldersProvider = FutureProvider.autoDispose<List<UnifiedFolder>>((
+  ref,
+) async {
   final logger = LoggerFactory.instance;
 
   try {
@@ -67,13 +77,19 @@ final unifiedFoldersProvider = FutureProvider.autoDispose<List<UnifiedFolder>>((
     // Convert to UnifiedFolder type
     return folders.map((f) => UnifiedFolder.from(f)).toList();
   } catch (e, stack) {
-    LoggerFactory.instance.error('[UnifiedProvider] Failed to load folders', error: e, stackTrace: stack);
+    LoggerFactory.instance.error(
+      '[UnifiedProvider] Failed to load folders',
+      error: e,
+      stackTrace: stack,
+    );
     return [];
   }
 });
 
 /// Unified tasks provider - no more feature flags!
-final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref) async {
+final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((
+  ref,
+) async {
   final logger = LoggerFactory.instance;
 
   try {
@@ -84,7 +100,9 @@ final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref)
 
     // Task repository can be null if user is not authenticated
     if (repository == null) {
-      logger.warning('[UnifiedProvider] Task repository not available (user not authenticated)');
+      logger.warning(
+        '[UnifiedProvider] Task repository not available (user not authenticated)',
+      );
       return [];
     }
 
@@ -93,7 +111,11 @@ final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref)
     // Convert to UnifiedTask type
     return tasks.map((t) => UnifiedTask.from(t)).toList();
   } catch (e, stack) {
-    logger.error('[UnifiedProvider] Failed to load tasks', error: e, stackTrace: stack);
+    logger.error(
+      '[UnifiedProvider] Failed to load tasks',
+      error: e,
+      stackTrace: stack,
+    );
     return [];
   }
 });
@@ -102,33 +124,38 @@ final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref)
 // Legacy task provider removed - use unifiedTasksProvider instead
 
 /// Unified templates provider
-final unifiedTemplatesProvider = FutureProvider.autoDispose<List<UnifiedTemplate>>((ref) async {
-  final config = ref.watch(migrationConfigProvider);
-  final logger = LoggerFactory.instance;
+final unifiedTemplatesProvider =
+    FutureProvider.autoDispose<List<UnifiedTemplate>>((ref) async {
+      final config = ref.watch(migrationConfigProvider);
+      final logger = LoggerFactory.instance;
 
-  try {
-    if (config.isFeatureEnabled('templates')) {
-      logger.info('[UnifiedProvider] Using domain templates');
+      try {
+        if (config.isFeatureEnabled('templates')) {
+          logger.info('[UnifiedProvider] Using domain templates');
 
-      // Use domain repository
-      final repository = ref.watch(templateCoreRepositoryProvider);
-      final templates = await repository.getAllTemplates();
+          // Use domain repository
+          final repository = ref.watch(templateCoreRepositoryProvider);
+          final templates = await repository.getAllTemplates();
 
-      return templates;
-    } else {
-      logger.info('[UnifiedProvider] Using legacy templates');
+          return templates;
+        } else {
+          logger.info('[UnifiedProvider] Using legacy templates');
 
-      // Use legacy repository
-      final db = ref.watch(appDbProvider);
-      final templates = await db.getAllTemplates();
+          // Use legacy repository
+          final db = ref.watch(appDbProvider);
+          final templates = await db.getAllTemplates();
 
-      return templates;
-    }
-  } catch (e, stack) {
-    logger.error('[UnifiedProvider] Failed to load templates', error: e, stackTrace: stack);
-    return [];
-  }
-});
+          return templates;
+        }
+      } catch (e, stack) {
+        logger.error(
+          '[UnifiedProvider] Failed to load templates',
+          error: e,
+          stackTrace: stack,
+        );
+        return [];
+      }
+    });
 
 /// Helper to get note ID - UnifiedNote now only wraps domain entities
 String getUnifiedNoteId(UnifiedNote note) {
@@ -186,121 +213,138 @@ bool getUnifiedTaskIsCompleted(UnifiedTask task) {
 }
 
 /// Unified search provider
-final unifiedSearchProvider = FutureProvider.autoDispose.family<List<UnifiedNote>, String>((ref, query) async {
-  final config = ref.watch(migrationConfigProvider);
-  final logger = LoggerFactory.instance;
+final unifiedSearchProvider = FutureProvider.autoDispose
+    .family<List<UnifiedNote>, String>((ref, query) async {
+      final config = ref.watch(migrationConfigProvider);
+      final logger = LoggerFactory.instance;
 
-  try {
-    if (config.isFeatureEnabled('notes')) {
-      logger.info('[UnifiedSearch] Using domain search service for: $query');
-
-      final trimmedQuery = query.trim();
-      final repository = ref.watch(notesCoreRepositoryProvider);
-
-      // Empty query → return recent notes without invoking the search stack
-      if (trimmedQuery.isEmpty) {
-        final allNotes = await repository.localNotes();
-        return allNotes.map((domain.Note n) => UnifiedNote.from(n)).toList();
-      }
-
-      final searchService = ref.watch(unifiedSearchServiceProvider);
-      final results = await searchService.search(
-        trimmedQuery,
-        options: const SearchOptions(
-          types: [SearchResultType.note],
-          limit: 200,
-        ),
-      );
-
-      final seenIds = <String>{};
-      final unifiedNotes = <UnifiedNote>[];
-
-      for (final item in results) {
-        if (item.type != SearchResultType.note) continue;
-
-        domain.Note? note;
-        final data = item.data;
-
-        if (data is domain.Note) {
-          note = data;
-        } else if (data is UnifiedNote) {
-          if (seenIds.add(data.id)) {
-            unifiedNotes.add(UnifiedNote.from(data));
-          }
-          continue;
-        } else if (data is String) {
-          note = await repository.getNoteById(data);
-        }
-
-        if (note == null) {
-          logger.warning(
-            '[UnifiedSearch] Skipping unexpected search result data type',
-            data: {'runtimeType': data.runtimeType.toString()},
+      try {
+        if (config.isFeatureEnabled('notes')) {
+          logger.info(
+            '[UnifiedSearch] Using domain search service for: $query',
           );
-          continue;
+
+          final trimmedQuery = query.trim();
+          final repository = ref.watch(notesCoreRepositoryProvider);
+
+          // Empty query → return recent notes without invoking the search stack
+          if (trimmedQuery.isEmpty) {
+            final allNotes = await repository.localNotes();
+            return allNotes
+                .map((domain.Note n) => UnifiedNote.from(n))
+                .toList();
+          }
+
+          final searchService = ref.watch(unifiedSearchServiceProvider);
+          final results = await searchService.search(
+            trimmedQuery,
+            options: const SearchOptions(
+              types: [SearchResultType.note],
+              limit: 200,
+            ),
+          );
+
+          final seenIds = <String>{};
+          final unifiedNotes = <UnifiedNote>[];
+
+          for (final item in results) {
+            if (item.type != SearchResultType.note) continue;
+
+            domain.Note? note;
+            final data = item.data;
+
+            if (data is domain.Note) {
+              note = data;
+            } else if (data is UnifiedNote) {
+              if (seenIds.add(data.id)) {
+                unifiedNotes.add(UnifiedNote.from(data));
+              }
+              continue;
+            } else if (data is String) {
+              note = await repository.getNoteById(data);
+            }
+
+            if (note == null) {
+              logger.warning(
+                '[UnifiedSearch] Skipping unexpected search result data type',
+                data: {'runtimeType': data.runtimeType.toString()},
+              );
+              continue;
+            }
+
+            if (seenIds.add(note.id)) {
+              unifiedNotes.add(UnifiedNote.from(note));
+            }
+          }
+
+          if (unifiedNotes.isNotEmpty) {
+            return unifiedNotes;
+          }
+
+          // Fallback: index may still be warming up – fall back to simple filtering
+          logger.info(
+            '[UnifiedSearch] FTS returned no results, using fallback filter',
+          );
+          final allNotes = await repository.localNotes();
+          final queryLower = trimmedQuery.toLowerCase();
+          final filtered = allNotes.where(
+            (n) =>
+                n.title.toLowerCase().contains(queryLower) ||
+                n.body.toLowerCase().contains(queryLower),
+          );
+          return filtered.map((domain.Note n) => UnifiedNote.from(n)).toList();
+        } else {
+          logger.info('[UnifiedSearch] Using legacy search for: $query');
+
+          // Use legacy search
+          final db = ref.watch(appDbProvider);
+          final results = await db.searchNotes(query);
+
+          return results.map((n) => UnifiedNote.from(n)).toList();
         }
-
-        if (seenIds.add(note.id)) {
-          unifiedNotes.add(UnifiedNote.from(note));
-        }
+      } catch (e, stack) {
+        logger.error(
+          '[UnifiedSearch] Search failed for: $query',
+          error: e,
+          stackTrace: stack,
+        );
+        return [];
       }
-
-      if (unifiedNotes.isNotEmpty) {
-        return unifiedNotes;
-      }
-
-      // Fallback: index may still be warming up – fall back to simple filtering
-      logger.info('[UnifiedSearch] FTS returned no results, using fallback filter');
-      final allNotes = await repository.localNotes();
-      final queryLower = trimmedQuery.toLowerCase();
-      final filtered = allNotes.where((n) =>
-        n.title.toLowerCase().contains(queryLower) ||
-        n.body.toLowerCase().contains(queryLower),
-      );
-      return filtered.map((domain.Note n) => UnifiedNote.from(n)).toList();
-    } else {
-      logger.info('[UnifiedSearch] Using legacy search for: $query');
-
-      // Use legacy search
-      final db = ref.watch(appDbProvider);
-      final results = await db.searchNotes(query);
-
-      return results.map((n) => UnifiedNote.from(n)).toList();
-    }
-  } catch (e, stack) {
-    logger.error('[UnifiedSearch] Search failed for: $query', error: e, stackTrace: stack);
-    return [];
-  }
-});
+    });
 
 /// Unified note by ID provider
-final unifiedNoteByIdProvider = FutureProvider.autoDispose.family<UnifiedNote?, String>((ref, noteId) async {
-  final config = ref.watch(migrationConfigProvider);
-  final logger = LoggerFactory.instance;
+final unifiedNoteByIdProvider = FutureProvider.autoDispose
+    .family<UnifiedNote?, String>((ref, noteId) async {
+      final config = ref.watch(migrationConfigProvider);
+      final logger = LoggerFactory.instance;
 
-  try {
-    if (config.isFeatureEnabled('notes')) {
-      logger.info('[UnifiedProvider] Getting domain note: $noteId');
+      try {
+        if (config.isFeatureEnabled('notes')) {
+          logger.info('[UnifiedProvider] Getting domain note: $noteId');
 
-      // Use domain repository
-      final repository = ref.watch(notesCoreRepositoryProvider);
-      final note = await repository.getNoteById(noteId);
+          // Use domain repository
+          final repository = ref.watch(notesCoreRepositoryProvider);
+          final note = await repository.getNoteById(noteId);
 
-      return note != null ? UnifiedNote.from(note) : null;
-    } else {
-      logger.info('[UnifiedProvider] Getting legacy note: $noteId');
+          return note != null ? UnifiedNote.from(note) : null;
+        } else {
+          logger.info('[UnifiedProvider] Getting legacy note: $noteId');
 
-      // Use legacy database directly
-      final db = ref.watch(appDbProvider);
-      final note = await db.getNote(noteId);
+          // Use legacy database directly
+          final db = ref.watch(appDbProvider);
+          final note = await db.getNote(noteId);
 
-      return note != null ? UnifiedNote.from(note) : null;
-    }
-  } catch (e, stack) {
-    logger.error('[UnifiedProvider] Failed to get note: $noteId', error: e, stackTrace: stack);
-    return null;
-  }
-});
+          return note != null ? UnifiedNote.from(note) : null;
+        }
+      } catch (e, stack) {
+        logger.error(
+          '[UnifiedProvider] Failed to get note: $noteId',
+          error: e,
+          stackTrace: stack,
+        );
+        return null;
+      }
+    });
 
 /// Provider for creating notes with unified interface
 class UnifiedNoteCreator {
@@ -341,17 +385,32 @@ class UnifiedNoteCreator {
         final db = ref.read(appDbProvider);
         final noteId = const Uuid().v4();
         final now = DateTime.now();
-        await db.into(db.localNotes).insert(
-          LocalNotesCompanion(
-            id: Value(noteId),
-            titleEncrypted: Value(title),  // Legacy path uses plaintext in encrypted field
-            bodyEncrypted: Value(body),
-            updatedAt: Value(now),
-            deleted: const Value(false),
-            version: const Value(1),
-            userId: const Value(''),
-          ),
-        );
+        final supabaseClient = supabase.Supabase.instance.client;
+        final userId = supabaseClient.auth.currentUser?.id;
+
+        if (userId == null || userId.isEmpty) {
+          logger.warning(
+            '[UnifiedCreator] Legacy note creation skipped - missing authenticated user',
+            data: {'noteId': noteId},
+          );
+          return null;
+        }
+
+        await db
+            .into(db.localNotes)
+            .insert(
+              LocalNotesCompanion(
+                id: Value(noteId),
+                titleEncrypted: Value(
+                  title,
+                ), // Legacy path uses plaintext in encrypted field
+                bodyEncrypted: Value(body),
+                updatedAt: Value(now),
+                deleted: const Value(false),
+                version: const Value(1),
+                userId: Value(userId),
+              ),
+            );
         final note = await db.getNote(noteId);
 
         // Add to folder if specified
@@ -364,19 +423,26 @@ class UnifiedNoteCreator {
         // Add tags if specified
         if (note != null && tags != null && tags.isNotEmpty) {
           for (final tag in tags) {
-            await db.into(db.noteTags).insert(
-              NoteTagsCompanion(
-                noteId: Value(note.id),
-                tag: Value(tag),
-              ),
-            );
+            await db
+                .into(db.noteTags)
+                .insert(
+                  NoteTagsCompanion(
+                    noteId: Value(note.id),
+                    tag: Value(tag),
+                    userId: Value(userId),
+                  ),
+                );
           }
         }
 
         return note != null ? UnifiedNote.from(note) : null;
       }
     } catch (e, stack) {
-      logger.error('[UnifiedCreator] Failed to create note', error: e, stackTrace: stack);
+      logger.error(
+        '[UnifiedCreator] Failed to create note',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -423,7 +489,8 @@ String getUnifiedTemplateDescription(UnifiedTemplate template) {
     // domain.Template doesn't have description field
     return 'Template ${template.name}';
   } else if ((template as dynamic).description != null) {
-    return (template as dynamic).description as String; // LocalTemplate from database
+    return (template as dynamic).description
+        as String; // LocalTemplate from database
   }
   return '';
 }
@@ -434,7 +501,8 @@ String getUnifiedTemplateCategory(UnifiedTemplate template) {
     // domain.Template doesn't have category field - could derive from variables
     return 'other';
   } else if ((template as dynamic).category != null) {
-    return (template as dynamic).category as String; // LocalTemplate from database
+    return (template as dynamic).category
+        as String; // LocalTemplate from database
   }
   return 'other';
 }
@@ -444,7 +512,8 @@ bool getUnifiedTemplateIsSystem(UnifiedTemplate template) {
   if (template is domain.Template) {
     return template.isSystem;
   } else if ((template as dynamic).isSystem != null) {
-    return (template as dynamic).isSystem as bool; // LocalTemplate from database
+    return (template as dynamic).isSystem
+        as bool; // LocalTemplate from database
   }
   return false;
 }
@@ -457,7 +526,8 @@ Map<String, dynamic> getUnifiedTemplateVariables(UnifiedTemplate template) {
     // LocalTemplate stores tags as JSON array, not variables
     try {
       if ((template as dynamic).tags != null) {
-        final tags = json.decode((template as dynamic).tags as String) as List<dynamic>;
+        final tags =
+            json.decode((template as dynamic).tags as String) as List<dynamic>;
         return {'tags': tags};
       }
     } catch (e) {
@@ -472,7 +542,8 @@ DateTime getUnifiedTemplateCreatedAt(UnifiedTemplate template) {
   if (template is domain.Template) {
     return template.createdAt;
   } else if ((template as dynamic).createdAt != null) {
-    return (template as dynamic).createdAt as DateTime; // LocalTemplate from database
+    return (template as dynamic).createdAt
+        as DateTime; // LocalTemplate from database
   }
   return DateTime.now();
 }
@@ -482,7 +553,8 @@ DateTime getUnifiedTemplateUpdatedAt(UnifiedTemplate template) {
   if (template is domain.Template) {
     return template.updatedAt;
   } else if ((template as dynamic).updatedAt != null) {
-    return (template as dynamic).updatedAt as DateTime; // LocalTemplate from database
+    return (template as dynamic).updatedAt
+        as DateTime; // LocalTemplate from database
   }
   return DateTime.now();
 }

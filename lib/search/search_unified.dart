@@ -15,10 +15,8 @@ import 'package:duru_notes/infrastructure/helpers/note_decryption_helper.dart';
 ///
 /// Performance: Optimized to minimize decryption overhead by filtering first
 class UnifiedSearchService {
-  UnifiedSearchService({
-    required this.db,
-    required CryptoBox crypto,
-  }) : _decryptHelper = NoteDecryptionHelper(crypto);
+  UnifiedSearchService({required this.db, required CryptoBox crypto})
+    : _decryptHelper = NoteDecryptionHelper(crypto);
 
   final AppDb db;
   final NoteDecryptionHelper _decryptHelper;
@@ -78,7 +76,11 @@ class UnifiedSearchService {
     int? limit, {
     Map<String, String>? decryptedTitles,
   }) async {
-    final sorted = await _applySort(notes, sort, decryptedTitles: decryptedTitles);
+    final sorted = await _applySort(
+      notes,
+      sort,
+      decryptedTitles: decryptedTitles,
+    );
     if (limit != null && sorted.length > limit) {
       return sorted.take(limit).toList();
     }
@@ -111,7 +113,8 @@ class UnifiedSearchService {
 
     // Step 3: Decrypt and filter by text search
     final keywords = query.keywords.toLowerCase().trim();
-    final searchTerms = keywords.split(RegExp(r'\s+'))
+    final searchTerms = keywords
+        .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .toList();
 
@@ -128,8 +131,8 @@ class UnifiedSearchService {
       final titleLower = title.toLowerCase();
       final bodyLower = body.toLowerCase();
 
-      final matches = searchTerms.every((term) =>
-        titleLower.contains(term) || bodyLower.contains(term)
+      final matches = searchTerms.every(
+        (term) => titleLower.contains(term) || bodyLower.contains(term),
       );
 
       if (matches) {
@@ -162,9 +165,12 @@ class UnifiedSearchService {
       }
 
       // Join with note_folders to filter by folder
-      final notesInFolder = await (db.select(db.noteFolders)
-            ..where((nf) => nf.folderId.equals(folder.id)))
-          .get();
+      final notesInFolder =
+          await (db.select(db.noteFolders)..where(
+                (nf) =>
+                    nf.folderId.equals(folder.id) & nf.userId.equals(userId),
+              ))
+              .get();
 
       final noteIds = notesInFolder.map((nf) => nf.noteId).toSet();
       if (noteIds.isEmpty) {
@@ -176,10 +182,12 @@ class UnifiedSearchService {
 
     // Tag filters
     if (query.includeTags.isNotEmpty) {
-      final tagsAny = query.includeTags.map((t) => t.trim().toLowerCase()).toList();
-      final notesWithTags = await (db.select(db.noteTags)
-            ..where((nt) => nt.tag.isIn(tagsAny)))
-          .get();
+      final tagsAny = query.includeTags
+          .map((t) => t.trim().toLowerCase())
+          .toList();
+      final notesWithTags = await (db.select(
+        db.noteTags,
+      )..where((nt) => nt.tag.isIn(tagsAny) & nt.userId.equals(userId))).get();
 
       final noteIds = notesWithTags.map((nt) => nt.noteId).toSet();
       if (noteIds.isEmpty) {
@@ -190,10 +198,12 @@ class UnifiedSearchService {
     }
 
     if (query.excludeTags.isNotEmpty) {
-      final tagsNone = query.excludeTags.map((t) => t.trim().toLowerCase()).toList();
-      final notesWithExcludedTags = await (db.select(db.noteTags)
-            ..where((nt) => nt.tag.isIn(tagsNone)))
-          .get();
+      final tagsNone = query.excludeTags
+          .map((t) => t.trim().toLowerCase())
+          .toList();
+      final notesWithExcludedTags = await (db.select(
+        db.noteTags,
+      )..where((nt) => nt.tag.isIn(tagsNone) & nt.userId.equals(userId))).get();
 
       final excludedIds = notesWithExcludedTags.map((nt) => nt.noteId).toSet();
       if (excludedIds.isNotEmpty) {
@@ -221,27 +231,21 @@ class UnifiedSearchService {
       case SortBy.createdAt:
         q.orderBy([
           (n) => OrderingTerm(
-                expression: n.updatedAt,
-                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-              ),
+            expression: n.updatedAt,
+            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
         ]);
         break;
       case SortBy.title:
         // Cannot sort by encrypted title at SQL level
         // Will sort after decryption if needed
         q.orderBy([
-          (n) => OrderingTerm(
-                expression: n.updatedAt,
-                mode: OrderingMode.desc,
-              ),
+          (n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc),
         ]);
         break;
       default:
         q.orderBy([
-          (n) => OrderingTerm(
-                expression: n.updatedAt,
-                mode: OrderingMode.desc,
-              ),
+          (n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc),
         ]);
     }
 
@@ -258,14 +262,14 @@ class UnifiedSearchService {
     return q.get();
   }
 
-
   /// Find folder by name or path
   Future<LocalFolder?> _findFolderByName(String name) async {
     // Try exact name match first
-    final folder = await (db.select(db.localFolders)
-          ..where((f) => f.deleted.equals(false))
-          ..where((f) => f.name.equals(name)))
-        .getSingleOrNull();
+    final folder =
+        await (db.select(db.localFolders)
+              ..where((f) => f.deleted.equals(false))
+              ..where((f) => f.name.equals(name)))
+            .getSingleOrNull();
 
     if (folder != null) return folder;
 
@@ -332,10 +336,7 @@ class UnifiedSearchService {
     switch (sort.sortBy) {
       case SortBy.title:
         query.orderBy([
-          (n) => OrderingTerm(
-                expression: n.updatedAt,
-                mode: OrderingMode.desc,
-              ),
+          (n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc),
         ]);
         break;
       case SortBy.createdAt:
@@ -343,9 +344,9 @@ class UnifiedSearchService {
       default:
         query.orderBy([
           (n) => OrderingTerm(
-                expression: n.updatedAt,
-                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
-              ),
+            expression: n.updatedAt,
+            mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
         ]);
         break;
     }
