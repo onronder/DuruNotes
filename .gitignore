@@ -85,3 +85,33 @@ GoogleService-Info.plist
 **/firebase_options*.dart
 environments/*.env
 secrets/
+
+# ===== CLEANUP 2025-10-29 =====
+
+# Test artifacts and results
+test_results*.json
+logs/
+
+# Database files - local testing only
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+tmp_dbs/
+
+# Docker volumes - local environment
+volumes/
+
+# Extension builds and bundles
+*-clipper-*.zip
+tools/web-clipper-extension/dist/
+tools/web-clipper-extension/*.zip
+tools/web-clipper-extension/node_modules/
+
+# iOS specific - build artifacts
+ios/Pods/
+ios/Runner/*.txt
+ios/.symlinks/
+
+# Comprehensive test reports
+docs/test_reports/*.json
