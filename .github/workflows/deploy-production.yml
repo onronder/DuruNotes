@@ -21,6 +21,9 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: write  # Required for creating releases and uploading artifacts
+
 env:
   FLUTTER_VERSION: '3.35.3'
   JAVA_VERSION: '21'

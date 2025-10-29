@@ -10,6 +10,9 @@ on:
     # Run daily at 2 AM UTC to catch any drift
     - cron: '0 2 * * *'
 
+permissions:
+  contents: read
+
 env:
   FLUTTER_VERSION: '3.24.3'
   DART_VERSION: '3.5.3'
