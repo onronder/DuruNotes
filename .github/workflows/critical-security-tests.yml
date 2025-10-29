@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: '3.24.3'
-  DART_VERSION: '3.5.3'
+  FLUTTER_VERSION: '3.35.3'
+  DART_VERSION: '3.8.0'
 
 jobs:
   critical-security-tests:

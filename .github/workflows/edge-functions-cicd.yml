@@ -364,12 +364,17 @@ jobs:
       - name: Create deployment backup
         run: |
           # Backup current production functions
-          mkdir -p backups/$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
+          mkdir -p "$BACKUP_DIR"
 
           # Export current Kong configuration
           curl -X GET "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
             -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
-            > backups/$(date +%Y%m%d_%H%M%S)/kong-config.yml
+            > "$BACKUP_DIR/kong-config.yml"
+
+          # Create symlink to latest backup for rollback
+          mkdir -p backups
+          ln -sf "$(basename "$BACKUP_DIR")" backups/previous
 
       - name: Blue-Green deployment preparation
         run: |
