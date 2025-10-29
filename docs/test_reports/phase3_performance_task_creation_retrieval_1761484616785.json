@@ -1,8 +1,0 @@
-{
-  "test_name": "task_creation_retrieval",
-  "timestamp": "2025-10-26T16:16:56.787696",
-  "results": {
-    "createDurationMs": 3,
-    "retrieveDurationMs": 0
-  }
-}
