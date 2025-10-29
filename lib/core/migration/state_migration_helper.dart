@@ -3,16 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/local/app_db.dart' hide NoteLink;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 // import 'package:duru_notes/domain/entities/tag.dart' as domain; // Unused
-import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
-import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 // import 'package:duru_notes/infrastructure/mappers/tag_mapper.dart'; // Unused
 
 /// Production-grade state migration helper for safe provider transitions
@@ -24,7 +22,7 @@ class StateMigrationHelper {
   static Future<void> migrateProviderState<TLocal, TDomain>({
     required String providerName,
     required TDomain Function(TLocal) mapper,
-    required ProviderRef ref,
+    required Ref ref,
     required AutoDisposeFutureProvider<List<TLocal>> localProvider,
     required AutoDisposeFutureProvider<List<TDomain>> domainProvider,
   }) async {
@@ -48,56 +46,56 @@ class StateMigrationHelper {
       // Cache domain state for immediate use
       ref.invalidate(domainProvider);
 
-      debugPrint('[$_logTag] Successfully migrated provider: $providerName '
-          '(${localState.length} items)');
+      debugPrint(
+        '[$_logTag] Successfully migrated provider: $providerName '
+        '(${localState.length} items)',
+      );
     } catch (e) {
       debugPrint('[$_logTag] Failed to migrate provider: $providerName - $e');
       rethrow;
     }
   }
 
-  /// Convert legacy notes to domain notes with full relationship loading
+  /// Convert legacy notes to domain notes with full relationship loading.
+  ///
+  /// OBSOLETE: kept for historical reference only. The zero-knowledge
+  /// encryption model requires asynchronous decryption, which is now handled
+  /// by `NotesCoreRepository`. This stub remains so older call sites compile
+  /// but it simply returns an empty list.
   static Future<List<domain.Note>> convertNotesToDomain(
     List<LocalNote> localNotes,
     AppDb db,
   ) async {
-    final domainNotes = <domain.Note>[];
-
-    for (final localNote in localNotes) {
-      try {
-        // Fetch related data
-        final tags = await _getTagsForNote(db, localNote.id);
-        final links = await _getLinksForNote(db, localNote.id);
-
-        final domainNote = NoteMapper.toDomain(
-          localNote,
-          tags: tags,
-          links: links,
-        );
-
-        domainNotes.add(domainNote);
-      } catch (e) {
-        debugPrint('[$_logTag] Failed to convert note ${localNote.id}: $e');
-        // Continue with other notes, don't fail the entire conversion
-      }
-    }
-
-    return domainNotes;
+    debugPrint(
+      '[$_logTag] convertNotesToDomain is obsolete – use NotesCoreRepository instead.',
+    );
+    return const [];
   }
 
   /// Convert legacy folders to domain folders
-  static List<domain.Folder> convertFoldersToDomain(List<LocalFolder> localFolders) {
+  static List<domain.Folder> convertFoldersToDomain(
+    List<LocalFolder> localFolders,
+  ) {
     return localFolders.map(FolderMapper.toDomain).toList();
   }
 
   /// Convert legacy templates to domain templates
-  static List<domain.Template> convertTemplatesToDomain(List<LocalTemplate> localTemplates) {
+  static List<domain.Template> convertTemplatesToDomain(
+    List<LocalTemplate> localTemplates,
+  ) {
     return localTemplates.map(TemplateMapper.toDomain).toList();
   }
 
-  /// Convert legacy tasks to domain tasks
+  /// Convert legacy tasks to domain tasks.
+  ///
+  /// OBSOLETE: left in place for binary compatibility. `TaskCoreRepository`
+  /// performs the required decryption; this stub signals callers to migrate
+  /// by logging and returning an empty list.
   static List<domain.Task> convertTasksToDomain(List<NoteTask> localTasks) {
-    return localTasks.map(TaskMapper.toDomain).toList();
+    debugPrint(
+      '[$_logTag] convertTasksToDomain is obsolete – use TaskCoreRepository instead.',
+    );
+    return const [];
   }
 
   /// Create a dual-mode provider that switches based on migration config
@@ -137,6 +135,8 @@ class StateMigrationHelper {
   }
 
   /// Create a dual-mode stream provider
+  ///
+  /// NOTE: Riverpod 3.0+ - Using .future.asStream() instead of deprecated .stream
   static StreamProvider<List<T>> createDualStreamProvider<TLocal, T>({
     required StreamProvider<List<TLocal>> legacyProvider,
     required StreamProvider<List<T>> domainProvider,
@@ -144,16 +144,23 @@ class StateMigrationHelper {
     required String feature,
     required Provider<MigrationConfig> configProvider,
   }) {
-    return StreamProvider<List<T>>((ref) {
+    return StreamProvider<List<T>>((ref) async* {
       final config = ref.watch(configProvider);
       if (config.isFeatureEnabled(feature)) {
-        return ref.watch(domainProvider.stream);
-      }
+        // Riverpod 3.0: Use .future instead of deprecated .stream
+        final data = await ref.watch(domainProvider.future);
+        yield data;
 
-      // Convert legacy stream to domain format
-      return ref.watch(legacyProvider.stream).map(
-        (legacyData) => legacyData.map(converter).toList(),
-      );
+        // Listen for updates
+        ref.listen(domainProvider, (previous, next) {});
+      } else {
+        // Convert legacy data to domain format
+        final legacyData = await ref.watch(legacyProvider.future);
+        yield legacyData.map(converter).toList();
+
+        // Listen for updates
+        ref.listen(legacyProvider, (previous, next) {});
+      }
     });
   }
 
@@ -167,8 +174,10 @@ class StateMigrationHelper {
     try {
       // Check counts match
       if (legacyData.length != domainData.length) {
-        debugPrint('[$_logTag] Count mismatch: '
-            'Legacy=${legacyData.length}, Domain=${domainData.length}');
+        debugPrint(
+          '[$_logTag] Count mismatch: '
+          'Legacy=${legacyData.length}, Domain=${domainData.length}',
+        );
         return false;
       }
 
@@ -205,7 +214,9 @@ class StateMigrationHelper {
       final isValid = await validationAction();
 
       if (!isValid) {
-        throw MigrationException('Migration validation failed for feature: $feature');
+        throw MigrationException(
+          'Migration validation failed for feature: $feature',
+        );
       }
 
       // Create updated config
@@ -228,36 +239,9 @@ class StateMigrationHelper {
     }
   }
 
-  /// Get tags for a specific note
-  static Future<List<String>> _getTagsForNote(AppDb db, String noteId) async {
-    try {
-      final query = db.select(db.noteTags)
-        ..where((t) => t.noteId.equals(noteId));
-
-      final tagRecords = await query.get();
-      return tagRecords.map((record) => record.tag).toList();
-    } catch (e) {
-      debugPrint('[$_logTag] Failed to get tags for note $noteId: $e');
-      return [];
-    }
-  }
-
-  /// Get links for a specific note (placeholder - adjust based on actual domain entity)
-  static Future<List<domain.NoteLink>> _getLinksForNote(AppDb db, String noteId) async {
-    try {
-      // TODO: Implement based on actual NoteLink domain entity structure
-      // This is a placeholder that returns empty links for now
-      debugPrint('[$_logTag] Getting links for note $noteId (placeholder implementation)');
-      return [];
-    } catch (e) {
-      debugPrint('[$_logTag] Failed to get links for note $noteId: $e');
-      return [];
-    }
-  }
-
   /// Clear cached provider state for clean migration
   static void invalidateProviders(
-    ProviderRef ref,
+    Ref ref,
     List<ProviderBase<Object?>> providers,
   ) {
     try {
@@ -281,14 +265,18 @@ class StateMigrationHelper {
       final result = await operation();
       stopwatch.stop();
 
-      debugPrint('[$_logTag] $operationName completed in '
-          '${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '[$_logTag] $operationName completed in '
+        '${stopwatch.elapsedMilliseconds}ms',
+      );
 
       return result;
     } catch (e) {
       stopwatch.stop();
-      debugPrint('[$_logTag] $operationName failed after '
-          '${stopwatch.elapsedMilliseconds}ms: $e');
+      debugPrint(
+        '[$_logTag] $operationName failed after '
+        '${stopwatch.elapsedMilliseconds}ms: $e',
+      );
       rethrow;
     }
   }

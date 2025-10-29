@@ -1,10 +1,16 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/data/local/app_db.dart' show LocalNote;
+import 'package:duru_notes/domain/entities/template.dart' as domain_template;
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateCoreRepositoryProvider;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 /// Available template categories
 const List<String> templateCategories = [
@@ -38,10 +44,22 @@ class CreateTemplateDialog extends ConsumerStatefulWidget {
   const CreateTemplateDialog({
     super.key,
     this.sourceNote,
+    this.sourceTitle,
+    this.sourceBody,
+    this.sourceTags,
   });
 
-  /// Optional source note to create template from
+  /// Optional source note to create template from (for metadata)
   final LocalNote? sourceNote;
+
+  /// Optional pre-populated title (decrypted from source note)
+  final String? sourceTitle;
+
+  /// Optional pre-populated body (decrypted from source note)
+  final String? sourceBody;
+
+  /// Optional pre-populated tags
+  final List<String>? sourceTags;
 
   @override
   ConsumerState<CreateTemplateDialog> createState() => _CreateTemplateDialogState();
@@ -70,10 +88,27 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
     _tabController = TabController(length: 3, vsync: this);
 
     // Pre-populate from source note if provided
+    if (widget.sourceTitle != null) {
+      _titleController.text = widget.sourceTitle!;
+    }
+    if (widget.sourceBody != null) {
+      _bodyController.text = widget.sourceBody!;
+    }
+    if (widget.sourceTags != null && widget.sourceTags!.isNotEmpty) {
+      _tagsController.text = widget.sourceTags!.join(', ');
+    }
+
+    // Extract category from source note metadata if available
     if (widget.sourceNote != null) {
-      _titleController.text = widget.sourceNote!.title;
-      _bodyController.text = widget.sourceNote!.body;
-      // You might want to extract category from note tags or folder
+      try {
+        final metadata = widget.sourceNote!.encryptedMetadata;
+        if (metadata != null && metadata.isNotEmpty) {
+          // Could parse category from metadata here
+          // For now, keep default 'personal'
+        }
+      } catch (e) {
+        // Ignore metadata parsing errors
+      }
     }
 
     // Track dialog opened
@@ -681,7 +716,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
     });
 
     try {
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
       final analytics = ref.read(analyticsProvider);
 
       // Parse tags
@@ -691,11 +726,12 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           .where((tag) => tag.isNotEmpty)
           .toList();
 
-      // Create template
-      final template = await repository.createUserTemplate(
-        _titleController.text.trim(),
-        _bodyController.text.trim(),
-        metadata: {
+      // Create template using domain entity
+      final templateToCreate = domain_template.Template(
+        id: const Uuid().v4(),
+        name: _titleController.text.trim(),
+        content: _bodyController.text.trim(),
+        variables: {
           'tags': tags,
           'category': _selectedCategory,
           'description': _descriptionController.text.trim(),
@@ -704,44 +740,45 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           'source_note_id': widget.sourceNote?.id,
           'icon_data': _selectedIcon.codePoint,
         },
+        isSystem: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
-      if (template.isNotEmpty) {
-        _logger.info(
-          'Template created successfully',
-          data: {
-            'template_id': template,
-            'category': _selectedCategory,
-            'has_variables': _hasVariables(_bodyController.text),
-            'created_from_note': widget.sourceNote != null,
-          },
-        );
+      final template = await repository.createTemplate(templateToCreate);
 
-        // Track analytics
-        analytics.event('template_created', properties: {
-          'template_category': _selectedCategory,
+      _logger.info(
+        'Template created successfully',
+        data: {
+          'template_id': template.id,
+          'category': _selectedCategory,
           'has_variables': _hasVariables(_bodyController.text),
           'created_from_note': widget.sourceNote != null,
-          'content_length': _bodyController.text.length,
-          'has_tags': tags.isNotEmpty,
-        });
+        },
+      );
 
-        if (mounted) {
-          Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Template "${_titleController.text.trim()}" created successfully'),
-              action: SnackBarAction(
-                label: 'Use Now',
-                onPressed: () {
-                  // Here you could immediately use the template
-                },
-              ),
+      // Track analytics
+      analytics.event('template_created', properties: {
+        'template_category': _selectedCategory,
+        'has_variables': _hasVariables(_bodyController.text),
+        'created_from_note': widget.sourceNote != null,
+        'content_length': _bodyController.text.length,
+        'has_tags': tags.isNotEmpty,
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Template "${_titleController.text.trim()}" created successfully'),
+            action: SnackBarAction(
+              label: 'Use Now',
+              onPressed: () {
+                // Here you could immediately use the template
+              },
             ),
-          );
-        }
-      } else {
-        throw Exception('Template creation returned null');
+          ),
+        );
       }
     } catch (e, stackTrace) {
       _logger.error(

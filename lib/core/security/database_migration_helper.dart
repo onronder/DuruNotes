@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/security/database_encryption.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 
@@ -14,7 +14,7 @@ class DatabaseMigrationHelper {
   /// Check if migration is needed and perform it if necessary
   Future<void> migrateToEncryptedDatabase() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await resolveAppDocumentsDirectory();
       final oldDbFile = File(p.join(dir.path, 'duru.sqlite'));
       final newDbFile = File(p.join(dir.path, 'duru_encrypted.sqlite'));
 
@@ -77,14 +77,19 @@ class DatabaseMigrationHelper {
       newDb = sqlite3.open(newDbFile.path);
 
       // Set up encryption for new database
-      newDb.execute("PRAGMA key = '$encryptionKey'");
+      // Security: Escape single quotes to prevent SQL injection
+      final safeEncryptionKey = _escapeSqlString(encryptionKey);
+      newDb.execute("PRAGMA key = '$safeEncryptionKey'");
       newDb.execute('PRAGMA cipher_page_size = 4096');
       newDb.execute('PRAGMA kdf_iter = 64000');
       newDb.execute('PRAGMA cipher_hmac_algorithm = HMAC_SHA256');
       newDb.execute('PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA256');
 
       // Attach old database and copy all data
-      newDb.execute("ATTACH DATABASE '${oldDbFile.path}' AS old_db KEY ''");
+      // Security: Validate and escape file path to prevent injection
+      _validateDatabasePath(oldDbFile.path);
+      final safePath = _escapeSqlString(oldDbFile.path);
+      newDb.execute("ATTACH DATABASE '$safePath' AS old_db KEY ''");
 
       // Get all tables from old database
       final tables = oldDb.select(
@@ -94,20 +99,27 @@ class DatabaseMigrationHelper {
       // Copy each table
       for (final table in tables) {
         final tableName = table['name'] as String;
+
+        // Security: Validate table name to prevent SQL injection
+        _validateTableName(tableName);
+
         _logger.info('Migrating table: $tableName');
 
-        // Get table schema
+        // Get table schema using parameterized query (sqlite3 package doesn't support for all queries)
+        // Security: Use quoted identifier instead of string interpolation
         final createStatement = oldDb
             .select(
-              "SELECT sql FROM sqlite_master WHERE type='table' AND name='$tableName'",
+              'SELECT sql FROM sqlite_master WHERE type="table" AND name=?',
+              [tableName],
             )
             .first['sql'] as String;
 
         // Create table in new database
         newDb.execute(createStatement);
 
-        // Copy data
-        newDb.execute('INSERT INTO main.$tableName SELECT * FROM old_db.$tableName');
+        // Copy data using quoted identifiers to prevent injection
+        final quotedTableName = _quoteIdentifier(tableName);
+        newDb.execute('INSERT INTO main.$quotedTableName SELECT * FROM old_db.$quotedTableName');
       }
 
       // Copy indices
@@ -144,7 +156,10 @@ class DatabaseMigrationHelper {
     try {
       // Try to open the encrypted database
       db = sqlite3.open(newDbFile.path);
-      db.execute("PRAGMA key = '$encryptionKey'");
+
+      // Security: Escape encryption key to prevent SQL injection
+      final safeEncryptionKey = _escapeSqlString(encryptionKey);
+      db.execute("PRAGMA key = '$safeEncryptionKey'");
 
       // Try to query a table to verify encryption is working
       final tables = db.select(
@@ -188,4 +203,84 @@ class DatabaseMigrationHelper {
       // Non-critical error, don't throw
     }
   }
+
+  // ============================================================================
+  // Security: SQL Injection Prevention Methods
+  // ============================================================================
+
+  /// Escape single quotes in SQL strings to prevent SQL injection
+  ///
+  /// Security: Doubles single quotes according to SQL standard escaping rules
+  /// Input: "user's input" → Output: "user''s input"
+  String _escapeSqlString(String value) {
+    return value.replaceAll("'", "''");
+  }
+
+  /// Quote SQL identifier (table/column name) to prevent injection
+  ///
+  /// Security: Uses double quotes for identifiers per SQL standard
+  /// Escapes any embedded double quotes
+  String _quoteIdentifier(String identifier) {
+    final escaped = identifier.replaceAll('"', '""');
+    return '"$escaped"';
+  }
+
+  /// Validate table name contains only safe characters
+  ///
+  /// Security: Whitelist validation - only allow alphanumeric and underscore
+  /// Throws SecurityException if table name contains unsafe characters
+  void _validateTableName(String tableName) {
+    final safePattern = RegExp(r'^[a-zA-Z0-9_]+$');
+    if (!safePattern.hasMatch(tableName)) {
+      throw SecurityException(
+        'Invalid table name: "$tableName". '
+        'Only alphanumeric characters and underscores are allowed.',
+      );
+    }
+
+    // Additional check: SQLite reserved words
+    const reservedWords = {'table', 'index', 'trigger', 'view', 'select', 'delete', 'update', 'insert'};
+    if (reservedWords.contains(tableName.toLowerCase())) {
+      throw SecurityException(
+        'Invalid table name: "$tableName" is a reserved SQL keyword.',
+      );
+    }
+  }
+
+  /// Validate database file path is within allowed directory
+  ///
+  /// Security: Path traversal prevention
+  /// Ensures path doesn't contain directory traversal attempts (../)
+  void _validateDatabasePath(String path) {
+    // Check for path traversal attempts
+    if (path.contains('../') || path.contains('..\\')) {
+      throw SecurityException(
+        'Invalid database path: Path traversal detected in "$path"',
+      );
+    }
+
+    // Ensure path is absolute (starts with /)
+    if (!path.startsWith('/')) {
+      throw SecurityException(
+        'Invalid database path: Path must be absolute, got "$path"',
+      );
+    }
+
+    // Additional validation: Path should contain expected directory name
+    if (!path.contains('Documents') && !path.contains('databases')) {
+      _logger.warning(
+        'Database path "$path" does not contain expected directory. '
+        'This may indicate a security issue.',
+      );
+    }
+  }
+}
+
+/// Security exception for database operations
+class SecurityException implements Exception {
+  final String message;
+  SecurityException(this.message);
+
+  @override
+  String toString() => 'SecurityException: $message';
 }

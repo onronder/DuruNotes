@@ -10,7 +10,8 @@ class SyncCoordinator {
 
   final Map<String, Completer<void>?> _activeSyncs = {};
   final Map<String, DateTime> _lastSyncTimes = {};
-  static const Duration _minSyncInterval = Duration(seconds: 2);
+  // Increased from 2s to 10s to prevent excessive sync calls (especially from realtime events)
+  static const Duration _minSyncInterval = Duration(seconds: 10);
 
   /// Check if any sync operation is currently running
   bool get isSyncing => _activeSyncs.values.any((completer) => completer != null);
@@ -60,8 +61,8 @@ class SyncCoordinator {
       final result = await syncOperation();
       debugPrint('✅ Sync completed: $syncType');
       return result;
-    } catch (error) {
-      debugPrint('❌ Sync failed: $syncType - $error');
+    } catch (error, stackTrace) {
+      debugPrint('❌ Sync failed: $syncType - $error\n$stackTrace');
       rethrow;
     } finally {
       // Always cleanup, even on error

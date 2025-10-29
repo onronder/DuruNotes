@@ -97,5 +97,18 @@
 	</array>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.fittechs.durunotes</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>durunotes</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

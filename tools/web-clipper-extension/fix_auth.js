@@ -16,11 +16,11 @@ async function forceTokenRefresh() {
   try {
     console.log('Attempting to refresh token...');
     
-    const response = await fetch('https://jtaedgpxesshdrnbgvjr.supabase.co/auth/v1/token?grant_type=refresh_token', {
+    const response = await fetch('https://mizzxiijxtbwrqgflpnp.supabase.co/auth/v1/token?grant_type=refresh_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U'
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1penp4aWlqeHRid3JxZ2ZscG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4OTYxMjgsImV4cCI6MjA3NjQ3MjEyOH0.NcQfWaZ7uvWgxC5GdIJtGU6DPmVo3zfOhOjdq0qHncw'
       },
       body: JSON.stringify({ refresh_token: storage.refresh_token })
     });

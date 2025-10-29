@@ -4,21 +4,23 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:duru_notes/models/note_block.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
-    show unifiedTaskServiceProvider, taskReminderBridgeProvider;
+    show domainTaskControllerProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:duru_notes/services/domain_task_controller.dart';
 
-/// Todo block widget using UnifiedTaskService
-/// No VoidCallback usage - all actions go through the unified service
-/// Phase 11: Re-enabled task matching with decrypted domain.Task from repository
+/// Todo block widget backed by the domain task controller
+/// No VoidCallback usage - all actions go through the domain layer
+/// Domain migration: matches decrypted domain.Task entities from the repository
 class TodoBlockWidget extends ConsumerStatefulWidget {
   const TodoBlockWidget({
     required this.block,
@@ -53,6 +55,46 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   domain.Task? _task;
 
   AppLogger get _logger => ref.read(loggerProvider);
+
+  DomainTaskController? _maybeController({bool showSnackbar = true}) {
+    final repository = ref.read(taskCoreRepositoryProvider);
+    if (repository == null) {
+      _logger.warning(
+        'Task action attempted without authenticated user',
+        data: {'noteId': widget.noteId},
+      );
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sign in to manage tasks.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+      return null;
+    }
+
+    try {
+      return ref.read(domainTaskControllerProvider);
+    } on StateError catch (error, stackTrace) {
+      _logger.error(
+        'DomainTaskController unavailable',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Tasks temporarily unavailable.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -110,18 +152,22 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
   }
 
   Future<void> _loadTaskData() async {
-    // Phase 11: Re-enabled - now uses decrypted domain.Task from repository
+    // Domain migration: load decrypted tasks via controller
     if (widget.noteId == null) return;
 
     try {
-      final unifiedService = ref.read(unifiedTaskServiceProvider);
-      final tasks = await unifiedService.getTasksForNote(widget.noteId!);
+      final controller = _maybeController(showSnackbar: false);
+      if (controller == null) return;
 
-      // Match task by title (now works because title is decrypted)
-      final matchedTask = tasks.cast<domain.Task?>().firstWhere(
-        (task) => task?.title.trim() == _text.trim(),
-        orElse: () => null,
-      );
+      final tasks = await controller.getTasksForNote(widget.noteId!);
+
+      domain.Task? matchedTask;
+      for (final task in tasks) {
+        if (task.title.trim() == _text.trim()) {
+          matchedTask = task;
+          break;
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -152,6 +198,31 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
     _updateTodo();
   }
 
+  Future<void> _refreshTask() async {
+    if (_task == null) return;
+    try {
+      final controller = _maybeController(showSnackbar: false);
+      if (controller == null) return;
+
+      final updated = await controller.getTaskById(_task!.id);
+      if (mounted && updated != null) {
+        setState(() {
+          _task = updated;
+        });
+      }
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Failed to refresh task state for todo block',
+        data: {
+          'taskId': _task?.id,
+          'error': e.toString(),
+          'stackTrace': stackTrace.toString(),
+        },
+      );
+      unawaited(Sentry.captureException(e, stackTrace: stackTrace));
+    }
+  }
+
   void _toggleCompleted() async {
     // Optimistic UI update
     setState(() {
@@ -159,11 +230,14 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
     });
     _updateTodo();
 
-    // Phase 11: Re-enabled - update task status if it exists
+    // Domain migration: update task status via controller
     if (_task != null && widget.noteId != null) {
       try {
-        final unifiedService = ref.read(unifiedTaskServiceProvider);
-        await unifiedService.toggleTaskStatus(_task!.id);
+        final controller = _maybeController();
+        if (controller == null) return;
+
+        await controller.toggleStatus(_task!.id);
+        await _refreshTask();
       } catch (e, stackTrace) {
         _logger.error(
           'Failed to toggle task status in todo block',
@@ -211,85 +285,50 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
     if (widget.noteId == null) return;
 
     try {
-      final unifiedService = ref.read(unifiedTaskServiceProvider);
-      final reminderBridge = ref.read(taskReminderBridgeProvider);
+      final controller = _maybeController();
+      if (controller == null) return;
 
-      // Phase 11: Re-enabled task create/update logic
       if (_task == null) {
-        // NEW TASK WITH OPTIONAL REMINDER
-        if (metadata.hasReminder &&
-            metadata.reminderTime != null &&
-            metadata.dueDate != null) {
-          final createdTask = await unifiedService.createTask(
-            noteId: widget.noteId!,
-            content: _text,
-            dueDate: metadata.dueDate,
-            priority: TaskMapper.mapPriorityToDb(metadata.priority),
-            labels: metadata.labels,
-            notes: metadata.notes,
-            estimatedMinutes: metadata.estimatedMinutes,
-          );
-
-          final duration = metadata.dueDate!.difference(metadata.reminderTime!);
-          await reminderBridge.createTaskReminder(
-            task: createdTask,
-            beforeDueDate: duration.abs(),
-          );
-        } else {
-          await unifiedService.createTask(
-            noteId: widget.noteId!,
-            content: _text,
-            priority: TaskMapper.mapPriorityToDb(metadata.priority),
-            dueDate: metadata.dueDate,
-            labels: metadata.labels,
-            notes: metadata.notes,
-            estimatedMinutes: metadata.estimatedMinutes,
-          );
-        }
-
-        // Reload task data
-        await _loadTaskData();
-      } else {
-        // UPDATE EXISTING TASK - Phase 11: Re-enabled
-        final oldTask = _task!;
-
-        await unifiedService.updateTask(
-          taskId: oldTask.id,
-          priority: TaskMapper.mapPriorityToDb(metadata.priority),
+        final createdTask = await controller.createTask(
+          noteId: widget.noteId!,
+          title: _text,
+          description: metadata.notes,
+          priority: metadata.priority,
           dueDate: metadata.dueDate,
-          labels: metadata.labels,
-          notes: metadata.notes,
+          tags: metadata.labels,
+          createReminder: metadata.hasReminder,
+          reminderTime: metadata.reminderTime,
           estimatedMinutes: metadata.estimatedMinutes,
+          metadata: metadata.estimatedMinutes != null
+              ? {'estimatedMinutes': metadata.estimatedMinutes}
+              : null,
         );
 
-        // Handle reminder changes - Note: TaskReminderBridge needs NoteTask
-        // Get the updated NoteTask from database for reminder operations
-        final updatedNoteTask = await unifiedService.getTask(oldTask.id);
-        if (updatedNoteTask != null) {
-          if (metadata.hasReminder &&
-              metadata.reminderTime != null &&
-              metadata.dueDate != null) {
-            if (updatedNoteTask.reminderId == null) {
-              // Create new reminder
-              final duration =
-                  metadata.dueDate!.difference(metadata.reminderTime!);
-              await reminderBridge.createTaskReminder(
-                task: updatedNoteTask,
-                beforeDueDate: duration.abs(),
-              );
-            } else {
-              // Update existing reminder
-              await reminderBridge.updateTaskReminder(updatedNoteTask);
-            }
-          } else if (!metadata.hasReminder && updatedNoteTask.reminderId != null) {
-            // Cancel existing reminder
-            await reminderBridge.cancelTaskReminder(updatedNoteTask);
-          }
+        if (mounted) {
+          setState(() {
+            _task = createdTask;
+          });
         }
+      } else {
+        final updatedTask = await controller.updateTask(
+          _task!,
+          description: metadata.notes,
+          priority: metadata.priority,
+          dueDate: metadata.dueDate,
+          tags: metadata.labels,
+          estimatedMinutes: metadata.estimatedMinutes,
+          hasReminder: metadata.hasReminder,
+          reminderTime: metadata.reminderTime,
+        );
 
-        // Reload task data
-        await _loadTaskData();
+        if (mounted) {
+          setState(() {
+            _task = updatedTask;
+          });
+        }
       }
+
+      await _refreshTask();
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to save task metadata in todo block',

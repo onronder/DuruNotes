@@ -1,8 +1,8 @@
-// Unified Task type that bridges LocalTask and domain.Task
-// This removes the need for conditional logic based on migration status
+// Unified Task type that wraps domain.Task
+// Post-encryption migration: All data flows through domain entities (already decrypted)
+// NoteTask is now only used at the infrastructure layer with encrypted fields
 
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/data/local/app_db.dart';
 
 abstract class UnifiedTask {
   String get id;
@@ -20,113 +20,23 @@ abstract class UnifiedTask {
   List<String> get tags;
   Map<String, dynamic>? get metadata;
 
-  // Factory constructors to create from different sources
-  factory UnifiedTask.fromLocal(NoteTask task) = _UnifiedTaskFromLocal;
+  // Factory constructor - only works with domain entities now
   factory UnifiedTask.fromDomain(domain.Task task) = _UnifiedTaskFromDomain;
 
   // Smart factory that detects type
   factory UnifiedTask.from(dynamic task) {
-    if (task is NoteTask) return UnifiedTask.fromLocal(task);
     if (task is domain.Task) return UnifiedTask.fromDomain(task);
     if (task is UnifiedTask) return task;
-    throw ArgumentError('Unknown task type: ${task.runtimeType}');
+    throw ArgumentError('Unknown task type: ${task.runtimeType}. Only domain.Task is supported post-migration.');
   }
 
-  // Convert to the required format
-  NoteTask toLocal();
+  // Convert to domain format
   domain.Task toDomain();
 
   // Helper methods
-  bool get isCompleted => status == '1' || status == domain.TaskStatus.completed.toString();
-  bool get isPending => status == '0' || status == domain.TaskStatus.pending.toString();
+  bool get isCompleted => status == domain.TaskStatus.completed.toString();
+  bool get isPending => status == domain.TaskStatus.pending.toString();
   bool get isOverdue => dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
-}
-
-class _UnifiedTaskFromLocal implements UnifiedTask {
-  final NoteTask _task;
-
-  _UnifiedTaskFromLocal(this._task);
-
-  @override
-  String get id => _task.id;
-
-  @override
-  String get content => _task.content;
-
-  @override
-  String? get noteId => _task.noteId;
-
-  @override
-  String? get description => null; // LocalTask doesn't have description
-
-  @override
-  DateTime? get dueDate => _task.dueDate;
-
-  @override
-  DateTime get createdAt => _task.createdAt;
-
-  @override
-  DateTime get updatedAt => _task.updatedAt;
-
-  @override
-  String get status => _task.status == TaskStatus.completed ? '1' : '0';
-
-  @override
-  int get priority => _task.priority?.index ?? 0;
-
-  @override
-  bool get deleted => _task.deleted;
-
-  @override
-  String get userId => ''; // NoteTask doesn't have userId
-
-  @override
-  int get version => 1; // NoteTask doesn't have version
-
-  @override
-  List<String> get tags => [];
-
-  @override
-  Map<String, dynamic>? get metadata => null; // NoteTask doesn't have metadata
-
-  @override
-  bool get isCompleted => status == '1' || status == domain.TaskStatus.completed.toString();
-
-  @override
-  bool get isPending => status == '0' || status == domain.TaskStatus.pending.toString();
-
-  @override
-  bool get isOverdue => dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
-
-  @override
-  NoteTask toLocal() => _task;
-
-  @override
-  domain.Task toDomain() => domain.Task(
-    id: _task.id,
-    noteId: _task.noteId ?? '',
-    title: _task.content,
-    description: null,
-    status: _task.status == TaskStatus.completed
-        ? domain.TaskStatus.completed
-        : domain.TaskStatus.pending,
-    priority: domain.TaskPriority.values.firstWhere(
-      (p) => p.index == _task.priority.index,
-      orElse: () => domain.TaskPriority.medium,
-    ),
-    dueDate: _task.dueDate,
-    completedAt: isCompleted ? DateTime.now() : null,
-    tags: [],
-    metadata: {},
-  );
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is _UnifiedTaskFromLocal && _task.id == other._task.id;
-
-  @override
-  int get hashCode => _task.id.hashCode;
 }
 
 class _UnifiedTaskFromDomain implements UnifiedTask {
@@ -184,31 +94,6 @@ class _UnifiedTaskFromDomain implements UnifiedTask {
 
   @override
   bool get isOverdue => dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
-
-  @override
-  NoteTask toLocal() => NoteTask(
-    id: _task.id,
-    content: _task.title,
-    noteId: _task.noteId,
-    status: _task.status == domain.TaskStatus.completed
-        ? TaskStatus.completed
-        : TaskStatus.open,
-    priority: TaskPriority.values[_task.priority.index],
-    dueDate: _task.dueDate,
-    completedAt: _task.completedAt,
-    completedBy: null,
-    position: 0,
-    contentHash: _task.title.hashCode.toString(),
-    reminderId: null,
-    labels: _task.tags.join(','),
-    notes: _task.description,
-    estimatedMinutes: null,
-    actualMinutes: null,
-    parentTaskId: null,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-    deleted: false,
-  );
 
   @override
   domain.Task toDomain() => _task;

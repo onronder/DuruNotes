@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
-// Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show enhancedTaskServiceProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show domainTaskControllerProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_indicators_widget.dart';
 import 'package:flutter/material.dart';
@@ -43,10 +44,12 @@ class CalendarTaskSheet extends ConsumerWidget {
     final isToday = _isToday(selectedDate);
 
     // Separate completed and incomplete tasks
-    final incompleteTasks =
-        tasks.where((t) => t.status != domain.TaskStatus.completed).toList();
-    final completedTasks =
-        tasks.where((t) => t.status == domain.TaskStatus.completed).toList();
+    final incompleteTasks = tasks
+        .where((t) => t.status != domain.TaskStatus.completed)
+        .toList();
+    final completedTasks = tasks
+        .where((t) => t.status == domain.TaskStatus.completed)
+        .toList();
 
     // Sort tasks by priority and due time
     incompleteTasks.sort((a, b) {
@@ -132,15 +135,17 @@ class CalendarTaskSheet extends ConsumerWidget {
                     children: [
                       // Incomplete tasks
                       if (incompleteTasks.isNotEmpty) ...[
-                        ...incompleteTasks.map((task) => CalendarTaskItem(
-                              task: task,
-                              onToggle: () => onTaskToggle(task),
-                              onEdit: () => onTaskEdit(task),
-                              onDelete: () => onTaskDelete(task),
-                              onOpenNote: onOpenNote != null
-                                  ? () => onOpenNote!(task)
-                                  : null,
-                            )),
+                        ...incompleteTasks.map(
+                          (task) => CalendarTaskItem(
+                            task: task,
+                            onToggle: () => onTaskToggle(task),
+                            onEdit: () => onTaskEdit(task),
+                            onDelete: () => onTaskDelete(task),
+                            onOpenNote: onOpenNote != null
+                                ? () => onOpenNote!(task)
+                                : null,
+                          ),
+                        ),
                         if (completedTasks.isNotEmpty)
                           const SizedBox(height: 16),
                       ],
@@ -206,9 +211,8 @@ class CalendarTaskSheet extends ConsumerWidget {
       context: context,
       builder: (context) => TaskMetadataDialog(
         taskContent: 'New Task',
-        onSave: (metadata) => Navigator.of(context).pop(metadata.copyWith(
-          dueDate: selectedDate,
-        )),
+        onSave: (metadata) =>
+            Navigator.of(context).pop(metadata.copyWith(dueDate: selectedDate)),
       ),
     );
 
@@ -219,19 +223,38 @@ class CalendarTaskSheet extends ConsumerWidget {
   }
 
   Future<void> _createTaskForDate(
-      BuildContext context, WidgetRef ref, TaskMetadata metadata) async {
+    BuildContext context,
+    WidgetRef ref,
+    TaskMetadata metadata,
+  ) async {
     final logger = ref.read(loggerProvider);
     try {
-      final taskService = ref.read(enhancedTaskServiceProvider);
-      await taskService.createTask(
-        noteId: 'standalone',
-        content:
-            metadata.notes?.isNotEmpty == true ? metadata.notes! : 'New Task',
-        priority: TaskMapper.mapPriorityToDb(metadata.priority),
+      final taskRepo = ref.read(taskCoreRepositoryProvider);
+      if (taskRepo == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task creation requires authentication'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final controller = ref.read(domainTaskControllerProvider);
+      final taskTitle = metadata.taskContent.trim().isEmpty
+          ? 'New Task'
+          : metadata.taskContent.trim();
+
+      await controller.createTask(
+        title: taskTitle,
+        description: metadata.notes,
+        priority: metadata.priority,
         dueDate: metadata.dueDate ?? selectedDate,
-        labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
-        notes: metadata.notes,
+        tags: metadata.labels,
         estimatedMinutes: metadata.estimatedMinutes,
+        createReminder: metadata.hasReminder,
+        reminderTime: metadata.reminderTime,
       );
 
       if (context.mounted) {
@@ -287,7 +310,10 @@ class CalendarTaskSheet extends ConsumerWidget {
     }
   }
 
-  String _getTaskSummary(List<domain.Task> incomplete, List<domain.Task> completed) {
+  String _getTaskSummary(
+    List<domain.Task> incomplete,
+    List<domain.Task> completed,
+  ) {
     final total = incomplete.length + completed.length;
     if (completed.isEmpty) {
       return '$total ${total == 1 ? 'task' : 'tasks'}';
@@ -358,11 +384,7 @@ class CalendarTaskItem extends StatelessWidget {
                           : Colors.transparent,
                     ),
                     child: isCompleted
-                        ? const Icon(
-                            Icons.check,
-                            size: 14,
-                            color: Colors.white,
-                          )
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
                         : null,
                   ),
                 ),
@@ -411,12 +433,17 @@ class CalendarTaskItem extends StatelessWidget {
                           ),
 
                           // Source note indicator
-                          if (task.noteId != 'standalone' && onOpenNote != null)
+                          if (!DomainTaskController.isStandaloneNoteId(
+                                task.noteId,
+                              ) &&
+                              onOpenNote != null)
                             GestureDetector(
                               onTap: onOpenNote,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: colorScheme.secondaryContainer
                                       .withValues(alpha: 0.5),
@@ -462,20 +489,27 @@ class CalendarTaskItem extends StatelessWidget {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit,
-                              size: 16, color: colorScheme.primary),
+                          Icon(
+                            Icons.edit,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
                           const SizedBox(width: 8),
                           const Text('Edit'),
                         ],
                       ),
                     ),
-                    if (onOpenNote != null && task.noteId != 'standalone')
+                    if (onOpenNote != null &&
+                        !DomainTaskController.isStandaloneNoteId(task.noteId))
                       PopupMenuItem(
                         value: 'open_note',
                         child: Row(
                           children: [
-                            Icon(Icons.note,
-                                size: 16, color: colorScheme.secondary),
+                            Icon(
+                              Icons.note,
+                              size: 16,
+                              color: colorScheme.secondary,
+                            ),
                             const SizedBox(width: 8),
                             const Text('Open Note'),
                           ],
@@ -660,15 +694,17 @@ class _CompletedTasksSectionState extends State<CompletedTasksSection>
           sizeFactor: _expandAnimation,
           child: Column(
             children: widget.tasks
-                .map((task) => CalendarTaskItem(
-                      task: task,
-                      onToggle: () => widget.onTaskToggle(task),
-                      onEdit: () => widget.onTaskEdit(task),
-                      onDelete: () => widget.onTaskDelete(task),
-                      onOpenNote: widget.onOpenNote != null
-                          ? () => widget.onOpenNote!(task)
-                          : null,
-                    ))
+                .map(
+                  (task) => CalendarTaskItem(
+                    task: task,
+                    onToggle: () => widget.onTaskToggle(task),
+                    onEdit: () => widget.onTaskEdit(task),
+                    onDelete: () => widget.onTaskDelete(task),
+                    onOpenNote: widget.onOpenNote != null
+                        ? () => widget.onOpenNote!(task)
+                        : null,
+                  ),
+                )
                 .toList(),
           ),
         ),

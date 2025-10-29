@@ -11,11 +11,47 @@ class SecureApiWrapper {
   final SupabaseNoteApi _api;
   final RateLimitingMiddleware _rateLimiter;
   final ErrorLoggingService _errorLogger;
+  final String Function()? _userIdResolver;
 
-  SecureApiWrapper(SupabaseClient client)
-      : _api = SupabaseNoteApi(client),
-        _rateLimiter = SecurityInitialization.rateLimiter,
-        _errorLogger = SecurityInitialization.errorLogging;
+  SecureApiWrapper(
+    SupabaseClient client, {
+    SupabaseNoteApi? api,
+    String Function()? userIdResolver,
+  }) : _api = api ?? SupabaseNoteApi(client),
+       _rateLimiter = SecurityInitialization.isInitialized
+           ? SecurityInitialization.rateLimiter
+           : (() {
+               if (kDebugMode) {
+                 debugPrint('⚠️ [SecureApiWrapper] FALLBACK: Creating local RateLimitingMiddleware');
+                 debugPrint('⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false');
+                 debugPrint('⚠️ [SecureApiWrapper] This indicates a race condition bug');
+                 debugPrint('⚠️ [SecureApiWrapper] Stack trace:');
+                 debugPrint(StackTrace.current.toString());
+               }
+               return RateLimitingMiddleware();
+             })(),
+       _errorLogger = SecurityInitialization.isInitialized
+           ? SecurityInitialization.errorLogging
+           : (() {
+               if (kDebugMode) {
+                 debugPrint('⚠️ [SecureApiWrapper] FALLBACK: Creating local ErrorLoggingService');
+                 debugPrint('⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false');
+               }
+               return ErrorLoggingService();
+             })(),
+       _userIdResolver = userIdResolver;
+  // Note: SecurityInitialization must complete before SecureApiWrapper is created (app.dart:504-580)
+  // If SecurityInitialization.isInitialized is false, this indicates a race condition bug
+  // Diagnostic logging added to capture stack trace and timing information
+
+  /// Testing constructor that bypasses security initialization.
+  SecureApiWrapper.testing({
+    required SupabaseNoteApi api,
+    String Function()? userIdResolver,
+  }) : _api = api,
+       _rateLimiter = RateLimitingMiddleware(),
+       _errorLogger = ErrorLoggingService(),
+       _userIdResolver = userIdResolver;
 
   /// Execute API call with rate limiting and error handling
   Future<T> _executeWithProtection<T>({
@@ -24,7 +60,7 @@ class SecureApiWrapper {
     Map<String, dynamic>? metadata,
   }) async {
     // Get user ID for rate limiting
-    final userId = _api._uid;
+    final userId = _userIdResolver?.call() ?? _api._uid;
 
     // Check rate limit
     final rateLimitResult = await _rateLimiter.checkRateLimit(
@@ -36,15 +72,12 @@ class SecureApiWrapper {
 
     if (!rateLimitResult.allowed) {
       // Log rate limit violation
-      _errorLogger.logWarning(
-        'Rate limit exceeded for $endpoint',
-        {
-          'userId': userId,
-          'endpoint': endpoint,
-          'retryAfter': rateLimitResult.retryAfter?.toIso8601String(),
-          'reason': rateLimitResult.reason,
-        },
-      );
+      _errorLogger.logWarning('Rate limit exceeded for $endpoint', {
+        'userId': userId,
+        'endpoint': endpoint,
+        'retryAfter': rateLimitResult.retryAfter?.toIso8601String(),
+        'reason': rateLimitResult.reason,
+      });
 
       throw RateLimitException(
         message: rateLimitResult.reason ?? 'Rate limit exceeded',
@@ -60,7 +93,9 @@ class SecureApiWrapper {
 
       // Log successful operation
       if (kDebugMode) {
-        debugPrint('API call to $endpoint completed in ${stopwatch.elapsedMilliseconds}ms');
+        debugPrint(
+          'API call to $endpoint completed in ${stopwatch.elapsedMilliseconds}ms',
+        );
       }
 
       return result;
@@ -70,11 +105,7 @@ class SecureApiWrapper {
         error,
         stack,
         category: 'API',
-        metadata: {
-          'endpoint': endpoint,
-          'userId': userId,
-          ...?metadata,
-        },
+        metadata: {'endpoint': endpoint, 'userId': userId, ...?metadata},
       );
 
       // Rethrow with additional context
@@ -95,11 +126,15 @@ class SecureApiWrapper {
   static String generateId() => SupabaseNoteApi.generateId();
 
   /// Upsert encrypted note with rate limiting
+  ///
+  /// [createdAt] should be provided for new notes to ensure timestamp consistency
+  /// across all devices. For existing notes being updated, this can be null.
   Future<void> upsertEncryptedNote({
     required String id,
     required Uint8List titleEnc,
     required Uint8List propsEnc,
     required bool deleted,
+    DateTime? createdAt,
   }) async {
     return _executeWithProtection(
       endpoint: '/api/notes/upsert',
@@ -108,11 +143,9 @@ class SecureApiWrapper {
         titleEnc: titleEnc,
         propsEnc: propsEnc,
         deleted: deleted,
+        createdAt: createdAt,
       ),
-      metadata: {
-        'noteId': id,
-        'deleted': deleted,
-      },
+      metadata: {'noteId': id, 'deleted': deleted},
     );
   }
 
@@ -123,9 +156,7 @@ class SecureApiWrapper {
     return _executeWithProtection(
       endpoint: '/api/notes/fetch',
       operation: () => _api.fetchEncryptedNotes(since: since),
-      metadata: {
-        'since': since?.toIso8601String(),
-      },
+      metadata: {'since': since?.toIso8601String()},
     );
   }
 
@@ -152,10 +183,7 @@ class SecureApiWrapper {
         propsEnc: propsEnc,
         deleted: deleted,
       ),
-      metadata: {
-        'folderId': id,
-        'deleted': deleted,
-      },
+      metadata: {'folderId': id, 'deleted': deleted},
     );
   }
 
@@ -166,9 +194,7 @@ class SecureApiWrapper {
     return _executeWithProtection(
       endpoint: '/api/folders/fetch',
       operation: () => _api.fetchEncryptedFolders(since: since),
-      metadata: {
-        'since': since?.toIso8601String(),
-      },
+      metadata: {'since': since?.toIso8601String()},
     );
   }
 
@@ -187,32 +213,21 @@ class SecureApiWrapper {
   }) async {
     return _executeWithProtection(
       endpoint: '/api/note-folders/upsert',
-      operation: () => _api.upsertNoteFolderRelation(
-        noteId: noteId,
-        folderId: folderId,
-      ),
-      metadata: {
-        'noteId': noteId,
-        'folderId': folderId,
-      },
+      operation: () =>
+          _api.upsertNoteFolderRelation(noteId: noteId, folderId: folderId),
+      metadata: {'noteId': noteId, 'folderId': folderId},
     );
   }
 
   /// Delete note-folder relationship with rate limiting
   Future<void> deleteNoteFolderRelation({
     required String noteId,
-    required String folderId,
+    String? folderId,
   }) async {
     return _executeWithProtection(
       endpoint: '/api/note-folders/delete',
-      operation: () => _api.deleteNoteFolderRelation(
-        noteId: noteId,
-        folderId: folderId,
-      ),
-      metadata: {
-        'noteId': noteId,
-        'folderId': folderId,
-      },
+      operation: () => _api.removeNoteFolderRelation(noteId: noteId),
+      metadata: {'noteId': noteId, 'folderId': folderId},
     );
   }
 
@@ -223,9 +238,7 @@ class SecureApiWrapper {
     return _executeWithProtection(
       endpoint: '/api/note-folders/fetch',
       operation: () => _api.fetchNoteFolderRelations(since: since),
-      metadata: {
-        'since': since?.toIso8601String(),
-      },
+      metadata: {'since': since?.toIso8601String()},
     );
   }
 
@@ -233,7 +246,7 @@ class SecureApiWrapper {
   Future<List<Map<String, dynamic>>> fetchAllActiveRelations() async {
     return _executeWithProtection(
       endpoint: '/api/note-folders/active-relations',
-      operation: () => _api.fetchAllActiveRelations(),
+      operation: () => _api.fetchNoteFolderRelations(),
     );
   }
 
@@ -254,13 +267,11 @@ class SecureApiWrapper {
               titleEnc: note['titleEnc'] as Uint8List,
               propsEnc: note['propsEnc'] as Uint8List,
               deleted: (note['deleted'] ?? false) as bool,
+              createdAt: note['createdAt'] as DateTime?,
             );
           }
         },
-        metadata: {
-          'batchSize': batch.length,
-          'totalNotes': notes.length,
-        },
+        metadata: {'batchSize': batch.length, 'totalNotes': notes.length},
       );
 
       // Add delay between batches to prevent rate limiting
@@ -269,6 +280,125 @@ class SecureApiWrapper {
       }
     }
   }
+
+  /// Upsert task with rate limiting
+  Future<void> upsertNoteTask({
+    required String id,
+    required String noteId,
+    required String content,
+    required String status,
+    required int priority,
+    required int position,
+    DateTime? dueDate,
+    DateTime? completedAt,
+    String? parentId,
+    Map<String, dynamic>? labels,
+    Map<String, dynamic>? metadata,
+    required bool deleted,
+  }) async {
+    return _executeWithProtection(
+      endpoint: '/api/tasks/upsert',
+      operation: () => _api.upsertNoteTask(
+        id: id,
+        noteId: noteId,
+        content: content,
+        status: status,
+        priority: priority,
+        position: position,
+        dueDate: dueDate,
+        completedAt: completedAt,
+        parentId: parentId,
+        labels: labels,
+        metadata: metadata,
+        deleted: deleted,
+      ),
+      metadata: {'taskId': id, 'noteId': noteId, 'deleted': deleted},
+    );
+  }
+
+  /// Soft delete task with rate limiting
+  Future<void> deleteNoteTask({required String id}) async {
+    return _executeWithProtection(
+      endpoint: '/api/tasks/delete',
+      operation: () => _api.deleteNoteTask(id: id),
+      metadata: {'taskId': id},
+    );
+  }
+
+  /// Fetch tasks with rate limiting
+  Future<List<Map<String, dynamic>>> fetchNoteTasks({DateTime? since}) async {
+    return _executeWithProtection(
+      endpoint: '/api/tasks/fetch',
+      operation: () => _api.fetchNoteTasks(since: since),
+      metadata: {'since': since?.toIso8601String()},
+    );
+  }
+
+  /// Fetch active task IDs with rate limiting
+  Future<Set<String>> fetchAllActiveTaskIds() async {
+    return _executeWithProtection(
+      endpoint: '/api/tasks/active-ids',
+      operation: () => _api.fetchAllActiveTaskIds(),
+    );
+  }
+
+  /// Upsert template with rate limiting
+  Future<void> upsertTemplate({
+    required String id,
+    required String userId,
+    required String titleEnc,
+    required String bodyEnc,
+    String? tagsEnc,
+    required bool isSystem,
+    required String category,
+    String? descriptionEnc,
+    String? icon,
+    int sortOrder = 0,
+    String? propsEnc,
+    required bool deleted,
+  }) async {
+    return _executeWithProtection(
+      endpoint: '/api/templates/upsert',
+      operation: () => _api.upsertTemplate(
+        id: id,
+        userId: userId,
+        titleEnc: titleEnc,
+        bodyEnc: bodyEnc,
+        tagsEnc: tagsEnc,
+        isSystem: isSystem,
+        category: category,
+        descriptionEnc: descriptionEnc,
+        icon: icon,
+        sortOrder: sortOrder,
+        propsEnc: propsEnc,
+        deleted: deleted,
+      ),
+      metadata: {
+        'templateId': id,
+        'userId': userId,
+        'deleted': deleted,
+        'isSystem': isSystem,
+      },
+    );
+  }
+
+  /// Soft delete template with rate limiting
+  Future<void> deleteTemplate({required String id}) async {
+    return _executeWithProtection(
+      endpoint: '/api/templates/delete',
+      operation: () => _api.deleteTemplate(id: id),
+      metadata: {'templateId': id},
+    );
+  }
+
+  /// Fetch templates with rate limiting
+  Future<List<Map<String, dynamic>>> fetchTemplates({DateTime? since}) async {
+    return _executeWithProtection(
+      endpoint: '/api/templates/fetch',
+      operation: () => _api.fetchTemplates(since: since),
+      metadata: {'since': since?.toIso8601String()},
+    );
+  }
 }
 
 /// Custom exception for rate limit violations
@@ -276,13 +406,11 @@ class RateLimitException implements Exception {
   final String message;
   final DateTime? retryAfter;
 
-  RateLimitException({
-    required this.message,
-    this.retryAfter,
-  });
+  RateLimitException({required this.message, this.retryAfter});
 
   @override
-  String toString() => 'RateLimitException: $message${retryAfter != null ? ' (Retry after: $retryAfter)' : ''}';
+  String toString() =>
+      'RateLimitException: $message${retryAfter != null ? ' (Retry after: $retryAfter)' : ''}';
 }
 
 /// Custom exception for API errors
@@ -300,7 +428,8 @@ class ApiException implements Exception {
   });
 
   @override
-  String toString() => 'ApiException [$endpoint]: $message${code != null ? ' (Code: $code)' : ''}';
+  String toString() =>
+      'ApiException [$endpoint]: $message${code != null ? ' (Code: $code)' : ''}';
 }
 
 /// Extension to make SupabaseNoteApi private members accessible

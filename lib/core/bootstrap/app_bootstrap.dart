@@ -6,11 +6,11 @@ import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/sentry_config.dart';
+import 'package:duru_notes/core/providers/database_providers.dart';
 import 'package:duru_notes/firebase_options.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/template_initialization_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -81,6 +81,9 @@ class AppBootstrap {
 
   final EnvironmentConfigLoader _environmentLoader;
 
+  // Track Adapty activation to prevent multiple activation attempts
+  static bool _adaptyActivated = false;
+
   Future<BootstrapResult> initialize() async {
     final failures = <BootstrapFailure>[];
     final warnings = <String>[];
@@ -132,6 +135,21 @@ class AppBootstrap {
       data: {
         'source': environmentSource,
         'summary': environment.safeSummary(),
+      },
+    );
+
+    logger.debug(
+      'Bootstrap Supabase configuration',
+      data: {
+        'supabaseUrl': environment.supabaseUrl,
+        'supabaseAnonKeyPreview': environment.supabaseAnonKey.isNotEmpty
+            ? environment.supabaseAnonKey.substring(
+                0,
+                environment.supabaseAnonKey.length >= 6
+                    ? 6
+                    : environment.supabaseAnonKey.length,
+              )
+            : '<unset>',
       },
     );
 
@@ -218,8 +236,8 @@ class AppBootstrap {
     // 7. Migration System
     try {
       if (supabaseClient != null) {
-        // Initialize the app database instance for migration tables
-        final appDb = AppDb();
+        // Use the singleton AppDb instance (prevents multiple instances)
+        final appDb = getAppDb();
         await MigrationTablesSetup.ensureMigrationTables(appDb);
         await MigrationTablesSetup.seedInitialMigrationData(appDb);
 
@@ -310,28 +328,65 @@ class AppBootstrap {
     bool adaptyEnabled = false;
     final adaptyKey = environment.adaptyPublicApiKey;
     if (adaptyKey != null && adaptyKey.isNotEmpty) {
-      try {
-        await Adapty().setLogLevel(
-          environment.debugMode ? AdaptyLogLevel.warn : AdaptyLogLevel.error,
-        );
-        await Adapty().activate(
-          configuration: AdaptyConfiguration(apiKey: adaptyKey)
-            ..withActivateUI(true)
-            ..withAppleIdfaCollectionDisabled(true)
-            ..withIpAddressCollectionDisabled(true),
-        );
+      // Skip if already activated (prevents multiple activation error)
+      if (_adaptyActivated) {
+        logger.info('Adapty already activated - skipping reinitialization');
         adaptyEnabled = true;
-      } catch (error, stack) {
-        failures.add(
-          BootstrapFailure(
-            stage: BootstrapStage.adapty,
-            error: error,
-            stackTrace: stack,
-          ),
-        );
-        logger.warning('Adapty initialization failed', data: {
-          'error': error.toString(),
-        });
+      } else {
+        try {
+          await Adapty().setLogLevel(
+            environment.debugMode ? AdaptyLogLevel.warn : AdaptyLogLevel.error,
+          );
+
+          // Add timeout to prevent hanging on activation
+          await Adapty().activate(
+            configuration: AdaptyConfiguration(apiKey: adaptyKey)
+              ..withActivateUI(true)
+              ..withAppleIdfaCollectionDisabled(true)
+              ..withIpAddressCollectionDisabled(true),
+          ).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('Adapty activation timeout after 5 seconds');
+            },
+          );
+
+          _adaptyActivated = true;
+          adaptyEnabled = true;
+          logger.info('Adapty initialized successfully');
+        } catch (error, stack) {
+          // If error is "activate once" error, treat as already activated
+          if (error.toString().contains('3005') ||
+              error.toString().contains('activateOnceError') ||
+              error.toString().contains('can only be activated once')) {
+            logger.warning('Adapty already activated (error 3005) - continuing');
+
+            // Track error 3005 frequency for monitoring
+            analytics.event(
+              AnalyticsEvents.appLaunched,
+              properties: {
+                'adapty_already_activated': true,
+                'error_code': '3005',
+                'bootstrap_stage': 'adapty',
+              },
+            );
+
+            _adaptyActivated = true;
+            adaptyEnabled = true;
+          } else {
+            failures.add(
+              BootstrapFailure(
+                stage: BootstrapStage.adapty,
+                error: error,
+                stackTrace: stack,
+              ),
+            );
+            logger.warning('Adapty initialization failed', data: {
+              'error': error.toString(),
+              'is_timeout': error is TimeoutException,
+            });
+          }
+        }
       }
     }
 

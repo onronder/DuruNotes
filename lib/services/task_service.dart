@@ -1,18 +1,32 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show Value;
-import 'package:duru_notes/core/utils/hash_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:uuid/uuid.dart';
 
-/// Service for managing tasks
+/// DEPRECATED: This legacy service bypasses encryption and cannot work with encrypted fields.
+///
+/// Use TaskCoreRepository instead, which handles encryption/decryption automatically:
+/// - infrastructure/repositories/task_core_repository.dart
+///
+/// TaskCoreRepository provides the same functionality but works with domain.Task entities
+/// (already decrypted) instead of raw database models.
+///
+/// Migration guide:
+/// - createTask() → taskRepository.createTask()
+/// - updateTask() → taskRepository.updateTask()
+/// - All fields are automatically encrypted/decrypted by the repository
+@Deprecated('Use TaskCoreRepository instead - this service cannot handle encryption')
 class TaskService {
   TaskService({required AppDb database}) : _db = database;
 
   final AppDb _db;
-  final _uuid = const Uuid();
+
+  UnsupportedError _deprecatedError(String method) => UnsupportedError(
+        'TaskService.$method is deprecated. Use TaskCoreRepository/EnhancedTaskService instead. '
+        '(database=${_db.runtimeType})',
+      );
 
   /// Create a new task
+  @Deprecated('Use TaskCoreRepository.createTask() instead')
   Future<String> createTask({
     required String noteId,
     required String content,
@@ -25,33 +39,13 @@ class TaskService {
     int? estimatedMinutes,
     int? position,
   }) async {
-    final taskId = _uuid.v4();
-    final contentHash = stableTaskHash(noteId, content);
-
-    await _db.createTask(
-      NoteTasksCompanion.insert(
-        id: taskId,
-        noteId: noteId,
-        content: content,
-        contentHash: contentHash,
-        status: Value(status),
-        priority: Value(priority),
-        position: Value(position ?? 0),
-        dueDate: Value(dueDate),
-        parentTaskId: Value(parentTaskId),
-        labels:
-            labels != null ? Value(labels.toString()) : const Value.absent(),
-        notes: Value(notes),
-        estimatedMinutes: Value(estimatedMinutes),
-      ),
+    throw UnsupportedError(
+      'TaskService is deprecated. Use TaskCoreRepository instead - it handles encryption automatically.',
     );
-
-    // Due date reminders should be handled by the reminder service separately
-
-    return taskId;
   }
 
   /// Update an existing task
+  @Deprecated('Use TaskCoreRepository.updateTask() instead')
   Future<void> updateTask({
     required String taskId,
     String? content,
@@ -66,173 +60,87 @@ class TaskService {
     String? parentTaskId,
     bool clearReminderId = false,
   }) async {
-    final updates = NoteTasksCompanion(
-      content: content != null ? Value(content) : const Value.absent(),
-      contentHash: content != null
-          ? Value(
-              stableTaskHash(
-                (await _db.getTaskById(taskId))?.noteId ?? '',
-                content,
-              ),
-            )
-          : const Value.absent(),
-      status: status != null ? Value(status) : const Value.absent(),
-      priority: priority != null ? Value(priority) : const Value.absent(),
-      dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
-      labels: labels != null ? Value(labels.toString()) : const Value.absent(),
-      notes: notes != null ? Value(notes) : const Value.absent(),
-      estimatedMinutes: estimatedMinutes != null
-          ? Value(estimatedMinutes)
-          : const Value.absent(),
-      actualMinutes:
-          actualMinutes != null ? Value(actualMinutes) : const Value.absent(),
-      reminderId: clearReminderId
-          ? Value<int?>(null)
-          : (reminderId != null ? Value(reminderId) : const Value.absent()),
-      parentTaskId:
-          parentTaskId != null ? Value(parentTaskId) : const Value.absent(),
-      updatedAt: Value(DateTime.now()),
+    throw UnsupportedError(
+      'TaskService is deprecated. Use TaskCoreRepository instead - it handles encryption automatically.',
     );
-
-    await _db.updateTask(taskId, updates);
-
-    // Reminder updates should be handled separately via the reminder service
   }
 
   /// Mark a task as completed
-  Future<void> completeTask(String taskId, {String? completedBy}) async {
-    await _db.completeTask(taskId, completedBy: completedBy);
-    // Reminder cancellation should be handled by the UI or integration layer
-  }
+  Future<void> completeTask(String taskId, {String? completedBy}) =>
+      throw _deprecatedError('completeTask');
 
   /// Toggle task completion status
-  Future<void> toggleTaskStatus(String taskId) async {
-    await _db.toggleTaskStatus(taskId);
-    // Reminder status updates should be handled by the UI or integration layer
-  }
+  Future<void> toggleTaskStatus(String taskId) =>
+      throw _deprecatedError('toggleTaskStatus');
 
   /// Delete a task
-  Future<void> deleteTask(String taskId) async {
-    await _db.deleteTaskById(taskId);
-    // Reminder deletion should be handled by the UI or integration layer
-  }
+  Future<void> deleteTask(String taskId) =>
+      throw _deprecatedError('deleteTask');
 
   /// Get all tasks for a note
-  Future<List<NoteTask>> getTasksForNote(String noteId) async {
-    return _db.getTasksForNote(noteId);
-  }
+  Future<List<NoteTask>> getTasksForNote(String noteId) =>
+      throw _deprecatedError('getTasksForNote');
 
   /// Get all open tasks
   Future<List<NoteTask>> getOpenTasks({
     DateTime? dueBefore,
     TaskPriority? priority,
     String? parentTaskId,
-  }) async {
-    return _db.getOpenTasks(
-      dueBefore: dueBefore,
-      priority: priority,
-      parentTaskId: parentTaskId,
-    );
-  }
+  }) =>
+      throw _deprecatedError('getOpenTasks');
 
   /// Get tasks for a specific date range
   Future<List<NoteTask>> getTasksByDateRange({
     required DateTime start,
     required DateTime end,
-  }) async {
-    return _db.getTasksByDateRange(start: start, end: end);
-  }
+  }) =>
+      throw _deprecatedError('getTasksByDateRange');
 
   /// Get overdue tasks
-  Future<List<NoteTask>> getOverdueTasks() async {
-    return _db.getOverdueTasks();
-  }
+  Future<List<NoteTask>> getOverdueTasks() =>
+      throw _deprecatedError('getOverdueTasks');
 
   /// Get completed tasks
   Future<List<NoteTask>> getCompletedTasks({
     DateTime? since,
     int? limit,
-  }) async {
-    return _db.getCompletedTasks(since: since, limit: limit);
-  }
+  }) =>
+      throw _deprecatedError('getCompletedTasks');
 
   /// Get tasks for today
-  Future<List<NoteTask>> getTodaysTasks() async {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    return _db.getTasksByDateRange(start: startOfDay, end: endOfDay);
-  }
+  Future<List<NoteTask>> getTodaysTasks() =>
+      throw _deprecatedError('getTodaysTasks');
 
   /// Get tasks for this week
-  Future<List<NoteTask>> getThisWeeksTasks() async {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 7));
-
-    return _db.getTasksByDateRange(
-      start: DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day),
-      end: DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day),
-    );
-  }
+  Future<List<NoteTask>> getThisWeeksTasks() =>
+      throw _deprecatedError('getThisWeeksTasks');
 
   /// Watch all open tasks
-  Stream<List<NoteTask>> watchOpenTasks() {
-    return _db.watchOpenTasks();
-  }
+  Stream<List<NoteTask>> watchOpenTasks() =>
+      throw _deprecatedError('watchOpenTasks');
 
   /// Watch tasks for a specific note
-  Stream<List<NoteTask>> watchTasksForNote(String noteId) {
-    return _db.watchTasksForNote(noteId);
-  }
+  Stream<List<NoteTask>> watchTasksForNote(String noteId) =>
+      throw _deprecatedError('watchTasksForNote');
 
   /// Sync tasks with note content
   Future<void> syncTasksWithNoteContent(
     String noteId,
     String noteContent,
-  ) async {
-    await _db.syncTasksWithNoteContent(noteId, noteContent);
-  }
+  ) =>
+      throw _deprecatedError('syncTasksWithNoteContent');
 
   /// Get task statistics
-  Future<TaskStatistics> getTaskStatistics() async {
-    final openTasks = await getOpenTasks();
-    final overdueTasks = await getOverdueTasks();
-    final todaysTasks = await getTodaysTasks();
-    final completedToday = await getCompletedTasks(
-      since: DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        DateTime.now().day,
-      ),
-    );
-
-    return TaskStatistics(
-      totalOpen: openTasks.length,
-      totalOverdue: overdueTasks.length,
-      dueToday: todaysTasks.length,
-      completedToday: completedToday.length,
-    );
-  }
+  Future<TaskStatistics> getTaskStatistics() =>
+      throw _deprecatedError('getTaskStatistics');
 
   /// Batch update task positions (for reordering)
-  Future<void> updateTaskPositions(Map<String, int> taskPositions) async {
-    for (final entry in taskPositions.entries) {
-      await _db.updateTask(
-        entry.key,
-        NoteTasksCompanion(
-          position: Value(entry.value),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-    }
-  }
+  Future<void> updateTaskPositions(Map<String, int> taskPositions) =>
+      throw _deprecatedError('updateTaskPositions');
 
   /// Get subtasks for a parent task
-  Future<List<NoteTask>> getSubtasks(String parentTaskId) async {
-    return _db.getOpenTasks(parentTaskId: parentTaskId);
-  }
+  Future<List<NoteTask>> getSubtasks(String parentTaskId) =>
+      throw _deprecatedError('getSubtasks');
 
   /// Convert task priority to display string
   String priorityToString(TaskPriority priority) {

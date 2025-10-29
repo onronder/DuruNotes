@@ -1,12 +1,16 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_hierarchy_view.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_deletion_with_undo.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderProvider, folderHierarchyProvider, folderListProvider;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +32,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   late TabController _tabController;
   late AppLogger _logger;
   late AnalyticsService _analytics;
-  LocalFolder? _selectedFolder;
+  domain.Folder? _selectedFolder;
 
   @override
   void initState() {
@@ -369,25 +373,13 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Undo History FAB
-          const UndoHistoryFAB(),
-          const SizedBox(height: 16),
-          // Create Folder FAB
-          FloatingActionButton.extended(
-            onPressed: _showCreateFolderDialog,
-            icon: const Icon(Icons.create_new_folder),
-            label: Text(l10n.createNewFolder),
-          ),
-        ],
-      ),
+      // Only show Undo History FAB - Create Folder button is in hierarchy view header
+      floatingActionButton: const UndoHistoryFAB(),
     );
   }
 
-  Future<void> _showCreateFolderDialog([LocalFolder? parent]) async {
-    final result = await showDialog<LocalFolder>(
+  Future<void> _showCreateFolderDialog([domain.Folder? parent]) async {
+    final result = await showDialog<domain.Folder>(
       context: context,
       builder: (context) => CreateFolderDialog(parentFolder: parent),
     );
@@ -402,7 +394,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     }
   }
 
-  Future<void> _showFolderActions(LocalFolder folder) async {
+  Future<void> _showFolderActions(domain.Folder folder) async {
     final result = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => _FolderActionsSheet(folder: folder),
@@ -425,19 +417,19 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     }
   }
 
-  Future<void> _editFolder(LocalFolder folder) async {
+  Future<void> _editFolder(domain.Folder folder) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => EditFolderDialog(folder: folder),
     );
 
-    if (result ?? false && mounted) {
+    if ((result ?? false) && mounted) {
       ref.read(folderProvider.notifier).refresh();
       ref.read(folderHierarchyProvider.notifier).refresh();
       // Update selected folder if it was the one being edited
       if (_selectedFolder?.id == folder.id) {
-        // Get updated folder from database
-        final updatedFolder = await ref.read(notesRepositoryProvider).db.getFolderById(folder.id);
+        // Get updated folder from domain repository
+        final updatedFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
         if (mounted && updatedFolder != null) {
           setState(() {
             _selectedFolder = updatedFolder;
@@ -447,11 +439,11 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     }
   }
 
-  Future<void> _moveFolder(LocalFolder folder) async {
+  Future<void> _moveFolder(domain.Folder folder) async {
     final l10n = AppLocalizations.of(context);
 
     // Show folder picker excluding the folder itself and its descendants
-    final targetFolder = await showDialog<LocalFolder?>(
+    final targetFolder = await showDialog<domain.Folder?>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.moveFolder),
@@ -488,11 +480,23 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     }
   }
 
-  Future<void> _confirmDeleteFolder(LocalFolder folder) async {
+  Future<void> _confirmDeleteFolder(domain.Folder folder) async {
+    // TODO: Migrate confirmAndDeleteFolder mixin to use domain.Folder
+    // For now, fetch LocalFolder from database to maintain compatibility
+    final localFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
+    if (localFolder == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Folder not found')),
+        );
+      }
+      return;
+    }
+
     final success = await confirmAndDeleteFolder(
       context,
       ref,
-      folder,
+      localFolder,
       onDeleted: () {
         // Clear selection if deleted folder was selected
         if (_selectedFolder?.id == folder.id) {
@@ -505,13 +509,17 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         ref.read(folderProvider.notifier).refresh();
         ref.read(folderHierarchyProvider.notifier).refresh();
       },
-      onUndone: () {
+      onUndone: () async {
         // If folder was restored and was previously selected, reselect it
         if (_selectedFolder?.id == folder.id) {
-          setState(() {
-            _selectedFolder = folder;
-          });
-          _tabController.animateTo(1);
+          // Fetch the restored folder from domain repository
+          final restoredFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
+          if (mounted && restoredFolder != null) {
+            setState(() {
+              _selectedFolder = restoredFolder;
+            });
+            _tabController.animateTo(1);
+          }
         }
         // Refresh the folder providers
         ref.read(folderProvider.notifier).refresh();
@@ -526,7 +534,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   }
 
   Future<void> _performHealthCheck() async {
-    final repo = ref.read(notesRepositoryProvider);
+    final repo = ref.read(folderCoreRepositoryProvider);
 
     try {
       final healthStats = await repo.performFolderHealthCheck();
@@ -654,7 +662,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   }
 
   Future<void> _validateFolderStructure() async {
-    final repo = ref.read(notesRepositoryProvider);
+    final repo = ref.read(folderCoreRepositoryProvider);
 
     try {
       // Show loading dialog
@@ -706,7 +714,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 class _FolderActionsSheet extends StatelessWidget {
   const _FolderActionsSheet({required this.folder});
 
-  final LocalFolder folder;
+  final domain.Folder folder;
 
   @override
   Widget build(BuildContext context) {
@@ -752,12 +760,20 @@ class _FolderActionsSheet extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      folder.path,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    if (folder.description != null && folder.description!.isNotEmpty)
+                      Text(
+                        folder.description!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    else if (folder.parentId != null && folder.parentId!.isNotEmpty)
+                      Text(
+                        'Subfolder',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -813,7 +829,7 @@ class _FolderDetailsView extends ConsumerWidget {
     required this.onFolderDeleted,
   });
 
-  final LocalFolder folder;
+  final domain.Folder folder;
   final VoidCallback onFolderUpdated;
   final VoidCallback onFolderDeleted;
 
@@ -867,18 +883,28 @@ class _FolderDetailsView extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              folder.path,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                            if (folder.description != null && folder.description!.isNotEmpty)
+                              Text(
+                                folder.description!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            else
+                              Text(
+                                folder.parentId != null && folder.parentId!.isNotEmpty
+                                    ? 'Subfolder'
+                                    : 'Root folder',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  if (folder.description.isNotEmpty ?? false) ...[
+                  if (folder.description != null && folder.description!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
@@ -890,7 +916,7 @@ class _FolderDetailsView extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        folder.description,
+                        folder.description!,
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
@@ -998,11 +1024,8 @@ class _FolderDetailsView extends ConsumerWidget {
                     'Modified',
                     _formatDateTime(folder.updatedAt),
                   ),
-                  _buildPropertyRow(
-                    context,
-                    'Status',
-                    folder.deleted ? 'Deleted' : 'Active',
-                  ),
+                  // Status removed - domain folders are always active
+                  // (repository filters deleted folders before returning)
                 ],
               ),
             ),
@@ -1095,24 +1118,24 @@ class _FolderDetailsView extends ConsumerWidget {
 
   Future<Map<String, int>> _getFolderStats(
     WidgetRef ref,
-    LocalFolder folder,
+    domain.Folder folder,
   ) async {
-    final repo = ref.read(notesRepositoryProvider);
+    final folderRepo = ref.read(folderCoreRepositoryProvider);
 
     // Get notes count
-    final noteIds = await repo.db.getNoteIdsInFolder(folder.id);
+    final noteIds = await folderRepo.getNoteIdsInFolder(folder.id);
     final notesCount = noteIds.length;
 
     // Get subfolders count
-    final subfolders = await repo.getChildFolders(folder.id);
+    final subfolders = await folderRepo.getChildFolders(folder.id);
     final subfoldersCount = subfolders.length;
 
     // Get total descendants (recursive)
-    final subtree = await repo.db.getFolderSubtree(folder.id);
-    final totalDescendants = subtree.length - 1; // Subtract the folder itself
+    final subtree = await folderRepo.getChildFoldersRecursive(folder.id);
+    final totalDescendants = subtree.length; // Already excludes parent folder
 
     // Get depth
-    final depth = await repo.db.getFolderDepth(folder.id);
+    final depth = await folderRepo.getFolderDepth(folder.id);
 
     return {
       'notes': notesCount,

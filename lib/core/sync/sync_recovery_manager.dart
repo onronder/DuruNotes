@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/sync/sync_integrity_validator.dart';
@@ -176,14 +175,12 @@ class SyncRecoveryManager {
 
       if (lastSuccessfulSync != null) {
         final lastSyncTime = lastSuccessfulSync.read<DateTime>('last_sync');
-        if (lastSyncTime != null) {
-          final timeSinceSync = DateTime.now().difference(lastSyncTime);
-          if (timeSinceSync > Duration(hours: 6)) {
-            healthScore -= 0.2;
-            issues.add('No successful sync in ${timeSinceSync.inHours} hours');
-          }
+        final timeSinceSync = DateTime.now().difference(lastSyncTime);
+        if (timeSinceSync > Duration(hours: 6)) {
+          healthScore -= 0.2;
+          issues.add('No successful sync in ${timeSinceSync.inHours} hours');
         }
-      } else {
+            } else {
         healthScore -= 0.5;
         issues.add('No successful sync found');
       }
@@ -203,8 +200,12 @@ class SyncRecoveryManager {
         failedOperations: failedCount,
       );
 
-    } catch (e) {
-      _logger.error('Failed to assess sync health', error: e);
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to assess sync health',
+        error: e,
+        stackTrace: stack,
+      );
       return SyncHealthAssessment(
         healthScore: 0.0,
         issues: ['Health assessment failed: $e'],
@@ -221,12 +222,15 @@ class SyncRecoveryManager {
     try {
       final windowStart = window ?? DateTime.now().subtract(_recoveryWindow);
 
-      final result = await _localDb.customSelect('''
+      final result = await _localDb.customSelect(
+        '''
         SELECT * FROM pending_ops
         WHERE (operation_type LIKE '%failed%' OR operation_type = 'error')
           AND created_at > ?
         ORDER BY created_at DESC
-      ''', [windowStart]).get();
+      ''',
+        variables: [Variable.withDateTime(windowStart)],
+      ).get();
 
       for (final row in result) {
         failedOps.add(FailedOperation(
@@ -235,14 +239,18 @@ class SyncRecoveryManager {
           tableName: row.read<String>('table_name'),
           recordId: row.read<String>('record_id'),
           errorMessage: row.read<String>('error_message'),
-          retryCount: row.read<int>('retry_count') ?? 0,
+          retryCount: row.read<int>('retry_count'),
           createdAt: row.read<DateTime>('created_at'),
           lastAttemptAt: row.read<DateTime>('last_attempt_at'),
         ));
       }
 
-    } catch (e) {
-      _logger.error('Failed to identify failed operations', error: e);
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to identify failed operations',
+        error: e,
+        stackTrace: stack,
+      );
     }
 
     return failedOps;
@@ -264,7 +272,17 @@ class SyncRecoveryManager {
           final action = await _resolveFailedOperation(failedOp);
           actions.add(action);
         }
-      } catch (e) {
+      } catch (e, stack) {
+        _logger.error(
+          'Recovery action failed',
+          error: e,
+          stackTrace: stack,
+          data: {
+            'operation_id': failedOp.id,
+            'operation_type': failedOp.operationType,
+            'retry_count': failedOp.retryCount,
+          },
+        );
         actions.add(RecoveryAction(
           type: RecoveryActionType.error,
           operationId: failedOp.id,
@@ -297,7 +315,16 @@ class SyncRecoveryManager {
             isSuccessful: true,
           ));
         }
-      } catch (e) {
+      } catch (e, stack) {
+        _logger.error(
+          'Conservative recovery failed',
+          error: e,
+          stackTrace: stack,
+          data: {
+            'operation_id': failedOp.id,
+            'operation_type': failedOp.operationType,
+          },
+        );
         actions.add(RecoveryAction(
           type: RecoveryActionType.error,
           operationId: failedOp.id,
@@ -326,7 +353,16 @@ class SyncRecoveryManager {
           action = await _forceResyncRecord(failedOp);
         }
         actions.add(action);
-      } catch (e) {
+      } catch (e, stack) {
+        _logger.error(
+          'Aggressive recovery failed',
+          error: e,
+          stackTrace: stack,
+          data: {
+            'operation_id': failedOp.id,
+            'operation_type': failedOp.operationType,
+          },
+        );
         actions.add(RecoveryAction(
           type: RecoveryActionType.error,
           operationId: failedOp.id,
@@ -402,7 +438,17 @@ class SyncRecoveryManager {
         errorMessage: errorMessage,
       );
 
-    } catch (e) {
+    } catch (e, stack) {
+      _logger.error(
+        'Retry failed with exception',
+        error: e,
+        stackTrace: stack,
+        data: {
+          'operation_id': failedOp.id,
+          'operation_type': failedOp.operationType,
+          'retry_count': failedOp.retryCount,
+        },
+      );
       await _incrementRetryCount(failedOp.id);
       return RecoveryAction(
         type: RecoveryActionType.retry,
@@ -436,7 +482,16 @@ class SyncRecoveryManager {
         isSuccessful: success,
       );
 
-    } catch (e) {
+    } catch (e, stack) {
+      _logger.error(
+        'Conflict resolution failed',
+        error: e,
+        stackTrace: stack,
+        data: {
+          'operation_id': failedOp.id,
+          'operation_type': failedOp.operationType,
+        },
+      );
       return RecoveryAction(
         type: RecoveryActionType.conflictResolution,
         operationId: failedOp.id,
@@ -477,7 +532,17 @@ class SyncRecoveryManager {
         isSuccessful: success,
       );
 
-    } catch (e) {
+    } catch (e, stack) {
+      _logger.error(
+        'Force resync failed',
+        error: e,
+        stackTrace: stack,
+        data: {
+          'operation_id': failedOp.id,
+          'table_name': failedOp.tableName,
+          'record_id': failedOp.recordId,
+        },
+      );
       return RecoveryAction(
         type: RecoveryActionType.forceResync,
         operationId: failedOp.id,
@@ -542,7 +607,7 @@ class SyncRecoveryManager {
         WHERE operation_type LIKE '%failed%' AND created_at > datetime('now', '-1 hour')
       ''').getSingle();
 
-      final failureCount = remainingFailures.read<int>('count') ?? 0;
+      final failureCount = remainingFailures.read<int>('count');
 
       if (failureCount > 0) {
         validationResult.issues.add(ValidationIssue(
@@ -554,8 +619,12 @@ class SyncRecoveryManager {
       }
 
       return validationResult;
-    } catch (e) {
-      _logger.error('Recovery verification failed', error: e);
+    } catch (e, stack) {
+      _logger.error(
+        'Recovery verification failed',
+        error: e,
+        stackTrace: stack,
+      );
       return ValidationResult.failed([
         ValidationIssue(
           type: ValidationIssueType.systemError,
@@ -574,7 +643,7 @@ class SyncRecoveryManager {
       final localNote = await _localDb.getNote(noteId);
       if (localNote != null) {
         // Convert String to Uint8List for encrypted fields
-        final titleBytes = Uint8List.fromList((localNote.title).codeUnits);
+        final titleBytes = Uint8List.fromList((localNote.titleEncrypted).codeUnits);
         final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
 
         await _remoteApi.upsertEncryptedNote(
@@ -582,12 +651,18 @@ class SyncRecoveryManager {
           titleEnc: titleBytes,
           propsEnc: propsBytes,
           deleted: localNote.deleted,
+          createdAt: localNote.createdAt,
         );
         return true;
       }
       return false;
-    } catch (e) {
-      _logger.warning('Note sync retry failed', data: {'note_id': noteId, 'error': e.toString()});
+    } catch (e, stack) {
+      _logger.error(
+        'Note sync retry failed',
+        error: e,
+        stackTrace: stack,
+        data: {'note_id': noteId},
+      );
       return false;
     }
   }
@@ -610,20 +685,27 @@ class SyncRecoveryManager {
         return true;
       }
       return false;
-    } catch (e) {
-      _logger.warning('Folder sync retry failed', data: {'folder_id': folderId, 'error': e.toString()});
+    } catch (e, stack) {
+      _logger.error(
+        'Folder sync retry failed',
+        error: e,
+        stackTrace: stack,
+        data: {'folder_id': folderId},
+      );
       return false;
     }
   }
 
   Future<bool> _retryTaskSync(String taskId) async {
     try {
-      final localTask = await _localDb.getTaskById(taskId);
+      final localTask = await (_localDb.select(_localDb.noteTasks)
+            ..where((t) => t.id.equals(taskId)))
+          .getSingleOrNull();
       if (localTask != null) {
         await _remoteApi.upsertNoteTask(
           id: localTask.id,
           noteId: localTask.noteId,
-          content: localTask.content,
+          content: localTask.contentEncrypted,
           status: localTask.status.name,
           priority: localTask.priority.index,
           position: localTask.position,
@@ -635,8 +717,13 @@ class SyncRecoveryManager {
         return true;
       }
       return false;
-    } catch (e) {
-      _logger.warning('Task sync retry failed', data: {'task_id': taskId, 'error': e.toString()});
+    } catch (e, stack) {
+      _logger.error(
+        'Task sync retry failed',
+        error: e,
+        stackTrace: stack,
+        data: {'task_id': taskId},
+      );
       return false;
     }
   }
@@ -664,7 +751,7 @@ class SyncRecoveryManager {
 
         if (localTime.isAfter(remoteTime)) {
           // Local is newer, push to remote
-          final titleBytes = Uint8List.fromList(localNote.title.codeUnits);
+          final titleBytes = Uint8List.fromList(localNote.titleEncrypted.codeUnits);
           final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
 
           await _remoteApi.upsertEncryptedNote(
@@ -672,25 +759,34 @@ class SyncRecoveryManager {
             titleEnc: titleBytes,
             propsEnc: propsBytes,
             deleted: localNote.deleted,
+            createdAt: localNote.createdAt,
           );
         } else {
           // Remote is newer, pull to local
           await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
             LocalNotesCompanion.insert(
               id: noteId,
-              title: remoteNote['title'] as String? ?? '',
-              body: '',
+              titleEncrypted: Value(remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String? ?? ''),
+              bodyEncrypted: Value(remoteNote['body_encrypted'] as String? ?? ''),
+              createdAt: remoteNote['created_at'] != null
+                  ? DateTime.parse(remoteNote['created_at'] as String)
+                  : DateTime.now().toUtc(),
               updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
-              encryptedMetadata: const Value(null),
-              deleted: remoteNote['deleted'] as bool? ?? false,
+              encryptedMetadata: Value(remoteNote['encrypted_metadata'] as String?),
+              deleted: Value(remoteNote['deleted'] as bool? ?? false),
             ),
           );
         }
         return true;
       }
       return false;
-    } catch (e) {
-      _logger.error('Force resync note failed', error: e, data: {'note_id': noteId});
+    } catch (e, stack) {
+      _logger.error(
+        'Force resync note failed',
+        error: e,
+        stackTrace: stack,
+        data: {'note_id': noteId},
+      );
       return false;
     }
   }
@@ -745,7 +841,10 @@ class SyncRecoveryManager {
         ]);
       }
     } catch (e) {
-      _logger.warning('Failed to update recovery history', data: {'error': e.toString()});
+      _logger.warning(
+        'Failed to update recovery history',
+        data: {'error': e.toString()},
+      );
     }
   }
 

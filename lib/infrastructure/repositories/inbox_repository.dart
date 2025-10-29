@@ -18,10 +18,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// 2. The notes created from inbox items ARE encrypted
 /// 3. Supabase provides secure storage via RLS policies
 class InboxRepository implements IInboxRepository {
-  InboxRepository({
-    required SupabaseClient client,
-  })  : _client = client,
-        _logger = LoggerFactory.instance;
+  InboxRepository({required SupabaseClient client})
+    : _client = client,
+      _logger = LoggerFactory.instance;
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -42,7 +41,9 @@ class InboxRepository implements IInboxRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'InboxRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -93,7 +94,9 @@ class InboxRepository implements IInboxRepository {
       final userId = _client.auth.currentUser?.id;
 
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get unprocessed items without authenticated user');
+        _logger.warning(
+          'Cannot get unprocessed items without authenticated user',
+        );
         return const <domain.InboxItem>[];
       }
 
@@ -106,7 +109,7 @@ class InboxRepository implements IInboxRepository {
           .from(_tableName)
           .select()
           .eq('user_id', userId) // Security: enforce user isolation
-          .or('is_processed.is.null,is_processed.eq.false')
+          .filter('converted_to_note_id', 'is', 'null')
           .order('created_at', ascending: false);
 
       final results = (response as List)
@@ -139,7 +142,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get items by source type without authenticated user');
+        _logger.warning(
+          'Cannot get items by source type without authenticated user',
+        );
         return const <domain.InboxItem>[];
       }
 
@@ -178,7 +183,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get items by date range without authenticated user');
+        _logger.warning(
+          'Cannot get items by date range without authenticated user',
+        );
         return const <domain.InboxItem>[];
       }
 
@@ -198,19 +205,13 @@ class InboxRepository implements IInboxRepository {
         'Failed to get inbox items by date range',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'start': start.toIso8601String(),
-          'end': end.toIso8601String(),
-        },
+        data: {'start': start.toIso8601String(), 'end': end.toIso8601String()},
       );
       _captureRepositoryException(
         method: 'getByDateRange',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'start': start.toIso8601String(),
-          'end': end.toIso8601String(),
-        },
+        data: {'start': start.toIso8601String(), 'end': end.toIso8601String()},
       );
       return const <domain.InboxItem>[];
     }
@@ -221,7 +222,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create inbox item without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create inbox item without authenticated user',
+        );
         _logger.warning('Cannot create inbox item without authenticated user');
         _captureRepositoryException(
           method: 'create',
@@ -241,7 +244,10 @@ class InboxRepository implements IInboxRepository {
 
       await _client.from(_tableName).insert(json);
 
-      _logger.info('Created inbox item', data: {'id': item.id, 'sourceType': item.sourceType});
+      _logger.info(
+        'Created inbox item',
+        data: {'id': item.id, 'sourceType': item.sourceType},
+      );
 
       return itemToCreate;
     } catch (e, stackTrace) {
@@ -266,7 +272,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot update inbox item without authenticated user');
+        final authorizationError = StateError(
+          'Cannot update inbox item without authenticated user',
+        );
         _logger.warning('Cannot update inbox item without authenticated user');
         _captureRepositoryException(
           method: 'update',
@@ -310,21 +318,25 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot mark item as processed without authenticated user');
+        _logger.warning(
+          'Cannot mark item as processed without authenticated user',
+        );
         return;
       }
 
       await _client
           .from(_tableName)
           .update({
-            'is_processed': true,
-            if (noteId != null) 'note_id': noteId,
-            'processed_at': DateTime.now().toIso8601String(),
+            'converted_to_note_id': noteId,
+            'converted_at': DateTime.now().toIso8601String(),
           })
           .eq('id', id)
           .eq('user_id', userId); // Security: enforce user isolation
 
-      _logger.info('Marked inbox item as processed', data: {'id': id, 'noteId': noteId});
+      _logger.info(
+        'Marked inbox item as processed',
+        data: {'id': id, 'noteId': noteId},
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to mark inbox item as processed',
@@ -380,7 +392,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot delete processed items without authenticated user');
+        _logger.warning(
+          'Cannot delete processed items without authenticated user',
+        );
         return;
       }
 
@@ -388,16 +402,21 @@ class InboxRepository implements IInboxRepository {
           .from(_tableName)
           .delete()
           .eq('user_id', userId) // Security: enforce user isolation
-          .eq('is_processed', true);
+          .not('converted_to_note_id', 'is', 'null');
 
       if (olderThanDays != null) {
-        final cutoffDate = DateTime.now().subtract(Duration(days: olderThanDays));
-        query = query.lt('processed_at', cutoffDate.toIso8601String());
+        final cutoffDate = DateTime.now().subtract(
+          Duration(days: olderThanDays),
+        );
+        query = query.lt('converted_at', cutoffDate.toIso8601String());
       }
 
       await query;
 
-      _logger.info('Deleted processed inbox items', data: {'olderThanDays': olderThanDays});
+      _logger.info(
+        'Deleted processed inbox items',
+        data: {'olderThanDays': olderThanDays},
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to delete processed inbox items',
@@ -420,7 +439,9 @@ class InboxRepository implements IInboxRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get unprocessed count without authenticated user');
+        _logger.warning(
+          'Cannot get unprocessed count without authenticated user',
+        );
         return 0;
       }
 
@@ -428,7 +449,7 @@ class InboxRepository implements IInboxRepository {
           .from(_tableName)
           .select('id')
           .eq('user_id', userId) // Security: enforce user isolation
-          .or('is_processed.is.null,is_processed.eq.false');
+          .filter('converted_to_note_id', 'is', 'null');
 
       return (response as List).length;
     } catch (e, stackTrace) {
@@ -450,7 +471,9 @@ class InboxRepository implements IInboxRepository {
   Stream<List<domain.InboxItem>> watchUnprocessed() {
     final userId = _client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) {
-      _logger.warning('Cannot watch unprocessed items without authenticated user');
+      _logger.warning(
+        'Cannot watch unprocessed items without authenticated user',
+      );
       return Stream.value([]);
     }
 
@@ -463,7 +486,10 @@ class InboxRepository implements IInboxRepository {
           .map((data) {
             try {
               final items = (data as List)
-                  .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+                  .map(
+                    (json) =>
+                        InboxItemMapper.fromJson(json as Map<String, dynamic>),
+                  )
                   .toList();
               return items.where((item) => !item.isProcessed).toList();
             } catch (error, stackTrace) {
@@ -502,7 +528,9 @@ class InboxRepository implements IInboxRepository {
   Stream<int> watchUnprocessedCount() {
     final userId = _client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) {
-      _logger.warning('Cannot watch unprocessed count without authenticated user');
+      _logger.warning(
+        'Cannot watch unprocessed count without authenticated user',
+      );
       return Stream.value(0);
     }
 
@@ -516,7 +544,10 @@ class InboxRepository implements IInboxRepository {
           .map((data) {
             try {
               final items = (data as List)
-                  .map((json) => InboxItemMapper.fromJson(json as Map<String, dynamic>))
+                  .map(
+                    (json) =>
+                        InboxItemMapper.fromJson(json as Map<String, dynamic>),
+                  )
                   .toList();
               return items.where((item) => !item.isProcessed).length;
             } catch (error, stackTrace) {
@@ -611,7 +642,10 @@ class InboxRepository implements IInboxRepository {
           .eq('user_id', userId) // Security: enforce user isolation
           .lt('created_at', cutoffDate.toIso8601String());
 
-      _logger.info('Cleaned up old inbox items', data: {'daysToKeep': daysToKeep});
+      _logger.info(
+        'Cleaned up old inbox items',
+        data: {'daysToKeep': daysToKeep},
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to cleanup old items',

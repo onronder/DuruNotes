@@ -63,7 +63,12 @@ class SentryConfig {
 
         // Performance monitoring
         options.tracesSampleRate = config.sentryTracesSampleRate;
-        options.enableAutoPerformanceTracing = true;
+
+        // CRITICAL: Auto performance tracing can cause main thread hangs on iOS
+        // Disable in production or when trace rate is 0
+        // See Sentry error: App Hanging (Oct 1, 2025) - dart::TimelineEventRecorder
+        options.enableAutoPerformanceTracing =
+            !kReleaseMode && config.sentryTracesSampleRate > 0;
 
         // Session tracking
         options.enableAutoSessionTracking = config.enableAutoSessionTracking;
@@ -79,7 +84,10 @@ class SentryConfig {
 
         // Breadcrumbs
         options.maxBreadcrumbs = 100;
-        options.enableAutoNativeBreadcrumbs = true;
+
+        // PERFORMANCE FIX: Native breadcrumbs add overhead
+        // Only enable in debug mode to reduce main thread blocking
+        options.enableAutoNativeBreadcrumbs = kDebugMode;
         options.enableAppLifecycleBreadcrumbs = true;
 
         // Debug options
@@ -103,16 +111,13 @@ class SentryConfig {
             }
           }
 
-          // Add custom tags
-          event = event.copyWith(
-            tags: {
-              ...?event.tags,
-              'app.environment': config.environment.name,
-              'app.debug_mode': kDebugMode.toString(),
-              'app.version': packageInfo.version,
-              'app.build': packageInfo.buildNumber,
-            },
-          );
+          // Add custom tags - assign directly to instance
+          event.tags?.addAll({
+            'app.environment': config.environment.name,
+            'app.debug_mode': kDebugMode.toString(),
+            'app.version': packageInfo.version,
+            'app.build': packageInfo.buildNumber,
+          });
 
           // Log to our logger as well
           logger.error(
@@ -246,9 +251,8 @@ class SentryConfig {
       stackTrace: stackTrace,
       withScope: (scope) {
         if (extra != null) {
-          extra.forEach((key, value) {
-            scope.setExtra(key, value);
-          });
+          // Use Contexts API instead of deprecated setExtra
+          scope.setContexts('extra', extra);
         }
 
         if (tags != null) {

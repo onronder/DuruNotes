@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 3: Migrated to organized provider imports
+import 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
+    show filteredNotesProvider, currentNotesProvider, notesPageProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// A robust pin toggle button widget
 class PinToggleButton extends ConsumerStatefulWidget {
@@ -86,7 +93,7 @@ class _PinToggleButtonState extends ConsumerState<PinToggleButton> {
       });
 
       // Update database
-      final notesRepo = ref.read(notesRepositoryProvider);
+      final notesRepo = ref.read(notesCoreRepositoryProvider);
       await notesRepo.setNotePin(widget.noteId, newPinState);
 
       // Force refresh of notes providers
@@ -133,6 +140,7 @@ class _PinToggleButtonState extends ConsumerState<PinToggleButton> {
       _logger.debug('Pin toggle completed successfully');
     } catch (e, stack) {
       _logger.error('Failed to toggle pin', error: e, stackTrace: stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
 
       // Revert optimistic update on error
       if (mounted) {

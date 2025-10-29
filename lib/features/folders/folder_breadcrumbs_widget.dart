@@ -1,5 +1,6 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +10,23 @@ class FolderBreadcrumbsWidget extends ConsumerWidget {
 
   final String? folderId;
   final void Function(String? folderId)? onFolderTap;
+
+  Future<List<domain.Folder>> _getFolderBreadcrumbs(
+    IFolderRepository repo,
+    String folderId,
+  ) async {
+    final breadcrumbs = <domain.Folder>[];
+    String? currentId = folderId;
+
+    while (currentId != null) {
+      final folder = await repo.getFolder(currentId);
+      if (folder == null) break;
+      breadcrumbs.insert(0, folder);
+      currentId = folder.parentId;
+    }
+
+    return breadcrumbs;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,8 +43,13 @@ class FolderBreadcrumbsWidget extends ConsumerWidget {
 
     final folderRepo = ref.watch(folderRepositoryProvider);
 
-    return FutureBuilder<List<LocalFolder>>(
-      future: folderRepo.getFolderBreadcrumbs(folderId!),
+    // Guard against null repository (unauthenticated)
+    if (folderRepo == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<List<domain.Folder>>(
+      future: _getFolderBreadcrumbs(folderRepo, folderId!),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const SizedBox(
@@ -70,7 +93,7 @@ class FolderBreadcrumbsWidget extends ConsumerWidget {
                     icon: isLast ? Icons.folder_open : Icons.folder,
                     label: folder.name,
                     isLast: isLast,
-                    color: folder.color != null
+                    color: folder.color != null && folder.color!.isNotEmpty
                         ? Color(
                             int.parse(folder.color!.replaceFirst('#', '0xff')),
                           )

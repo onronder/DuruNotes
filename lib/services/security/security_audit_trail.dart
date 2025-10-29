@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -29,7 +28,6 @@ class SecurityAuditTrail {
     required String operation,
     required Object error,
     StackTrace? stackTrace,
-    Map<String, dynamic>? data,
     SentryLevel level = SentryLevel.error,
   }) {
     unawaited(
@@ -40,7 +38,6 @@ class SecurityAuditTrail {
           scope.level = level;
           scope.setTag('service', 'SecurityAuditTrail');
           scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
         },
       ),
     );
@@ -58,7 +55,7 @@ class SecurityAuditTrail {
 
     try {
       // Get secure directory for audit logs
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await resolveAppDocumentsDirectory();
       final auditDir = Directory('${directory.path}/security_audit');
 
       if (!await auditDir.exists()) {
@@ -70,9 +67,16 @@ class SecurityAuditTrail {
       _auditFile = File('${auditDir.path}/audit_$dateStr.log');
 
       _initialized = true;
-      await logEvent(SecurityEventType.auditStarted, 'Security audit trail initialized');
+      await logEvent(
+        SecurityEventType.auditStarted,
+        'Security audit trail initialized',
+      );
     } catch (error, stack) {
-      _logger.error('Failed to initialize security audit trail', error: error, stackTrace: stack);
+      _logger.error(
+        'Failed to initialize security audit trail',
+        error: error,
+        stackTrace: stack,
+      );
       _captureAuditException(
         operation: 'initialize',
         error: error,
@@ -112,7 +116,11 @@ class SecurityAuditTrail {
     try {
       await _writeToFile(event);
     } catch (error, stack) {
-      _logger.error('Failed to write security event to audit file', error: error, stackTrace: stack);
+      _logger.error(
+        'Failed to write security event to audit file',
+        error: error,
+        stackTrace: stack,
+      );
       _captureAuditException(
         operation: 'writeToFile',
         error: error,
@@ -218,10 +226,7 @@ class SecurityAuditTrail {
     await logEvent(
       SecurityEventType.securityViolation,
       description,
-      metadata: {
-        'violationType': type,
-        ...?details,
-      },
+      metadata: {'violationType': type, ...?details},
       severity: SecuritySeverity.critical,
     );
   }
@@ -250,7 +255,7 @@ class SecurityAuditTrail {
     required DateTime endDate,
   }) async {
     final events = <SecurityEvent>[];
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await resolveAppDocumentsDirectory();
     final auditDir = Directory('${directory.path}/security_audit');
 
     if (!await auditDir.exists()) {
@@ -263,7 +268,9 @@ class SecurityAuditTrail {
         final lines = await file.readAsLines();
         for (final line in lines) {
           try {
-            final event = SecurityEvent.fromJson(jsonDecode(line) as Map<String, dynamic>);
+            final event = SecurityEvent.fromJson(
+              jsonDecode(line) as Map<String, dynamic>,
+            );
             if (event.timestamp.isAfter(startDate) &&
                 event.timestamp.isBefore(endDate)) {
               events.add(event);
@@ -275,17 +282,13 @@ class SecurityAuditTrail {
       }
     }
 
-    return AuditReport(
-      events: events,
-      startDate: startDate,
-      endDate: endDate,
-    );
+    return AuditReport(events: events, startDate: startDate, endDate: endDate);
   }
 
   /// Clear old audit logs
   Future<void> cleanupOldLogs({int daysToKeep = 90}) async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await resolveAppDocumentsDirectory();
       final auditDir = Directory('${directory.path}/security_audit');
 
       if (!await auditDir.exists()) return;
@@ -324,7 +327,10 @@ class SecurityAuditTrail {
       final client = Supabase.instance.client;
       return client.auth.currentUser?.id;
     } catch (e) {
-      _logger.warning('[SecurityAudit] Failed to get current user ID', data: {'error': e.toString()});
+      _logger.warning(
+        '[SecurityAudit] Failed to get current user ID',
+        data: {'error': e.toString()},
+      );
       return null;
     }
   }
@@ -353,14 +359,11 @@ enum SecurityEventType {
   accessControl,
   auditStarted,
   configurationChange,
+  performanceHardening,
 }
 
 /// Security severity levels
-enum SecuritySeverity {
-  info,
-  warning,
-  critical,
-}
+enum SecuritySeverity { info, warning, critical }
 
 /// Security event
 class SecurityEvent {
@@ -398,10 +401,14 @@ class SecurityEvent {
   factory SecurityEvent.fromJson(Map<String, dynamic> json) => SecurityEvent(
     id: json['id'] as String,
     timestamp: DateTime.parse(json['timestamp'] as String),
-    type: SecurityEventType.values.firstWhere((e) => e.name == json['type'] as String),
+    type: SecurityEventType.values.firstWhere(
+      (e) => e.name == json['type'] as String,
+    ),
     description: json['description'] as String,
     metadata: json['metadata'] as Map<String, dynamic>?,
-    severity: SecuritySeverity.values.firstWhere((e) => e.name == json['severity'] as String),
+    severity: SecuritySeverity.values.firstWhere(
+      (e) => e.name == json['severity'] as String,
+    ),
     userId: json['userId'] as String?,
     deviceId: json['deviceId'] as String,
   );
@@ -424,8 +431,12 @@ class AuditReport {
     'totalEvents': events.length,
     'byType': _groupByType(),
     'bySeverity': _groupBySeverity(),
-    'criticalEvents': events.where((e) => e.severity == SecuritySeverity.critical).length,
-    'violations': events.where((e) => e.type == SecurityEventType.securityViolation).length,
+    'criticalEvents': events
+        .where((e) => e.severity == SecuritySeverity.critical)
+        .length,
+    'violations': events
+        .where((e) => e.type == SecurityEventType.securityViolation)
+        .length,
   };
 
   Map<String, int> _groupByType() {

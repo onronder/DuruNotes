@@ -2,18 +2,39 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 /// Service for analyzing task productivity and generating insights
 class TaskAnalyticsService {
-  TaskAnalyticsService(this._ref, {required AppDb database}) : _db = database;
+  TaskAnalyticsService(this._ref, {ITaskRepository? taskRepository})
+    : _taskRepository = taskRepository;
 
   final Ref _ref;
-  final AppDb _db;
+  final ITaskRepository? _taskRepository;
   AppLogger get _logger => _ref.read(loggerProvider);
+
+  Future<List<domain.Task>> _fetchAllTasks() async {
+    final repository = _taskRepository;
+    if (repository == null) {
+      _logger.warning('[TaskAnalytics] Task repository unavailable');
+      return [];
+    }
+
+    try {
+      return await repository.getAllTasks();
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to load tasks for analytics',
+        error: e,
+        stackTrace: stack,
+      );
+      return [];
+    }
+  }
 
   /// Get comprehensive productivity analytics
   Future<ProductivityAnalytics> getProductivityAnalytics({
@@ -131,23 +152,24 @@ class TaskAnalyticsService {
     var overEstimates = 0;
 
     for (final task in tasksWithTime) {
-      final estimated = task.estimatedMinutes!;
-      final actual = task.actualMinutes!;
+      final estimated = _metadataInt(task.metadata, 'estimatedMinutes')!;
+      final actual = _metadataInt(task.metadata, 'actualMinutes')!;
 
       totalEstimated += estimated;
       totalActual += actual;
 
       final accuracy = estimated > 0 ? actual / estimated : 0.0;
-      final accuracyPercentage = (accuracy * 100).round();
 
-      accuracyData.add(TimeAccuracyPoint(
-        taskId: task.id,
-        estimated: estimated,
-        actual: actual,
-        accuracy: accuracy,
-        date: task.completedAt ?? task.updatedAt,
-        priority: task.priority,
-      ));
+      accuracyData.add(
+        TimeAccuracyPoint(
+          taskId: task.id,
+          estimated: estimated,
+          actual: actual,
+          accuracy: accuracy,
+          date: task.completedAt ?? task.updatedAt,
+          priority: task.priority,
+        ),
+      );
 
       // Categorize accuracy (within 20% is considered accurate)
       if (accuracy >= 0.8 && accuracy <= 1.2) {
@@ -159,10 +181,12 @@ class TaskAnalyticsService {
       }
     }
 
-    final overallAccuracy =
-        totalEstimated > 0 ? totalActual / totalEstimated : 0.0;
-    final averageEstimationError =
-        _calculateAverageEstimationError(accuracyData);
+    final overallAccuracy = totalEstimated > 0
+        ? totalActual / totalEstimated
+        : 0.0;
+    final averageEstimationError = _calculateAverageEstimationError(
+      accuracyData,
+    );
 
     return TimeEstimationAccuracy(
       totalTasksWithTime: tasksWithTime.length,
@@ -193,12 +217,17 @@ class TaskAnalyticsService {
     for (final task in completedTasks) {
       if (task.completedAt != null) {
         final completedAt = task.completedAt!;
-        final date =
-            DateTime(completedAt.year, completedAt.month, completedAt.day);
+        final date = DateTime(
+          completedAt.year,
+          completedAt.month,
+          completedAt.day,
+        );
         final hour = completedAt.hour;
+        final actualMinutes = _metadataInt(task.metadata, 'actualMinutes') ?? 0;
 
         // Daily trends
-        final daily = dailyTrends[date] ??
+        final daily =
+            dailyTrends[date] ??
             DailyProductivity(
               date: date,
               tasksCompleted: 0,
@@ -210,8 +239,7 @@ class TaskAnalyticsService {
         dailyTrends[date] = DailyProductivity(
           date: date,
           tasksCompleted: daily.tasksCompleted + 1,
-          totalMinutesSpent:
-              daily.totalMinutesSpent + (task.actualMinutes ?? 0),
+          totalMinutesSpent: daily.totalMinutesSpent + actualMinutes,
           averageTaskTime: 0, // Will be calculated later
           priorityBreakdown: {
             ...daily.priorityBreakdown,
@@ -261,8 +289,11 @@ class TaskAnalyticsService {
       weeklyTrends[weekStart] = WeeklyProductivity(
         weekStart: weekStart,
         tasksCompleted: weekTasks.length,
-        totalMinutesSpent:
-            weekTasks.fold(0, (sum, task) => sum + (task.actualMinutes ?? 0)),
+        totalMinutesSpent: weekTasks.fold(
+          0,
+          (sum, task) =>
+              sum + (_metadataInt(task.metadata, 'actualMinutes') ?? 0),
+        ),
         averageTasksPerDay: weekTasks.length / 7.0,
         mostProductiveDay: _getMostProductiveDay(weekTasks),
       );
@@ -288,12 +319,13 @@ class TaskAnalyticsService {
     final allTasks = await _getAllTasksInRange(startDate, endDate);
     final completedTasks = await _getCompletedTasksInRange(startDate, endDate);
 
-    final distribution = <TaskPriority, PriorityStats>{};
+    final distribution = <domain.TaskPriority, PriorityStats>{};
 
-    for (final priority in TaskPriority.values) {
+    for (final priority in domain.TaskPriority.values) {
       final totalCount = allTasks.where((t) => t.priority == priority).length;
-      final completedCount =
-          completedTasks.where((t) => t.priority == priority).length;
+      final completedCount = completedTasks
+          .where((t) => t.priority == priority)
+          .length;
       final averageTimeToComplete = _calculateAverageCompletionTime(
         completedTasks.where((t) => t.priority == priority).toList(),
       );
@@ -325,10 +357,12 @@ class TaskAnalyticsService {
     DateTime startDate,
     DateTime endDate,
   ) async {
-    final tasksWithDueDates =
-        await _getTasksWithDueDatesInRange(startDate, endDate);
+    final tasksWithDueDates = await _getTasksWithDueDatesInRange(
+      startDate,
+      endDate,
+    );
     final completedTasksWithDueDates = tasksWithDueDates
-        .where((t) => t.status == TaskStatus.completed)
+        .where((task) => task.status == domain.TaskStatus.completed)
         .toList();
 
     var onTimeCompletions = 0;
@@ -388,59 +422,78 @@ class TaskAnalyticsService {
     DateTime startDate,
     DateTime endDate,
   ) async {
-    final tasksWithLabels =
-        await _getTasksWithLabelsInRange(startDate, endDate);
-    final categoryStats = <String, CategoryStats>{};
+    final tasksWithLabels = await _getTasksWithLabelsInRange(
+      startDate,
+      endDate,
+    );
+
+    if (tasksWithLabels.isEmpty) {
+      return const CategoryPerformance(
+        categoryStats: <String, CategoryStats>{},
+        mostProductiveCategory: null,
+        slowestCategory: null,
+      );
+    }
+
+    final accumulators = <String, _CategoryAccumulator>{};
 
     for (final task in tasksWithLabels) {
-      if (task.labels?.isNotEmpty == true) {
-        final labels = task.labels!.split(',').map((l) => l.trim()).toList();
+      final labels = task.tags
+          .map((label) => label.trim())
+          .where((label) => label.isNotEmpty)
+          .toSet();
 
-        for (final label in labels) {
-          if (label.isNotEmpty) {
-            final existing = categoryStats[label] ??
-                CategoryStats(
-                  category: label,
-                  totalTasks: 0,
-                  completedTasks: 0,
-                  totalEstimatedMinutes: 0,
-                  totalActualMinutes: 0,
-                  averageCompletionTime: Duration.zero,
-                );
+      if (labels.isEmpty) {
+        continue;
+      }
 
-            categoryStats[label] = CategoryStats(
-              category: label,
-              totalTasks: existing.totalTasks + 1,
-              completedTasks: existing.completedTasks +
-                  (task.status == TaskStatus.completed ? 1 : 0),
-              totalEstimatedMinutes:
-                  existing.totalEstimatedMinutes + (task.estimatedMinutes ?? 0),
-              totalActualMinutes:
-                  existing.totalActualMinutes + (task.actualMinutes ?? 0),
-              averageCompletionTime:
-                  existing.averageCompletionTime, // Will calculate later
-            );
+      final estimatedMinutes = _metadataInt(task.metadata, 'estimatedMinutes');
+      final actualMinutes = _metadataInt(task.metadata, 'actualMinutes');
+      final completionDuration = task.completedAt?.difference(task.createdAt);
+
+      for (final label in labels) {
+        final accumulator = accumulators.putIfAbsent(
+          label,
+          () => _CategoryAccumulator(label),
+        );
+
+        accumulator.totalTasks += 1;
+
+        if (task.status == domain.TaskStatus.completed) {
+          accumulator.completedTasks += 1;
+          if (completionDuration != null && !completionDuration.isNegative) {
+            accumulator.totalCompletionMilliseconds +=
+                completionDuration.inMilliseconds;
+            accumulator.completionSamples += 1;
           }
+        }
+
+        if (estimatedMinutes != null) {
+          accumulator.totalEstimatedMinutes += estimatedMinutes;
+        }
+        if (actualMinutes != null) {
+          accumulator.totalActualMinutes += actualMinutes;
         }
       }
     }
 
-    // Calculate average completion times
-    for (final entry in categoryStats.entries) {
-      final stats = entry.value;
-      final categoryTasks = tasksWithLabels
-          .where((t) => t.labels?.contains(entry.key) == true)
-          .toList();
-
-      final avgCompletionTime = _calculateAverageCompletionTime(categoryTasks);
+    final categoryStats = <String, CategoryStats>{};
+    for (final entry in accumulators.entries) {
+      final data = entry.value;
+      final averageCompletion = data.completionSamples > 0
+          ? Duration(
+              milliseconds:
+                  data.totalCompletionMilliseconds ~/ data.completionSamples,
+            )
+          : Duration.zero;
 
       categoryStats[entry.key] = CategoryStats(
-        category: stats.category,
-        totalTasks: stats.totalTasks,
-        completedTasks: stats.completedTasks,
-        totalEstimatedMinutes: stats.totalEstimatedMinutes,
-        totalActualMinutes: stats.totalActualMinutes,
-        averageCompletionTime: avgCompletionTime,
+        category: data.category,
+        totalTasks: data.totalTasks,
+        completedTasks: data.completedTasks,
+        totalEstimatedMinutes: data.totalEstimatedMinutes,
+        totalActualMinutes: data.totalActualMinutes,
+        averageCompletionTime: averageCompletion,
       );
     }
 
@@ -460,61 +513,71 @@ class TaskAnalyticsService {
     // Time estimation insights
     if (analytics.timeAccuracyStats.totalTasksWithTime > 5) {
       if (analytics.timeAccuracyStats.overallAccuracy < 0.8) {
-        insights.add(ProductivityInsight(
-          type: InsightType.timeEstimation,
-          title: 'Improve Time Estimation',
-          description:
-              'You tend to underestimate task duration. Try adding 25% buffer time.',
-          impact: InsightImpact.medium,
-          actionable: true,
-        ));
+        insights.add(
+          ProductivityInsight(
+            type: InsightType.timeEstimation,
+            title: 'Improve Time Estimation',
+            description:
+                'You tend to underestimate task duration. Try adding 25% buffer time.',
+            impact: InsightImpact.medium,
+            actionable: true,
+          ),
+        );
       } else if (analytics.timeAccuracyStats.overallAccuracy > 1.3) {
-        insights.add(ProductivityInsight(
-          type: InsightType.timeEstimation,
-          title: 'More Ambitious Estimates',
-          description:
-              'You consistently overestimate. Try reducing estimates by 20%.',
-          impact: InsightImpact.low,
-          actionable: true,
-        ));
+        insights.add(
+          ProductivityInsight(
+            type: InsightType.timeEstimation,
+            title: 'More Ambitious Estimates',
+            description:
+                'You consistently overestimate. Try reducing estimates by 20%.',
+            impact: InsightImpact.low,
+            actionable: true,
+          ),
+        );
       }
     }
 
     // Completion rate insights
     if (analytics.completionStats.completionRate < 0.6) {
-      insights.add(ProductivityInsight(
-        type: InsightType.completion,
-        title: 'Focus on Task Completion',
-        description:
-            'Only ${(analytics.completionStats.completionRate * 100).round()}% of tasks are completed. Try smaller, more achievable tasks.',
-        impact: InsightImpact.high,
-        actionable: true,
-      ));
+      insights.add(
+        ProductivityInsight(
+          type: InsightType.completion,
+          title: 'Focus on Task Completion',
+          description:
+              'Only ${(analytics.completionStats.completionRate * 100).round()}% of tasks are completed. Try smaller, more achievable tasks.',
+          impact: InsightImpact.high,
+          actionable: true,
+        ),
+      );
     }
 
     // Deadline adherence insights
     if (analytics.deadlineMetrics.adherenceRate < 0.7) {
-      insights.add(ProductivityInsight(
-        type: InsightType.deadlines,
-        title: 'Improve Deadline Planning',
-        description:
-            'Consider setting more realistic deadlines or breaking large tasks into smaller ones.',
-        impact: InsightImpact.high,
-        actionable: true,
-      ));
+      insights.add(
+        ProductivityInsight(
+          type: InsightType.deadlines,
+          title: 'Improve Deadline Planning',
+          description:
+              'Consider setting more realistic deadlines or breaking large tasks into smaller ones.',
+          impact: InsightImpact.high,
+          actionable: true,
+        ),
+      );
     }
 
     // Productivity pattern insights
     final mostProductiveHour = analytics.productivityTrends.mostProductiveHour;
     if (mostProductiveHour != null) {
-      insights.add(ProductivityInsight(
-        type: InsightType.timing,
-        title: 'Optimize Your Schedule',
-        description:
-            'You\'re most productive at ${_formatHour(mostProductiveHour)}. Schedule important tasks then.',
-        impact: InsightImpact.medium,
-        actionable: true,
-      ));
+      insights.add(
+        ProductivityInsight(
+          type: InsightType.timing,
+          title: 'Optimize Your Schedule',
+          description:
+              'You\'re most productive at ${_formatHour(mostProductiveHour)}. Schedule important tasks then.',
+          impact: InsightImpact.medium,
+          actionable: true,
+        ),
+      );
     }
 
     return ProductivityInsights(
@@ -530,20 +593,21 @@ class TaskAnalyticsService {
 
     // Header
     buffer.writeln(
-        'Date,Tasks Completed,Tasks Created,Completion Rate,Time Spent (min)');
+      'Date,Tasks Completed,Tasks Created,Completion Rate,Time Spent (min)',
+    );
 
     // Daily data
     final allDates = <DateTime>{
       ...analytics.completionStats.completionsByDate.keys,
       ...analytics.completionStats.creationsByDate.keys,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
 
     for (final date in allDates) {
       final completed = analytics.completionStats.completionsByDate[date] ?? 0;
       final created = analytics.completionStats.creationsByDate[date] ?? 0;
-      final rate =
-          created > 0 ? (completed / created * 100).toStringAsFixed(1) : '0.0';
+      final rate = created > 0
+          ? (completed / created * 100).toStringAsFixed(1)
+          : '0.0';
 
       // Find total time spent on this date
       final dayTrend = analytics.productivityTrends.dailyTrends
@@ -552,7 +616,8 @@ class TaskAnalyticsService {
       final timeSpent = dayTrend?.totalMinutesSpent ?? 0;
 
       buffer.writeln(
-          '${DateFormat('yyyy-MM-dd').format(date)},$completed,$created,$rate%,$timeSpent');
+        '${DateFormat('yyyy-MM-dd').format(date)},$completed,$created,$rate%,$timeSpent',
+      );
     }
 
     return buffer.toString();
@@ -560,60 +625,95 @@ class TaskAnalyticsService {
 
   // Helper methods
 
-  Future<List<NoteTask>> _getCompletedTasksInRange(
-      DateTime start, DateTime end) async {
-    try {
-      final tasks = await _db.getCompletedTasks();
-      return tasks
-          .where((t) =>
-              t.completedAt != null &&
-              t.completedAt!.isAfter(start.subtract(const Duration(days: 1))) &&
-              t.completedAt!.isBefore(end.add(const Duration(days: 1))))
-          .toList();
-    } catch (e) {
-      _logger.error('Error getting completed tasks: $e');
-      return [];
-    }
-  }
+  Future<List<domain.Task>> _getAllTasksInRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final tasks = await _fetchAllTasks();
+    final lowerBound = start.subtract(const Duration(days: 1));
+    final upperBound = end.add(const Duration(days: 1));
 
-  Future<List<NoteTask>> _getAllTasksInRange(
-      DateTime start, DateTime end) async {
-    try {
-      // Use getAllTasks and filter by date range since getTasksByDateRange might not exist
-      final allTasks = await _db.getAllTasks();
-      return allTasks
-          .where((t) =>
-              t.createdAt.isAfter(start.subtract(const Duration(days: 1))) &&
-              t.createdAt.isBefore(end.add(const Duration(days: 1))))
-          .toList();
-    } catch (e) {
-      _logger.error('Error getting tasks in range: $e');
-      return [];
-    }
-  }
-
-  Future<List<NoteTask>> _getTasksWithTimeTracking(
-      DateTime start, DateTime end) async {
-    final tasks = await _getCompletedTasksInRange(start, end);
     return tasks
-        .where((t) =>
-            t.estimatedMinutes != null &&
-            t.actualMinutes != null &&
-            t.estimatedMinutes! > 0 &&
-            t.actualMinutes! > 0)
+        .where(
+          (task) =>
+              task.createdAt.isAfter(lowerBound) &&
+              task.createdAt.isBefore(upperBound),
+        )
         .toList();
   }
 
-  Future<List<NoteTask>> _getTasksWithDueDatesInRange(
-      DateTime start, DateTime end) async {
-    final tasks = await _getAllTasksInRange(start, end);
-    return tasks.where((t) => t.dueDate != null).toList();
+  Future<List<domain.Task>> _getCompletedTasksInRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final tasks = await _fetchAllTasks();
+    final lowerBound = start.subtract(const Duration(days: 1));
+    final upperBound = end.add(const Duration(days: 1));
+
+    return tasks
+        .where(
+          (task) =>
+              task.status == domain.TaskStatus.completed &&
+              task.completedAt != null &&
+              task.completedAt!.isAfter(lowerBound) &&
+              task.completedAt!.isBefore(upperBound),
+        )
+        .toList();
   }
 
-  Future<List<NoteTask>> _getTasksWithLabelsInRange(
-      DateTime start, DateTime end) async {
+  Future<List<domain.Task>> _getTasksWithTimeTracking(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final tasks = await _getCompletedTasksInRange(start, end);
+    return tasks.where((task) {
+      final estimated = _metadataInt(task.metadata, 'estimatedMinutes');
+      final actual = _metadataInt(task.metadata, 'actualMinutes');
+      return estimated != null && actual != null && estimated > 0 && actual > 0;
+    }).toList();
+  }
+
+  Future<List<domain.Task>> _getTasksWithDueDatesInRange(
+    DateTime start,
+    DateTime end,
+  ) async {
     final tasks = await _getAllTasksInRange(start, end);
-    return tasks.where((t) => t.labels?.isNotEmpty == true).toList();
+    return tasks.where((task) => task.dueDate != null).toList();
+  }
+
+  Future<List<domain.Task>> _getTasksWithLabelsInRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final repository = _taskRepository;
+    if (repository == null) {
+      _logger.warning(
+        'Task repository unavailable while loading tasks with labels',
+      );
+      return [];
+    }
+
+    try {
+      final tasks = await repository.getAllTasks();
+      final lowerBound = start.subtract(const Duration(days: 1));
+      final upperBound = end.add(const Duration(days: 1));
+
+      return tasks
+          .where(
+            (task) =>
+                task.tags.isNotEmpty &&
+                task.createdAt.isAfter(lowerBound) &&
+                task.createdAt.isBefore(upperBound),
+          )
+          .toList();
+    } catch (e, stack) {
+      _logger.error(
+        'Error retrieving tasks with labels',
+        error: e,
+        stackTrace: stack,
+      );
+      return [];
+    }
   }
 
   int _calculateCompletionStreak(Map<DateTime, int> completionsByDate) {
@@ -658,11 +758,12 @@ class TaskAnalyticsService {
     final firstHalf = data.take(data.length ~/ 2).toList();
     final secondHalf = data.skip(data.length ~/ 2).toList();
 
-    final firstAvg = firstHalf.map((d) => d.accuracy).reduce((a, b) => a + b) /
+    final firstAvg =
+        firstHalf.map((d) => d.accuracy).reduce((a, b) => a + b) /
         firstHalf.length;
     final secondAvg =
         secondHalf.map((d) => d.accuracy).reduce((a, b) => a + b) /
-            secondHalf.length;
+        secondHalf.length;
 
     return secondAvg - firstAvg; // Positive = improving, negative = declining
   }
@@ -684,30 +785,36 @@ class TaskAnalyticsService {
         .key;
   }
 
-  DateTime? _getMostProductiveDay(List<NoteTask> weekTasks) {
+  DateTime? _getMostProductiveDay(List<domain.Task> weekTasks) {
     if (weekTasks.isEmpty) return null;
 
     final dayCount = <DateTime, int>{};
     for (final task in weekTasks) {
-      if (task.completedAt != null) {
-        final date = DateTime(
-          task.completedAt!.year,
-          task.completedAt!.month,
-          task.completedAt!.day,
-        );
-        dayCount[date] = (dayCount[date] ?? 0) + 1;
-      }
+      final completedAt = task.completedAt;
+      if (completedAt == null) continue;
+
+      final date = DateTime(
+        completedAt.year,
+        completedAt.month,
+        completedAt.day,
+      );
+      final actualMinutes = _metadataInt(task.metadata, 'actualMinutes') ?? 0;
+      dayCount[date] = (dayCount[date] ?? 0) + actualMinutes;
     }
 
-    return dayCount.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+    if (dayCount.isEmpty) return null;
+
+    return dayCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
   double _calculateAverageTasksPerDay(
-      Map<DateTime, DailyProductivity> dailyTrends) {
+    Map<DateTime, DailyProductivity> dailyTrends,
+  ) {
     if (dailyTrends.isEmpty) return 0.0;
 
-    final totalTasks =
-        dailyTrends.values.map((d) => d.tasksCompleted).reduce((a, b) => a + b);
+    final totalTasks = dailyTrends.values
+        .map((d) => d.tasksCompleted)
+        .reduce((a, b) => a + b);
 
     return totalTasks / dailyTrends.length;
   }
@@ -721,12 +828,13 @@ class TaskAnalyticsService {
 
     // Consistency factor (30%)
     if (dailyTrends.isNotEmpty) {
-      final taskCounts =
-          dailyTrends.values.map((d) => d.tasksCompleted.toDouble()).toList();
+      final taskCounts = dailyTrends.values
+          .map((d) => d.tasksCompleted.toDouble())
+          .toList();
       final avg = taskCounts.reduce((a, b) => a + b) / taskCounts.length;
       final variance =
           taskCounts.map((c) => pow(c - avg, 2)).reduce((a, b) => a + b) /
-              taskCounts.length;
+          taskCounts.length;
       final consistency =
           1.0 / (1.0 + variance); // Lower variance = higher consistency
       score += consistency * 0.3;
@@ -734,8 +842,10 @@ class TaskAnalyticsService {
 
     // Volume factor (40%)
     final avgTasksPerDay = _calculateAverageTasksPerDay(dailyTrends);
-    final volumeScore =
-        min(avgTasksPerDay / 10.0, 1.0); // Normalize to max 10 tasks/day
+    final volumeScore = min(
+      avgTasksPerDay / 10.0,
+      1.0,
+    ); // Normalize to max 10 tasks/day
     score += volumeScore * 0.4;
 
     // Trend factor (30%)
@@ -751,14 +861,15 @@ class TaskAnalyticsService {
     return (score * 100).clamp(0.0, 100.0);
   }
 
-  Duration _calculateAverageCompletionTime(List<NoteTask> tasks) {
-    final tasksWithCompletionTime =
-        tasks.where((t) => t.completedAt != null).toList();
+  Duration _calculateAverageCompletionTime(List<domain.Task> tasks) {
+    final tasksWithCompletionTime = tasks
+        .where((task) => task.completedAt != null)
+        .toList();
 
     if (tasksWithCompletionTime.isEmpty) return Duration.zero;
 
     final totalDuration = tasksWithCompletionTime
-        .map((t) => t.completedAt!.difference(t.createdAt))
+        .map((task) => task.completedAt!.difference(task.createdAt))
         .reduce((a, b) => a + b);
 
     return Duration(
@@ -767,41 +878,43 @@ class TaskAnalyticsService {
     );
   }
 
-  double _calculateAverageEstimatedTime(List<NoteTask> tasks) {
-    final tasksWithEstimates =
-        tasks.where((t) => t.estimatedMinutes != null).toList();
-    if (tasksWithEstimates.isEmpty) return 0.0;
+  double _calculateAverageEstimatedTime(List<domain.Task> tasks) {
+    final estimates = tasks
+        .map((task) => _metadataInt(task.metadata, 'estimatedMinutes'))
+        .whereType<int>()
+        .toList();
+    if (estimates.isEmpty) return 0.0;
 
-    final total = tasksWithEstimates
-        .map((t) => t.estimatedMinutes!)
-        .reduce((a, b) => a + b);
-
-    return total / tasksWithEstimates.length;
+    final total = estimates.reduce((a, b) => a + b);
+    return total / estimates.length;
   }
 
-  double _calculateAverageActualTime(List<NoteTask> tasks) {
-    final tasksWithActual =
-        tasks.where((t) => t.actualMinutes != null).toList();
-    if (tasksWithActual.isEmpty) return 0.0;
+  double _calculateAverageActualTime(List<domain.Task> tasks) {
+    final actuals = tasks
+        .map((task) => _metadataInt(task.metadata, 'actualMinutes'))
+        .whereType<int>()
+        .toList();
+    if (actuals.isEmpty) return 0.0;
 
-    final total =
-        tasksWithActual.map((t) => t.actualMinutes!).reduce((a, b) => a + b);
-
-    return total / tasksWithActual.length;
+    final total = actuals.reduce((a, b) => a + b);
+    return total / actuals.length;
   }
 
-  TaskPriority? _getMostCompletedPriority(
-      Map<TaskPriority, PriorityStats> distribution) {
+  domain.TaskPriority? _getMostCompletedPriority(
+    Map<domain.TaskPriority, PriorityStats> distribution,
+  ) {
     if (distribution.isEmpty) return null;
 
     return distribution.entries
         .reduce(
-            (a, b) => a.value.completedTasks > b.value.completedTasks ? a : b)
+          (a, b) => a.value.completedTasks > b.value.completedTasks ? a : b,
+        )
         .key;
   }
 
-  TaskPriority? _getFastestCompletingPriority(
-      Map<TaskPriority, PriorityStats> distribution) {
+  domain.TaskPriority? _getFastestCompletingPriority(
+    Map<domain.TaskPriority, PriorityStats> distribution,
+  ) {
     final withCompletionTimes = distribution.entries
         .where((e) => e.value.averageTimeToComplete != Duration.zero)
         .toList();
@@ -809,15 +922,18 @@ class TaskAnalyticsService {
     if (withCompletionTimes.isEmpty) return null;
 
     return withCompletionTimes
-        .reduce((a, b) =>
-            a.value.averageTimeToComplete < b.value.averageTimeToComplete
-                ? a
-                : b)
+        .reduce(
+          (a, b) =>
+              a.value.averageTimeToComplete < b.value.averageTimeToComplete
+              ? a
+              : b,
+        )
         .key;
   }
 
   DeadlineAdherencePoint? _getWorstDeadlineMiss(
-      List<DeadlineAdherencePoint> data) {
+    List<DeadlineAdherencePoint> data,
+  ) {
     final lateTasks = data.where((d) => d.drift.isNegative == false).toList();
     if (lateTasks.isEmpty) return null;
 
@@ -829,7 +945,8 @@ class TaskAnalyticsService {
 
     return categoryStats.entries
         .reduce(
-            (a, b) => a.value.completedTasks > b.value.completedTasks ? a : b)
+          (a, b) => a.value.completedTasks > b.value.completedTasks ? a : b,
+        )
         .key;
   }
 
@@ -841,11 +958,22 @@ class TaskAnalyticsService {
     if (withCompletionTimes.isEmpty) return null;
 
     return withCompletionTimes
-        .reduce((a, b) =>
-            a.value.averageCompletionTime > b.value.averageCompletionTime
-                ? a
-                : b)
+        .reduce(
+          (a, b) =>
+              a.value.averageCompletionTime > b.value.averageCompletionTime
+              ? a
+              : b,
+        )
         .key;
+  }
+
+  int? _metadataInt(Map<String, dynamic> metadata, String key) {
+    final value = metadata[key];
+    if (value is int) return value;
+    if (value is double) return value.round();
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   double _calculateOverallProductivityScore(ProductivityAnalytics analytics) {
@@ -881,8 +1009,9 @@ class TaskAnalyticsService {
     final recommendations = <String>[];
 
     if (analytics.completionStats.completionRate < 0.7) {
-      recommendations
-          .add('Break large tasks into smaller, more manageable pieces');
+      recommendations.add(
+        'Break large tasks into smaller, more manageable pieces',
+      );
     }
 
     if (analytics.timeAccuracyStats.overallAccuracy < 0.8) {
@@ -890,14 +1019,16 @@ class TaskAnalyticsService {
     }
 
     if (analytics.deadlineMetrics.adherenceRate < 0.8) {
-      recommendations
-          .add('Set more realistic deadlines or use earlier reminder times');
+      recommendations.add(
+        'Set more realistic deadlines or use earlier reminder times',
+      );
     }
 
     final mostProductiveHour = analytics.productivityTrends.mostProductiveHour;
     if (mostProductiveHour != null) {
       recommendations.add(
-          'Schedule important tasks around ${_formatHour(mostProductiveHour)} when you\'re most productive');
+        'Schedule important tasks around ${_formatHour(mostProductiveHour)} when you\'re most productive',
+      );
     }
 
     return recommendations;
@@ -1030,7 +1161,7 @@ class TimeAccuracyPoint {
   final int actual;
   final double accuracy;
   final DateTime date;
-  final TaskPriority priority;
+  final domain.TaskPriority priority;
 }
 
 /// Productivity trends over time
@@ -1066,7 +1197,7 @@ class DailyProductivity {
   final int tasksCompleted;
   final int totalMinutesSpent;
   final double averageTaskTime;
-  final Map<TaskPriority, int> priorityBreakdown;
+  final Map<domain.TaskPriority, int> priorityBreakdown;
 }
 
 /// Weekly productivity data
@@ -1094,9 +1225,9 @@ class PriorityDistribution {
     this.fastestCompletingPriority,
   });
 
-  final Map<TaskPriority, PriorityStats> distribution;
-  final TaskPriority? mostCompletedPriority;
-  final TaskPriority? fastestCompletingPriority;
+  final Map<domain.TaskPriority, PriorityStats> distribution;
+  final domain.TaskPriority? mostCompletedPriority;
+  final domain.TaskPriority? fastestCompletingPriority;
 }
 
 /// Statistics for a specific priority level
@@ -1111,7 +1242,7 @@ class PriorityStats {
     required this.averageActualTime,
   });
 
-  final TaskPriority priority;
+  final domain.TaskPriority priority;
   final int totalTasks;
   final int completedTasks;
   final double completionRate;
@@ -1160,7 +1291,7 @@ class DeadlineAdherencePoint {
   final DateTime dueDate;
   final DateTime completedAt;
   final Duration drift;
-  final TaskPriority priority;
+  final domain.TaskPriority priority;
   final bool wasOnTime;
 }
 
@@ -1200,6 +1331,18 @@ class CategoryStats {
   double get timeAccuracy => totalEstimatedMinutes > 0
       ? totalActualMinutes / totalEstimatedMinutes
       : 0.0;
+}
+
+class _CategoryAccumulator {
+  _CategoryAccumulator(this.category);
+
+  final String category;
+  int totalTasks = 0;
+  int completedTasks = 0;
+  int totalEstimatedMinutes = 0;
+  int totalActualMinutes = 0;
+  int completionSamples = 0;
+  int totalCompletionMilliseconds = 0;
 }
 
 /// Productivity insights and recommendations

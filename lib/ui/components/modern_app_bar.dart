@@ -39,7 +39,8 @@ class ModernAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // TODO: Use isDark for theme-specific styling if needed
+    // final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
@@ -230,7 +231,8 @@ class ModernSliverAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // TODO: Use theme for non-gradient sections if needed
+    // final theme = Theme.of(context);
 
     return SliverAppBar(
       expandedHeight: expandedHeight,

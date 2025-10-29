@@ -174,16 +174,21 @@ class AttachmentMapper {
   }
 
   /// Convert domain entity to database companion for inserts
-  static AttachmentsTableCompanion toCompanion(domain.Attachment attachment) {
-    return AttachmentsTableCompanion.insert(
+  /// P0.5 SECURITY: Requires userId to enforce user isolation
+  static AttachmentsCompanion toCompanion(
+    domain.Attachment attachment, {
+    required String userId,
+  }) {
+    return AttachmentsCompanion.insert(
       id: attachment.id,
       noteId: attachment.noteId,
+      userId: userId, // P0.5 SECURITY: Required for user isolation
       filename: attachment.fileName,
       mimeType: attachment.mimeType,
       size: attachment.size,
+      createdAt: attachment.uploadedAt,
       url: Value(attachment.url),
       localPath: Value(attachment.localPath),
-      createdAt: Value(attachment.uploadedAt),
       metadata: const Value('{}'),
     );
   }

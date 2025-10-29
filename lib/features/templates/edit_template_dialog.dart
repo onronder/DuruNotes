@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/templates/create_template_dialog.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateCoreRepositoryProvider;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
@@ -835,7 +838,7 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
     });
 
     try {
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
       final analytics = ref.read(analyticsProvider);
 
       // Parse tags
@@ -845,12 +848,17 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           .where((tag) => tag.isNotEmpty)
           .toList();
 
-      // Update template
-      await repository.updateUserTemplate(
-        widget.template.id,
-        _titleController.text.trim(),
-        _bodyController.text.trim(),
-        metadata: {
+      // Fetch existing template from repository
+      final existing = await repository.getTemplateById(widget.template.id);
+      if (existing == null) {
+        throw Exception('Template not found: ${widget.template.id}');
+      }
+
+      // Create updated template with new values
+      final updatedTemplate = existing.copyWith(
+        name: _titleController.text.trim(),
+        content: _bodyController.text.trim(),
+        variables: {
           'tags': tags,
           'category': _selectedCategory,
           'description': _descriptionController.text.trim(),
@@ -858,7 +866,10 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           'last_edited': DateTime.now().toIso8601String(),
           'icon_data': _selectedIcon.codePoint,
         },
+        updatedAt: DateTime.now(),
       );
+
+      await repository.updateTemplate(updatedTemplate);
 
       _logger.info(
         'Template updated successfully',
@@ -931,6 +942,22 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
     return [];
   }
 
+  /// Const map of icon codepoints for tree-shaking compatibility
+  static const Map<int, IconData> _iconCodepointMap = {
+    0xe8f9: Icons.work, // work
+    0xe7ef: Icons.person, // person
+    0xe80c: Icons.school, // school
+    0xe8b8: Icons.palette, // palette
+    0xe8d1: Icons.meeting_room, // meeting_room
+    0xe616: Icons.event_note, // event_note
+    0xef42: Icons.article, // article
+    0xe89c: Icons.note_add, // note_add
+    0xe85d: Icons.assignment, // assignment
+    0xf87e: Icons.task_alt, // task_alt
+    0xe90f: Icons.lightbulb, // lightbulb
+    0xe873: Icons.description, // description
+  };
+
   IconData? _parseIcon(LocalTemplate template) {
     // Try to parse icon from metadata
     if (template.metadata != null) {
@@ -938,7 +965,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
         final metadata = jsonDecode(template.metadata!);
         if (metadata is Map<String, dynamic> && metadata['icon_data'] != null) {
           final codePoint = metadata['icon_data'] as int;
-          return IconData(codePoint, fontFamily: 'MaterialIcons');
+          // Use const map lookup instead of dynamic IconData creation
+          return _iconCodepointMap[codePoint];
         }
       } catch (e) {
         _logger.debug('Failed to parse icon from metadata: $e');

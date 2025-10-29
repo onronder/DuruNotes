@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -31,10 +32,10 @@ class FolderUndoOperation {
   final String id;
   final FolderUndoType type;
   final DateTime timestamp;
-  final LocalFolder originalFolder;
+  final domain.Folder originalFolder;
   final String? originalParentId;
   final List<String> affectedNotes;
-  final List<LocalFolder> affectedChildFolders;
+  final List<domain.Folder> affectedChildFolders;
   final String? originalName;
 
   /// Check if this operation has expired
@@ -82,9 +83,9 @@ class FolderUndoService {
 
   /// Add a folder deletion operation to undo history
   Future<String> addDeleteOperation({
-    required LocalFolder folder,
+    required domain.Folder folder,
     required List<String> affectedNotes,
-    required List<LocalFolder> affectedChildFolders,
+    required List<domain.Folder> affectedChildFolders,
   }) async {
     try {
       final operationId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -138,7 +139,7 @@ class FolderUndoService {
 
   /// Add a folder move operation to undo history
   Future<String> addMoveOperation({
-    required LocalFolder folder,
+    required domain.Folder folder,
     required String? originalParentId,
   }) async {
     try {
@@ -175,7 +176,7 @@ class FolderUndoService {
 
   /// Add a folder rename operation to undo history
   Future<String> addRenameOperation({
-    required LocalFolder folder,
+    required domain.Folder folder,
     required String originalName,
   }) async {
     try {

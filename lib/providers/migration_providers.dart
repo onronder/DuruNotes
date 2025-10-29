@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/core/migration/unified_migration_coordinator.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
 
 /// Provider for the unified migration coordinator
 final migrationCoordinatorProvider = Provider<UnifiedMigrationCoordinator>((ref) {

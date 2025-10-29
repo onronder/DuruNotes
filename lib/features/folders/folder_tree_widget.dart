@@ -1,8 +1,8 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
@@ -283,8 +283,6 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   }
 
   void _handleFolderAction(String action, LocalFolder folder) {
-    final folderRepo = ref.read(folderCoreRepositoryProvider);
-
     switch (action) {
       case 'create_subfolder':
         _showCreateFolderDialog(folder.id);

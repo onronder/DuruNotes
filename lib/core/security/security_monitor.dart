@@ -101,6 +101,9 @@ class SecurityMonitor {
       case SecurityEventType.accessControl:
         _handleAccessControl(event);
         break;
+      case SecurityEventType.performanceHardening:
+        // informational performance hardening telemetry; no additional handling
+        break;
       default:
         break;
     }
@@ -154,10 +157,7 @@ class SecurityMonitor {
             level: AlertLevel.critical,
             type: AlertType.encryptionFailure,
             message: 'Multiple decryption failures detected',
-            details: {
-              'keyId': keyId,
-              'failures': _decryptionFailures[keyId],
-            },
+            details: {'keyId': keyId, 'failures': _decryptionFailures[keyId]},
             timestamp: DateTime.now(),
           ),
         );
@@ -351,10 +351,7 @@ class SecurityMonitor {
           level: AlertLevel.low,
           type: AlertType.encryptionFailure,
           message: 'Frequent legacy key usage detected',
-          details: {
-            'noteId': noteId,
-            'count': _legacyKeyFallbacks[noteId],
-          },
+          details: {'noteId': noteId, 'count': _legacyKeyFallbacks[noteId]},
           timestamp: DateTime.now(),
         ),
       );
@@ -432,7 +429,8 @@ class SecurityMonitor {
     );
 
     // Reduce threat level if no recent incidents
-    if (_recentEvents.isEmpty && _currentThreatLevel != SecurityThreatLevel.low) {
+    if (_recentEvents.isEmpty &&
+        _currentThreatLevel != SecurityThreatLevel.low) {
       _currentThreatLevel = SecurityThreatLevel.low;
     }
   }
@@ -460,29 +458,13 @@ class SecurityMonitor {
 }
 
 /// Security threat levels
-enum SecurityThreatLevel {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum SecurityThreatLevel { low, medium, high, critical }
 
 /// Alert levels
-enum AlertLevel {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum AlertLevel { low, medium, high, critical }
 
 /// Alert types
-enum AlertType {
-  bruteForce,
-  encryptionFailure,
-  violation,
-  anomaly,
-  lockdown,
-}
+enum AlertType { bruteForce, encryptionFailure, violation, anomaly, lockdown }
 
 /// Security alert
 class SecurityAlert {
@@ -501,12 +483,12 @@ class SecurityAlert {
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'level': level.name,
-        'type': type.name,
-        'message': message,
-        'details': details,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'level': level.name,
+    'type': type.name,
+    'message': message,
+    'details': details,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Security metrics
@@ -532,13 +514,13 @@ class SecurityMetrics {
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'totalEvents': totalEvents,
-        'failedAuthAttempts': failedAuthAttempts,
-        'decryptionFailures': decryptionFailures,
-        'legacyKeyFallbacks': legacyKeyFallbacks,
-        'activeUsers': activeUsers,
-        'threatLevel': threatLevel.name,
-        'isInLockdown': isInLockdown,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'totalEvents': totalEvents,
+    'failedAuthAttempts': failedAuthAttempts,
+    'decryptionFailures': decryptionFailures,
+    'legacyKeyFallbacks': legacyKeyFallbacks,
+    'activeUsers': activeUsers,
+    'threatLevel': threatLevel.name,
+    'isInLockdown': isInLockdown,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }

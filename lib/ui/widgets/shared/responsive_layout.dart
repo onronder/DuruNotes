@@ -379,7 +379,7 @@ class ResponsiveText extends StatelessWidget {
       textAlign: textAlign,
       overflow: overflow,
       maxLines: maxLines,
-      textScaleFactor: scale,
+      textScaler: TextScaler.linear(scale),
     );
   }
 }

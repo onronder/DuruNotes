@@ -103,12 +103,13 @@ class SubscriptionService {
     required BuildContext context,
   }) async {
     try {
+      // TODO: Re-enable paywall UI presentation when implementing full subscription flow
       // Fetch paywall to validate availability (no UI presentation for now)
-      final paywall = await Adapty().getPaywall(
-        placementId: placementId,
-        locale: 'en',
-      );
-      _logger.info('Paywall fetched for placement: $placementId');
+      // final paywall = await Adapty().getPaywall(
+      //   placementId: placementId,
+      //   locale: 'en',
+      // );
+      _logger.info('Paywall fetch disabled for placement: $placementId');
       return false;
     } catch (e) {
       _logger.error('Failed to present paywall: $e');

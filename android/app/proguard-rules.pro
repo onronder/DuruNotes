@@ -50,3 +50,7 @@
 
 # Prevent obfuscation of Flutter's generated plugin registrant
 -keep class io.flutter.plugins.GeneratedPluginRegistrant { *; }
+
+# Google Play Core - Allow build without Play Core dependency
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }

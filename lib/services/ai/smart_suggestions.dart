@@ -2,9 +2,16 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show userIdProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Smart folder suggestions service using ML-like algorithms
@@ -16,9 +23,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// - Similarity matching
 /// - Auto-categorization
 class SmartSuggestionsService {
-  SmartSuggestionsService({required this.repository, required this.userId});
+  SmartSuggestionsService({
+    required this.repository,
+    required this.folderRepository,
+    required this.userId,
+  });
 
   final NotesCoreRepository repository;
+  final IFolderRepository folderRepository;
   final String userId;
   final _logger = LoggerFactory.instance;
 
@@ -33,7 +45,7 @@ class SmartSuggestionsService {
   static const int minPatternOccurrences = 3;
 
   /// Get smart folder suggestions for a note
-  Future<List<FolderSuggestion>> getSuggestionsForNote(LocalNote note) async {
+  Future<List<FolderSuggestion>> getSuggestionsForNote(domain.Note note) async {
     // Check cache first
     final cacheKey = '${note.id}_${note.updatedAt.millisecondsSinceEpoch}';
     if (_suggestionCache.containsKey(cacheKey)) {
@@ -77,16 +89,16 @@ class SmartSuggestionsService {
 
   /// Get content-based folder suggestions
   Future<List<FolderSuggestion>> _getContentBasedSuggestions(
-    LocalNote note,
+    domain.Note note,
   ) async {
     final suggestions = <FolderSuggestion>[];
-    final folders = await repository.db.listFolders();
+    final folders = await folderRepository.listFolders();
 
     // Extract keywords from note
     final keywords = _extractKeywords(note);
 
     for (final folder in folders) {
-      if (folder.deleted) continue;
+      // Repository already filters deleted folders, no need to check
 
       // Check folder name and description for keyword matches
       double score = 0;
@@ -97,8 +109,8 @@ class SmartSuggestionsService {
           score += 0.3;
           matches++;
         }
-        if (folder.description.toLowerCase().contains(keyword.toLowerCase()) ??
-            false) {
+        final description = folder.description;
+        if (description != null && description.toLowerCase().contains(keyword.toLowerCase())) {
           score += 0.2;
           matches++;
         }
@@ -131,7 +143,7 @@ class SmartSuggestionsService {
 
   /// Get time-based folder suggestions
   Future<List<FolderSuggestion>> _getTimeBasedSuggestions(
-    LocalNote note,
+    domain.Note note,
   ) async {
     final suggestions = <FolderSuggestion>[];
     final now = DateTime.now();
@@ -148,8 +160,8 @@ class SmartSuggestionsService {
 
     for (final usage in recentFolderUsage) {
       if (usage.confidence > minConfidence) {
-        final folder = await repository.db.getFolderById(usage.folderId);
-        if (folder != null && !folder.deleted) {
+        final folder = await folderRepository.getFolder(usage.folderId);
+        if (folder != null) {
           suggestions.add(
             FolderSuggestion(
               folder: folder,
@@ -167,7 +179,7 @@ class SmartSuggestionsService {
 
   /// Get pattern-based folder suggestions
   Future<List<FolderSuggestion>> _getPatternBasedSuggestions(
-    LocalNote note,
+    domain.Note note,
   ) async {
     final suggestions = <FolderSuggestion>[];
 
@@ -180,8 +192,8 @@ class SmartSuggestionsService {
         final matchScore = _matchesPattern(note, pattern);
 
         if (matchScore > minConfidence) {
-          final folder = await repository.db.getFolderById(pattern.folderId);
-          if (folder != null && !folder.deleted) {
+          final folder = await folderRepository.getFolder(pattern.folderId);
+          if (folder != null) {
             suggestions.add(
               FolderSuggestion(
                 folder: folder,
@@ -200,7 +212,7 @@ class SmartSuggestionsService {
 
   /// Get similarity-based folder suggestions
   Future<List<FolderSuggestion>> _getSimilarityBasedSuggestions(
-    LocalNote note,
+    domain.Note note,
   ) async {
     final suggestions = <FolderSuggestion>[];
 
@@ -212,10 +224,9 @@ class SmartSuggestionsService {
     final folderCounts = <String, int>{};
 
     for (final similarNote in similarNotes) {
-      // Get folder ID from note_folders junction table
-      final noteFolders = await repository.db.getNoteFolders(similarNote.noteId);
-      if (noteFolders.isNotEmpty) {
-        final folderId = noteFolders.first.id;
+      // Use folderId from the similar note (notes now have folderId directly)
+      final folderId = similarNote.folderId;
+      if (folderId != null) {
         folderScores[folderId] =
             (folderScores[folderId] ?? 0.0) + similarNote.similarity;
         folderCounts[folderId] = (folderCounts[folderId] ?? 0) + 1;
@@ -231,8 +242,8 @@ class SmartSuggestionsService {
       final confidence = (totalScore / count).clamp(0.0, 1.0).toDouble();
 
       if (confidence > minConfidence) {
-        final folder = await repository.db.getFolderById(folderId);
-        if (folder != null && !folder.deleted) {
+        final folder = await folderRepository.getFolder(folderId);
+        if (folder != null) {
           suggestions.add(
             FolderSuggestion(
               folder: folder,
@@ -249,7 +260,7 @@ class SmartSuggestionsService {
   }
 
   /// Extract keywords from note
-  List<String> _extractKeywords(LocalNote note) {
+  List<String> _extractKeywords(domain.Note note) {
     final text = '${note.title} ${note.body}'.toLowerCase();
 
     // Simple keyword extraction (could be enhanced with NLP)
@@ -296,14 +307,15 @@ class SmartSuggestionsService {
 
   /// Calculate content similarity between note and folder
   Future<double> _calculateFolderContentSimilarity(
-    LocalNote note,
+    domain.Note note,
     String folderId,
   ) async {
-    // Get sample notes from folder
-    final folderNotes = await repository.db.getNotesInFolder(
-      folderId,
-      limit: 10,
-    );
+    // Get sample notes from folder - use repository which returns decrypted notes
+    final allNotes = await repository.localNotes();
+    final folderNotes = allNotes
+        .where((n) => n.folderId == folderId)
+        .take(10)
+        .toList();
 
     if (folderNotes.isEmpty) return 0;
 
@@ -317,7 +329,7 @@ class SmartSuggestionsService {
   }
 
   /// Calculate similarity between two notes
-  double _calculateNoteSimilarity(LocalNote note1, LocalNote note2) {
+  double _calculateNoteSimilarity(domain.Note note1, domain.Note note2) {
     // Simple cosine similarity based on keywords
     final keywords1 = _extractKeywords(note1).toSet();
     final keywords2 = _extractKeywords(note2).toSet();
@@ -332,16 +344,14 @@ class SmartSuggestionsService {
 
   /// Find similar notes
   Future<List<SimilarNote>> _findSimilarNotes(
-    LocalNote note, {
+    domain.Note note, {
     int limit = 10,
   }) async {
     final similarNotes = <SimilarNote>[];
 
-    // Get recent notes
-    final recentNotes = await repository.db.notesAfter(
-      cursor: null,
-      limit: 100,
-    );
+    // Get all notes (repository returns decrypted domain.Note entities)
+    final allNotes = await repository.localNotes();
+    final recentNotes = allNotes.take(100).toList();
 
     for (final otherNote in recentNotes) {
       if (otherNote.id == note.id) continue;
@@ -349,7 +359,11 @@ class SmartSuggestionsService {
       final similarity = _calculateNoteSimilarity(note, otherNote);
       if (similarity > 0.2) {
         similarNotes.add(
-          SimilarNote(noteId: otherNote.id, similarity: similarity),
+          SimilarNote(
+            noteId: otherNote.id,
+            similarity: similarity,
+            folderId: otherNote.folderId, // Include folderId to avoid extra lookups
+          ),
         );
       }
     }
@@ -376,7 +390,7 @@ class SmartSuggestionsService {
   }
 
   /// Check if note matches a pattern
-  double _matchesPattern(LocalNote note, FolderPattern pattern) {
+  double _matchesPattern(domain.Note note, FolderPattern pattern) {
     double score = 0;
     int matches = 0;
 
@@ -507,7 +521,7 @@ class FolderSuggestion {
     required this.type,
   });
 
-  final LocalFolder folder;
+  final domain.Folder folder; // Changed from LocalFolder to domain.Folder
   final double confidence;
   final String reason;
   final SuggestionType type;
@@ -541,10 +555,15 @@ class FolderPattern {
 
 /// Similar note model
 class SimilarNote {
-  const SimilarNote({required this.noteId, required this.similarity});
+  const SimilarNote({
+    required this.noteId,
+    required this.similarity,
+    this.folderId,
+  });
 
   final String noteId;
   final double similarity;
+  final String? folderId; // Added to avoid additional database lookups
 }
 
 /// Folder usage model
@@ -640,19 +659,25 @@ enum ActionType {
 
 /// Smart suggestions provider
 final smartSuggestionsProvider = Provider<SmartSuggestionsService>((ref) {
-  final repository = ref.watch(notesRepositoryProvider);
+  final repository = ref.watch(notesCoreRepositoryProvider);
+  final folderRepository = ref.watch(folderCoreRepositoryProvider);
   final userId = ref.watch(userIdProvider) ?? 'default';
 
-  return SmartSuggestionsService(repository: repository, userId: userId);
+  return SmartSuggestionsService(
+    repository: repository,
+    folderRepository: folderRepository,
+    userId: userId,
+  );
 });
 
 /// Suggestions for current note provider
 final noteSuggestionsProvider =
     FutureProvider.family<List<FolderSuggestion>, String>((ref, noteId) async {
-  final repository = ref.watch(notesRepositoryProvider);
+  final repository = ref.watch(notesCoreRepositoryProvider);
   final suggestionsService = ref.watch(smartSuggestionsProvider);
 
-  final note = await repository.db.findNote(noteId);
+  // Get note using repository (returns domain.Note, already decrypted)
+  final note = await repository.getNoteById(noteId);
   if (note == null) return [];
 
   return suggestionsService.getSuggestionsForNote(note);

@@ -88,7 +88,6 @@ class SentryAnalytics extends AnalyticsService {
     }
   }
 
-  @override
   void screen(String name, {Map<String, dynamic>? properties}) {
     event(
       AnalyticsEvents.screenView,
@@ -96,7 +95,6 @@ class SentryAnalytics extends AnalyticsService {
     );
   }
 
-  @override
   void setUser(String? userId, {Map<String, dynamic>? properties}) {
     _currentUserId = userId;
 
@@ -119,7 +117,6 @@ class SentryAnalytics extends AnalyticsService {
     }
   }
 
-  @override
   void clearUser() {
     _currentUserId = null;
 
@@ -136,7 +133,6 @@ class SentryAnalytics extends AnalyticsService {
     }
   }
 
-  @override
   void setUserProperty(String key, Object? value) {
     if (!_isEnabled || _currentUserId == null) return;
 
@@ -157,24 +153,24 @@ class SentryAnalytics extends AnalyticsService {
   }
 
   @override
-  void startTiming(String name) {
-    _timingEvents[name] = DateTime.now();
+  void startTiming(String eventName) {
+    _timingEvents[eventName] = DateTime.now();
 
-    _logger.breadcrumb('Started timing: $name');
+    _logger.breadcrumb('Started timing: $eventName');
   }
 
   @override
-  void endTiming(String name, {Map<String, dynamic>? properties}) {
-    final startTime = _timingEvents.remove(name);
+  void endTiming(String eventName, {Map<String, dynamic>? properties}) {
+    final startTime = _timingEvents.remove(eventName);
     if (startTime == null) {
-      _logger.warn('Attempted to end timing for non-started event: $name');
+      _logger.warn('Attempted to end timing for non-started event: $eventName');
       return;
     }
 
     final duration = DateTime.now().difference(startTime).inMilliseconds;
 
     event(
-      'timing.$name',
+      'timing.$eventName',
       properties: {
         AnalyticsProperties.duration: duration,
         ...(properties ?? {}),
@@ -182,7 +178,6 @@ class SentryAnalytics extends AnalyticsService {
     );
   }
 
-  @override
   void funnelStep(
     String funnelName,
     String stepName, {
@@ -209,7 +204,6 @@ class SentryAnalytics extends AnalyticsService {
     );
   }
 
-  @override
   void engagement(
     String action, {
     String? category,
@@ -227,21 +221,20 @@ class SentryAnalytics extends AnalyticsService {
 
   @override
   void trackError(
-    String error, {
+    String message, {
     String? context,
     Map<String, dynamic>? properties,
   }) {
     event(
       AnalyticsEvents.errorOccurred,
       properties: {
-        AnalyticsProperties.errorMessage: error,
+        AnalyticsProperties.errorMessage: message,
         if (context != null) AnalyticsProperties.featureContext: context,
         ...(properties ?? {}),
       },
     );
   }
 
-  @override
   void setUserProperties(Map<String, dynamic> properties) {
     if (!_isEnabled) return;
 
@@ -257,7 +250,6 @@ class SentryAnalytics extends AnalyticsService {
     }
   }
 
-  @override
   Future<void> flush() async {
     if (!_isEnabled) return;
 
@@ -293,37 +285,32 @@ class NoOpAnalytics extends AnalyticsService {
     // No-op
   }
 
-  @override
   void screen(String name, {Map<String, dynamic>? properties}) {
     // No-op
   }
 
-  @override
   void setUser(String? userId, {Map<String, dynamic>? properties}) {
     // No-op
   }
 
-  @override
   void clearUser() {
     // No-op
   }
 
-  @override
   void setUserProperty(String key, Object? value) {
     // No-op
   }
 
   @override
-  void startTiming(String name) {
+  void startTiming(String eventName) {
     // No-op
   }
 
   @override
-  void endTiming(String name, {Map<String, dynamic>? properties}) {
+  void endTiming(String eventName, {Map<String, dynamic>? properties}) {
     // No-op
   }
 
-  @override
   void funnelStep(
     String funnelName,
     String stepName, {
@@ -337,7 +324,6 @@ class NoOpAnalytics extends AnalyticsService {
     // No-op
   }
 
-  @override
   void engagement(
     String action, {
     String? category,
@@ -348,19 +334,17 @@ class NoOpAnalytics extends AnalyticsService {
 
   @override
   void trackError(
-    String error, {
+    String message, {
     String? context,
     Map<String, dynamic>? properties,
   }) {
     // No-op
   }
 
-  @override
   void setUserProperties(Map<String, dynamic> properties) {
     // No-op
   }
 
-  @override
   Future<void> flush() async {
     // No-op
   }

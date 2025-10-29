@@ -1,0 +1,31 @@
+{
+  "test_name": "provider_dependency_validation",
+  "timestamp": "2025-10-26T16:26:26.779335",
+  "results": {
+    "domainTaskController": {
+      "success": false,
+      "resolvedDependencies": [
+        "taskCoreRepository (Supabase init required)",
+        "enhancedTaskService (Supabase init required)",
+        "logger"
+      ],
+      "totalDependencies": 4
+    },
+    "enhancedTaskService": {
+      "success": true,
+      "resolvedDependencies": [
+        "appDb",
+        "taskReminderBridge (Supabase init required)"
+      ],
+      "totalDependencies": 2
+    },
+    "taskReminderBridge": {
+      "success": true,
+      "resolvedDependencies": [
+        "unifiedReminderCoordinator",
+        "taskCoreRepository (Supabase init required)"
+      ],
+      "totalDependencies": 3
+    }
+  }
+}

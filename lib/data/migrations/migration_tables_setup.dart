@@ -111,7 +111,7 @@ class MigrationTablesSetup {
   /// Insert initial migration records for tracking
   static Future<void> seedInitialMigrationData(AppDb db) async {
     // Record current schema version as baseline
-    final currentVersion = await db.schemaVersion;
+    final currentVersion = db.schemaVersion;
 
     await db.customStatement('''
       INSERT OR IGNORE INTO migration_history (
@@ -249,7 +249,7 @@ class MigrationTablesSetup {
       WHERE status = 'cleanup_scheduled'
     ''').getSingle();
 
-    return result.read<int>('count') ?? 0;
+    return result.read<int>('count');
   }
 
   /// Verify migration table integrity

@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_block_parser.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
@@ -10,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -171,7 +171,7 @@ class ExportService {
 
   /// Export a note to Markdown format
   Future<ExportResult> exportToMarkdown(
-    LocalNote note, {
+    domain.Note note, {
     ExportOptions options = const ExportOptions(),
     ExportProgressCallback? onProgress,
   }) async {
@@ -297,7 +297,7 @@ class ExportService {
 
   /// Export a note to PDF format with rich formatting
   Future<ExportResult> exportToPdf(
-    LocalNote note, {
+    domain.Note note, {
     ExportOptions options = const ExportOptions(),
     ExportProgressCallback? onProgress,
   }) async {
@@ -483,7 +483,7 @@ class ExportService {
 
   /// Export a note to HTML format
   Future<ExportResult> exportToHtml(
-    LocalNote note, {
+    domain.Note note, {
     ExportOptions options = const ExportOptions(),
     ExportProgressCallback? onProgress,
   }) async {
@@ -559,10 +559,12 @@ class ExportService {
   /// Share exported file using platform sharing
   Future<bool> shareExportedFile(File file, ExportFormat format) async {
     try {
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Shared from Duru Notes',
-        subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Shared from Duru Notes',
+          subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
+        ),
       );
 
       _analytics.featureUsed(
@@ -595,7 +597,7 @@ class ExportService {
   }
 
   /// Get estimated export time based on content size
-  Duration getEstimatedExportTime(LocalNote note, ExportFormat format) {
+  Duration getEstimatedExportTime(domain.Note note, ExportFormat format) {
     final contentLength = note.body.length;
     final blocks = parseMarkdownToBlocks(note.body);
 
@@ -634,7 +636,7 @@ class ExportService {
   }
 
   Future<String> _buildMarkdownContent(
-    LocalNote note,
+    domain.Note note,
     List<NoteBlock> blocks,
     ExportOptions options,
   ) async {
@@ -669,14 +671,14 @@ class ExportService {
   }
 
   Future<List<pw.Widget>> _buildPdfContent(
-    LocalNote note,
+    domain.Note note,
     List<NoteBlock> blocks,
     ExportOptions options, {
     required pw.Font fontRegular,
     required pw.Font fontBold,
     required pw.Font fontItalic,
     required pw.Font fontMono,
-    Function(double)? onProgress,
+    void Function(double)? onProgress,
   }) async {
     final widgets = <pw.Widget>[];
 
@@ -724,7 +726,7 @@ class ExportService {
   }
 
   pw.Widget _buildPdfMetadata(
-    LocalNote note,
+    domain.Note note,
     ExportOptions options,
     pw.Font font,
   ) {
@@ -739,7 +741,7 @@ class ExportService {
         children: [
           if (options.includeTimestamps) ...[
             pw.Text(
-              'Created: ${_formatDate(note.updatedAt ?? DateTime.now())}',
+              'Created: ${_formatDate(note.updatedAt)}',
               style: pw.TextStyle(font: font, fontSize: 10),
             ),
             pw.Text(
@@ -761,7 +763,7 @@ class ExportService {
     );
   }
 
-  pw.Widget _buildPdfHeader(LocalNote note, ExportOptions options) {
+  pw.Widget _buildPdfHeader(domain.Note note, ExportOptions options) {
     return pw.Container(
       alignment: pw.Alignment.centerRight,
       margin: const pw.EdgeInsets.only(bottom: 20),
@@ -927,7 +929,7 @@ class ExportService {
   }
 
   Future<String> _buildHtmlContent(
-    LocalNote note,
+    domain.Note note,
     List<NoteBlock> blocks,
     ExportOptions options,
   ) async {
@@ -959,7 +961,7 @@ class ExportService {
       buffer.writeln('<div class="metadata">');
       if (options.includeTimestamps) {
         buffer.writeln(
-          '<p><strong>Created:</strong> ${_formatDate(note.updatedAt ?? DateTime.now())}</p>',
+          '<p><strong>Created:</strong> ${_formatDate(note.updatedAt)}</p>',
         );
         buffer.writeln(
           '<p><strong>Updated:</strong> ${_formatDate(note.updatedAt)}</p>',
@@ -1066,14 +1068,14 @@ class ExportService {
     required ExportFormat format,
   }) async {
     // Create temporary file for sharing
-    final tempDir = await getTemporaryDirectory();
+    final tempDir = await resolveTemporaryDirectory();
     final file = File(path.join(tempDir.path, filename));
 
     await file.writeAsString(content);
 
     // Also save to app documents for file sharing (iOS)
     try {
-      final documentsDir = await getApplicationDocumentsDirectory();
+      final documentsDir = await resolveAppDocumentsDirectory();
       final documentsFile = File(
         path.join(documentsDir.path, 'exports', filename),
       );
@@ -1092,14 +1094,14 @@ class ExportService {
     required ExportFormat format,
   }) async {
     // Create temporary file for sharing
-    final tempDir = await getTemporaryDirectory();
+    final tempDir = await resolveTemporaryDirectory();
     final file = File(path.join(tempDir.path, filename));
 
     await file.writeAsBytes(bytes);
 
     // Also save to app documents for file sharing (iOS)
     try {
-      final documentsDir = await getApplicationDocumentsDirectory();
+      final documentsDir = await resolveAppDocumentsDirectory();
       final documentsFile = File(
         path.join(documentsDir.path, 'exports', filename),
       );
@@ -1165,10 +1167,12 @@ class ExportService {
   /// Share exported file using platform share sheet
   Future<bool> shareFile(File file, ExportFormat format) async {
     try {
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Exported from Duru Notes',
-        subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Exported from Duru Notes',
+          subject: 'Note Export - ${path.basenameWithoutExtension(file.path)}',
+        ),
       );
 
       _analytics.featureUsed(

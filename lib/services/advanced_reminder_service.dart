@@ -3,10 +3,14 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider, analyticsProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/analytics/analytics_sentry.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/notifications/notification_bootstrap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +30,17 @@ class AdvancedReminderService {
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
   AppLogger get logger => _ref.read(loggerProvider);
+  AnalyticsService get analytics => _ref.read(analyticsProvider);
+
+  /// P0.5 SECURITY: Get current user ID for reminder operations
+  String? get _currentUserId {
+    try {
+      return _ref.read(supabaseClientProvider).auth.currentUser?.id;
+    } catch (e) {
+      logger.warning('Failed to get current user ID: $e');
+      return null;
+    }
+  }
 
   static const String _channelId = 'notes_reminders';
   static const String _channelName = 'Notes Reminders';
@@ -43,6 +58,7 @@ class AdvancedReminderService {
     if (_initialized) return;
 
     try {
+      await NotificationBootstrap.ensureInitialized(_plugin);
       // Create notification channels
       await _createNotificationChannels();
 
@@ -90,12 +106,14 @@ class AdvancedReminderService {
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(mainChannel);
 
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(locationChannel);
   }
 
@@ -133,7 +151,8 @@ class AdvancedReminderService {
       if (Platform.isIOS) {
         final result = await _plugin
             .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>()
+              IOSFlutterLocalNotificationsPlugin
+            >()
             ?.requestPermissions(alert: true, badge: true, sound: true);
         granted = result ?? false;
       } else if (Platform.isAndroid) {
@@ -176,7 +195,8 @@ class AdvancedReminderService {
         return false;
       }
 
-      final granted = permission == geo.LocationPermission.whileInUse ||
+      final granted =
+          permission == geo.LocationPermission.whileInUse ||
           permission == geo.LocationPermission.always;
 
       analytics.event(
@@ -254,10 +274,18 @@ class AdvancedReminderService {
         return null;
       }
 
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot create reminder - no authenticated user');
+        return null;
+      }
+
       // Create reminder in database
       final reminderId = await _db.createReminder(
         NoteRemindersCompanion.insert(
           noteId: noteId,
+          userId: userId, // P0.5 SECURITY: Required for user isolation
           title: Value(title),
           body: Value(body),
           type: ReminderType.time,
@@ -297,8 +325,9 @@ class AdvancedReminderService {
           'type': 'time',
           'has_recurrence': recurrence != RecurrencePattern.none,
           'recurrence_pattern': recurrence.name,
-          'hours_from_now':
-              remindAtUtc.difference(DateTime.now().toUtc()).inHours,
+          'hours_from_now': remindAtUtc
+              .difference(DateTime.now().toUtc())
+              .inHours,
         },
       );
 
@@ -324,6 +353,13 @@ class AdvancedReminderService {
     RecurrencePattern pattern,
     int interval,
   ) async {
+    // P0.5 SECURITY: Get current userId
+    final userId = _currentUserId;
+    if (userId == null) {
+      logger.warn('Cannot schedule next recurrence - no authenticated user');
+      return;
+    }
+
     DateTime? nextTime;
 
     switch (pattern) {
@@ -354,11 +390,12 @@ class AdvancedReminderService {
     // Update the reminder with next occurrence time
     await _db.updateReminder(
       reminderId,
+      userId, // P0.5 SECURITY
       NoteRemindersCompanion(remindAt: Value(nextTime.toUtc())),
     );
 
     // Schedule the next notification
-    final reminder = await _db.getReminderById(reminderId);
+    final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
     if (reminder != null) {
       await _scheduleNotification(
         reminderId,
@@ -398,10 +435,18 @@ class AdvancedReminderService {
         return null;
       }
 
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot create location reminder - no authenticated user');
+        return null;
+      }
+
       // Create reminder in database
       final reminderId = await _db.createReminder(
         NoteRemindersCompanion.insert(
           noteId: noteId,
+          userId: userId, // P0.5 SECURITY: Required for user isolation
           title: Value(title),
           body: Value(body),
           type: ReminderType.location,
@@ -498,30 +543,7 @@ class AdvancedReminderService {
   //   }
   // }
 
-  /// Trigger a location-based reminder
-  Future<void> _triggerLocationReminder(int reminderId) async {
-    try {
-      final reminder = await _db.getReminderById(reminderId);
-      if (reminder == null || !reminder.isActive) return;
-
-      // Show notification
-      await _showLocationNotification(reminder);
-
-      // Mark as triggered
-      await _db.markReminderTriggered(reminderId);
-
-      analytics.event(
-        'reminder.triggered',
-        properties: {'type': 'location', 'reminder_id': reminderId},
-      );
-    } catch (e, stack) {
-      logger.error(
-        'Failed to trigger location reminder',
-        error: e,
-        stackTrace: stack,
-      );
-    }
-  }
+  // Location reminder triggering will be implemented when geofence callback API is stable
 
   // ========================
   // Notification Management
@@ -576,50 +598,8 @@ class AdvancedReminderService {
     }
   }
 
-  /// Show location-based notification
-  Future<void> _showLocationNotification(NoteReminder reminder) async {
-    try {
-      final notificationId = _generateNotificationId(reminder.id);
-      final payload = jsonEncode({
-        'reminderId': reminder.id,
-        'type': 'location',
-      });
-
-      final locationText = reminder.locationName ?? 'location';
-      final title = reminder.notificationTitle ?? '📍 Location Reminder';
-      final body = reminder.notificationBody ??
-          "You're near $locationText - ${reminder.title}";
-
-      await _plugin.show(
-        notificationId,
-        title,
-        body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _locationChannelId,
-            _locationChannelName,
-            channelDescription: _locationChannelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-            actions: _getNotificationActions(),
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: payload,
-      );
-    } catch (e, stack) {
-      logger.error(
-        'Failed to show location notification',
-        error: e,
-        stackTrace: stack,
-      );
-    }
-  }
+  // Location notification will be implemented when geofence callback API is stable
+  // (previously _showLocationNotification - removed as unused until geofence integration is complete)
 
   /// Get notification action buttons
   List<AndroidNotificationAction> _getNotificationActions() {
@@ -649,13 +629,20 @@ class AdvancedReminderService {
   /// Snooze a reminder
   Future<void> snoozeReminder(int reminderId, SnoozeDuration duration) async {
     try {
-      final reminder = await _db.getReminderById(reminderId);
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot snooze reminder - no authenticated user');
+        return;
+      }
+
+      final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
       if (reminder == null) return;
 
       final snoozeUntil = _calculateSnoozeTime(duration);
 
       // Update database
-      await _db.snoozeReminder(reminderId, snoozeUntil);
+      await _db.snoozeReminder(reminderId, userId, snoozeUntil); // P0.5 SECURITY
 
       // Cancel current notification
       await _cancelNotification(reminderId);
@@ -718,7 +705,11 @@ class AdvancedReminderService {
 
   /// Get all reminders for a note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
-    return _db.getRemindersForNote(noteId);
+    // P0.5 SECURITY: Get current userId
+    final userId = _currentUserId;
+    if (userId == null) return [];
+
+    return _db.getRemindersForNote(noteId, userId); // P0.5 SECURITY
   }
 
   /// Update a reminder
@@ -726,23 +717,37 @@ class AdvancedReminderService {
     int reminderId,
     NoteRemindersCompanion updates,
   ) async {
-    await _db.updateReminder(reminderId, updates);
+    // P0.5 SECURITY: Get current userId
+    final userId = _currentUserId;
+    if (userId == null) {
+      logger.warn('Cannot update reminder - no authenticated user');
+      return;
+    }
+
+    await _db.updateReminder(reminderId, userId, updates); // P0.5 SECURITY
   }
 
   /// Delete a reminder
   Future<void> deleteReminder(int reminderId) async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot delete reminder - no authenticated user');
+        return;
+      }
+
       // Cancel notification
       await _cancelNotification(reminderId);
 
       // Remove geofence if location reminder
-      final reminder = await _db.getReminderById(reminderId);
+      final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
       if (reminder?.type == ReminderType.location) {
         await _removeGeofence(reminderId);
       }
 
       // Delete from database
-      await _db.deleteReminderById(reminderId);
+      await _db.deleteReminderById(reminderId, userId); // P0.5 SECURITY
 
       analytics.event(
         AnalyticsEvents.reminderRemoved,
@@ -780,6 +785,13 @@ class AdvancedReminderService {
   /// Handle notification action responses
   Future<void> handleNotificationAction(String action, String payload) async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot handle notification action - no authenticated user');
+        return;
+      }
+
       final data = jsonDecode(payload) as Map<String, dynamic>;
       final reminderId = data['reminderId'] as int?;
 
@@ -791,7 +803,7 @@ class AdvancedReminderService {
         case 'snooze_15':
           await snoozeReminder(reminderId, SnoozeDuration.fifteenMinutes);
         case 'complete':
-          await _db.deactivateReminder(reminderId);
+          await _db.deactivateReminder(reminderId, userId); // P0.5 SECURITY
           analytics.event('reminder.completed_from_notification');
       }
     } catch (e, stack) {
@@ -806,10 +818,20 @@ class AdvancedReminderService {
   /// Process due reminders (call this periodically)
   Future<void> processDueReminders() async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = _currentUserId;
+      if (userId == null) {
+        logger.warn('Cannot process due reminders - no authenticated user');
+        return;
+      }
+
       final now = DateTime.now().toUtc();
 
       // Process time-based reminders
-      final dueReminders = await _db.getTimeRemindersToTrigger(before: now);
+      final dueReminders = await _db.getTimeRemindersToTrigger(
+        before: now,
+        userId: userId, // P0.5 SECURITY
+      );
       for (final reminder in dueReminders) {
         await _triggerTimeReminder(reminder);
       }
@@ -817,6 +839,7 @@ class AdvancedReminderService {
       // Process snoozed reminders
       final snoozedReminders = await _db.getSnoozedRemindersToReschedule(
         now: now,
+        userId: userId, // P0.5 SECURITY
       );
       for (final reminder in snoozedReminders) {
         await _rescheduleSnoozedReminder(reminder);
@@ -833,8 +856,8 @@ class AdvancedReminderService {
   /// Trigger a time-based reminder
   Future<void> _triggerTimeReminder(NoteReminder reminder) async {
     try {
-      // Mark as triggered
-      await _db.markReminderTriggered(reminder.id);
+      // P0.5 SECURITY: Mark as triggered with userId
+      await _db.markReminderTriggered(reminder.id, reminder.userId); // P0.5 SECURITY
 
       // If recurring, schedule next occurrence
       if (reminder.recurrencePattern != RecurrencePattern.none &&
@@ -847,7 +870,7 @@ class AdvancedReminderService {
         );
       } else {
         // Deactivate non-recurring reminder
-        await _db.deactivateReminder(reminder.id);
+        await _db.deactivateReminder(reminder.id, reminder.userId); // P0.5 SECURITY
       }
 
       analytics.event(
@@ -869,8 +892,8 @@ class AdvancedReminderService {
   /// Reschedule a snoozed reminder
   Future<void> _rescheduleSnoozedReminder(NoteReminder reminder) async {
     try {
-      // Clear snooze
-      await _db.clearSnooze(reminder.id);
+      // Clear snooze with userId
+      await _db.clearSnooze(reminder.id, reminder.userId); // P0.5 SECURITY
 
       if (reminder.type == ReminderType.time && reminder.snoozedUntil != null) {
         // Reschedule notification
@@ -894,7 +917,11 @@ class AdvancedReminderService {
 
   /// Get reminder statistics
   Future<Map<String, int>> getReminderStats() async {
-    return _db.getReminderStats();
+    // P0.5 SECURITY: Get current userId
+    final userId = _currentUserId;
+    if (userId == null) return {};
+
+    return _db.getReminderStats(userId); // P0.5 SECURITY
   }
 
   /// Cleanup and dispose

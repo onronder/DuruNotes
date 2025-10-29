@@ -1018,4 +1018,36 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get manageTemplates => 'Şablonları Yönet';
+
+  @override
+  String get notifEmailReceivedTitle => '📧 Gelen Kutunuzda Yeni E-posta';
+
+  @override
+  String notifEmailReceivedBody(String sender, String subject) {
+    return 'Gönderen $sender: $subject\\n\\nE-posta notu dönüştürmeye hazır.';
+  }
+
+  @override
+  String get notifWebClipSavedTitle => '✂️ İçerik Başarıyla Kaydedildi';
+
+  @override
+  String notifWebClipSavedBody(String preview) {
+    return '$preview\\n\\nGelen kutunuza kaydedildi ve kullanıma hazır.';
+  }
+
+  @override
+  String get notifTaskReminderTitle => '⏰ Görev Hatırlatıcısı';
+
+  @override
+  String notifTaskReminderBody(String taskTitle) {
+    return '$taskTitle\\n\\nŞimdi yapılmalı!';
+  }
+
+  @override
+  String get notifTaskAssignedTitle => '📋 Hatırlatıcılı Yeni Görev';
+
+  @override
+  String notifTaskAssignedBody(String taskTitle, String dueDate) {
+    return '$taskTitle\\nTarih: $dueDate\\n\\nHatırlatıcı ayarlandı ve sizi bilgilendirecek.';
+  }
 }

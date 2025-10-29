@@ -1,8 +1,10 @@
-import 'dart:convert';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_search_repository.dart';
 
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
-import 'package:duru_notes/providers.dart'; // Import for extension methods
+// Phase 10: Removed unused barrel import - this file doesn't use any providers
 import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +17,7 @@ typedef NotesRepository = NotesCoreRepository;
 typedef FolderResolver = Future<String?> Function(String folderName);
 typedef FolderNoteIdsResolver = Future<Set<String>> Function(String folderId);
 
-class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
+class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
   NoteSearchDelegate({
     required this.notes,
     this.initialQuery,
@@ -23,19 +25,21 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     this.getFolderNoteIdSet,
     this.autoSearch = false,
     this.notesRepository,
+    this.searchRepository,
     this.existingSavedSearches,
   }) {
     if (initialQuery != null) {
       query = initialQuery!;
     }
   }
-  final List<LocalNote> notes;
+  final List<domain.Note> notes;
   final String? initialQuery;
   final FolderResolver? resolveFolderIdByName;
   final FolderNoteIdsResolver? getFolderNoteIdSet;
   final bool autoSearch;
   final NotesRepository? notesRepository;
-  final List<SavedSearch>? existingSavedSearches;
+  final ISearchRepository? searchRepository;
+  final List<domain.SavedSearch>? existingSavedSearches;
 
   // Cache for preview generation to avoid repeated regex processing
   static final Map<String, String> _previewCache = <String, String>{};
@@ -95,17 +99,17 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
   }
 
   /// Apply preset-based filtering using SavedSearchRegistry
-  List<LocalNote> _applyPresetFilter(
-      List<LocalNote> notes, SavedSearchPreset preset) {
+  List<domain.Note> _applyPresetFilter(
+      List<domain.Note> notes, SavedSearchPreset preset) {
     switch (preset.key) {
       case SavedSearchKey.attachments:
-        return notes.where(AppDb.noteHasAttachments).toList();
+        return notes.where(AppDb.noteHasAttachmentsDomain).toList();
 
       case SavedSearchKey.emailNotes:
-        return notes.where(AppDb.noteIsFromEmail).toList();
+        return notes.where(AppDb.noteIsFromEmailDomain).toList();
 
       case SavedSearchKey.webNotes:
-        return notes.where(AppDb.noteIsFromWeb).toList();
+        return notes.where(AppDb.noteIsFromWebDomain).toList();
 
       case SavedSearchKey.inbox:
         // Inbox is folder-based, needs special handling
@@ -162,7 +166,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     );
   }
 
-  Future<List<LocalNote>> _performSearchAsync(String query) async {
+  Future<List<domain.Note>> _performSearchAsync(String query) async {
     // First check if the query matches a saved search preset
     final matchingPreset = _getMatchingPreset(query);
     if (matchingPreset != null) {
@@ -215,15 +219,15 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }
 
     if (searchQuery.hasAttachment) {
-      results = results.where(AppDb.noteHasAttachments).toList();
+      results = results.where(AppDb.noteHasAttachmentsDomain).toList();
     }
 
     if (searchQuery.fromEmail) {
-      results = results.where(AppDb.noteIsFromEmail).toList();
+      results = results.where(AppDb.noteIsFromEmailDomain).toList();
     }
 
     if (searchQuery.fromWeb) {
-      results = results.where(AppDb.noteIsFromWeb).toList();
+      results = results.where(AppDb.noteIsFromWebDomain).toList();
     }
 
     // Apply keyword search if present
@@ -241,91 +245,11 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     return results;
   }
 
-  // Original implementation for backward compatibility
-  Future<List<LocalNote>> _performSearchAsyncOriginal(String query) async {
-    if (query.isEmpty) return [];
-
-    // First check if the query matches a saved search preset
-    final matchingPreset = _getMatchingPreset(query);
-    if (matchingPreset != null) {
-      return _applyPresetFilter(notes, matchingPreset);
-    }
-
-    // Parse search tokens
-    final filters = _parseSearchQuery(query);
-    final keywords = filters['keywords'] as String;
-    final hasAttachment = filters['hasAttachment'] as bool;
-    final typeFilter = filters['type'] as String?;
-    final filenameFilter = filters['filename'] as String?;
-    final fromEmail = filters['fromEmail'] as bool;
-    final fromWeb = filters['fromWeb'] as bool;
-    final folderName = filters['folderName'] as String?;
-
-    // Handle folder filtering if needed
-    Set<String>? folderNoteIds;
-    if (folderName != null &&
-        resolveFolderIdByName != null &&
-        getFolderNoteIdSet != null) {
-      final folderId = await resolveFolderIdByName!(folderName);
-      if (folderId != null) {
-        folderNoteIds = await getFolderNoteIdSet!(folderId);
-      }
-    }
-
-    return notes.where((note) {
-      // Check folder filter first
-      if (folderNoteIds != null && !folderNoteIds.contains(note.id)) {
-        return false;
-      }
-
-      // Check from:email filter using authoritative helper
-      if (fromEmail && !AppDb.noteIsFromEmail(note)) {
-        return false;
-      }
-
-      // Check from:web filter using authoritative helper
-      if (fromWeb && !AppDb.noteIsFromWeb(note)) {
-        return false;
-      }
-
-      // Check attachment filters
-      if (hasAttachment || typeFilter != null || filenameFilter != null) {
-        // Use authoritative helper for has:attachment
-        if (hasAttachment && !AppDb.noteHasAttachments(note)) {
-          return false;
-        }
-
-        // For specific type/filename filters, still check the attachments list
-        if (typeFilter != null || filenameFilter != null) {
-          final attachments = _getAttachments(note);
-
-          // Check type filter
-          if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
-            return false;
-          }
-
-          // Check filename filter
-          if (filenameFilter != null &&
-              !_matchesFilename(attachments, filenameFilter)) {
-            return false;
-          }
-        }
-      }
-
-      // Check keywords in title and body (if any keywords remain after filtering)
-      if (keywords.isNotEmpty) {
-        final lowerKeywords = keywords.toLowerCase();
-        return note.title.toLowerCase().contains(lowerKeywords) ||
-            note.body.toLowerCase().contains(lowerKeywords);
-      }
-
-      // If no keywords but filters matched, include the note
-      return true;
-    }).toList();
-  }
+  // Legacy search methods removed - replaced by _performSearchAsync and _performSearch using SearchParser
+  // (_performSearchAsyncOriginal, _performSearchOriginal)
 
   // Enhanced version with tag support via SearchParser
-  List<LocalNote> _performSearch(String query) {
+  List<domain.Note> _performSearch(String query) {
     if (query.isEmpty) return [];
 
     // First check if the query matches a saved search preset
@@ -379,15 +303,15 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }
 
     if (searchQuery.hasAttachment) {
-      results = results.where(AppDb.noteHasAttachments).toList();
+      results = results.where(AppDb.noteHasAttachmentsDomain).toList();
     }
 
     if (searchQuery.fromEmail) {
-      results = results.where(AppDb.noteIsFromEmail).toList();
+      results = results.where(AppDb.noteIsFromEmailDomain).toList();
     }
 
     if (searchQuery.fromWeb) {
-      results = results.where(AppDb.noteIsFromWeb).toList();
+      results = results.where(AppDb.noteIsFromWebDomain).toList();
     }
 
     // Apply keyword search if present
@@ -403,66 +327,6 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }
 
     return results;
-  }
-
-  // Keep original implementation for backward compatibility
-  List<LocalNote> _performSearchOriginal(String query) {
-    if (query.isEmpty) return [];
-
-    // Parse search tokens
-    final filters = _parseSearchQuery(query);
-    final keywords = filters['keywords'] as String;
-    final hasAttachment = filters['hasAttachment'] as bool;
-    final typeFilter = filters['type'] as String?;
-    final filenameFilter = filters['filename'] as String?;
-    final fromEmail = filters['fromEmail'] as bool;
-    final fromWeb = filters['fromWeb'] as bool;
-
-    return notes.where((note) {
-      // Check from:email filter using authoritative helper
-      if (fromEmail && !AppDb.noteIsFromEmail(note)) {
-        return false;
-      }
-
-      // Check from:web filter using authoritative helper
-      if (fromWeb && !AppDb.noteIsFromWeb(note)) {
-        return false;
-      }
-
-      // Check attachment filters
-      if (hasAttachment || typeFilter != null || filenameFilter != null) {
-        // Use authoritative helper for has:attachment
-        if (hasAttachment && !AppDb.noteHasAttachments(note)) {
-          return false;
-        }
-
-        // For specific type/filename filters, still check the attachments list
-        if (typeFilter != null || filenameFilter != null) {
-          final attachments = _getAttachments(note);
-
-          // Check type filter
-          if (typeFilter != null && !_matchesType(attachments, typeFilter)) {
-            return false;
-          }
-
-          // Check filename filter
-          if (filenameFilter != null &&
-              !_matchesFilename(attachments, filenameFilter)) {
-            return false;
-          }
-        }
-      }
-
-      // Check keywords in title and body (if any keywords remain after filtering)
-      if (keywords.isNotEmpty) {
-        final lowerKeywords = keywords.toLowerCase();
-        return note.title.toLowerCase().contains(lowerKeywords) ||
-            note.body.toLowerCase().contains(lowerKeywords);
-      }
-
-      // If no keywords but filters matched, include the note
-      return true;
-    }).toList();
   }
 
   Map<String, dynamic> _parseSearchQuery(String query) {
@@ -549,132 +413,9 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     };
   }
 
-  List<Map<String, dynamic>> _getAttachments(LocalNote note) {
-    // First check metadata for attachments
-    if (note.encryptedMetadata != null) {
-      try {
-        final meta = jsonDecode(note.encryptedMetadata!);
-        final files = (meta['attachments']?['files'] as List?) ??
-            (meta['attachments'] as List?) ??
-            [];
-        if (files.isNotEmpty) {
-          return files.cast<Map<String, dynamic>>();
-        }
-      } catch (e) {
-        // Continue to fallback
-      }
-    }
-
-    // Fallback: check if note has #Attachment tag
-    if (note.body.contains('#Attachment')) {
-      // Return a dummy attachment to indicate presence
-      return [
-        {'type': 'unknown', 'filename': 'attachment'},
-      ];
-    }
-
-    return [];
-  }
-
-  bool _matchesType(List<Map<String, dynamic>> attachments, String typeFilter) {
-    if (attachments.isEmpty) return false;
-
-    for (final attachment in attachments) {
-      final mimeType = (attachment['type'] as String?) ?? '';
-      final filename = (attachment['filename'] as String?) ?? '';
-
-      // Check common type mappings
-      switch (typeFilter) {
-        case 'pdf':
-          if (mimeType.contains('pdf') ||
-              filename.toLowerCase().endsWith('.pdf')) {
-            return true;
-          }
-          break;
-        case 'image':
-          if (mimeType.startsWith('image/') ||
-              RegExp(
-                r'\.(png|jpg|jpeg|gif|bmp|webp|svg)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        case 'video':
-          if (mimeType.startsWith('video/') ||
-              RegExp(
-                r'\.(mp4|avi|mov|wmv|flv|mkv|webm)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        case 'audio':
-          if (mimeType.startsWith('audio/') ||
-              RegExp(
-                r'\.(mp3|wav|flac|aac|ogg|wma|m4a)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        case 'excel':
-          if (mimeType.contains('excel') ||
-              mimeType.contains('spreadsheet') ||
-              RegExp(
-                r'\.(xls|xlsx|csv)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        case 'word':
-          if (mimeType.contains('word') ||
-              mimeType.contains('document') ||
-              RegExp(
-                r'\.(doc|docx)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        case 'zip':
-          if (mimeType.contains('zip') ||
-              mimeType.contains('compressed') ||
-              RegExp(
-                r'\.(zip|rar|7z|tar|gz)$',
-                caseSensitive: false,
-              ).hasMatch(filename)) {
-            return true;
-          }
-          break;
-        default:
-          // Generic type matching
-          if (mimeType.toLowerCase().contains(typeFilter) ||
-              filename.toLowerCase().contains(typeFilter)) {
-            return true;
-          }
-      }
-    }
-
-    return false;
-  }
-
-  bool _matchesFilename(
-    List<Map<String, dynamic>> attachments,
-    String filenameFilter,
-  ) {
-    if (attachments.isEmpty) return false;
-
-    for (final attachment in attachments) {
-      final filename = (attachment['filename'] as String?) ?? '';
-      if (filename.toLowerCase().contains(filenameFilter)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
+  // Legacy attachment helper methods removed - orphaned after _performSearchOriginal removal
+  // (_getAttachments, _matchesType, _matchesFilename)
+  // New search implementations use AppDb.noteHasAttachmentsDomain for attachment filtering
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -819,7 +560,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
     if (needsAsync) {
       // Use async search with FutureBuilder
-      return FutureBuilder<List<LocalNote>>(
+      return FutureBuilder<List<domain.Note>>(
         future: _performSearchAsync(query),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -961,30 +702,19 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
     if (result != null && context.mounted) {
       // Create and save the search to database
-      if (notesRepository != null) {
-        final savedSearch = SavedSearch(
+      if (searchRepository != null) {
+        final savedSearch = domain.SavedSearch(
           id: const Uuid().v4(),
           name: result['name'] as String,
           query: result['query'] as String,
-          searchType: parameters.containsKey('folderName')
-              ? 'folder'
-              : parameters.containsKey('includeTags') ||
-                      parameters.containsKey('excludeTags')
-                  ? 'tag'
-                  : parameters.containsKey('hasAttachment') ||
-                          parameters.containsKey('fromEmail') ||
-                          parameters.containsKey('fromWeb')
-                      ? 'filter'
-                      : 'text',
-          parameters: jsonEncode(result['parameters']),
+          isPinned: false,
           createdAt: DateTime.now(),
           lastUsedAt: DateTime.now(),
           usageCount: 0,
-          isPinned: false,
-          sortOrder: 999, // Will be at the end
+          displayOrder: 999, // Will be at the end
         );
 
-        await notesRepository!.createOrUpdateSavedSearch(savedSearch);
+        await searchRepository!.createOrUpdateSavedSearch(savedSearch);
 
         HapticFeedback.mediumImpact();
         if (context.mounted) {
@@ -1016,7 +746,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     }
   }
 
-  Widget _buildResultsList(BuildContext context, List<LocalNote> results) {
+  Widget _buildResultsList(BuildContext context, List<domain.Note> results) {
     // Parse the query to show what filter is active
     var filterDescription = '';
     if (query.contains('has:attachment')) {
@@ -1111,7 +841,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: results.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final note = results[index];
               return _buildResultCard(context, note, index);
@@ -1124,7 +854,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
 
   Widget _buildNoteListTile(
     BuildContext context,
-    LocalNote note, {
+    domain.Note note, {
     bool isRecent = false,
   }) {
     final preview = _generatePreview(note.body);
@@ -1187,7 +917,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     );
   }
 
-  Widget _buildResultCard(BuildContext context, LocalNote note, int index) {
+  Widget _buildResultCard(BuildContext context, domain.Note note, int index) {
     final preview = _generatePreview(note.body);
     // Highlight search terms in the preview
     final highlightedPreview = _highlightSearchTerms(context, preview, query);
@@ -1348,7 +1078,7 @@ class NoteSearchDelegate extends SearchDelegate<LocalNote?> {
     return TextSpan(children: spans);
   }
 
-  IconData _getNoteIcon(LocalNote note) {
+  IconData _getNoteIcon(domain.Note note) {
     final body = note.body.toLowerCase();
     if (body.contains('- [ ]') || body.contains('- [x]')) {
       return Icons.checklist;

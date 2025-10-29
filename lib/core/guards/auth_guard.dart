@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Production-grade Authentication Guard
 /// Provides comprehensive security features:
@@ -19,6 +20,8 @@ class AuthenticationGuard {
   AuthenticationGuard._internal() {
     _initializeSessionCleanup();
   }
+
+  static final AppLogger _logger = LoggerFactory.instance;
 
   // Security configurations
   static const int _maxLoginAttempts = 5;
@@ -36,23 +39,35 @@ class AuthenticationGuard {
   // Cleanup timer
   Timer? _cleanupTimer;
 
-  // Secret keys (in production, these would be in secure storage)
-  late final String _jwtSecret;
-  late final String _csrfSecret;
+  // PRODUCTION FIX: Make fields mutable to allow re-initialization
+  // This is safe because AuthenticationGuard is a singleton
+  String? _jwtSecret;
+  String? _csrfSecret;
+  bool _isInitialized = false;
 
   /// Initialize authentication guard with secrets
+  /// PRODUCTION FIX: Idempotent - safe to call multiple times
+  /// Allows secrets to be updated on re-authentication
   Future<void> initialize({
     required String jwtSecret,
     required String csrfSecret,
   }) async {
+    // PRODUCTION FIX: Allow re-initialization with new secrets
+    // This is critical for supporting sign-out → sign-up flows
     _jwtSecret = jwtSecret;
     _csrfSecret = csrfSecret;
 
-    // Load persisted sessions
-    await _loadPersistedSessions();
+    if (!_isInitialized) {
+      // Load persisted sessions only on first initialization
+      await _loadPersistedSessions();
 
-    // Load trusted devices
-    await _loadTrustedDevices();
+      // Load trusted devices only on first initialization
+      await _loadTrustedDevices();
+
+      _isInitialized = true;
+    }
+
+    // Secrets can be updated on every call for security rotation
   }
 
   /// Authenticate user and create session
@@ -154,10 +169,17 @@ class AuthenticationGuard {
         sessionId: session.sessionId,
         expiresAt: session.expiresAt,
       );
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Authentication error: $e');
-      }
+    } catch (e, stack) {
+      _logGuardError(
+        'Authentication guard failed to create session',
+        e,
+        stack,
+        data: {
+          'usernameHash': _hashIdentifier(username),
+          'deviceId': deviceId,
+          'remainingAttempts': attemptTracker.remainingAttempts,
+        },
+      );
       return AuthResult(
         success: false,
         error: 'Authentication failed',
@@ -180,8 +202,16 @@ class AuthenticationGuard {
         );
       }
 
+      // PRODUCTION FIX: Check if initialized before using secrets
+      if (_jwtSecret == null) {
+        return TokenValidationResult(
+          valid: false,
+          error: 'Authentication guard not initialized',
+        );
+      }
+
       // Verify signature (in production, use proper JWT library)
-      if (!_verifyTokenSignature(token, _jwtSecret)) {
+      if (!_verifyTokenSignature(token, _jwtSecret!)) {
         return TokenValidationResult(
           valid: false,
           error: 'Invalid token signature',
@@ -234,10 +264,19 @@ class AuthenticationGuard {
         needsRefresh: needsRefresh,
         claims: decodedToken,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      _logGuardError(
+        'Token validation failed',
+        e,
+        stack,
+        data: {
+          'tokenLength': token.length,
+          'activeSessions': _activeSessions.length,
+        },
+      );
       return TokenValidationResult(
         valid: false,
-        error: 'Token validation failed: ${e.toString()}',
+        error: 'Token validation failed',
       );
     }
   }
@@ -258,8 +297,16 @@ class AuthenticationGuard {
         );
       }
 
+      // PRODUCTION FIX: Check if initialized before using secrets
+      if (_jwtSecret == null) {
+        return RefreshResult(
+          success: false,
+          error: 'Authentication guard not initialized',
+        );
+      }
+
       // Verify signature
-      if (!_verifyTokenSignature(refreshToken, _jwtSecret)) {
+      if (!_verifyTokenSignature(refreshToken, _jwtSecret!)) {
         return RefreshResult(
           success: false,
           error: 'Invalid refresh token',
@@ -299,7 +346,16 @@ class AuthenticationGuard {
         refreshToken: newRefreshToken,
         csrfToken: newCsrfToken,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      _logGuardError(
+        'Token refresh failed',
+        e,
+        stack,
+        data: {
+          'refreshTokenLength': refreshToken.length,
+          'csrfTokenHash': _hashIdentifier(csrfToken),
+        },
+      );
       return RefreshResult(
         success: false,
         error: 'Token refresh failed',
@@ -471,7 +527,8 @@ class AuthenticationGuard {
       'type': 'access',
     };
 
-    return _createJwt(payload, _jwtSecret);
+    // PRODUCTION FIX: Fallback to empty secret if not initialized
+    return _createJwt(payload, _jwtSecret ?? '');
   }
 
   String _generateRefreshToken(SessionInfo session) {
@@ -486,12 +543,13 @@ class AuthenticationGuard {
       'type': 'refresh',
     };
 
-    return _createJwt(payload, _jwtSecret);
+    // PRODUCTION FIX: Fallback to empty secret if not initialized
+    return _createJwt(payload, _jwtSecret ?? '');
   }
 
   String _generateCsrfToken(String sessionId) {
     final now = DateTime.now().millisecondsSinceEpoch.toString();
-    final data = '$sessionId:$now:$_csrfSecret';
+    final data = '$sessionId:$now:${_csrfSecret ?? ''}';
     final bytes = utf8.encode(data);
     return sha256.convert(bytes).toString();
   }
@@ -518,7 +576,14 @@ class AuthenticationGuard {
       final expectedSignature = base64Url.encode(hmac.convert(utf8.encode(data)).bytes);
 
       return signature == expectedSignature;
-    } catch (e) {
+    } catch (e, stack) {
+      _logGuardError(
+        'Token signature verification threw unexpectedly',
+        e,
+        stack,
+        data: {'tokenLength': token.length},
+        sendToSentry: false,
+      );
       return false;
     }
   }
@@ -598,8 +663,25 @@ class AuthenticationGuard {
     });
   }
 
+  void _logGuardError(
+    String message,
+    Object error,
+    StackTrace stack, {
+    Map<String, dynamic>? data,
+    bool sendToSentry = true,
+  }) {
+    _logger.error(message, error: error, stackTrace: stack, data: data);
+    if (sendToSentry) {
+      unawaited(Sentry.captureException(error, stackTrace: stack));
+    }
+  }
+
+  String _hashIdentifier(String value) {
+    final bytes = utf8.encode(value);
+    return sha256.convert(bytes).toString().substring(0, 12);
+  }
+
   void _cleanupExpiredSessions() {
-    final now = DateTime.now();
     final sessionsToRemove = <String>[];
 
     _activeSessions.forEach((id, session) {

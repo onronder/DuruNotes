@@ -410,8 +410,6 @@ class UndoRedoService extends ChangeNotifier {
 
   /// Clean up expired operations
   void _cleanupExpiredOperations() {
-    final now = DateTime.now();
-
     _undoStack.removeWhere((op) => op.isExpired);
     _redoStack.removeWhere((op) => op.isExpired);
 

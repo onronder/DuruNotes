@@ -1,6 +1,13 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+final AppLogger _logger = LoggerFactory.instance;
 
 /// Displays folder path as clickable breadcrumbs for navigation
 class FolderBreadcrumbsWidget extends StatelessWidget {
@@ -10,8 +17,8 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
     super.key,
     this.showHome = true,
   });
-  final List<LocalFolder> breadcrumbs;
-  final Function(LocalFolder?) onFolderTap;
+  final List<domain.Folder> breadcrumbs;
+  final void Function(domain.Folder?) onFolderTap;
   final bool showHome;
 
   @override
@@ -67,7 +74,7 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
     );
   }
 
-  IconData _getFolderIcon(LocalFolder folder) {
+  IconData _getFolderIcon(domain.Folder folder) {
     if (folder.icon != null) {
       switch (folder.icon) {
         case 'work':
@@ -85,11 +92,26 @@ class FolderBreadcrumbsWidget extends StatelessWidget {
     return Icons.folder;
   }
 
-  Color? _getFolderColor(LocalFolder folder) {
+  Color? _getFolderColor(domain.Folder folder) {
     if (folder.color != null) {
       try {
         return Color(int.parse(folder.color!.replaceFirst('#', '0xff')));
-      } catch (_) {}
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint(
+            'Invalid folder color ${folder.color} for ${folder.name}: $error\n$stackTrace',
+          );
+        }
+        _logger.warning(
+          'Invalid folder color string for breadcrumbs',
+          data: {
+            'folderId': folder.id,
+            'folderName': folder.name,
+            'rawColor': folder.color,
+          },
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      }
     }
     return null;
   }
@@ -140,7 +162,8 @@ class _BreadcrumbChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: color ??
+                color:
+                    color ??
                     (isActive
                         ? colorScheme.primary
                         : colorScheme.onSurfaceVariant),
@@ -171,8 +194,8 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
     super.key,
     this.maxItems = 3,
   });
-  final List<LocalFolder> breadcrumbs;
-  final Function(LocalFolder?) onFolderTap;
+  final List<domain.Folder> breadcrumbs;
+  final void Function(domain.Folder?) onFolderTap;
   final int maxItems;
 
   @override
@@ -248,8 +271,9 @@ class CompactFolderBreadcrumbs extends StatelessWidget {
                         child: Text(
                           folder.name,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight:
-                                isLast ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isLast
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             color: isLast
                                 ? colorScheme.primary
                                 : colorScheme.onSurfaceVariant,

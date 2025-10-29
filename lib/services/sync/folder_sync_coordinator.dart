@@ -50,9 +50,7 @@ class FolderSyncCoordinator {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'FolderSyncCoordinator');
-          scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
-        },
+          scope.setTag('operation', operation);        },
       ),
     );
   }

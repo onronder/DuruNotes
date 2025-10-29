@@ -8,15 +8,13 @@ import 'package:uuid/uuid.dart';
 class TaskCrudService {
   TaskCrudService({
     required ITaskRepository repository,
-    required AppDb db,
+    required AppDb db, // Kept for backward compatibility
     AppLogger? logger,
   })  : _repository = repository,
-        _db = db,
         _logger = logger ?? LoggerFactory.instance,
         _uuid = const Uuid();
 
   final ITaskRepository _repository;
-  final AppDb _db;
   final AppLogger _logger;
   final Uuid _uuid;
 
@@ -52,14 +50,14 @@ class TaskCrudService {
         priority: priority ?? domain.TaskPriority.medium,
         dueDate: dueDate,
         completedAt: isCompleted ? now : null,
+        createdAt: now,  // Required domain parameter
+        updatedAt: now,  // Required domain parameter
         tags: [],
         metadata: {
           'blockLineNumber': blockLineNumber,
           'parentTaskId': parentTaskId,
           'position': 0,
           'reminderId': reminderId,
-          'createdAt': now.toIso8601String(),
-          'updatedAt': now.toIso8601String(),
         },
       );
 

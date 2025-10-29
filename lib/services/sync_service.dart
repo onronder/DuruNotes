@@ -1,33 +1,52 @@
 import 'dart:async';
 
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
-import 'package:duru_notes/services/unified_sync_service.dart';
 import 'package:duru_notes/services/unified_realtime_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
-/// Sync service that provides backwards compatibility
-/// This wraps the UnifiedSyncService for legacy code compatibility
+/// DEPRECATED: Legacy sync service - use UnifiedSyncService instead
+///
+/// This service has incomplete implementations and TODO stubs.
+/// Migrate to UnifiedSyncService for:
+/// - Complete sync functionality with encryption support
+/// - Conflict resolution and bidirectional sync
+/// - Memory-optimized batch processing
+/// - Support for notes, tasks, and folders
+///
+/// Migration example:
+/// ```dart
+/// // Old:
+/// final syncService = SyncService(repository);
+/// await syncService.sync();
+///
+/// // New:
+/// final unifiedSync = ref.watch(unifiedSyncServiceProvider);
+/// final result = await unifiedSync.syncAll();
+/// if (result.success) {
+///   // Sync completed
+/// }
+/// ```
+@Deprecated('Use UnifiedSyncService instead. This service will be removed in a future version.')
 class SyncService {
   final INotesRepository repository;
-  final UnifiedSyncService _unifiedSyncService;
+  final AppLogger _logger = LoggerFactory.instance;
 
   /// Stream of sync changes for UI updates
   final StreamController<void> _changesController = StreamController<void>.broadcast();
-  Stream<void> get changes => _changesController.future;
+  Stream<void> get changes => _changesController.stream;
 
-  SyncService(this.repository)
-    : _unifiedSyncService = UnifiedSyncService() {
+  SyncService(this.repository);
 
-    // TODO: Initialize UnifiedSyncService properly
-    // Forward sync events to our changes stream
-    // _unifiedSyncService.syncStatusStream.listen((_) {
-    //   _changesController.add(null);
-    // });
-  }
-
-  /// Start realtime sync with optional unified service
+  /// DEPRECATED: Start realtime sync - use UnifiedRealtimeService directly
+  @Deprecated('Use UnifiedRealtimeService instead')
   void startRealtime({UnifiedRealtimeService? unifiedService}) {
-    // TODO: Start realtime connections
-    // _unifiedSyncService.startRealtime();
+    throw UnimplementedError(
+      'SyncService.startRealtime() is deprecated. '
+      'Use UnifiedRealtimeService directly:\n'
+      '  final realtimeService = ref.watch(unifiedRealtimeServiceProvider);\n'
+      '  realtimeService.startRealtime();',
+    );
   }
 
   /// Sync if online
@@ -35,9 +54,26 @@ class SyncService {
     try {
       await repository.sync();
       _changesController.add(null);
-    } catch (e) {
-      // Log but don't rethrow to maintain compatibility
-      // print('Sync failed: $e');
+
+      _logger.info('[SyncService] Sync completed successfully');
+    } catch (e, stack) {
+      // Log with full context for debugging production issues
+      _logger.error(
+        '[SyncService] Sync failed',
+        error: e,
+        stackTrace: stack,
+        data: {'operation': 'syncIfOnline', 'deprecated': true},
+      );
+
+      // Report to Sentry for critical sync failures
+      await Sentry.captureException(
+        e,
+        stackTrace: stack,
+        hint: Hint.withMap({'context': 'SyncService.syncIfOnline (deprecated)'}),
+      );
+
+      // Don't rethrow to maintain backward compatibility
+      // Callers can check last sync time to detect failures
     }
   }
 
@@ -52,8 +88,13 @@ class SyncService {
     _changesController.add(null);
   }
 
-  /// Check if currently syncing
-  bool get isSyncing => false; // TODO: Implement sync status tracking
+  /// DEPRECATED: Check if currently syncing - use UnifiedSyncService instead
+  @Deprecated('Use UnifiedSyncService.isSyncing instead')
+  bool get isSyncing {
+    // Always return false since this service doesn't track sync state
+    // Use UnifiedSyncService for proper sync status tracking
+    return false;
+  }
 
   /// Get last sync time
   Future<DateTime?> getLastSyncTime() async {
@@ -66,10 +107,15 @@ class SyncService {
     _changesController.add(null);
   }
 
-  /// Sync folders specifically
+  /// DEPRECATED: Sync folders - use UnifiedSyncService instead
+  @Deprecated('Use UnifiedSyncService.syncAll() instead')
   Future<void> syncFolders() async {
-    // TODO: Implement folder sync using repository
-    _changesController.add(null);
+    throw UnimplementedError(
+      'SyncService.syncFolders() is not implemented. '
+      'Use UnifiedSyncService for folder sync:\n'
+      '  final unifiedSync = ref.watch(unifiedSyncServiceProvider);\n'
+      '  final result = await unifiedSync.syncAll(); // Syncs folders, notes, and tasks',
+    );
   }
 
   /// Sync now (alias for sync method)
@@ -77,14 +123,20 @@ class SyncService {
     await sync();
   }
 
-  /// Stop all sync operations
+  /// DEPRECATED: Stop realtime sync - use UnifiedRealtimeService directly
+  @Deprecated('Use UnifiedRealtimeService instead')
   void stopRealtime() {
-    // TODO: Stop realtime connections
+    throw UnimplementedError(
+      'SyncService.stopRealtime() is deprecated. '
+      'Use UnifiedRealtimeService directly:\n'
+      '  final realtimeService = ref.watch(unifiedRealtimeServiceProvider);\n'
+      '  realtimeService.stopRealtime();',
+    );
   }
 
   /// Dispose resources
   void dispose() {
     _changesController.close();
-    // TODO: Dispose unified sync service properly
+    // Note: UnifiedSyncService doesn't require disposal
   }
 }

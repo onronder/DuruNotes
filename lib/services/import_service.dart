@@ -4,9 +4,7 @@ import 'dart:io';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_block_parser.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_block.dart';
-import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -27,7 +25,7 @@ class ImportService {
 
   ImportService({
     required NotesRepository notesRepository,
-    required NoteIndexer noteIndexer,
+    required NoteIndexer noteIndexer, // Kept for backward compatibility
     required AppLogger logger,
     required AnalyticsService analytics,
   })  : _notesRepository = notesRepository,
@@ -1027,20 +1025,8 @@ class ImportService {
         return;
       }
 
-      // Create note object for indexing
-      final note = LocalNote(
-        id: createdNote.id,
-        title: title.trim(),
-        body: blocksToMarkdown(blocks),
-        updatedAt: updatedAt ?? DateTime.now(),
-        deleted: false,
-        isPinned: false,
-        noteType: NoteKind.note,
-        version: 1, // New note starts at version 1
-      );
-
-      // Index for search
-      await _noteIndexer.indexNote(note);
+      // Index the newly created note so search/backlinks remain up to date
+      await _noteIndexer.indexNote(createdNote);
 
       _logger.info(
         'Successfully imported note',

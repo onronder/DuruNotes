@@ -63,42 +63,44 @@ void main() {
 
         // Other flags should remain unchanged
         expect(flags.useNewBlockEditor, isTrue);
-        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
+        expect(flags.useBlockEditorForNotes, isFalse);
       });
 
       test('should support multiple overrides', () {
         // Override multiple flags
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_new_block_editor', false);
+        flags
+          ..setOverride('use_refactored_components', false)
+          ..setOverride('use_new_block_editor', false);
 
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isTrue); // Not overridden
         expect(flags.useUnifiedPermissionManager, isTrue); // Not overridden
+        expect(flags.useBlockEditorForNotes, isFalse); // Default remains unchanged
       });
 
       test('should clear all overrides', () {
         // Set some overrides
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_new_block_editor', false);
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_unified_permission_manager', false);
+        flags
+          ..setOverride('use_refactored_components', false)
+          ..setOverride('use_new_block_editor', false)
+          ..setOverride('use_unified_permission_manager', false)
+          ..setOverride('use_block_editor_for_notes', true);
 
         // Verify overrides are applied
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
+        expect(flags.useBlockEditorForNotes, isTrue);
 
         // Clear overrides
         flags.clearOverrides();
 
-        // All flags should return to development defaults (enabled)
+        // All flags should return to development defaults
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
-        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
+        expect(flags.useBlockEditorForNotes, isFalse);
       });
 
       test('overrides should take precedence over defaults', () {
@@ -114,75 +116,56 @@ void main() {
 
     group('Gradual Rollout Simulation', () {
       test('should support gradual feature enablement', () {
-        // Start with all features disabled (simulating production)
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_new_block_editor', false);
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_unified_permission_manager', false);
+        // Start with all rollout flags disabled (simulating production guardrails)
+        flags
+          ..setOverride('use_refactored_components', false)
+          ..setOverride('use_new_block_editor', false)
+          ..setOverride('use_unified_permission_manager', false);
 
-        // Verify all disabled
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
+        expect(flags.useBlockEditorForNotes, isFalse);
 
         // Stage 1: Enable permission manager only (least risky)
         flags.setOverride('use_unified_permission_manager', true);
-
         expect(flags.useUnifiedPermissionManager, isTrue);
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isFalse);
 
-        // Stage 2: Enable reminders
+        // Stage 2: Enable refactored components
         flags.setOverride('use_refactored_components', true);
-
-        expect(flags.useUnifiedPermissionManager, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
+        expect(flags.useUnifiedPermissionManager, isTrue);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isFalse);
 
-        // Stage 3: Enable block editor
+        // Stage 3: Enable the new block editor
         flags.setOverride('use_new_block_editor', true);
-
-        expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useRefactoredComponents, isTrue);
-        expect(flags.useNewBlockEditor, isTrue);
-        expect(flags.useRefactoredComponents, isFalse);
-
-        // Stage 4: Enable all refactored components
-        flags.setOverride('use_refactored_components', true);
-
-        expect(flags.useUnifiedPermissionManager, isTrue);
-        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useRefactoredComponents, isTrue);
+        expect(flags.useUnifiedPermissionManager, isTrue);
       });
 
       test('should support rollback scenarios', () {
         // All features enabled
         expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useNewBlockEditor, isTrue);
-        expect(flags.useRefactoredComponents, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
 
-        // Simulate issue detected - rollback reminders only
+        // Simulate issue detected - rollback refactored components only
         flags.setOverride('use_refactored_components', false);
-
         expect(flags.useRefactoredComponents, isFalse);
-        expect(flags.useNewBlockEditor, isTrue); // Others still enabled
-        expect(flags.useRefactoredComponents, isTrue);
+        expect(flags.useNewBlockEditor, isTrue);
         expect(flags.useUnifiedPermissionManager, isTrue);
 
         // Emergency rollback - disable all new features
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_new_block_editor', false);
-        flags.setOverride('use_refactored_components', false);
-        flags.setOverride('use_unified_permission_manager', false);
+        flags
+          ..setOverride('use_refactored_components', false)
+          ..setOverride('use_new_block_editor', false)
+          ..setOverride('use_unified_permission_manager', false);
 
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
-        expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useUnifiedPermissionManager, isFalse);
       });
     });

@@ -318,7 +318,7 @@ jobs:
 
     steps:
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
@@ -332,13 +332,3 @@ jobs:
                 }
               }]
             }'
-
-# Matrix strategy for parallel execution
-strategy:
-  matrix:
-    test-suite:
-      - unit
-      - integration
-      - widget
-      - security
-      - edge-functions

@@ -15,8 +15,8 @@ class QueryCache<K, V> {
   final Duration ttl;
   final AppLogger _logger;
 
-  final Map<K, _CacheEntry<V>> _cache = <String, dynamic>{};
-  final List<K> _accessOrder = <dynamic>[];
+  final Map<K, _CacheEntry<V>> _cache = {};
+  final List<K> _accessOrder = [];
 
   /// Get a value from cache
   V? get(K key) {
@@ -134,7 +134,7 @@ class CacheManager {
       : _logger = logger ?? LoggerFactory.instance;
 
   final AppLogger _logger;
-  final Map<String, QueryCache> _caches = <String, dynamic>{};
+  final Map<String, QueryCache<dynamic, dynamic>> _caches = {};
 
   /// Register a new cache
   QueryCache<K, V> registerCache<K, V>({

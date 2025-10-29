@@ -20,14 +20,43 @@ class FolderCoreRepository implements IFolderRepository {
     required this.db,
     required this.client,
     required CryptoBox crypto,
-  })  : _logger = LoggerFactory.instance,
-        _decryptionCache = DecryptionCache(crypto);
+    DecryptionCache? decryptionCache,
+    String? Function()? userIdResolver,
+  }) : _logger = LoggerFactory.instance,
+       _decryptionCache = decryptionCache ?? DecryptionCache(crypto),
+       _userIdResolver = userIdResolver;
 
   final AppDb db;
   final SupabaseClient client;
   final AppLogger _logger;
   final DecryptionCache _decryptionCache;
   final _uuid = const Uuid();
+  final String? Function()? _userIdResolver;
+
+  String? _currentUserId() =>
+      _userIdResolver?.call() ?? client.auth.currentUser?.id;
+
+  Future<void> _enqueuePendingOp({
+    required String entityId,
+    required String kind,
+    String? payload,
+  }) async {
+    final userId = _currentUserId();
+    if (userId == null) {
+      _logger.warning(
+        'Skipping enqueue - no authenticated user',
+        data: {'entityId': entityId, 'kind': kind},
+      );
+      return;
+    }
+
+    await db.enqueue(
+      userId: userId,
+      entityId: entityId,
+      kind: kind,
+      payload: payload,
+    );
+  }
 
   void _captureRepositoryException({
     required String method,
@@ -45,7 +74,9 @@ class FolderCoreRepository implements IFolderRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'FolderCoreRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -55,22 +86,27 @@ class FolderCoreRepository implements IFolderRepository {
   Future<domain.Folder?> getFolder(String id) async {
     try {
       // Security: Enforce user isolation - verify folder belongs to current user
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot get folder without authenticated user');
         return null;
       }
 
-      final localFolder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(id))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final localFolder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(id))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (localFolder == null) return null;
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to get folder by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get folder by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getFolder',
         error: e,
@@ -85,17 +121,18 @@ class FolderCoreRepository implements IFolderRepository {
   Future<List<domain.Folder>> listFolders() async {
     try {
       // Security: Enforce user isolation - only return user's folders
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot list folders without authenticated user');
         return [];
       }
 
-      final localFolders = await (db.select(db.localFolders)
-            ..where((f) => f.userId.equals(userId))
-            ..where((f) => f.deleted.equals(false))
-            ..orderBy([(f) => OrderingTerm(expression: f.sortOrder)]))
-          .get();
+      final localFolders =
+          await (db.select(db.localFolders)
+                ..where((f) => f.userId.equals(userId))
+                ..where((f) => f.deleted.equals(false))
+                ..orderBy([(f) => OrderingTerm(expression: f.sortOrder)]))
+              .get();
 
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
@@ -113,18 +150,19 @@ class FolderCoreRepository implements IFolderRepository {
   Future<List<domain.Folder>> getRootFolders() async {
     try {
       // Security: Enforce user isolation - only return user's root folders
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot get root folders without authenticated user');
         return [];
       }
 
-      final localFolders = await (db.select(db.localFolders)
-            ..where((f) => f.userId.equals(userId))
-            ..where((f) => f.deleted.equals(false))
-            ..where((f) => f.parentId.isNull())
-            ..orderBy([(f) => OrderingTerm(expression: f.sortOrder)]))
-          .get();
+      final localFolders =
+          await (db.select(db.localFolders)
+                ..where((f) => f.userId.equals(userId))
+                ..where((f) => f.deleted.equals(false))
+                ..where((f) => f.parentId.isNull())
+                ..orderBy([(f) => OrderingTerm(expression: f.sortOrder)]))
+              .get();
 
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
@@ -149,10 +187,12 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       final id = _uuid.v4();
       final now = DateTime.now().toUtc();
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
 
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create folder without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create folder without authenticated user',
+        );
         _logger.warning(
           'Cannot create folder without authenticated user',
           data: {'name': name, 'parentId': parentId},
@@ -185,11 +225,15 @@ class FolderCoreRepository implements IFolderRepository {
       await db.upsertFolder(localFolder);
 
       // Enqueue for sync
-      await db.enqueue(id, 'upsert_folder');
+      await _enqueuePendingOp(entityId: id, kind: 'upsert_folder');
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to create folder: $name', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create folder: $name',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createFolder',
         error: e,
@@ -212,10 +256,12 @@ class FolderCoreRepository implements IFolderRepository {
   }) async {
     try {
       final folderId = id ?? _uuid.v4();
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
 
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create/update folder without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create/update folder without authenticated user',
+        );
         _logger.warning(
           'Cannot create or update folder without authenticated user',
           data: {'folderId': folderId, 'name': name},
@@ -233,13 +279,15 @@ class FolderCoreRepository implements IFolderRepository {
       // Security: If updating, verify folder belongs to user
       final existingFolder = id != null
           ? await (db.select(db.localFolders)
-                ..where((f) => f.id.equals(folderId))
-                ..where((f) => f.userId.equals(userId)))
-              .getSingleOrNull()
+                  ..where((f) => f.id.equals(folderId))
+                  ..where((f) => f.userId.equals(userId)))
+                .getSingleOrNull()
           : null;
 
       if (id != null && existingFolder == null) {
-        final missingError = StateError('Folder not found or does not belong to user');
+        final missingError = StateError(
+          'Folder not found or does not belong to user',
+        );
         _logger.warning(
           'Folder not found or does not belong to user during update',
           data: {'folderId': folderId, 'userId': userId},
@@ -261,7 +309,9 @@ class FolderCoreRepository implements IFolderRepository {
         userId: userId, // Security: Set folder owner
         name: name,
         parentId: parentId,
-        path: existingFolder?.path ?? (parentId != null ? '' : '/$name'), // Will be updated by trigger
+        path:
+            existingFolder?.path ??
+            (parentId != null ? '' : '/$name'), // Will be updated by trigger
         color: color ?? existingFolder?.color ?? '#048ABF',
         icon: icon ?? existingFolder?.icon ?? 'folder',
         description: description ?? existingFolder?.description ?? '',
@@ -274,16 +324,20 @@ class FolderCoreRepository implements IFolderRepository {
       await db.upsertFolder(localFolder);
 
       // Enqueue for sync
-      await db.enqueue(folderId, 'upsert_folder');
+      await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
 
       return folderId;
     } catch (e, stack) {
-      _logger.error('Failed to create/update folder: $name', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create/update folder: $name',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createOrUpdateFolder',
         error: e,
         stackTrace: stack,
-        data: {'folderId': folderId, 'name': name},
+        data: {'folderId': id, 'name': name},
       );
       rethrow;
     }
@@ -293,9 +347,11 @@ class FolderCoreRepository implements IFolderRepository {
   Future<void> renameFolder(String folderId, String newName) async {
     try {
       // Security: Verify folder belongs to user before renaming
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot rename folder without authenticated user');
+        final authorizationError = StateError(
+          'Cannot rename folder without authenticated user',
+        );
         _logger.warning(
           'Cannot rename folder without authenticated user',
           data: {'folderId': folderId, 'newName': newName},
@@ -310,13 +366,16 @@ class FolderCoreRepository implements IFolderRepository {
         throw authorizationError;
       }
 
-      final existingFolder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(folderId))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final existingFolder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(folderId))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (existingFolder == null) {
-        final missingError = StateError('Folder not found or does not belong to user');
+        final missingError = StateError(
+          'Folder not found or does not belong to user',
+        );
         _logger.warning(
           'Folder rename attempted on non-existent folder',
           data: {'folderId': folderId, 'userId': userId},
@@ -349,9 +408,13 @@ class FolderCoreRepository implements IFolderRepository {
       await db.upsertFolder(updatedFolder);
 
       // Enqueue for sync
-      await db.enqueue(folderId, 'upsert_folder');
+      await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
     } catch (e, stack) {
-      _logger.error('Failed to rename folder: $folderId to $newName', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to rename folder: $folderId to $newName',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'renameFolder',
         error: e,
@@ -366,9 +429,11 @@ class FolderCoreRepository implements IFolderRepository {
   Future<void> moveFolder(String folderId, String? newParentId) async {
     try {
       // Security: Verify folder belongs to user before moving
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot move folder without authenticated user');
+        final authorizationError = StateError(
+          'Cannot move folder without authenticated user',
+        );
         _logger.warning(
           'Cannot move folder without authenticated user',
           data: {'folderId': folderId, 'newParentId': newParentId},
@@ -383,13 +448,16 @@ class FolderCoreRepository implements IFolderRepository {
         throw authorizationError;
       }
 
-      final existingFolder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(folderId))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final existingFolder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(folderId))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (existingFolder == null) {
-        final missingError = StateError('Folder not found or does not belong to user');
+        final missingError = StateError(
+          'Folder not found or does not belong to user',
+        );
         _logger.warning(
           'Folder move attempted on non-existent folder',
           data: {'folderId': folderId, 'userId': userId},
@@ -405,8 +473,11 @@ class FolderCoreRepository implements IFolderRepository {
       }
 
       // Validate that we're not creating a circular reference
-      if (newParentId != null && await _wouldCreateCircularReference(folderId, newParentId)) {
-        final cycleError = StateError('Moving folder would create circular reference');
+      if (newParentId != null &&
+          await _wouldCreateCircularReference(folderId, newParentId)) {
+        final cycleError = StateError(
+          'Moving folder would create circular reference',
+        );
         _logger.warning(
           'Prevented circular folder move',
           data: {'folderId': folderId, 'targetParentId': newParentId},
@@ -439,9 +510,13 @@ class FolderCoreRepository implements IFolderRepository {
       await db.upsertFolder(updatedFolder);
 
       // Enqueue for sync
-      await db.enqueue(folderId, 'upsert_folder');
+      await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
     } catch (e, stack) {
-      _logger.error('Failed to move folder: $folderId to parent $newParentId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to move folder: $folderId to parent $newParentId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'moveFolder',
         error: e,
@@ -473,15 +548,19 @@ class FolderCoreRepository implements IFolderRepository {
         await db.removeNoteFromFolder(folderId);
 
         // Delete the folder
-        await (db.delete(db.localFolders)
-          ..where((f) => f.id.equals(folderId)))
-          .go();
+        await (db.delete(
+          db.localFolders,
+        )..where((f) => f.id.equals(folderId))).go();
       });
 
       // Enqueue for sync deletion
-      await db.enqueue(folderId, 'delete_folder');
+      await _enqueuePendingOp(entityId: folderId, kind: 'delete_folder');
     } catch (e, stack) {
-      _logger.error('Failed to delete folder: $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to delete folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'deleteFolder',
         error: e,
@@ -496,20 +575,23 @@ class FolderCoreRepository implements IFolderRepository {
   Future<List<domain.Note>> getNotesInFolder(String folderId) async {
     try {
       // Security: Enforce user isolation - verify folder belongs to user
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot get notes without authenticated user');
         return [];
       }
 
       // Verify folder belongs to user
-      final folder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(folderId))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final folder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(folderId))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (folder == null) {
-        _logger.warning('Folder $folderId not found or does not belong to user $userId');
+        _logger.warning(
+          'Folder $folderId not found or does not belong to user $userId',
+        );
         return [];
       }
 
@@ -548,7 +630,11 @@ class FolderCoreRepository implements IFolderRepository {
         );
       }).toList();
     } catch (e, stack) {
-      _logger.error('Failed to get notes in folder: $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get notes in folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getNotesInFolder',
         error: e,
@@ -563,23 +649,24 @@ class FolderCoreRepository implements IFolderRepository {
   Future<List<domain.Note>> getUnfiledNotes() async {
     try {
       // Security: Enforce user isolation - only return user's unfiled notes
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot get unfiled notes without authenticated user');
         return [];
       }
 
       // Get notes with no folder assignment using the NoteFolders junction table
-      final noteIdsWithFolders = await (db.select(db.noteFolders)
-            .map((nf) => nf.noteId))
-          .get();
+      final noteIdsWithFolders =
+          await (db.select(db.noteFolders).map((nf) => nf.noteId)).get();
 
-      final localNotes = await (db.select(db.localNotes)
-            ..where((note) =>
-                note.id.isNotIn(noteIdsWithFolders) &
-                note.deleted.equals(false) &
-                note.userId.equals(userId))) // Security: Filter by userId
-          .get();
+      final localNotes =
+          await (db.select(db.localNotes)..where(
+                (note) =>
+                    note.id.isNotIn(noteIdsWithFolders) &
+                    note.deleted.equals(false) &
+                    note.userId.equals(userId),
+              )) // Security: Filter by userId
+              .get();
 
       if (localNotes.isEmpty) return [];
 
@@ -624,12 +711,25 @@ class FolderCoreRepository implements IFolderRepository {
   @override
   Future<void> addNoteToFolder(String noteId, String folderId) async {
     try {
-      await db.moveNoteToFolder(noteId, folderId);
+      final userId = _currentUserId();
+      if (userId == null || userId.isEmpty) {
+        _logger.warning(
+          'addNoteToFolder denied - no authenticated user',
+          data: {'noteId': noteId, 'folderId': folderId},
+        );
+        return;
+      }
+
+      await db.moveNoteToFolder(noteId, folderId, expectedUserId: userId);
 
       // Enqueue note update for sync
-      await db.enqueue(noteId, 'upsert_note');
+      await _enqueuePendingOp(entityId: noteId, kind: 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to add note $noteId to folder $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to add note $noteId to folder $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'addNoteToFolder',
         error: e,
@@ -643,12 +743,25 @@ class FolderCoreRepository implements IFolderRepository {
   @override
   Future<void> moveNoteToFolder(String noteId, String? folderId) async {
     try {
-      await db.moveNoteToFolder(noteId, folderId);
+      final userId = _currentUserId();
+      if (userId == null || userId.isEmpty) {
+        _logger.warning(
+          'moveNoteToFolder denied - no authenticated user',
+          data: {'noteId': noteId, 'folderId': folderId},
+        );
+        return;
+      }
+
+      await db.moveNoteToFolder(noteId, folderId, expectedUserId: userId);
 
       // Enqueue note update for sync
-      await db.enqueue(noteId, 'upsert_note');
+      await _enqueuePendingOp(entityId: noteId, kind: 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to move note $noteId to folder $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to move note $noteId to folder $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'moveNoteToFolder',
         error: e,
@@ -662,12 +775,25 @@ class FolderCoreRepository implements IFolderRepository {
   @override
   Future<void> removeNoteFromFolder(String noteId) async {
     try {
-      await db.removeNoteFromFolder(noteId);
+      final userId = _currentUserId();
+      if (userId == null || userId.isEmpty) {
+        _logger.warning(
+          'removeNoteFromFolder denied - no authenticated user',
+          data: {'noteId': noteId},
+        );
+        return;
+      }
+
+      await db.removeNoteFromFolder(noteId, expectedUserId: userId);
 
       // Enqueue note update for sync
-      await db.enqueue(noteId, 'upsert_note');
+      await _enqueuePendingOp(entityId: noteId, kind: 'upsert_note');
     } catch (e, stack) {
-      _logger.error('Failed to remove note $noteId from folder', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to remove note $noteId from folder',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'removeNoteFromFolder',
         error: e,
@@ -683,7 +809,11 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       return await db.getFolderNoteCounts();
     } catch (e, stack) {
-      _logger.error('Failed to get folder note counts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get folder note counts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getFolderNoteCounts',
         error: e,
@@ -701,7 +831,11 @@ class FolderCoreRepository implements IFolderRepository {
 
       return FolderMapper.toDomain(localFolder);
     } catch (e, stack) {
-      _logger.error('Failed to get folder for note: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get folder for note: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getFolderForNote',
         error: e,
@@ -718,7 +852,11 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.getChildFolders(parentId);
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to get child folders for: $parentId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get child folders for: $parentId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getChildFolders',
         error: e,
@@ -735,7 +873,11 @@ class FolderCoreRepository implements IFolderRepository {
       final localFolders = await db.getFolderSubtree(parentId);
       return FolderMapper.toDomainList(localFolders);
     } catch (e, stack) {
-      _logger.error('Failed to get child folders recursively for: $parentId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get child folders recursively for: $parentId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getChildFoldersRecursive',
         error: e,
@@ -762,7 +904,11 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder integrity check completed');
     } catch (e, stack) {
-      _logger.error('Failed to ensure folder integrity', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to ensure folder integrity',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'ensureFolderIntegrity',
         error: e,
@@ -800,14 +946,21 @@ class FolderCoreRepository implements IFolderRepository {
       // Overall health score
       final healthScore = _calculateHealthScore(results);
       results['health_score'] = healthScore;
-      results['status'] = healthScore >= 0.9 ? 'healthy' :
-                         healthScore >= 0.7 ? 'warning' : 'critical';
+      results['status'] = healthScore >= 0.9
+          ? 'healthy'
+          : healthScore >= 0.7
+          ? 'warning'
+          : 'critical';
 
       results['timestamp'] = DateTime.now().toIso8601String();
 
       return results;
     } catch (e, stack) {
-      _logger.error('Failed to perform folder health check', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to perform folder health check',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'performFolderHealthCheck',
         error: e,
@@ -840,7 +993,11 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder structure validation and repair completed');
     } catch (e, stack) {
-      _logger.error('Failed to validate and repair folder structure', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to validate and repair folder structure',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'validateAndRepairFolderStructure',
         error: e,
@@ -860,23 +1017,32 @@ class FolderCoreRepository implements IFolderRepository {
         final orphanedRelations = await db.getAllNoteFolderRelationships();
 
         for (final relation in orphanedRelations) {
-          final folderExists = await db.getFolderById(relation.folderId) != null;
-          final noteExists = await (db.select(db.localNotes)
-                ..where((n) => n.id.equals(relation.noteId)))
-              .getSingleOrNull() != null;
+          final folderExists =
+              await db.getFolderById(relation.folderId) != null;
+          final noteExists =
+              await (db.select(db.localNotes)
+                    ..where((n) => n.id.equals(relation.noteId)))
+                  .getSingleOrNull() !=
+              null;
 
           if (!folderExists || !noteExists) {
-            await (db.delete(db.noteFolders)
-              ..where((nf) => nf.noteId.equals(relation.noteId) &
-                             nf.folderId.equals(relation.folderId)))
-              .go();
+            await (db.delete(db.noteFolders)..where(
+                  (nf) =>
+                      nf.noteId.equals(relation.noteId) &
+                      nf.folderId.equals(relation.folderId),
+                ))
+                .go();
           }
         }
       });
 
       _logger.info('Cleanup of orphaned relationships completed');
     } catch (e, stack) {
-      _logger.error('Failed to cleanup orphaned relationships', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to cleanup orphaned relationships',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'cleanupOrphanedRelationships',
         error: e,
@@ -899,7 +1065,11 @@ class FolderCoreRepository implements IFolderRepository {
 
       _logger.info('Folder conflict resolution completed');
     } catch (e, stack) {
-      _logger.error('Failed to resolve folder conflicts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to resolve folder conflicts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'resolveFolderConflicts',
         error: e,
@@ -911,7 +1081,10 @@ class FolderCoreRepository implements IFolderRepository {
 
   // Private helper methods
 
-  Future<bool> _wouldCreateCircularReference(String folderId, String parentId) async {
+  Future<bool> _wouldCreateCircularReference(
+    String folderId,
+    String parentId,
+  ) async {
     String? currentParentId = parentId;
 
     while (currentParentId != null) {
@@ -927,8 +1100,17 @@ class FolderCoreRepository implements IFolderRepository {
 
   Future<void> _moveNotesToUnfiled(String folderId) async {
     final noteIds = await db.getNoteIdsInFolder(folderId);
+    final userId = _currentUserId();
+    if (userId == null || userId.isEmpty) {
+      _logger.warning(
+        'Cannot move notes to unfiled without authenticated user',
+        data: {'folderId': folderId, 'noteCount': noteIds.length},
+      );
+      return;
+    }
+
     for (final noteId in noteIds) {
-      await db.moveNoteToFolder(noteId, null);
+      await db.moveNoteToFolder(noteId, null, expectedUserId: userId);
     }
   }
 
@@ -952,7 +1134,8 @@ class FolderCoreRepository implements IFolderRepository {
     final orphanedNotes = await _findOrphanedNotes();
 
     for (final noteId in orphanedNotes) {
-      await db.moveNoteToFolder(noteId, null);
+      final note = await db.findNote(noteId);
+      await db.moveNoteToFolder(noteId, null, expectedUserId: note?.userId);
     }
 
     _logger.info('Fixed ${orphanedNotes.length} orphaned notes');
@@ -1140,7 +1323,11 @@ class FolderCoreRepository implements IFolderRepository {
       final allFolders = await listFolders();
       return allFolders.where((f) => f.name == name).firstOrNull;
     } catch (e, stack) {
-      _logger.error('Failed to find folder by name: $name', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to find folder by name: $name',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'findFolderByName',
         error: e,
@@ -1156,7 +1343,11 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       return await db.getFolderDepth(folderId);
     } catch (e, stack) {
-      _logger.error('Failed to get folder depth for: $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get folder depth for: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getFolderDepth',
         error: e,
@@ -1172,7 +1363,11 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       return await db.getNoteIdsInFolder(folderId);
     } catch (e, stack) {
-      _logger.error('Failed to get note IDs in folder: $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get note IDs in folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getNoteIdsInFolder',
         error: e,
@@ -1188,7 +1383,11 @@ class FolderCoreRepository implements IFolderRepository {
     try {
       return await db.getNotesCountInFolder(folderId);
     } catch (e, stack) {
-      _logger.error('Failed to get notes count in folder: $folderId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get notes count in folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getNotesCountInFolder',
         error: e,
@@ -1201,6 +1400,6 @@ class FolderCoreRepository implements IFolderRepository {
 
   @override
   String? getCurrentUserId() {
-    return client.auth.currentUser?.id;
+    return _currentUserId();
   }
 }

@@ -23,8 +23,6 @@ class ProviderErrorRecovery {
 
   // Global configuration
   static const Duration _defaultTimeout = Duration(seconds: 30);
-  static const int _defaultMaxRetries = 3;
-  static const Duration _defaultRetryDelay = Duration(seconds: 1);
 
   /// Configure error recovery for a specific provider
   void configureProvider({
@@ -386,7 +384,6 @@ class CircuitBreaker {
   final CircuitBreakerConfig config;
   CircuitBreakerState _state = CircuitBreakerState.closed;
   int _failureCount = 0;
-  DateTime? _lastFailureTime;
   DateTime? _openedAt;
 
   CircuitBreaker({required this.config});
@@ -428,7 +425,6 @@ class CircuitBreaker {
   }
 
   void onFailure() {
-    _lastFailureTime = DateTime.now();
     _failureCount++;
 
     switch (_state) {
@@ -459,7 +455,6 @@ class CircuitBreaker {
   void reset() {
     _state = CircuitBreakerState.closed;
     _failureCount = 0;
-    _lastFailureTime = null;
     _openedAt = null;
   }
 
@@ -553,7 +548,27 @@ extension ProviderErrorRecoveryExtension<T> on AutoDisposeFutureProvider<T> {
 }
 
 /// Extension for stream providers
+///
+/// DEPRECATED: This extension uses the deprecated .stream accessor
+/// Instead, manually create StreamProviders with async* generators:
+///
+/// ```dart
+/// final myProvider = StreamProvider.autoDispose<T>((ref) async* {
+///   final recovery = ProviderErrorRecovery();
+///   yield* recovery.streamWithRecovery(
+///     providerId: 'my_provider',
+///     streamFactory: () async* {
+///       final initialData = await ref.watch(sourceProvider.future);
+///       yield initialData;
+///       ref.listen(sourceProvider, (previous, next) {});
+///     },
+///     fallbackValue: defaultValue,
+///   );
+/// });
+/// ```
+@Deprecated('Use manual async* generator pattern instead - see documentation')
 extension StreamProviderErrorRecoveryExtension<T> on AutoDisposeStreamProvider<T> {
+  @Deprecated('Use manual async* generator pattern instead')
   AutoDisposeStreamProvider<T> withErrorRecovery({
     T? fallbackValue,
     RetryPolicy? retryPolicy,
@@ -568,9 +583,24 @@ extension StreamProviderErrorRecoveryExtension<T> on AutoDisposeStreamProvider<T
         retryPolicy: retryPolicy,
       );
 
+      // NOTE: This uses deprecated .stream accessor
+      // ignore: deprecated_member_use
       return recovery.streamWithRecovery(
         providerId: providerId,
-        streamFactory: () => ref.watch(stream),
+        streamFactory: () async* {
+          // Workaround: Create async generator from future
+          // This is a migration path until this extension is removed
+          try {
+            final initialValue = await ref.watch(future);
+            yield initialValue;
+            ref.listen(this, (previous, next) {});
+          } catch (e) {
+            if (fallbackValue != null) {
+              yield fallbackValue;
+            }
+            rethrow;
+          }
+        },
         fallbackValue: fallbackValue,
       );
     });

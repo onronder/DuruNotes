@@ -1,467 +1,337 @@
-import 'package:duru_notes/services/quick_capture_service.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/services/attachment_service.dart';
-import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
-import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:test/test.dart' show Skip;
+import 'dart:io';
 
-// Generate mocks
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/domain/entities/note.dart';
+import 'package:duru_notes/domain/entities/quick_capture_queue_item.dart';
+import 'package:duru_notes/domain/entities/quick_capture_widget_cache.dart';
+import 'package:duru_notes/domain/entities/template.dart';
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
+import 'package:duru_notes/domain/repositories/i_quick_capture_repository.dart';
+import 'package:duru_notes/domain/repositories/i_template_repository.dart';
+import 'package:duru_notes/models/note_kind.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/services/quick_capture_service.dart';
+import 'package:duru_notes/services/quick_capture_widget_syncer.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'quick_capture_service_test.mocks.dart';
+
+String _isoWithoutMicros(DateTime input) =>
+    '${input.toUtc().toIso8601String().split('.').first}Z';
+
 @GenerateMocks([
-  NotesRepository,
-  AttachmentService,
-  IncomingMailFolderManager,
+  INotesRepository,
+  ITemplateRepository,
+  IQuickCaptureRepository,
   AnalyticsService,
   AppLogger,
-  MethodChannel,
+  SupabaseClient,
+  GoTrueClient,
+  User,
+  AttachmentService,
 ])
-@Skip('Quick Capture functionality deferred; tests temporarily disabled')
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('QuickCaptureService Tests', () {
+  group('QuickCaptureService', () {
+    const userId = 'user-123';
+
+    late MockINotesRepository notesRepository;
+    late MockITemplateRepository templateRepository;
+    late MockIQuickCaptureRepository quickCaptureRepository;
+    late MockAnalyticsService analyticsService;
+    late MockAppLogger logger;
+    late MockSupabaseClient supabaseClient;
+    late MockGoTrueClient authClient;
+    late MockUser user;
     late QuickCaptureService service;
-    late MockNotesRepository mockNotesRepository;
-    late MockAttachmentService mockAttachmentService;
-    late MockIncomingMailFolderManager mockFolderManager;
-    late MockAnalyticsService mockAnalytics;
-    late MockAppLogger mockLogger;
+    late FakeQuickCaptureWidgetSyncer widgetSyncer;
 
-    setUp(() async {
-      // Initialize mocks
-      mockNotesRepository = MockNotesRepository();
-      mockAttachmentService = MockAttachmentService();
-      mockFolderManager = MockIncomingMailFolderManager();
-      mockAnalytics = MockAnalyticsService();
-      mockLogger = MockAppLogger();
+    late Note repositoryNote;
+    late String longBody;
+    late String expectedSnippet;
+    late DateTime noteCreatedAt;
+    late DateTime noteUpdatedAt;
 
-      // Set up SharedPreferences mock
-      SharedPreferences.setMockInitialValues({});
+    setUp(() {
+      notesRepository = MockINotesRepository();
+      templateRepository = MockITemplateRepository();
+      quickCaptureRepository = MockIQuickCaptureRepository();
+      analyticsService = MockAnalyticsService();
+      logger = MockAppLogger();
+      supabaseClient = MockSupabaseClient();
+      authClient = MockGoTrueClient();
+      user = MockUser();
 
-      // Create service instance
-      service = QuickCaptureService(
-        notesRepository: mockNotesRepository,
-        attachmentService: mockAttachmentService,
-        folderManager: mockFolderManager,
-        analytics: mockAnalytics,
-        logger: mockLogger,
+      when(supabaseClient.auth).thenReturn(authClient);
+      when(authClient.currentUser).thenReturn(user);
+      when(user.id).thenReturn(userId);
+
+      longBody = List.filled(200, 'A').join();
+      expectedSnippet = '${longBody.substring(0, 137)}...';
+      noteCreatedAt = DateTime.utc(2025, 1, 1, 9, 30, 45, 123, 456);
+      noteUpdatedAt = DateTime.utc(2025, 1, 1, 10, 30, 45, 456, 789);
+      repositoryNote = Note(
+        id: 'note-1',
+        title: 'Last capture',
+        body: longBody,
+        createdAt: noteCreatedAt,
+        updatedAt: noteUpdatedAt,
+        deleted: false,
+        isPinned: false,
+        noteType: NoteKind.note,
+        version: 1,
+        userId: userId,
+        encryptedMetadata: null,
+        folderId: null,
+        attachmentMeta: null,
+        metadata: null,
       );
 
-      // Set up method channel mock
-      const MethodChannel channel =
-          MethodChannel('com.fittechs.durunotes/quick_capture');
-      channel.setMockMethodCallHandler((MethodCall methodCall) async {
-        switch (methodCall.method) {
-          case 'updateWidgetData':
-            return true;
-          case 'refreshWidget':
-            return true;
-          case 'getAuthStatus':
-            return {'isAuthenticated': true, 'userId': 'test-user'};
-          case 'getPendingCaptures':
-            return [];
-          default:
-            return null;
-        }
-      });
+      when(
+        notesRepository.list(limit: anyNamed('limit')),
+      ).thenAnswer((_) async => [repositoryNote]);
+
+      when(
+        quickCaptureRepository.upsertWidgetCache(any),
+      ).thenAnswer((_) async {});
+      when(
+        quickCaptureRepository.enqueueCapture(
+          userId: anyNamed('userId'),
+          payload: anyNamed('payload'),
+          platform: anyNamed('platform'),
+        ),
+      ).thenAnswer(
+        (_) async => QuickCaptureQueueItem(
+          id: 'queued',
+          userId: userId,
+          payload: const {'text': 'queued'},
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      widgetSyncer = FakeQuickCaptureWidgetSyncer();
+
+      service = QuickCaptureService(
+        notesRepository: notesRepository,
+        templateRepository: templateRepository,
+        quickCaptureRepository: quickCaptureRepository,
+        analyticsService: analyticsService,
+        logger: logger,
+        supabaseClient: supabaseClient,
+        widgetSyncer: widgetSyncer,
+      );
     });
 
-    tearDown(() {
-      service.dispose();
-    });
-
-    group('Initialization', () {
-      test('should initialize service successfully', () async {
-        await service.initialize();
-
-        verify(mockAnalytics.event('quick_capture.service_initialized',
-                properties: any))
-            .called(1);
-      });
-
-      test('should handle initialization errors gracefully', () async {
-        when(mockAnalytics.event(any, properties: anyNamed('properties')))
-            .thenThrow(Exception('Analytics error'));
-
-        // Should not throw
-        await service.initialize();
-
-        verify(mockLogger.error(any,
-                error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
-            .called(greaterThan(0));
-      });
-    });
-
-    group('Note Capture', () {
-      test('should capture text note successfully', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
+    test('captureNote creates note and refreshes widget cache', () async {
+      when(
+        notesRepository.createOrUpdate(
           title: anyNamed('title'),
           body: anyNamed('body'),
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
+        ),
+      ).thenAnswer((_) async => repositoryNote);
 
-        // Act
-        final result = await service.captureNote(
-          text: 'Test note content',
-          platform: 'ios',
-        );
+      final result = await service.captureNote(text: 'Quick capture body');
 
-        // Assert
-        expect(result.success, true);
-        expect(result.noteId, isNotNull);
-        verify(mockNotesRepository.createOrUpdate(
+      expect(result.success, isTrue);
+      expect(result.noteId, equals(repositoryNote.id));
+
+      verify(
+        notesRepository.createOrUpdate(
           title: anyNamed('title'),
           body: anyNamed('body'),
           tags: anyNamed('tags'),
           metadataJson: anyNamed('metadataJson'),
-        )).called(1);
-        verify(mockAnalytics.event('quick_capture.note_created',
-                properties: any))
-            .called(1);
-      });
+        ),
+      ).called(1);
 
-      test('should handle capture with template', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
+      expect(widgetSyncer.syncCalls, 1);
+      expect(widgetSyncer.lastUserId, userId);
 
-        // Act
-        final result = await service.captureNote(
-          text: 'Meeting with client',
-          platform: 'android',
-          templateId: 'meeting',
-        );
+      final payload = widgetSyncer.lastPayload;
+      expect(payload, isNotNull);
+      expect(payload!['userId'], equals(userId));
 
-        // Assert
-        expect(result.success, true);
-        final capturedBody = verify(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: captureAnyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).captured.single as String;
+      final updatedAt = payload['updatedAt'] as String;
+      expect(updatedAt.endsWith('Z'), isTrue);
+      expect(updatedAt.contains('.'), isFalse);
 
-        expect(capturedBody, contains('## Meeting Notes'));
-        expect(capturedBody, contains('Meeting with client'));
-      });
+      final captures = payload['recentCaptures'] as List<dynamic>;
+      expect(captures, hasLength(1));
+      final capture = captures.first as Map<String, dynamic>;
 
-      test('should handle capture with attachments', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
+      expect(capture['id'], equals(repositoryNote.id));
+      expect(capture['title'], equals(repositoryNote.title));
+      expect(capture['snippet'], equals(expectedSnippet));
 
-        when(mockAttachmentService.processWidgetAttachments(any, any))
-            .thenAnswer((_) async => ['attachment1.jpg']);
+      final createdAtIso = capture['createdAt'] as String;
+      final updatedAtIso = capture['updatedAt'] as String;
+      expect(createdAtIso, equals(_isoWithoutMicros(noteCreatedAt)));
+      expect(updatedAtIso, equals(_isoWithoutMicros(noteUpdatedAt)));
 
-        // Act
-        final result = await service.captureNote(
-          text: 'Note with image',
-          platform: 'ios',
-          attachments: [
-            {'type': 'image', 'path': '/path/to/image.jpg'}
-          ],
-        );
+      expect(createdAtIso.contains('.'), isFalse);
+      expect(updatedAtIso.contains('.'), isFalse);
+      expect(createdAtIso.endsWith('Z'), isTrue);
+      expect(updatedAtIso.endsWith('Z'), isTrue);
 
-        // Assert
-        expect(result.success, true);
-        verify(mockAttachmentService.processWidgetAttachments(any, any))
-            .called(1);
-      });
+      final capturedCache =
+          verify(
+                quickCaptureRepository.upsertWidgetCache(captureAny),
+              ).captured.single
+              as QuickCaptureWidgetCache;
+      expect(capturedCache.userId, equals(userId));
+      expect(capturedCache.payload, equals(payload));
 
-      test('should handle offline capture', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenThrow(Exception('Network error'));
-
-        // Act
-        final result = await service.captureNote(
-          text: 'Offline note',
-          platform: 'android',
-        );
-
-        // Assert
-        expect(result.success, false);
-        expect(result.error, isNotNull);
-        verify(mockAnalytics.event('quick_capture.capture_failed',
-                properties: any))
-            .called(1);
-      });
-
-      test('should enforce text length limit', () async {
-        // Arrange
-        final longText = 'a' * 10001; // Exceeds 10000 character limit
-
-        // Act & Assert
-        expect(
-          () => service.captureNote(text: longText, platform: 'ios'),
-          throwsA(isA<QuickCaptureException>()),
-        );
-      });
+      verify(
+        analyticsService.event(
+          'quick_capture.note_created',
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
     });
 
-    group('Recent Captures', () {
-      test('should get recent captures successfully', () async {
-        // Arrange
-        final mockCaptures = [
-          createMockNote('1', 'Note 1'),
-          createMockNote('2', 'Note 2'),
-          createMockNote('3', 'Note 3'),
-        ];
+    test(
+      'captureNote queues entry when repository throws SocketException',
+      () async {
+        when(
+          notesRepository.createOrUpdate(
+            title: anyNamed('title'),
+            body: anyNamed('body'),
+            tags: anyNamed('tags'),
+            metadataJson: anyNamed('metadataJson'),
+          ),
+        ).thenThrow(const SocketException('Offline'));
 
-        when(mockNotesRepository.getRecentNotes(limit: 5))
-            .thenAnswer((_) async => mockCaptures);
+        final result = await service.captureNote(text: 'Offline capture');
 
-        // Act
-        final captures = await service.getRecentCaptures(limit: 5);
+        expect(result.success, isFalse);
+        expect(result.metadata?['queued'], isTrue);
+        verify(
+          quickCaptureRepository.enqueueCapture(
+            userId: anyNamed('userId'),
+            payload: anyNamed('payload'),
+            platform: anyNamed('platform'),
+          ),
+        ).called(1);
+      },
+    );
 
-        // Assert
-        expect(captures.length, 3);
-        expect(captures[0].title, 'Note 1');
-        verify(mockNotesRepository.getRecentNotes(limit: 5)).called(1);
-      });
-
-      test('should handle empty recent captures', () async {
-        // Arrange
-        when(mockNotesRepository.getRecentNotes(limit: 5))
-            .thenAnswer((_) async => []);
-
-        // Act
-        final captures = await service.getRecentCaptures(limit: 5);
-
-        // Assert
-        expect(captures, isEmpty);
-      });
-
-      test('should cache recent captures', () async {
-        // Arrange
-        final mockCaptures = [createMockNote('1', 'Cached Note')];
-        when(mockNotesRepository.getRecentNotes(limit: 5))
-            .thenAnswer((_) async => mockCaptures);
-
-        // Act - First call should fetch from repository
-        await service.getRecentCaptures(limit: 5);
-        // Second call should use cache
-        final cached = await service.getRecentCaptures(limit: 5);
-
-        // Assert
-        expect(cached.length, 1);
-        // Repository should only be called once due to caching
-        verify(mockNotesRepository.getRecentNotes(limit: 5)).called(1);
-      });
-    });
-
-    group('Widget Updates', () {
-      test('should update widget cache successfully', () async {
-        // Arrange
-        final mockCaptures = [createMockNote('1', 'Widget Note')];
-        when(mockNotesRepository.getRecentNotes(limit: 10))
-            .thenAnswer((_) async => mockCaptures);
-
-        // Act
-        await service.updateWidgetCache();
-
-        // Assert
-        verify(mockAnalytics.event('quick_capture.cache_updated',
-                properties: any))
-            .called(1);
-      });
-
-      test('should handle widget refresh request', () async {
-        // Act
-        await service.refreshWidget();
-
-        // Assert
-        verify(mockAnalytics.event('quick_capture.widget_refreshed',
-                properties: any))
-            .called(1);
-      });
-    });
-
-    group('Templates', () {
-      test('should get available templates', () async {
-        // Act
-        final templates = await service.getTemplates();
-
-        // Assert
-        expect(templates.length, greaterThan(0));
-        expect(templates.any((t) => t.id == 'meeting'), true);
-        expect(templates.any((t) => t.id == 'idea'), true);
-        expect(templates.any((t) => t.id == 'task'), true);
-      });
-
-      test('should apply meeting template correctly', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
-
-        // Act
-        await service.captureNote(
-          text: 'Team sync',
-          platform: 'ios',
-          templateId: 'meeting',
+    test(
+      'processPendingCaptures processes queue and clears processed items',
+      () async {
+        final queueItem = QuickCaptureQueueItem(
+          id: 'queue-1',
+          userId: userId,
+          payload: const {
+            'text': 'Queued note',
+            'tags': ['queue'],
+            'metadata': {'queued': true},
+          },
+          createdAt: DateTime.now(),
         );
 
-        // Assert
-        final capturedBody = verify(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: captureAnyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).captured.single as String;
+        when(
+          quickCaptureRepository.getPendingCaptures(
+            userId: anyNamed('userId'),
+            limit: anyNamed('limit'),
+          ),
+        ).thenAnswer((_) async => [queueItem]);
 
-        expect(capturedBody, contains('## Attendees'));
-        expect(capturedBody, contains('## Agenda'));
-        expect(capturedBody, contains('## Action Items'));
-      });
-    });
-
-    group('Error Handling', () {
-      test('should handle repository errors gracefully', () async {
-        // Arrange
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenThrow(Exception('Database error'));
-
-        // Act
-        final result = await service.captureNote(
-          text: 'Error test',
-          platform: 'android',
+        when(
+          notesRepository.createOrUpdate(
+            title: anyNamed('title'),
+            body: anyNamed('body'),
+            tags: anyNamed('tags'),
+            metadataJson: anyNamed('metadataJson'),
+          ),
+        ).thenAnswer(
+          (_) async => Note(
+            id: 'note-queued',
+            title: 'Queued',
+            body: 'Queued note',
+            createdAt: DateTime.utc(2025, 1, 2, 8),
+            updatedAt: DateTime.now(),
+            deleted: false,
+            isPinned: false,
+            noteType: NoteKind.note,
+            version: 1,
+            userId: userId,
+            encryptedMetadata: null,
+            folderId: null,
+            attachmentMeta: null,
+            metadata: null,
+          ),
         );
 
-        // Assert
-        expect(result.success, false);
-        expect(result.error, contains('Database error'));
-        verify(mockLogger.error(any,
-                error: anyNamed('error'), stackTrace: anyNamed('stackTrace')))
-            .called(greaterThan(0));
-      });
+        when(
+          quickCaptureRepository.clearProcessedCaptures(
+            userId: anyNamed('userId'),
+            olderThan: anyNamed('olderThan'),
+          ),
+        ).thenAnswer((_) async {});
 
-      test('should handle invalid platform gracefully', () async {
-        // Act & Assert
-        expect(
-          () => service.captureNote(text: 'Test', platform: 'invalid'),
-          throwsA(isA<QuickCaptureException>()),
-        );
-      });
-    });
-
-    group('Offline Queue', () {
-      test('should process pending captures', () async {
-        // Arrange
-        const channel = MethodChannel('com.fittechs.durunotes/quick_capture');
-        channel.setMockMethodCallHandler((MethodCall methodCall) async {
-          if (methodCall.method == 'getPendingCaptures') {
-            return [
-              {
-                'id': '1',
-                'content': 'Pending note 1',
-                'type': 'text',
-                'timestamp': DateTime.now().millisecondsSinceEpoch,
-              }
-            ];
-          }
-          return null;
-        });
-
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
-
-        // Act
         final processed = await service.processPendingCaptures();
 
-        // Assert
-        expect(processed, greaterThan(0));
-        verify(mockAnalytics.event('quick_capture.pending_captures_processed',
-                properties: any))
-            .called(1);
-      });
+        expect(processed, equals(1));
+        verify(
+          quickCaptureRepository.markCaptureProcessed(
+            id: 'queue-1',
+            processed: true,
+            processedAt: anyNamed('processedAt'),
+          ),
+        ).called(1);
+        verify(
+          quickCaptureRepository.clearProcessedCaptures(
+            userId: anyNamed('userId'),
+            olderThan: anyNamed('olderThan'),
+          ),
+        ).called(1);
+      },
+    );
 
-      test('should respect queue size limit', () async {
-        // This is tested indirectly through the MainActivity implementation
-        // The queue size limit is enforced at the platform level
-        expect(QuickCaptureService._maxQueueSize, 50);
-      });
-    });
+    test('getTemplates delegates to template repository', () async {
+      final template = Template(
+        id: 'template-1',
+        name: 'Meeting',
+        content: '## Meeting Notes',
+        variables: const {},
+        isSystem: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      when(
+        templateRepository.getAllTemplates(),
+      ).thenAnswer((_) async => [template]);
 
-    group('Analytics', () {
-      test('should track all major events', () async {
-        // Initialize
-        await service.initialize();
-        verify(mockAnalytics.event('quick_capture.service_initialized',
-                properties: any))
-            .called(1);
+      final templates = await service.getTemplates();
 
-        // Capture note
-        when(mockNotesRepository.createOrUpdate(
-          title: anyNamed('title'),
-          body: anyNamed('body'),
-          tags: anyNamed('tags'),
-          metadataJson: anyNamed('metadataJson'),
-        )).thenAnswer((_) async => MockLocalNote());
-
-        await service.captureNote(text: 'Test', platform: 'ios');
-        verify(mockAnalytics.event('quick_capture.note_created',
-                properties: any))
-            .called(1);
-
-        // Update cache
-        when(mockNotesRepository.getRecentNotes(limit: 10))
-            .thenAnswer((_) async => []);
-        await service.updateWidgetCache();
-        verify(mockAnalytics.event('quick_capture.cache_updated',
-                properties: any))
-            .called(1);
-      });
+      expect(templates, hasLength(1));
+      expect(templates.single.id, equals('template-1'));
     });
   });
 }
 
-// Mock classes
-class MockLocalNote extends Mock {
-  String get id => 'mock-note-id';
-  String get title => 'Mock Note';
-  String get body => 'Mock body';
-  DateTime get createdAt => DateTime.now();
-  bool get isPinned => false;
-}
+class FakeQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
+  int syncCalls = 0;
+  String? lastUserId;
+  Map<String, dynamic>? lastPayload;
 
-// Helper function to create mock notes
-MockLocalNote createMockNote(String id, String title) {
-  final mock = MockLocalNote();
-  when(mock.id).thenReturn(id);
-  when(mock.title).thenReturn(title);
-  when(mock.body).thenReturn('Body of $title');
-  when(mock.createdAt).thenReturn(DateTime.now());
-  when(mock.isPinned).thenReturn(false);
-  return mock;
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<void> sync({
+    required String userId,
+    required Map<String, dynamic> payload,
+  }) async {
+    syncCalls += 1;
+    lastUserId = userId;
+    lastPayload = Map<String, dynamic>.from(payload);
+  }
 }

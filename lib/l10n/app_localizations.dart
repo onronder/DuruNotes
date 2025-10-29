@@ -63,7 +63,7 @@ import 'app_localizations_tr.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('tr')
+    Locale('tr'),
   ];
 
   /// No description provided for @notesListTitle.
@@ -1963,6 +1963,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage Templates'**
   String get manageTemplates;
+
+  /// No description provided for @notifEmailReceivedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'📧 New Email in Inbox'**
+  String get notifEmailReceivedTitle;
+
+  /// No description provided for @notifEmailReceivedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'From {sender}: {subject}\\n\\nEmail note is ready to convert to a note.'**
+  String notifEmailReceivedBody(String sender, String subject);
+
+  /// No description provided for @notifWebClipSavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'✂️ Content Clipped Successfully'**
+  String get notifWebClipSavedTitle;
+
+  /// No description provided for @notifWebClipSavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{preview}\\n\\nSaved to your inbox and ready to use.'**
+  String notifWebClipSavedBody(String preview);
+
+  /// No description provided for @notifTaskReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'⏰ Task Reminder'**
+  String get notifTaskReminderTitle;
+
+  /// No description provided for @notifTaskReminderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{taskTitle}\\n\\nDue now!'**
+  String notifTaskReminderBody(String taskTitle);
+
+  /// No description provided for @notifTaskAssignedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'📋 New Task with Reminder'**
+  String get notifTaskAssignedTitle;
+
+  /// No description provided for @notifTaskAssignedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{taskTitle}\\nDue: {dueDate}\\n\\nReminder is set and will notify you.'**
+  String notifTaskAssignedBody(String taskTitle, String dueDate);
 }
 
 class _AppLocalizationsDelegate
@@ -1992,8 +2040,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

@@ -1,0 +1,25 @@
+{
+  "test_name": "core_infrastructure",
+  "timestamp": "2025-10-26T16:24:00.433812",
+  "results": {
+    "appDb": {
+      "success": true,
+      "type": "AppDb",
+      "dependencies": []
+    },
+    "logger": {
+      "success": true,
+      "type": "ConsoleLogger",
+      "dependencies": [
+        "bootstrap"
+      ]
+    },
+    "analytics": {
+      "success": true,
+      "type": "NoOpAnalytics",
+      "dependencies": [
+        "bootstrap"
+      ]
+    }
+  }
+}

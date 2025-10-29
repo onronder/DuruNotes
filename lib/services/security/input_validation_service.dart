@@ -15,7 +15,6 @@ class InputValidationService {
   InputValidationService._internal();
 
   // XSS Protection Patterns
-  static final RegExp _htmlTagPattern = RegExp(r'<[^>]*>');
   static final RegExp _scriptPattern = RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false);
   static final RegExp _eventHandlerPattern = RegExp(r'on\w+\s*=', caseSensitive: false);
   static final RegExp _javascriptUrlPattern = RegExp(r'javascript:', caseSensitive: false);
@@ -296,28 +295,176 @@ class InputValidationService {
     }
   }
 
-  /// Sanitize HTML content (for rich text editors)
+  /// Sanitize HTML content with whitelist-based approach
+  ///
+  /// This implementation uses a strict whitelist of allowed tags and attributes.
+  /// Tags not in the whitelist are stripped, attributes not in the whitelist are removed.
+  ///
+  /// For more advanced HTML sanitization needs, consider adding the html_sanitizer package.
   String sanitizeHtml(String html) {
-    // Allow only safe tags
-    const allowedTags = ['p', 'b', 'i', 'u', 'em', 'strong', 'a', 'br', 'ul', 'ol', 'li'];
-    const allowedAttributes = ['href', 'title'];
+    // Define allowed tags (whitelist approach)
+    const allowedTags = {
+      'p', 'br', 'b', 'i', 'u', 'em', 'strong', 'mark', 'del', 'ins',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li',
+      'a', 'span', 'div',
+      'blockquote', 'code', 'pre',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    };
+
+    // Define allowed attributes per tag
+    const allowedAttributes = {
+      'a': {'href', 'title', 'rel'},
+      'span': {'class'},
+      'div': {'class'},
+      'code': {'class'},
+      'table': {'class'},
+      'td': {'colspan', 'rowspan'},
+      'th': {'colspan', 'rowspan'},
+    };
 
     String sanitized = html;
 
-    // Remove script tags and content
+    // Step 1: Remove all script tags and their content
     sanitized = sanitized.replaceAll(_scriptPattern, '');
 
-    // Remove event handlers
+    // Step 2: Remove all event handlers (onclick, onload, etc.)
     sanitized = sanitized.replaceAll(_eventHandlerPattern, '');
 
-    // Remove javascript: and data: URLs
+    // Step 3: Remove javascript: and data: URLs
     sanitized = sanitized.replaceAll(_javascriptUrlPattern, '');
     sanitized = sanitized.replaceAll(_dataUrlPattern, '');
 
-    // Additional sanitization would use a proper HTML parser
-    // For production, consider using a library like html_sanitizer
+    // Step 4: Remove style tags (to prevent CSS injection)
+    sanitized = sanitized.replaceAll(RegExp(r'<style[^>]*>.*?</style>', caseSensitive: false), '');
+
+    // Step 5: Remove iframe, embed, object tags (security risk)
+    sanitized = sanitized.replaceAll(RegExp(r'<(iframe|embed|object|applet)[^>]*>.*?</\1>', caseSensitive: false), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<(iframe|embed|object|applet)[^>]*/>', caseSensitive: false), '');
+
+    // Step 6: Remove form-related tags
+    sanitized = sanitized.replaceAll(RegExp(r'<(form|input|button|textarea|select)[^>]*>.*?</\1>', caseSensitive: false), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<(form|input|button|textarea|select)[^>]*/>', caseSensitive: false), '');
+
+    // Step 7: Basic tag filtering - remove tags not in whitelist
+    // This is a simplified approach; for production, use a proper HTML parser
+    sanitized = _filterTagsByWhitelist(sanitized, allowedTags);
+
+    // Step 8: Filter attributes
+    sanitized = _filterAttributesByWhitelist(sanitized, allowedAttributes);
+
+    // Step 9: Validate URLs in href attributes
+    sanitized = _validateHrefUrls(sanitized);
 
     return sanitized;
+  }
+
+  /// Filter HTML tags to only allow whitelisted tags
+  String _filterTagsByWhitelist(String html, Set<String> allowedTags) {
+    // Pattern to match HTML tags
+    final tagPattern = RegExp(r'<(/?)(\w+)([^>]*)>', caseSensitive: false);
+
+    return html.replaceAllMapped(tagPattern, (match) {
+      final isClosing = match.group(1) == '/';
+      final tagName = match.group(2)!.toLowerCase();
+      final attributes = match.group(3) ?? '';
+
+      if (allowedTags.contains(tagName)) {
+        // Keep the tag
+        return '<${isClosing ? '/' : ''}$tagName$attributes>';
+      } else {
+        // Remove the tag but keep the content
+        return '';
+      }
+    });
+  }
+
+  /// Filter attributes to only allow whitelisted attributes per tag
+  String _filterAttributesByWhitelist(String html, Map<String, Set<String>> allowedAttributes) {
+    // Pattern to match HTML opening tags with attributes
+    final tagPattern = RegExp(r'<(\w+)([^>]*)>', caseSensitive: false);
+
+    return html.replaceAllMapped(tagPattern, (match) {
+      final tagName = match.group(1)!.toLowerCase();
+      final attributesStr = match.group(2) ?? '';
+
+      if (attributesStr.trim().isEmpty) {
+        return match.group(0)!;
+      }
+
+      // Get allowed attributes for this tag
+      final allowed = allowedAttributes[tagName] ?? <String>{};
+
+      if (allowed.isEmpty) {
+        // No attributes allowed for this tag
+        return '<$tagName>';
+      }
+
+      // Parse and filter attributes
+      final filteredAttrs = _filterAttributes(attributesStr, allowed);
+
+      return '<$tagName$filteredAttrs>';
+    });
+  }
+
+  /// Filter individual attributes
+  String _filterAttributes(String attributesStr, Set<String> allowedAttrs) {
+    // Pattern to match attribute="value" or attribute='value'
+    final attrPattern = RegExp(r'''(\w+)\s*=\s*["']([^"']*)["']''');
+
+    final filteredParts = <String>[];
+
+    for (final match in attrPattern.allMatches(attributesStr)) {
+      final attrName = match.group(1)!.toLowerCase();
+      final attrValue = match.group(2)!;
+
+      if (allowedAttrs.contains(attrName)) {
+        // Sanitize the attribute value
+        final sanitizedValue = _sanitizeAttributeValue(attrValue);
+        filteredParts.add('$attrName="$sanitizedValue"');
+      }
+    }
+
+    return filteredParts.isEmpty ? '' : ' ${filteredParts.join(' ')}';
+  }
+
+  /// Sanitize attribute values
+  String _sanitizeAttributeValue(String value) {
+    // Remove any javascript: or data: URLs
+    if (value.toLowerCase().startsWith('javascript:') ||
+        value.toLowerCase().startsWith('data:')) {
+      return '';
+    }
+
+    // HTML entity encode to prevent injection
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#x27;');
+  }
+
+  /// Validate and sanitize href URLs
+  String _validateHrefUrls(String html) {
+    // Pattern to match href attributes
+    final hrefPattern = RegExp(r'''href\s*=\s*["']([^"']*)["']''', caseSensitive: false);
+
+    return html.replaceAllMapped(hrefPattern, (match) {
+      final url = match.group(1)!;
+
+      // Only allow http, https, mailto, and relative URLs
+      if (url.startsWith('http://') ||
+          url.startsWith('https://') ||
+          url.startsWith('mailto:') ||
+          url.startsWith('/') ||
+          url.startsWith('#')) {
+        return 'href="${_sanitizeAttributeValue(url)}"';
+      } else {
+        // Invalid URL scheme, remove href
+        return '';
+      }
+    });
   }
 
   // Private helper methods

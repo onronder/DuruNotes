@@ -1,8 +1,33 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/settings/locale_notifier.dart';
 import 'package:duru_notes/core/settings/sync_mode.dart';
 import 'package:duru_notes/core/ui/responsive.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+// ARCHITECTURAL EXCEPTION: Database provider used only for legacy migration utility
+// The migrateLegacyContentAndEnqueue method requires direct database access for
+// infrastructure-level sync queue management (db.enqueue). This is acceptable for
+// one-time migration tooling and will be removed when migration utilities are extracted.
+// SECURITY FIX: Also used for clearing local database on sign-out to prevent cross-user data leakage
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/settings/providers/settings_providers.dart'
+    show themeModeProvider, localeProvider, analyticsSettingsProvider;
+import 'package:duru_notes/features/sync/providers/sync_providers.dart'
+    show syncModeProvider;
+import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
+    show currentNotesProvider, notesPageProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider;
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show exportServiceProvider, emailAliasServiceProvider, encryptionSyncServiceProvider;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/security_providers.dart' show keyManagerProvider, accountKeyServiceProvider;
+import 'package:duru_notes/core/security/security_initialization.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/ui/components/ios_style_toggle.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
@@ -17,6 +42,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Comprehensive settings screen for Duru Notes
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -27,28 +53,34 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  AppLogger get _logger => ref.read(loggerProvider);
   String? _emailInAddress;
   bool _isLoadingEmail = false;
   PackageInfo? _packageInfo;
   bool _isSyncing = false;
+  bool _isChangingSyncMode = false; // PRODUCTION FIX: Track sync mode changes
 
   Future<void> _exportAllFromSettings(ExportFormat format) async {
     final svc = ref.read(exportServiceProvider);
-    final logger = ref.read(loggerProvider);
+    String? noteId;
+    int notesAvailable = 0;
+
     try {
       // Reuse existing export flow from notes screen to maintain consistency
       final notes = ref.read(currentNotesProvider);
+      notesAvailable = notes.length;
       if (notes.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('No notes to export')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No notes to export')),
+          );
         }
         return;
       }
 
       // Export the latest note for quick share from settings to keep UX simple
       final note = notes.first;
+      noteId = note.id;
       switch (format) {
         case ExportFormat.markdown:
           final res = await svc.exportToMarkdown(note);
@@ -62,17 +94,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final res = await svc.exportToPdf(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Exported as PDF')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Exported as PDF')),
+            );
           }
         case ExportFormat.html:
           final res = await svc.exportToHtml(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Exported as HTML')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Exported as HTML')),
+            );
           }
         case ExportFormat.docx:
         case ExportFormat.txt:
@@ -86,12 +118,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
           }
       }
-    } catch (e, st) {
-      logger.error('Settings export failed', error: e, stackTrace: st);
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Settings export failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'format': format.name,
+          'noteId': noteId,
+          'notesAvailable': notesAvailable,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Export failed. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_exportAllFromSettings(format)),
+            ),
+          ),
+        );
       }
     }
   }
@@ -109,20 +158,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Use the provider to get the EmailAliasService
       final aliasService = ref.read(emailAliasServiceProvider);
 
-      // Debug: Check if dotenv is loaded
-      debugPrint('[Settings] Checking dotenv status...');
-      debugPrint(
-        '[Settings] INBOUND_EMAIL_DOMAIN from env: ${dotenv.env['INBOUND_EMAIL_DOMAIN']}',
-      );
+      _logger.debug('Loading inbound email alias for settings screen', data: {
+        'envDomain': dotenv.env['INBOUND_EMAIL_DOMAIN'],
+      });
 
       final address = await aliasService.getFullEmailAddress();
-      debugPrint('[Settings] Loaded email address: $address');
+      _logger.debug(
+        'Inbound email alias loaded',
+        data: {'hasAddress': address != null},
+      );
 
       // Validate the domain is correct
       if (address != null && !address.endsWith('@in.durunotes.app')) {
-        debugPrint('[Settings] WARNING: Email address has wrong domain!');
-        debugPrint('[Settings] Expected: @in.durunotes.app');
-        debugPrint('[Settings] Got: $address');
+        _logger.warning(
+          'Inbound email alias uses unexpected domain',
+          data: {'address': address},
+        );
       }
 
       if (mounted) {
@@ -131,10 +182,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _isLoadingEmail = false;
         });
       }
-    } catch (e) {
-      debugPrint('[Settings] Error loading email address: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load inbound email alias',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoadingEmail = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to load email-in address. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadEmailAddress()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -151,10 +217,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    final isCompact = MediaQuery.sizeOf(context).width < 380;
-    final user = Supabase.instance.client.auth.currentUser;
 
     return Scaffold(
       backgroundColor: theme.brightness == Brightness.dark
@@ -647,7 +710,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // Toggle AI features
             HapticFeedback.lightImpact();
           },
-          activeColor: const Color(0xFF9333EA),
+          activeThumbColor: const Color(0xFF9333EA),
         ),
         const Divider(height: 24),
 
@@ -712,10 +775,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           value: smartSuggestions,
-          onChanged: aiEnabled ? (value) {
+          onChanged: (value) {
+            // TODO: Connect to provider when implementing AI features
             HapticFeedback.lightImpact();
-          } : null,
-          activeColor: const Color(0xFF9333EA),
+          },
+          activeThumbColor: const Color(0xFF9333EA),
         ),
 
         SwitchListTile(
@@ -730,34 +794,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           value: semanticSearch,
-          onChanged: aiEnabled ? (value) {
+          onChanged: (value) {
+            // TODO: Connect to provider when implementing AI features
             HapticFeedback.lightImpact();
-          } : null,
-          activeColor: const Color(0xFF9333EA),
+          },
+          activeThumbColor: const Color(0xFF9333EA),
         ),
         const Divider(height: 24),
 
         // Privacy Control
+        // TODO: Connect onDeviceOnly to provider when implementing AI features
         Container(
           padding: EdgeInsets.all(DuruSpacing.md),
           decoration: BoxDecoration(
-            color: onDeviceOnly
-              ? Colors.green.withValues(alpha: 0.1)
-              : Colors.orange.withValues(alpha: 0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: onDeviceOnly
-                ? Colors.green.withValues(alpha: 0.3)
-                : Colors.orange.withValues(alpha: 0.3),
+              color: Colors.green.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
             children: [
               Icon(
-                onDeviceOnly
-                  ? CupertinoIcons.lock_shield_fill
-                  : CupertinoIcons.cloud,
-                color: onDeviceOnly ? Colors.green : Colors.orange,
+                CupertinoIcons.lock_shield_fill,
+                color: Colors.green,
                 size: 24,
               ),
               SizedBox(width: DuruSpacing.md),
@@ -766,16 +826,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      onDeviceOnly ? 'On-Device Processing' : 'Cloud Processing',
+                      'On-Device Processing',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(height: DuruSpacing.xs),
                     Text(
-                      onDeviceOnly
-                        ? 'All AI processing happens locally on your device'
-                        : 'Some features may use cloud processing',
+                      'All AI processing happens locally on your device',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
@@ -788,7 +846,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onChanged: (value) {
                   HapticFeedback.lightImpact();
                 },
-                activeColor: Colors.green,
+                activeThumbColor: Colors.green,
               ),
             ],
           ),
@@ -956,10 +1014,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 value: SyncMode.automatic,
+                // ignore: deprecated_member_use
                 groupValue: syncMode,
-                onChanged: (mode) {
+                // PRODUCTION FIX: Async mode change with visual feedback
+                enabled: !_isChangingSyncMode,
+                // ignore: deprecated_member_use
+                onChanged: _isChangingSyncMode ? null : (mode) async {
                   if (mode != null) {
-                    ref.read(syncModeProvider.notifier).setMode(mode);
+                    setState(() => _isChangingSyncMode = true);
+                    try {
+                      await ref.read(syncModeProvider.notifier).setMode(mode)
+                          .timeout(const Duration(seconds: 10));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sync mode updated'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      _logger.error('Failed to change sync mode', error: e);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to update sync mode'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isChangingSyncMode = false);
+                      }
+                    }
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(
@@ -981,10 +1069,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 value: SyncMode.manual,
+                // ignore: deprecated_member_use
                 groupValue: syncMode,
-                onChanged: (mode) {
+                // PRODUCTION FIX: Async mode change with visual feedback
+                enabled: !_isChangingSyncMode,
+                // ignore: deprecated_member_use
+                onChanged: _isChangingSyncMode ? null : (mode) async {
                   if (mode != null) {
-                    ref.read(syncModeProvider.notifier).setMode(mode);
+                    setState(() => _isChangingSyncMode = true);
+                    try {
+                      await ref.read(syncModeProvider.notifier).setMode(mode)
+                          .timeout(const Duration(seconds: 10));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sync mode updated'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      _logger.error('Failed to change sync mode', error: e);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to update sync mode'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isChangingSyncMode = false);
+                      }
+                    }
                   }
                 },
                 contentPadding: EdgeInsets.symmetric(
@@ -1018,29 +1136,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           label: Text(_isSyncing ? l10n.syncing : l10n.syncNow),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      // Debug button for testing saved searches
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final db = ref.read(appDbProvider);
-                            await db.debugMetadata();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Check console for debug output',
-                                  ),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.bug_report),
-                          label: const Text('Debug Saved Searches'),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1070,8 +1165,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 value: ThemeMode.light,
+                // ignore: deprecated_member_use
                 groupValue: themeMode,
                 secondary: const Icon(Icons.light_mode),
+                // ignore: deprecated_member_use
                 onChanged: (mode) {
                   if (mode != null) {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
@@ -1091,8 +1188,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 value: ThemeMode.dark,
+                // ignore: deprecated_member_use
                 groupValue: themeMode,
                 secondary: const Icon(Icons.dark_mode),
+                // ignore: deprecated_member_use
                 onChanged: (mode) {
                   if (mode != null) {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
@@ -1112,8 +1211,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 value: ThemeMode.system,
+                // ignore: deprecated_member_use
                 groupValue: themeMode,
                 secondary: const Icon(Icons.brightness_auto),
+                // ignore: deprecated_member_use
                 onChanged: (mode) {
                   if (mode != null) {
                     ref.read(themeModeProvider.notifier).setThemeMode(mode);
@@ -1214,76 +1315,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSecuritySection(BuildContext context, AppLocalizations l10n) {
-    final analyticsEnabled = ref.watch(analyticsSettingsProvider);
-    final isCompact = MediaQuery.sizeOf(context).width < 380;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle(l10n.security),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(
-                  Icons.security,
-                  color: Theme.of(context).colorScheme.tertiary,
-                ),
-                title: Text(
-                  l10n.endToEndEncryption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  l10n.encryptionEnabled,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Icon(
-                  Icons.verified,
-                  color: Theme.of(context).colorScheme.tertiary,
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: isCompact ? 6 : 10,
-                ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
-                minLeadingWidth: 0,
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                title: Text(
-                  l10n.analyticsOptIn,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  l10n.analyticsDesc,
-                  maxLines: isCompact ? 1 : 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                secondary: const Icon(Icons.analytics),
-                value: analyticsEnabled,
-                onChanged: (value) {
-                  ref
-                      .read(analyticsSettingsProvider.notifier)
-                      .setAnalyticsEnabled(value);
-                },
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: isCompact ? 0 : 4,
-                ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  // Legacy method _buildSecuritySection removed - replaced by _buildSecuritySectionWithIOSToggles
+  // which includes additional passphrase management and legacy encryption migration features
 
   Widget _buildImportExportSection(
     BuildContext context,
@@ -1482,25 +1515,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
-    if (confirmed ?? false && mounted) {
+    if ((confirmed ?? false) && mounted) {
       try {
         final client = Supabase.instance.client;
         final uid = client.auth.currentUser?.id;
-        // Clear local database and per-user last pull key via SyncService
-        final sync = ref.read(syncServiceProvider);
-        await sync.reset();
+
+        // CRITICAL SECURITY FIX: Clear local database BEFORE sign-out
+        // This prevents cross-user data leakage when a different user signs in
+        _logger.info('🔒 Clearing local database on sign-out...', data: {'userId': uid});
+        try {
+          final db = ref.read(appDbProvider);
+          await db.clearAll();
+          _logger.info('✅ Local database cleared successfully', data: {'userId': uid});
+        } catch (dbError, dbStack) {
+          _logger.error(
+            '❌ Failed to clear local database on sign-out',
+            error: dbError,
+            stackTrace: dbStack,
+            data: {'userId': uid},
+          );
+          unawaited(Sentry.captureException(dbError, stackTrace: dbStack));
+          // Continue with sign-out even if DB clear fails (better than leaving user stuck)
+        }
+
         // Delete per-user master key
         if (uid != null && uid.isNotEmpty) {
           await ref.read(keyManagerProvider).deleteMasterKey(uid);
         }
         // IMPORTANT: Also clear the AMK from AccountKeyService
         await ref.read(accountKeyServiceProvider).clearLocalAmk();
+        await ref.read(encryptionSyncServiceProvider).clearLocalKeys();
+
+        // Reset security initialization state to allow re-initialization
+        SecurityInitialization.reset();
+        _logger.info('✅ Security initialization reset', data: {'userId': uid});
+
         await Supabase.instance.client.auth.signOut();
-      } catch (e) {
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Sign out failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'userId': Supabase.instance.client.auth.currentUser?.id},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error signing out: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Sign out failed. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => unawaited(_showSignOutDialog(context, l10n)),
+              ),
+            ),
+          );
         }
       }
     }
@@ -1510,28 +1579,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isSyncing = true);
 
     try {
-      debugPrint('🔄 Manual sync triggered from settings screen');
-      final success = await ref.read(syncModeProvider.notifier).manualSync();
+      _logger.info('Manual sync triggered from settings screen');
+
+      // PRODUCTION FIX: Run sync with timeout to prevent indefinite hang
+      final success = await ref
+          .read(syncModeProvider.notifier)
+          .manualSync()
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              _logger.warning('Manual sync timed out after 30 seconds');
+              return false;
+            },
+          );
 
       if (success) {
-        debugPrint('📱 Refreshing notes list in UI...');
-        // Reload the first page of notes to show synced data
-        await ref.read(notesPageProvider.notifier).refresh();
+        _logger.debug('Sync completed - triggering provider refresh');
 
-        // Load additional pages if there are more notes
-        while (ref.read(hasMoreNotesProvider)) {
-          await ref.read(notesPageProvider.notifier).loadMore();
-        }
-
-        // Refresh folders as well
-        await ref.read(folderHierarchyProvider.notifier).loadFolders();
+        // PRODUCTION FIX: Only refresh the first page, don't block UI loading all pages
+        // Riverpod providers will auto-update through streams, no need to eagerly load everything
+        unawaited(ref.read(notesPageProvider.notifier).refresh());
+        unawaited(ref.read(folderHierarchyProvider.notifier).loadFolders());
 
         // Add a small delay to ensure UI updates
         await Future<void>.delayed(const Duration(milliseconds: 500));
 
         // Get current notes count for feedback
         final currentNotes = ref.read(currentNotesProvider);
-        debugPrint('📊 UI now showing ${currentNotes.length} notes');
+        _logger.debug(
+          'Manual sync completed',
+          data: {'notesVisible': currentNotes.length},
+        );
+      } else {
+        _logger.warning('Manual sync reported failure');
       }
 
       if (mounted) {
@@ -1575,14 +1655,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
-    } catch (e) {
-      debugPrint('❌ Sync operation threw exception: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Manual sync threw exception',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${l10n.syncFailed}: $e'),
+            content: Text('${l10n.syncFailed}. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_performManualSync(l10n)),
+            ),
           ),
         );
       }
@@ -1609,7 +1698,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             RadioListTile<Locale?>(
               title: const Text('System Default'),
               value: null,
+              // ignore: deprecated_member_use
               groupValue: currentLocale,
+              // ignore: deprecated_member_use
               onChanged: (locale) {
                 ref.read(localeProvider.notifier).setLocale(locale);
                 Navigator.of(context).pop();
@@ -1625,7 +1716,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
                 value: locale,
+                // ignore: deprecated_member_use
                 groupValue: currentLocale,
+                // ignore: deprecated_member_use
                 onChanged: (selectedLocale) {
                   ref.read(localeProvider.notifier).setLocale(selectedLocale);
                   Navigator.of(context).pop();
@@ -1647,10 +1740,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _openNotificationSettings() async {
     try {
       await openAppSettings();
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to open system notification settings',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open system settings')),
+          SnackBar(
+            content: const Text('Could not open system settings.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_openNotificationSettings()),
+            ),
+          ),
         );
       }
     }
@@ -1836,32 +1942,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text('Migrate legacy encryption'),
           subtitle: const Text('Re-encrypt local data with AMK and push'),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () async {
-            try {
-              final repo = ref.read(notesRepositoryProvider);
-              final queued = await ref
-                  .read(accountKeyServiceProvider)
-                  .migrateLegacyContentAndEnqueue(
-                    db: ref.read(appDbProvider),
-                    repo: repo,
-                  );
-              // Trigger a sync
-              await ref.read(syncModeProvider.notifier).manualSync();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Queued $queued items for rewrap and sync'),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Migration failed: $e')));
-              }
-            }
-          },
+          onTap: () => _migrateLegacyEncryption(context),
         ),
         SettingsToggleTile(
           title: l10n.analyticsOptIn,
@@ -1948,11 +2029,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SnackBar(content: Text('Passphrase updated')),
                   );
                 }
-              } catch (e) {
+              } catch (error, stackTrace) {
+                _logger.error(
+                  'Failed to update encryption passphrase',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
+                unawaited(Sentry.captureException(error, stackTrace: stackTrace));
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content:
+                          const Text('Could not update passphrase. Please try again.'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
                 }
               }
             },
@@ -1963,6 +2054,66 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _migrateLegacyEncryption(BuildContext context) async {
+    int queuedItems = 0;
+    try {
+      if (!SecurityInitialization.isInitialized) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Security services are still initializing. Please try again in a moment.'),
+            ),
+          );
+        }
+        return;
+      }
+      final repo = ref.read(notesCoreRepositoryProvider);
+      final db = ref.read(appDbProvider);
+      // ARCHITECTURAL EXCEPTION: Direct database access for migration utility
+      // This method requires infrastructure-level access (db.enqueue) which is not
+      // exposed through domain repository interfaces. Acceptable for one-time tooling.
+      queuedItems = await ref
+          .read(accountKeyServiceProvider)
+          .migrateLegacyContentAndEnqueue(
+            db: db,
+            repo: repo,
+          );
+      _logger.info(
+        'Legacy encryption migration enqueued',
+        data: {'queuedItems': queuedItems},
+      );
+      // Trigger a sync
+      await ref.read(syncModeProvider.notifier).manualSync();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Queued $queuedItems items for rewrap and sync'),
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Legacy encryption migration failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'queuedBeforeFailure': queuedItems},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Migration failed. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_migrateLegacyEncryption(context)),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     try {
@@ -1971,11 +2122,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       } else {
         throw 'Could not launch $url';
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to open external link',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'url': url},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not open $url')));
+        ).showSnackBar(
+          SnackBar(
+            content: const Text('Could not open the requested link.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_launchUrl(url)),
+            ),
+          ),
+        );
       }
     }
   }

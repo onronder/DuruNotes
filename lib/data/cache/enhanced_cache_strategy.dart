@@ -26,9 +26,7 @@ class EnhancedCacheStrategy {
   late final QueryCache<String, dynamic> _hotNotesCache;
   late final QueryCache<String, List<String>> _tagsCache;
   late final QueryCache<String, dynamic> _foldersCache;
-  late final QueryCache<String, dynamic> _tasksCache;
   late final QueryCache<String, dynamic> _searchResultsCache;
-  late final QueryCache<String, dynamic> _userPreferencesCache;
 
   // Performance metrics
   int _totalRequests = 0;
@@ -58,22 +56,10 @@ class EnhancedCacheStrategy {
       ttl: const Duration(hours: 1), // Folders change rarely
     );
 
-    _tasksCache = _cacheManager.registerCache<String, dynamic>(
-      name: 'tasks',
-      maxSize: 1000, // Tasks are numerous and frequently accessed
-      ttl: const Duration(minutes: 10), // Tasks change frequently
-    );
-
     _searchResultsCache = _cacheManager.registerCache<String, dynamic>(
       name: 'search_results',
       maxSize: 100, // Search results for repeated queries
       ttl: const Duration(minutes: 5), // Search results become stale quickly
-    );
-
-    _userPreferencesCache = _cacheManager.registerCache<String, dynamic>(
-      name: 'user_preferences',
-      maxSize: 50, // Small number of preferences
-      ttl: const Duration(hours: 24), // Preferences rarely change
     );
 
     _initializePersistentCache();

@@ -1,5 +1,8 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/events/mutation_event_bus.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
@@ -9,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 typedef NotesRepository = NotesCoreRepository;
 
 /// Represents a page of notes with pagination state
+///
+/// POST-ENCRYPTION: Now uses domain.Note with decrypted content
 class NotesPage {
   const NotesPage({
     required this.items,
@@ -16,13 +21,13 @@ class NotesPage {
     required this.nextCursor,
     this.isLoading = false,
   });
-  final List<LocalNote> items;
+  final List<domain.Note> items; // Changed from LocalNote to domain.Note
   final bool hasMore;
   final DateTime? nextCursor;
   final bool isLoading;
 
   NotesPage copyWith({
-    List<LocalNote>? items,
+    List<domain.Note>? items, // Changed from LocalNote to domain.Note
     bool? hasMore,
     DateTime? nextCursor,
     bool? isLoading,
@@ -56,23 +61,96 @@ class NotesPage {
 
 /// StateNotifier for managing paginated notes
 class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
-  NotesPaginationNotifier(this._ref, this._repo)
-      : super(
-          const AsyncValue.data(
-            NotesPage(items: [], hasMore: true, nextCursor: null),
-          ),
-        );
+  NotesPaginationNotifier(
+    this._ref,
+    this._repo, {
+    MutationEventBus? mutationBus,
+  }) : super(
+         const AsyncValue.data(
+           NotesPage(items: [], hasMore: true, nextCursor: null),
+         ),
+       ) {
+    _mutationSubscription = mutationBus?.stream
+        .where((event) => event.entity == MutationEntity.note)
+        .listen(_handleMutationEvent);
+  }
+
+  /// PRODUCTION FIX: Empty constructor for unauthenticated state
+  /// Returns a notifier with empty, non-loading state
+  factory NotesPaginationNotifier.empty(Ref ref) {
+    return _EmptyNotesPaginationNotifier(ref);
+  }
 
   final Ref _ref;
-  final NotesRepository _repo;
+  final NotesRepository? _repo;
   static const int _pageSize = 20;
   bool _isLoadingMore = false;
+  bool _mutationRefreshScheduled = false;
+  StreamSubscription<MutationEvent>? _mutationSubscription;
 
   AppLogger get logger => _ref.read(loggerProvider);
   AnalyticsService get analytics => _ref.read(analyticsProvider);
 
+  void _handleMutationEvent(MutationEvent event) {
+    if (!mounted) {
+      return;
+    }
+
+    // Avoid redundant refreshes when multiple events for the same trace fire.
+    final traceId = event.traceId;
+    if (traceId != null && traceId == _lastRefreshTraceId) {
+      logger.debug(
+        'Pagination: Skipping refresh for already processed trace',
+        data: {'traceId': traceId},
+      );
+      return;
+    }
+
+    logger.debug(
+      'Pagination: Mutation event received, scheduling refresh',
+      data: {
+        'entityId': event.entityId,
+        'kind': event.kind.name,
+        if (traceId != null) 'traceId': traceId,
+      },
+    );
+    _scheduleAutoRefresh(traceId);
+  }
+
+  void _scheduleAutoRefresh(String? traceId) {
+    if (_mutationRefreshScheduled) {
+      return;
+    }
+    _mutationRefreshScheduled = true;
+    Future<void>.microtask(() async {
+      if (!mounted) {
+        _mutationRefreshScheduled = false;
+        return;
+      }
+      await _doRefresh();
+      if (mounted) {
+        _lastRefreshTraceId = traceId;
+      }
+      _mutationRefreshScheduled = false;
+    });
+  }
+
+  String? _lastRefreshTraceId;
+
   /// Load more notes (append to current list)
   Future<void> loadMore() async {
+    if (!mounted) {
+      logger.debug('Pagination: loadMore ignored because notifier disposed');
+      return;
+    }
+    // PRODUCTION FIX: Guard against null repository (unauthenticated state)
+    if (_repo == null) {
+      logger.breadcrumb(
+        'Pagination: Cannot load notes - no repository (user not authenticated)',
+      );
+      return;
+    }
+
     if (_isLoadingMore) {
       logger.breadcrumb('Pagination: loadMore called while already loading');
       return;
@@ -100,17 +178,62 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
 
       // Fetch next page
       final newNotes = await _repo.listAfter(currentState.nextCursor);
+      if (!mounted) {
+        _isLoadingMore = false;
+        return;
+      }
 
-      // Merge with existing items
-      final mergedItems = [...currentState.items, ...newNotes];
+      logger.info(
+        '📊 Pagination: Repository returned ${newNotes.length} notes',
+        data: {'cursor': currentState.nextCursor?.toIso8601String() ?? 'null'},
+      );
+
+      // Merge with existing items and de-duplicate by note ID
+      final mergedMap = <String, domain.Note>{};
+      for (final note in currentState.items) {
+        mergedMap[note.id] = note;
+      }
+      for (final note in newNotes) {
+        mergedMap[note.id] = note;
+      }
+
+      // Sort notes with pinned items first, then by most recent update
+      final mergedItems = mergedMap.values.toList()
+        ..sort((a, b) {
+          if (a.isPinned != b.isPinned) {
+            return a.isPinned ? -1 : 1;
+          }
+          return b.updatedAt.compareTo(a.updatedAt);
+        });
+
       final hasMore = newNotes.length == _pageSize;
-      final nextCursor = newNotes.isNotEmpty
-          ? newNotes.last.updatedAt
-          : currentState.nextCursor;
+      DateTime? nextCursor = currentState.nextCursor;
+      if (mergedItems.isNotEmpty) {
+        for (final note in mergedItems.reversed) {
+          if (!note.isPinned) {
+            nextCursor = note.updatedAt;
+            break;
+          }
+        }
+        nextCursor ??= mergedItems.last.updatedAt;
+      }
+
+      logger.info(
+        '📊 Pagination: Updated state with ${mergedItems.length} total notes',
+        data: {
+          'new_notes': newNotes.length,
+          'total': mergedItems.length,
+          'has_more': hasMore,
+        },
+      );
 
       // Update state
+      if (!mounted) {
+        _isLoadingMore = false;
+        return;
+      }
       state = AsyncValue.data(
-        NotesPage(items: mergedItems.cast<LocalNote>(), hasMore: hasMore, nextCursor: nextCursor),
+        NotesPage(items: mergedItems, hasMore: hasMore, nextCursor: nextCursor),
       );
 
       // Analytics
@@ -163,6 +286,11 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
   }
 
   Future<void> _doRefresh() async {
+    _lastRefreshTraceId = null;
+    if (!mounted) {
+      logger.debug('Pagination: refresh ignored because notifier disposed');
+      return;
+    }
     logger.info('Pagination: Refreshing notes list');
 
     try {
@@ -212,6 +340,13 @@ class NotesPaginationNotifier extends StateNotifier<AsyncValue<NotesPage>> {
 
   /// Check if currently loading more items
   bool get isLoadingMore => _isLoadingMore;
+
+  @override
+  void dispose() {
+    _mutationSubscription?.cancel();
+    _mutationRefreshScheduled = false;
+    super.dispose();
+  }
 }
 
 /// Extension to add pagination-specific analytics events
@@ -219,4 +354,20 @@ extension PaginationAnalytics on AnalyticsEvents {
   static const String notesPageLoaded = 'notes.page_loaded';
   static const String notesLoadMore = 'notes.load_more';
   static const String notesRefreshed = 'notes.refreshed';
+}
+
+/// PRODUCTION FIX: Empty pagination notifier for unauthenticated state
+/// Returns empty state and no-ops all operations
+class _EmptyNotesPaginationNotifier extends NotesPaginationNotifier {
+  _EmptyNotesPaginationNotifier(Ref ref) : super(ref, null, mutationBus: null);
+
+  @override
+  Future<void> loadMore() async {
+    // No-op when not authenticated
+  }
+
+  @override
+  Future<void> refresh() async {
+    // No-op when not authenticated
+  }
 }

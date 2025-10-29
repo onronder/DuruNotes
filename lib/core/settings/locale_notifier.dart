@@ -1,13 +1,20 @@
 import 'dart:ui';
 
+import 'package:duru_notes/core/settings/user_preferences_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Notifier for managing locale settings
+///
+/// Handles both local (SharedPreferences) and remote (database) storage:
+/// - Local: Fast access for UI rendering
+/// - Remote: Server-side operations (push notifications, email processing)
 class LocaleNotifier extends StateNotifier<Locale?> {
-  LocaleNotifier() : super(null) {
+  LocaleNotifier(this._preferencesService) : super(null) {
     _loadLocale();
   }
+
+  final UserPreferencesService _preferencesService;
 
   static const String _localeKey = 'app_locale';
 
@@ -27,6 +34,10 @@ class LocaleNotifier extends StateNotifier<Locale?> {
         final locale = Locale(localeCode);
         if (supportedLocales.contains(locale)) {
           state = locale;
+
+          // Sync to database in background (fire-and-forget)
+          // This ensures database is up-to-date even if it wasn't synced before
+          _preferencesService.syncLanguagePreference(locale.languageCode);
         }
       }
     } catch (e) {
@@ -35,20 +46,30 @@ class LocaleNotifier extends StateNotifier<Locale?> {
     }
   }
 
-  /// Set the locale and persist it
+  /// Set the locale and persist it to both local and remote storage
   Future<void> setLocale(Locale? locale) async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      // Step 1: Update local storage (fast, synchronous user feedback)
       if (locale == null) {
         await prefs.remove(_localeKey);
       } else {
         await prefs.setString(_localeKey, locale.languageCode);
       }
 
+      // Step 2: Update UI state immediately
       state = locale;
+
+      // Step 3: Sync to database in background (fire-and-forget)
+      // This ensures push notifications are sent in correct language
+      if (locale != null) {
+        // Don't await - run in background to avoid blocking UI
+        _preferencesService.syncLanguagePreference(locale.languageCode);
+      }
     } catch (e) {
       // Handle error silently - locale change will fail but won't crash
+      // Local storage error is rare but could happen if disk is full
     }
   }
 }

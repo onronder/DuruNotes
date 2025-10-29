@@ -57,12 +57,19 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
       continue;
     }
 
-    // Parse todo items
-    if (line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) {
-      final isCompleted = line.trim().startsWith('- [x]');
-      final text = line.trim().substring(5).trim();
-      // Store todo as "completed:text" or "incomplete:text"
-      final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$text';
+    // Parse todo items (PRODUCTION-GRADE: Preserves indentation for hierarchy)
+    final trimmedLine = line.trimLeft();
+    if (trimmedLine.startsWith('- [ ]') || trimmedLine.startsWith('- [x]')) {
+      final isCompleted = trimmedLine.startsWith('- [x]');
+      final text = trimmedLine.substring(5).trim();
+
+      // Calculate indentation level (2 spaces = 1 level)
+      final leadingSpaces = line.length - trimmedLine.length;
+      final indentLevel = leadingSpaces ~/ 2; // Integer division
+
+      // Store todo with format: "completed:level:text" or "incomplete:level:text"
+      // This preserves hierarchy information for HierarchicalTodoBlockWidget
+      final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
       blocks.add(NoteBlock(type: NoteBlockType.todo, data: todoData));
       continue;
     }
@@ -128,14 +135,25 @@ String blocksToMarkdown(List<NoteBlock> blocks) {
         buffer.writeln('```');
 
       case NoteBlockType.todo:
-        // Parse todo from "completed:text" or "incomplete:text" format
+        // Parse todo from "completed:level:text" or "incomplete:level:text" format
+        // PRODUCTION-GRADE: Restores indentation for hierarchy
         final parts = block.data.split(':');
-        if (parts.length >= 2) {
+        if (parts.length >= 3) {
+          // New format with indent level
+          final isCompleted = parts[0] == 'completed';
+          final indentLevel = int.tryParse(parts[1]) ?? 0;
+          final text = parts.skip(2).join(':');
+          final checkbox = isCompleted ? '[x]' : '[ ]';
+          final indent = '  ' * indentLevel; // 2 spaces per level
+          buffer.writeln('$indent- $checkbox $text');
+        } else if (parts.length >= 2) {
+          // Legacy format without indent level
           final isCompleted = parts[0] == 'completed';
           final text = parts.skip(1).join(':');
           final checkbox = isCompleted ? '[x]' : '[ ]';
           buffer.writeln('- $checkbox $text');
         } else {
+          // Fallback for malformed data
           buffer.writeln('- [ ] ${block.data}');
         }
 
@@ -179,8 +197,9 @@ NoteBlock createHeadingBlock(int level, String text) {
 }
 
 /// Helper function to create a todo block
-NoteBlock createTodoBlock(String text, {bool isCompleted = false}) {
-  final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$text';
+/// PRODUCTION-GRADE: Creates with format "completed:level:text"
+NoteBlock createTodoBlock(String text, {bool isCompleted = false, int indentLevel = 0}) {
+  final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
   return NoteBlock(type: NoteBlockType.todo, data: todoData);
 }
 

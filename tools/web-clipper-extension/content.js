@@ -5,7 +5,7 @@
 
 class DuruNotesClipper {
   constructor() {
-    this.supabaseUrl = 'https://jtaedgpxesshdrnbgvjr.supabase.co';
+    this.supabaseUrl = 'https://mizzxiijxtbwrqgflpnp.supabase.co';
     this.functionUrl = `${this.supabaseUrl}/functions/v1/inbound-web`;
     this.fallbackSecret = null; // Will be set from storage
     this.userToken = null; // Will be set from storage
@@ -241,11 +241,24 @@ class DuruNotesClipper {
    */
   async sendToServer(clipData) {
     try {
+      // IMPORTANT: Reload auth data from storage before attempting to clip
+      // This ensures we have the latest token even if the page was loaded before login
+      const config = await this.getStorageData(['userToken', 'userAlias', 'fallbackSecret']);
+      this.userToken = config.userToken;
+      this.userAlias = config.userAlias;
+      this.fallbackSecret = config.fallbackSecret;
+
+      console.log('Sending clip with auth:', {
+        hasToken: !!this.userToken,
+        hasSecret: !!this.fallbackSecret,
+        alias: this.userAlias
+      });
+
       // Try authenticated request first (if we have a token)
       if (this.userToken) {
         const response = await this.sendWithAuth(clipData);
         if (response.success) return response;
-        
+
         // If auth failed, try refreshing token
         const refreshed = await this.refreshToken();
         if (refreshed) {
@@ -253,14 +266,14 @@ class DuruNotesClipper {
           if (retryResponse.success) return retryResponse;
         }
       }
-      
+
       // Fallback to secret-based authentication
       if (this.fallbackSecret) {
         return await this.sendWithSecret(clipData);
       }
-      
-      throw new Error('No authentication method available');
-      
+
+      throw new Error('No authentication method available. Please reload the page after logging in.');
+
     } catch (error) {
       console.error('Send to server error:', error);
       return {
@@ -272,28 +285,31 @@ class DuruNotesClipper {
 
   /**
    * Send with JWT authentication
+   * IMPORTANT: Use background script to avoid CORS issues
+   * Content scripts inherit the page's origin, causing CORS blocks
    */
   async sendWithAuth(clipData) {
     try {
-      const response = await fetch(this.functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.userToken}`
-        },
-        body: JSON.stringify(clipData)
+      // Send to background script instead of direct fetch
+      // Background scripts don't have CORS restrictions
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+          action: 'sendClipToServer',
+          clipData: clipData,
+          token: this.userToken
+        }, (response) => {
+          resolve(response || { success: false, error: 'No response from background script' });
+        });
       });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
+
+      if (response.success) {
         return {
           success: true,
-          message: result.message || 'Clip saved successfully',
-          data: result
+          message: response.message || 'Clip saved successfully',
+          data: response.data
         };
       }
-      
+
       // Token might be expired
       if (response.status === 401) {
         return {
@@ -302,12 +318,12 @@ class DuruNotesClipper {
           needsRefresh: true
         };
       }
-      
+
       return {
         success: false,
-        error: result.error || 'Failed to save clip'
+        error: response.error || 'Failed to save clip'
       };
-      
+
     } catch (error) {
       return {
         success: false,
@@ -317,22 +333,61 @@ class DuruNotesClipper {
   }
 
   /**
-   * Send with secret authentication
+   * Compute HMAC-SHA256 signature
+   */
+  async computeHMAC(payload, secret) {
+    try {
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(secret);
+      const messageData = encoder.encode(payload);
+
+      // Import key for HMAC
+      const key = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+
+      // Sign the payload
+      const signature = await crypto.subtle.sign('HMAC', key, messageData);
+
+      // Convert to hex string
+      const hashArray = Array.from(new Uint8Array(signature));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      return hashHex;
+    } catch (error) {
+      console.error('HMAC computation error:', error);
+      throw new Error('Failed to compute HMAC signature');
+    }
+  }
+
+  /**
+   * Send with HMAC secret authentication (secure header-based)
    */
   async sendWithSecret(clipData) {
     try {
-      const url = `${this.functionUrl}?secret=${encodeURIComponent(this.fallbackSecret)}`;
-      
-      const response = await fetch(url, {
+      // SECURITY: Use HMAC authentication in headers (NOT URL params)
+      const timestamp = Date.now().toString();
+      const payload = JSON.stringify(clipData) + timestamp;
+
+      // Compute HMAC signature
+      const signature = await this.computeHMAC(payload, this.fallbackSecret);
+
+      const response = await fetch(this.functionUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-clipper-timestamp': timestamp,
+          'x-clipper-signature': signature
         },
         body: JSON.stringify(clipData)
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok) {
         return {
           success: true,
@@ -340,12 +395,12 @@ class DuruNotesClipper {
           data: result
         };
       }
-      
+
       return {
         success: false,
         error: result.error || 'Failed to save clip'
       };
-      
+
     } catch (error) {
       return {
         success: false,

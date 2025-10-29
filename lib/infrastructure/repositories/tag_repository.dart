@@ -25,6 +25,21 @@ class TagRepository implements ITagRepository {
   final AppLogger _logger;
   final NoteDecryptionHelper _decryptHelper;
 
+  String? get _currentUserId => client.auth.currentUser?.id;
+
+  Future<void> _enqueueNoteSync(String noteId) async {
+    final userId = _currentUserId;
+    if (userId == null) {
+      _logger.warning(
+        'Skipping note enqueue - no authenticated user',
+        data: {'noteId': noteId},
+      );
+      return;
+    }
+
+    await db.enqueue(userId: userId, entityId: noteId, kind: 'upsert_note');
+  }
+
   void _captureRepositoryException({
     required String method,
     required Object error,
@@ -41,7 +56,9 @@ class TagRepository implements ITagRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'TagRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -53,7 +70,9 @@ class TagRepository implements ITagRepository {
       // Security: Only return tags from user's notes
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot get tags without authenticated user');
+        final authorizationError = StateError(
+          'Cannot get tags without authenticated user',
+        );
         _logger.warning('Cannot get tags without authenticated user');
         _captureRepositoryException(
           method: 'listTagsWithCounts',
@@ -65,10 +84,11 @@ class TagRepository implements ITagRepository {
       }
 
       // Get all note IDs for current user
-      final userNotes = await (db.select(db.localNotes)
-            ..where((n) => n.userId.equals(userId))
-            ..where((n) => n.deleted.equals(false)))
-          .get();
+      final userNotes =
+          await (db.select(db.localNotes)
+                ..where((n) => n.userId.equals(userId))
+                ..where((n) => n.deleted.equals(false)))
+              .get();
 
       if (userNotes.isEmpty) {
         return const <domain.TagWithCount>[];
@@ -82,21 +102,30 @@ class TagRepository implements ITagRepository {
       // Filter to only tags from user's notes by recounting
       final Map<String, int> userTagCounts = {};
       for (final tagCount in allTagCounts) {
-        final notesWithTag = await (db.select(db.noteTags)
-              ..where((t) => t.tag.equals(tagCount.tag)))
-            .get();
+        final notesWithTag = await (db.select(
+          db.noteTags,
+        )..where((t) => t.tag.equals(tagCount.tag))).get();
 
-        final userNoteCount = notesWithTag.where((nt) => userNoteIds.contains(nt.noteId)).length;
+        final userNoteCount = notesWithTag
+            .where((nt) => userNoteIds.contains(nt.noteId))
+            .length;
         if (userNoteCount > 0) {
           userTagCounts[tagCount.tag] = userNoteCount;
         }
       }
 
       return userTagCounts.entries
-          .map((entry) => domain.TagWithCount(tag: entry.key, noteCount: entry.value))
+          .map(
+            (entry) =>
+                domain.TagWithCount(tag: entry.key, noteCount: entry.value),
+          )
           .toList();
     } catch (error, stackTrace) {
-      _logger.error('Failed to list tags with counts', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to list tags with counts',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _captureRepositoryException(
         method: 'listTagsWithCounts',
         error: error,
@@ -113,7 +142,7 @@ class TagRepository implements ITagRepository {
       if (!currentTags.contains(tag)) {
         currentTags.add(tag);
         await db.replaceTagsForNote(noteId, currentTags.toSet());
-        await db.enqueue(noteId, 'upsert_note');
+        await _enqueueNoteSync(noteId);
       }
     } catch (error, stackTrace) {
       _logger.error(
@@ -139,7 +168,7 @@ class TagRepository implements ITagRepository {
       if (currentTags.contains(tag)) {
         currentTags.remove(tag);
         await db.replaceTagsForNote(noteId, currentTags.toSet());
-        await db.enqueue(noteId, 'upsert_note');
+        await _enqueueNoteSync(noteId);
       }
     } catch (error, stackTrace) {
       _logger.error(
@@ -175,7 +204,7 @@ class TagRepository implements ITagRepository {
             tags.add(newTag);
           }
           await db.replaceTagsForNote(note.id, tags.toSet());
-          await db.enqueue(note.id, 'upsert_note');
+          await _enqueueNoteSync(note.id);
           count++;
         }
       }
@@ -208,8 +237,12 @@ class TagRepository implements ITagRepository {
     try {
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot query notes by tags without authenticated user');
-        _logger.warning('Cannot query notes by tags without authenticated user');
+        final authorizationError = StateError(
+          'Cannot query notes by tags without authenticated user',
+        );
+        _logger.warning(
+          'Cannot query notes by tags without authenticated user',
+        );
         _captureRepositoryException(
           method: 'queryNotesByTags',
           error: authorizationError,
@@ -225,23 +258,27 @@ class TagRepository implements ITagRepository {
         sort: const SortSpec(),
       );
 
-      final localNotes = allNotes.where((note) => note.userId == userId).toList();
+      final localNotes = allNotes
+          .where((note) => note.userId == userId)
+          .toList();
 
       final List<domain.Note> domainNotes = [];
       for (final localNote in localNotes) {
         final title = await _decryptHelper.decryptTitle(localNote);
         final body = await _decryptHelper.decryptBody(localNote);
 
-        domainNotes.add(NoteMapper.toDomain(
-          localNote,
-          title: title,
-          body: body,
-        ));
+        domainNotes.add(
+          NoteMapper.toDomain(localNote, title: title, body: body),
+        );
       }
 
       return domainNotes;
     } catch (error, stackTrace) {
-      _logger.error('Failed to query notes by tags', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to query notes by tags',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _captureRepositoryException(
         method: 'queryNotesByTags',
         error: error,
@@ -261,7 +298,12 @@ class TagRepository implements ITagRepository {
     try {
       return await db.searchTags(prefix);
     } catch (error, stackTrace) {
-      _logger.error('Failed to search tags', error: error, stackTrace: stackTrace, data: {'prefixLength': prefix.length});
+      _logger.error(
+        'Failed to search tags',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'prefixLength': prefix.length},
+      );
       _captureRepositoryException(
         method: 'searchTags',
         error: error,
@@ -275,13 +317,18 @@ class TagRepository implements ITagRepository {
   @override
   Future<List<String>> getTagsForNote(String noteId) async {
     try {
-      final tags = await (db.select(db.noteTags)
-            ..where((t) => t.noteId.equals(noteId)))
-          .get();
+      final tags = await (db.select(
+        db.noteTags,
+      )..where((t) => t.noteId.equals(noteId))).get();
 
       return tags.map((t) => t.tag).toList();
     } catch (error, stackTrace) {
-      _logger.error('Failed to get tags for note', error: error, stackTrace: stackTrace, data: {'noteId': noteId});
+      _logger.error(
+        'Failed to get tags for note',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': noteId},
+      );
       _captureRepositoryException(
         method: 'getTagsForNote',
         error: error,

@@ -3,8 +3,8 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -324,7 +324,7 @@ class ErrorLoggingService {
 
   Future<void> _initializeFileLogging() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await resolveAppDocumentsDirectory();
       final logDir = Directory('${directory.path}/logs');
 
       if (!await logDir.exists()) {
@@ -444,9 +444,8 @@ class ErrorLoggingService {
           scope.setTag('category', entry.category ?? 'unknown');
 
           if (entry.metadata != null) {
-            entry.metadata!.forEach((key, value) {
-              scope.setExtra(key, value);
-            });
+            // Use Contexts API instead of deprecated setExtra
+            scope.setContexts('metadata', entry.metadata!);
           }
         },
       );

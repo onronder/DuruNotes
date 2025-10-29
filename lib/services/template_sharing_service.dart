@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:duru_notes/models/template_model.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
@@ -23,16 +23,18 @@ class TemplateSharingService {
       final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
 
       // Create temporary file
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       final fileName = '${template.title.replaceAll(RegExp(r'[^\w\s-]'), '')}_template.$templateFileExtension';
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsString(jsonString);
 
       // Share file
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Duru Notes Template: ${template.title}',
-        text: 'Template exported from Duru Notes',
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'Duru Notes Template: ${template.title}',
+          text: 'Template exported from Duru Notes',
+        ),
       );
 
       // Clean up temp file after sharing
@@ -59,16 +61,18 @@ class TemplateSharingService {
       final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
 
       // Create temporary file
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       final fileName = '${packName.replaceAll(RegExp(r'[^\w\s-]'), '')}_pack.$templatePackExtension';
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsString(jsonString);
 
       // Share file
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Duru Notes Template Pack: $packName',
-        text: 'Template pack with ${templates.length} templates exported from Duru Notes',
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'Duru Notes Template Pack: $packName',
+          text: 'Template pack with ${templates.length} templates exported from Duru Notes',
+        ),
       );
 
       // Clean up temp file

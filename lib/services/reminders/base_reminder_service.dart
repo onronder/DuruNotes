@@ -6,6 +6,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -38,9 +39,12 @@ class ReminderConfig {
   });
 
   /// Convert to database companion for insertion
-  NoteRemindersCompanion toCompanion(ReminderType reminderType) {
+  ///
+  /// P0.5 SECURITY: Requires userId to prevent cross-user reminder creation
+  NoteRemindersCompanion toCompanion(ReminderType reminderType, String userId) {
     return NoteRemindersCompanion.insert(
       noteId: noteId, // Required, passed directly
+      userId: userId, // P0.5 SECURITY: Required for user isolation
       type: reminderType, // Required, passed directly
       title: Value(title),
       body: Value(body ?? ''),
@@ -106,6 +110,16 @@ abstract class BaseReminderService {
   final AppDb db;
   AppLogger get logger => _ref.read(loggerProvider);
   AnalyticsService get analytics => _ref.read(analyticsProvider);
+
+  /// P0.5 SECURITY: Get current user ID for reminder operations
+  String? get currentUserId {
+    try {
+      return _ref.read(supabaseClientProvider).auth.currentUser?.id;
+    } catch (e) {
+      logger.warning('Failed to get current user ID: $e');
+      return null;
+    }
+  }
 
   // Channel configuration
   static const String channelId = 'notes_reminders';
@@ -217,8 +231,16 @@ abstract class BaseReminderService {
   /// Update reminder active status in the database
   Future<void> updateReminderStatus(int id, bool isActive) async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot update reminder status - no authenticated user');
+        return;
+      }
+
       await db.updateReminder(
         id,
+        userId,
         NoteRemindersCompanion(isActive: Value(isActive)),
       );
 
@@ -247,7 +269,14 @@ abstract class BaseReminderService {
   /// Get all reminders for a note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
     try {
-      return await db.getRemindersForNote(noteId);
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot get reminders - no authenticated user');
+        return [];
+      }
+
+      return await db.getRemindersForNote(noteId, userId);
     } catch (e, stack) {
       logger.error(
         'Failed to get reminders for note',

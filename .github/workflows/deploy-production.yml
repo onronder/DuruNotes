@@ -1,0 +1,284 @@
+name: Deploy Production
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 1.0.0)'
+        required: true
+        type: string
+      deploy_android:
+        description: 'Deploy to Google Play'
+        required: true
+        type: boolean
+        default: true
+      deploy_ios:
+        description: 'Deploy to TestFlight'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  FLUTTER_VERSION: '3.35.3'
+  JAVA_VERSION: '21'
+
+jobs:
+  # Pre-deployment validation
+  validate:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run all tests
+        run: flutter test
+
+      - name: Verify no analyzer errors
+        run: flutter analyze --fatal-infos
+
+      - name: Check version consistency
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //')
+          echo "Deploying version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+  # Build Android Production
+  build-android-prod:
+    name: Build Android Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [validate]
+    if: github.event.inputs.deploy_android == 'true' || github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Setup production environment
+        run: |
+          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=keystore.jks
+          EOF
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release --flavor prod
+
+      - name: Upload to Google Play Internal Testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.fittechs.duruNotesApp
+          releaseFiles: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: distribution/whatsnew
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-production
+          path: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          retention-days: 90
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f android/app/keystore.jks android/key.properties
+
+  # Build iOS Production
+  build-ios-prod:
+    name: Build iOS Production
+    runs-on: macos-14
+    timeout-minutes: 50
+    needs: [validate]
+    if: github.event.inputs.deploy_ios == 'true' || github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Setup production environment
+        run: |
+          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/Runner/GoogleService-Info.plist
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Import Code Signing Certificates
+        uses: Apple-Actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATES_P12 }}
+          p12-password: ${{ secrets.IOS_CERTIFICATES_PASSWORD }}
+
+      - name: Download Provisioning Profiles
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: Build iOS Archive
+        run: |
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload to TestFlight
+        uses: Apple-Actions/upload-testflight-build@v1
+        with:
+          app-path: build/ios/ipa/*.ipa
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-production
+          path: build/ios/ipa/*.ipa
+          retention-days: 90
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-android-prod, build-ios-prod]
+    if: always() && (needs.build-android-prod.result == 'success' || needs.build-ios-prod.result == 'success')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Android artifact
+        if: needs.build-android-prod.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: android-aab-production
+          path: artifacts/android
+
+      - name: Download iOS artifact
+        if: needs.build-ios-prod.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-production
+          path: artifacts/ios
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Generate changelog from commits since last tag
+          git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s" > CHANGELOG.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.release_notes.outputs.version }}
+          name: Release ${{ steps.release_notes.outputs.version }}
+          body_path: CHANGELOG.txt
+          files: |
+            artifacts/android/*
+            artifacts/ios/*
+          draft: false
+          prerelease: false
+
+  # Post-deployment tasks
+  post-deploy:
+    name: Post-Deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: always()
+
+    steps:
+      - name: Notify Slack
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Duru Notes ${{ needs.create-release.outputs.version }} deployed successfully!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 *Duru Notes Production Deployment*\n\n*Version:* ${{ needs.create-release.outputs.version }}\n*Status:* Success\n*Android:* ${{ needs.build-android-prod.result }}\n*iOS:* ${{ needs.build-ios-prod.result }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Update deployment tracker
+        run: |
+          echo "Deployment completed at $(date)" >> deployment-log.txt
+
+      - name: Tag Sentry release
+        if: success()
+        run: |
+          curl -sL https://sentry.io/get-cli/ | bash
+          sentry-cli releases new "duru-notes@${{ needs.create-release.outputs.version }}"
+          sentry-cli releases set-commits "duru-notes@${{ needs.create-release.outputs.version }}" --auto
+          sentry-cli releases finalize "duru-notes@${{ needs.create-release.outputs.version }}"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: fittechs
+          SENTRY_PROJECT: durunotes

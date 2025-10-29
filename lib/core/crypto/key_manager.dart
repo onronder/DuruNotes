@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:duru_notes/services/account_key_service.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class KeyManager {
@@ -21,6 +22,43 @@ class KeyManager {
   final AccountKeyService _accountKeyService;
 
   static const _prefix = 'mk:'; // legacy device master key prefix
+
+  /// PRODUCTION FIX #6: Safe keychain write with duplicate error handling
+  /// iOS Keychain returns error -25299 when item already exists
+  Future<void> _safeKeychainWrite({
+    required String key,
+    required String value,
+    AndroidOptions? aOptions,
+    IOSOptions? iOptions,
+  }) async {
+    if (_storage == null) {
+      _mem[key] = value;
+      return;
+    }
+
+    try {
+      await _storage.write(
+        key: key,
+        value: value,
+        aOptions: aOptions ?? _aOptions,
+        iOptions: iOptions ?? _iOptions,
+      );
+    } on PlatformException catch (e) {
+      // iOS Keychain duplicate error (-25299)
+      if (e.code == '-25299') {
+        // Delete existing key and retry
+        await _storage.delete(key: key);
+        await _storage.write(
+          key: key,
+          value: value,
+          aOptions: aOptions ?? _aOptions,
+          iOptions: iOptions ?? _iOptions,
+        );
+      } else {
+        rethrow;
+      }
+    }
+  }
 
   Future<SecretKey> getOrCreateMasterKey(String userId) async {
     // Prefer account-bound AMK
@@ -44,16 +82,13 @@ class KeyManager {
     if (b64 == null) {
       final bytes = _randomBytes(32);
       b64 = base64Encode(bytes);
-      if (_storage == null) {
-        _mem[keyName] = b64;
-      } else {
-        await _storage.write(
-          key: keyName,
-          value: b64,
-          aOptions: _aOptions,
-          iOptions: _iOptions,
-        );
-      }
+      // Use safe write with duplicate error handling
+      await _safeKeychainWrite(
+        key: keyName,
+        value: b64,
+        aOptions: _aOptions,
+        iOptions: _iOptions,
+      );
     }
     return SecretKey(base64Decode(b64));
   }
@@ -75,16 +110,13 @@ class KeyManager {
       // If missing, generate to avoid crashes but this indicates no legacy data
       final bytes = _randomBytes(32);
       b64 = base64Encode(bytes);
-      if (_storage == null) {
-        _mem[keyName] = b64;
-      } else {
-        await _storage.write(
-          key: keyName,
-          value: b64,
-          aOptions: _aOptions,
-          iOptions: _iOptions,
-        );
-      }
+      // Use safe write with duplicate error handling
+      await _safeKeychainWrite(
+        key: keyName,
+        value: b64,
+        aOptions: _aOptions,
+        iOptions: _iOptions,
+      );
     }
     return SecretKey(base64Decode(b64));
   }

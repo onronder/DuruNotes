@@ -460,12 +460,8 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
     }
   }
 
-  Color _getProgressColor(double progress) {
-    if (progress >= 1.0) return Colors.green;
-    if (progress >= 0.8) return Colors.lightGreen;
-    if (progress >= 0.5) return Colors.orange;
-    return Colors.red;
-  }
+  // Helper method _getProgressColor removed - unused in CreateGoalDialog
+  // ProductivityGoalCard and GoalProgressWidget have their own copies
 }
 
 /// Compact goal progress widget

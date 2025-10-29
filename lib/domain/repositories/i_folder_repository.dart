@@ -68,10 +68,25 @@ abstract class IFolderRepository {
   /// Get child folders recursively
   Future<List<Folder>> getChildFoldersRecursive(String parentId);
 
+  /// Find a folder by name
+  Future<Folder?> findFolderByName(String name);
+
+  /// Get folder hierarchy depth
+  Future<int> getFolderDepth(String folderId);
+
+  /// Get note IDs in a folder
+  Future<List<String>> getNoteIdsInFolder(String folderId);
+
+  /// Get notes count in a folder
+  Future<int> getNotesCountInFolder(String folderId);
+
   /// Folder maintenance operations
   Future<void> ensureFolderIntegrity();
   Future<Map<String, dynamic>> performFolderHealthCheck();
   Future<void> validateAndRepairFolderStructure();
   Future<void> cleanupOrphanedRelationships();
   Future<void> resolveFolderConflicts();
+
+  /// Get current user ID (for user-specific operations)
+  String? getCurrentUserId();
 }

@@ -2,6 +2,7 @@
 ///
 /// Components that adapt to platform conventions while maintaining
 /// brand consistency across iOS, Android, Web, Mac, and Windows.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -130,12 +131,11 @@ class DuruButton extends StatelessWidget {
 
   Widget _buildButtonContent(BuildContext context, Color textColor) {
     if (isLoading) {
-      return SizedBox(
+      return const SizedBox(
         width: 20,
         height: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(textColor),
         ),
       );
     }
@@ -364,8 +364,7 @@ class DuruIconButton extends StatelessWidget {
     if (DuruPlatform.isIOS) {
       button = CupertinoButton(
         onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        minSize: DuruTouchTargets.minSize,
+        padding: EdgeInsets.zero, minimumSize: Size(DuruTouchTargets.minSize, DuruTouchTargets.minSize),
         child: Icon(
           icon,
           color: iconColor,
@@ -437,7 +436,7 @@ class DuruListTile extends StatelessWidget {
               children: [
                 if (leading != null) ...[
                   leading!,
-                  SizedBox(width: DuruSpacing.md),
+                  const SizedBox(width: 16), // DuruSpacing.md
                 ],
                 Expanded(
                   child: Column(
@@ -450,7 +449,7 @@ class DuruListTile extends StatelessWidget {
                           child: title!,
                         ),
                       if (subtitle != null) ...[
-                        SizedBox(height: DuruSpacing.xs),
+                        const SizedBox(height: 8), // DuruSpacing.xs
                         DefaultTextStyle(
                           style: DuruTypography.bodyLarge(context).copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -463,7 +462,7 @@ class DuruListTile extends StatelessWidget {
                   ),
                 ),
                 if (trailing != null) ...[
-                  SizedBox(width: DuruSpacing.md),
+                  const SizedBox(width: 16), // DuruSpacing.md
                   trailing!,
                 ],
               ],

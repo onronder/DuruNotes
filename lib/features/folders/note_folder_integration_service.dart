@@ -2,21 +2,20 @@ import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:duru_notes/providers.dart'; // Import to get extension methods
 
 /// Service for handling note-folder integration operations with analytics and recent folder tracking
 class NoteFolderIntegrationService {
   NoteFolderIntegrationService({
-    required NotesCoreRepository notesRepository,
+    required IFolderRepository folderRepository,
     required this.analyticsService,
-  }) : _notesRepository = notesRepository,
+  }) : _folderRepository = folderRepository,
        _logger = LoggerFactory.instance;
 
-  final NotesCoreRepository _notesRepository;
+  final IFolderRepository _folderRepository;
   final AnalyticsService analyticsService;
   final AppLogger _logger;
 
@@ -98,7 +97,7 @@ class NoteFolderIntegrationService {
   Future<BatchMoveResult> moveNotesToFolder({
     required List<String> noteIds,
     required String? folderId,
-    Function(double progress)? onProgress,
+    void Function(double progress)? onProgress,
   }) async {
     final stopwatch = Stopwatch()..start();
 
@@ -117,9 +116,9 @@ class NoteFolderIntegrationService {
 
         try {
           if (folderId != null) {
-            await _notesRepository.addNoteToFolder(noteId, folderId);
+            await _folderRepository.addNoteToFolder(noteId, folderId);
           } else {
-            await _notesRepository.removeNoteFromFolder(noteId);
+            await _folderRepository.removeNoteFromFolder(noteId);
           }
 
           successCount++;
@@ -295,13 +294,27 @@ class NoteFolderIntegrationService {
   /// Get folders hierarchy for display in picker
   Future<List<LocalFolder>> getFoldersHierarchy() async {
     try {
-      final folders = await _notesRepository.listFolders();
+      final domainFolders = await _folderRepository.listFolders();
 
       _logger.debug('Retrieved folders hierarchy', data: {
-        'folderCount': folders.length,
+        'folderCount': domainFolders.length,
       });
 
-      return folders;
+      // Convert domain.Folder to LocalFolder for compatibility
+      return domainFolders.map((df) => LocalFolder(
+        id: df.id,
+        userId: df.userId,
+        name: df.name,
+        parentId: df.parentId,
+        path: '', // path is computed by database triggers
+        color: df.color ?? '#048ABF',
+        icon: df.icon ?? 'folder',
+        description: df.description ?? '',
+        sortOrder: df.sortOrder,
+        createdAt: df.createdAt,
+        updatedAt: df.updatedAt,
+        deleted: false,
+      )).toList();
     } catch (e, stackTrace) {
       _logger.error('Failed to get folders hierarchy',
         error: e,

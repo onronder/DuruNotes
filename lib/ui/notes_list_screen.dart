@@ -1,22 +1,65 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
 import 'package:duru_notes/features/folders/create_folder_dialog.dart'
     as folder_dialog;
 import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
-import 'package:duru_notes/features/folders/folder_picker_component.dart';
 import 'package:duru_notes/features/folders/enhanced_move_to_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_management_screen.dart';
 import 'package:duru_notes/features/templates/template_gallery_screen.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/auth_providers.dart'
+    show supabaseClientProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider, loggerProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show accountKeyServiceProvider, keyManagerProvider;
+import 'package:duru_notes/core/security/security_initialization.dart';
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart'
+    show allFoldersCountProvider, rootFoldersProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider, folderProvider, noteFolderProvider;
+import 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
+    show
+        currentFolderProvider,
+        currentNotesProvider,
+        currentSortSpecProvider,
+        filteredNotesProvider,
+        filterStateProvider,
+        hasMoreNotesProvider,
+        notesLoadingProvider,
+        notesPageProvider;
+import 'package:duru_notes/features/sync/providers/sync_providers.dart'
+    show unifiedRealtimeServiceProvider;
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateListProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show
+        notesCoreRepositoryProvider,
+        searchRepositoryProvider,
+        tagRepositoryProvider;
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show
+        exportServiceProvider,
+        importServiceProvider,
+        incomingMailFolderManagerProvider;
 import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/theme/material3_theme.dart' hide DuruColors;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/duru_note_card.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
@@ -55,16 +98,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   late AnimationController _listAnimationController;
   late AnimationController _headerAnimationController;
   late Animation<double> _fabAnimation;
-  // late Animation<double> _headerSlideAnimation;  // Reserved for header slide animation
-  late Animation<double> _headerFadeAnimation;
-  Animation<double> _headerHeightAnimation =
-      const AlwaysStoppedAnimation<double>(1);
 
   bool _isFabExpanded = false;
   bool _isGridView = false;
   final Set<String> _selectedNoteIds = {};
   bool _isSelectionMode = false;
   bool _isHeaderCollapsed = false;
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -90,6 +131,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       parent: _fabAnimationController,
       curve: Curves.easeInOut,
     );
+    // Header animations reserved for future implementation
     // _headerSlideAnimation = Tween<double>(
     //   begin: 0,
     //   end: -1,
@@ -97,21 +139,29 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     //   parent: _headerAnimationController,
     //   curve: Curves.easeInOut,
     // ));
-    _headerFadeAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(
-        parent: _headerAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-    _headerHeightAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(
-        parent: _headerAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
+    // _headerFadeAnimation = Tween<double>(begin: 1, end: 0).animate(
+    //   CurvedAnimation(
+    //     parent: _headerAnimationController,
+    //     curve: Curves.easeInOut,
+    //   ),
+    // );
+    // _headerHeightAnimation = Tween<double>(begin: 1, end: 0).animate(
+    //   CurvedAnimation(
+    //     parent: _headerAnimationController,
+    //     curve: Curves.easeInOut,
+    //   ),
+    // );
 
     // Start list animation
     _listAnimationController.forward();
+
+    // CRITICAL FIX: Clear any folder filter on startup to show all notes
+    // This prevents the UI from showing 0 notes when a folder filter was
+    // previously active but the notes don't belong to that folder
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(currentFolderProvider.notifier).clearCurrentFolder();
+      print('🔧 STARTUP FIX: Cleared folder filter to show all notes');
+    });
   }
 
   @override
@@ -155,8 +205,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!SecurityInitialization.isInitialized) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     // Initialize unified realtime service (only if authenticated)
-    final unifiedRealtime = ref.watch(unifiedRealtimeServiceProvider);
+    ref.watch(unifiedRealtimeServiceProvider);
 
     // Trigger early loading of folders for deterministic first paint
     ref.watch(rootFoldersProvider);
@@ -181,22 +240,29 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             onCustomSearchTap: (search) =>
                 _handleCustomSavedSearchTap(context, search),
             getTagCounts: () async {
-              final db = ref.read(appDbProvider);
-              final tags = await db.getTagsWithCounts();
-              return Map.fromEntries(tags.map((t) => MapEntry(t.tag, t.count)));
+              final tagRepo = ref.read(tagRepositoryProvider);
+              final tags = await tagRepo.listTagsWithCounts();
+              return Map.fromEntries(
+                tags.map((t) => MapEntry(t.tag, t.noteCount)),
+              );
             },
             getFolderCount: (folderName) async {
               if (folderName == 'Incoming Mail') {
+                // Use getter to avoid creating folder on every render
                 final folderId = await ref
                     .read(incomingMailFolderManagerProvider)
-                    .ensureIncomingMailFolderId();
-                final db = ref.read(appDbProvider);
-                return db.getNotesCountInFolder(folderId);
+                    .getIncomingMailFolderId();
+                if (folderId == null) return 0; // Folder doesn't exist yet
+                final repo = ref.read(notesCoreRepositoryProvider);
+                return repo.getNotesCountInFolder(folderId);
               }
               return 0;
             },
             // Filter button removed - now always in AppBar
           ),
+
+          // Active folder filter indicator
+          _buildActiveFolderFilterIndicator(context),
 
           // Modern stats section with gradient
           if (user != null) _buildModernStatsSection(context, user),
@@ -218,7 +284,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     AppLocalizations l10n,
   ) {
     return ModernAppBar(
-      title: _isSelectionMode ? '${_selectedNoteIds.length} selected' : l10n.notesListTitle,
+      title: _isSelectionMode
+          ? '${_selectedNoteIds.length} selected'
+          : l10n.notesListTitle,
       subtitle: _isSelectionMode ? null : 'Your digital workspace',
       showGradient: !_isSelectionMode,
       leading: _isSelectionMode
@@ -255,7 +323,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               ),
               // Sort and more options
               PopupMenuButton<String>(
-                icon: const Icon(CupertinoIcons.ellipsis_circle, color: Colors.white),
+                icon: const Icon(
+                  CupertinoIcons.ellipsis_circle,
+                  color: Colors.white,
+                ),
                 tooltip: 'More options',
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -391,7 +462,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     note.updatedAt.day == today.day;
               }).length;
 
-              final pinnedNotes = notesPage.items.where((n) => n.isPinned).length;
+              final pinnedNotes = notesPage.items
+                  .where((n) => n.isPinned)
+                  .length;
 
               final folderCountAsync = ref.watch(allFoldersCountProvider);
               final folderCount = folderCountAsync.maybeWhen(
@@ -447,7 +520,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                             Text(
                               user.email ?? 'User',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -530,16 +604,61 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           label,
           style: TextStyle(
             fontSize: 11,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUserStatsCard(BuildContext context, User user) {
-    // Deprecated - replaced by _buildModernStatsSection
-    return _buildModernStatsSection(context, user);
+  // Legacy method _buildUserStatsCard removed - replaced by _buildModernStatsSection
+
+  /// Build active folder filter indicator chip
+  Widget _buildActiveFolderFilterIndicator(BuildContext context) {
+    final currentFolder = ref.watch(currentFolderProvider);
+
+    // Only show if a folder is actively selected
+    if (currentFolder == null) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Chip(
+        avatar: Icon(Icons.folder, size: 18, color: colorScheme.primary),
+        label: Text(
+          'Folder: ${currentFolder.name}',
+          style: TextStyle(
+            color: colorScheme.onSecondaryContainer,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        deleteIcon: Icon(
+          Icons.close,
+          size: 18,
+          color: colorScheme.onSecondaryContainer,
+        ),
+        onDeleted: () {
+          ref.read(currentFolderProvider.notifier).clearCurrentFolder();
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Showing all notes'),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        backgroundColor: colorScheme.secondaryContainer,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+    );
   }
 
   Widget _buildFolderNavigation(BuildContext context) {
@@ -577,14 +696,33 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
                       // Refresh the view
                       ref.invalidate(filteredNotesProvider);
-                    } catch (e) {
+                    } catch (error, stackTrace) {
+                      _logger.error(
+                        'Failed to move note to unfiled',
+                        error: error,
+                        stackTrace: stackTrace,
+                        data: {
+                          'noteId': note.id,
+                          'currentFolderId': currentFolder?.id,
+                        },
+                      );
+                      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Failed to move note: $e'),
+                            content:
+                                const Text('Unable to move note. Please try again.'),
                             backgroundColor: Theme.of(
                               context,
                             ).colorScheme.error,
+                            action: SnackBarAction(
+                              label: 'Retry',
+                              onPressed: () => unawaited(
+                                ref
+                                    .read(noteFolderProvider.notifier)
+                                    .removeNoteFromFolder(note.id),
+                              ),
+                            ),
                           ),
                         );
                       }
@@ -636,7 +774,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       )
                       .toList(),
                   loading: () => _buildFolderSkeletons(context),
-                  error: (_, __) => <Widget>[],
+                  error: (_, _) => <Widget>[],
                 ),
 
                 // Create folder chip
@@ -655,7 +793,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildNotesContent(
     BuildContext context,
-    AsyncValue<List<LocalNote>> notesAsync,
+    AsyncValue<List<domain.Note>> notesAsync,
     bool hasMore,
   ) {
     // Watch sort spec changes to trigger rebuilds
@@ -732,24 +870,22 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             Text(
               l10n.noNotesYet,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: isCompact
-                        ? (Theme.of(context).textTheme.titleLarge?.fontSize ??
-                                22) -
-                            2
-                        : null,
-                  ),
+                fontSize: isCompact
+                    ? (Theme.of(context).textTheme.titleLarge?.fontSize ?? 22) -
+                          2
+                    : null,
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: isCompact ? 6 : 8),
             Text(
               l10n.tapToCreateFirstNote,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: isCompact
-                        ? (Theme.of(context).textTheme.bodyMedium?.fontSize ??
-                                14) -
-                            1
-                        : null,
-                  ),
+                fontSize: isCompact
+                    ? (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) -
+                          1
+                    : null,
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: isCompact ? 16 : 24),
@@ -759,8 +895,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
               label: Text(
                 l10n.createFirstNote,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontSize: isCompact ? 13 : null,
-                    ),
+                  fontSize: isCompact ? 13 : null,
+                ),
               ),
               style: FilledButton.styleFrom(
                 padding: EdgeInsets.symmetric(
@@ -837,7 +973,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildModernNoteCard(
     BuildContext context,
-    LocalNote note, {
+    domain.Note note, {
     bool isGrid = false,
   }) {
     // Use separate optimized design for grid view
@@ -847,155 +983,160 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     // Use new modern note card component
     final isSelected = _selectedNoteIds.contains(note.id);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     // Get folder information
     final noteFolderState = ref.watch(noteFolderProvider);
     final folderId = noteFolderState.noteFolders[note.id];
-    String? folderName;
-    Color? folderColor;
 
+    // TODO: Pass folder information to DuruNoteCard for visual indication
     if (folderId != null) {
       final foldersAsync = ref.watch(rootFoldersProvider);
+      // Folder info available but not currently used in card display
+      // Future: Retrieve folder and pass folder.color to DuruNoteCard for visual indicator
       foldersAsync.whenData((folders) {
-        final folder = folders.where((f) => f.id == folderId).firstOrNull;
-        if (folder != null) {
-          folderName = folder.name;
-          folderColor = FolderIconHelpers.getFolderColor(folder.color);
-        }
+        folders.where((f) => f.id == folderId).firstOrNull;
       });
     }
 
-    return DraggableNoteItem(
-      note: note,
-      enabled: !_isSelectionMode,
-      onDragStarted: () {
-        HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Drag to a folder above to move this note'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-      },
-      child: DuruNoteCard(
+    // Wrap in RepaintBoundary to isolate card repaints
+    return RepaintBoundary(
+      key: ValueKey('note_${note.id}'), // Key for efficient widget reuse
+      child: DraggableNoteItem(
         note: note,
-        isSelected: isSelected,
-        onTap: () {
-          if (_isSelectionMode) {
-            _toggleNoteSelection(note.id);
-          } else {
-            _editNote(note);
-          }
+        enabled: !_isSelectionMode,
+        onDragStarted: () {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Drag to a folder above to move this note'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+            ),
+          );
         },
-        onLongPress: () {
-          if (!_isSelectionMode) {
-            _enterSelectionMode(note.id);
-          }
-        },
+        child: DuruNoteCard(
+          note: note,
+          isSelected: isSelected,
+          onTap: () {
+            if (_isSelectionMode) {
+              _toggleNoteSelection(note.id);
+            } else {
+              _editNote(note);
+            }
+          },
+          onLongPress: () {
+            if (!_isSelectionMode) {
+              _enterSelectionMode(note.id);
+            }
+          },
+        ),
       ),
     );
   }
 
   // New efficient grid card design
-  Widget _buildCompactGridCard(BuildContext context, LocalNote note) {
+  Widget _buildCompactGridCard(BuildContext context, domain.Note note) {
     final isSelected = _selectedNoteIds.contains(note.id);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
-      elevation: isSelected ? 4 : 1,
-      shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
-      color: isSelected
-          ? colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : theme.customColors.noteCardBackground,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isSelected
-            ? BorderSide(color: colorScheme.primary.withValues(alpha: 0.5))
-            : BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                width: 0.5,
-              ),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (_isSelectionMode) {
-            _toggleNoteSelection(note.id);
-          } else {
-            _editNote(note);
-          }
-        },
-        onLongPress: () {
-          if (!_isSelectionMode) {
-            _enterSelectionMode(note.id);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Compact header with title and source icon
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      note.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? colorScheme.primary : null,
+    // Wrap in RepaintBoundary for grid performance
+    return RepaintBoundary(
+      key: ValueKey('grid_note_${note.id}'), // Key for efficient widget reuse
+      child: Card(
+        elevation: isSelected ? 4 : 1,
+        shadowColor: colorScheme.shadow.withValues(alpha: 0.1),
+        color: isSelected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : theme.customColors.noteCardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isSelected
+              ? BorderSide(color: colorScheme.primary.withValues(alpha: 0.5))
+              : BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  width: 0.5,
+                ),
+        ),
+        child: InkWell(
+          onTap: () {
+            if (_isSelectionMode) {
+              _toggleNoteSelection(note.id);
+            } else {
+              _editNote(note);
+            }
+          },
+          onLongPress: () {
+            if (!_isSelectionMode) {
+              _enterSelectionMode(note.id);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Compact header with title and source icon
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? colorScheme.primary : null,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(width: 4),
+                    NoteSourceIcon(
+                      note: note,
+                      size: 14,
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                    if (isSelected)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(
+                          Icons.check_circle,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // More content preview
+                Expanded(
+                  child: Text(
+                    _generatePreview(note.body),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.3,
+                    ),
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 4),
-                  NoteSourceIcon(
-                    note: note,
-                    size: 14,
+                ),
+                const SizedBox(height: 6),
+                // Minimal footer with just date
+                Text(
+                  _formatDate(note.updatedAt),
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    fontSize: 10,
                   ),
-                  if (isSelected)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              // More content preview
-              Expanded(
-                child: Text(
-                  _generatePreview(note.body),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.3,
-                  ),
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 6),
-              // Minimal footer with just date
-              Text(
-                _formatDate(note.updatedAt),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                  fontSize: 10,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1034,25 +1175,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     }
   }
 
-  void _createNewNote(BuildContext context) {
-    Navigator.push<void>(
+  void _createNewNote(BuildContext context) async {
+    // UX Enhancement: Await navigation and refresh list if note was saved
+    final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute<void>(
+      MaterialPageRoute<bool>(
         builder: (context) => const ModernEditNoteScreen(),
       ),
     );
+
+    // If note was saved (result == true), refresh the list
+    if (result == true && mounted) {
+      ref.read(notesPageProvider.notifier).refresh();
+    }
   }
 
-  void _createNewNoteInFolder(BuildContext context, LocalFolder folder) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => ModernEditNoteScreen(initialFolder: folder),
-      ),
-    );
-  }
+  // Legacy method _createNewNoteInFolder removed - replaced by direct navigation using ModernEditNoteScreen
 
-  void _editNote(LocalNote note) {
+  void _editNote(domain.Note note) {
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
@@ -1060,63 +1200,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           noteId: note.id,
           initialTitle: note.title,
           initialBody: note.body,
+          openInPreviewMode: true, // UX Enhancement: Open in preview mode
         ),
       ),
     );
   }
 
-  void _deleteNote(LocalNote note) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Note'),
-        content: Text(
-          'Are you sure you want to delete "${note.title.isNotEmpty ? note.title : 'Untitled'}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              try {
-                final repo = ref.read(notesRepositoryProvider);
-                await repo.deleteNote(note.id);
-
-                // Refresh the notes list
-                await ref.read(notesPageProvider.notifier).refresh();
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Note deleted'),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                    ),
-                  );
-                }
-              } on Exception catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting note: $e'),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Legacy method _deleteNote removed - orphaned after _showNoteOptions removal
+  // Delete functionality now handled by DuruNoteCard's built-in action menu
 
   void _showImportDialog(BuildContext context) {
     showDialog<void>(
@@ -1229,9 +1320,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           await _processImportFiles(context, files, ImportType.markdown);
         }
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Markdown import selection failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        _showErrorDialog(context, 'Failed to select Markdown files: $e');
+        _showErrorDialog(
+          context,
+          'Unable to select Markdown files. Please try again.',
+        );
       }
     }
   }
@@ -1247,9 +1347,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         final file = File(result.files.single.path!);
         await _processImportFiles(context, [file], ImportType.enex);
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Evernote import selection failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        _showErrorDialog(context, 'Failed to select Evernote file: $e');
+        _showErrorDialog(
+          context,
+          'Unable to select Evernote export. Please try again.',
+        );
       }
     }
   }
@@ -1262,9 +1371,18 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         final directory = Directory(result);
         await _processObsidianImport(context, directory);
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Obsidian vault selection failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        _showErrorDialog(context, 'Failed to select Obsidian vault: $e');
+        _showErrorDialog(
+          context,
+          'Unable to select Obsidian vault. Please try again.',
+        );
       }
     }
   }
@@ -1322,10 +1440,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         // Refresh notes list
         await ref.read(notesPageProvider.notifier).refresh();
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Import processing failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'importType': type.name,
+          'fileCount': files.length,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(context, 'Import failed: $e');
+        _showErrorDialog(
+          context,
+          'Import failed. Please try again.',
+        );
       }
     }
   }
@@ -1362,10 +1493,20 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         // Refresh notes list
         await ref.read(notesPageProvider.notifier).refresh();
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Obsidian import failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'path': directory.path},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(context, 'Obsidian import failed: $e');
+        _showErrorDialog(
+          context,
+          'Obsidian import failed. Please try again.',
+        );
       }
     }
   }
@@ -1695,14 +1836,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  List<LocalNote> _getRecentNotes(List<LocalNote> notes, int days) {
+  List<domain.Note> _getRecentNotes(List<domain.Note> notes, int days) {
     final cutoffDate = DateTime.now().subtract(Duration(days: days));
     return notes.where((note) => note.updatedAt.isAfter(cutoffDate)).toList();
   }
 
   Future<void> _exportNotes(
     BuildContext context,
-    List<LocalNote> notes,
+    List<domain.Note> notes,
     ExportFormat format,
     ExportScope scope,
   ) async {
@@ -1739,7 +1880,6 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     try {
       final results = <ExportResult>[];
-      const exportOptions = ExportOptions();
 
       for (var i = 0; i < notes.length; i++) {
         // Check if export was cancelled
@@ -1802,9 +1942,21 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 format: format,
               );
           }
-        } catch (e) {
+        } catch (error, stackTrace) {
+          _logger.error(
+            'Export failed for note',
+            error: error,
+            stackTrace: stackTrace,
+            data: {
+              'noteId': note.id,
+              'format': format.name,
+              'scope': scope.name,
+            },
+          );
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
           result = ExportResult.failure(
-            error: 'Failed to export note "${note.title}": $e',
+            error:
+                'Failed to export note "${note.title}". Please try again later.',
             errorCode: 'EXPORT_ERROR',
             processingTime: Duration.zero,
             format: format,
@@ -1821,10 +1973,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         // Show export summary with share option
         await _showExportSummary(context, results, format, scope);
       }
-    } on Exception catch (e) {
+    } on Exception catch (error, stackTrace) {
+      _logger.error(
+        'Bulk export failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'format': format.name,
+          'scope': scope.name,
+          'noteCount': notes.length,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(context, 'Export failed: $e');
+        _showErrorDialog(
+          context,
+          'Export failed. Please try again.',
+        );
       }
     }
   }
@@ -1839,7 +2005,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     final failedResults = results.where((r) => !r.success).toList();
     final totalSize = successfulResults.fold<int>(
       0,
-      (sum, r) => sum + (r.fileSize ?? 0),
+      (sum, r) => sum + r.fileSize,
     );
 
     return showDialog<void>(
@@ -1978,8 +2144,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     ];
   }
 
-  List<LocalNote> _sortNotes(List<LocalNote> notes) {
-    final sorted = List<LocalNote>.from(notes);
+  List<domain.Note> _sortNotes(List<domain.Note> notes) {
+    final sorted = List<domain.Note>.from(notes);
     final sortSpec = ref.read(currentSortSpecProvider);
 
     // Separate pinned and unpinned notes
@@ -1987,7 +2153,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     final unpinnedNotes = sorted.where((n) => !n.isPinned).toList();
 
     // Sort each group separately
-    void sortGroup(List<LocalNote> group) {
+    void sortGroup(List<domain.Note> group) {
       switch (sortSpec.field) {
         case NoteSortField.title:
           if (sortSpec.direction == SortDirection.asc) {
@@ -2005,9 +2171,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         case NoteSortField.folder:
           // Sort by folder name
           if (sortSpec.direction == SortDirection.asc) {
-            group.sort((a, b) => _getFolderNameForNote(a).compareTo(_getFolderNameForNote(b)));
+            group.sort(
+              (a, b) =>
+                  _getFolderNameForNote(a).compareTo(_getFolderNameForNote(b)),
+            );
           } else {
-            group.sort((a, b) => _getFolderNameForNote(b).compareTo(_getFolderNameForNote(a)));
+            group.sort(
+              (a, b) =>
+                  _getFolderNameForNote(b).compareTo(_getFolderNameForNote(a)),
+            );
           }
         case NoteSortField.updatedAt:
         default:
@@ -2027,7 +2199,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   /// Get folder name for sorting purposes
-  String _getFolderNameForNote(LocalNote note) {
+  String _getFolderNameForNote(domain.Note note) {
     try {
       // Get folder information from the note-folder state
       final noteFolderState = ref.read(noteFolderProvider);
@@ -2042,22 +2214,23 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       final folder = foldersState.getFolderById(folderId);
 
       return folder?.name ?? 'Unknown Folder';
-    } catch (e) {
-      // Fallback in case of any errors
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to resolve folder name for note',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': note.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       return 'Unknown';
     }
   }
 
   Widget _buildModernListView(
     BuildContext context,
-    List<LocalNote> notes,
+    List<domain.Note> notes,
     bool hasMore,
   ) {
-    // Separate pinned and unpinned notes for visual grouping
-    final pinnedNotes = notes.where((n) => n.isPinned).toList();
-    final unpinnedNotes = notes.where((n) => !n.isPinned).toList();
-    final hasPinnedNotes = pinnedNotes.isNotEmpty;
-
     return ListView.builder(
       key: const ValueKey('modern_list_view'),
       controller: _scrollController,
@@ -2078,15 +2251,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         return SlideTransition(
           position: Tween<Offset>(begin: const Offset(0.3, 0), end: Offset.zero)
               .animate(
-            CurvedAnimation(
-              parent: _listAnimationController,
-              curve: Interval(
-                math.max(0, (index - 3) / notes.length),
-                math.min(1, (index + 1) / notes.length),
-                curve: Curves.easeOutCubic,
+                CurvedAnimation(
+                  parent: _listAnimationController,
+                  curve: Interval(
+                    math.max(0, (index - 3) / notes.length),
+                    math.min(1, (index + 1) / notes.length),
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
               ),
-            ),
-          ),
           child: FadeTransition(
             opacity: CurvedAnimation(
               parent: _listAnimationController,
@@ -2105,7 +2278,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Widget _buildModernGridView(
     BuildContext context,
-    List<LocalNote> notes,
+    List<domain.Note> notes,
     bool hasMore,
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -2155,6 +2328,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     if (_isSelectionMode) {
       // Show selection FAB
       return FloatingActionButton.extended(
+        heroTag: 'notes_list_selection_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: _showAddToFolderDialog,
         backgroundColor: colorScheme.tertiaryContainer,
         foregroundColor: colorScheme.onTertiaryContainer,
@@ -2238,6 +2412,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         const SizedBox(height: 16),
         // Main FAB with rotation animation
         FloatingActionButton(
+          heroTag: 'notes_list_main_fab', // PRODUCTION FIX: Unique hero tag
           onPressed: _toggleFab,
           backgroundColor: colorScheme.primaryContainer,
           foregroundColor: colorScheme.onPrimaryContainer,
@@ -2323,33 +2498,34 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     final notesAsync = ref.read(filteredNotesProvider);
     final notes = notesAsync.maybeWhen(
       data: (notes) => notes,
-      orElse: () => <LocalNote>[],
+      orElse: () => <domain.Note>[],
     );
 
     // Get existing saved searches for duplicate checking
-    // Use appDb directly to get the Drift SavedSearch type
-    final db = ref.read(appDbProvider);
-    final existingSearches = await db.getSavedSearches();
+    final searchRepo = ref.read(searchRepositoryProvider);
+    final existingSearches = await searchRepo.getSavedSearches();
 
     // Create and show search delegate
     final delegate = NoteSearchDelegate(
       notes: notes,
       initialQuery: initialQuery,
-      notesRepository: ref.read(notesRepositoryProvider),
+      notesRepository: ref.read(notesCoreRepositoryProvider),
+      searchRepository: ref.read(searchRepositoryProvider),
       existingSavedSearches: existingSearches,
       resolveFolderIdByName: (name) async {
         if (name == 'Incoming Mail') {
+          // Use getter to avoid creating folder during search
           return ref
               .read(incomingMailFolderManagerProvider)
-              .ensureIncomingMailFolderId();
+              .getIncomingMailFolderId();
         }
-        final db = ref.read(appDbProvider);
-        final folder = await db.findFolderByName(name);
+        final folderRepo = ref.read(folderCoreRepositoryProvider);
+        final folder = await folderRepo.findFolderByName(name);
         return folder?.id;
       },
       getFolderNoteIdSet: (folderId) async {
-        final db = ref.read(appDbProvider);
-        final noteIds = await db.getNoteIdsInFolder(folderId);
+        final notesRepo = ref.read(notesCoreRepositoryProvider);
+        final noteIds = await notesRepo.getNoteIdsInFolder(folderId);
         return noteIds.toSet();
       },
     );
@@ -2394,89 +2570,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Widget _buildFilterButton(BuildContext context) {
-    final filterState = ref.watch(filterStateProvider);
-    final hasActiveFilters = filterState?.hasActiveFilters ?? false;
+  // Legacy methods removed - orphaned after _buildFilterButton removal:
+  // - _buildFilterButton: replaced by AppBar actions
+  // - _showFilterSheet: filter sheet now triggered directly from AppBar
 
-    return Stack(
-      children: [
-        IconButton(
-          icon: Icon(
-            hasActiveFilters ? Icons.filter_list : Icons.filter_list_outlined,
-            color:
-                hasActiveFilters ? Theme.of(context).colorScheme.primary : null,
-          ),
-          onPressed: () => _showFilterSheet(context),
-          tooltip: 'Advanced Filters',
-        ),
-        if (hasActiveFilters)
-          Positioned(
-            right: 8,
-            top: 8,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _showFilterSheet(BuildContext context) async {
-    final currentFilter = ref.read(filterStateProvider);
-    final currentSort = ref.read(currentSortSpecProvider);
-
-    await FiltersBottomSheet.show(
-      context,
-      initialState: currentFilter ?? FilterState(sortSpec: currentSort),
-      onApply: (filterState) async {
-        // Update filter state
-        ref.read(filterStateProvider.notifier).state = filterState;
-
-        // Update sort spec if changed
-        if (filterState.sortSpec != currentSort) {
-          await ref
-              .read(currentSortSpecProvider.notifier)
-              .updateSortSpec(filterState.sortSpec);
-        }
-
-        // Apply filters by refreshing the notes list
-        _applyFilters(filterState);
-
-        // Show brief confirmation
-        if (context.mounted && filterState.hasActiveFilters) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Filters applied'),
-              duration: const Duration(seconds: 1),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
-        }
-      },
-    );
-  }
-
-  void _applyFilters(FilterState filterState) {
-    // Force refresh of notes list with new filters
-    ref.read(notesPageProvider.notifier).refresh();
-
-    // If filters are active, you might want to clear folder selection
-    // to show filtered results from all folders
-    if (filterState.hasActiveFilters &&
-        (filterState.includeTags.isNotEmpty ||
-            filterState.excludeTags.isNotEmpty)) {
-      // Optionally clear folder selection to show all filtered results
-      // ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
-    }
-  }
+  // Legacy method _applyFilters removed - orphaned after _showFilterSheet removal
 
   void _handleMenuSelection(String value) {
     HapticFeedback.selectionClick();
@@ -2498,10 +2596,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
         // Track analytics
-        ref.read(analyticsProvider).event(
-          'folder_management_opened',
-          properties: {'source': 'menu'},
-        );
+        ref
+            .read(analyticsProvider)
+            .event('folder_management_opened', properties: {'source': 'menu'});
       case 'templates':
         Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -2509,10 +2606,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
         // Track analytics
-        ref.read(analyticsProvider).event(
-          'template_gallery_opened',
-          properties: {'source': 'menu'},
-        );
+        ref
+            .read(analyticsProvider)
+            .event('template_gallery_opened', properties: {'source': 'menu'});
       case 'settings':
         _showSettingsDialog(context);
       case 'help':
@@ -2592,7 +2688,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
                     return RadioListTile<NoteSortSpec>(
                       value: spec,
+                      // ignore: deprecated_member_use
                       groupValue: selectedSort,
+                      // ignore: deprecated_member_use
                       onChanged: (value) async {
                         if (value != null) {
                           setModalState(() {
@@ -2630,7 +2728,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       },
                       title: Text(spec.label),
                       secondary: Icon(icon),
-                      activeColor: theme.colorScheme.primary,
+                      fillColor: WidgetStateProperty.all(
+                        theme.colorScheme.primary,
+                      ),
                       selected: isSelected,
                     );
                   }),
@@ -2644,7 +2744,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  void _handleNoteDrop(LocalNote note, LocalFolder? targetFolder) {
+  void _handleNoteDrop(domain.Note note, domain.Folder? targetFolder) {
     // Handle null case (drop to unfiled)
     if (targetFolder == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2661,12 +2761,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   }
 
   Future<void> _performNoteDrop(
-    LocalNote note,
-    LocalFolder targetFolder,
+    domain.Note note,
+    domain.Folder targetFolder,
   ) async {
+    domain.Folder? previousFolder;
     try {
       final folderRepo = ref.read(folderCoreRepositoryProvider);
-      final previousFolder = await folderRepo.getFolderForNote(note.id);
+      previousFolder = await folderRepo.getFolderForNote(note.id);
       await folderRepo.addNoteToFolder(note.id, targetFolder.id);
 
       // Refresh the filtered notes
@@ -2697,15 +2798,32 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           ),
         );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to move note to folder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'noteId': note.id,
+          'targetFolderId': targetFolder.id,
+          'previousFolderId': previousFolder?.id,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to move note: $e'),
+            content: const Text('Unable to move note. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
+            ),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(
+                _performNoteDrop(note, targetFolder),
+              ),
             ),
           ),
         );
@@ -2741,93 +2859,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     });
   }
 
-  IconData? _getNoteIcon(LocalNote note) {
-    final body = note.body.toLowerCase();
-    if (body.contains('- [ ]') || body.contains('- [x]')) {
-      return Icons.checklist;
-    } else if (body.contains('```')) {
-      return Icons.code;
-    } else if (body.contains('http://') || body.contains('https://')) {
-      return Icons.link;
-    } else if (body.contains('![]')) {
-      return Icons.image;
-    }
-    return null;
-  }
-
-  void _showNoteOptions(LocalNote note) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Edit'),
-              onTap: () {
-                Navigator.pop(context);
-                _editNote(note);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder),
-              title: const Text('Add to Folder'),
-              onTap: () {
-                Navigator.pop(context);
-                _showAddToFolderForSingleNote(note);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('Share'),
-              onTap: () {
-                Navigator.pop(context);
-                _shareNote(note);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Duplicate'),
-              onTap: () {
-                Navigator.pop(context);
-                _duplicateNote(note);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.archive),
-              title: const Text('Archive'),
-              onTap: () {
-                Navigator.pop(context);
-                _archiveNote(note);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                Icons.delete,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Delete',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _deleteNote(note);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Legacy methods removed - replaced by modern implementations:
+  // - _getNoteIcon: Icon determination moved to DuruNoteCard component
+  // - _showNoteOptions: Bottom sheet replaced by DuruNoteCard's built-in action menu
 
   void _createVoiceNote() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2838,14 +2872,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  void _createPhotoNote() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Photo note feature coming soon!'),
-        backgroundColor: Theme.of(context).customColors.warningContainer,
-      ),
-    );
-  }
+  // Legacy method _createPhotoNote removed - placeholder for unimplemented feature
 
   void _createChecklist() {
     Navigator.push<void>(
@@ -2877,8 +2904,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _createNoteFromTemplate(String templateId) async {
     try {
-      final templateRepository = ref.read(templateRepositoryProvider);
-      final notesRepository = ref.read(notesRepositoryProvider);
+      final templateRepository = ref.read(templateCoreRepositoryProvider);
+      final notesRepository = ref.read(notesCoreRepositoryProvider);
       final analytics = ref.read(analyticsProvider);
 
       // Get the template
@@ -2903,12 +2930,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
       if (newNote != null && mounted) {
         // Track analytics
-        analytics.event('template_used', properties: {
-          'template_id': templateId,
-          'note_id': newNote.id,
-          'template_name': template.name,
-          'is_system': template.isSystem,
-        });
+        analytics.event(
+          'template_used',
+          properties: {
+            'template_id': templateId,
+            'note_id': newNote.id,
+            'template_name': template.name,
+            'is_system': template.isSystem,
+          },
+        );
 
         // Track template usage - TODO: Implement in template service
         // templateService.trackUsage(templateId);
@@ -2933,25 +2963,35 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           );
         }
       }
-    } catch (e) {
-      debugPrint('Error creating note from template: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to create note from template',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'templateId': templateId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: const Text('Unable to create note from template.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(
+                _createNoteFromTemplate(templateId),
+              ),
+            ),
           ),
         );
       }
     }
   }
 
-  Future<void> _shareNote(LocalNote note) async {
-    final exportService = ref.read(exportServiceProvider);
-    final result = await exportService.exportToMarkdown(note);
-    if (result.success && result.file != null) {
-      await exportService.shareFile(result.file!, ExportFormat.markdown);
-    }
-  }
+  // Legacy method _shareNote removed - orphaned after _showNoteOptions removal
+  // Share functionality now handled by DuruNoteCard's built-in action menu
 
   Future<void> _shareSelectedNotes() async {
     // Implementation for sharing multiple notes
@@ -2985,7 +3025,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
 
     if (confirmed ?? false) {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(notesCoreRepositoryProvider);
       for (final id in _selectedNoteIds) {
         await repo.deleteNote(id);
       }
@@ -3054,7 +3094,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
                                     child: const Text('OK'),
                                   ),
                                 ],
@@ -3073,104 +3114,35 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           },
         ),
       );
-    } catch (e) {
-      // Handle any dialog errors
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to open move dialog: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
-  /// Filter notes by folder when folder chip is clicked
-  void _filterByFolder(String? folderId, String folderName) async {
-    HapticFeedback.selectionClick();
-
-    try {
-      // Find the folder object if we have an ID
-      LocalFolder? targetFolder;
-      if (folderId != null) {
-        final foldersAsync = ref.read(rootFoldersProvider);
-        await foldersAsync.when(
-          data: (folders) {
-            targetFolder = folders.where((f) => f.id == folderId).firstOrNull;
-          },
-          loading: () async {
-            // Wait for folders to load
-            final folders = await ref.read(notesRepositoryProvider).listFolders();
-            targetFolder = folders.where((f) => f.id == folderId).firstOrNull;
-          },
-          error: (_, __) {
-            // Handle error
-          },
-        );
-      }
-
-      // Set the current folder filter
-      ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
-
-      // Save to preferences using the integration service
-      final integrationService = ref.read(noteFolderIntegrationServiceProvider);
-      await integrationService.setFolderFilterPreference(folderId);
-
-      // Show feedback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              targetFolder != null
-                  ? 'Filtering by "$folderName"'
-                  : 'Showing all notes',
-            ),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            action: targetFolder != null
-                ? SnackBarAction(
-                    label: 'Clear',
-                    onPressed: () {
-                      ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
-                      integrationService.setFolderFilterPreference(null);
-                    },
-                  )
-                : null,
-          ),
-        );
-      }
-
-      // Track analytics
-      ref.read(analyticsProvider).event(
-        'folder_filter_clicked',
-        properties: {
-          'folder_id': folderId,
-          'folder_name': folderName,
-          'source': 'note_tile',
-        },
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to open move-to-folder dialog',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'selectedCount': _selectedNoteIds.length},
       );
-    } catch (e) {
-      // Handle errors
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to filter by folder: $e'),
+            content: const Text('Unable to open move dialog. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
           ),
         );
       }
     }
   }
+
+  // Legacy method _filterByFolder removed - replaced by currentFolderProvider direct usage with DuruFolderChip
 
   // Remove the old _buildFilterChip method as we're using DuruFolderChip component
 
-  void _showFolderActionsMenu(BuildContext context, LocalFolder folder) {
+  void _showFolderActionsMenu(BuildContext context, domain.Folder folder) {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) {
@@ -3196,9 +3168,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                             folder.name,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          if (folder.description.isNotEmpty ?? false)
+                          if (folder.description != null &&
+                              folder.description!.isNotEmpty)
                             Text(
-                              folder.description,
+                              folder.description!,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                         ],
@@ -3251,7 +3224,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  void _showRenameFolderDialog(BuildContext context, LocalFolder folder) {
+  void _showRenameFolderDialog(BuildContext context, domain.Folder folder) {
     final controller = TextEditingController(text: folder.name);
 
     showDialog<void>(
@@ -3293,12 +3266,28 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       ),
                     );
                   }
-                } catch (e) {
+                } catch (error, stackTrace) {
+                  _logger.error(
+                    'Failed to rename folder',
+                    error: error,
+                    stackTrace: stackTrace,
+                    data: {'folderId': folder.id, 'newName': newName},
+                  );
+                  unawaited(Sentry.captureException(error, stackTrace: stackTrace));
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to rename folder: $e'),
+                        content:
+                            const Text('Unable to rename folder. Please try again.'),
                         backgroundColor: Theme.of(context).colorScheme.error,
+                        action: SnackBarAction(
+                          label: 'Retry',
+                          onPressed: () => unawaited(
+                            ref
+                                .read(folderProvider.notifier)
+                                .updateFolder(id: folder.id, name: newName),
+                          ),
+                        ),
                       ),
                     );
                   }
@@ -3314,11 +3303,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     );
   }
 
-  Future<void> _moveAllNotesToUnfiled(LocalFolder folder) async {
+  Future<void> _moveAllNotesToUnfiled(domain.Folder folder) async {
     try {
-      // Get all notes in this folder
-      final repo = ref.read(notesRepositoryProvider);
-      final notes = await repo.getNotesInFolder(folder.id);
+      // Get all notes in this folder using domain repository
+      final folderRepo = ref.read(folderCoreRepositoryProvider);
+      final notes = await folderRepo.getNotesInFolder(folder.id);
 
       if (notes.isEmpty) {
         if (mounted) {
@@ -3329,15 +3318,20 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         return;
       }
 
-      // Move each note to unfiled
+      // Move each note to unfiled using domain repository
       var movedCount = 0;
       for (final note in notes) {
         try {
-          await ref
-              .read(noteFolderProvider.notifier)
-              .removeNoteFromFolder(note.id);
+          await folderRepo.removeNoteFromFolder(note.id);
           movedCount++;
-        } catch (e) {
+        } catch (error, stackTrace) {
+          _logger.error(
+            'Failed to move note to unfiled during bulk operation',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'noteId': note.id, 'sourceFolderId': folder.id},
+          );
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
           // Continue with other notes
         }
       }
@@ -3353,19 +3347,30 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
       // Refresh the view
       ref.invalidate(filteredNotesProvider);
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Bulk move to unfiled failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'folderId': folder.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to move notes: $e'),
+            content: const Text('Unable to move notes to Unfiled.'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_moveAllNotesToUnfiled(folder)),
+            ),
           ),
         );
       }
     }
   }
 
-  void _confirmDeleteFolder(BuildContext context, LocalFolder folder) {
+  void _confirmDeleteFolder(BuildContext context, domain.Folder folder) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -3407,12 +3412,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     ),
                   );
                 }
-              } catch (e) {
+              } catch (error, stackTrace) {
+                _logger.error(
+                  'Failed to delete folder',
+                  error: error,
+                  stackTrace: stackTrace,
+                  data: {'folderId': folder.id},
+                );
+                unawaited(Sentry.captureException(error, stackTrace: stackTrace));
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete folder: $e'),
+                      content: const Text('Unable to delete folder. Please try again.'),
                       backgroundColor: Theme.of(context).colorScheme.error,
+                      action: SnackBarAction(
+                        label: 'Retry',
+                        onPressed: () {
+                          _confirmDeleteFolder(context, folder);
+                        },
+                      ),
                     ),
                   );
                 }
@@ -3430,7 +3448,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _showFolderPicker(BuildContext context) async {
     // Show the create folder dialog directly
-    final newFolder = await showDialog<LocalFolder>(
+    final newFolder = await showDialog<domain.Folder>(
       context: context,
       builder: (context) => const folder_dialog.CreateFolderDialog(),
     );
@@ -3459,76 +3477,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     }
   }
 
-  Future<void> _showAddToFolderForSingleNote(LocalNote note) async {
-    // Show folder picker for single note
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => FolderPicker(
-        title: 'Move to Folder',
-        onFolderSelected: (folderId) async {
-          try {
-            if (folderId != null) {
-              await ref
-                  .read(noteFolderProvider.notifier)
-                  .addNoteToFolder(note.id, folderId);
-            } else {
-              await ref
-                  .read(noteFolderProvider.notifier)
-                  .removeNoteFromFolder(note.id);
-            }
-
-            // Refresh the filtered notes
-            ref.invalidate(filteredNotesProvider);
-            await ref.read(folderHierarchyProvider.notifier).loadFolders();
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    folderId != null
-                        ? 'Note moved to folder'
-                        : 'Note moved to Unfiled',
-                  ),
-                  behavior: SnackBarBehavior.fixed,
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Failed to move note'),
-                  behavior: SnackBarBehavior.fixed,
-                ),
-              );
-            }
-          }
-        },
-      ),
-    );
-  }
-
-  Future<void> _duplicateNote(LocalNote note) async {
-    final repo = ref.read(notesRepositoryProvider);
-    await repo.createOrUpdate(title: '${note.title} (Copy)', body: note.body);
-    await ref.read(notesPageProvider.notifier).refresh();
-
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Note duplicated')));
-    }
-  }
-
-  void _archiveNote(LocalNote note) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Archive feature coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
+  // Legacy methods removed - orphaned after _showNoteOptions removal:
+  // - _showAddToFolderForSingleNote: folder management now in DuruNoteCard action menu
+  // - _duplicateNote: duplicate functionality now in DuruNoteCard action menu
+  // - _archiveNote: archive functionality now in DuruNoteCard action menu
 
   Future<void> _shareExportedFiles(
     List<ExportResult> results,
@@ -3555,8 +3507,22 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       if (!shared) {
         _showErrorDialog(context, 'Failed to share exported file');
       }
-    } catch (e) {
-      _showErrorDialog(context, 'Error sharing files: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to share exported files',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'format': format.name,
+          'successfulFileCount':
+              results.where((r) => r.success && r.file != null).length,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorDialog(
+        context,
+        'Unable to share exported file. Please try again.',
+      );
     }
   }
 
@@ -3570,8 +3536,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
-    } catch (e) {
-      _showErrorDialog(context, 'Could not open exports folder: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to open exports folder hint',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorDialog(
+        context,
+        'Could not open exports folder. Please try again.',
+      );
     }
   }
 
@@ -3593,14 +3568,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-          builder: (context) => const ProductivityAnalyticsScreen()),
+        builder: (context) => const ProductivityAnalyticsScreen(),
+      ),
     );
   }
 
   void _showSettingsDialog(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (context) => const SettingsScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const SettingsScreen()),
+    );
   }
 
   void _confirmLogout(BuildContext context) {
@@ -3618,6 +3594,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             onPressed: () async {
               Navigator.pop(context);
               // Production-grade logout: clear local data and per-user keys before sign-out
+              final logger = ref.read(loggerProvider);
               try {
                 final client = Supabase.instance.client;
                 final uid = client.auth.currentUser?.id;
@@ -3632,7 +3609,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 }
                 // IMPORTANT: Also clear the AMK from AccountKeyService
                 await ref.read(accountKeyServiceProvider).clearLocalAmk();
-              } catch (_) {}
+              } catch (error, stack) {
+                logger.error(
+                  '[NotesList] Failed to clear local credentials before sign out',
+                  error: error,
+                  stackTrace: stack,
+                );
+                unawaited(Sentry.captureException(error, stackTrace: stack));
+              }
               // Finally sign out from Supabase
               await Supabase.instance.client.auth.signOut();
             },
@@ -3652,27 +3636,29 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   ) async {
     HapticFeedback.selectionClick();
 
-    // PRODUCTION FIX: Use in-place filtering instead of navigation
-    // Logic order exactly as specified in requirements:
-    // 1. Check for tag first
+    // PRODUCTION FIX: Mutually exclusive filter selection
+    // Clicking a filter replaces any existing filter (not additive)
+    // Clicking the same filter again clears all filters
+
+    // 1. Check for tag filter (Email, Web, Attachment)
     if (preset.tag != null) {
-      // Toggle tag filter in the current view
       final currentFilter =
           ref.read(filterStateProvider) ?? const FilterState();
       final normalizedTag = preset.tag!.toLowerCase();
 
-      // Check if this tag is already active
-      if (currentFilter.includeTags.contains(normalizedTag)) {
-        // Remove the tag filter (toggle off)
-        ref.read(filterStateProvider.notifier).state = currentFilter.copyWith(
-          includeTags: currentFilter.includeTags
-              .where((t) => t != normalizedTag)
-              .toSet(),
-        );
+      // PRODUCTION FIX: Mutually exclusive behavior
+      // If this tag is already the ONLY active filter, toggle off (clear all)
+      // Otherwise, replace all filters with just this tag (exclusive)
+      if (currentFilter.includeTags.length == 1 &&
+          currentFilter.includeTags.contains(normalizedTag)) {
+        // Toggle off - clear all filters
+        debugPrint('🔍 [SavedSearch] Toggling OFF filter: $normalizedTag');
+        ref.read(filterStateProvider.notifier).state = const FilterState();
       } else {
-        // Add the tag filter (toggle on)
-        ref.read(filterStateProvider.notifier).state = currentFilter.copyWith(
-          includeTags: {...currentFilter.includeTags, normalizedTag},
+        // Set ONLY this tag (replace any existing filters)
+        debugPrint('🔍 [SavedSearch] Setting EXCLUSIVE filter: $normalizedTag');
+        ref.read(filterStateProvider.notifier).state = FilterState(
+          includeTags: {normalizedTag},
         );
       }
 
@@ -3680,53 +3666,94 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       ref.read(currentFolderProvider.notifier).setCurrentFolder(null);
 
       // Track analytics
-      ref.read(analyticsProvider).event(
-        'saved_search.tag_filter',
-        properties: {
-          'tag': preset.tag,
-          'key': preset.key.name,
-          'action': currentFilter.includeTags.contains(normalizedTag)
-              ? 'remove'
-              : 'add',
-        },
-      );
+      ref
+          .read(analyticsProvider)
+          .event(
+            'saved_search.tag_filter',
+            properties: {
+              'tag': preset.tag,
+              'key': preset.key.name,
+              'action':
+                  currentFilter.includeTags.length == 1 &&
+                      currentFilter.includeTags.contains(normalizedTag)
+                  ? 'toggle_off'
+                  : 'exclusive_set',
+            },
+          );
       return;
     }
 
-    // 2. Check for folder name second
+    // 2. Check for folder filter (Inbox)
     if (preset.folderName != null) {
+      // PRODUCTION FIX: Clear tag filters when using folder filter (mutually exclusive)
+      ref.read(filterStateProvider.notifier).state = const FilterState();
+
       try {
-        // Resolve "Incoming Mail" folder id and select it using the SAME provider the folder chips use
+        // For "Incoming Mail", get folder ID without creating it
         final folderManager = ref.read(incomingMailFolderManagerProvider);
-        final folderId = await folderManager.ensureIncomingMailFolderId();
+        final folderId = await folderManager.getIncomingMailFolderId();
+
+        // If folder doesn't exist yet (no emails received), show empty state
+        if (folderId == null) {
+          // Clear any folder filter to show all notes
+          ref.read(currentFolderProvider.notifier).clearCurrentFolder();
+          debugPrint('🔍 [SavedSearch] Inbox folder does not exist yet');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'No emails received yet. Send an email to your inbox to create notes!',
+                ),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+
+        debugPrint(
+          '🔍 [SavedSearch] Setting folder filter: ${preset.folderName}',
+        );
 
         // Get all folders from repository to find the folder object
-        final repository = ref.read(notesRepositoryProvider);
-        final allFolders = await repository.listFolders();
+        final folderRepo = ref.read(folderCoreRepositoryProvider);
+        final allFolders = await folderRepo.listFolders();
         final targetFolder = allFolders.firstWhere(
           (folder) => folder.id == folderId,
-          orElse: () => LocalFolder(
+          orElse: () => domain.Folder(
             id: folderId,
             name: preset.folderName!,
-            path: '/${preset.folderName}',
             color: '#2196F3',
             icon: '📧',
-            description: '',
+            description: 'Notes from incoming emails',
             sortOrder: 0,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
-            deleted: false,
+            userId: ref.read(supabaseClientProvider).auth.currentUser?.id ?? '',
           ),
         );
 
         // Use the same call used by Folder chips
         ref.read(currentFolderProvider.notifier).setCurrentFolder(targetFolder);
         return;
-      } catch (e) {
-        debugPrint('Error resolving folder for saved search: $e');
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to resolve folder for saved search',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'presetKey': preset.key.name},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open Inbox folder')),
+            SnackBar(
+              content: const Text('Could not open Inbox folder.'),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () =>
+                    unawaited(_handleSavedSearchTap(context, preset)),
+              ),
+            ),
           );
         }
         return;
@@ -3743,13 +3770,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   Future<void> _handleCustomSavedSearchTap(
     BuildContext context,
-    SavedSearch search,
+    domain.SavedSearch search,
   ) async {
     HapticFeedback.selectionClick();
 
     // Update usage statistics
     await ref
-        .read(notesRepositoryProvider)
+        .read(notesCoreRepositoryProvider)
         .db
         .updateSavedSearchUsage(search.id);
 
@@ -3882,8 +3909,9 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final progress = _currentProgress;
-    final overallProgress =
-        widget.totalNotes > 0 ? (_currentNoteIndex / widget.totalNotes) : 0.0;
+    final overallProgress = widget.totalNotes > 0
+        ? (_currentNoteIndex / widget.totalNotes)
+        : 0.0;
 
     // Calculate estimated time remaining
     final estimatedTimeRemaining = _calculateEstimatedTime();
@@ -3957,7 +3985,10 @@ class _ExportProgressDialogState extends State<_ExportProgressDialog> {
   String? _calculateEstimatedTime() {
     if (_currentNoteIndex == 0 || widget.totalNotes <= 1) return null;
 
-    final elapsed = DateTime.now().difference(_startTime ?? DateTime.now());
+    final start = _startTime;
+    if (start == null) return null;
+
+    final elapsed = DateTime.now().difference(start);
     final avgTimePerNote = elapsed.inSeconds / _currentNoteIndex;
     final remainingNotes = widget.totalNotes - _currentNoteIndex;
     final estimatedSeconds = (avgTimePerNote * remainingNotes).round();

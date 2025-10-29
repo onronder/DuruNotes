@@ -221,24 +221,22 @@ class CryptoBox {
       }
 
       final decoded = jsonDecode(jsonString);
-      debugPrint('🔍 SecretBox data structure: ${decoded.runtimeType}');
+      // Removed excessive debug logging to prevent log spam during sync
+      // debugPrint('🔍 SecretBox data structure: ${decoded.runtimeType}');
 
       if (decoded is Map<String, dynamic>) {
-        debugPrint('📋 Map keys: ${decoded.keys.toList()}');
-        // Expected format: {'n': nonce, 'c': ciphertext, 'm': mac}
-        if (decoded.containsKey('n') &&
-            decoded.containsKey('c') &&
-            decoded.containsKey('m')) {
+        final resolved = _extractSecretBoxComponents(decoded);
+        if (resolved != null) {
           return SecretBox(
-            base64Decode(decoded['c'] as String),
-            nonce: base64Decode(decoded['n'] as String),
-            mac: Mac(base64Decode(decoded['m'] as String)),
-          );
-        } else {
-          debugPrint(
-            '❌ Missing required keys. Expected: n, c, m. Found: ${decoded.keys.toList()}',
+            resolved.cipherText,
+            nonce: resolved.nonce,
+            mac: Mac(resolved.mac),
           );
         }
+        // Only log when there's actually an error - missing required keys
+        debugPrint(
+          '❌ Missing required keys. Expected: n, c, m. Found: ${decoded.keys.toList()}',
+        );
       }
 
       // Handle the case where Supabase returns the JSON as a List<int>
@@ -249,9 +247,10 @@ class CryptoBox {
           final jsonStr = utf8.decode(bytes);
           final actualData = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-          debugPrint(
-            '🔧 Converted List<int> to Map: ${actualData.keys.toList()}',
-          );
+          // Removed debug logging to reduce noise
+          // debugPrint(
+          //   '🔧 Converted List<int> to Map: ${actualData.keys.toList()}',
+          // );
 
           if (actualData.containsKey('n') &&
               actualData.containsKey('c') &&
@@ -268,7 +267,7 @@ class CryptoBox {
           // Fallback: check if it's a List with a Map as first element
           if (decoded.isNotEmpty && decoded.first is Map) {
             final map = (decoded.first as Map).cast<String, dynamic>();
-            debugPrint('📋 List[0] keys: ${map.keys.toList()}');
+            // debugPrint('📋 List[0] keys: ${map.keys.toList()}');
             if (map.containsKey('n') &&
                 map.containsKey('c') &&
                 map.containsKey('m')) {
@@ -290,4 +289,202 @@ class CryptoBox {
       rethrow;
     }
   }
+
+  _SecretBoxComponents? _extractSecretBoxComponents(
+    Map<String, dynamic> source,
+  ) {
+    Map<String, dynamic> working = source;
+    final seen = <Map<String, dynamic>>{};
+
+    while (true) {
+      if (seen.contains(working)) {
+        break; // Prevent infinite recursion on malformed data
+      }
+      seen.add(working);
+
+      dynamic nonceField = working['n'] ?? working['nonce'];
+      dynamic cipherField =
+          working['c'] ?? working['cipher'] ?? working['cipherText'];
+      dynamic macField = working['m'] ?? working['mac'];
+
+      // Some legacy payloads inadvertently nested a serialized SecretBox inside the fields.
+      final nestedMap =
+          _tryParseMap(cipherField) ??
+          _tryParseMap(nonceField) ??
+          _tryParseMap(macField);
+      if (nestedMap != null &&
+          nestedMap.containsKey('n') &&
+          nestedMap.containsKey('c') &&
+          nestedMap.containsKey('m')) {
+        working = nestedMap;
+        continue;
+      }
+
+      try {
+        final nonceBytes = _decodeSecretBoxField(nonceField);
+        final cipherBytes = _decodeSecretBoxField(cipherField);
+        final macBytes = _decodeSecretBoxField(macField);
+        return _SecretBoxComponents(
+          nonce: nonceBytes,
+          cipherText: cipherBytes,
+          mac: macBytes,
+        );
+      } on FormatException {
+        // Attempt to unwrap once more if the value itself is encoded JSON
+        final jsonCandidate = _tryParseMap(cipherField);
+        if (jsonCandidate != null &&
+            !identical(jsonCandidate, working) &&
+            jsonCandidate.containsKey('c')) {
+          working = jsonCandidate.cast<String, dynamic>();
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic>? _tryParseMap(dynamic candidate) {
+    if (candidate is Map<String, dynamic>) {
+      return candidate;
+    }
+    if (candidate is String) {
+      final trimmed = candidate.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          final parsed = jsonDecode(trimmed);
+          if (parsed is Map<String, dynamic>) {
+            return parsed;
+          }
+        } catch (_) {
+          // Ignore parse failures; caller will handle fallback.
+        }
+      }
+    }
+    return null;
+  }
+
+  Uint8List _decodeSecretBoxField(dynamic value) {
+    if (value == null) {
+      throw const FormatException('Missing SecretBox component');
+    }
+
+    Uint8List? decodeFromMap(Map<String, dynamic> map) {
+      final seen = <Map<String, dynamic>>{};
+      Map<String, dynamic>? current = map;
+
+      while (current != null) {
+        if (seen.contains(current)) {
+          break;
+        }
+        seen.add(current);
+
+        final candidates = [
+          current['value'],
+          current['data'],
+          current['payload'],
+          current['cipher'],
+          current['cipherText'],
+          current['c'],
+          current['nonce'],
+          current['n'],
+          current['mac'],
+          current['m'],
+        ];
+
+        var advanced = false;
+
+        for (final candidate in candidates) {
+          if (candidate == null) {
+            continue;
+          }
+          if (candidate is Map<String, dynamic>) {
+            current = candidate;
+            advanced = true;
+            break;
+          }
+          if (candidate is List && candidate.isNotEmpty) {
+            final first = candidate.first;
+            if (first is Map<String, dynamic>) {
+              current = first;
+              advanced = true;
+              break;
+            }
+          }
+          try {
+            return _decodeSecretBoxField(candidate);
+          } on FormatException {
+            // continue trying other candidates
+          }
+        }
+
+        if (advanced) {
+          continue;
+        }
+        break;
+      }
+
+      return null;
+    }
+
+    if (value is Uint8List) {
+      return value;
+    }
+
+    if (value is List<int>) {
+      return Uint8List.fromList(value);
+    }
+
+    if (value is Map<String, dynamic>) {
+      final decoded = decodeFromMap(value);
+      if (decoded != null) {
+        return decoded;
+      }
+    }
+
+    if (value is String) {
+      final trimmed = value.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        final nested = _tryParseMap(trimmed);
+        if (nested != null) {
+          final decoded = decodeFromMap(nested);
+          if (decoded != null) {
+            return decoded;
+          }
+        }
+      }
+
+      try {
+        return Uint8List.fromList(base64Decode(trimmed));
+      } on FormatException catch (_) {
+        final nested = _tryParseMap(trimmed);
+        if (nested != null) {
+          final decoded = decodeFromMap(nested);
+          if (decoded != null) {
+            return decoded;
+          }
+        }
+        rethrow;
+      }
+    }
+
+    throw FormatException(
+      'Unsupported SecretBox field type: ${value.runtimeType}',
+    );
+  }
+}
+
+class _SecretBoxComponents {
+  _SecretBoxComponents({
+    required this.nonce,
+    required this.cipherText,
+    required this.mac,
+  });
+
+  final Uint8List nonce;
+  final Uint8List cipherText;
+  final Uint8List mac;
 }

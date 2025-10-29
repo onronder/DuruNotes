@@ -3,11 +3,16 @@ import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/debounce_utils.dart';
 import 'package:duru_notes/core/haptic_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
-import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
+import 'package:duru_notes/features/notes/providers/notes_providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/services/providers/services_providers.dart' show undoRedoServiceProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +26,7 @@ class FolderFilterChips extends ConsumerStatefulWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
   });
 
-  final ValueChanged<LocalFolder?>? onFolderSelected;
+  final ValueChanged<domain.Folder?>? onFolderSelected;
   final bool showCreateOption;
   final EdgeInsets padding;
 
@@ -125,7 +130,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                         )
                       : const SizedBox.shrink(),
                   loading: () => const SizedBox(width: 8),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
 
                 const SizedBox(width: 8),
@@ -147,7 +152,7 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                     }).toList(),
                   ),
                   loading: _SkeletonChips.new,
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
 
                 // Browse all folders chip
@@ -304,7 +309,7 @@ class _FolderChip extends ConsumerStatefulWidget {
     required this.onSelected,
   });
 
-  final LocalFolder folder;
+  final domain.Folder folder;
   final bool isSelected;
   final VoidCallback onSelected;
 
@@ -322,9 +327,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     // Get note count for this folder
     return FutureBuilder<int>(
       future: ref
-          .read(notesRepositoryProvider)
-          .db
-          .countNotesInFolder(widget.folder.id),
+          .read(notesCoreRepositoryProvider)
+          .getNotesCountInFolder(widget.folder.id),
       builder: (context, snapshot) {
         final noteCount = snapshot.data ?? 0;
         final semanticLabel = noteCount > 0
@@ -776,8 +780,8 @@ class FolderBreadcrumb extends ConsumerWidget {
     this.showHomeIcon = true,
   });
 
-  final LocalFolder? currentFolder;
-  final ValueChanged<LocalFolder?>? onFolderTap;
+  final domain.Folder? currentFolder;
+  final ValueChanged<domain.Folder?>? onFolderTap;
   final double maxWidth;
   final bool showHomeIcon;
 
@@ -791,7 +795,7 @@ class FolderBreadcrumb extends ConsumerWidget {
 
     return Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
-      child: FutureBuilder<List<LocalFolder>>(
+      child: FutureBuilder<List<domain.Folder>>(
         future: _buildBreadcrumbPath(ref, currentFolder!),
         builder: (context, snapshot) {
           final path = snapshot.data ?? [currentFolder!];
@@ -929,24 +933,23 @@ class FolderBreadcrumb extends ConsumerWidget {
     );
   }
 
-  Future<List<LocalFolder>> _buildBreadcrumbPath(
+  Future<List<domain.Folder>> _buildBreadcrumbPath(
     WidgetRef ref,
-    LocalFolder folder,
+    domain.Folder folder,
   ) async {
     final repository = ref.read(folderCoreRepositoryProvider);
-    final path = <LocalFolder>[];
+    final path = <domain.Folder>[];
 
-    // Convert to domain folder first
-    var currentDomain = FolderMapper.toDomain(folder);
-    path.insert(0, folder);
+    // Build path from current folder to root
+    var currentFolder = folder;
+    path.insert(0, currentFolder);
 
-    while (currentDomain.parentId != null) {
-      final parentDomain = await repository.getFolder(currentDomain.parentId!);
-      if (parentDomain == null) break;
+    while (currentFolder.parentId != null) {
+      final parent = await repository.getFolder(currentFolder.parentId!);
+      if (parent == null) break;
 
-      final parentLocal = FolderMapper.toInfrastructure(parentDomain);
-      path.insert(0, parentLocal);
-      currentDomain = parentDomain;
+      path.insert(0, parent);
+      currentFolder = parent;
     }
 
     return path;
@@ -1024,7 +1027,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
 
                 return rootFoldersAsync.when(
                   data: (folders) {
-                    final allFolders = <LocalFolder?>[
+                    final allFolders = <domain.Folder?>[
                       null, // Root option
                       ...folders,
                     ];
@@ -1073,7 +1076,7 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                     );
                   },
                   loading: () => const LinearProgressIndicator(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 );
               },
             ),
@@ -1167,7 +1170,7 @@ class _ParentFolderPicker extends ConsumerWidget {
     required this.scrollController,
   });
 
-  final LocalFolder currentFolder;
+  final domain.Folder currentFolder;
   final ScrollController scrollController;
 
   @override
@@ -1248,7 +1251,7 @@ class _ParentFolderPicker extends ConsumerWidget {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, __) => Center(child: Text(l10n.errorLoadingFolders)),
+                error: (_, _) => Center(child: Text(l10n.errorLoadingFolders)),
               );
             },
           ),
@@ -1257,7 +1260,7 @@ class _ParentFolderPicker extends ConsumerWidget {
     );
   }
 
-  List<LocalFolder> _filterAvailableFolders(List<LocalFolder> allFolders) {
+  List<domain.Folder> _filterAvailableFolders(List<domain.Folder> allFolders) {
     // TODO: Implement proper filtering to exclude current folder and its descendants
     // For now, just exclude the current folder
     return allFolders.where((f) => f.id != currentFolder.id).toList();
@@ -1398,18 +1401,18 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
     // Get current folder info before unfiling
     final currentFolder = await folderRepository.getFolderForNote(note.id);
 
+    // Remove note from folder (unfile it)
+    await folderRepository.removeNoteFromFolder(note.id);
+
     // Record the operation for undo
     undoService.recordNoteFolderChange(
       noteId: note.id,
-      noteTitle: note.title,
+      noteTitle: note.titleEncrypted.isEmpty ? 'Untitled' : note.titleEncrypted,
       previousFolderId: currentFolder?.id,
       previousFolderName: currentFolder?.name,
       newFolderId: null,
       newFolderName: null,
     );
-
-    // Remove note from folder (unfile it)
-    await folderRepository.removeNoteFromFolder(note.id);
 
     // Show snackbar with undo action
     if (mounted) {
@@ -1446,6 +1449,11 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
       previousFolderIds[note.id] = folder?.id;
     }
 
+    // Unfile all notes
+    for (final note in notes) {
+      await folderRepository.removeNoteFromFolder(note.id);
+    }
+
     // Record batch operation for undo
     undoService.recordBatchFolderChange(
       noteIds: notes.map((n) => n.id).toList(),
@@ -1453,11 +1461,6 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
       newFolderId: null,
       newFolderName: null,
     );
-
-    // Unfile all notes
-    for (final note in notes) {
-      await folderRepository.removeNoteFromFolder(note.id);
-    }
 
     // Show snackbar with undo action
     if (mounted) {
@@ -1606,7 +1609,7 @@ class _InboxPresetChip extends ConsumerWidget {
 
         return FutureBuilder<int>(
           future:
-              ref.read(notesRepositoryProvider).db.countNotesInFolder(folderId),
+              ref.read(notesCoreRepositoryProvider).getNotesCountInFolder(folderId),
           builder: (context, countSnapshot) {
             final count = countSnapshot.data ?? 0;
 
@@ -1629,12 +1632,11 @@ class _InboxPresetChip extends ConsumerWidget {
 
                 if (newActiveState) {
                   // Activate inbox filter - show only notes in incoming mail folder
-                  final folderDomain = await ref
+                  final folder = await ref
                       .read(folderCoreRepositoryProvider)
                       .getFolder(folderId);
-                  if (folderDomain != null) {
-                    final folderLocal = FolderMapper.toInfrastructure(folderDomain);
-                    ref.read(currentFolderProvider.notifier).setCurrentFolder(folderLocal);
+                  if (folder != null) {
+                    ref.read(currentFolderProvider.notifier).setCurrentFolder(folder);
                   }
                 } else {
                   // Deactivate inbox filter

@@ -543,14 +543,14 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
           const SizedBox(height: 16),
 
           // Tags (if any)
-          if (widget.template.tags != null && widget.template.tags!.isNotEmpty)
+          if (widget.template.tags.isNotEmpty)
             _buildDetailSection(
               'Tags',
               [
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _parseTags(widget.template.tags!).map(
+                  children: _parseTags(widget.template.tags).map(
                     (tag) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(

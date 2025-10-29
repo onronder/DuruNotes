@@ -3,32 +3,28 @@
 
 import 'package:duru_notes/core/models/unified_task.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/features/notes/providers/notes_unified_providers.dart';
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ============================================================================
-// DEPRECATION LAYER - Backward compatibility aliases
+// PRODUCTION-GRADE DOMAIN ARCHITECTURE
+// All providers now use taskCoreRepositoryProvider directly
 // ============================================================================
-/// @deprecated Use taskCoreRepositoryProvider instead
-@Deprecated('Use taskCoreRepositoryProvider from tasks_repository_providers.dart')
-final unifiedTasksRepositoryProvider = taskCoreRepositoryProvider;
 
 /// Main tasks list provider using UnifiedTask type
 final tasksListProvider = StateNotifierProvider<TasksListNotifier, AsyncValue<UnifiedTaskList>>((ref) {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
+  final repository = ref.watch(taskCoreRepositoryProvider);
   return TasksListNotifier(repository, ref);
 });
 
 class TasksListNotifier extends StateNotifier<AsyncValue<UnifiedTaskList>> {
   final dynamic _repository;
-  final Ref _ref;
   int _currentPage = 0;
   bool _isLoadingMore = false;
   domain.TaskStatus? _statusFilter;
   String? _noteIdFilter;
 
-  TasksListNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+  TasksListNotifier(this._repository, Ref ref) : super(const AsyncValue.loading()) {
     loadInitial();
   }
 
@@ -122,7 +118,7 @@ final currentTasksProvider = Provider<List<UnifiedTask>>((ref) {
   return ref.watch(tasksListProvider).when(
     data: (list) => list.tasks,
     loading: () => [],
-    error: (_, __) => [],
+    error: (_, _) => [],
   );
 });
 
@@ -139,10 +135,10 @@ final completedTasksProvider = Provider<List<UnifiedTask>>((ref) {
 });
 
 /// Overdue tasks provider
-final overdueTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
+final overdueTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref) async {
+  final repository = ref.watch(taskCoreRepositoryProvider);
   // TODO: Implement getOverdue in domain repository or filter from getAllTasks
-  final allTasks = await repository.getAllTasks();
+  final allTasks = await repository!.getAllTasks();
   final now = DateTime.now();
   return allTasks.where((task) {
     if (task.dueDate == null) return false;
@@ -151,9 +147,9 @@ final overdueTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
 });
 
 /// Tasks for note provider
-final tasksForNoteProvider = FutureProvider.family<List<UnifiedTask>, String>((ref, noteId) async {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
-  final tasks = await repository.getTasksForNote(noteId);
+final tasksForNoteProvider = FutureProvider.autoDispose.family<List<UnifiedTask>, String>((ref, noteId) async {
+  final repository = ref.watch(taskCoreRepositoryProvider);
+  final tasks = await repository!.getTasksForNote(noteId);
   return tasks.map((t) => UnifiedTask.fromDomain(t)).toList();
 });
 
@@ -214,19 +210,19 @@ class TaskStatistics {
 }
 
 /// Watch tasks stream
-final watchTasksProvider = StreamProvider<List<UnifiedTask>>((ref) {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
-  return repository.watchTasks().map((tasks) =>
+final watchTasksProvider = StreamProvider.autoDispose<List<UnifiedTask>>((ref) {
+  final repository = ref.watch(taskCoreRepositoryProvider);
+  return repository!.watchTasks().map((tasks) =>
     tasks.map((t) => UnifiedTask.fromDomain(t)).toList()
   );
 });
 
 /// Watch tasks for note stream
-final watchTasksForNoteProvider = StreamProvider.family<List<UnifiedTask>, String>((ref, noteId) {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
+final watchTasksForNoteProvider = StreamProvider.autoDispose.family<List<UnifiedTask>, String>((ref, noteId) {
+  final repository = ref.watch(taskCoreRepositoryProvider);
   // TODO: Implement watchTasksForNote in domain repository
   // For now, filter from watchTasks
-  return repository.watchTasks().map((tasks) =>
+  return repository!.watchTasks().map((tasks) =>
     tasks.where((t) => t.noteId == noteId)
          .map((t) => UnifiedTask.fromDomain(t))
          .toList()
@@ -234,10 +230,10 @@ final watchTasksForNoteProvider = StreamProvider.family<List<UnifiedTask>, Strin
 });
 
 /// Watch overdue tasks stream
-final watchOverdueTasksProvider = StreamProvider<List<UnifiedTask>>((ref) {
-  final repository = ref.watch(unifiedTasksRepositoryProvider);
+final watchOverdueTasksProvider = StreamProvider.autoDispose<List<UnifiedTask>>((ref) {
+  final repository = ref.watch(taskCoreRepositoryProvider);
   final now = DateTime.now();
-  return repository.watchTasks().map((tasks) =>
+  return repository!.watchTasks().map((tasks) =>
     tasks.where((t) =>
       t.dueDate != null &&
       t.dueDate!.isBefore(now) &&

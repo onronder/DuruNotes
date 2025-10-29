@@ -6,6 +6,7 @@ class Note {
   final String id;
   final String title;
   final String body;
+  final DateTime createdAt;
   final DateTime updatedAt;
   final bool deleted;
   final String? encryptedMetadata;
@@ -17,12 +18,13 @@ class Note {
   final String? attachmentMeta;
   final String? metadata;
   final List<String> tags;
-  final List<NoteLink> links;
+  final List<NoteLinkReference> links;
 
   const Note({
     required this.id,
     required this.title,
     required this.body,
+    required this.createdAt,
     required this.updatedAt,
     required this.deleted,
     this.encryptedMetadata,
@@ -41,6 +43,7 @@ class Note {
     String? id,
     String? title,
     String? body,
+    DateTime? createdAt,
     DateTime? updatedAt,
     bool? deleted,
     String? encryptedMetadata,
@@ -52,12 +55,13 @@ class Note {
     String? attachmentMeta,
     String? metadata,
     List<String>? tags,
-    List<NoteLink>? links,
+    List<NoteLinkReference>? links,
   }) {
     return Note(
       id: id ?? this.id,
       title: title ?? this.title,
       body: body ?? this.body,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
       encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
@@ -74,13 +78,14 @@ class Note {
   }
 }
 
-/// Domain entity for Note links
-class NoteLink {
+/// Simple link reference used in Note entity
+/// For full bidirectional links, see note_link.dart
+class NoteLinkReference {
   final String sourceId;
   final String targetTitle;
   final String? targetId;
 
-  const NoteLink({
+  const NoteLinkReference({
     required this.sourceId,
     required this.targetTitle,
     this.targetId,

@@ -307,7 +307,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                   ...SortPreferencesService.getAllSortOptions().map((spec) {
                     return RadioListTile<NoteSortSpec>(
                       value: spec,
+                      // ignore: deprecated_member_use
                       groupValue: _filterState.sortSpec,
+                      // ignore: deprecated_member_use
                       onChanged: (value) {
                         if (value != null) {
                           setState(() {

@@ -6,7 +6,7 @@ library;
 
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:duru_notes/services/permission_manager.dart';
@@ -31,7 +31,7 @@ final featureFlaggedReminderCoordinatorProvider = Provider<dynamic>((ref) {
   final coordinator = ReminderCoordinator(ref, plugin, db);
 
   // Initialize on creation
-  coordinator.initialize().catchError((error) {
+  coordinator.initialize().catchError((Object error) {
     _logger.error('[FeatureFlags] Error initializing coordinator', error: error);
   });
 

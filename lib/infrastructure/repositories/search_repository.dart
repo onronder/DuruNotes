@@ -22,15 +22,39 @@ class SearchRepository implements ISearchRepository {
     required this.client,
     required CryptoBox crypto,
     required IFolderRepository folderRepository,
-  })  : _logger = LoggerFactory.instance,
-        _decryptHelper = NoteDecryptionHelper(crypto),
-        _folderRepository = folderRepository;
+  }) : _logger = LoggerFactory.instance,
+       _decryptHelper = NoteDecryptionHelper(crypto),
+       _folderRepository = folderRepository;
 
   final appdb.AppDb db;
   final SupabaseClient client;
   final AppLogger _logger;
   final NoteDecryptionHelper _decryptHelper;
   final IFolderRepository _folderRepository;
+
+  String? get _currentUserId => client.auth.currentUser?.id;
+
+  Future<void> _enqueuePendingOp({
+    required String entityId,
+    required String kind,
+    String? payload,
+  }) async {
+    final userId = _currentUserId;
+    if (userId == null) {
+      _logger.warning(
+        'Skipping enqueue - no authenticated user',
+        data: {'entityId': entityId, 'kind': kind},
+      );
+      return;
+    }
+
+    await db.enqueue(
+      userId: userId,
+      entityId: entityId,
+      kind: kind,
+      payload: payload,
+    );
+  }
 
   void _captureRepositoryException({
     required String method,
@@ -48,7 +72,9 @@ class SearchRepository implements ISearchRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'SearchRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -64,15 +90,17 @@ class SearchRepository implements ISearchRepository {
       final body = await _decryptHelper.decryptBody(localNote);
 
       // Query tags and links from database
-      final tagRecords = await (db.select(db.noteTags)
-            ..where((t) => t.noteId.equals(localNote.id)))
-          .get();
+      final tagRecords = await (db.select(
+        db.noteTags,
+      )..where((t) => t.noteId.equals(localNote.id))).get();
       final tags = tagRecords.map((t) => t.tag).toList();
 
-      final List<appdb.NoteLink> linkRecords = await (db.select(db.noteLinks)
-            ..where((l) => l.sourceId.equals(localNote.id)))
-          .get();
-      final links = linkRecords.map<NoteLink>((link) => NoteMapper.linkToDomain(link)).toList();
+      final List<appdb.NoteLink> linkRecords = await (db.select(
+        db.noteLinks,
+      )..where((l) => l.sourceId.equals(localNote.id))).get();
+      final links = linkRecords
+          .map<NoteLink>((link) => NoteMapper.linkToDomain(link))
+          .toList();
 
       return NoteMapper.toDomain(
         localNote,
@@ -104,7 +132,9 @@ class SearchRepository implements ISearchRepository {
       // Security: Verify user is authenticated
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create/update saved search without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create/update saved search without authenticated user',
+        );
         _logger.warning(
           'Cannot create/update saved search without authenticated user',
           data: {'savedSearchId': savedSearch.id},
@@ -121,13 +151,16 @@ class SearchRepository implements ISearchRepository {
 
       // Security: If updating, verify belongs to user
       if (savedSearch.id.isNotEmpty) {
-        final existing = await (db.select(db.savedSearches)
-              ..where((s) => s.id.equals(savedSearch.id))
-              ..where((s) => s.userId.equals(userId)))
-            .getSingleOrNull();
+        final existing =
+            await (db.select(db.savedSearches)
+                  ..where((s) => s.id.equals(savedSearch.id))
+                  ..where((s) => s.userId.equals(userId)))
+                .getSingleOrNull();
 
         if (existing == null) {
-          final missingError = StateError('Saved search not found or does not belong to user');
+          final missingError = StateError(
+            'Saved search not found or does not belong to user',
+          );
           _logger.warning(
             'Saved search update attempted for non-existent entity',
             data: {'savedSearchId': savedSearch.id, 'userId': userId},
@@ -146,9 +179,9 @@ class SearchRepository implements ISearchRepository {
       final dbSearch = SavedSearchMapper.toInfrastructure(savedSearch);
       await db.upsertSavedSearch(dbSearch);
       // Enqueue for sync
-      await db.enqueue(
-        savedSearch.id,
-        'upsert_saved_search',
+      await _enqueuePendingOp(
+        entityId: savedSearch.id,
+        kind: 'upsert_saved_search',
         payload: jsonEncode(dbSearch.toJson()),
       );
     } catch (error, stackTrace) {
@@ -174,7 +207,9 @@ class SearchRepository implements ISearchRepository {
       // Security: Verify user is authenticated
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot delete saved search without authenticated user');
+        final authorizationError = StateError(
+          'Cannot delete saved search without authenticated user',
+        );
         _logger.warning(
           'Cannot delete saved search without authenticated user',
           data: {'savedSearchId': id},
@@ -190,16 +225,21 @@ class SearchRepository implements ISearchRepository {
       }
 
       // Security: Verify saved search belongs to user
-      final existing = await (db.select(db.savedSearches)
-            ..where((s) => s.id.equals(id))
-            ..where((s) => s.userId.equals(userId)))
-          .getSingleOrNull();
+      final existing =
+          await (db.select(db.savedSearches)
+                ..where((s) => s.id.equals(id))
+                ..where((s) => s.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (existing == null) {
-        _logger.warning('Saved search $id not found or does not belong to user $userId');
+        _logger.warning(
+          'Saved search $id not found or does not belong to user $userId',
+        );
         _captureRepositoryException(
           method: 'deleteSavedSearch',
-          error: StateError('Saved search not found or does not belong to user'),
+          error: StateError(
+            'Saved search not found or does not belong to user',
+          ),
           stackTrace: StackTrace.current,
           data: {'savedSearchId': id, 'userId': userId},
           level: SentryLevel.warning,
@@ -209,7 +249,7 @@ class SearchRepository implements ISearchRepository {
 
       await db.deleteSavedSearch(id);
       // Enqueue for sync
-      await db.enqueue(id, 'delete_saved_search');
+      await _enqueuePendingOp(entityId: id, kind: 'delete_saved_search');
     } catch (error, stackTrace) {
       _logger.error(
         'Failed to delete saved search',
@@ -237,14 +277,19 @@ class SearchRepository implements ISearchRepository {
         return const <domain.SavedSearch>[];
       }
 
-      final dbSearches = await (db.select(db.savedSearches)
-            ..where((s) => s.userId.equals(userId))
-            ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
-          .get();
+      final dbSearches =
+          await (db.select(db.savedSearches)
+                ..where((s) => s.userId.equals(userId))
+                ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
+              .get();
 
       return SavedSearchMapper.toDomainList(dbSearches);
     } catch (error, stackTrace) {
-      _logger.error('Failed to load saved searches', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to load saved searches',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _captureRepositoryException(
         method: 'getSavedSearches',
         error: error,
@@ -269,26 +314,30 @@ class SearchRepository implements ISearchRepository {
             ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
           .watch()
           .map((dbSearches) {
-        try {
-          return SavedSearchMapper.toDomainList(dbSearches);
-        } catch (error, stackTrace) {
-          _logger.error(
-            'Failed to map saved searches stream',
-            error: error,
-            stackTrace: stackTrace,
-            data: {'userId': userId},
-          );
-          _captureRepositoryException(
-            method: 'watchSavedSearches.map',
-            error: error,
-            stackTrace: stackTrace,
-            data: {'userId': userId},
-          );
-          return const <domain.SavedSearch>[];
-        }
-      });
+            try {
+              return SavedSearchMapper.toDomainList(dbSearches);
+            } catch (error, stackTrace) {
+              _logger.error(
+                'Failed to map saved searches stream',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              _captureRepositoryException(
+                method: 'watchSavedSearches.map',
+                error: error,
+                stackTrace: stackTrace,
+                data: {'userId': userId},
+              );
+              return const <domain.SavedSearch>[];
+            }
+          });
     } catch (error, stackTrace) {
-      _logger.error('Failed to watch saved searches', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Failed to watch saved searches',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _captureRepositoryException(
         method: 'watchSavedSearches',
         error: error,
@@ -363,13 +412,19 @@ class SearchRepository implements ISearchRepository {
   }
 
   @override
-  Future<List<domain.Note>> executeSavedSearch(domain.SavedSearch savedSearch) async {
+  Future<List<domain.Note>> executeSavedSearch(
+    domain.SavedSearch savedSearch,
+  ) async {
     try {
       // Security: Verify user is authenticated
       final userId = client.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot execute saved search without authenticated user');
-        _logger.warning('Cannot execute saved search without authenticated user');
+        final authorizationError = StateError(
+          'Cannot execute saved search without authenticated user',
+        );
+        _logger.warning(
+          'Cannot execute saved search without authenticated user',
+        );
         _captureRepositoryException(
           method: 'executeSavedSearch',
           error: authorizationError,
@@ -393,7 +448,11 @@ class SearchRepository implements ISearchRepository {
         try {
           params = jsonDecode(dbSearch.parameters!) as Map<String, dynamic>;
         } catch (error, stackTrace) {
-          _logger.error('Failed to parse saved search parameters', error: error, stackTrace: stackTrace);
+          _logger.error(
+            'Failed to parse saved search parameters',
+            error: error,
+            stackTrace: stackTrace,
+          );
           _captureRepositoryException(
             method: 'executeSavedSearch.parseParams',
             error: error,
@@ -430,7 +489,9 @@ class SearchRepository implements ISearchRepository {
         case 'folder':
           final folderId = params?['folderId'] as String?;
           if (folderId == null || folderId.isEmpty) {
-            final missingParameter = StateError('Saved search missing folderId parameter');
+            final missingParameter = StateError(
+              'Saved search missing folderId parameter',
+            );
             _logger.warning('Saved search $query missing folderId parameter');
             _captureRepositoryException(
               method: 'executeSavedSearch',
@@ -481,7 +542,8 @@ class SearchRepository implements ISearchRepository {
   }
 
   Future<List<appdb.LocalNote>> _executeAdvancedSearch(
-      Map<String, dynamic> params) async {
+    Map<String, dynamic> params,
+  ) async {
     // This would implement complex search logic
     // For now, returning empty list
     _logger.debug('Executing advanced search with params: $params');

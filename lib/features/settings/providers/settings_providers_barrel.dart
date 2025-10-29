@@ -1,2 +1,3 @@
 // Settings providers barrel file
-export 'settings_providers.dart';
+// Hide loggerProvider to avoid ambiguous export (already exported from core/providers)
+export 'settings_providers.dart' hide loggerProvider;

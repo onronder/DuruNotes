@@ -1,53 +1,38 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/local/app_db.dart' hide NoteLink;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/note_link.dart';
 
-/// Converter utility for converting between LocalNote and domain.Note
+/// DEPRECATED: This converter is no longer compatible with encrypted fields.
+///
+/// Post-encryption migration, all conversions between LocalNote and domain.Note
+/// must go through infrastructure/mappers/note_mapper.dart, which properly handles
+/// encryption/decryption at the repository layer.
+///
+/// This file should not be used in new code and will be removed after migration.
+@Deprecated('Use infrastructure/mappers/note_mapper.dart instead. This converter no longer supports encrypted fields after encryption migration.')
 class NoteConverter {
   /// Convert LocalNote (infrastructure) to domain.Note (domain)
-  static domain.Note fromLocal(LocalNote local, {List<String>? tags, List<domain.NoteLink>? links}) {
-    return domain.Note(
-      id: local.id,
-      title: local.title,
-      body: local.body,
-      updatedAt: local.updatedAt,
-      deleted: local.deleted,
-      isPinned: local.isPinned,
-      noteType: local.noteType,
-      version: local.version,
-      userId: local.userId ?? '',
-      folderId: null, // Folder relationship handled separately
-      encryptedMetadata: local.encryptedMetadata,
-      attachmentMeta: local.attachmentMeta,
-      metadata: local.metadata,
-      tags: tags ?? const [],
-      links: links ?? const [],
+  static domain.Note fromLocal(LocalNote local, {List<String>? tags, List<NoteLink>? links}) {
+    throw UnsupportedError(
+      'NoteConverter.fromLocal is deprecated and no longer supported after encryption migration. '
+      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.'
     );
   }
 
   /// Convert domain.Note to LocalNote (infrastructure)
   static LocalNote toLocal(domain.Note note) {
-    return LocalNote(
-      id: note.id,
-      title: note.title,
-      body: note.body,
-      updatedAt: note.updatedAt,
-      deleted: note.deleted,
-      isPinned: note.isPinned,
-      noteType: note.noteType,
-      version: note.version,
-      userId: note.userId.isNotEmpty ? note.userId : null,
-      encryptedMetadata: note.encryptedMetadata,
-      attachmentMeta: note.attachmentMeta,
-      metadata: note.metadata,
+    throw UnsupportedError(
+      'NoteConverter.toLocal is deprecated and no longer supported after encryption migration. '
+      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.'
     );
   }
 
-  /// Convert List<LocalNote> to List<domain.Note>
+  /// Convert `List<LocalNote>` to `List<domain.Note>`
   static List<domain.Note> fromLocalList(List<LocalNote> localNotes) {
     return localNotes.map((local) => fromLocal(local)).toList();
   }
 
-  /// Convert List<domain.Note> to List<LocalNote>
+  /// Convert `List<domain.Note>` to `List<LocalNote>`
   static List<LocalNote> toLocalList(List<domain.Note> domainNotes) {
     return domainNotes.map((note) => toLocal(note)).toList();
   }
@@ -87,23 +72,17 @@ class NoteConverter {
 
   /// Get title from any note type
   static String getNoteTitle(dynamic note) {
-    if (note is domain.Note) {
-      return note.title;
-    } else if (note is LocalNote) {
-      return note.title;
-    } else {
-      throw ArgumentError('Unknown note type: ${note.runtimeType}');
-    }
+    throw UnsupportedError(
+      'NoteConverter.getNoteTitle is deprecated. LocalNote now uses encrypted fields. '
+      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.'
+    );
   }
 
   /// Get body from any note type
   static String getNoteBody(dynamic note) {
-    if (note is domain.Note) {
-      return note.body;
-    } else if (note is LocalNote) {
-      return note.body;
-    } else {
-      throw ArgumentError('Unknown note type: ${note.runtimeType}');
-    }
+    throw UnsupportedError(
+      'NoteConverter.getNoteBody is deprecated. LocalNote now uses encrypted fields. '
+      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.'
+    );
   }
 }

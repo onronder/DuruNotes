@@ -4,13 +4,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/push_notification_service.dart';
-import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Notification action types
@@ -25,6 +23,8 @@ enum NotificationAction {
   snoozeTask,
   openTask,
 }
+
+enum PushEventCategory { noteAssignment, taskReminder, custom, email, unknown }
 
 /// Notification payload data
 class NotificationPayload {
@@ -67,29 +67,33 @@ class NotificationPayload {
   final String? imageUrl;
 
   Map<String, dynamic> toJson() => {
-        'event_id': eventId,
-        'event_type': eventType,
-        'title': title,
-        'body': body,
-        'data': data,
-        'action': action?.name,
-        'deep_link': deepLink,
-        'image_url': imageUrl,
-      };
+    'event_id': eventId,
+    'event_type': eventType,
+    'title': title,
+    'body': body,
+    'data': data,
+    'action': action?.name,
+    'deep_link': deepLink,
+    'image_url': imageUrl,
+  };
 }
 
 /// Service for handling push notifications and displaying them
 class NotificationHandlerService {
-  NotificationHandlerService(this._ref, {
+  NotificationHandlerService({
+    required AppLogger logger,
+    required PushNotificationService pushService,
+    required AnalyticsService analytics,
     SupabaseClient? client,
-    PushNotificationService? pushService,
-  })  : _client = client ?? Supabase.instance.client,
-        _pushService = pushService ?? PushNotificationService(_ref);
+  }) : _logger = logger,
+       _pushService = pushService,
+       _analytics = analytics,
+       _client = client ?? Supabase.instance.client;
 
-  final Ref _ref;
   final SupabaseClient _client;
-  AppLogger get _logger => _ref.read(loggerProvider);
+  final AppLogger _logger;
   final PushNotificationService _pushService;
+  final AnalyticsService _analytics;
 
   // Local notifications plugin
   final FlutterLocalNotificationsPlugin _localNotifications =
@@ -185,9 +189,10 @@ class NotificationHandlerService {
 
   /// Create Android notification channels
   Future<void> _createNotificationChannels() async {
-    final androidPlugin =
-        _localNotifications.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
     if (androidPlugin == null) return;
 
@@ -229,19 +234,19 @@ class NotificationHandlerService {
     // Handle foreground messages
     _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
       _handleForegroundMessage,
-      onError: (error) {
+      onError: (Object error) {
         _logger.error('Error in foreground message stream: $error');
       },
     );
 
     // Handle message opened app (when app was in background)
-    _backgroundMessageSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen(
-      _handleMessageOpenedApp,
-      onError: (error) {
-        _logger.error('Error in message opened app stream: $error');
-      },
-    );
+    _backgroundMessageSubscription = FirebaseMessaging.onMessageOpenedApp
+        .listen(
+          _handleMessageOpenedApp,
+          onError: (Object error) {
+            _logger.error('Error in message opened app stream: $error');
+          },
+        );
 
     // Check if app was opened from a notification
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -250,25 +255,42 @@ class NotificationHandlerService {
     }
   }
 
+  void _safeAddToSubject<T>(
+    BehaviorSubject<T> subject,
+    T value,
+    String subjectName,
+  ) {
+    if (subject.isClosed) {
+      _logger.debug(
+        'Attempted to emit to closed $subjectName stream. Event dropped.',
+      );
+      return;
+    }
+    subject.add(value);
+  }
+
   /// Handle foreground messages
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     _logger.info('Received foreground message: ${message.messageId}');
 
     // Emit to stream for app handling
-    _foregroundMessageSubject.add(message);
+    _safeAddToSubject(_foregroundMessageSubject, message, 'foreground message');
 
     // Parse notification data
     final payload = _parseRemoteMessage(message);
+    _trackPushStage('received', payload, origin: 'foreground');
 
     // Check if we should show local notification
     final shouldShow = await _shouldShowNotification(payload);
     if (!shouldShow) {
       _logger.info('Notification suppressed based on preferences');
+      _trackPushStage('suppressed', payload, origin: 'foreground');
       return;
     }
 
     // Display local notification
     await _showLocalNotification(payload);
+    _trackPushStage('displayed', payload, origin: 'foreground');
 
     // Update delivery status
     await _updateDeliveryStatus(
@@ -283,9 +305,10 @@ class NotificationHandlerService {
     _logger.info('App opened from notification: ${message.messageId}');
 
     final payload = _parseRemoteMessage(message);
+    _trackPushStage('opened', payload, origin: 'background');
 
     // Emit tap event
-    _notificationTapSubject.add(payload);
+    _safeAddToSubject(_notificationTapSubject, payload, 'notification tap');
 
     // Update analytics
     await _updateDeliveryStatus(
@@ -300,12 +323,13 @@ class NotificationHandlerService {
     _logger.info('App launched from notification: ${message.messageId}');
 
     final payload = _parseRemoteMessage(message);
+    _trackPushStage('opened', payload, origin: 'cold_start');
 
     // Delay to ensure app is ready
     await Future<void>.delayed(const Duration(seconds: 1));
 
     // Emit tap event
-    _notificationTapSubject.add(payload);
+    _safeAddToSubject(_notificationTapSubject, payload, 'notification tap');
 
     // Update analytics
     await _updateDeliveryStatus(
@@ -325,13 +349,15 @@ class NotificationHandlerService {
     return NotificationPayload(
       eventId: (data['event_id'] as String?) ?? '',
       eventType: (data['event_type'] as String?) ?? '',
-      title: message.notification?.title ??
+      title:
+          message.notification?.title ??
           (data['title'] as String?) ??
           'Notification',
       body: message.notification?.body ?? (data['body'] as String?) ?? '',
       data: data,
       deepLink: data['deep_link'] as String?,
-      imageUrl: message.notification?.android?.imageUrl ??
+      imageUrl:
+          message.notification?.android?.imageUrl ??
           message.notification?.apple?.imageUrl,
     );
   }
@@ -397,6 +423,45 @@ class NotificationHandlerService {
     }
   }
 
+  void _trackPushStage(
+    String stage,
+    NotificationPayload payload, {
+    required String origin,
+  }) {
+    final category = _categorizePayload(payload).name;
+    final props = <String, dynamic>{
+      'stage': stage,
+      'event_id': payload.eventId,
+      'event_type': payload.eventType,
+      'category': category,
+      'origin': origin,
+    };
+
+    _logger.info('Push flow event', data: props);
+    _analytics.event('push.$stage', properties: props);
+  }
+
+  PushEventCategory _categorizePayload(NotificationPayload payload) {
+    final type = payload.eventType.toLowerCase();
+    final category = (payload.data['category'] as String?)?.toLowerCase();
+
+    if (type.contains('assignment') || category == 'note_assignment') {
+      return PushEventCategory.noteAssignment;
+    }
+    if (type.contains('reminder') ||
+        type.contains('task') ||
+        category == 'task_reminder') {
+      return PushEventCategory.taskReminder;
+    }
+    if (type.contains('email') || category == 'email') {
+      return PushEventCategory.email;
+    }
+    if (type.contains('custom') || category == 'custom') {
+      return PushEventCategory.custom;
+    }
+    return PushEventCategory.unknown;
+  }
+
   /// Handle notification response (tap/action)
   Future<void> _handleNotificationResponse(
     NotificationResponse response,
@@ -414,7 +479,7 @@ class NotificationHandlerService {
         await _handleNotificationAction(payload, response.actionId!);
       } else {
         // Notification was tapped
-        _notificationTapSubject.add(payload);
+        _safeAddToSubject(_notificationTapSubject, payload, 'notification tap');
       }
 
       // Update analytics
@@ -449,7 +514,11 @@ class NotificationHandlerService {
       deepLink: payload.deepLink,
     );
 
-    _notificationActionSubject.add(actionPayload);
+    _safeAddToSubject(
+      _notificationActionSubject,
+      actionPayload,
+      'notification action',
+    );
   }
 
   /// Parse action ID to enum
@@ -563,11 +632,14 @@ class NotificationHandlerService {
     try {
       if (eventId.isEmpty) return;
 
-      await _client.from('notification_deliveries').update({
-        'status': status,
-        '${status}_at': DateTime.now().toIso8601String(),
-        if (metadata != null) 'provider_response': metadata,
-      }).eq('event_id', eventId);
+      await _client
+          .from('notification_deliveries')
+          .update({
+            'status': status,
+            '${status}_at': DateTime.now().toIso8601String(),
+            if (metadata != null) 'provider_response': metadata,
+          })
+          .eq('event_id', eventId);
     } catch (e) {
       _logger.error('Failed to update delivery status: $e');
     }
@@ -576,10 +648,8 @@ class NotificationHandlerService {
   /// Load user preferences
   Future<void> _loadPreferences() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Load any cached preferences
-      // This can be used for offline support
+      // TODO: Load any cached preferences for offline support
+      // final prefs = await SharedPreferences.getInstance();
     } catch (e) {
       _logger.error('Failed to load preferences: $e');
     }
@@ -666,6 +736,7 @@ class NotificationHandlerService {
     _notificationTapSubject.close();
     _notificationActionSubject.close();
     _foregroundMessageSubject.close();
+    _isInitialized = false;
   }
 }
 

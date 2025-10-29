@@ -1,5 +1,9 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show taskAnalyticsServiceProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +26,12 @@ class TodayStats {
 final todayStatsProvider = FutureProvider<TodayStats>((ref) async {
   final db = ref.watch(appDbProvider);
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
+  final supabase = ref.watch(supabaseClientProvider);
+  final userId = supabase.auth.currentUser?.id;
+
+  if (userId == null || userId.isEmpty) {
+    return TodayStats(completed: 0, pending: 0, overdue: 0, streak: 0);
+  }
 
   final now = DateTime.now();
   final todayStart = DateTime(now.year, now.month, now.day);
@@ -29,6 +39,7 @@ final todayStatsProvider = FutureProvider<TodayStats>((ref) async {
 
   // Get all tasks for today
   final allTasks = await db.getTasksByDateRange(
+    userId: userId,
     start: todayStart,
     end: todayEnd,
   );

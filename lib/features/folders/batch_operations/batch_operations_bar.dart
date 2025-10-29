@@ -1,6 +1,7 @@
 import 'package:duru_notes/features/folders/batch_operations/batch_selection_provider.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/notes/providers/notes_state_providers.dart' show currentNotesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

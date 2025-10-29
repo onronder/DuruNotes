@@ -1,0 +1,36 @@
+{
+  "test_name": "circular_dependency_validation",
+  "timestamp": "2025-10-26T16:26:26.953256",
+  "results": {
+    "order_1": {
+      "success": false,
+      "error": "Bad state: [notesCoreRepositoryProvider] Security services must be initialized before creating repositories. This provider should only be accessed after the FutureBuilder in app.dart completes SecurityInitialization.initialize().",
+      "resolvedProviders": [
+        "appDb",
+        "logger",
+        "taskCoreRepository (Supabase init required)"
+      ],
+      "failedAt": "notesCoreRepository"
+    },
+    "order_2": {
+      "success": false,
+      "error": "Bad state: [notesCoreRepositoryProvider] Security services must be initialized before creating repositories. This provider should only be accessed after the FutureBuilder in app.dart completes SecurityInitialization.initialize().",
+      "resolvedProviders": [
+        "domainTaskController (Supabase init required)",
+        "enhancedTaskService (Supabase init required)"
+      ],
+      "failedAt": "notesCoreRepository"
+    },
+    "order_3": {
+      "success": false,
+      "error": "Bad state: [notesCoreRepositoryProvider] Security services must be initialized before creating repositories. This provider should only be accessed after the FutureBuilder in app.dart completes SecurityInitialization.initialize().",
+      "resolvedProviders": [
+        "logger",
+        "domainTaskController (Supabase init required)",
+        "appDb",
+        "taskCoreRepository (Supabase init required)"
+      ],
+      "failedAt": "notesCoreRepository"
+    }
+  }
+}

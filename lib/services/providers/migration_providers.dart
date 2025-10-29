@@ -1,45 +1,26 @@
-import 'package:duru_notes/core/providers/database_providers.dart';
-import 'package:duru_notes/services/data_encryption_migration_service.dart';
-import 'package:duru_notes/services/providers/fts_providers.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ============================================================================
+// DEPRECATED: This migration provider file is now obsolete
+// ============================================================================
+//
+// Encryption migration is now handled automatically via database schema
+// during app bootstrap. All data is encrypted by default for new users,
+// and existing data is migrated seamlessly when the app detects plaintext.
+//
+// The DataEncryptionMigrationService and DataMigrationDialog are kept
+// for reference but are no longer actively used in the app flow.
+//
+// Related files (preserved for reference):
+// - lib/services/data_encryption_migration_service.dart
+// - lib/ui/dialogs/data_migration_dialog.dart
+//
+// Migration is now handled by:
+// - Database schema (encryption_status column)
+// - AppBootstrap encryption initialization
+// - Automatic detection and migration on first launch
+// ============================================================================
 
-/// Provider for the data encryption migration service
-///
-/// This service handles migrating plaintext data to encrypted format
-/// with production-grade safety features:
-/// - Automatic backups
-/// - Batch processing
-/// - Progress tracking
-/// - Rollback capability
-/// - Comprehensive validation
-final dataEncryptionMigrationServiceProvider =
-    Provider<DataEncryptionMigrationService>((ref) {
-  final db = ref.watch(appDbProvider);
-  final crypto = ref.watch(cryptoBoxProvider);
-  final ftsService = ref.watch(ftsServiceProvider);
-
-  return DataEncryptionMigrationService(
-    db: db,
-    crypto: crypto,
-    ftsService: ftsService,
-    batchSize: 100, // Default batch size
-  );
-});
-
-/// Provider for migration service with custom batch size
-Provider<DataEncryptionMigrationService> dataEncryptionMigrationServiceWithBatchSize(
-  int batchSize,
-) {
-  return Provider<DataEncryptionMigrationService>((ref) {
-    final db = ref.watch(appDbProvider);
-    final crypto = ref.watch(cryptoBoxProvider);
-    final ftsService = ref.watch(ftsServiceProvider);
-
-    return DataEncryptionMigrationService(
-      db: db,
-      crypto: crypto,
-      ftsService: ftsService,
-      batchSize: batchSize,
-    );
-  });
-}
+// Providers removed - migration is now automatic
+// If manual migration is ever needed, use:
+// - Direct database operations with CryptoBox
+// - Schema-based encryption flags
+// - Bootstrap-time migration checks

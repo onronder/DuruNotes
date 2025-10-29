@@ -37,7 +37,14 @@ class SnoozeReminderService extends BaseReminderService {
   /// Snooze a reminder for the specified duration
   Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
     try {
-      final reminder = await db.getReminderById(reminderId);
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot snooze reminder - no authenticated user');
+        return false;
+      }
+
+      final reminder = await db.getReminderById(reminderId, userId);
       if (reminder == null) {
         logger.warning('Cannot snooze reminder $reminderId - not found');
         trackReminderEvent('snooze_failed', {
@@ -72,12 +79,13 @@ class SnoozeReminderService extends BaseReminderService {
       final snoozeUntil = _calculateSnoozeTime(duration);
 
       // Update database with snooze information
-      // Update snooze information
-      await db.snoozeReminder(reminderId, snoozeUntil);
+      // Update snooze information (P0.5 SECURITY: uses userId)
+      await db.snoozeReminder(reminderId, userId, snoozeUntil);
       await db.updateReminder(
         reminderId,
+        userId,
         NoteRemindersCompanion(
-          snoozeCount: Value((reminder.snoozeCount ?? 0) + 1),
+          snoozeCount: Value(reminder.snoozeCount + 1),
         ),
       );
 
@@ -88,9 +96,7 @@ class SnoozeReminderService extends BaseReminderService {
       await scheduleNotification(ReminderNotificationData(
         id: reminderId,
         title: reminder.notificationTitle ?? reminder.title,
-        body: reminder.notificationBody ??
-            reminder.body ??
-            'Tap to view your note',
+        body: reminder.notificationBody ?? reminder.body,
         scheduledTime: snoozeUntil,
         payload: jsonEncode({
           'reminderId': reminderId,
@@ -175,11 +181,19 @@ class SnoozeReminderService extends BaseReminderService {
   /// Process snoozed reminders that need to be rescheduled
   Future<void> processSnoozedReminders() async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot process snoozed reminders - no authenticated user');
+        return;
+      }
+
       final now = DateTime.now();
 
       // Get snoozed reminders that should be rescheduled
       final snoozedReminders = await db.getSnoozedRemindersToReschedule(
         now: now,
+        userId: userId,
       );
 
       for (final reminder in snoozedReminders) {
@@ -204,17 +218,16 @@ class SnoozeReminderService extends BaseReminderService {
   /// Reschedule a snoozed reminder
   Future<void> _rescheduleSnoozedReminder(NoteReminder reminder) async {
     try {
+      // P0.5 SECURITY: Use userId from reminder
       // Clear snooze status
-      await db.clearSnooze(reminder.id);
+      await db.clearSnooze(reminder.id, reminder.userId);
 
       if (reminder.snoozedUntil != null) {
         // Reschedule notification for the original snooze time
         await scheduleNotification(ReminderNotificationData(
           id: reminder.id,
           title: reminder.notificationTitle ?? reminder.title,
-          body: reminder.notificationBody ??
-              reminder.body ??
-              'Tap to view your note',
+          body: reminder.notificationBody ?? reminder.body,
           scheduledTime: reminder.snoozedUntil!,
           payload: jsonEncode({
             'reminderId': reminder.id,
@@ -279,8 +292,18 @@ class SnoozeReminderService extends BaseReminderService {
   /// Get snooze statistics for analytics
   Future<Map<String, dynamic>> getSnoozeStats() async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        return {
+          'total_snoozed': 0,
+          'average_snooze_count': 0.0,
+          'max_snooze_limit': maxSnoozeCount,
+        };
+      }
+
       // Get basic statistics from reminder data
-      final allReminders = await db.getAllReminders();
+      final allReminders = await db.getAllReminders(userId);
       final snoozedReminders = allReminders
           .where(
             (r) => r.snoozedUntil != null && r.isActive,
@@ -317,7 +340,14 @@ class SnoozeReminderService extends BaseReminderService {
   /// Clear all snooze data for a reminder (when manually edited)
   Future<void> clearSnooze(int reminderId) async {
     try {
-      await db.clearSnooze(reminderId);
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot clear snooze - no authenticated user');
+        return;
+      }
+
+      await db.clearSnooze(reminderId, userId);
       await cancelNotification(reminderId);
 
       logger.info('Cleared snooze for reminder $reminderId');

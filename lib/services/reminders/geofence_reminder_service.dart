@@ -147,9 +147,17 @@ class GeofenceReminderService extends BaseReminderService {
         return null;
       }
 
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot create location reminder - no authenticated user');
+        return null;
+      }
+
       // Create reminder in database using base class method
       final companion = NoteRemindersCompanion.insert(
         noteId: config.noteId,
+        userId: userId, // P0.5 SECURITY: Required for user isolation
         type: ReminderType.location,
         title: Value(config.title),
         body: Value(config.body ?? ''),
@@ -266,16 +274,23 @@ class GeofenceReminderService extends BaseReminderService {
   /// Trigger a location-based reminder
   Future<void> _triggerLocationReminder(int reminderId) async {
     try {
-      final reminder = await db.getReminderById(reminderId);
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot trigger reminder - no authenticated user');
+        return;
+      }
+
+      final reminder = await db.getReminderById(reminderId, userId);
       if (reminder == null || !reminder.isActive) return;
 
       // Show notification
       await _showLocationNotification(reminder);
 
-      // Mark as triggered
       // Mark as triggered and update database
       await db.updateReminder(
         reminderId,
+        userId,
         NoteRemindersCompanion(
           lastTriggered: Value(DateTime.now()),
           triggerCount: Value(reminder.triggerCount + 1),

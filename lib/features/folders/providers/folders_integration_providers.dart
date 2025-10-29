@@ -1,105 +1,89 @@
-import 'package:duru_notes/core/migration/state_migration_helper.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
-import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
-import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Note-folder integration service provider for enhanced operations
 ///
-/// TODO(infrastructure): Update NoteFolderIntegrationService to use domain repositories
-/// For now, using the domain notes repository
+/// Uses domain folder repository for folder operations.
 final noteFolderIntegrationServiceProvider = Provider<NoteFolderIntegrationService>((ref) {
-  final notesRepository = ref.watch(notesRepositoryProvider);
+  // Use folder repository for folder operations
+  final folderRepository = ref.watch(folderCoreRepositoryProvider);
   final analyticsService = ref.watch(analyticsProvider);
-  // Cast to domain repository type
+
   return NoteFolderIntegrationService(
-    notesRepository: notesRepository as INotesRepository,
-    analyticsService: analyticsService as AnalyticsService,
+    folderRepository: folderRepository,
+    analyticsService: analyticsService,
   );
 });
 
 /// Root folders provider for quick access
 /// This provider is invalidated whenever folders change to ensure consistency
-final rootFoldersProvider = FutureProvider<List<LocalFolder>>((ref) async {
+final rootFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
   // Watch the folder hierarchy state to ensure both providers stay in sync
   ref.watch(folderHierarchyProvider);
 
   final folderRepo = ref.watch(folderRepositoryProvider);
+
+  // Guard against null repository (unauthenticated)
+  if (folderRepo == null) {
+    return <domain_folder.Folder>[];
+  }
+
   final folders = await folderRepo.listFolders();
 
   // Filter for root folders (no parent)
   final rootFolders = folders.where((f) => f.parentId == null || f.parentId!.isEmpty).toList();
 
-  // TODO(infrastructure): Convert domain folders to LocalFolder
-  // For now, return empty list until proper conversion is implemented
-  return [];
+  return rootFolders;
 });
 
 /// All folders count provider for accurate statistics
-final allFoldersCountProvider = FutureProvider<int>((ref) async {
+final allFoldersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   // Watch the folder hierarchy to rebuild when folders change
   ref.watch(folderHierarchyProvider);
 
   final repo = ref.watch(folderRepositoryProvider);
+
+  // Guard against null repository (unauthenticated)
+  if (repo == null) {
+    return 0;
+  }
+
   final allFolders = await repo.listFolders();
   return allFolders.length;
 });
 
 /// Unfiled notes count provider
-final unfiledNotesCountProvider = FutureProvider<int>((ref) async {
-  final repo = ref.watch(notesRepositoryProvider);
-  // Get all notes without a folder
-  final allNotes = await repo.localNotes();
-  final unfiledNotes = allNotes.where((note) => note.folderId == null || note.folderId!.isEmpty).toList();
+///
+/// Uses domain repository which handles auth internally.
+/// Returns 0 when not authenticated (repository returns empty list).
+final unfiledNotesCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  // Use domain repository - it handles auth internally
+  // Repository methods return empty list when not authenticated
+  final repo = ref.watch(notesCoreRepositoryProvider);
+
+  final allNotes = await repo.localNotes(); // Returns [] if not auth'd
+  final unfiledNotes = allNotes.where((note) =>
+    note.folderId == null || note.folderId!.isEmpty
+  ).toList();
+
   return unfiledNotes.length;
 });
 
-/// Domain folders provider - switches between legacy and domain
-final domainFoldersProvider = FutureProvider<List<domain_folder.Folder>>((ref) async {
-  final config = ref.watch(migrationConfigProvider);
-
-  if (config.isFeatureEnabled('folders')) {
-    // Use domain repository
-    final repository = ref.watch(folderCoreRepositoryProvider);
-    return repository.listFolders();
-  } else {
-    // Convert from legacy
-    final localFolders = ref.watch(folderListProvider);
-    return StateMigrationHelper.convertFoldersToDomain(localFolders);
-  }
-});
-
-/// Domain folders stream provider
-final domainFoldersStreamProvider = StreamProvider<List<domain_folder.Folder>>((ref) {
-  final config = ref.watch(migrationConfigProvider);
-
-  if (config.isFeatureEnabled('folders')) {
-    // Since domain folder repository doesn't have watchFolders,
-    // we'll watch the folder updates provider and convert each time
-    return ref.watch(folderUpdatesProvider.stream).asyncMap((_) async {
-      final repository = ref.read(folderCoreRepositoryProvider);
-      return repository.listFolders();
-    });
-  } else {
-    // Convert legacy stream - watch folder hierarchy changes
-    return ref.watch(folderUpdatesProvider.stream).map((_) {
-      final localFolders = ref.read(folderListProvider);
-      return StateMigrationHelper.convertFoldersToDomain(localFolders);
-    });
-  }
-});
+// ===== PHASE 6: Domain providers moved to folders_domain_providers.dart =====
+// domainFoldersProvider and domainFoldersStreamProvider are now in:
+// lib/features/folders/providers/folders_domain_providers.dart
+// Import from there or use barrel re-export
 
 /// Folder update listener provider - listens to folder updates and invalidates dependent providers
 final folderUpdateListenerProvider = Provider<void>((ref) {
   // Listen to folder updates and invalidate dependent providers
-  ref.listen(folderUpdatesProvider, (_, __) {
+  ref.listen(folderUpdatesProvider, (_, _) {
     // Invalidate all folder-related providers to refresh UI
     ref.invalidate(folderHierarchyProvider);
     ref.invalidate(rootFoldersProvider);

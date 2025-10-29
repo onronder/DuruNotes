@@ -569,5 +569,37 @@
   "genericErrorTitle": "Bir şeyler ters gitti",
   "genericErrorMessage": "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
   "reportError": "Hata bildir",
-  "errorReportSent": "Hata raporu gönderildi. Geri bildiriminiz için teşekkürler!"
+  "errorReportSent": "Hata raporu gönderildi. Geri bildiriminiz için teşekkürler!",
+
+  "@_PUSH_NOTIFICATIONS": {},
+  "notifEmailReceivedTitle": "📧 Gelen Kutunuzda Yeni E-posta",
+  "notifEmailReceivedBody": "Gönderen {sender}: {subject}\\n\\nE-posta notu dönüştürmeye hazır.",
+  "@notifEmailReceivedBody": {
+    "placeholders": {
+      "sender": {"type": "String"},
+      "subject": {"type": "String"}
+    }
+  },
+  "notifWebClipSavedTitle": "✂️ İçerik Başarıyla Kaydedildi",
+  "notifWebClipSavedBody": "{preview}\\n\\nGelen kutunuza kaydedildi ve kullanıma hazır.",
+  "@notifWebClipSavedBody": {
+    "placeholders": {
+      "preview": {"type": "String"}
+    }
+  },
+  "notifTaskReminderTitle": "⏰ Görev Hatırlatıcısı",
+  "notifTaskReminderBody": "{taskTitle}\\n\\nŞimdi yapılmalı!",
+  "@notifTaskReminderBody": {
+    "placeholders": {
+      "taskTitle": {"type": "String"}
+    }
+  },
+  "notifTaskAssignedTitle": "📋 Hatırlatıcılı Yeni Görev",
+  "notifTaskAssignedBody": "{taskTitle}\\nTarih: {dueDate}\\n\\nHatırlatıcı ayarlandı ve sizi bilgilendirecek.",
+  "@notifTaskAssignedBody": {
+    "placeholders": {
+      "taskTitle": {"type": "String"},
+      "dueDate": {"type": "String"}
+    }
+  }
 }

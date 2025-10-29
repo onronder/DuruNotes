@@ -333,6 +333,7 @@ class _SavedSearchManagementScreenState
                   ? _buildReorderableList()
                   : _buildNormalList(),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'saved_search_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: _createSavedSearch,
         child: const Icon(Icons.add),
       ),

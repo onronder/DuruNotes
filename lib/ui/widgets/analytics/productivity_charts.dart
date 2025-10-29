@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -301,14 +301,12 @@ class PriorityDistributionChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     if (priorityDistribution.distribution.isEmpty) {
       return _buildEmptyChart(context, 'No priority data available');
     }
 
     final sections = <PieChartSectionData>[];
-    var index = 0;
 
     for (final entry in priorityDistribution.distribution.entries) {
       final priority = entry.key;
@@ -328,7 +326,6 @@ class PriorityDistributionChart extends StatelessWidget {
           ),
         );
       }
-      index++;
     }
 
     return SizedBox(
@@ -407,28 +404,28 @@ class PriorityDistributionChart extends StatelessWidget {
     );
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
 
-  String _getPriorityLabel(TaskPriority priority) {
+  String _getPriorityLabel(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return 'Low';
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return 'Medium';
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return 'High';
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return 'Urgent';
     }
   }
@@ -586,7 +583,6 @@ class DeadlineAdherenceChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     if (deadlineMetrics.adherenceData.isEmpty) {
       return _buildEmptyChart(context, 'No deadline data available');

@@ -1,4 +1,5 @@
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show productivityGoalsServiceProvider;
 import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

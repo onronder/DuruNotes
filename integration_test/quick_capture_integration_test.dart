@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:duru_notes/main.dart' as app;
@@ -253,7 +254,6 @@ void main() {
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         if (methodCall.method == 'getWidgetSettings') {
           configProvided = true;
-          final widgetId = methodCall.arguments['widgetId'];
           return {
             'defaultCaptureType': 'text',
             'showRecentCaptures': true,
@@ -362,7 +362,7 @@ void main() {
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         if (methodCall.method == 'captureNote') {
           // Simulate processing time
-          await Future.delayed(const Duration(milliseconds: 100));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
           return {'success': true, 'noteId': 'perf-test'};
         }
         return null;
@@ -405,7 +405,7 @@ void main() {
         }
         if (methodCall.method == 'processPendingCaptures') {
           // Simulate bulk processing
-          await Future.delayed(const Duration(seconds: 2));
+          await Future<void>.delayed(const Duration(seconds: 2));
           return captures.length;
         }
         return null;

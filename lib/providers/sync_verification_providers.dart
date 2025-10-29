@@ -4,7 +4,11 @@ import 'package:duru_notes/core/sync/sync_integrity_validator.dart';
 import 'package:duru_notes/core/sync/conflict_resolution_engine.dart';
 import 'package:duru_notes/core/sync/data_consistency_checker.dart';
 import 'package:duru_notes/core/sync/sync_recovery_manager.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart'
+    show supabaseNoteApiProvider;
 
 /// Providers for sync verification and integrity management
 ///
@@ -16,6 +20,10 @@ final syncIntegrityValidatorProvider = Provider<SyncIntegrityValidator>((ref) {
   final appDb = ref.watch(appDbProvider);
   final remoteApi = ref.watch(supabaseNoteApiProvider);
   final logger = ref.watch(loggerProvider);
+
+  if (remoteApi == null) {
+    throw StateError('SyncIntegrityValidator requires authenticated user');
+  }
 
   return SyncIntegrityValidator(
     localDb: appDb,
@@ -30,6 +38,10 @@ final conflictResolutionEngineProvider = Provider<ConflictResolutionEngine>((ref
   final remoteApi = ref.watch(supabaseNoteApiProvider);
   final logger = ref.watch(loggerProvider);
 
+  if (remoteApi == null) {
+    throw StateError('ConflictResolutionEngine requires authenticated user');
+  }
+
   return ConflictResolutionEngine(
     localDb: appDb,
     remoteApi: remoteApi,
@@ -42,6 +54,10 @@ final dataConsistencyCheckerProvider = Provider<DataConsistencyChecker>((ref) {
   final appDb = ref.watch(appDbProvider);
   final remoteApi = ref.watch(supabaseNoteApiProvider);
   final logger = ref.watch(loggerProvider);
+
+  if (remoteApi == null) {
+    throw StateError('DataConsistencyChecker requires authenticated user');
+  }
 
   return DataConsistencyChecker(
     localDb: appDb,
@@ -57,6 +73,10 @@ final syncRecoveryManagerProvider = Provider<SyncRecoveryManager>((ref) {
   final validator = ref.watch(syncIntegrityValidatorProvider);
   final conflictEngine = ref.watch(conflictResolutionEngineProvider);
   final logger = ref.watch(loggerProvider);
+
+  if (remoteApi == null) {
+    throw StateError('SyncRecoveryManager requires authenticated user');
+  }
 
   return SyncRecoveryManager(
     localDb: appDb,

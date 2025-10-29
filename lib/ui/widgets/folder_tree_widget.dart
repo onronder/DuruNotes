@@ -1,10 +1,18 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/ui/widgets/folder_breadcrumbs_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Hierarchical folder tree widget with expand/collapse functionality
 class FolderTreeWidget extends ConsumerStatefulWidget {
@@ -16,7 +24,7 @@ class FolderTreeWidget extends ConsumerStatefulWidget {
     this.showBreadcrumbs = true,
   });
   final String? selectedFolderId;
-  final Function(LocalFolder?) onFolderSelected;
+  final void Function(domain.Folder?) onFolderSelected;
   final bool showActions;
   final bool showBreadcrumbs;
 
@@ -25,19 +33,21 @@ class FolderTreeWidget extends ConsumerStatefulWidget {
 }
 
 class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
+  AppLogger get _logger => ref.read(loggerProvider);
+
   final Set<String> _expandedFolders = {};
   String? _editingFolderId;
   final Map<String, TextEditingController> _editControllers = {};
 
-  Future<List<LocalFolder>> _getFolderBreadcrumbs(
+  Future<List<domain.Folder>> _getFolderBreadcrumbs(
     IFolderRepository repo,
     String folderId,
   ) async {
-    final breadcrumbs = <LocalFolder>[];
+    final breadcrumbs = <domain.Folder>[];
     String? currentId = folderId;
 
     while (currentId != null) {
-      final folder = await repo.getById(currentId);
+      final folder = await repo.getFolder(currentId);
       if (folder == null) break;
       breadcrumbs.insert(0, folder);
       currentId = folder.parentId;
@@ -57,14 +67,13 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
   @override
   Widget build(BuildContext context) {
     final folderRepo = ref.watch(folderCoreRepositoryProvider);
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Breadcrumbs
         if (widget.showBreadcrumbs && widget.selectedFolderId != null)
-          FutureBuilder<List<LocalFolder>>(
+          FutureBuilder<List<domain.Folder>>(
             future: _getFolderBreadcrumbs(folderRepo, widget.selectedFolderId!),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.isNotEmpty) {
@@ -85,8 +94,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
         // Folder tree
         Expanded(
-          child: FutureBuilder<List<LocalFolder>>(
-            future: folderRepo.getAll(),
+          child: FutureBuilder<List<domain.Folder>>(
+            future: folderRepo.listFolders(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -97,15 +106,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
               }
 
               final folders = snapshot.data!;
-              final rootFolders = folders
-                  .where((f) => f.parentId == null && !f.deleted)
-                  .toList()
-                ..sort((a, b) {
-                  final orderCompare = a.sortOrder.compareTo(b.sortOrder);
-                  return orderCompare != 0
-                      ? orderCompare
-                      : a.name.compareTo(b.name);
-                });
+              final rootFolders =
+                  folders.where((f) => f.parentId == null).toList()
+                    ..sort((a, b) {
+                      final orderCompare = a.sortOrder.compareTo(b.sortOrder);
+                      return orderCompare != 0
+                          ? orderCompare
+                          : a.name.compareTo(b.name);
+                    });
 
               return ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -193,8 +201,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
 
   Widget _buildFolderItem(
     BuildContext context,
-    LocalFolder folder,
-    List<LocalFolder> allFolders,
+    domain.Folder folder,
+    List<domain.Folder> allFolders,
     int depth,
   ) {
     final theme = Theme.of(context);
@@ -203,12 +211,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     final isEditing = _editingFolderId == folder.id;
 
     // Get child folders
-    final children =
-        allFolders.where((f) => f.parentId == folder.id && !f.deleted).toList()
-          ..sort((a, b) {
-            final orderCompare = a.sortOrder.compareTo(b.sortOrder);
-            return orderCompare != 0 ? orderCompare : a.name.compareTo(b.name);
-          });
+    final children = allFolders.where((f) => f.parentId == folder.id).toList()
+      ..sort((a, b) {
+        final orderCompare = a.sortOrder.compareTo(b.sortOrder);
+        return orderCompare != 0 ? orderCompare : a.name.compareTo(b.name);
+      });
 
     final hasChildren = children.isNotEmpty;
 
@@ -217,7 +224,14 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     if (folder.color != null) {
       try {
         folderColor = Color(int.parse(folder.color!.replaceFirst('#', '0xff')));
-      } catch (_) {}
+      } catch (error, stack) {
+        if (kDebugMode) {
+          debugPrint(
+            'Invalid folder color ${folder.color} for ${folder.name}: $error\n$stack',
+          );
+        }
+        folderColor = null;
+      }
     }
 
     return Column(
@@ -255,7 +269,8 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 const SizedBox(width: 24),
               Icon(
                 _getFolderIcon(folder),
-                color: folderColor ??
+                color:
+                    folderColor ??
                     (isSelected ? theme.colorScheme.primary : null),
                 size: 20,
               ),
@@ -275,8 +290,9 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
               : Text(
                   folder.name,
                   style: TextStyle(
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     color: isSelected ? theme.colorScheme.primary : null,
                   ),
                 ),
@@ -375,7 +391,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     );
   }
 
-  IconData _getFolderIcon(LocalFolder folder) {
+  IconData _getFolderIcon(domain.Folder folder) {
     if (folder.icon != null) {
       switch (folder.icon) {
         case 'work':
@@ -393,7 +409,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     return Icons.folder;
   }
 
-  void _startEdit(LocalFolder folder) {
+  void _startEdit(domain.Folder folder) {
     setState(() {
       _editingFolderId = folder.id;
       _editControllers[folder.id] = TextEditingController(text: folder.name);
@@ -410,31 +426,46 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     });
   }
 
-  Future<void> _saveRename(LocalFolder folder, String newName) async {
-    if (newName.trim().isEmpty || newName == folder.name) {
+  Future<void> _saveRename(domain.Folder folder, String newName) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty || trimmedName == folder.name) {
       _cancelEdit();
       return;
     }
 
     try {
       final folderRepo = ref.read(folderCoreRepositoryProvider);
-      await folderRepo.update(
-        id: folder.id,
-        name: newName.trim(),
+      await folderRepo.renameFolder(folder.id, trimmedName);
+      _logger.info(
+        'Folder renamed',
+        data: {
+          'folderId': folder.id,
+          'newName': trimmedName,
+          'previousName': folder.name,
+        },
       );
       _cancelEdit();
       HapticFeedback.mediumImpact();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Renamed to "$newName"')));
+        ).showSnackBar(SnackBar(content: Text('Renamed to "$trimmedName"')));
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to rename: $e')));
-      }
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to rename folder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'folderId': folder.id,
+          'attemptedName': trimmedName,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnackBar(
+        'Failed to rename folder. Please try again.',
+        onRetry: () => unawaited(_saveRename(folder, trimmedName)),
+      );
     }
   }
 
@@ -467,11 +498,16 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     );
 
     if (result != null && result.trim().isNotEmpty) {
+      final trimmed = result.trim();
       try {
         final folderRepo = ref.read(folderCoreRepositoryProvider);
-        final folder = await folderRepo.create(
-          name: result.trim(),
+        final folder = await folderRepo.createFolder(
+          name: trimmed,
           parentId: parentId,
+        );
+        _logger.info(
+          'Folder created',
+          data: {'folderId': folder.id, 'parentId': parentId, 'name': folder.name},
         );
         HapticFeedback.mediumImpact();
         if (mounted) {
@@ -485,25 +521,45 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             });
           }
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create folder: $e')),
-          );
-        }
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to create folder',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'parentId': parentId, 'requestedName': trimmed},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        _showErrorSnackBar(
+          'Failed to create folder. Please try again.',
+          onRetry: () => unawaited(_createFolder(context, parentId)),
+        );
       }
     }
   }
 
   Future<void> _moveFolder(
     BuildContext context,
-    LocalFolder folder,
-    List<LocalFolder> allFolders,
+    domain.Folder folder,
+    List<domain.Folder> allFolders,
   ) async {
     // Filter out the folder itself and its descendants
-    final availableParents = <LocalFolder?>[null]; // null = root
+    // Find available parent folders (excluding self and descendants)
+    bool isDescendant(domain.Folder potential, domain.Folder target) {
+      var current = potential;
+      while (current.parentId != null) {
+        if (current.parentId == target.id) return true;
+        final parent = allFolders
+            .where((f) => f.id == current.parentId)
+            .firstOrNull;
+        if (parent == null) break;
+        current = parent;
+      }
+      return false;
+    }
+
+    final availableParents = <domain.Folder?>[null]; // null = root
     for (final f in allFolders) {
-      if (f.id != folder.id && !f.path.startsWith('${folder.path}/')) {
+      if (f.id != folder.id && !isDescendant(f, folder)) {
         availableParents.add(f);
       }
     }
@@ -522,14 +578,30 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
                 title: const Text('Root'),
                 onTap: () => Navigator.pop(context, ''),
               ),
-              ...availableParents.skip(1).map(
-                    (parent) => ListTile(
-                      leading: const Icon(Icons.folder),
-                      title: Text(parent!.name),
-                      subtitle: Text(parent.path),
-                      onTap: () => Navigator.pop(context, parent.id),
-                    ),
-                  ),
+              ...availableParents.skip(1).map((parent) {
+                // Build path from parent chain
+                String buildPath(domain.Folder folder) {
+                  final parts = <String>[];
+                  var current = folder;
+                  while (true) {
+                    parts.insert(0, current.name);
+                    if (current.parentId == null) break;
+                    final parentFolder = allFolders
+                        .where((f) => f.id == current.parentId)
+                        .firstOrNull;
+                    if (parentFolder == null) break;
+                    current = parentFolder;
+                  }
+                  return parts.join(' / ');
+                }
+
+                return ListTile(
+                  leading: const Icon(Icons.folder),
+                  title: Text(parent!.name),
+                  subtitle: Text(buildPath(parent)),
+                  onTap: () => Navigator.pop(context, parent.id),
+                );
+              }),
             ],
           ),
         ),
@@ -545,9 +617,13 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     if (result != null) {
       try {
         final folderRepo = ref.read(folderCoreRepositoryProvider);
-        await folderRepo.update(
-          id: folder.id,
-          parentId: result.isEmpty ? null : result,
+        await folderRepo.moveFolder(folder.id, result.isEmpty ? null : result);
+        _logger.info(
+          'Folder moved',
+          data: {
+            'folderId': folder.id,
+            'newParentId': result.isEmpty ? null : result,
+          },
         );
         HapticFeedback.mediumImpact();
         if (mounted) {
@@ -555,17 +631,26 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             context,
           ).showSnackBar(const SnackBar(content: Text('Folder moved')));
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Failed to move folder: $e')));
-        }
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to move folder',
+          error: error,
+          stackTrace: stackTrace,
+          data: {
+            'folderId': folder.id,
+            'targetParentId': result.isEmpty ? null : result,
+          },
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        _showErrorSnackBar(
+          'Failed to move folder. Please try again.',
+          onRetry: () => unawaited(_moveFolder(context, folder, allFolders)),
+        );
       }
     }
   }
 
-  Future<void> _deleteFolder(BuildContext context, LocalFolder folder) async {
+  Future<void> _deleteFolder(BuildContext context, domain.Folder folder) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -594,7 +679,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
     if (confirmed ?? false) {
       try {
         final folderRepo = ref.read(folderCoreRepositoryProvider);
-        await folderRepo.delete(folder.id);
+        await folderRepo.deleteFolder(folder.id);
+        _logger.info(
+          'Folder deleted',
+          data: {'folderId': folder.id, 'folderName': folder.name},
+        );
         HapticFeedback.mediumImpact();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -605,13 +694,36 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
             widget.onFolderSelected(null);
           }
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete folder: $e')),
-          );
-        }
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to delete folder',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'folderId': folder.id, 'folderName': folder.name},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+        _showErrorSnackBar(
+          'Failed to delete folder. Please try again.',
+          onRetry: () => unawaited(_deleteFolder(context, folder)),
+        );
       }
     }
+  }
+
+  void _showErrorSnackBar(String message, {VoidCallback? onRetry}) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: onRetry,
+              )
+            : null,
+      ),
+    );
   }
 }

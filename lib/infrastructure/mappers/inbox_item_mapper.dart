@@ -30,7 +30,7 @@ class InboxItemMapper {
       noteId: Value(item.noteId),
       processedAt: item.isProcessed && item.noteId != null
           ? Value(DateTime.now())
-          : const Value<String?>.absent(),
+          : const Value<DateTime?>.absent(),
     );
   }
 
@@ -43,7 +43,7 @@ class InboxItemMapper {
       noteId: Value(item.noteId),
       processedAt: item.isProcessed && item.noteId != null
           ? Value(DateTime.now())
-          : const Value<String?>.absent(),
+          : const Value<DateTime?>.absent(),
     );
   }
 
@@ -60,8 +60,8 @@ class InboxItemMapper {
       sourceType: json['source_type'] as String,
       payload: json['payload_json'] as Map<String, dynamic>,
       createdAt: DateTime.parse(json['created_at'] as String),
-      isProcessed: json['is_processed'] as bool? ?? false,
-      noteId: json['note_id'] as String?,
+      isProcessed: json['converted_to_note_id'] != null,
+      noteId: json['converted_to_note_id'] as String?,
     );
   }
 
@@ -73,8 +73,7 @@ class InboxItemMapper {
       'source_type': item.sourceType,
       'payload_json': item.payload,
       'created_at': item.createdAt.toIso8601String(),
-      'is_processed': item.isProcessed,
-      if (item.noteId != null) 'note_id': item.noteId,
+      if (item.noteId != null) 'converted_to_note_id': item.noteId,
     };
   }
 }

@@ -333,11 +333,12 @@ class NetworkAwareService {
           success: results.add,
           failure: (error) {
             errors.add(error);
-            if (stopOnFirstError) {
-              return Result<List<T>, AppError>.failure(error);
-            }
           },
         );
+        // Check if we should stop on first error
+        if (stopOnFirstError && errors.isNotEmpty) {
+          return Result<List<T>, AppError>.failure(errors.first);
+        }
       }
     } else {
       // Execute operations sequentially

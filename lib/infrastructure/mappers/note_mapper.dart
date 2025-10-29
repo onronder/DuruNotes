@@ -1,17 +1,28 @@
-import 'dart:convert';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/local/app_db.dart' as db;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/note_link.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Maps between domain Note entity and infrastructure LocalNote
+/// NOTE: This mapper works with already encrypted/decrypted data.
+/// Encryption/decryption happens at the repository level.
 class NoteMapper {
   /// Convert infrastructure LocalNote to domain Note
   /// Note: folderId must be fetched separately from NoteFolders junction table
-  static domain.Note toDomain(LocalNote localNote, {String? folderId, List<String>? tags, List<domain.NoteLink>? links}) {
+  /// Note: title and body are expected to be already decrypted by the repository
+  static domain.Note toDomain(
+    db.LocalNote localNote, {
+    required String title,
+    required String body,
+    String? folderId,
+    List<String>? tags,
+    List<NoteLink>? links,
+  }) {
     return domain.Note(
       id: localNote.id,
-      title: localNote.title,
-      body: localNote.body,
+      title: title,
+      body: body,
+      createdAt: localNote.createdAt,
       updatedAt: localNote.updatedAt,
       deleted: localNote.deleted,
       encryptedMetadata: localNote.encryptedMetadata,
@@ -23,17 +34,23 @@ class NoteMapper {
       attachmentMeta: localNote.attachmentMeta,
       metadata: localNote.metadata,
       tags: tags ?? [],
-      links: links ?? [],
+      links: _convertLinksToNoteLinkReferences(links ?? []),
     );
   }
 
   /// Convert domain Note to infrastructure LocalNote
   /// Note: folderId relationship must be stored separately in NoteFolders junction table
-  static LocalNote toInfrastructure(domain.Note note) {
-    return LocalNote(
+  /// Note: title and body should be encrypted before passing to this method
+  static db.LocalNote toInfrastructure(
+    domain.Note note, {
+    required String titleEncrypted,
+    required String bodyEncrypted,
+  }) {
+    return db.LocalNote(
       id: note.id,
-      title: note.title,
-      body: note.body,
+      titleEncrypted: titleEncrypted,
+      bodyEncrypted: bodyEncrypted,
+      createdAt: note.createdAt,
       updatedAt: note.updatedAt,
       deleted: note.deleted,
       encryptedMetadata: note.encryptedMetadata,
@@ -44,35 +61,43 @@ class NoteMapper {
       userId: note.userId,
       attachmentMeta: note.attachmentMeta,
       metadata: note.metadata,
-      // conflictState is not part of LocalNote schema
+      encryptionVersion: 1, // Mark as encrypted
     );
   }
 
-  /// Convert LocalNote list to domain Note list
-  static List<domain.Note> toDomainList(List<LocalNote> localNotes) {
-    return localNotes.map((note) => toDomain(note)).toList();
-  }
-
-  /// Convert domain Note list to LocalNote list
-  static List<LocalNote> toInfrastructureList(List<domain.Note> notes) {
-    return notes.map((note) => toInfrastructure(note)).toList();
-  }
-
-  /// Convert NoteLink to domain
-  static domain.NoteLink linkToDomain(NoteLink link) {
-    return domain.NoteLink(
-      sourceId: link.sourceId,
-      targetTitle: link.targetTitle,
-      targetId: link.targetId,
-    );
-  }
-
-  /// Convert domain NoteLink to infrastructure
-  static NoteLink linkToInfrastructure(domain.NoteLink link) {
+  /// Convert database NoteLink to domain NoteLink entity
+  static NoteLink linkToDomain(db.NoteLink dbLink) {
     return NoteLink(
-      sourceId: link.sourceId,
-      targetTitle: link.targetTitle,
-      targetId: link.targetId,
+      id: '${dbLink.sourceId}_${dbLink.targetTitle}', // Generate ID from source and target
+      fromNoteId: dbLink.sourceId,
+      toNoteId: dbLink.targetId ?? '',
+      linkType: 'reference', // Default type for database links
+      linkText: dbLink.targetTitle,
+      createdAt: DateTime.now(), // Database doesn't store creation time
     );
+  }
+
+  /// Convert domain NoteLink entity to database NoteLink
+  static db.NoteLink linkToInfrastructure(NoteLink link) {
+    return db.NoteLink(
+      sourceId: link.fromNoteId,
+      targetTitle: link.linkText ?? link.toNoteId,
+      targetId: link.toNoteId.isEmpty ? null : link.toNoteId,
+    );
+  }
+
+  /// Helper to convert full NoteLink entities to simple NoteLinkReferences
+  static List<domain.NoteLinkReference> _convertLinksToNoteLinkReferences(
+    List<NoteLink> links,
+  ) {
+    return links
+        .map(
+          (link) => domain.NoteLinkReference(
+            sourceId: link.fromNoteId,
+            targetTitle: link.linkText ?? link.toNoteId,
+            targetId: link.toNoteId.isEmpty ? null : link.toNoteId,
+          ),
+        )
+        .toList();
   }
 }

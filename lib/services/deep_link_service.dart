@@ -2,20 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show enhancedTaskServiceProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/providers/infrastructure_providers.dart';
 
 /// Service for handling deep links from notifications to specific app content
 typedef Reader = T Function<T>(ProviderListenable<T> provider);
 
 class DeepLinkService {
-  DeepLinkService(this._ref, {
-    required Reader read,
-  }) : _read = read;
+  DeepLinkService(this._ref, {required Reader read}) : _read = read;
 
   final Ref _ref;
   final Reader _read;
@@ -118,17 +123,23 @@ class DeepLinkService {
     String? noteId,
   ) async {
     try {
-      final db = _read(appDbProvider);
-      final task = await db.getTaskById(taskId);
+      final taskRepo = _read(taskRepositoryProvider);
+      if (taskRepo == null) {
+        _showTaskNotFoundMessage(context);
+        return;
+      }
+      final task = await taskRepo.getTaskById(taskId);
 
       if (task == null) {
         _showTaskNotFoundMessage(context);
         return;
       }
 
-      if (noteId != null && noteId != 'standalone') {
+      final effectiveNoteId = noteId ?? task.noteId;
+
+      if (!DomainTaskController.isStandaloneNoteId(effectiveNoteId)) {
         // Open in note context
-        await _openNoteWithTaskHighlight(context, noteId, taskId);
+        await _openNoteWithTaskHighlight(context, effectiveNoteId, taskId);
       } else {
         // Open task list and show task details
         await _openTaskListWithTaskHighlight(context, taskId);
@@ -147,14 +158,15 @@ class DeepLinkService {
   /// Open note editor
   Future<void> _openNote(BuildContext context, String noteId) async {
     try {
-      final notesRepo = _read(notesRepositoryProvider);
-      final note = await notesRepo.getNote(noteId);
+      final notesRepo = _read(notesCoreRepositoryProvider);
+      final note = await notesRepo.getNoteById(noteId);
 
       if (note == null) {
         _showNoteNotFoundMessage(context);
         return;
       }
 
+      // Note is domain.Note (already decrypted) with title and body properties
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (context) => ModernEditNoteScreen(
@@ -182,19 +194,19 @@ class DeepLinkService {
     String taskId,
   ) async {
     try {
-      final notesRepo = _read(notesRepositoryProvider);
-      final note = await notesRepo.getNote(noteId);
+      final notesRepo = _read(notesCoreRepositoryProvider);
+      final note = await notesRepo.getNoteById(noteId);
 
       if (note == null) {
         _showNoteNotFoundMessage(context);
         return;
       }
 
-      // Get task details for highlighting
-      final db = _read(appDbProvider);
-      final task = await db.getTaskById(taskId);
+      // Get task details for highlighting (use repository for decryption)
+      final taskRepo = _read(taskRepositoryProvider);
+      final task = taskRepo != null ? await taskRepo.getTaskById(taskId) : null;
 
-      // Open note with task highlighting
+      // Open note with task highlighting (both note and task are already decrypted)
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (context) => ModernEditNoteScreen(
@@ -202,14 +214,15 @@ class DeepLinkService {
             initialTitle: note.title,
             initialBody: note.body,
             highlightTaskId: taskId,
-            highlightTaskContent: task?.content,
+            highlightTaskContent:
+                task?.title, // task.title instead of task.content
           ),
         ),
       );
 
       // Show a toast indicating which task triggered the notification
       if (task != null) {
-        _showTaskHighlightMessage(context, task.content);
+        _showTaskHighlightMessage(context, task.title);
       }
     } catch (e, stack) {
       _logger.error(
@@ -231,11 +244,7 @@ class DeepLinkService {
         ),
       );
     } catch (e, stack) {
-      _logger.error(
-        'Failed to open task list',
-        error: e,
-        stackTrace: stack,
-      );
+      _logger.error('Failed to open task list', error: e, stackTrace: stack);
       _showErrorMessage(context, 'Could not open task list');
     }
   }
@@ -277,10 +286,10 @@ class DeepLinkService {
         payload: payload,
       );
 
-      _logger.info('Handled task notification action', data: {
-        'action': action,
-        'payload': payload,
-      });
+      _logger.info(
+        'Handled task notification action',
+        data: {'action': action, 'payload': payload},
+      );
     } catch (e, stack) {
       _logger.error(
         'Failed to handle task notification action',
@@ -331,9 +340,7 @@ class DeepLinkService {
         backgroundColor: Colors.blue,
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -341,10 +348,7 @@ class DeepLinkService {
   /// Show generic error message
   void _showErrorMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -360,20 +364,13 @@ class DeepLinkService {
 
   /// Create deep link URL for note
   String createNoteDeepLink(String noteId) {
-    final data = {
-      'type': 'note',
-      'noteId': noteId,
-    };
+    final data = {'type': 'note', 'noteId': noteId};
     return 'durunotes://note?data=${Uri.encodeComponent(jsonEncode(data))}';
   }
 
   /// Create deep link URL for task reminder
   String createTaskReminderDeepLink(String taskId, String noteId) {
-    final data = {
-      'type': 'task_reminder',
-      'taskId': taskId,
-      'noteId': noteId,
-    };
+    final data = {'type': 'task_reminder', 'taskId': taskId, 'noteId': noteId};
     return 'durunotes://reminder?data=${Uri.encodeComponent(jsonEncode(data))}';
   }
 }

@@ -1,266 +1,230 @@
-import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/template_repository.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/note.dart' as note_domain;
+import 'package:duru_notes/domain/entities/template.dart' as template_domain;
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
+import 'package:duru_notes/models/note_kind.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Integration test for template management system
+class _CapturingNotesRepository implements INotesRepository {
+  final List<Map<String, dynamic>> capturedCalls = [];
+  final List<note_domain.Note> createdNotes = [];
+
+  @override
+  Future<note_domain.Note?> createOrUpdate({
+    required String title,
+    required String body,
+    String? id,
+    String? folderId,
+    List<String> tags = const [],
+    List<Map<String, String?>> links = const [],
+    Map<String, dynamic>? attachmentMeta,
+    Map<String, dynamic>? metadataJson,
+    bool? isPinned,
+  }) async {
+    final timestamp = DateTime.now();
+    final note = note_domain.Note(
+      id: id ?? 'note-${createdNotes.length + 1}',
+      title: title,
+      body: body,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      deleted: false,
+      encryptedMetadata: null,
+      isPinned: isPinned ?? false,
+      noteType: NoteKind.note,
+      folderId: folderId,
+      version: 1,
+      userId: 'user-123',
+      attachmentMeta: attachmentMeta?.toString(),
+      metadata: metadataJson?.toString(),
+      tags: tags,
+      links: const [],
+    );
+
+    createdNotes.add(note);
+    capturedCalls.add({
+      'title': title,
+      'body': body,
+      'folderId': folderId,
+      'tags': List<String>.from(tags),
+      'links': List<Map<String, String?>>.from(links),
+      'metadata': metadataJson,
+      'attachmentMeta': attachmentMeta,
+      'isPinned': isPinned ?? false,
+    });
+
+    return note;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Harness {
+  _Harness() : db = AppDb.forTesting(NativeDatabase.memory()) {
+    _notesRepository.capturedCalls.clear();
+    _notesRepository.createdNotes.clear();
+    supabaseClient = SupabaseClient('https://test.supabase.co', 'test-key');
+    templateRepository = TemplateCoreRepository(
+      db: db,
+      client: supabaseClient,
+      notesRepository: _notesRepository,
+      userIdResolver: () => 'user-123',
+    );
+  }
+
+  final AppDb db;
+  late final SupabaseClient supabaseClient;
+  late final TemplateCoreRepository templateRepository;
+
+  static final _CapturingNotesRepository _notesRepository =
+      _CapturingNotesRepository();
+
+  Future<void> dispose() async {
+    await db.close();
+  }
+}
+
 void main() {
-  group('Template Management Integration Tests', () {
-    late AppDb database;
-    late TemplateRepository repository;
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('Template management integration', () {
+    late _Harness harness;
 
     setUp(() async {
-      // Create in-memory database for testing
-      database = AppDb.forTesting(NativeDatabase.memory());
-      repository = TemplateRepository(db: database);
+      harness = _Harness();
+      await _seedSystemTemplate(harness.db);
     });
 
     tearDown(() async {
-      await database.close();
+      await harness.dispose();
     });
 
-    test('should create and retrieve user template', () async {
-      // Create a user template
-      final template = await repository.createUserTemplate(
-        title: 'Test Template',
-        body: 'This is a test template with {{placeholder}}',
-        category: 'work',
-        description: 'A test template for integration testing',
-        tags: ['test', 'integration'],
+    test('creates user template and enqueues sync operation', () async {
+      final repository = harness.templateRepository;
+      final createdAt = DateTime.utc(2025, 1, 1);
+
+      final template = template_domain.Template(
+        id: '',
+        name: 'Release Postmortem',
+        content: '# Postmortem\nSummary goes here.',
+        variables: const {
+          'tags': ['retro'],
+        },
+        isSystem: false,
+        createdAt: createdAt,
+        updatedAt: createdAt,
       );
 
-      expect(template, isNotNull);
-      expect(template!.title, equals('Test Template'));
-      expect(template.isSystem, isFalse);
-      expect(template.category, equals('work'));
+      final created = await repository.createTemplate(template);
+      expect(created.id, isNotEmpty);
 
-      // Retrieve the template
-      final retrieved = await repository.getTemplate(template.id);
-      expect(retrieved, isNotNull);
-      expect(retrieved!.title, equals('Test Template'));
-      expect(retrieved.body, contains('{{placeholder}}'));
+      final stored = await harness.db.getTemplate(created.id);
+      expect(stored, isNotNull);
+      expect(stored!.userId, equals('user-123'));
+      expect(stored.title, equals('Release Postmortem'));
+      expect(stored.isSystem, isFalse);
+
+      final pending = await harness.db.getPendingOpsForUser('user-123');
+      expect(
+        pending.where(
+          (op) => op.entityId == created.id && op.kind == 'upsert_template',
+        ),
+        isNotEmpty,
+      );
     });
 
-    test('should update user template', () async {
-      // Create a template
-      final original = await repository.createUserTemplate(
-        title: 'Original Template',
-        body: 'Original content',
-        category: 'personal',
+    test(
+      'applies template with variable substitution and note creation',
+      () async {
+        final repository = harness.templateRepository;
+        final now = DateTime.utc(2025, 1, 2);
+
+        final template = template_domain.Template(
+          id: 'template-apply',
+          name: 'Daily Stand-up',
+          content: '''# {{title}}
+- Yesterday: {{yesterday}}
+- Today: {{today}}
+- Blockers: {{blockers}}''',
+          variables: const {
+            'tags': ['standup', 'daily'],
+            'isPinned': 'true',
+          },
+          isSystem: false,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await repository.createTemplate(template);
+
+        final noteId = await repository.applyTemplate(
+          templateId: 'template-apply',
+          variableValues: const {
+            'title': 'Daily Sync – Oct 26',
+            'yesterday': 'Shipped analytics fixes',
+            'today': 'Integrating template coverage',
+            'blockers': 'None',
+            'folderId': 'team-updates',
+            'links': [
+              {'title': 'Ticket-123', 'id': 'ticket-123'},
+            ],
+            'metadata': {'createdFrom': 'standup-template'},
+          },
+        );
+
+        expect(noteId, isNotEmpty);
+        final captured = _Harness._notesRepository.capturedCalls.last;
+
+        expect(captured['title'], equals('Daily Sync – Oct 26'));
+        expect(captured['body'], contains('Shipped analytics fixes'));
+        expect(captured['folderId'], equals('team-updates'));
+        expect(captured['tags'], containsAll(['standup', 'daily']));
+        expect(captured['isPinned'], isTrue);
+        expect(captured['links'], hasLength(1));
+        expect(captured['metadata'], {'createdFrom': 'standup-template'});
+      },
+    );
+
+    test('applyTemplate requires authenticated user', () async {
+      final repository = TemplateCoreRepository(
+        db: harness.db,
+        client: harness.supabaseClient,
+        notesRepository: _Harness._notesRepository,
+        userIdResolver: () => null,
       );
 
-      expect(original, isNotNull);
-
-      // Update the template
-      final updated = await repository.updateUserTemplate(
-        id: original!.id,
-        title: 'Updated Template',
-        body: 'Updated content with {{variable}}',
-        category: 'work',
-        description: 'Updated description',
+      await expectLater(
+        () => repository.applyTemplate(
+          templateId: 'system_template',
+          variableValues: const {},
+        ),
+        throwsA(isA<StateError>()),
       );
-
-      expect(updated, isTrue);
-
-      // Verify the update
-      final retrieved = await repository.getTemplate(original.id);
-      expect(retrieved, isNotNull);
-      expect(retrieved!.title, equals('Updated Template'));
-      expect(retrieved.body, equals('Updated content with {{variable}}'));
-      expect(retrieved.category, equals('work'));
-      expect(retrieved.description, equals('Updated description'));
-    });
-
-    test('should delete user template', () async {
-      // Create a template
-      final template = await repository.createUserTemplate(
-        title: 'Template to Delete',
-        body: 'This will be deleted',
-        category: 'test',
-      );
-
-      expect(template, isNotNull);
-
-      // Delete the template
-      final deleted = await repository.deleteUserTemplate(template!.id);
-      expect(deleted, isTrue);
-
-      // Verify it's deleted
-      final retrieved = await repository.getTemplate(template.id);
-      expect(retrieved, isNull);
-    });
-
-    test('should not delete system templates', () async {
-      // Initialize system templates
-      await database._initializeSystemTemplates();
-
-      // Get a system template
-      final systemTemplates = await repository.getSystemTemplates();
-      expect(systemTemplates, isNotEmpty);
-
-      final systemTemplate = systemTemplates.first;
-      expect(systemTemplate.isSystem, isTrue);
-
-      // Try to delete it
-      final deleted = await repository.deleteUserTemplate(systemTemplate.id);
-      expect(deleted, isFalse);
-
-      // Verify it still exists
-      final retrieved = await repository.getTemplate(systemTemplate.id);
-      expect(retrieved, isNotNull);
-    });
-
-    test('should filter templates by category', () async {
-      // Create templates in different categories
-      await repository.createUserTemplate(
-        title: 'Work Template 1',
-        body: 'Work content 1',
-        category: 'work',
-      );
-
-      await repository.createUserTemplate(
-        title: 'Work Template 2',
-        body: 'Work content 2',
-        category: 'work',
-      );
-
-      await repository.createUserTemplate(
-        title: 'Personal Template',
-        body: 'Personal content',
-        category: 'personal',
-      );
-
-      // Filter by work category
-      final workTemplates = await repository.getTemplatesByCategory('work');
-      expect(workTemplates, hasLength(2));
-      expect(workTemplates.every((t) => t.category == 'work'), isTrue);
-
-      // Filter by personal category
-      final personalTemplates = await repository.getTemplatesByCategory('personal');
-      expect(personalTemplates, hasLength(1));
-      expect(personalTemplates.first.category, equals('personal'));
-    });
-
-    test('should create note data from template', () async {
-      // Create a template with variables
-      final template = await repository.createUserTemplate(
-        title: 'Meeting Notes Template',
-        body: '''# Meeting Notes
-Date: {{date}}
-Attendees: {{attendees}}
-
-## Agenda
-{{agenda}}
-
-## Action Items
-- [ ] {{action1}}
-- [ ] {{action2}}
-''',
-        category: 'meeting',
-        tags: ['meeting', 'notes'],
-      );
-
-      expect(template, isNotNull);
-
-      // Create note data from template
-      final noteData = repository.createNoteFromTemplate(template!);
-
-      expect(noteData, isNotNull);
-      expect(noteData['title'], equals('Meeting Notes Template'));
-      expect(noteData['body'], contains('{{date}}'));
-      expect(noteData['body'], contains('{{attendees}}'));
-      expect(noteData['tags'], isA<List>());
-      expect(noteData['metadata'], isA<Map>());
-
-      final metadata = noteData['metadata'] as Map;
-      expect(metadata['createdFromTemplate'], isTrue);
-      expect(metadata['templateId'], equals(template.id));
-      expect(metadata['templateCategory'], equals('meeting'));
-    });
-
-    test('should export and import templates', () async {
-      // Create a template
-      final original = await repository.createUserTemplate(
-        title: 'Export Test Template',
-        body: 'Content for export test',
-        category: 'test',
-        description: 'Template for testing export/import',
-        tags: ['export', 'test'],
-      );
-
-      expect(original, isNotNull);
-
-      // Export the template
-      final exported = repository.exportTemplate(original!);
-
-      expect(exported, isNotNull);
-      expect(exported['title'], equals('Export Test Template'));
-      expect(exported['body'], equals('Content for export test'));
-      expect(exported['category'], equals('test'));
-      expect(exported['tags'], isA<List>());
-      expect(exported['version'], equals('1.0'));
-
-      // Import the template (this creates a new template)
-      final imported = await repository.importTemplate(exported);
-
-      expect(imported, isNotNull);
-      expect(imported!.title, equals('Export Test Template'));
-      expect(imported.body, equals('Content for export test'));
-      expect(imported.category, equals('test'));
-      expect(imported.isSystem, isFalse);
-    });
-
-    test('should get template statistics', () async {
-      // Create templates
-      await repository.createUserTemplate(
-        title: 'Work Template',
-        body: 'Work content',
-        category: 'work',
-      );
-
-      await repository.createUserTemplate(
-        title: 'Personal Template',
-        body: 'Personal content',
-        category: 'personal',
-      );
-
-      // Initialize system templates
-      await database._initializeSystemTemplates();
-
-      // Get statistics
-      final stats = await repository.getTemplateStatistics();
-
-      expect(stats, isNotNull);
-      expect(stats['totalTemplates'], greaterThan(0));
-      expect(stats['systemTemplates'], greaterThan(0));
-      expect(stats['userTemplates'], equals(2));
-      expect(stats['categoryCounts'], isA<Map>());
-
-      final categoryCounts = stats['categoryCounts'] as Map<String, int>;
-      expect(categoryCounts['work'], greaterThan(0));
-      expect(categoryCounts['personal'], greaterThan(0));
-    });
-
-    test('should handle template errors gracefully', () async {
-      // Test creating template with empty title
-      final emptyTemplate = await repository.createUserTemplate(
-        title: '',
-        body: 'Content',
-        category: 'test',
-      );
-      expect(emptyTemplate, isNull);
-
-      // Test updating non-existent template
-      final updateResult = await repository.updateUserTemplate(
-        id: 'non-existent-id',
-        title: 'Updated Title',
-      );
-      expect(updateResult, isFalse);
-
-      // Test deleting non-existent template
-      final deleteResult = await repository.deleteUserTemplate('non-existent-id');
-      expect(deleteResult, isFalse);
     });
   });
+}
+
+Future<void> _seedSystemTemplate(AppDb db) async {
+  final now = DateTime.utc(2025, 1, 1);
+
+  await db
+      .into(db.localTemplates)
+      .insert(
+        LocalTemplatesCompanion.insert(
+          id: 'system_template',
+          title: '📋 Checklist',
+          body: '- [ ] Item 1\n- [ ] Item 2',
+          isSystem: const Value(true),
+          category: 'system',
+          description: 'Reusable checklist template',
+          icon: 'checklist',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
 }

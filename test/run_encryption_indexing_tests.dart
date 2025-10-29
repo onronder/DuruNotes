@@ -1,19 +1,19 @@
 #!/usr/bin/env dart
 
-/// Test runner script for encryption and indexing verification tests
-///
-/// This script runs comprehensive tests to verify that:
-/// 1. ImportService properly calls NotesRepository.createOrUpdate
-/// 2. ImportService properly calls NoteIndexer.indexNote
-/// 3. Notes are encrypted when stored in the database
-/// 4. Notes are properly indexed for search functionality
-///
-/// Usage:
-///   dart test/run_encryption_indexing_tests.dart
-///
-/// Or run individual test files:
-///   flutter test test/services/import_encryption_indexing_test.dart
-///   flutter test integration_test/import_encryption_indexing_test.dart
+// Test runner script for encryption and indexing verification tests
+//
+// This script runs comprehensive tests to verify that:
+// 1. ImportService properly calls NotesRepository.createOrUpdate
+// 2. ImportService properly calls NoteIndexer.indexNote
+// 3. Notes are encrypted when stored in the database
+// 4. Notes are properly indexed for search functionality
+//
+// Usage:
+//   dart test/run_encryption_indexing_tests.dart
+//
+// Or run individual test files:
+//   flutter test test/services/import_encryption_indexing_test.dart
+//   flutter test integration_test/import_encryption_indexing_test.dart
 
 import 'dart:io';
 

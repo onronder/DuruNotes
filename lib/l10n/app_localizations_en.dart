@@ -1018,4 +1018,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manageTemplates => 'Manage Templates';
+
+  @override
+  String get notifEmailReceivedTitle => '📧 New Email in Inbox';
+
+  @override
+  String notifEmailReceivedBody(String sender, String subject) {
+    return 'From $sender: $subject\\n\\nEmail note is ready to convert to a note.';
+  }
+
+  @override
+  String get notifWebClipSavedTitle => '✂️ Content Clipped Successfully';
+
+  @override
+  String notifWebClipSavedBody(String preview) {
+    return '$preview\\n\\nSaved to your inbox and ready to use.';
+  }
+
+  @override
+  String get notifTaskReminderTitle => '⏰ Task Reminder';
+
+  @override
+  String notifTaskReminderBody(String taskTitle) {
+    return '$taskTitle\\n\\nDue now!';
+  }
+
+  @override
+  String get notifTaskAssignedTitle => '📋 New Task with Reminder';
+
+  @override
+  String notifTaskAssignedBody(String taskTitle, String dueDate) {
+    return '$taskTitle\\nDue: $dueDate\\n\\nReminder is set and will notify you.';
+  }
 }

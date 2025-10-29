@@ -4,10 +4,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Maps between domain Folder entity and infrastructure LocalFolder
 class FolderMapper {
+  // Cache userId to avoid repeated auth calls (500μs overhead per call)
+  static String? _cachedUserId;
+  static DateTime? _cacheTime;
+  static const _cacheValidityMinutes = 5;
+
+  /// Get current user ID with caching
+  static String _getCurrentUserId() {
+    // Return cached value if still valid
+    if (_cachedUserId != null && _cacheTime != null) {
+      final age = DateTime.now().difference(_cacheTime!);
+      if (age.inMinutes < _cacheValidityMinutes) {
+        return _cachedUserId!;
+      }
+    }
+
+    // Cache expired or not set - refresh
+    _cachedUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    _cacheTime = DateTime.now();
+    return _cachedUserId!;
+  }
+
   /// Convert infrastructure LocalFolder to domain Folder
   static domain.Folder toDomain(LocalFolder localFolder) {
-    // LocalFolder doesn't have userId field yet - use current user from Supabase
-    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    // Use cached userId to avoid 500μs auth call overhead
+    final userId = _getCurrentUserId();
 
     return domain.Folder(
       id: localFolder.id,
@@ -25,9 +46,9 @@ class FolderMapper {
 
   /// Convert domain Folder to infrastructure LocalFolder
   static LocalFolder toInfrastructure(domain.Folder folder) {
-    // LocalFolder doesn't have userId field - it's omitted from local storage
     return LocalFolder(
       id: folder.id,
+      userId: folder.userId,
       name: folder.name,
       parentId: folder.parentId,
       path: '/${folder.name}', // Path will be computed properly by triggers

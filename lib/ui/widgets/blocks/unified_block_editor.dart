@@ -5,6 +5,7 @@ import 'package:duru_notes/models/note_block.dart';
 import 'package:duru_notes/ui/widgets/blocks/block_editor.dart';
 import 'package:duru_notes/ui/widgets/blocks/code_block_widget.dart';
 import 'package:duru_notes/ui/widgets/blocks/heading_block_widget.dart';
+import 'package:duru_notes/ui/widgets/blocks/hierarchical_todo_block_widget.dart';
 import 'package:duru_notes/ui/widgets/blocks/list_block_widget.dart';
 import 'package:duru_notes/ui/widgets/blocks/paragraph_block_widget.dart';
 import 'package:duru_notes/ui/widgets/blocks/table_block_widget.dart';
@@ -207,7 +208,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
               child: ReorderableListView.builder(
                 buildDefaultDragHandles: widget.config.allowReordering,
                 onReorder:
-                    widget.config.allowReordering ? _onReorder : (_, __) {},
+                    widget.config.allowReordering ? _onReorder : (_, _) {},
                 padding: widget.config.padding ?? const EdgeInsets.all(16),
                 itemCount: _blocks.length,
                 itemBuilder: (context, index) {
@@ -358,15 +359,37 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         );
 
       case NoteBlockType.todo:
-        return TodoBlockWidget(
-          block: block,
-          noteId: widget.noteId,
-          position: index,
-          isFocused: isFocused,
-          onChanged: (newBlock) => _updateBlock(index, newBlock),
-          onFocusChanged: (focused) => _handleFocusChange(index, focused),
-          onNewLine: () => _insertBlock(index + 1, createTodoBlock('')),
-        );
+        // PRODUCTION-GRADE: Extract indent level from block data and route intelligently
+        final parts = block.data.split(':');
+        final indentLevel = parts.length >= 3 ? (int.tryParse(parts[1]) ?? 0) : 0;
+
+        // Route to hierarchical widget if indented, otherwise flat widget
+        // The HierarchicalTodoBlockWidget will handle parent-child relationships
+        // by analyzing the task hierarchy in the database
+        if (indentLevel > 0) {
+          return HierarchicalTodoBlockWidget(
+            block: block,
+            noteId: widget.noteId,
+            position: index,
+            indentLevel: indentLevel,
+            isFocused: isFocused,
+            onChanged: (newBlock) => _updateBlock(index, newBlock),
+            onFocusChanged: (focused) => _handleFocusChange(index, focused),
+            onNewLine: () => _insertBlock(index + 1, createTodoBlock('')),
+            onIndentChanged: (newLevel) => _handleIndentChange(index, newLevel),
+            parentTaskId: null, // Widget will determine parent from task hierarchy
+          );
+        } else {
+          return TodoBlockWidget(
+            block: block,
+            noteId: widget.noteId,
+            position: index,
+            isFocused: isFocused,
+            onChanged: (newBlock) => _updateBlock(index, newBlock),
+            onFocusChanged: (focused) => _handleFocusChange(index, focused),
+            onNewLine: () => _insertBlock(index + 1, createTodoBlock('')),
+          );
+        }
 
       case NoteBlockType.code:
         return CodeBlockWidget(
@@ -639,6 +662,32 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
       case 'delete':
         _deleteBlock(index);
     }
+  }
+
+  /// PRODUCTION-GRADE: Handle indent level changes for hierarchical todos
+  void _handleIndentChange(int index, int newLevel) {
+    if (index < 0 || index >= _blocks.length) return;
+
+    final block = _blocks[index];
+    if (block.type != NoteBlockType.todo) return;
+
+    // Parse current todo data
+    final parts = block.data.split(':');
+    if (parts.length < 3) {
+      _logger.warning('Invalid todo data format at index $index: ${block.data}');
+      return;
+    }
+
+    // Reconstruct todo data with new indent level
+    final isCompleted = parts[0];
+    final text = parts.skip(2).join(':');
+    final newTodoData = '$isCompleted:$newLevel:$text';
+
+    // Update block with new indent level
+    final newBlock = block.copyWith(data: newTodoData);
+    _updateBlock(index, newBlock);
+
+    _logger.info('Updated indent level for block $index to $newLevel');
   }
 
   void _toggleMarkdownMode() {

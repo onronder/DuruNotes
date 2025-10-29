@@ -38,7 +38,9 @@ class ConflictRepository implements IConflictRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'ConflictRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -49,7 +51,11 @@ class ConflictRepository implements IConflictRepository {
     try {
       return _conflictCache[id];
     } catch (e, stack) {
-      _logger.error('Failed to get conflict by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get conflict by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getById',
         error: e,
@@ -68,7 +74,11 @@ class ConflictRepository implements IConflictRepository {
           .toList()
         ..sort((a, b) => b.detectedAt.compareTo(a.detectedAt));
     } catch (e, stack) {
-      _logger.error('Failed to get unresolved conflicts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get unresolved conflicts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getUnresolved',
         error: e,
@@ -81,12 +91,14 @@ class ConflictRepository implements IConflictRepository {
   @override
   Future<List<domain.Conflict>> getByEntityId(String entityId) async {
     try {
-      return _conflictCache.values
-          .where((c) => c.entityId == entityId)
-          .toList()
+      return _conflictCache.values.where((c) => c.entityId == entityId).toList()
         ..sort((a, b) => b.detectedAt.compareTo(a.detectedAt));
     } catch (e, stack) {
-      _logger.error('Failed to get conflicts for entity: $entityId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get conflicts for entity: $entityId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getByEntityId',
         error: e,
@@ -105,7 +117,11 @@ class ConflictRepository implements IConflictRepository {
           .toList()
         ..sort((a, b) => b.detectedAt.compareTo(a.detectedAt));
     } catch (e, stack) {
-      _logger.error('Failed to get conflicts for entity type: $entityType', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get conflicts for entity type: $entityType',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getByEntityType',
         error: e,
@@ -119,12 +135,14 @@ class ConflictRepository implements IConflictRepository {
   @override
   Future<List<domain.Conflict>> getByType(domain.ConflictType type) async {
     try {
-      return _conflictCache.values
-          .where((c) => c.type == type)
-          .toList()
+      return _conflictCache.values.where((c) => c.type == type).toList()
         ..sort((a, b) => b.detectedAt.compareTo(a.detectedAt));
     } catch (e, stack) {
-      _logger.error('Failed to get conflicts by type: ${type.name}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get conflicts by type: ${type.name}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getByType',
         error: e,
@@ -139,7 +157,9 @@ class ConflictRepository implements IConflictRepository {
   Future<domain.Conflict> create(domain.Conflict conflict) async {
     try {
       _conflictCache[conflict.id] = conflict;
-      _logger.info('Created conflict: ${conflict.id} for entity: ${conflict.entityId}');
+      _logger.info(
+        'Created conflict: ${conflict.id} for entity: ${conflict.entityId}',
+      );
       await _persistToStorage();
       return conflict;
     } catch (e, stack) {
@@ -162,7 +182,11 @@ class ConflictRepository implements IConflictRepository {
       await _persistToStorage();
       return conflict;
     } catch (e, stack) {
-      _logger.error('Failed to update conflict: ${conflict.id}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update conflict: ${conflict.id}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'update',
         error: e,
@@ -174,12 +198,17 @@ class ConflictRepository implements IConflictRepository {
   }
 
   @override
-  Future<void> resolve(String conflictId, domain.ConflictResolution resolution) async {
+  Future<void> resolve(
+    String conflictId,
+    domain.ConflictResolution resolution,
+  ) async {
     try {
       final conflict = _conflictCache[conflictId];
       if (conflict == null) {
         final missingError = StateError('Conflict not found');
-        _logger.warning('Conflict not found when attempting resolution: $conflictId');
+        _logger.warning(
+          'Conflict not found when attempting resolution: $conflictId',
+        );
         _captureRepositoryException(
           method: 'resolve',
           error: missingError,
@@ -208,10 +237,16 @@ class ConflictRepository implements IConflictRepository {
       _conflictCache[conflictId] = resolvedConflict;
       _resolutionCache[conflictId] = resolution;
 
-      _logger.info('Resolved conflict: $conflictId with strategy: ${resolution.strategy.name}');
+      _logger.info(
+        'Resolved conflict: $conflictId with strategy: ${resolution.strategy.name}',
+      );
       await _persistToStorage();
     } catch (e, stack) {
-      _logger.error('Failed to resolve conflict: $conflictId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to resolve conflict: $conflictId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'resolve',
         error: e,
@@ -230,7 +265,11 @@ class ConflictRepository implements IConflictRepository {
       _logger.info('Deleted conflict: $id');
       await _persistToStorage();
     } catch (e, stack) {
-      _logger.error('Failed to delete conflict: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to delete conflict: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'delete',
         error: e,
@@ -251,7 +290,8 @@ class ConflictRepository implements IConflictRepository {
       final toDelete = <String>[];
       for (final conflict in _conflictCache.values) {
         if (conflict.resolution != null && conflict.resolution!.isResolved) {
-          if (cutoff == null || conflict.resolution!.resolvedAt.isBefore(cutoff)) {
+          if (cutoff == null ||
+              conflict.resolution!.resolvedAt.isBefore(cutoff)) {
             toDelete.add(conflict.id);
           }
         }
@@ -265,7 +305,11 @@ class ConflictRepository implements IConflictRepository {
       _logger.info('Deleted ${toDelete.length} resolved conflicts');
       await _persistToStorage();
     } catch (e, stack) {
-      _logger.error('Failed to delete resolved conflicts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to delete resolved conflicts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'deleteResolved',
         error: e,
@@ -282,7 +326,11 @@ class ConflictRepository implements IConflictRepository {
           .where((c) => c.resolution == null || !c.resolution!.isResolved)
           .length;
     } catch (e, stack) {
-      _logger.error('Failed to get unresolved count', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get unresolved count',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getUnresolvedCount',
         error: e,
@@ -301,7 +349,11 @@ class ConflictRepository implements IConflictRepository {
         return await getUnresolved();
       }).asyncMap((future) => future);
     } catch (e, stack) {
-      _logger.error('Failed to watch unresolved conflicts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to watch unresolved conflicts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'watchUnresolved',
         error: e,
@@ -320,7 +372,11 @@ class ConflictRepository implements IConflictRepository {
         return await getUnresolvedCount();
       }).asyncMap((future) => future);
     } catch (e, stack) {
-      _logger.error('Failed to watch unresolved count', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to watch unresolved count',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'watchUnresolvedCount',
         error: e,
@@ -335,7 +391,11 @@ class ConflictRepository implements IConflictRepository {
     try {
       return _resolutionCache[conflictId];
     } catch (e, stack) {
-      _logger.error('Failed to get resolution for conflict: $conflictId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get resolution for conflict: $conflictId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getResolution',
         error: e,
@@ -352,7 +412,9 @@ class ConflictRepository implements IConflictRepository {
       final conflict = _conflictCache[conflictId];
       if (conflict == null) {
         final missingConflict = StateError('Conflict not found');
-        _logger.warning('Conflict not found when applying resolution: $conflictId');
+        _logger.warning(
+          'Conflict not found when applying resolution: $conflictId',
+        );
         _captureRepositoryException(
           method: 'applyResolution',
           error: missingConflict,
@@ -366,7 +428,9 @@ class ConflictRepository implements IConflictRepository {
       final resolution = conflict.resolution;
       if (resolution == null) {
         final unresolvedError = StateError('Conflict not resolved');
-        _logger.warning('Conflict not resolved when applying resolution: $conflictId');
+        _logger.warning(
+          'Conflict not resolved when applying resolution: $conflictId',
+        );
         _captureRepositoryException(
           method: 'applyResolution',
           error: unresolvedError,
@@ -390,12 +454,14 @@ class ConflictRepository implements IConflictRepository {
           resolvedData = resolution.mergedData ?? conflict.localData;
           break;
         case domain.ConflictResolutionStrategy.lastWriteWins:
-          resolvedData = conflict.localTimestamp.isAfter(conflict.remoteTimestamp)
+          resolvedData =
+              conflict.localTimestamp.isAfter(conflict.remoteTimestamp)
               ? conflict.localData
               : conflict.remoteData;
           break;
         case domain.ConflictResolutionStrategy.firstWriteWins:
-          resolvedData = conflict.localTimestamp.isBefore(conflict.remoteTimestamp)
+          resolvedData =
+              conflict.localTimestamp.isBefore(conflict.remoteTimestamp)
               ? conflict.localData
               : conflict.remoteData;
           break;
@@ -406,7 +472,11 @@ class ConflictRepository implements IConflictRepository {
       _logger.info('Applied resolution for conflict: $conflictId');
       return resolvedData;
     } catch (e, stack) {
-      _logger.error('Failed to apply resolution for conflict: $conflictId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to apply resolution for conflict: $conflictId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'applyResolution',
         error: e,
@@ -426,7 +496,11 @@ class ConflictRepository implements IConflictRepository {
       }
       return stats;
     } catch (e, stack) {
-      _logger.error('Failed to get conflict stats by type', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get conflict stats by type',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getStatsByType',
         error: e,
@@ -462,7 +536,11 @@ class ConflictRepository implements IConflictRepository {
       final domainConflict = ConflictMapper.toDomain(dataConflict);
       await create(domainConflict);
     } catch (e, stack) {
-      _logger.error('Failed to detect conflicts for entity: $entityId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to detect conflicts for entity: $entityId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'detectConflicts',
         error: e,
@@ -473,14 +551,21 @@ class ConflictRepository implements IConflictRepository {
   }
 
   @override
-  Future<void> batchResolve(List<String> conflictIds, domain.ConflictResolutionStrategy strategy) async {
+  Future<void> batchResolve(
+    List<String> conflictIds,
+    domain.ConflictResolutionStrategy strategy,
+  ) async {
     try {
-      _logger.info('Batch resolving ${conflictIds.length} conflicts with strategy: $strategy');
+      _logger.info(
+        'Batch resolving ${conflictIds.length} conflicts with strategy: $strategy',
+      );
 
       for (final conflictId in conflictIds) {
         final conflict = _conflictCache[conflictId];
         if (conflict == null) {
-          _logger.warning('Conflict $conflictId not found for batch resolution');
+          _logger.warning(
+            'Conflict $conflictId not found for batch resolution',
+          );
           continue;
         }
 
@@ -491,16 +576,16 @@ class ConflictRepository implements IConflictRepository {
           chosenVersion: strategy == domain.ConflictResolutionStrategy.keepLocal
               ? 'local'
               : strategy == domain.ConflictResolutionStrategy.keepRemote
-                  ? 'remote'
-                  : 'merged',
+              ? 'remote'
+              : 'merged',
           isResolved: true,
           resolvedAt: DateTime.now(),
           resolvedBy: 'system_batch',
           mergedData: strategy == domain.ConflictResolutionStrategy.keepLocal
               ? conflict.localData
               : strategy == domain.ConflictResolutionStrategy.keepRemote
-                  ? conflict.remoteData
-                  : _mergeData(conflict.localData, conflict.remoteData),
+              ? conflict.remoteData
+              : _mergeData(conflict.localData, conflict.remoteData),
         );
 
         // Apply the resolution
@@ -508,10 +593,15 @@ class ConflictRepository implements IConflictRepository {
       }
 
       await _persistToStorage();
-      _logger.info('Batch resolution completed for ${conflictIds.length} conflicts');
-
+      _logger.info(
+        'Batch resolution completed for ${conflictIds.length} conflicts',
+      );
     } catch (e, stack) {
-      _logger.error('Failed to batch resolve conflicts', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to batch resolve conflicts',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'batchResolve',
         error: e,
@@ -523,7 +613,10 @@ class ConflictRepository implements IConflictRepository {
   }
 
   // Helper method to merge data from local and remote
-  Map<String, dynamic> _mergeData(Map<String, dynamic> local, Map<String, dynamic> remote) {
+  Map<String, dynamic> _mergeData(
+    Map<String, dynamic> local,
+    Map<String, dynamic> remote,
+  ) {
     final merged = Map<String, dynamic>.from(local);
 
     // For each field in remote, use the one with newer timestamp if available
@@ -543,9 +636,15 @@ class ConflictRepository implements IConflictRepository {
     try {
       // In a real implementation, this would save to a database or file
       // For now, just log that we would persist
-      _logger.debug('Would persist ${_conflictCache.length} conflicts to storage');
+      _logger.debug(
+        'Would persist ${_conflictCache.length} conflicts to storage',
+      );
     } catch (e, stack) {
-      _logger.error('Failed to persist conflicts to storage', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to persist conflicts to storage',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: '_persistToStorage',
         error: e,
@@ -561,7 +660,11 @@ class ConflictRepository implements IConflictRepository {
       // For now, just start with empty cache
       _logger.info('Loaded ${_conflictCache.length} conflicts from storage');
     } catch (e, stack) {
-      _logger.error('Failed to load conflicts from storage', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to load conflicts from storage',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'loadFromStorage',
         error: e,

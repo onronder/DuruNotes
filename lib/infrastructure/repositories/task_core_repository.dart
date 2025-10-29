@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/core/events/mutation_event_bus.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/monitoring/task_sync_metrics.dart';
+import 'package:duru_notes/core/utils/hash_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
@@ -15,12 +20,24 @@ class TaskCoreRepository implements ITaskRepository {
   TaskCoreRepository({
     required this.db,
     required this.client,
-  })  : _logger = LoggerFactory.instance;
+    required this.crypto,
+  }) : _logger = LoggerFactory.instance;
 
   final AppDb db;
   final SupabaseClient client;
+  final CryptoBox crypto;
   final AppLogger _logger;
   final _uuid = const Uuid();
+
+  String? get _currentUserId => client.auth.currentUser?.id;
+
+  String _requireUserId() {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) {
+      throw StateError('No authenticated user for task operation');
+    }
+    return userId;
+  }
 
   void _captureRepositoryException({
     required String method,
@@ -38,19 +55,132 @@ class TaskCoreRepository implements ITaskRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'TaskCoreRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
   }
 
+  Future<void> _enqueuePendingOp({
+    required String entityId,
+    required String kind,
+    String? payload,
+  }) async {
+    final userId = _currentUserId;
+    if (userId == null) {
+      _logger.warning(
+        'Skipping enqueue - no authenticated user',
+        data: {'kind': kind, 'entityId': entityId},
+      );
+      return;
+    }
+
+    await db.enqueue(
+      userId: userId,
+      entityId: entityId,
+      kind: kind,
+      payload: payload,
+    );
+  }
+
+  /// Decrypt a single task and map to domain
+  Future<domain.Task> _decryptTask(NoteTask localTask) async {
+    final userId = client.auth.currentUser?.id ?? '';
+    String content = '';
+    String? notes;
+    String? labels;
+
+    // Decrypt content
+    try {
+      if (localTask.contentEncrypted.isNotEmpty) {
+        // FIX: Use base64.decode() not utf8.encode()
+        // Data is stored as base64-encoded encrypted bytes
+        final contentData = base64.decode(localTask.contentEncrypted);
+        content = await crypto.decryptStringForNote(
+          userId: userId,
+          noteId: localTask.noteId,
+          data: contentData,
+        );
+      }
+    } catch (e) {
+      _logger.warning('Failed to decrypt content for task ${localTask.id}: $e');
+    }
+
+    // Decrypt notes (description)
+    try {
+      if (localTask.notesEncrypted != null &&
+          localTask.notesEncrypted!.isNotEmpty) {
+        // FIX: Use base64.decode() not utf8.encode()
+        // Data is stored as base64-encoded encrypted bytes
+        final notesData = base64.decode(localTask.notesEncrypted!);
+        notes = await crypto.decryptStringForNote(
+          userId: userId,
+          noteId: localTask.noteId,
+          data: notesData,
+        );
+      }
+    } catch (e) {
+      _logger.warning('Failed to decrypt notes for task ${localTask.id}: $e');
+    }
+
+    // Decrypt labels (tags)
+    try {
+      if (localTask.labelsEncrypted != null &&
+          localTask.labelsEncrypted!.isNotEmpty) {
+        // FIX: Use base64.decode() not utf8.encode()
+        // Data is stored as base64-encoded encrypted bytes
+        final labelsData = base64.decode(localTask.labelsEncrypted!);
+        labels = await crypto.decryptStringForNote(
+          userId: userId,
+          noteId: localTask.noteId,
+          data: labelsData,
+        );
+      }
+    } catch (e) {
+      _logger.warning('Failed to decrypt labels for task ${localTask.id}: $e');
+    }
+
+    return TaskMapper.toDomain(
+      localTask,
+      content: content,
+      notes: notes,
+      labels: labels,
+    );
+  }
+
+  /// Decrypt multiple tasks and map to domain
+  Future<List<domain.Task>> _decryptTasks(List<NoteTask> localTasks) async {
+    final List<domain.Task> tasks = [];
+    for (final localTask in localTasks) {
+      try {
+        final task = await _decryptTask(localTask);
+        tasks.add(task);
+      } catch (error, stackTrace) {
+        _logger.error(
+          'Failed to decrypt task ${localTask.id}',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        // Continue with other tasks even if one fails
+      }
+    }
+    return tasks;
+  }
+
   @override
   Future<List<domain.Task>> getTasksForNote(String noteId) async {
     try {
-      final localTasks = await db.getTasksForNote(noteId);
-      return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      final localTasks = await db.getTasksForNote(noteId, userId: userId);
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get tasks for note: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get tasks for note: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTasksForNote',
         error: e,
@@ -64,8 +194,9 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getAllTasks() async {
     try {
-      final localTasks = await db.getAllTasks();
-      return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      final localTasks = await db.getAllTasks(userId);
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get all tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
@@ -80,8 +211,9 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getPendingTasks() async {
     try {
-      final localTasks = await db.getOpenTasks();
-      return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      final localTasks = await db.getOpenTasks(userId: userId);
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get pending tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
@@ -96,12 +228,24 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<domain.Task?> getTaskById(String id) async {
     try {
-      final localTask = await db.getTaskById(id);
+      final userId = _currentUserId;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning(
+          'Cannot get task without authenticated user',
+          data: {'taskId': id},
+        );
+        return null;
+      }
+      final localTask = await db.getTaskById(id, userId: userId);
       if (localTask == null) return null;
 
-      return TaskMapper.toDomain(localTask);
+      return await _decryptTask(localTask);
     } catch (e, stack) {
-      _logger.error('Failed to get task by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get task by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTaskById',
         error: e,
@@ -115,62 +259,171 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<domain.Task> createTask(domain.Task task) async {
     try {
-      final userId = client.auth.currentUser?.id;
-      if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create task without authenticated user');
-        _logger.warning(
-          'Cannot create task without authenticated user',
-          data: {'noteId': task.noteId, 'taskTitle': task.title},
-        );
-        _captureRepositoryException(
-          method: 'createTask',
-          error: authorizationError,
-          stackTrace: StackTrace.current,
-          data: {'noteId': task.noteId, 'taskTitle': task.title},
-          level: SentryLevel.warning,
-        );
-        throw authorizationError;
-      }
+      final userId = _requireUserId();
 
       // Create task with new ID if not provided
       final taskToCreate = task.id.isEmpty
           ? task.copyWith(id: _uuid.v4())
           : task;
+      final contentHash = stableTaskHash(
+        taskToCreate.noteId,
+        taskToCreate.title,
+      );
 
-      // Map to infrastructure model
-      final localTask = TaskMapper.toInfrastructure(taskToCreate);
+      final existingWithHash = await db.findTaskByContentHash(
+        noteId: taskToCreate.noteId,
+        userId: userId,
+        contentHash: contentHash,
+      );
+
+      // Encrypt content (title), notes (description), and labels (tags)
+      final contentEncryptedBytes = await crypto.encryptStringForNote(
+        userId: userId,
+        noteId: taskToCreate.noteId,
+        text: taskToCreate.title,
+      );
+      final contentEncrypted = base64.encode(contentEncryptedBytes);
+
+      String? notesEncrypted;
+      if (taskToCreate.description != null &&
+          taskToCreate.description!.isNotEmpty) {
+        final notesEncryptedBytes = await crypto.encryptStringForNote(
+          userId: userId,
+          noteId: taskToCreate.noteId,
+          text: taskToCreate.description!,
+        );
+        notesEncrypted = base64.encode(notesEncryptedBytes);
+      }
+
+      String? labelsEncrypted;
+      if (taskToCreate.tags.isNotEmpty) {
+        final labelsJson = jsonEncode(taskToCreate.tags);
+        final labelsEncryptedBytes = await crypto.encryptStringForNote(
+          userId: userId,
+          noteId: taskToCreate.noteId,
+          text: labelsJson,
+        );
+        labelsEncrypted = base64.encode(labelsEncryptedBytes);
+      }
+
+      if (existingWithHash != null) {
+        final duplicateUpdates = NoteTasksCompanion(
+          contentEncrypted: Value(contentEncrypted),
+          notesEncrypted: Value(notesEncrypted),
+          labelsEncrypted: Value(labelsEncrypted),
+          status: Value(_mapStatusToDb(taskToCreate.status)),
+          priority: Value(_mapPriorityToDb(taskToCreate.priority)),
+          dueDate: Value(taskToCreate.dueDate),
+          completedAt: Value(taskToCreate.completedAt),
+          estimatedMinutes: Value(
+            taskToCreate.metadata['estimatedMinutes'] as int?,
+          ),
+          actualMinutes: Value(taskToCreate.metadata['actualMinutes'] as int?),
+          parentTaskId: Value(taskToCreate.metadata['parentTaskId'] as String?),
+          updatedAt: Value(taskToCreate.updatedAt),
+          contentHash: Value(contentHash),
+          deleted: const Value(false),
+        );
+
+        await db.updateTask(existingWithHash.id, userId, duplicateUpdates);
+
+        await _enqueuePendingOp(
+          entityId: existingWithHash.id,
+          kind: 'upsert_task',
+          payload: jsonEncode({'noteId': taskToCreate.noteId}),
+        );
+
+        TaskSyncMetrics.instance.recordDuplicate(
+          noteId: taskToCreate.noteId,
+          taskId: existingWithHash.id,
+          duplicateId: taskToCreate.id,
+          reason:
+              'stable content hash collision prevented duplicate task insert',
+        );
+
+        MutationEventBus.instance.emitTask(
+          kind: MutationKind.updated,
+          taskId: existingWithHash.id,
+          noteId: taskToCreate.noteId,
+          metadata: {
+            'priority': taskToCreate.priority.index,
+            if (taskToCreate.dueDate != null)
+              'dueDate': taskToCreate.dueDate!.toIso8601String(),
+            if (taskToCreate.completedAt != null)
+              'completedAt': taskToCreate.completedAt!.toIso8601String(),
+            'deduped': true,
+          },
+        );
+
+        _logger.info(
+          'Deduped task creation by stable hash',
+          data: {
+            'noteId': taskToCreate.noteId,
+            'existingTaskId': existingWithHash.id,
+          },
+        );
+
+        final refreshed = await db.getTaskById(
+          existingWithHash.id,
+          userId: userId,
+        );
+        return await _decryptTask(refreshed!);
+      }
 
       // Create task companion for insertion
       final taskCompanion = NoteTasksCompanion(
-        id: Value(localTask.id),
-        noteId: Value(localTask.noteId),
-        content: Value(localTask.content),
-        status: Value(localTask.status),
-        priority: Value(localTask.priority),
-        dueDate: Value(localTask.dueDate),
-        completedAt: Value(localTask.completedAt),
-        completedBy: Value(localTask.completedBy),
-        position: Value(localTask.position),
-        contentHash: Value(localTask.contentHash),
-        reminderId: Value(localTask.reminderId),
-        labels: Value(localTask.labels),
-        notes: Value(localTask.notes),
-        estimatedMinutes: Value(localTask.estimatedMinutes),
-        actualMinutes: Value(localTask.actualMinutes),
-        parentTaskId: Value(localTask.parentTaskId),
-        createdAt: Value(DateTime.now().toUtc()),
-        updatedAt: Value(DateTime.now().toUtc()),
+        id: Value(taskToCreate.id),
+        noteId: Value(taskToCreate.noteId),
+        userId: Value(userId),
+        contentEncrypted: Value(contentEncrypted),
+        notesEncrypted: Value(notesEncrypted),
+        labelsEncrypted: Value(labelsEncrypted),
+        status: Value(_mapStatusToDb(taskToCreate.status)),
+        priority: Value(_mapPriorityToDb(taskToCreate.priority)),
+        dueDate: Value(taskToCreate.dueDate),
+        completedAt: Value(taskToCreate.completedAt),
+        completedBy: const Value(null),
+        position: const Value(0),
+        contentHash: Value(contentHash),
+        reminderId: const Value(null),
+        estimatedMinutes: Value(
+          taskToCreate.metadata['estimatedMinutes'] as int?,
+        ),
+        actualMinutes: Value(taskToCreate.metadata['actualMinutes'] as int?),
+        parentTaskId: Value(taskToCreate.metadata['parentTaskId'] as String?),
+        createdAt: Value(taskToCreate.createdAt),
+        updatedAt: Value(taskToCreate.updatedAt),
+        encryptionVersion: const Value(1),
       );
 
       // Insert into database
       await db.createTask(taskCompanion);
 
       // Enqueue for sync
-      await db.enqueue(taskToCreate.id, 'upsert_task');
+      await _enqueuePendingOp(
+        entityId: taskToCreate.id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': taskToCreate.noteId}),
+      );
+
+      MutationEventBus.instance.emitTask(
+        kind: MutationKind.created,
+        taskId: taskToCreate.id,
+        noteId: taskToCreate.noteId,
+        metadata: {
+          'priority': taskToCreate.priority.index,
+          if (taskToCreate.dueDate != null)
+            'dueDate': taskToCreate.dueDate!.toIso8601String(),
+        },
+      );
 
       return taskToCreate;
     } catch (e, stack) {
-      _logger.error('Failed to create task: ${task.title}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create task: ${task.title}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createTask',
         error: e,
@@ -184,8 +437,9 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<domain.Task> updateTask(domain.Task task) async {
     try {
+      final userId = _requireUserId();
       // Verify task exists
-      final existing = await db.getTaskById(task.id);
+      final existing = await db.getTaskById(task.id, userId: userId);
       if (existing == null) {
         final missingError = StateError('Task not found');
         _logger.warning(
@@ -202,38 +456,84 @@ class TaskCoreRepository implements ITaskRepository {
         throw missingError;
       }
 
-      // Map to infrastructure model
-      final localTask = TaskMapper.toInfrastructure(task);
+      // Encrypt content (title), notes (description), and labels (tags)
+      final contentEncryptedBytes = await crypto.encryptStringForNote(
+        userId: userId,
+        noteId: task.noteId,
+        text: task.title,
+      );
+      final contentEncrypted = base64.encode(contentEncryptedBytes);
+
+      String? notesEncrypted;
+      if (task.description != null && task.description!.isNotEmpty) {
+        final notesEncryptedBytes = await crypto.encryptStringForNote(
+          userId: userId,
+          noteId: task.noteId,
+          text: task.description!,
+        );
+        notesEncrypted = base64.encode(notesEncryptedBytes);
+      }
+
+      String? labelsEncrypted;
+      if (task.tags.isNotEmpty) {
+        final labelsJson = jsonEncode(task.tags);
+        final labelsEncryptedBytes = await crypto.encryptStringForNote(
+          userId: userId,
+          noteId: task.noteId,
+          text: labelsJson,
+        );
+        labelsEncrypted = base64.encode(labelsEncryptedBytes);
+      }
+
+      final contentHash = stableTaskHash(task.noteId, task.title);
 
       // Create update companion
       final updateCompanion = NoteTasksCompanion(
-        content: Value(localTask.content),
-        status: Value(localTask.status),
-        priority: Value(localTask.priority),
-        dueDate: Value(localTask.dueDate),
-        completedAt: Value(localTask.completedAt),
-        completedBy: Value(localTask.completedBy),
-        position: Value(localTask.position),
-        reminderId: Value(localTask.reminderId),
-        labels: Value(localTask.labels),
-        notes: Value(localTask.notes),
-        estimatedMinutes: Value(localTask.estimatedMinutes),
-        actualMinutes: Value(localTask.actualMinutes),
-        parentTaskId: Value(localTask.parentTaskId),
+        contentEncrypted: Value(contentEncrypted),
+        notesEncrypted: Value(notesEncrypted),
+        labelsEncrypted: Value(labelsEncrypted),
+        status: Value(_mapStatusToDb(task.status)),
+        priority: Value(_mapPriorityToDb(task.priority)),
+        dueDate: Value(task.dueDate),
+        completedAt: Value(task.completedAt),
+        estimatedMinutes: Value(task.metadata['estimatedMinutes'] as int?),
+        actualMinutes: Value(task.metadata['actualMinutes'] as int?),
+        parentTaskId: Value(task.metadata['parentTaskId'] as String?),
         updatedAt: Value(DateTime.now().toUtc()),
+        contentHash: Value(contentHash),
       );
 
       // Update in database
-      await db.updateTask(task.id, updateCompanion);
+      await db.updateTask(task.id, userId, updateCompanion);
 
       // Enqueue for sync
-      await db.enqueue(task.id, 'upsert_task');
+      await _enqueuePendingOp(
+        entityId: task.id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': task.noteId}),
+      );
+
+      MutationEventBus.instance.emitTask(
+        kind: MutationKind.updated,
+        taskId: task.id,
+        noteId: task.noteId,
+        metadata: {
+          'priority': task.priority.index,
+          if (task.dueDate != null) 'dueDate': task.dueDate!.toIso8601String(),
+          if (task.completedAt != null)
+            'completedAt': task.completedAt!.toIso8601String(),
+        },
+      );
 
       // Return updated task
-      final updatedLocal = await db.getTaskById(task.id);
-      return TaskMapper.toDomain(updatedLocal!);
+      final updatedLocal = await db.getTaskById(task.id, userId: userId);
+      return await _decryptTask(updatedLocal!);
     } catch (e, stack) {
-      _logger.error('Failed to update task: ${task.id}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update task: ${task.id}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'updateTask',
         error: e,
@@ -247,8 +547,9 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> deleteTask(String id) async {
     try {
+      final userId = _requireUserId();
       // Verify task exists
-      final existing = await db.getTaskById(id);
+      final existing = await db.getTaskById(id, userId: userId);
       if (existing == null) {
         _logger.warning('Attempted to delete non-existent task: $id');
         _captureRepositoryException(
@@ -262,10 +563,20 @@ class TaskCoreRepository implements ITaskRepository {
       }
 
       // Delete from database
-      await db.deleteTaskById(id);
+      await db.deleteTaskById(id, userId);
 
       // Enqueue for sync deletion
-      await db.enqueue(id, 'delete_task');
+      await _enqueuePendingOp(
+        entityId: id,
+        kind: 'delete_task',
+        payload: jsonEncode({'noteId': existing.noteId}),
+      );
+
+      MutationEventBus.instance.emitTask(
+        kind: MutationKind.deleted,
+        taskId: id,
+        noteId: existing.noteId,
+      );
 
       _logger.info('Deleted task: $id');
     } catch (e, stack) {
@@ -283,15 +594,33 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> completeTask(String id) async {
     try {
-      final userId = client.auth.currentUser?.id;
-      await db.completeTask(id, completedBy: userId);
+      final userId = _requireUserId();
+      await db.completeTask(id, userId, completedBy: userId);
+
+      final existing = await db.getTaskById(id, userId: userId);
+      final noteId = existing?.noteId;
 
       // Enqueue for sync
-      await db.enqueue(id, 'upsert_task');
+      await _enqueuePendingOp(
+        entityId: id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': noteId}),
+      );
+
+      MutationEventBus.instance.emitTask(
+        kind: MutationKind.updated,
+        taskId: id,
+        noteId: noteId,
+        metadata: const {'completed': true},
+      );
 
       _logger.info('Completed task: $id');
     } catch (e, stack) {
-      _logger.error('Failed to complete task: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to complete task: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'completeTask',
         error: e,
@@ -305,11 +634,16 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Stream<List<domain.Task>> watchTasks() {
     try {
-      return db.watchOpenTasks().asyncMap((localTasks) async {
-        return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      return db.watchOpenTasks(userId).asyncMap((localTasks) async {
+        return await _decryptTasks(localTasks);
       });
     } catch (e, stack) {
-      _logger.error('Failed to create task watch stream', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create task watch stream',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'watchTasks',
         error: e,
@@ -319,14 +653,52 @@ class TaskCoreRepository implements ITaskRepository {
     }
   }
 
+  @override
+  Stream<List<domain.Task>> watchAllTasks() {
+    try {
+      final userId = _requireUserId();
+      // Watch all non-deleted tasks (both open and completed)
+      return (db.select(db.noteTasks)
+            ..where((t) => t.deleted.equals(false) & t.userId.equals(userId))
+            ..orderBy([
+              (t) => OrderingTerm(
+                expression: t.createdAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+          .watch()
+          .asyncMap((localTasks) async {
+            return await _decryptTasks(localTasks);
+          });
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to create all tasks watch stream',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'watchAllTasks',
+        error: e,
+        stackTrace: stack,
+      );
+      return Stream.error(e, stack);
+    }
+  }
+
   /// Watch tasks for a specific note
+  @override
   Stream<List<domain.Task>> watchTasksForNote(String noteId) {
     try {
-      return db.watchTasksForNote(noteId).asyncMap((localTasks) async {
-        return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      return db.watchTasksForNote(noteId, userId).asyncMap((localTasks) async {
+        return await _decryptTasks(localTasks);
       });
     } catch (e, stack) {
-      _logger.error('Failed to create task watch stream for note: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create task watch stream for note: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'watchTasksForNote',
         error: e,
@@ -338,33 +710,42 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Get completed tasks
+  @override
   Future<List<domain.Task>> getCompletedTasks({
     DateTime? since,
     int? limit,
   }) async {
     try {
-      final localTasks = await db.getCompletedTasks(since: since, limit: limit);
-      return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      final localTasks = await db.getCompletedTasks(
+        userId: userId,
+        since: since,
+        limit: limit,
+      );
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get completed tasks', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get completed tasks',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getCompletedTasks',
         error: e,
         stackTrace: stack,
-        data: {
-          'since': since?.toIso8601String(),
-          'limit': limit,
-        },
+        data: {'since': since?.toIso8601String(), 'limit': limit},
       );
       return const <domain.Task>[];
     }
   }
 
   /// Get overdue tasks
+  @override
   Future<List<domain.Task>> getOverdueTasks() async {
     try {
-      final localTasks = await db.getOverdueTasks();
-      return TaskMapper.toDomainList(localTasks);
+      final userId = _requireUserId();
+      final localTasks = await db.getOverdueTasks(userId);
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
       _logger.error('Failed to get overdue tasks', error: e, stackTrace: stack);
       _captureRepositoryException(
@@ -377,52 +758,59 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Get tasks by date range
+  @override
   Future<List<domain.Task>> getTasksByDateRange({
-    required DateTime startDate,
-    required DateTime endDate,
-    domain.TaskStatus? status,
+    required DateTime start,
+    required DateTime end,
   }) async {
     try {
+      final userId = _requireUserId();
       // Database method uses 'start' and 'end' parameters
       final localTasks = await db.getTasksByDateRange(
-        start: startDate,
-        end: endDate,
+        userId: userId,
+        start: start,
+        end: end,
       );
 
-      // Filter by status if provided
-      List<domain.Task> tasks = TaskMapper.toDomainList(localTasks);
-      if (status != null) {
-        tasks = tasks.where((task) => task.status == status).toList();
-      }
-
-      return tasks;
+      return await _decryptTasks(localTasks);
     } catch (e, stack) {
-      _logger.error('Failed to get tasks by date range', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get tasks by date range',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTasksByDateRange',
         error: e,
         stackTrace: stack,
-        data: {
-          'start': startDate.toIso8601String(),
-          'end': endDate.toIso8601String(),
-          'status': status?.name,
-        },
+        data: {'start': start.toIso8601String(), 'end': end.toIso8601String()},
       );
       return const <domain.Task>[];
     }
   }
 
   /// Toggle task status (open <-> completed)
+  @override
   Future<void> toggleTaskStatus(String id) async {
     try {
-      await db.toggleTaskStatus(id);
+      final userId = _requireUserId();
+      await db.toggleTaskStatus(id, userId);
+      final task = await db.getTaskById(id, userId: userId);
 
       // Enqueue for sync
-      await db.enqueue(id, 'upsert_task');
+      await _enqueuePendingOp(
+        entityId: id,
+        kind: 'upsert_task',
+        payload: task != null ? jsonEncode({'noteId': task.noteId}) : null,
+      );
 
       _logger.info('Toggled task status: $id');
     } catch (e, stack) {
-      _logger.error('Failed to toggle task status: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to toggle task status: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'toggleTaskStatus',
         error: e,
@@ -434,14 +822,26 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Delete all tasks for a note
+  @override
   Future<void> deleteTasksForNote(String noteId) async {
     try {
-      await db.deleteTasksForNote(noteId);
+      final userId = _requireUserId();
+      await db.deleteTasksForNote(noteId, userId);
 
       // Note: Individual task deletions will be handled by sync mechanism
       _logger.info('Deleted all tasks for note: $noteId');
+
+      MutationEventBus.instance.emitNote(
+        kind: MutationKind.updated,
+        noteId: noteId,
+        metadata: const {'tasksCleared': true},
+      );
     } catch (e, stack) {
-      _logger.error('Failed to delete tasks for note: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to delete tasks for note: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'deleteTasksForNote',
         error: e,
@@ -453,16 +853,25 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Get task statistics
+  @override
   Future<Map<String, int>> getTaskStatistics() async {
     try {
       final allTasks = await getAllTasks();
-      final completedTasks = allTasks.where((t) => t.status == domain.TaskStatus.completed);
-      final pendingTasks = allTasks.where((t) => t.status == domain.TaskStatus.pending);
-      final inProgressTasks = allTasks.where((t) => t.status == domain.TaskStatus.inProgress);
-      final overdueTasks = allTasks.where((t) =>
-          t.dueDate != null &&
-          t.dueDate!.isBefore(DateTime.now()) &&
-          t.status != domain.TaskStatus.completed);
+      final completedTasks = allTasks.where(
+        (t) => t.status == domain.TaskStatus.completed,
+      );
+      final pendingTasks = allTasks.where(
+        (t) => t.status == domain.TaskStatus.pending,
+      );
+      final inProgressTasks = allTasks.where(
+        (t) => t.status == domain.TaskStatus.inProgress,
+      );
+      final overdueTasks = allTasks.where(
+        (t) =>
+            t.dueDate != null &&
+            t.dueDate!.isBefore(DateTime.now()) &&
+            t.status != domain.TaskStatus.completed,
+      );
 
       return {
         'total': allTasks.length,
@@ -472,7 +881,11 @@ class TaskCoreRepository implements ITaskRepository {
         'overdue': overdueTasks.length,
       };
     } catch (e, stack) {
-      _logger.error('Failed to get task statistics', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get task statistics',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTaskStatistics',
         error: e,
@@ -483,12 +896,19 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Get tasks by priority
-  Future<List<domain.Task>> getTasksByPriority(domain.TaskPriority priority) async {
+  @override
+  Future<List<domain.Task>> getTasksByPriority(
+    domain.TaskPriority priority,
+  ) async {
     try {
       final allTasks = await getAllTasks();
       return allTasks.where((task) => task.priority == priority).toList();
     } catch (e, stack) {
-      _logger.error('Failed to get tasks by priority: $priority', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get tasks by priority: $priority',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTasksByPriority',
         error: e,
@@ -500,6 +920,7 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Search tasks by content
+  @override
   Future<List<domain.Task>> searchTasks(String query) async {
     try {
       if (query.isEmpty) {
@@ -511,11 +932,16 @@ class TaskCoreRepository implements ITaskRepository {
 
       return allTasks.where((task) {
         final matchesTitle = task.title.toLowerCase().contains(normalizedQuery);
-        final matchesDescription = task.description?.toLowerCase().contains(normalizedQuery) ?? false;
+        final matchesDescription =
+            task.description?.toLowerCase().contains(normalizedQuery) ?? false;
         return matchesTitle || matchesDescription;
       }).toList();
     } catch (e, stack) {
-      _logger.error('Failed to search tasks with query: $query', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to search tasks with query: $query',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'searchTasks',
         error: e,
@@ -527,7 +953,11 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Update task priority
-  Future<void> updateTaskPriority(String id, domain.TaskPriority priority) async {
+  @override
+  Future<void> updateTaskPriority(
+    String id,
+    domain.TaskPriority priority,
+  ) async {
     try {
       final task = await getTaskById(id);
       if (task == null) {
@@ -549,7 +979,11 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(priority: priority);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to update task priority: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update task priority: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'updateTaskPriority',
         error: e,
@@ -561,6 +995,7 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Update task due date
+  @override
   Future<void> updateTaskDueDate(String id, DateTime? dueDate) async {
     try {
       final task = await getTaskById(id);
@@ -583,7 +1018,11 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(dueDate: dueDate);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to update task due date: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update task due date: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'updateTaskDueDate',
         error: e,
@@ -595,6 +1034,7 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Add tag to task
+  @override
   Future<void> addTagToTask(String taskId, String tag) async {
     try {
       final task = await getTaskById(taskId);
@@ -621,7 +1061,11 @@ class TaskCoreRepository implements ITaskRepository {
         await updateTask(updatedTask);
       }
     } catch (e, stack) {
-      _logger.error('Failed to add tag to task: $taskId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to add tag to task: $taskId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'addTagToTask',
         error: e,
@@ -633,6 +1077,7 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Remove tag from task
+  @override
   Future<void> removeTagFromTask(String taskId, String tag) async {
     try {
       final task = await getTaskById(taskId);
@@ -656,7 +1101,11 @@ class TaskCoreRepository implements ITaskRepository {
       final updatedTask = task.copyWith(tags: updatedTags);
       await updateTask(updatedTask);
     } catch (e, stack) {
-      _logger.error('Failed to remove tag from task: $taskId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to remove tag from task: $taskId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'removeTagFromTask',
         error: e,
@@ -668,12 +1117,20 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Sync tasks with note content
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {
+  @override
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {
     try {
       await db.syncTasksWithNoteContent(noteId, noteContent);
       _logger.info('Synced tasks with note content: $noteId');
     } catch (e, stack) {
-      _logger.error('Failed to sync tasks with note content: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to sync tasks with note content: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'syncTasksWithNoteContent',
         error: e,
@@ -685,6 +1142,7 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Create subtask
+  @override
   Future<domain.Task> createSubtask({
     required String parentTaskId,
     required String title,
@@ -710,6 +1168,7 @@ class TaskCoreRepository implements ITaskRepository {
         throw missingError;
       }
 
+      final now = DateTime.now().toUtc();
       final subtask = domain.Task(
         id: _uuid.v4(),
         noteId: parentTask.noteId,
@@ -718,6 +1177,8 @@ class TaskCoreRepository implements ITaskRepository {
         status: domain.TaskStatus.pending,
         priority: priority,
         dueDate: dueDate,
+        createdAt: now,
+        updatedAt: now,
         completedAt: null,
         tags: [],
         metadata: {'parentTaskId': parentTaskId},
@@ -725,7 +1186,11 @@ class TaskCoreRepository implements ITaskRepository {
 
       return await createTask(subtask);
     } catch (e, stack) {
-      _logger.error('Failed to create subtask for: $parentTaskId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create subtask for: $parentTaskId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createSubtask',
         error: e,
@@ -737,13 +1202,19 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   /// Get subtasks for a parent task
+  @override
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async {
     try {
       final allTasks = await getAllTasks();
-      return allTasks.where((task) =>
-          task.metadata['parentTaskId'] == parentTaskId).toList();
+      return allTasks
+          .where((task) => task.metadata['parentTaskId'] == parentTaskId)
+          .toList();
     } catch (e, stack) {
-      _logger.error('Failed to get subtasks for: $parentTaskId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get subtasks for: $parentTaskId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getSubtasks',
         error: e,
@@ -782,26 +1253,5 @@ class TaskCoreRepository implements ITaskRepository {
       case domain.TaskPriority.urgent:
         return TaskPriority.urgent;
     }
-  }
-
-  /// Validate task data
-  bool _validateTask(domain.Task task) {
-    if (task.title.trim().isEmpty) {
-      _logger.warning('Task validation failed: empty title');
-      return false;
-    }
-
-    if (task.noteId.trim().isEmpty) {
-      _logger.warning('Task validation failed: empty noteId');
-      return false;
-    }
-
-    if (task.dueDate != null && task.completedAt != null &&
-        task.dueDate!.isAfter(task.completedAt!)) {
-      _logger.warning('Task validation failed: dueDate after completedAt');
-      return false;
-    }
-
-    return true;
   }
 }

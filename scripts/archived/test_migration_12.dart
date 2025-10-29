@@ -2,12 +2,12 @@
 
 /// Simple Migration 12 validation script
 /// Tests that Migration 12 can run successfully without errors
+library;
 
 import 'dart:io';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/data/migrations/migration_12_phase3_optimization.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
-import 'package:drift/native.dart';
 
 Future<void> main() async {
   print('🧪 Testing Migration 12 Phase 3 Optimization...\n');

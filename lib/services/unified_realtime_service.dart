@@ -131,6 +131,7 @@ class UnifiedRealtimeService extends ChangeNotifier {
 
   // Single channel for all subscriptions
   RealtimeChannel? _channel;
+  RealtimeChannel? _inboxBroadcastChannel;
   bool _isSubscribed = false;
   bool _disposed = false;
 
@@ -179,8 +180,6 @@ class UnifiedRealtimeService extends ChangeNotifier {
           scope.level = level;
           scope.setTag('service', 'UnifiedRealtimeService');
           scope.setTag('operation', operation);
-          scope.setExtra('userId', userId);
-          data?.forEach((key, value) => scope.setExtra(key, value));
         },
       ),
     );
@@ -216,6 +215,9 @@ class UnifiedRealtimeService extends ChangeNotifier {
 
       // Subscribe to the channel
       await _subscribeToChannel();
+
+      // Start user-scoped inbox broadcast channel
+      await _startInboxBroadcastChannel();
     } on RealtimeException {
       rethrow;
     } catch (error, stack) {
@@ -268,19 +270,6 @@ class UnifiedRealtimeService extends ChangeNotifier {
           callback: (payload) =>
               _handleChange(DatabaseTableType.folders, payload),
         )
-        // Clipper inbox changes (inserts only for performance)
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'clipper_inbox',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: userId,
-          ),
-          callback: (payload) =>
-              _handleChange(DatabaseTableType.clipperInbox, payload),
-        )
         // Tasks table changes
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
@@ -294,6 +283,89 @@ class UnifiedRealtimeService extends ChangeNotifier {
           callback: (payload) =>
               _handleChange(DatabaseTableType.tasks, payload),
         );
+  }
+
+  Future<void> _startInboxBroadcastChannel() async {
+    if (_disposed) return;
+    if (_inboxBroadcastChannel != null) return;
+
+    final topic = 'inbox:user:$userId';
+    final channel = _supabase.channel(
+      topic,
+      opts: const RealtimeChannelConfig(
+        private: true,
+        ack: false,
+        self: false,
+      ),
+    );
+
+    void handleBroadcast(String event, Map<String, dynamic> rawPayload) {
+      if (_disposed) return;
+      try {
+        final payload = Map<String, dynamic>.from(rawPayload);
+        final newRaw =
+            payload['new'] ?? payload['record'] ?? <String, dynamic>{};
+        final oldRaw =
+            payload['old'] ?? payload['old_record'] ?? <String, dynamic>{};
+
+        final enrichedPayload = <String, dynamic>{
+          'schema': payload['schema'] ?? 'public',
+          'table': payload['table'] ?? 'clipper_inbox',
+          'commit_timestamp': payload['commit_timestamp'] ??
+              DateTime.now().toIso8601String(),
+          'eventType': event,
+          'new': newRaw is Map<String, dynamic>
+              ? Map<String, dynamic>.from(newRaw)
+              : <String, dynamic>{},
+          'old': oldRaw is Map<String, dynamic>
+              ? Map<String, dynamic>.from(oldRaw)
+              : <String, dynamic>{},
+          'errors': payload['errors'],
+        };
+
+        final changePayload =
+            PostgresChangePayload.fromPayload(enrichedPayload);
+        final eventPayload = DatabaseChangeEvent.fromPayload(
+          DatabaseTableType.clipperInbox,
+          changePayload,
+        );
+        _emitEvent(DatabaseTableType.clipperInbox, eventPayload);
+      } catch (error, stack) {
+        _logger.error(
+          'Failed to handle inbox broadcast message',
+          error: error,
+          stackTrace: stack,
+        );
+        _captureRealtimeException(
+          operation: 'inboxBroadcast.handle',
+          error: error,
+          stackTrace: stack,
+          level: SentryLevel.warning,
+        );
+      }
+    }
+
+    channel
+        .onBroadcast(
+          event: 'INSERT',
+          callback: (payload) => handleBroadcast('INSERT', payload),
+        )
+        .onBroadcast(
+          event: 'UPDATE',
+          callback: (payload) => handleBroadcast('UPDATE', payload),
+        )
+        .onBroadcast(
+          event: 'DELETE',
+          callback: (payload) => handleBroadcast('DELETE', payload),
+        )
+        .subscribe((status, error) {
+          _logger.debug(
+            'Inbox broadcast channel status',
+            data: {'status': status.name, 'error': error, 'topic': topic},
+          );
+        });
+
+    _inboxBroadcastChannel = channel;
   }
 
   /// Subscribe to the channel
@@ -552,6 +624,27 @@ class UnifiedRealtimeService extends ChangeNotifier {
         );
       } finally {
         _channel = null;
+      }
+    }
+
+    if (_inboxBroadcastChannel != null) {
+      try {
+        await _inboxBroadcastChannel!.unsubscribe();
+      } catch (error, stack) {
+        _logger.error(
+          'Error during inbox broadcast unsubscribe',
+          error: error,
+          stackTrace: stack,
+        );
+        _captureRealtimeException(
+          operation: 'stop.inboxBroadcast',
+          error: error,
+          stackTrace: stack,
+          level: SentryLevel.warning,
+        );
+      } finally {
+        await _supabase.removeChannel(_inboxBroadcastChannel!);
+        _inboxBroadcastChannel = null;
       }
     }
 

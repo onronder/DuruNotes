@@ -1,466 +1,225 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/reminders/snooze_reminder_service.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
-import 'package:duru_notes/services/task_reminder_bridge.dart';
-import 'package:duru_notes/services/task_service.dart';
-import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
 
-@GenerateMocks([
-  AppDb,
-  FlutterLocalNotificationsPlugin,
-  TaskService,
-  AdvancedReminderService,
-  ReminderCoordinator,
-])
 import 'snooze_functionality_test.mocks.dart';
 
-void main() {
-  late MockAppDb mockDb;
-  late MockFlutterLocalNotificationsPlugin mockNotificationPlugin;
-  late MockTaskService mockTaskService;
-  late MockAdvancedReminderService mockAdvancedReminderService;
-  late MockReminderCoordinator mockReminderCoordinator;
-  late SnoozeReminderService snoozeService;
-  late TaskReminderBridge taskReminderBridge;
+final _pluginProvider = Provider<FlutterLocalNotificationsPlugin>((ref) {
+  throw UnimplementedError('Override in tests');
+});
 
-  setUp(() {
-    mockDb = MockAppDb();
-    mockNotificationPlugin = MockFlutterLocalNotificationsPlugin();
-    mockTaskService = MockTaskService();
-    mockAdvancedReminderService = MockAdvancedReminderService();
-    mockReminderCoordinator = MockReminderCoordinator();
+final _dbProvider = Provider<AppDb>((ref) {
+  throw UnimplementedError('Override in tests');
+});
 
-    snoozeService = SnoozeReminderService(mockNotificationPlugin, mockDb);
+final _serviceProvider = Provider<TestSnoozeReminderService>((ref) {
+  final plugin = ref.watch(_pluginProvider);
+  final db = ref.watch(_dbProvider);
+  return TestSnoozeReminderService(ref, plugin, db);
+});
 
-    taskReminderBridge = TaskReminderBridge(
-      reminderCoordinator: mockReminderCoordinator,
-      advancedReminderService: mockAdvancedReminderService,
-      taskService: mockTaskService,
-      db: mockDb,
-      notificationPlugin: mockNotificationPlugin,
-    );
-  });
+class TestSnoozeReminderService extends SnoozeReminderService {
+  TestSnoozeReminderService(
+    super.ref,
+    super.plugin,
+    super.db,
+  );
 
-  group('Snooze Limit Enforcement', () {
-    test('should allow snoozing up to 5 times', () async {
-      const reminderId = 42;
-      final reminder = NoteReminder(
-        id: reminderId,
-        noteId: 'note-123',
-        title: 'Test Reminder',
-        body: 'Test Body',
-        type: ReminderType.time,
-        remindAt: DateTime.now().add(const Duration(hours: 1)),
-        isActive: true,
-        latitude: null,
-        longitude: null,
-        radius: null,
-        locationName: null,
-        recurrencePattern: RecurrencePattern.none,
-        recurrenceEndDate: null,
-        recurrenceInterval: 1,
-        snoozedUntil: null,
-        snoozeCount: 4, // One more snooze allowed
-        notificationTitle: null,
-        notificationBody: null,
-        notificationImage: null,
-        timeZone: 'UTC',
-        createdAt: DateTime.now(),
-        lastTriggered: null,
-        triggerCount: 0,
-        isSnoozed: false,
-      );
+  bool permissionGranted = true;
 
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-      when(mockDb.snoozeReminder(any, any)).thenAnswer((_) async {});
-      when(mockNotificationPlugin.cancel(any)).thenAnswer((_) async {});
-
-      final result = await snoozeService.snoozeReminder(
-        reminderId,
-        SnoozeDuration.fifteenMinutes,
-      );
-
-      expect(result, isTrue);
-      verify(mockDb.snoozeReminder(reminderId, any)).called(1);
-    });
-
-    test('should reject snooze after 5 attempts', () async {
-      const reminderId = 43;
-      final reminder = NoteReminder(
-        id: reminderId,
-        noteId: 'note-123',
-        title: 'Test Reminder',
-        body: 'Test Body',
-        type: ReminderType.time,
-        remindAt: DateTime.now().add(const Duration(hours: 1)),
-        isActive: true,
-        latitude: null,
-        longitude: null,
-        radius: null,
-        locationName: null,
-        recurrencePattern: RecurrencePattern.none,
-        recurrenceEndDate: null,
-        recurrenceInterval: 1,
-        snoozedUntil: null,
-        snoozeCount: 5, // Already at max
-        notificationTitle: null,
-        notificationBody: null,
-        notificationImage: null,
-        timeZone: 'UTC',
-        createdAt: DateTime.now(),
-        lastTriggered: null,
-        triggerCount: 0,
-        isSnoozed: false,
-      );
-
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-
-      final result = await snoozeService.snoozeReminder(
-        reminderId,
-        SnoozeDuration.fifteenMinutes,
-      );
-
-      expect(result, isFalse);
-      verifyNever(mockDb.snoozeReminder(any, any));
-    });
-
-    test('should show max snooze notification when limit reached', () async {
-      const taskId = 'task-123';
-      const reminderId = 44;
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: 'note-456',
-        content: 'Test Task',
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        position: 0,
-        contentHash: 'hash',
-        reminderId: reminderId,
-        dueDate: DateTime.now().add(const Duration(days: 1)),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      final reminder = NoteReminder(
-        id: reminderId,
-        noteId: task.noteId,
-        title: 'Task Reminder',
-        body: task.content,
-        type: ReminderType.time,
-        remindAt: DateTime.now().add(const Duration(hours: 1)),
-        isActive: true,
-        latitude: null,
-        longitude: null,
-        radius: null,
-        locationName: null,
-        recurrencePattern: RecurrencePattern.none,
-        recurrenceEndDate: null,
-        recurrenceInterval: 1,
-        snoozedUntil: null,
-        snoozeCount: 5, // At max
-        notificationTitle: null,
-        notificationBody: null,
-        notificationImage: null,
-        timeZone: 'UTC',
-        createdAt: DateTime.now(),
-        lastTriggered: null,
-        triggerCount: 0,
-        isSnoozed: false,
-      );
-
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-      when(mockReminderCoordinator.snoozeService).thenReturn(snoozeService);
-      when(mockNotificationPlugin.show(any, any, any, any,
-              payload: anyNamed('payload')))
-          .thenAnswer((_) async {});
-
-      await taskReminderBridge.snoozeTaskReminder(
-        task: task,
-        snoozeDuration: const Duration(minutes: 15),
-      );
-
-      // Verify max snooze notification was shown
-      verify(mockNotificationPlugin.show(
-        any,
-        argThat(contains('Snooze Limit Reached')),
-        argThat(contains('5 times')),
-        any,
-        payload: anyNamed('payload'),
-      )).called(1);
-    });
-  });
-
-  group('Snooze Duration Options', () {
-    test('should convert Duration to correct SnoozeDuration enum', () {
-      // Test the conversion logic
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(minutes: 3)),
-        equals(SnoozeDuration.fiveMinutes),
-      );
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(minutes: 8)),
-        equals(SnoozeDuration.tenMinutes),
-      );
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(minutes: 12)),
-        equals(SnoozeDuration.fifteenMinutes),
-      );
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(minutes: 25)),
-        equals(SnoozeDuration.thirtyMinutes),
-      );
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(minutes: 45)),
-        equals(SnoozeDuration.oneHour),
-      );
-      expect(
-        taskReminderBridge.testDurationToSnoozeDuration(
-            const Duration(hours: 1, minutes: 30)),
-        equals(SnoozeDuration.twoHours),
-      );
-      expect(
-        taskReminderBridge
-            .testDurationToSnoozeDuration(const Duration(hours: 10)),
-        equals(SnoozeDuration.tomorrow),
-      );
-    });
-
-    test('should handle all snooze action types', () async {
-      const taskId = 'task-actions';
-      const reminderId = 45;
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: 'note-789',
-        content: 'Test Task with Actions',
-        status: TaskStatus.open,
-        priority: TaskPriority.high,
-        position: 0,
-        contentHash: 'hash',
-        reminderId: reminderId,
-        dueDate: DateTime.now().add(const Duration(days: 1)),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
-
-      // Test different snooze durations
-      final actions = [
-        'snooze_task_5',
-        'snooze_task_10',
-        'snooze_task_15',
-        'snooze_task_30',
-        'snooze_task_1h',
-        'snooze_task_2h',
-        'snooze_task_tomorrow',
-      ];
-
-      for (final action in actions) {
-        await taskReminderBridge.handleTaskNotificationAction(
-          action: action,
-          payload: '{"taskId": "$taskId"}',
-        );
-      }
-
-      // Verify all actions were processed
-      expect(actions.length, equals(7));
-    });
-  });
-
-  group('Smart Tomorrow Scheduling', () {
-    test('should schedule for 9 AM on weekdays', () {
-      final now = DateTime(2024, 1, 15, 14, 0); // Monday 2 PM
-      final tomorrow = taskReminderBridge.testCalculateTomorrowMorning(now);
-
-      expect(tomorrow.hour, equals(9));
-      expect(tomorrow.minute, equals(0));
-      expect(tomorrow.day, equals(16));
-    });
-
-    test('should schedule for 10 AM on weekends', () {
-      final now = DateTime(2024, 1, 19, 14, 0); // Friday 2 PM
-      final tomorrow = taskReminderBridge.testCalculateTomorrowMorning(now);
-
-      // Saturday should be 10 AM
-      expect(tomorrow.weekday, equals(DateTime.saturday));
-      expect(tomorrow.hour, equals(10));
-      expect(tomorrow.minute, equals(0));
-    });
-
-    test('should schedule for 10 AM if current time is past 10 PM', () {
-      final now = DateTime(2024, 1, 15, 23, 0); // Monday 11 PM
-      final tomorrow = taskReminderBridge.testCalculateTomorrowMorning(now);
-
-      expect(tomorrow.hour, equals(10));
-      expect(tomorrow.minute, equals(0));
-      expect(tomorrow.day, equals(16));
-    });
-  });
-
-  group('Snooze Persistence', () {
-    test('should persist snooze count across app restarts', () async {
-      const reminderId = 46;
-
-      // Simulate first snooze
-      var reminder = NoteReminder(
-        id: reminderId,
-        noteId: 'note-persist',
-        title: 'Persistent Reminder',
-        body: 'Test',
-        type: ReminderType.time,
-        remindAt: DateTime.now().add(const Duration(hours: 1)),
-        isActive: true,
-        latitude: null,
-        longitude: null,
-        radius: null,
-        locationName: null,
-        recurrencePattern: RecurrencePattern.none,
-        recurrenceEndDate: null,
-        recurrenceInterval: 1,
-        snoozedUntil: null,
-        snoozeCount: 0,
-        notificationTitle: null,
-        notificationBody: null,
-        notificationImage: null,
-        timeZone: 'UTC',
-        createdAt: DateTime.now(),
-        lastTriggered: null,
-        triggerCount: 0,
-        isSnoozed: false,
-      );
-
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-      when(mockDb.snoozeReminder(any, any)).thenAnswer((_) async {
-        // Simulate database update
-        reminder = reminder.copyWith(
-          snoozeCount: reminder.snoozeCount + 1,
-          snoozedUntil: DateTime.now().add(const Duration(minutes: 15)),
-          isSnoozed: true,
-        );
-      });
-      when(mockNotificationPlugin.cancel(any)).thenAnswer((_) async {});
-
-      // First snooze
-      await snoozeService.snoozeReminder(
-          reminderId, SnoozeDuration.fifteenMinutes);
-
-      // Verify count incremented
-      expect(reminder.snoozeCount, equals(1));
-
-      // Simulate app restart and second snooze
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-
-      await snoozeService.snoozeReminder(reminderId, SnoozeDuration.oneHour);
-
-      // Verify count persisted and incremented
-      expect(reminder.snoozeCount, equals(2));
-    });
-  });
-
-  group('Snooze vs Due Date', () {
-    test('should not snooze past due date', () async {
-      const taskId = 'task-due';
-      const reminderId = 47;
-      final dueDate = DateTime.now().add(const Duration(minutes: 30));
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: 'note-due',
-        content: 'Task with close due date',
-        status: TaskStatus.open,
-        priority: TaskPriority.high,
-        position: 0,
-        contentHash: 'hash',
-        reminderId: reminderId,
-        dueDate: dueDate,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      final reminder = NoteReminder(
-        id: reminderId,
-        noteId: task.noteId,
-        title: 'Due Soon',
-        body: task.content,
-        type: ReminderType.time,
-        remindAt: DateTime.now().add(const Duration(minutes: 15)),
-        isActive: true,
-        latitude: null,
-        longitude: null,
-        radius: null,
-        locationName: null,
-        recurrencePattern: RecurrencePattern.none,
-        recurrenceEndDate: null,
-        recurrenceInterval: 1,
-        snoozedUntil: null,
-        snoozeCount: 0,
-        notificationTitle: null,
-        notificationBody: null,
-        notificationImage: null,
-        timeZone: 'UTC',
-        createdAt: DateTime.now(),
-        lastTriggered: null,
-        triggerCount: 0,
-        isSnoozed: false,
-      );
-
-      when(mockDb.getReminderById(reminderId))
-          .thenAnswer((_) async => reminder);
-      when(mockReminderCoordinator.snoozeService).thenReturn(snoozeService);
-
-      // Try to snooze for 1 hour (past due date)
-      await taskReminderBridge.snoozeTaskReminder(
-        task: task,
-        snoozeDuration: const Duration(hours: 1),
-      );
-
-      // Should still respect due date constraint
-      // The implementation should handle this appropriately
-    });
-  });
+  @override
+  Future<bool> hasNotificationPermissions() async => permissionGranted;
 }
 
-// Extension to make private methods testable
-extension TestableTaskReminderBridge on TaskReminderBridge {
-  SnoozeDuration testDurationToSnoozeDuration(Duration duration) {
-    return _durationToSnoozeDuration(duration);
-  }
+@GenerateNiceMocks([
+  MockSpec<FlutterLocalNotificationsPlugin>(),
+  MockSpec<AppDb>(),
+  MockSpec<AnalyticsService>(),
+  MockSpec<AppLogger>(),
+  MockSpec<SupabaseClient>(),
+  MockSpec<GoTrueClient>(),
+  MockSpec<User>(),
+])
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  tz_data.initializeTimeZones();
 
-  DateTime testCalculateTomorrowMorning([DateTime? now]) {
-    if (now != null) {
-      // For testing with specific times
-      var tomorrow = DateTime(now.year, now.month, now.day + 1, 9, 0);
+  late ProviderContainer container;
+  late TestSnoozeReminderService service;
+  late MockFlutterLocalNotificationsPlugin mockPlugin;
+  late MockAppDb mockDb;
+  late MockAnalyticsService mockAnalytics;
+  late MockAppLogger mockLogger;
+  late MockSupabaseClient mockSupabase;
+  late MockGoTrueClient mockAuth;
+  late MockUser mockUser;
 
-      if (now.hour >= 22) {
-        tomorrow = tomorrow.add(const Duration(hours: 1));
-      }
+  setUp(() {
+    mockPlugin = MockFlutterLocalNotificationsPlugin();
+    mockDb = MockAppDb();
+    mockAnalytics = MockAnalyticsService();
+    mockLogger = MockAppLogger();
+    mockSupabase = MockSupabaseClient();
+    mockAuth = MockGoTrueClient();
+    mockUser = MockUser();
 
-      if (tomorrow.weekday == DateTime.saturday ||
-          tomorrow.weekday == DateTime.sunday) {
-        tomorrow = tomorrow.add(const Duration(hours: 1));
-      }
+    when(mockSupabase.auth).thenReturn(mockAuth);
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.id).thenReturn('user-123');
 
-      return tomorrow;
-    }
-    return _calculateTomorrowMorning();
-  }
+    when(mockAnalytics.event(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+    when(mockAnalytics.startTiming(any)).thenReturn(null);
+    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+
+    when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
+    when(mockLogger.warning(any, data: anyNamed('data'))).thenReturn(null);
+    when(mockLogger.error(
+      any,
+      error: anyNamed('error'),
+      stackTrace: anyNamed('stackTrace'),
+      data: anyNamed('data'),
+    )).thenReturn(null);
+
+    container = ProviderContainer(
+      overrides: [
+        loggerProvider.overrideWithValue(mockLogger),
+        analyticsProvider.overrideWithValue(mockAnalytics),
+        supabaseClientProvider.overrideWithValue(mockSupabase),
+        _pluginProvider.overrideWithValue(mockPlugin),
+        _dbProvider.overrideWithValue(mockDb),
+      ],
+    );
+
+    service = container.read(_serviceProvider);
+  });
+
+  tearDown(() {
+    container.dispose();
+  });
+
+  NoteReminder reminder0({int snoozeCount = 0}) => NoteReminder(
+        id: 42,
+        noteId: 'note-123',
+        userId: 'user-123',
+        title: 'Standup reminder',
+        body: 'Join the daily standup',
+        type: ReminderType.time,
+        remindAt: DateTime.now().add(const Duration(minutes: 5)),
+        isActive: true,
+        latitude: null,
+        longitude: null,
+        radius: null,
+        locationName: null,
+        recurrencePattern: RecurrencePattern.none,
+        recurrenceEndDate: null,
+        recurrenceInterval: 1,
+        snoozedUntil: null,
+        snoozeCount: snoozeCount,
+        notificationTitle: null,
+        notificationBody: null,
+        notificationImage: null,
+        timeZone: 'UTC',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        lastTriggered: null,
+        triggerCount: 0,
+      );
+
+  group('snoozeReminder', () {
+    test('returns true and reschedules reminder', () async {
+      final reminder = reminder0(snoozeCount: 2);
+      DateTime? snoozedUntilArg;
+      NoteRemindersCompanion? updateCompanion;
+
+      when(mockDb.getReminderById(42, 'user-123'))
+          .thenAnswer((_) async => reminder);
+      when(mockDb.snoozeReminder(any, any, any)).thenAnswer((invocation) async {
+        snoozedUntilArg = invocation.positionalArguments[2] as DateTime;
+      });
+      when(mockDb.updateReminder(any, any, any)).thenAnswer((invocation) async {
+        updateCompanion = invocation.positionalArguments[2]
+            as NoteRemindersCompanion;
+      });
+      when(mockPlugin.cancel(any)).thenAnswer((_) async {});
+      when(mockPlugin.zonedSchedule(
+        any,
+        any,
+        any,
+        any,
+        any,
+        androidScheduleMode: anyNamed('androidScheduleMode'),
+        payload: anyNamed('payload'),
+      )).thenAnswer((_) async {});
+
+      final start = DateTime.now();
+      final result = await service.snoozeReminder(42, SnoozeDuration.fifteenMinutes);
+
+      expect(result, isTrue);
+      expect(snoozedUntilArg, isNotNull);
+      expect(snoozedUntilArg!.isAfter(start), isTrue);
+      expect(snoozedUntilArg!.difference(start).inMinutes, equals(15));
+      expect(updateCompanion, isNotNull);
+      expect(updateCompanion!.snoozeCount.value, equals(3));
+
+      verify(mockDb.snoozeReminder(42, 'user-123', any)).called(1);
+      verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
+      verify(mockPlugin.cancel(42)).called(1);
+      verify(mockPlugin.zonedSchedule(
+        42,
+        'Standup reminder',
+        'Join the daily standup',
+        any,
+        any,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: anyNamed('payload'),
+      )).called(1);
+
+      verify(mockAnalytics.event('reminder_snoozed', properties: anyNamed('properties')))
+          .called(1);
+      verify(mockAnalytics.featureUsed('snooze_used', properties: anyNamed('properties')))
+          .called(1);
+    });
+
+    test('returns false when snooze limit reached', () async {
+      final reminder = reminder0(snoozeCount: SnoozeReminderService.maxSnoozeCount);
+
+      when(mockDb.getReminderById(42, 'user-123'))
+          .thenAnswer((_) async => reminder);
+
+      final result = await service.snoozeReminder(42, SnoozeDuration.fiveMinutes);
+
+      expect(result, isFalse);
+      verifyNever(mockDb.snoozeReminder(any, any, any));
+      verify(mockAnalytics.event('snooze_limit_reached', properties: anyNamed('properties')))
+          .called(1);
+    });
+
+    test('returns false when notification permission denied', () async {
+      final reminder = reminder0();
+      service.permissionGranted = false;
+
+      when(mockDb.getReminderById(42, 'user-123'))
+          .thenAnswer((_) async => reminder);
+
+      final result = await service.snoozeReminder(42, SnoozeDuration.tenMinutes);
+
+      expect(result, isFalse);
+      verify(mockAnalytics.event('snooze_failed', properties: anyNamed('properties')))
+          .called(1);
+      verifyNever(mockDb.snoozeReminder(any, any, any));
+    });
+  });
 }

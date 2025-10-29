@@ -557,5 +557,37 @@
   "defaultTemplate": "Default",
   "customTemplate": "Custom",
   "useTemplate": "Use Template",
-  "manageTemplates": "Manage Templates"
+  "manageTemplates": "Manage Templates",
+
+  "@_PUSH_NOTIFICATIONS": {},
+  "notifEmailReceivedTitle": "📧 New Email in Inbox",
+  "notifEmailReceivedBody": "From {sender}: {subject}\\n\\nEmail note is ready to convert to a note.",
+  "@notifEmailReceivedBody": {
+    "placeholders": {
+      "sender": {"type": "String"},
+      "subject": {"type": "String"}
+    }
+  },
+  "notifWebClipSavedTitle": "✂️ Content Clipped Successfully",
+  "notifWebClipSavedBody": "{preview}\\n\\nSaved to your inbox and ready to use.",
+  "@notifWebClipSavedBody": {
+    "placeholders": {
+      "preview": {"type": "String"}
+    }
+  },
+  "notifTaskReminderTitle": "⏰ Task Reminder",
+  "notifTaskReminderBody": "{taskTitle}\\n\\nDue now!",
+  "@notifTaskReminderBody": {
+    "placeholders": {
+      "taskTitle": {"type": "String"}
+    }
+  },
+  "notifTaskAssignedTitle": "📋 New Task with Reminder",
+  "notifTaskAssignedBody": "{taskTitle}\\nDue: {dueDate}\\n\\nReminder is set and will notify you.",
+  "@notifTaskAssignedBody": {
+    "placeholders": {
+      "taskTitle": {"type": "String"},
+      "dueDate": {"type": "String"}
+    }
+  }
 }

@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
@@ -111,13 +110,10 @@ class UnifiedReminderService {
   final _logger = LoggerFactory.instance;
   final _uuid = const Uuid();
 
-  late final AppDb _db;
-  late final MigrationConfig _migrationConfig;
   late final FlutterLocalNotificationsPlugin _notifications;
 
   // Domain repositories
-  INotesRepository? _domainNotesRepo;
-  ITaskRepository? _domainTasksRepo;
+  late final ITaskRepository _domainTasksRepo;
 
   // Reminder storage (in-memory for now, should be persisted)
   final Map<String, UnifiedReminder> _reminders = {};
@@ -129,16 +125,12 @@ class UnifiedReminderService {
   Stream<List<UnifiedReminder>> get remindersStream => _reminderStreamController.stream;
 
   Future<void> initialize({
-    required AppDb database,
     required MigrationConfig migrationConfig,
     required FlutterLocalNotificationsPlugin notifications,
-    INotesRepository? domainNotesRepo,
-    ITaskRepository? domainTasksRepo,
+    required INotesRepository domainNotesRepo,
+    required ITaskRepository domainTasksRepo,
   }) async {
-    _db = database;
-    _migrationConfig = migrationConfig;
     _notifications = notifications;
-    _domainNotesRepo = domainNotesRepo;
     _domainTasksRepo = domainTasksRepo;
 
     // Initialize notifications
@@ -236,10 +228,11 @@ class UnifiedReminderService {
 
       // Parse for dates and times in content
       final datePattern = RegExp(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b');
-      final timePattern = RegExp(r'\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b', caseSensitive: false);
+      // TODO: Implement time parsing to set specific reminder times instead of default 9 AM
+      // final timePattern = RegExp(r'\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b', caseSensitive: false);
 
       final dateMatches = datePattern.allMatches(noteContent);
-      final timeMatches = timePattern.allMatches(noteContent);
+      // final timeMatches = timePattern.allMatches(noteContent);
 
       // Create reminders for found dates
       for (final match in dateMatches) {
@@ -616,60 +609,48 @@ class UnifiedReminderService {
 
   // Data access methods
   Future<List<dynamic>> _getAllTasks() async {
-    if (_migrationConfig.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
-      return await _domainTasksRepo!.getAllTasks();
-    } else {
-      return await _db.select(_db.noteTasks).get();
-    }
+    return await _domainTasksRepo.getAllTasks();
   }
 
   // Type-agnostic property accessors
   String _getNoteId(dynamic note) {
     if (note is domain.Note) return note.id;
-    if (note is LocalNote) return note.id;
-    throw ArgumentError('Unknown note type');
+    throw ArgumentError('Only domain.Note is supported');
   }
 
   String _getNoteTitle(dynamic note) {
     if (note is domain.Note) return note.title;
-    if (note is LocalNote) return note.title;
-    throw ArgumentError('Unknown note type');
+    throw ArgumentError('Only domain.Note is supported');
   }
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.body;
-    throw ArgumentError('Unknown note type');
+    throw ArgumentError('Only domain.Note is supported');
   }
 
   String _getTaskId(dynamic task) {
     if (task is domain.Task) return task.id;
-    if (task is NoteTask) return task.id;
-    throw ArgumentError('Unknown task type');
+    throw ArgumentError('Only domain.Task is supported');
   }
 
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
-    if (task is NoteTask) return task.content;
-    throw ArgumentError('Unknown task type');
+    throw ArgumentError('Only domain.Task is supported');
   }
 
   String? _getTaskNoteId(dynamic task) {
     if (task is domain.Task) return task.noteId;
-    if (task is NoteTask) return task.noteId;
-    throw ArgumentError('Unknown task type');
+    throw ArgumentError('Only domain.Task is supported');
   }
 
   DateTime? _getTaskDueDate(dynamic task) {
     if (task is domain.Task) return task.dueDate;
-    if (task is NoteTask) return task.dueDate;
-    throw ArgumentError('Unknown task type');
+    throw ArgumentError('Only domain.Task is supported');
   }
 
   bool _isTaskCompleted(dynamic task) {
     if (task is domain.Task) return task.status == domain.TaskStatus.completed;
-    if (task is NoteTask) return task.status == TaskStatus.completed;
-    throw ArgumentError('Unknown task type');
+    throw ArgumentError('Only domain.Task is supported');
   }
 
   void dispose() {

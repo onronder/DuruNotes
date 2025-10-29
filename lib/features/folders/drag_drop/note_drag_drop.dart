@@ -1,4 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +17,7 @@ class DraggableNoteItem extends ConsumerStatefulWidget {
     this.enabled = true,
   });
 
-  final LocalNote note;
+  final domain.Note note;
   final Widget child;
   final VoidCallback? onDragStarted;
   final VoidCallback? onDragEnd;
@@ -55,7 +57,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
 
-    return LongPressDraggable<LocalNote>(
+    return LongPressDraggable<domain.Note>(
       data: widget.note,
       feedback: _buildFeedback(context),
       childWhenDragging: AnimatedBuilder(
@@ -117,9 +119,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.note.title.isEmpty
-                        ? 'Untitled Note'
-                        : widget.note.title,
+                    widget.note.title.isEmpty ? 'Untitled Note' : widget.note.title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -130,7 +130,7 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
               ],
             ),
             if (widget.note.body.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 widget.note.body,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -174,9 +174,9 @@ class FolderDropTarget extends ConsumerStatefulWidget {
     this.enabled = true,
   });
 
-  final LocalFolder? folder; // null for "Unfiled" option
+  final domain.Folder? folder; // null for "Unfiled" option
   final Widget child;
-  final void Function(LocalNote note, LocalFolder? folder)? onNoteDropped;
+  final void Function(domain.Note note, domain.Folder? folder)? onNoteDropped;
   final bool enabled;
 
   @override
@@ -214,8 +214,8 @@ class _FolderDropTargetState extends ConsumerState<FolderDropTarget>
 
     final theme = Theme.of(context);
 
-    return DragTarget<LocalNote>(
-      onWillAcceptWithDetails: (note) => note != null,
+    return DragTarget<domain.Note>(
+      onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) {
         HapticFeedback.lightImpact();
         widget.onNoteDropped?.call(details.data, widget.folder);
@@ -323,9 +323,9 @@ class BatchNoteDragDrop extends ConsumerStatefulWidget {
     this.enabled = true,
   });
 
-  final List<LocalNote> selectedNotes;
+  final List<domain.Note> selectedNotes;
   final Widget child;
-  final void Function(List<LocalNote> notes, LocalFolder? folder)? onNotesDropped;
+  final void Function(List<domain.Note> notes, LocalFolder? folder)? onNotesDropped;
   final bool enabled;
 
   @override
@@ -362,7 +362,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
       return widget.child;
     }
 
-    return LongPressDraggable<List<LocalNote>>(
+    return LongPressDraggable<List<domain.Note>>(
       data: widget.selectedNotes,
       feedback: _buildBatchFeedback(context),
       childWhenDragging: Opacity(opacity: 0.7, child: widget.child),
@@ -470,6 +470,7 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           note.title.isEmpty ? 'Untitled' : note.title,
@@ -479,15 +480,18 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          note.body,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                        if (note.body.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            note.body,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              fontSize: 10,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        ],
                       ],
                     ),
                   );
@@ -554,7 +558,7 @@ class BatchFolderDropTarget extends FolderDropTarget {
     super.enabled = true,
   }) : super(onNoteDropped: null);
 
-  final void Function(List<LocalNote> notes, LocalFolder? folder)?
+  final void Function(List<domain.Note> notes, domain.Folder? folder)?
       onBatchNotesDropped;
 
   @override
@@ -573,7 +577,7 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
         super.build(context),
 
         // Batch notes drop target
-        DragTarget<List<LocalNote>>(
+        DragTarget<List<domain.Note>>(
           onWillAcceptWithDetails: (details) => details.data.isNotEmpty,
           onAcceptWithDetails: (details) {
             HapticFeedback.lightImpact();

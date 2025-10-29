@@ -349,8 +349,6 @@ class _ConflictResolutionDialogState
   }
 
   Widget _buildComparisonTabs(ThemeData theme, AppLocalizations l10n) {
-    final colorScheme = theme.colorScheme;
-
     return Column(
       children: [
         TabBar(
@@ -427,7 +425,7 @@ class _ConflictResolutionDialogState
     final description = (data['description'] as String?)?.trim() ?? '';
     final icon = (data['icon'] as String?) ?? Icons.folder.codePoint.toString();
     final color = (data['color'] as String?) ??
-        colorScheme.primary.value.toRadixString(16);
+        colorScheme.primary.toARGB32().toRadixString(16);
     final name =
         (rawName == null || rawName.isEmpty) ? 'Unnamed Folder' : rawName;
 

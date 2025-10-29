@@ -3,22 +3,20 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
-import 'package:duru_notes/data/local/app_db.dart' show NoteTask, TaskStatus, TaskPriority;
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
-import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
     show taskCoreRepositoryProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
-    show unifiedTaskServiceProvider;
+    show domainTaskControllerProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/security_providers.dart' show cryptoBoxProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
 import 'package:duru_notes/ui/widgets/task_item_widget.dart';
-import 'package:duru_notes/ui/widgets/calendar_day_widget.dart';
+import 'package:duru_notes/ui/widgets/domain_calendar_day_widget.dart';
 import 'package:duru_notes/ui/widgets/calendar_task_sheet.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:flutter/material.dart';
@@ -88,10 +86,14 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         }
 
         final tasks = snapshot.data!;
-        final overdueTasks = tasks.where((t) =>
-            t.status != domain.TaskStatus.completed &&
-            t.dueDate != null &&
-            t.dueDate!.isBefore(DateTime.now())).length;
+        final overdueTasks = tasks
+            .where(
+              (t) =>
+                  t.status != domain.TaskStatus.completed &&
+                  t.dueDate != null &&
+                  t.dueDate!.isBefore(DateTime.now()),
+            )
+            .length;
         final todayTasks = tasks.where((t) {
           if (t.dueDate == null) return false;
           final today = DateTime.now();
@@ -99,10 +101,12 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
               t.dueDate!.month == today.month &&
               t.dueDate!.day == today.day;
         }).length;
-        final completedTasks = tasks.where((t) =>
-            t.status == domain.TaskStatus.completed).length;
-        final pendingTasks = tasks.where((t) =>
-            t.status != domain.TaskStatus.completed).length;
+        final completedTasks = tasks
+            .where((t) => t.status == domain.TaskStatus.completed)
+            .length;
+        final pendingTasks = tasks
+            .where((t) => t.status != domain.TaskStatus.completed)
+            .length;
 
         return Container(
           margin: EdgeInsets.all(DuruSpacing.md),
@@ -143,7 +147,9 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
                 icon: CupertinoIcons.exclamationmark_triangle_fill,
                 value: overdueTasks.toString(),
                 label: 'Overdue',
-                color: overdueTasks > 0 ? DuruColors.error : DuruColors.surfaceVariant,
+                color: overdueTasks > 0
+                    ? DuruColors.error
+                    : DuruColors.surfaceVariant,
               ),
               _buildStatItem(
                 context,
@@ -189,7 +195,9 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -209,7 +217,10 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Enhanced Tasks'),
-            Text('Smart organization & calendar view', style: TextStyle(fontSize: 12)),
+            Text(
+              'Smart organization & calendar view',
+              style: TextStyle(fontSize: 12),
+            ),
           ],
         ),
         flexibleSpace: Container(
@@ -242,7 +253,11 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
                 value: TaskViewMode.grouped,
                 child: Row(
                   children: [
-                    Icon(CupertinoIcons.square_stack_3d_up, size: 18, color: DuruColors.primary),
+                    Icon(
+                      CupertinoIcons.square_stack_3d_up,
+                      size: 18,
+                      color: DuruColors.primary,
+                    ),
                     SizedBox(width: DuruSpacing.sm),
                     const Text('Smart Groups'),
                   ],
@@ -252,7 +267,11 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
                 value: TaskViewMode.list,
                 child: Row(
                   children: [
-                    Icon(CupertinoIcons.list_bullet, size: 18, color: DuruColors.primary),
+                    Icon(
+                      CupertinoIcons.list_bullet,
+                      size: 18,
+                      color: DuruColors.primary,
+                    ),
                     SizedBox(width: DuruSpacing.sm),
                     const Text('Simple List'),
                   ],
@@ -262,7 +281,9 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
           ),
           // Toggle completed
           IconButton(
-            icon: Icon(_showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye),
+            icon: Icon(
+              _showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+            ),
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
           ),
@@ -288,6 +309,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'enhanced_task_list_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: () => _showCreateStandaloneTaskDialog(context),
         backgroundColor: DuruColors.primary,
         icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
@@ -313,9 +335,6 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
     try {
-      // Note: taskService not needed as we're using taskRepo directly
-      // final taskService = ref.read(unifiedTaskServiceProvider);
-
       // USE USER'S INPUT instead of hardcoded "New Task"
       final taskContent = metadata.taskContent.trim();
 
@@ -332,47 +351,31 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         return;
       }
 
-      // Create task using repository
+      // Create task using domain controller
       final taskRepo = ref.read(taskCoreRepositoryProvider);
-
-      // Handle nullable repository
       if (taskRepo == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task creation requires authentication')),
+            const SnackBar(
+              content: Text('Task creation requires authentication'),
+            ),
           );
         }
         return;
       }
 
-      final now = DateTime.now();
-      final newTask = domain.Task(
-        id: '',
-        noteId: 'standalone',
+      final controller = ref.read(domainTaskControllerProvider);
+      final createdTask = await controller.createTask(
+        noteId: null,
         title: taskContent,
         description: metadata.notes,
-        status: domain.TaskStatus.pending,
         priority: metadata.priority,
         dueDate: metadata.dueDate,
-        completedAt: null,
-        createdAt: now,
-        updatedAt: now,
         tags: metadata.labels,
-        metadata: {
-          if (metadata.estimatedMinutes != null)
-            'estimatedMinutes': metadata.estimatedMinutes,
-        },
+        estimatedMinutes: metadata.estimatedMinutes,
+        createReminder: metadata.hasReminder,
+        reminderTime: metadata.reminderTime,
       );
-      final createdTask = await taskRepo.createTask(newTask);
-
-      // TODO: Handle custom reminder time
-      // Reminder functionality will be updated when TaskReminderBridge supports domain.Task
-      if (metadata.hasReminder &&
-          metadata.reminderTime != null &&
-          metadata.dueDate != null &&
-          metadata.reminderTime != metadata.dueDate) {
-        debugPrint('TODO: Create reminder for task ${createdTask.id}');
-      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -390,7 +393,12 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
       }
       _logger.info(
         'Created standalone task',
-        data: {'taskContent': taskContent, 'hasDueDate': metadata.dueDate != null},
+        data: {
+          'taskId': createdTask.id,
+          'noteId': createdTask.noteId,
+          'taskContent': taskContent,
+          'hasDueDate': metadata.dueDate != null,
+        },
       );
     } on Exception catch (e, stackTrace) {
       _logger.error(
@@ -432,8 +440,7 @@ class EnhancedTaskListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Note: taskService not needed as we're using taskRepo stream directly
-    // final taskService = ref.watch(unifiedTaskServiceProvider);
+    // Note: unified task service removed; domain repository powers the stream directly
     final taskRepo = ref.watch(taskCoreRepositoryProvider);
 
     return StreamBuilder<List<domain.Task>>(
@@ -465,7 +472,9 @@ class EnhancedTaskListView extends ConsumerWidget {
 
         // Filter completed tasks if needed
         if (!showCompleted) {
-          tasks = tasks.where((t) => t.status != domain.TaskStatus.completed).toList();
+          tasks = tasks
+              .where((t) => t.status != domain.TaskStatus.completed)
+              .toList();
         }
 
         if (tasks.isEmpty) {
@@ -486,10 +495,14 @@ class EnhancedTaskListView extends ConsumerWidget {
   }
 
   Widget _buildGroupedView(
-      BuildContext context, WidgetRef ref, List<domain.Task> tasks) {
+    BuildContext context,
+    WidgetRef ref,
+    List<domain.Task> tasks,
+  ) {
     final groupedTasks = _groupTasksByDueDate(tasks);
-    final groups =
-        groupedTasks.entries.where((entry) => entry.value.isNotEmpty).toList();
+    final groups = groupedTasks.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .toList();
 
     if (groups.isEmpty) {
       return const EmptyTaskGroup(
@@ -515,7 +528,9 @@ class EnhancedTaskListView extends ConsumerWidget {
               .map<Widget>(
                 (task) => TaskItemWidget(
                   task: task,
-                  showSourceNote: task.noteId != 'standalone',
+                  showSourceNote: !DomainTaskController.isStandaloneNoteId(
+                    task.noteId,
+                  ),
                 ),
               )
               .toList(),
@@ -525,7 +540,10 @@ class EnhancedTaskListView extends ConsumerWidget {
   }
 
   Widget _buildListView(
-      BuildContext context, WidgetRef ref, List<domain.Task> tasks) {
+    BuildContext context,
+    WidgetRef ref,
+    List<domain.Task> tasks,
+  ) {
     // Sort tasks by due date and priority
     final sortedTasks = _sortTasks(tasks);
 
@@ -536,7 +554,7 @@ class EnhancedTaskListView extends ConsumerWidget {
         final task = sortedTasks[index];
         return TaskItemWidget(
           task: task,
-          showSourceNote: task.noteId != 'standalone',
+          showSourceNote: !DomainTaskController.isStandaloneNoteId(task.noteId),
         );
       },
     );
@@ -648,7 +666,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     with SingleTickerProviderStateMixin {
   late DateTime _currentMonth;
   DateTime? _selectedDate;
-  Map<DateTime, List<NoteTask>> _tasksByDate = {};
+  Map<DateTime, List<domain.Task>> _tasksByDate = {};
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
 
@@ -665,13 +683,16 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0),
-      end: const Offset(0, 0),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _slideAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, 0),
+          end: const Offset(0, 0),
+        ).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
     _loadTasksForMonth();
   }
@@ -684,20 +705,28 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _loadTasksForMonth() async {
     try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
+      final taskRepo = ref.read(taskCoreRepositoryProvider);
+      if (taskRepo == null) {
+        _logger.debug('Task repository not available (user not authenticated)');
+        return;
+      }
 
-      // Get all tasks for the current month
+      // Get all tasks from repository (domain entities)
+      final allTasks = await taskRepo.getAllTasks();
+
+      // Filter tasks for the current month
       final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
       final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
 
-      final tasks = await taskService.getTasksByDateRange(
-        firstDay,
-        lastDay.add(const Duration(days: 1)),
-      );
+      final tasksInMonth = allTasks.where((task) {
+        if (task.dueDate == null) return false;
+        return !task.dueDate!.isBefore(firstDay) &&
+            !task.dueDate!.isAfter(lastDay.add(const Duration(days: 1)));
+      }).toList();
 
-      // Group tasks by date (using NoteTask for now until full migration)
-      final tasksByDate = <DateTime, List<NoteTask>>{};
-      for (final task in tasks) {
+      // Group tasks by date (using domain.Task)
+      final tasksByDate = <DateTime, List<domain.Task>>{};
+      for (final task in tasksInMonth) {
         if (task.dueDate != null) {
           final dateKey = DateTime(
             task.dueDate!.year,
@@ -718,10 +747,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         'Failed to load tasks for calendar month',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'month': _currentMonth.month,
-          'year': _currentMonth.year,
-        },
+        data: {'month': _currentMonth.month, 'year': _currentMonth.year},
       );
       unawaited(Sentry.captureException(e, stackTrace: stackTrace));
     }
@@ -729,13 +755,16 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   void _navigateMonth(int direction) async {
     // Set up slide animation
-    _slideAnimation = Tween<Offset>(
-      begin: Offset(-direction.toDouble(), 0),
-      end: const Offset(0, 0),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _slideAnimation =
+        Tween<Offset>(
+          begin: Offset(-direction.toDouble(), 0),
+          end: const Offset(0, 0),
+        ).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
     await _animationController.forward();
 
@@ -774,26 +803,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     }
   }
 
-  void _showTaskSheet(DateTime date, List<NoteTask> tasks) async {
-    // Convert NoteTask to domain.Task with decryption
-    final List<domain.Task> domainTasks = [];
-    final decryptHelper = TaskDecryptionHelper(ref.read(cryptoBoxProvider));
-
-    for (final task in tasks) {
-      final content = await decryptHelper.decryptContent(task, task.noteId);
-      final notes = await decryptHelper.decryptNotes(task, task.noteId);
-      final labels = await decryptHelper.decryptLabels(task, task.noteId);
-
-      domainTasks.add(TaskMapper.toDomain(
-        task,
-        content: content,
-        notes: notes,
-        labels: labels,
-      ));
-    }
-
-    if (!mounted) return;
-
+  void _showTaskSheet(DateTime date, List<domain.Task> tasks) {
+    // Tasks are already domain.Task entities from repository
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -805,18 +816,18 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         ),
         child: CalendarTaskSheet(
           selectedDate: date,
-          tasks: domainTasks,
-          onTaskToggle: (domainTask) {
-            _toggleTask(domainTask);
+          tasks: tasks,
+          onTaskToggle: (task) {
+            _toggleTask(task);
           },
-          onTaskEdit: (domainTask) {
-            _editTask(domainTask);
+          onTaskEdit: (task) {
+            _editTask(task);
           },
-          onTaskDelete: (domainTask) {
-            _deleteTask(domainTask);
+          onTaskDelete: (task) {
+            _deleteTask(task);
           },
-          onOpenNote: (domainTask) {
-            _openSourceNote(domainTask);
+          onOpenNote: (task) {
+            _openSourceNote(task);
           },
         ),
       ),
@@ -825,8 +836,14 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _toggleTask(domain.Task task) async {
     try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
-      await taskService.toggleTaskStatus(task.id);
+      final taskRepo = ref.read(taskCoreRepositoryProvider);
+      if (taskRepo == null) {
+        _logger.debug('Cannot toggle task; repository unavailable');
+        return;
+      }
+
+      final controller = ref.read(domainTaskControllerProvider);
+      await controller.toggleStatus(task.id);
       await _loadTasksForMonth(); // Refresh calendar
     } catch (e, stackTrace) {
       _logger.error(
@@ -865,15 +882,23 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
     if (result != null) {
       try {
-        final taskService = ref.read(unifiedTaskServiceProvider);
-        await taskService.updateTask(
-          taskId: task.id,
-          content: task.title, // Use decrypted title from domain.Task
-          priority: TaskMapper.mapPriorityToDb(result.priority),
+        final taskRepo = ref.read(taskCoreRepositoryProvider);
+        if (taskRepo == null) {
+          _logger.debug('Cannot edit task; repository unavailable');
+          return;
+        }
+
+        final controller = ref.read(domainTaskControllerProvider);
+        await controller.updateTask(
+          task,
+          title: result.taskContent,
+          description: result.notes,
+          priority: result.priority,
           dueDate: result.dueDate,
-          labels: result.labels,
-          notes: result.notes,
+          tags: result.labels,
           estimatedMinutes: result.estimatedMinutes,
+          hasReminder: result.hasReminder,
+          reminderTime: result.reminderTime,
         );
         await _loadTasksForMonth(); // Refresh calendar
       } catch (e, stackTrace) {
@@ -903,8 +928,14 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
 
   Future<void> _deleteTask(domain.Task task) async {
     try {
-      final taskService = ref.read(unifiedTaskServiceProvider);
-      await taskService.deleteTask(task.id);
+      final taskRepo = ref.read(taskCoreRepositoryProvider);
+      if (taskRepo == null) {
+        _logger.debug('Cannot delete task; repository unavailable');
+        return;
+      }
+
+      final controller = ref.read(domainTaskControllerProvider);
+      await controller.deleteTask(task.id);
       await _loadTasksForMonth(); // Refresh calendar
     } catch (e, stackTrace) {
       _logger.error(
@@ -931,7 +962,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
   }
 
   Future<void> _openSourceNote(domain.Task task) async {
-    if (task.noteId == 'standalone') return;
+    if (DomainTaskController.isStandaloneNoteId(task.noteId)) return;
 
     try {
       final notesRepo = ref.read(notesCoreRepositoryProvider);
@@ -988,7 +1019,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
         Expanded(
           child: SlideTransition(
             position: _slideAnimation,
-            child: CalendarMonthWidget(
+            child: DomainCalendarMonthWidget(
               month: _currentMonth,
               tasksByDate: _tasksByDate,
               selectedDate: _selectedDate,
@@ -1002,16 +1033,14 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: Border(
                 top: BorderSide(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.2),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -1025,23 +1054,28 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Calculate stats for current month
-    final List<NoteTask> allTasks = _tasksByDate.values.expand((tasks) => tasks).toList();
+    // Calculate stats for current month (using domain.Task)
+    final List<domain.Task> allTasks = _tasksByDate.values
+        .expand((tasks) => tasks)
+        .toList();
     final totalTasks = allTasks.length;
-    // NoteTask uses database TaskStatus enum
-    final completedTasks =
-        allTasks.where((NoteTask t) => t.status == TaskStatus.completed).length;
-    final overdueTasks = allTasks
-        .where((NoteTask t) =>
-            t.dueDate != null &&
-            t.dueDate!.isBefore(DateTime.now()) &&
-            t.status != TaskStatus.completed)
+    final completedTasks = allTasks
+        .where((t) => t.status == domain.TaskStatus.completed)
         .length;
-    // NoteTask uses database TaskPriority enum
+    final overdueTasks = allTasks
+        .where(
+          (t) =>
+              t.dueDate != null &&
+              t.dueDate!.isBefore(DateTime.now()) &&
+              t.status != domain.TaskStatus.completed,
+        )
+        .length;
     final highPriorityTasks = allTasks
-        .where((NoteTask t) =>
-            t.priority == TaskPriority.high ||
-            t.priority == TaskPriority.urgent)
+        .where(
+          (t) =>
+              t.priority == domain.TaskPriority.high ||
+              t.priority == domain.TaskPriority.urgent,
+        )
         .length;
 
     return Row(
