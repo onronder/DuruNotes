@@ -53,9 +53,7 @@ class ProperEncryptionService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'ProperEncryptionService');
-          scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
-        },
+          scope.setTag('operation', operation);        },
       ),
     );
   }

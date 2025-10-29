@@ -1,251 +1,263 @@
 import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/search/search_parser.dart';
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/infrastructure/helpers/note_decryption_helper.dart';
 
-/// Unified search service that combines FTS, folder, and tag filtering in one SQL pass
+/// Unified search service that combines FTS, folder, and tag filtering
+///
+/// ENCRYPTION-AWARE SEARCH:
+/// Since notes are now encrypted with XChaCha20-Poly1305, traditional SQL-based FTS5
+/// cannot index encrypted content. This service uses a hybrid approach:
+/// 1. Use SQL for structural filters (tags, folders, pinned, metadata)
+/// 2. Decrypt candidate notes in memory
+/// 3. Apply text search on decrypted content
+///
+/// Performance: Optimized to minimize decryption overhead by filtering first
 class UnifiedSearchService {
-  UnifiedSearchService({required this.db});
-  final AppDb db;
+  UnifiedSearchService({
+    required this.db,
+    required CryptoBox crypto,
+  }) : _decryptHelper = NoteDecryptionHelper(crypto);
 
-  /// Execute a unified search query using a single SQL pass
+  final AppDb db;
+  final NoteDecryptionHelper _decryptHelper;
+
+  Future<List<LocalNote>> _applySort(
+    List<LocalNote> notes,
+    SortSpec sort, {
+    Map<String, String>? decryptedTitles,
+  }) async {
+    if (notes.length <= 1 || sort.sortBy != SortBy.title) {
+      return List<LocalNote>.from(notes);
+    }
+
+    final titles = <String, String>{};
+    if (decryptedTitles != null) {
+      titles.addAll(decryptedTitles);
+    }
+
+    for (final note in notes) {
+      if (!titles.containsKey(note.id)) {
+        titles[note.id] = await _decryptHelper.decryptTitle(note);
+      }
+    }
+
+    int compare(LocalNote a, LocalNote b) {
+      final titleA = titles[a.id]?.toLowerCase() ?? '';
+      final titleB = titles[b.id]?.toLowerCase() ?? '';
+      final primary = titleA.compareTo(titleB);
+      if (primary != 0) {
+        return sort.ascending ? primary : -primary;
+      }
+      final secondary = a.updatedAt.compareTo(b.updatedAt);
+      return sort.ascending ? secondary : -secondary;
+    }
+
+    final sorted = List<LocalNote>.from(notes)..sort(compare);
+
+    if (!sort.pinnedFirst) {
+      return sorted;
+    }
+
+    final pinned = <LocalNote>[];
+    final others = <LocalNote>[];
+    for (final note in sorted) {
+      if (note.isPinned) {
+        pinned.add(note);
+      } else {
+        others.add(note);
+      }
+    }
+    return [...pinned, ...others];
+  }
+
+  Future<List<LocalNote>> _sortedAndLimited(
+    List<LocalNote> notes,
+    SortSpec sort,
+    int? limit, {
+    Map<String, String>? decryptedTitles,
+  }) async {
+    final sorted = await _applySort(notes, sort, decryptedTitles: decryptedTitles);
+    if (limit != null && sorted.length > limit) {
+      return sorted.take(limit).toList();
+    }
+    return sorted;
+  }
+
+  /// Execute a unified search query with encryption-aware implementation
+  ///
+  /// Strategy:
+  /// 1. Use SQL to filter by structural criteria (tags, folders, pinned, metadata)
+  /// 2. Fetch candidate encrypted notes from database
+  /// 3. Decrypt and filter by text search in memory
+  ///
+  /// Performance: Structural filters reduce candidate set before decryption
+  ///
+  /// SECURITY: Filters by userId to prevent cross-user data leakage
   Future<List<LocalNote>> search(
     SearchQuery query, {
+    required String userId, // P0.5 SECURITY: Prevent cross-user search results
     SortSpec sort = const SortSpec(),
     int? limit,
   }) async {
-    // Build variables list for parameterized query
-    final vars = <Variable>[];
+    // Step 1: Build SQL query for structural filters (no text search in SQL)
+    final candidates = await _fetchCandidates(query, userId, sort, limit);
 
-    // Normalize tags to lowercase for case-insensitive matching
-    final anyTags =
-        query.includeTags.map((t) => t.trim().toLowerCase()).toList();
-    final noneTags =
-        query.excludeTags.map((t) => t.trim().toLowerCase()).toList();
-
-    // Build FTS expression if keywords present
-    String? ftsExpr;
-    if (query.keywords.isNotEmpty) {
-      ftsExpr = _buildFtsMatch(query.keywords);
-      vars.add(Variable<String>(ftsExpr));
+    // Step 2: If no text search, return candidates as-is
+    if (query.keywords.isEmpty) {
+      return _sortedAndLimited(candidates, sort, limit);
     }
 
-    // Get folder ID if folder name is specified
-    String? folderId;
+    // Step 3: Decrypt and filter by text search
+    final keywords = query.keywords.toLowerCase().trim();
+    final searchTerms = keywords.split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    final results = <LocalNote>[];
+    final titleCache = <String, String>{};
+
+    for (final note in candidates) {
+      // Decrypt title and body
+      final title = await _decryptHelper.decryptTitle(note);
+      titleCache[note.id] = title;
+      final body = await _decryptHelper.decryptBody(note);
+
+      // Check if all search terms match (AND logic)
+      final titleLower = title.toLowerCase();
+      final bodyLower = body.toLowerCase();
+
+      final matches = searchTerms.every((term) =>
+        titleLower.contains(term) || bodyLower.contains(term)
+      );
+
+      if (matches) {
+        results.add(note);
+      }
+    }
+
+    return _sortedAndLimited(results, sort, limit, decryptedTitles: titleCache);
+  }
+
+  /// Fetch candidate notes using SQL-based structural filters
+  ///
+  /// SECURITY: Filters by userId to prevent cross-user data leakage
+  Future<List<LocalNote>> _fetchCandidates(
+    SearchQuery query,
+    String userId,
+    SortSpec sort,
+    int? limit,
+  ) async {
+    // Start with base query
+    // P0.5 SECURITY FIX: Add userId filter to prevent cross-user search results
+    var q = db.select(db.localNotes)
+      ..where((n) => n.deleted.equals(false) & n.userId.equals(userId));
+
+    // Folder filter
     if (query.folderName != null) {
       final folder = await _findFolderByName(query.folderName!);
       if (folder == null) {
-        // Folder not found - return empty result
+        return []; // Folder not found
+      }
+
+      // Join with note_folders to filter by folder
+      final notesInFolder = await (db.select(db.noteFolders)
+            ..where((nf) => nf.folderId.equals(folder.id)))
+          .get();
+
+      final noteIds = notesInFolder.map((nf) => nf.noteId).toSet();
+      if (noteIds.isEmpty) {
         return [];
       }
-      folderId = folder.id;
-      vars.add(Variable<String>(folderId));
+
+      q.where((n) => n.id.isIn(noteIds.toList()));
     }
 
-    // Build dynamic placeholders for tag lists
-    final anyPlaceholders = List.generate(
-      anyTags.length,
-      (_) => '?',
-    ).join(', ');
-    final nonePlaceholders = List.generate(
-      noneTags.length,
-      (_) => '?',
-    ).join(', ');
+    // Tag filters
+    if (query.includeTags.isNotEmpty) {
+      final tagsAny = query.includeTags.map((t) => t.trim().toLowerCase()).toList();
+      final notesWithTags = await (db.select(db.noteTags)
+            ..where((nt) => nt.tag.isIn(tagsAny)))
+          .get();
 
-    // Add tag variables
-    for (final tag in anyTags) {
-      vars.add(Variable<String>(tag));
-    }
-    for (final tag in noneTags) {
-      vars.add(Variable<String>(tag));
+      final noteIds = notesWithTags.map((nt) => nt.noteId).toSet();
+      if (noteIds.isEmpty) {
+        return [];
+      }
+
+      q.where((n) => n.id.isIn(noteIds.toList()));
     }
 
-    // Build the unified SQL query
-    final sql = _buildUnifiedSql(
-      hasFts: ftsExpr != null,
-      hasFolderId: folderId != null,
-      anyTagsPlaceholders: anyPlaceholders,
-      noneTagsPlaceholders: nonePlaceholders,
-      hasAnyTags: anyTags.isNotEmpty,
-      hasNoneTags: noneTags.isNotEmpty,
-      isPinnedFilter: query.isPinned,
-      hasAttachment: query.hasAttachment,
-      fromEmail: query.fromEmail,
-      fromWeb: query.fromWeb,
-      sort: sort,
-      limit: limit,
-    );
+    if (query.excludeTags.isNotEmpty) {
+      final tagsNone = query.excludeTags.map((t) => t.trim().toLowerCase()).toList();
+      final notesWithExcludedTags = await (db.select(db.noteTags)
+            ..where((nt) => nt.tag.isIn(tagsNone)))
+          .get();
 
-    // Execute the unified query
-    final rows = await db.customSelect(
-      sql,
-      variables: vars,
-      readsFrom: {
-        db.localNotes,
-        if (folderId != null) db.noteFolders,
-        if (anyTags.isNotEmpty || noneTags.isNotEmpty) db.noteTags,
-      },
-    ).get();
-
-    // Map rows to LocalNote objects
-    return rows.map<LocalNote>((row) {
-      // Map the row data to a LocalNote
-      return LocalNote(
-        id: row.read<String>('id'),
-        title: row.read<String>('title'),
-        body: row.read<String>('body'),
-        encryptedMetadata: row.readNullable<String>('encrypted_metadata'),
-        updatedAt: row.read<DateTime>('updated_at'),
-        deleted: row.read<bool>('deleted'),
-        isPinned: row.read<bool>('is_pinned'),
-        noteType: NoteKind.note, // Default to regular note
-        version: row.readNullable<int>('version') ?? 1, // Default version 1
-      );
-    }).toList();
-  }
-
-  /// Build the unified SQL query string
-  String _buildUnifiedSql({
-    required bool hasFts,
-    required bool hasFolderId,
-    required String anyTagsPlaceholders,
-    required String noneTagsPlaceholders,
-    required bool hasAnyTags,
-    required bool hasNoneTags,
-    required bool isPinnedFilter,
-    required bool hasAttachment,
-    required bool fromEmail,
-    required bool fromWeb,
-    required SortSpec sort,
-    int? limit,
-  }) {
-    final buffer = StringBuffer();
-
-    // SELECT clause
-    buffer.writeln('SELECT DISTINCT n.*');
-    buffer.writeln('FROM local_notes n');
-
-    // JOIN clauses
-    if (hasFts) {
-      buffer.writeln('JOIN fts_notes f ON f.id = n.id');
-    }
-    if (hasFolderId) {
-      buffer.writeln('JOIN note_folders nf ON nf.note_id = n.id');
+      final excludedIds = notesWithExcludedTags.map((nt) => nt.noteId).toSet();
+      if (excludedIds.isNotEmpty) {
+        q.where((n) => n.id.isNotIn(excludedIds.toList()));
+      }
     }
 
-    // WHERE clause
-    buffer.writeln('WHERE n.deleted = 0');
-
-    // FTS match condition
-    if (hasFts) {
-      buffer.writeln('  AND f MATCH ?');
+    // Pinned filter
+    if (query.isPinned) {
+      q.where((n) => n.isPinned.equals(true));
     }
 
-    // Folder filter
-    if (hasFolderId) {
-      buffer.writeln('  AND nf.folder_id = ?');
+    // Note type filter (exclude templates)
+    q.where((n) => n.noteType.equals(0));
+
+    // Apply sorting
+    if (sort.pinnedFirst && !query.isPinned) {
+      q.orderBy([
+        (n) => OrderingTerm(expression: n.isPinned, mode: OrderingMode.desc),
+      ]);
     }
-
-    // Tag filters using EXISTS/NOT EXISTS subqueries
-    if (hasAnyTags) {
-      buffer.writeln('  AND EXISTS (');
-      buffer.writeln('    SELECT 1 FROM note_tags nt');
-      buffer.writeln('    WHERE nt.note_id = n.id');
-      buffer.writeln('      AND nt.tag IN ($anyTagsPlaceholders)');
-      buffer.writeln('  )');
-    }
-
-    if (hasNoneTags) {
-      buffer.writeln('  AND NOT EXISTS (');
-      buffer.writeln('    SELECT 1 FROM note_tags nt2');
-      buffer.writeln('    WHERE nt2.note_id = n.id');
-      buffer.writeln('      AND nt2.tag IN ($noneTagsPlaceholders)');
-      buffer.writeln('  )');
-    }
-
-    // Additional filters
-    if (isPinnedFilter) {
-      buffer.writeln('  AND n.is_pinned = 1');
-    }
-
-    // Metadata filters (using JSON extraction if metadata is stored as JSON)
-    if (hasAttachment) {
-      buffer.writeln('  AND n.encrypted_metadata IS NOT NULL');
-      buffer.writeln(
-        r"  AND json_extract(n.encrypted_metadata, '$.has_attachments') = true",
-      );
-    }
-
-    if (fromEmail) {
-      buffer.writeln('  AND n.encrypted_metadata IS NOT NULL');
-      buffer.writeln(
-        r"  AND json_extract(n.encrypted_metadata, '$.source') = 'email'",
-      );
-    }
-
-    if (fromWeb) {
-      buffer.writeln('  AND n.encrypted_metadata IS NOT NULL');
-      buffer.writeln(
-        r"  AND json_extract(n.encrypted_metadata, '$.source') = 'web'",
-      );
-    }
-
-    // ORDER BY clause
-    buffer.writeln('ORDER BY');
-
-    // Pinned first if enabled
-    if (sort.pinnedFirst && !isPinnedFilter) {
-      buffer.writeln('  n.is_pinned DESC,');
-    }
-
-    // Sort field
-    buffer.write('  ');
-    buffer.writeln(_getSqlSort(sort));
-
-    // LIMIT clause
-    if (limit != null) {
-      buffer.writeln('LIMIT $limit');
-    }
-
-    return buffer.toString();
-  }
-
-  /// Build FTS match expression from keywords
-  String _buildFtsMatch(String keywords) {
-    // Split keywords and add wildcard suffix for prefix matching
-    final terms = keywords
-        .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
-        .map(_escapeFtsToken)
-        .map((t) => '$t*') // Add wildcard for prefix matching
-        .toList();
-
-    // Join with AND operator for all terms must match
-    return terms.join(' ');
-  }
-
-  /// Escape special FTS characters
-  String _escapeFtsToken(String token) {
-    // Escape special FTS5 characters
-    return token.replaceAll('"', '""').replaceAll("'", "''");
-  }
-
-  /// Get SQL sort expression
-  String _getSqlSort(SortSpec sort) {
-    final dir = sort.ascending ? 'ASC' : 'DESC';
 
     switch (sort.sortBy) {
       case SortBy.updatedAt:
-        return 'n.updated_at $dir';
       case SortBy.createdAt:
-        // Since we don't have created_at, use updated_at as proxy
-        return 'n.updated_at $dir';
+        q.orderBy([
+          (n) => OrderingTerm(
+                expression: n.updatedAt,
+                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+              ),
+        ]);
+        break;
       case SortBy.title:
-        return 'LOWER(n.title) $dir';
+        // Cannot sort by encrypted title at SQL level
+        // Will sort after decryption if needed
+        q.orderBy([
+          (n) => OrderingTerm(
+                expression: n.updatedAt,
+                mode: OrderingMode.desc,
+              ),
+        ]);
+        break;
       default:
-        return 'n.updated_at $dir';
+        q.orderBy([
+          (n) => OrderingTerm(
+                expression: n.updatedAt,
+                mode: OrderingMode.desc,
+              ),
+        ]);
     }
+
+    // Apply limit (fetch more candidates if text search will filter)
+    if (query.keywords.isNotEmpty) {
+      // Fetch extra candidates since text filtering will reduce results
+      final candidateLimit = limit != null ? limit * 3 : 300;
+      q.limit(candidateLimit);
+    } else if (limit != null) {
+      final fetchLimit = sort.sortBy == SortBy.title ? limit * 3 : limit;
+      q.limit(fetchLimit);
+    }
+
+    return q.get();
   }
+
 
   /// Find folder by name or path
   Future<LocalFolder?> _findFolderByName(String name) async {
@@ -266,40 +278,49 @@ class UnifiedSearchService {
   }
 
   /// Execute a search query string (convenience method)
+  ///
+  /// P0.5 SECURITY: Requires userId to prevent cross-user search results
   Future<List<LocalNote>> searchString(
     String query, {
+    required String userId,
     SortSpec sort = const SortSpec(),
     int? limit,
   }) async {
     final searchQuery = SearchParser.parse(query);
-    return search(searchQuery, sort: sort, limit: limit);
+    return search(searchQuery, userId: userId, sort: sort, limit: limit);
   }
 
   /// Search notes by tags only (optimized for tag-only searches)
+  ///
+  /// P0.5 SECURITY: Requires userId to prevent cross-user search results
   Future<List<LocalNote>> searchByTags({
+    required String userId,
     List<String> anyTags = const [],
     List<String> noneTags = const [],
     SortSpec sort = const SortSpec(),
     int? limit,
   }) async {
     if (anyTags.isEmpty && noneTags.isEmpty) {
-      // No tags specified - return all notes
-      return _getAllNotes(sort: sort, limit: limit);
+      // No tags specified - return all notes for this user
+      return _getAllNotes(userId: userId, sort: sort, limit: limit);
     }
 
     // Use unified search with tag filters only
     final query = SearchQuery(includeTags: anyTags, excludeTags: noneTags);
 
-    return search(query, sort: sort, limit: limit);
+    return search(query, userId: userId, sort: sort, limit: limit);
   }
 
   /// Get all notes (no filters)
+  ///
+  /// P0.5 SECURITY: Filters by userId to prevent cross-user data access
   Future<List<LocalNote>> _getAllNotes({
+    required String userId,
     SortSpec sort = const SortSpec(),
     int? limit,
   }) async {
     final query = db.select(db.localNotes)
-      ..where((n) => n.deleted.equals(false));
+      ..where((n) => n.deleted.equals(false) & n.userId.equals(userId));
 
     // Apply sorting
     if (sort.pinnedFirst) {
@@ -312,8 +333,8 @@ class UnifiedSearchService {
       case SortBy.title:
         query.orderBy([
           (n) => OrderingTerm(
-                expression: n.title.lower(),
-                mode: sort.ascending ? OrderingMode.asc : OrderingMode.desc,
+                expression: n.updatedAt,
+                mode: OrderingMode.desc,
               ),
         ]);
         break;
@@ -330,9 +351,11 @@ class UnifiedSearchService {
     }
 
     if (limit != null) {
-      query.limit(limit);
+      final fetchLimit = sort.sortBy == SortBy.title ? limit * 3 : limit;
+      query.limit(fetchLimit);
     }
 
-    return query.get();
+    final rows = await query.get();
+    return _sortedAndLimited(rows, sort, limit);
   }
 }

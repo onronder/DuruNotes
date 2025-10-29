@@ -1,8 +1,9 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider, folderProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +17,7 @@ class FolderHierarchyWidget extends ConsumerStatefulWidget {
     this.maxHeight,
   });
 
-  final void Function(LocalFolder folder)? onFolderSelected;
+  final void Function(domain.Folder folder)? onFolderSelected;
   final String? selectedFolderId;
   final bool showSearchBar;
   final bool showActions;
@@ -338,7 +339,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
   }
 
   void _showCreateFolderDialog([String? parentId]) async {
-    final result = await showDialog<LocalFolder>(
+    final result = await showDialog<domain.Folder>(
       context: context,
       builder: (context) => CreateFolderDialog(parentId: parentId),
     );
@@ -349,7 +350,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
     }
   }
 
-  void _showFolderContextMenu(LocalFolder folder) {
+  void _showFolderContextMenu(domain.Folder folder) {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => FolderContextMenu(folder: folder),
@@ -360,7 +361,7 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
 class FolderContextMenu extends ConsumerWidget {
   const FolderContextMenu({required this.folder, super.key});
 
-  final LocalFolder folder;
+  final domain.Folder folder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -453,7 +454,7 @@ class FolderContextMenu extends ConsumerWidget {
   void _showEditFolderDialog(
     BuildContext context,
     WidgetRef ref,
-    LocalFolder folder,
+    domain.Folder folder,
   ) {
     // TODO: Implement edit folder dialog
     ScaffoldMessenger.of(
@@ -464,7 +465,7 @@ class FolderContextMenu extends ConsumerWidget {
   void _showMoveFolderDialog(
     BuildContext context,
     WidgetRef ref,
-    LocalFolder folder,
+    domain.Folder folder,
   ) {
     // TODO: Implement move folder dialog
     ScaffoldMessenger.of(
@@ -475,7 +476,7 @@ class FolderContextMenu extends ConsumerWidget {
   void _showDeleteConfirmDialog(
     BuildContext context,
     WidgetRef ref,
-    LocalFolder folder,
+    domain.Folder folder,
   ) {
     showDialog<void>(
       context: context,

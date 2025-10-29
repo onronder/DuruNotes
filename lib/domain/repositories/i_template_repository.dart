@@ -25,4 +25,17 @@ abstract class ITemplateRepository {
 
   /// Watch templates stream
   Stream<List<Template>> watchTemplates();
+
+  /// Apply a template to create a note
+  /// Returns the created note ID
+  Future<String> applyTemplate({
+    required String templateId,
+    required Map<String, dynamic> variableValues,
+  });
+
+  /// Duplicate an existing template
+  Future<Template> duplicateTemplate({
+    required String templateId,
+    required String newName,
+  });
 }

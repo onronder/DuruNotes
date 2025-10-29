@@ -4,11 +4,10 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import com.fittechs.durunotes.R
-import org.json.JSONArray
-import org.json.JSONObject
+import com.fittechs.duruNotesApp.R
 import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
@@ -87,15 +86,15 @@ class QuickCaptureRemoteViewsFactory(
         // Show pin indicator if pinned
         views.setViewVisibility(
             R.id.pin_indicator,
-            if (capture.isPinned) RemoteViews.VISIBLE else RemoteViews.GONE
+            if (capture.isPinned) View.VISIBLE else View.GONE
         )
 
         // Set tag chips
         if (capture.tags.isNotEmpty()) {
             views.setTextViewText(R.id.capture_tags, capture.tags.joinToString(" • "))
-            views.setViewVisibility(R.id.capture_tags, RemoteViews.VISIBLE)
+            views.setViewVisibility(R.id.capture_tags, View.VISIBLE)
         } else {
-            views.setViewVisibility(R.id.capture_tags, RemoteViews.GONE)
+            views.setViewVisibility(R.id.capture_tags, View.GONE)
         }
 
         // Set click fill-in intent
@@ -131,56 +130,30 @@ class QuickCaptureRemoteViewsFactory(
      */
     private fun loadData() {
         captures.clear()
+        val storage = QuickCaptureWidgetStorage.getInstance(context)
+        val items = storage.getRecentCaptures(maxItems = MAX_ITEMS)
 
-        val prefs = context.getSharedPreferences(
-            QuickCaptureWidgetProvider.PREFS_NAME,
-            Context.MODE_PRIVATE
+        items.forEach { capture ->
+            captures.add(
+                CaptureListItem(
+                    id = capture.id,
+                    title = capture.title,
+                    snippet = capture.snippet,
+                    timestamp = capture.updatedAtMillis ?: System.currentTimeMillis(),
+                    isPinned = false,
+                    tags = capture.tags,
+                ),
+            )
+        }
+
+        captures.sortWith(
+            compareBy(
+                { !it.isPinned },
+                { -it.timestamp },
+            ),
         )
 
-        val capturesJson = prefs.getString(
-            QuickCaptureWidgetProvider.PREF_RECENT_CAPTURES,
-            null
-        ) ?: return
-
-        try {
-            val jsonArray = JSONArray(capturesJson)
-            val itemCount = minOf(jsonArray.length(), MAX_ITEMS)
-
-            for (i in 0 until itemCount) {
-                val obj = jsonArray.getJSONObject(i)
-                
-                // Parse tags
-                val tags = mutableListOf<String>()
-                if (obj.has("tags")) {
-                    val tagsArray = obj.getJSONArray("tags")
-                    for (j in 0 until tagsArray.length()) {
-                        tags.add(tagsArray.getString(j))
-                    }
-                }
-
-                captures.add(
-                    CaptureListItem(
-                        id = obj.getString("id"),
-                        title = obj.getString("title"),
-                        snippet = obj.optString("snippet", ""),
-                        timestamp = obj.getLong("created_at"),
-                        isPinned = obj.optBoolean("is_pinned", false),
-                        tags = tags
-                    )
-                )
-            }
-
-            // Sort by pinned first, then by timestamp
-            captures.sortWith(compareBy(
-                { !it.isPinned }, // Pinned items first
-                { -it.timestamp }  // Then by timestamp descending
-            ))
-
-            Log.d(TAG, "Loaded ${captures.size} captures for widget $appWidgetId")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading captures data", e)
-        }
+        Log.d(TAG, "Loaded ${captures.size} captures for widget $appWidgetId")
     }
 
     /**

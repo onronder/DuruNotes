@@ -1,22 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/domain/entities/note.dart' as domain;
-import 'package:duru_notes/core/migration/ui_migration_utility.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
+    show filteredNotesProvider, currentNotesProvider, notesPageProvider;
+import 'package:duru_notes/features/folders/enhanced_move_to_folder_dialog.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/ui/utils/accessibility_helper.dart';
+import 'package:duru_notes/ui/helpers/domain_note_helpers.dart';
 
 /// Unified note card variants
 enum NoteCardVariant {
-  compact,  // Minimal height, just title and date
+  compact, // Minimal height, just title and date
   standard, // Title, content preview, and metadata
   detailed, // Full content, tasks, attachments, etc.
 }
 
 /// Unified note card component that replaces all other note card implementations
-/// Supports both LocalNote and domain.Note for migration compatibility
+/// Works with domain.Note entities only (post-encryption migration)
 class DuruNoteCard extends StatelessWidget {
-  final dynamic note; // Can be LocalNote or domain.Note
+  final domain.Note note;
   final NoteCardVariant variant;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -33,8 +44,7 @@ class DuruNoteCard extends StatelessWidget {
     this.isSelected = false,
     this.showTasks = true,
     this.showAttachments = false,
-  }) : assert(note is LocalNote || note is domain.Note,
-            'Note must be either LocalNote or domain.Note');
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -47,63 +57,77 @@ class DuruNoteCard extends StatelessWidget {
 
   Widget _buildCompact(BuildContext context) {
     final theme = Theme.of(context);
-    final title = UiMigrationUtility.getNoteTitle(note);
-    final updatedAt = UiMigrationUtility.getNoteUpdatedAt(note);
-    final isPinned = UiMigrationUtility.getNoteIsPinned(note);
+    final title = note.title;
+    final isPinned = note.isPinned;
+    final updatedAt = note.updatedAt;
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: DuruSpacing.md,
-        vertical: DuruSpacing.xs,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: EdgeInsets.all(DuruSpacing.sm),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? DuruColors.primary.withValues(alpha: 0.08)
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
+    return A11yHelper.noteCard(
+      title: title,
+      date: _formatDate(updatedAt),
+      isPinned: isPinned,
+      isSelected: isSelected,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: DuruSpacing.md,
+          vertical: DuruSpacing.xs,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: EdgeInsets.all(DuruSpacing.sm),
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? DuruColors.primary
-                    : theme.colorScheme.outline.withValues(alpha: 0.1),
-                width: isSelected ? 2 : 1,
+                    ? DuruColors.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? DuruColors.primary
+                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                  width: isSelected ? 2 : 1,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                if (isPinned)
-                  Padding(
-                    padding: EdgeInsets.only(right: DuruSpacing.xs),
-                    child: Icon(
-                      CupertinoIcons.pin_fill,
-                      size: 14,
-                      color: DuruColors.accent,
+              child: Row(
+                children: [
+                  if (isPinned)
+                    A11yHelper.decorative(
+                      Padding(
+                        padding: EdgeInsets.only(right: DuruSpacing.xs),
+                        child: Icon(
+                          CupertinoIcons.pin_fill,
+                          size: 14,
+                          color: DuruColors.accent,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: Text(
+                        title.isEmpty ? 'Untitled Note' : title,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                Expanded(
-                  child: Text(
-                    title.isEmpty ? 'Untitled Note' : title,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
+                  ExcludeSemantics(
+                    child: Text(
+                      _formatDate(updatedAt),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  _formatDate(updatedAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -115,148 +139,172 @@ class DuruNoteCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Extract properties using migration utility
-    final title = UiMigrationUtility.getNoteTitle(note);
-    final content = UiMigrationUtility.getNoteContent(note);
-    final isPinned = UiMigrationUtility.getNoteIsPinned(note);
-    final updatedAt = UiMigrationUtility.getNoteUpdatedAt(note);
+    // Extract properties from domain entity
+    final title = note.title;
+    final content = note.body;
+    final isPinned = note.isPinned;
+    final updatedAt = note.updatedAt;
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: DuruSpacing.md,
-        vertical: DuruSpacing.sm,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? DuruColors.primary.withValues(alpha: 0.08)
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
+    return A11yHelper.noteCard(
+      title: title,
+      content: content,
+      date: _formatDate(updatedAt),
+      isPinned: isPinned,
+      hasAttachments: _hasAttachments(),
+      hasTasks: _hasTaskIndicator(),
+      isSelected: isSelected,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: DuruSpacing.md,
+          vertical: DuruSpacing.sm,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? DuruColors.primary
-                    : theme.colorScheme.outline.withValues(alpha: 0.1),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.2)
-                      : Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                    ? DuruColors.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? DuruColors.primary
+                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                  width: isSelected ? 2 : 1,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pin indicator bar
-                if (isPinned)
-                  Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          DuruColors.accent,
-                          DuruColors.primary,
-                        ],
-                      ),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pin indicator bar
+                  if (isPinned)
+                    Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [DuruColors.accent, DuruColors.primary],
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
                       ),
                     ),
-                  ),
 
-                Padding(
-                  padding: EdgeInsets.all(DuruSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title.isEmpty ? 'Untitled Note' : title,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                height: 1.2,
+                  Padding(
+                    padding: EdgeInsets.all(DuruSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  title.isEmpty ? 'Untitled Note' : title,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              maxLines: 2,
+                            ),
+                            if (!isSelected)
+                              A11yHelper.iconButton(
+                                label:
+                                    'More options for ${title.isEmpty ? "untitled note" : title}',
+                                hint:
+                                    'Open menu with edit, share, move, pin, and delete actions',
+                                onPressed: () => _showNoteMenu(context),
+                                child: IconButton(
+                                  onPressed: () => _showNoteMenu(context),
+                                  icon: Icon(
+                                    CupertinoIcons.ellipsis,
+                                    size: 20,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        // Content preview
+                        if (content.isNotEmpty) ...[
+                          SizedBox(height: DuruSpacing.sm),
+                          ExcludeSemantics(
+                            child: Text(
+                              content,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                height: 1.5,
+                              ),
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (!isSelected)
-                            IconButton(
-                              onPressed: () => _showNoteMenu(context),
-                              icon: Icon(
-                                CupertinoIcons.ellipsis,
-                                size: 20,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
-                              ),
-                            ),
                         ],
-                      ),
 
-                      // Content preview
-                      if (content.isNotEmpty) ...[
+                        // Metadata row
                         SizedBox(height: DuruSpacing.sm),
-                        Text(
-                          content,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.5,
+                        ExcludeSemantics(
+                          child: Row(
+                            children: [
+                              Text(
+                                _formatDate(updatedAt),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.7),
+                                ),
+                              ),
+                              const Spacer(),
+                              if (showTasks && _hasTaskIndicator()) ...[
+                                Icon(
+                                  CupertinoIcons.checkmark_circle,
+                                  size: 16,
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.7),
+                                ),
+                                SizedBox(width: DuruSpacing.xs),
+                              ],
+                              if (_hasAttachments()) ...[
+                                Icon(
+                                  CupertinoIcons.paperclip,
+                                  size: 16,
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.7),
+                                ),
+                                SizedBox(width: DuruSpacing.xs),
+                              ],
+                            ],
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
-
-                      // Metadata row
-                      SizedBox(height: DuruSpacing.sm),
-                      Row(
-                        children: [
-                          Text(
-                            _formatDate(updatedAt),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (showTasks && _hasTaskIndicator()) ...[
-                            Icon(
-                              CupertinoIcons.checkmark_circle,
-                              size: 16,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                            ),
-                            SizedBox(width: DuruSpacing.xs),
-                          ],
-                          if (_hasAttachments()) ...[
-                            Icon(
-                              CupertinoIcons.paperclip,
-                              size: 16,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                            ),
-                            SizedBox(width: DuruSpacing.xs),
-                          ],
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -268,11 +316,10 @@ class DuruNoteCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Extract all properties
-    final title = UiMigrationUtility.getNoteTitle(note);
-    final content = UiMigrationUtility.getNoteContent(note);
-    final isPinned = UiMigrationUtility.getNoteIsPinned(note);
-    final updatedAt = UiMigrationUtility.getNoteUpdatedAt(note);
+    // Extract all properties from domain entity
+    final title = note.title;
+    final content = note.body;
+    final isPinned = note.isPinned;
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -316,10 +363,7 @@ class DuruNoteCard extends StatelessWidget {
                     height: 6,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          DuruColors.accent,
-                          DuruColors.primary,
-                        ],
+                        colors: [DuruColors.accent, DuruColors.primary],
                       ),
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(24),
@@ -361,7 +405,8 @@ class DuruNoteCard extends StatelessWidget {
                         Container(
                           padding: EdgeInsets.all(DuruSpacing.sm),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -390,7 +435,8 @@ class DuruNoteCard extends StatelessWidget {
                         Container(
                           padding: EdgeInsets.all(DuruSpacing.sm),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                            color: theme.colorScheme.secondaryContainer
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -424,13 +470,15 @@ class DuruNoteCard extends StatelessWidget {
                           Icon(
                             CupertinoIcons.clock,
                             size: 14,
-                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.7),
                           ),
                           SizedBox(width: DuruSpacing.xs),
                           Text(
-                            'Updated ${_formatDateRelative(updatedAt)}',
+                            _getTimestampText(note),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                           const Spacer(),
@@ -489,60 +537,217 @@ class DuruNoteCard extends StatelessWidget {
     }
   }
 
+  /// Get timestamp text following the rule:
+  /// - If updatedAt equals createdAt, show "Created {time}"
+  /// - Otherwise, show "Last updated {time}"
+  String _getTimestampText(domain.Note note) {
+    final createdAt = note.createdAt;
+    final updatedAt = note.updatedAt;
+
+    // Compare timestamps (allow 1 second tolerance for rounding)
+    final isJustCreated = updatedAt.difference(createdAt).abs().inSeconds <= 1;
+
+    if (isJustCreated) {
+      return 'Created ${_formatDateRelative(createdAt)}';
+    } else {
+      return 'Last updated ${_formatDateRelative(updatedAt)}';
+    }
+  }
+
   bool _hasTaskIndicator() {
     // Check if note has tasks
     // This would need to be implemented based on your task system
     return false;
   }
 
-  bool _hasAttachments() {
-    // Check if note has attachments
-    if (note is LocalNote) {
-      final attachmentMeta = note.attachmentMeta;
-      return attachmentMeta != null && (attachmentMeta as String).isNotEmpty;
-    } else if (note is domain.Note) {
-      final attachmentMeta = note.attachmentMeta;
-      return attachmentMeta != null && (attachmentMeta as Map<String, dynamic>).isNotEmpty;
+  bool _hasAttachments() => DomainNoteHelpers.hasAttachments(note);
+
+  Future<void> _togglePin(BuildContext context) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final logger = LoggerFactory.instance;
+    final notesRepo = container.read(notesCoreRepositoryProvider);
+    final shouldPin = !note.isPinned;
+
+    try {
+      await notesRepo.setNotePin(note.id, shouldPin);
+
+      container.invalidate(filteredNotesProvider);
+      container.invalidate(currentNotesProvider);
+      await container.read(notesPageProvider.notifier).refresh();
+
+      if (context.mounted) {
+        final message = shouldPin ? 'Note pinned' : 'Note unpinned';
+        final icon = shouldPin ? CupertinoIcons.pin_fill : CupertinoIcons.pin;
+
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(icon, size: 16, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(message),
+                ],
+              ),
+              duration: const Duration(milliseconds: 1500),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+      }
+    } catch (error, stackTrace) {
+      logger.error(
+        'Failed to toggle note pin state',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': note.id, 'targetState': shouldPin},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: const Text('Failed to update pin status'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+      }
     }
-    return false;
+  }
+
+  Future<void> _openMoveToFolderDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => EnhancedMoveToFolderDialog(
+        noteIds: [note.id],
+        currentFolderId: note.folderId,
+        onMoveCompleted: (result) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final navigator = Navigator.of(context);
+            if (!navigator.mounted) {
+              return;
+            }
+
+            final messengerState = ScaffoldMessenger.maybeOf(context);
+            if (messengerState == null) {
+              return;
+            }
+
+            final theme = Theme.of(context);
+
+            messengerState
+              ..clearSnackBars()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(result.getStatusMessage()),
+                  backgroundColor: result.hasErrors
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.tertiary,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+          });
+        },
+      ),
+    );
   }
 
   void _showNoteMenu(BuildContext context) {
-    // Implement note menu actions
+    final rootContext = context;
+    final isPinned = note.isPinned;
+    final pinLabel = isPinned ? 'Unpin' : 'Pin';
+    final pinHint = isPinned ? 'Unpin this note' : 'Pin this note to the top';
+    final pinIcon = isPinned ? CupertinoIcons.pin_slash : CupertinoIcons.pin;
+
     showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => Container(
+      context: rootContext,
+      builder: (sheetContext) => Container(
         padding: EdgeInsets.all(DuruSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(CupertinoIcons.pencil),
-              title: const Text('Edit'),
+            A11yHelper.menuItem(
+              label: 'Edit',
+              hint: 'Edit this note',
+              icon: CupertinoIcons.pencil,
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 onTap?.call();
               },
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.pencil),
+                title: const Text('Edit'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  onTap?.call();
+                },
+              ),
             ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.share),
-              title: const Text('Share'),
-              onTap: () => Navigator.pop(context),
+            A11yHelper.menuItem(
+              label: 'Share',
+              hint: 'Share this note with others',
+              icon: CupertinoIcons.share,
+              onTap: () => Navigator.pop(sheetContext),
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.share),
+                title: const Text('Share'),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
             ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.folder),
-              title: const Text('Move to folder'),
-              onTap: () => Navigator.pop(context),
+            A11yHelper.menuItem(
+              label: 'Move to folder',
+              hint: 'Organize this note into a folder',
+              icon: CupertinoIcons.folder,
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await _openMoveToFolderDialog(rootContext);
+              },
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.folder),
+                title: const Text('Move to folder'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _openMoveToFolderDialog(rootContext);
+                },
+              ),
             ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.pin),
-              title: const Text('Pin'),
-              onTap: () => Navigator.pop(context),
+            A11yHelper.menuItem(
+              label: pinLabel,
+              hint: pinHint,
+              icon: pinIcon,
+              onTap: () => Navigator.pop(sheetContext),
+              child: ListTile(
+                leading: Icon(pinIcon),
+                title: Text(pinLabel),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _togglePin(rootContext);
+                },
+              ),
             ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.delete),
-              title: const Text('Delete'),
-              onTap: () => Navigator.pop(context),
+            A11yHelper.menuItem(
+              label: 'Delete',
+              hint: 'Delete this note permanently',
+              icon: CupertinoIcons.delete,
+              onTap: () => Navigator.pop(sheetContext),
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.delete),
+                title: const Text('Delete'),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
             ),
           ],
         ),

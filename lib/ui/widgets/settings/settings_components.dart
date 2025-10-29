@@ -203,7 +203,9 @@ class SettingsRadioTile<T> extends StatelessWidget {
       iconColor: iconColor,
       trailing: Radio<T>(
         value: value,
+        // ignore: deprecated_member_use
         groupValue: groupValue,
+        // ignore: deprecated_member_use
         onChanged: enabled ? onChanged : null,
       ),
       onTap: enabled ? () => onChanged(value) : null,

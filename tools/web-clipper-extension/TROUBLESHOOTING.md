@@ -168,8 +168,8 @@ Run through this checklist to ensure everything works:
 ## 🔗 Quick Links
 
 - **Extension Folder:** `tools/web-clipper-extension/`
-- **Supabase Dashboard:** https://supabase.com/dashboard/project/jtaedgpxesshdrnbgvjr
-- **Edge Function Logs:** https://supabase.com/dashboard/project/jtaedgpxesshdrnbgvjr/functions
+- **Supabase Dashboard:** https://supabase.com/dashboard/project/mizzxiijxtbwrqgflpnp
+- **Edge Function Logs:** https://supabase.com/dashboard/project/mizzxiijxtbwrqgflpnp/functions
 
 ---
 

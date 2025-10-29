@@ -1,17 +1,12 @@
 import 'dart:async';
 
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
-import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:duru_notes/providers.dart'; // Import to get extension methods
-
-// Legacy type aliases for backward compatibility
-typedef NotesRepository = NotesCoreRepository;
-typedef FolderRepository = FolderCoreRepository;
 
 /// Helper class for representing folder tree nodes with nesting
 class FolderTreeNode {
@@ -24,7 +19,7 @@ class FolderTreeNode {
     this.children = const [],
   });
 
-  final LocalFolder folder;
+  final domain.Folder folder;
   final int level;
   final bool isExpanded;
   final bool hasChildren;
@@ -32,7 +27,7 @@ class FolderTreeNode {
   final List<FolderTreeNode> children;
 
   FolderTreeNode copyWith({
-    LocalFolder? folder,
+    domain.Folder? folder,
     int? level,
     bool? isExpanded,
     bool? hasChildren,
@@ -61,7 +56,7 @@ class FolderHierarchyState {
     this.noteCounts = const {},
   });
 
-  final List<LocalFolder> folders;
+  final List<domain.Folder> folders;
   final Set<String> expandedFolders;
   final bool isLoading;
   final String? error;
@@ -69,7 +64,7 @@ class FolderHierarchyState {
   final Map<String, int> noteCounts;
 
   FolderHierarchyState copyWith({
-    List<LocalFolder>? folders,
+    List<domain.Folder>? folders,
     Set<String>? expandedFolders,
     bool? isLoading,
     String? error,
@@ -87,16 +82,15 @@ class FolderHierarchyState {
   }
 
   /// Get root folders (no parent)
-  List<LocalFolder> get rootFolders {
+  /// Note: Repository should filter deleted folders before returning
+  List<domain.Folder> get rootFolders {
     final filtered = searchQuery.isEmpty
-        ? folders.where((f) => f.parentId == null && !f.deleted).toList()
+        ? folders.where((f) => f.parentId == null).toList()
         : folders
-            .where(
-              (f) =>
-                  !f.deleted &&
-                  f.name.toLowerCase().contains(searchQuery.toLowerCase()),
-            )
-            .toList();
+              .where(
+                (f) => f.name.toLowerCase().contains(searchQuery.toLowerCase()),
+              )
+              .toList();
 
     filtered.sort((a, b) {
       final sortCompare = a.sortOrder.compareTo(b.sortOrder);
@@ -106,9 +100,9 @@ class FolderHierarchyState {
   }
 
   /// Get child folders for a parent
-  List<LocalFolder> getChildFolders(String parentId) {
-    final children =
-        folders.where((f) => f.parentId == parentId && !f.deleted).toList();
+  /// Note: Repository should filter deleted folders before returning
+  List<domain.Folder> getChildFolders(String parentId) {
+    final children = folders.where((f) => f.parentId == parentId).toList();
 
     children.sort((a, b) {
       final sortCompare = a.sortOrder.compareTo(b.sortOrder);
@@ -121,7 +115,7 @@ class FolderHierarchyState {
   bool isExpanded(String folderId) => expandedFolders.contains(folderId);
 
   /// Get folder by ID
-  LocalFolder? getFolderById(String id) {
+  domain.Folder? getFolderById(String id) {
     return folders.where((f) => f.id == id).firstOrNull;
   }
 
@@ -166,13 +160,24 @@ class FolderHierarchyState {
 
 /// Notifier for managing folder hierarchy and expansion states
 class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
-  FolderHierarchyNotifier(this._repository)
-      : super(const FolderHierarchyState(folders: [], expandedFolders: {})) {
+  FolderHierarchyNotifier(IFolderRepository? repository)
+    : _repository = repository,
+      super(const FolderHierarchyState(folders: [], expandedFolders: {})) {
     _init();
   }
 
-  final NotesRepository _repository;
+  /// PRODUCTION FIX: Empty factory for unauthenticated state
+  factory FolderHierarchyNotifier.empty() {
+    return _EmptyFolderHierarchyNotifier();
+  }
+
+  final IFolderRepository? _repository;
   Timer? _debounceTimer;
+  Timer? _refreshDebounceTimer;
+  DateTime? _lastRefreshTime;
+
+  /// Minimum time between refreshes (prevents excessive API calls)
+  static const Duration minRefreshInterval = Duration(milliseconds: 500);
 
   Future<void> _init() async {
     await _loadExpansionState();
@@ -185,6 +190,9 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
     if (!mounted) return;
 
     try {
+      // Guard against null repository (unauthenticated)
+      if (_repository == null) return;
+
       state = state.copyWith(isLoading: true);
       final folders = await _repository.listFolders();
 
@@ -276,7 +284,7 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
   List<FolderTreeNode> getVisibleNodes() {
     final nodes = <FolderTreeNode>[];
 
-    void buildNodes(List<LocalFolder> folders, int level) {
+    void buildNodes(List<domain.Folder> folders, int level) {
       for (final folder in folders) {
         final hasChildren = state.getChildFolders(folder.id).isNotEmpty;
         final isExpanded = state.isExpanded(folder.id);
@@ -303,20 +311,20 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
   }
 
   /// Add a folder to the state (called after creation)
-  void addFolder(LocalFolder folder) {
-    final folders = List<LocalFolder>.from(state.folders)..add(folder);
+  void addFolder(domain.Folder folder) {
+    final folders = List<domain.Folder>.from(state.folders)..add(folder);
     final updatedCounts = Map<String, int>.from(state.noteCounts);
     updatedCounts.putIfAbsent(folder.id, () => 0);
     state = state.copyWith(folders: folders, noteCounts: updatedCounts);
 
     // Auto-expand parent if it exists
-    if (folder.parentId != null) {
+    if (folder.parentId != null && folder.parentId!.isNotEmpty) {
       expandPath(folder.parentId!);
     }
   }
 
   /// Update folder in state (called after edit)
-  void updateFolder(LocalFolder updatedFolder) {
+  void updateFolder(domain.Folder updatedFolder) {
     final folders = state.folders.map((f) {
       return f.id == updatedFolder.id ? updatedFolder : f;
     }).toList();
@@ -338,14 +346,48 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
     unawaited(_persistExpansionState(expandedFolders));
   }
 
-  /// Alias for loadFolders - for backward compatibility
+  /// Refresh folders with debouncing to prevent excessive API calls
+  /// Use this method in UI to refresh folder list
   Future<void> refresh() async {
-    return loadFolders();
+    // Cancel any pending refresh
+    _refreshDebounceTimer?.cancel();
+
+    // Check if we need to wait before refreshing
+    final now = DateTime.now();
+    if (_lastRefreshTime != null) {
+      final timeSinceLastRefresh = now.difference(_lastRefreshTime!);
+      if (timeSinceLastRefresh < minRefreshInterval) {
+        // Schedule refresh after minimum interval
+        _refreshDebounceTimer = Timer(
+          minRefreshInterval - timeSinceLastRefresh,
+          () => _performRefresh(),
+        );
+        return;
+      }
+    }
+
+    // Perform immediate refresh
+    await _performRefresh();
+  }
+
+  /// Internal method to perform the actual refresh
+  Future<void> _performRefresh() async {
+    _lastRefreshTime = DateTime.now();
+    await loadFolders();
+  }
+
+  /// Force refresh immediately (bypasses debouncing)
+  /// Use sparingly - prefer refresh() for UI operations
+  Future<void> forceRefresh() async {
+    _refreshDebounceTimer?.cancel();
+    _lastRefreshTime = DateTime.now();
+    await loadFolders();
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _refreshDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -372,7 +414,7 @@ class FolderHierarchyNotifier extends StateNotifier<FolderHierarchyState> {
 
   String _expansionPrefsKey() {
     try {
-      final userId = _repository.client.auth.currentUser?.id;
+      final userId = _repository?.getCurrentUserId();
       return '_folder_expanded_${userId ?? 'default'}';
     } catch (_) {
       return '_folder_expanded_default';
@@ -413,11 +455,23 @@ class FolderOperationState {
 
 /// Notifier for folder CRUD operations
 class FolderNotifier extends StateNotifier<FolderOperationState> {
-  FolderNotifier(this._repository, this._syncCoordinator)
-      : super(const FolderOperationState());
+  FolderNotifier(
+    IFolderRepository? repository,
+    FolderSyncCoordinator? syncCoordinator,
+  ) : _repository = repository,
+      _syncCoordinator = syncCoordinator,
+      super(const FolderOperationState());
 
-  final FolderRepository _repository;
-  final FolderSyncCoordinator _syncCoordinator;
+  /// PRODUCTION FIX: Empty factory for unauthenticated state
+  factory FolderNotifier.empty() {
+    return _EmptyFolderNotifier();
+  }
+
+  final IFolderRepository? _repository;
+  final FolderSyncCoordinator? _syncCoordinator;
+
+  /// Maximum folders per user (prevents abuse and database bloat)
+  static const int maxFoldersPerUser = 500;
 
   /// Create a new folder
   Future<String?> createFolder({
@@ -429,11 +483,42 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     int? sortOrder,
   }) async {
     try {
-      state = state.copyWith(isCreating: true);
+      // Guard against null coordinator (unauthenticated)
+      if (_syncCoordinator == null) return null;
+
+      // Validation: Check folder count limit
+      if (_repository != null) {
+        final folders = await _repository.listFolders();
+        if (folders.length >= maxFoldersPerUser) {
+          final errorMsg =
+              'Folder limit reached ($maxFoldersPerUser folders). Please delete some folders before creating new ones.';
+          state = state.copyWith(isCreating: false, error: errorMsg);
+          if (kDebugMode) debugPrint('[FolderNotifier] $errorMsg');
+          return null;
+        }
+      }
+
+      // Validation: Check folder name
+      final trimmedName = name.trim();
+      if (trimmedName.isEmpty) {
+        const errorMsg = 'Folder name cannot be empty';
+        state = state.copyWith(isCreating: false, error: errorMsg);
+        if (kDebugMode) debugPrint('[FolderNotifier] $errorMsg');
+        return null;
+      }
+
+      if (trimmedName.length > 255) {
+        const errorMsg = 'Folder name is too long (max 255 characters)';
+        state = state.copyWith(isCreating: false, error: errorMsg);
+        if (kDebugMode) debugPrint('[FolderNotifier] $errorMsg');
+        return null;
+      }
+
+      state = state.copyWith(isCreating: true, error: null);
 
       // Use sync coordinator for creation with audit and conflict resolution
       final folderId = await _syncCoordinator.createFolder(
-        name: name,
+        name: trimmedName,
         parentId: parentId,
         color: color,
         icon: icon,
@@ -460,6 +545,9 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
     int? sortOrder,
   }) async {
     try {
+      // Guard against null coordinator (unauthenticated)
+      if (_syncCoordinator == null) return false;
+
       state = state.copyWith(isUpdating: true);
 
       // Use sync coordinator for update with audit and conflict resolution
@@ -484,6 +572,9 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
   /// Delete a folder
   Future<bool> deleteFolder(String folderId) async {
     try {
+      // Guard against null coordinator (unauthenticated)
+      if (_syncCoordinator == null) return false;
+
       state = state.copyWith(isDeleting: true);
 
       // Use sync coordinator for deletion with audit
@@ -501,6 +592,9 @@ class FolderNotifier extends StateNotifier<FolderOperationState> {
   /// Move folder to new parent
   Future<bool> moveFolder(String folderId, String? newParentId) async {
     try {
+      // Guard against null repository (unauthenticated)
+      if (_repository == null) return false;
+
       state = state.copyWith(isUpdating: true);
 
       // moveFolder expects positional parameters, not named
@@ -566,21 +660,49 @@ class NoteFolderState {
 
 /// Notifier for note-folder relationships
 class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
-  NoteFolderNotifier(this._repository)
-      : super(const NoteFolderState(noteFolders: {})) {
+  NoteFolderNotifier(
+    INotesRepository? notesRepository,
+    IFolderRepository? folderRepository,
+  ) : _notesRepository = notesRepository,
+      _folderRepository = folderRepository,
+      super(const NoteFolderState(noteFolders: {})) {
     _loadRelationships();
   }
 
-  final NotesRepository _repository;
+  /// PRODUCTION FIX: Empty constructor for unauthenticated state
+  factory NoteFolderNotifier.empty() {
+    return _EmptyNoteFolderNotifier();
+  }
+
+  final INotesRepository? _notesRepository;
+  final IFolderRepository? _folderRepository;
 
   Future<void> _loadRelationships() async {
     try {
-      state = state.copyWith(isLoading: true);
+      state = state.copyWith(isLoading: true, error: null);
 
-      // This would need to be implemented in the repository
-      // For now, we'll manage relationships on-demand
+      final notesRepository = _notesRepository;
+      if (notesRepository == null) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
 
-      state = state.copyWith(isLoading: false);
+      final notes = await notesRepository.localNotes();
+      if (!mounted) return;
+      final relationships = <String, String>{};
+      for (final note in notes) {
+        final folderId = note.folderId;
+        if (folderId != null && folderId.isNotEmpty) {
+          relationships[note.id] = folderId;
+        }
+      }
+
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        noteFolders: relationships,
+        error: null,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       if (kDebugMode) debugPrint('Error loading note-folder relationships: $e');
@@ -589,8 +711,16 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 
   /// Add note to folder
   Future<bool> addNoteToFolder(String noteId, String folderId) async {
+    // PRODUCTION FIX: Guard against null repository
+    if (_notesRepository == null) return false;
+
     try {
-      await _repository.addNoteToFolder(noteId, folderId);
+      // Update note's folder via notes repository
+      await _notesRepository.updateLocalNote(
+        noteId,
+        folderId: folderId,
+        updateFolder: true,
+      );
 
       final updatedRelationships = Map<String, String>.from(state.noteFolders)
         ..[noteId] = folderId;
@@ -606,8 +736,16 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 
   /// Remove note from folder
   Future<bool> removeNoteFromFolder(String noteId) async {
+    // PRODUCTION FIX: Guard against null repository
+    if (_notesRepository == null) return false;
+
     try {
-      await _repository.removeNoteFromFolder(noteId);
+      // Set note's folder to null via notes repository
+      await _notesRepository.updateLocalNote(
+        noteId,
+        folderId: null,
+        updateFolder: true,
+      );
 
       final updatedRelationships = Map<String, String>.from(state.noteFolders)
         ..remove(noteId);
@@ -627,14 +765,13 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
   }
 
   /// Get folder for note (async version that checks repository)
-  Future<LocalFolder?> getFolderForNote(String noteId) async {
-    try {
-      // getFolderForNote returns folderId, not LocalFolder
-      final folderId = await _repository.getFolderForNote(noteId);
-      if (folderId == null) return null;
+  Future<domain.Folder?> getFolderForNote(String noteId) async {
+    // PRODUCTION FIX: Guard against null repository
+    if (_folderRepository == null) return null;
 
-      // Fetch the actual folder
-      return await _repository.getFolder(folderId);
+    try {
+      // Use repository's optimized single-query method
+      return await _folderRepository.getFolderForNote(noteId);
     } catch (e) {
       if (kDebugMode) debugPrint('Error getting folder for note: $e');
       return null;
@@ -659,14 +796,94 @@ class NoteFolderNotifier extends StateNotifier<NoteFolderState> {
 }
 
 /// Notifier for current folder selection
-class CurrentFolderNotifier extends StateNotifier<LocalFolder?> {
+class CurrentFolderNotifier extends StateNotifier<domain.Folder?> {
   CurrentFolderNotifier() : super(null);
 
-  void setCurrentFolder(LocalFolder? folder) {
+  void setCurrentFolder(domain.Folder? folder) {
     state = folder;
   }
 
   void clearCurrentFolder() {
     state = null;
+  }
+}
+
+/// PRODUCTION FIX: Empty notifier for unauthenticated state (Folder CRUD)
+class _EmptyFolderNotifier extends FolderNotifier {
+  _EmptyFolderNotifier() : super(null, null);
+
+  @override
+  Future<String?> createFolder({
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+    int? sortOrder,
+  }) async {
+    return null; // No-op when not authenticated
+  }
+
+  @override
+  Future<bool> updateFolder({
+    required String id,
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+    int? sortOrder,
+  }) async {
+    return false; // No-op when not authenticated
+  }
+
+  @override
+  Future<bool> deleteFolder(String folderId) async {
+    return false; // No-op when not authenticated
+  }
+
+  @override
+  Future<bool> moveFolder(String folderId, String? newParentId) async {
+    return false; // No-op when not authenticated
+  }
+}
+
+/// PRODUCTION FIX: Empty notifier for unauthenticated state (Folder Hierarchy)
+class _EmptyFolderHierarchyNotifier extends FolderHierarchyNotifier {
+  _EmptyFolderHierarchyNotifier() : super(null);
+
+  @override
+  Future<void> loadFolders() async {
+    // No-op when not authenticated
+  }
+
+  @override
+  Future<void> refresh() async {
+    // No-op when not authenticated
+  }
+}
+
+/// PRODUCTION FIX: Empty notifier for unauthenticated state
+class _EmptyNoteFolderNotifier extends NoteFolderNotifier {
+  _EmptyNoteFolderNotifier() : super(null, null);
+
+  @override
+  Future<void> _loadRelationships() async {
+    // No-op when not authenticated
+  }
+
+  @override
+  Future<bool> addNoteToFolder(String noteId, String folderId) async {
+    return false; // No-op when not authenticated
+  }
+
+  @override
+  Future<bool> removeNoteFromFolder(String noteId) async {
+    return false; // No-op when not authenticated
+  }
+
+  @override
+  Future<domain.Folder?> getFolderForNote(String noteId) async {
+    return null; // No-op when not authenticated
   }
 }

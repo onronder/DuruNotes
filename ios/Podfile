@@ -1,11 +1,7 @@
 platform :ios, '15.0'
-ENV['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# Use static frameworks WITHOUT modular headers to fix Google library issues
-use_frameworks! :linkage => :static
-# Disable modular headers globally to fix double-quoted include issues
-# use_modular_headers!
+use_frameworks! :linkage => :dynamic
 
 project 'Runner', {
   'Debug' => :debug,
@@ -38,226 +34,57 @@ target 'Runner' do
   end
 end
 
+require 'set'
 
 post_install do |installer|
-  # Fix for GoogleUtilities double-quoted includes
+  flutter_post_install(installer) if defined?(flutter_post_install)
+
   installer.pods_project.targets.each do |target|
-    if target.name == 'GoogleUtilities'
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    flutter_additional_ios_build_settings(target)
+  end
+
+  # Prevent the Runner target's resource script from introducing build cycles by
+  # touching a temp file instead of the bundle output directory.
+  resources_script = File.join(installer.sandbox.root, 'Target Support Files', 'Pods-Runner', 'Pods-Runner-resources.sh')
+  if File.exist?(resources_script)
+    script_contents = File.read(resources_script)
+    touch_snippet = %(if [[ -n "${TARGET_TEMP_DIR}" ]]; then\n  touch "${TARGET_TEMP_DIR}/Pods-Runner-copy-resources-${CONFIGURATION}.txt"\nfi\n)
+    unless script_contents.include?(touch_snippet)
+      File.open(resources_script, 'a') { |f| f << "\n#{touch_snippet}" }
+    end
+  end
+
+  marker = '${TARGET_TEMP_DIR}/Pods-Runner-copy-resources-${CONFIGURATION}.txt'
+
+  modified_projects = Set.new
+
+  installer.aggregate_targets.each do |aggregate_target|
+    next unless aggregate_target.name == 'Pods-Runner'
+
+    aggregate_target.user_targets.each do |user_target|
+      next unless user_target.respond_to?(:shell_script_build_phases)
+
+      resources_phase = user_target.shell_script_build_phases.find do |phase|
+        phase.name == '[CP] Copy Pods Resources'
       end
-    end
-  end
-  
-  # PRODUCTION-GRADE PLUGIN COMPATIBILITY FIXES
-  installer.pods_project.targets.each do |target|
-    # Apply Flutter settings to appropriate targets
-    if target.name.include?('Runner') || target.name.include?('Flutter')
-      flutter_additional_ios_build_settings(target)
-    end
-    
-    target.build_configurations.each do |config|
-      # Base iOS configuration
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      config.build_settings['SWIFT_VERSION'] = '5.0'
-      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      config.build_settings['DEFINES_MODULE'] = 'YES'
-      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
-      config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
-      
-      # Fix for M1/M2 Mac simulator architecture issues
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-      config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
-      
-      # COMPREHENSIVE FLUTTER FRAMEWORK FIX FOR ALL PLUGINS
-      config.build_settings['FRAMEWORK_SEARCH_PATHS'] = [
-        '$(inherited)',
-        '$(PODS_ROOT)/../Flutter',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator',
-        '$(BUILT_PRODUCTS_DIR)/Flutter'
-      ]
-      
-      # COMPREHENSIVE HEADER SEARCH PATHS FOR ALL PLUGINS
-      header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
-      header_paths += [
-        '$(inherited)',
-        '$(PODS_ROOT)/../Flutter/Headers',
-        '$(PODS_ROOT)/../Flutter/Headers',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
-        '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers'
-      ]
-      config.build_settings['HEADER_SEARCH_PATHS'] = header_paths.uniq
-      
-      # FORCE FLUTTER FRAMEWORK LINKING FOR ALL PLUGINS
-      existing_ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
-      ldflags = existing_ldflags + ['$(inherited)', '-framework', 'Flutter']
-      config.build_settings['OTHER_LDFLAGS'] = ldflags.uniq
-      
-      # CI/CD optimizations
-      config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
-      config.build_settings['VALIDATE_PRODUCT'] = 'YES'
-      
-      # Swift compilation fixes
-      config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
-      config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = config.name == 'Debug' ? '-Onone' : '-O'
-    end
-  end
+      next unless resources_phase
 
-  # Apply settings to main project targets
-  installer.aggregate_targets.each do |aggregate|
-    aggregate.user_project.native_targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
-        config.build_settings['SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING'] = 'NO'
-        
-        # Architecture fixes for M1/M2 Macs
-        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-        config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
-        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
-
-        # Ensure Runner target can find Flutter headers and framework
-        header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
-        header_paths += [
-          '$(inherited)',
-          '$(PROJECT_DIR)/Flutter/Flutter.framework/Headers',
-          '$(PROJECT_DIR)/Flutter/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers'
-        ]
-        config.build_settings['HEADER_SEARCH_PATHS'] = header_paths.uniq
-
-        framework_paths = Array(config.build_settings['FRAMEWORK_SEARCH_PATHS'])
-        framework_paths += [
-          '$(inherited)',
-          '$(PROJECT_DIR)/Flutter',
-          '$(PROJECT_DIR)/Flutter/Flutter.framework',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
-        ]
-        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = framework_paths.uniq
-
-        ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
-        ldflags += ['$(inherited)', '-framework', 'Flutter']
-        config.build_settings['OTHER_LDFLAGS'] = ldflags.uniq
+      existing_outputs = resources_phase.output_paths || []
+      unless existing_outputs.include?(marker)
+        resources_phase.output_paths = (existing_outputs + [marker])
+        modified_projects << user_target.project
       end
     end
   end
 
-  # Fix for CocoaPods warning: "Run script build phase '[CP] Copy Pods Resources' will be run during every build"
-  # Add output file specifications to Copy Pods Resources build phases
-  installer.pods_project.targets.each do |target|
-    target.build_phases.each do |build_phase|
-      if build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
-        puts "Adding output path to #{target.name} Copy Pods Resources build phase"
-        build_phase.output_paths ||= []
-        output_path = '$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)'
-        unless build_phase.output_paths.include?(output_path)
-          build_phase.output_paths << output_path
-        end
-      end
-    end
+  support_files_dir = File.join(installer.sandbox.root, 'Target Support Files', 'Pods-Runner')
+  %w[Debug Release Profile].each do |configuration|
+    stamp_path = File.join(support_files_dir, "Pods-Runner-resources-#{configuration}-stamp.xcfilelist")
+    File.write(stamp_path, "${TARGET_TEMP_DIR}/Pods-Runner-copy-resources-#{configuration}.txt\n")
   end
 
-  # Also patch Copy Pods Resources warning for user project targets (Runner only)
-  installer.aggregate_targets.each do |aggregate|
-    aggregate.user_project.native_targets.each do |target|
-      target.build_phases.each do |build_phase|
-        if build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
-          puts "Adding output path to user target #{target.name} Copy Pods Resources"
-          build_phase.output_paths ||= []
-          output_path = '$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)'
-          unless build_phase.output_paths.include?(output_path)
-            build_phase.output_paths << output_path
-          end
-        end
-      end
-    end
+  modified_projects.each do |project|
+    project.mark_dirty!
+    project.save
   end
-
-  # COMPREHENSIVE PLUGIN COMPATIBILITY FIXES
-  installer.pods_project.targets.each do |target|
-    # Apply Flutter framework fixes to ALL Flutter plugin targets
-    if target.name.include?('flutter') || target.name.include?('sqflite') || 
-       target.name.include?('share_plus') || target.name.include?('sentry') ||
-       target.name.include?('adapty') || target.name.include?('google_mlkit') ||
-       target.name.include?('speech_to_text') || target.name.include?('image_picker') ||
-       target.name.include?('file_picker') || target.name.include?('geolocator') ||
-       target.name.include?('battery_plus') || target.name.include?('device_info') ||
-       target.name.include?('permission_handler') || target.name.include?('url_launcher') ||
-       target.name.include?('path_provider') || target.name.include?('shared_preferences') ||
-       target.name.include?('flutter_local_notifications') || target.name.include?('receive_sharing_intent') ||
-       target.name.include?('record_ios') || target.name.include?('open_file') ||
-       target.name.include?('package_info_plus') || target.name.include?('app_links') ||
-       target.name.include?('fl_location') || target.name.include?('geofence_service') ||
-       target.name.include?('flutter_activity_recognition') || target.name.include?('flutter_timezone') ||
-       target.name.include?('flutter_secure_storage') || target.name.include?('printing')
-      
-      puts "🔧 Applying comprehensive Flutter framework fix for #{target.name}..."
-      target.build_configurations.each do |config|
-        # Ensure non-modular includes allowed for plugins that import Flutter headers
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-
-        # Harden header search paths further for plugin targets
-        header_paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
-        header_paths += [
-          '$(PODS_ROOT)/../Flutter/Headers',
-          '$(PODS_ROOT)/../Flutter/Flutter.framework/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.framework/Headers',
-          '$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64/Flutter.framework/Headers'
-        ]
-        config.build_settings['HEADER_SEARCH_PATHS'] = header_paths.uniq
-
-        # Ensure Flutter framework is properly linked
-        existing_ldflags = Array(config.build_settings['OTHER_LDFLAGS'])
-        ldflags = existing_ldflags + ['-framework', 'Flutter']
-        config.build_settings['OTHER_LDFLAGS'] = ldflags.uniq
-      end
-    end
-    
-    # Fix printing plugin Swift compilation issues
-    if target.name == 'printing'
-      puts "🔧 Applying printing plugin production fix..."
-      target.build_configurations.each do |config|
-        config.build_settings['SWIFT_COMPILATION_MODE'] = 'singlefile'
-        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
-        config.build_settings['ENABLE_TESTABILITY'] = 'YES'
-      end
-    end
-    
-    # Fix Adapty Flutter architecture issues
-    if target.name.include?('adapty') || target.name.include?('Adapty')
-      puts "🔧 Applying Adapty architecture fix for #{target.name}..."
-      target.build_configurations.each do |config|
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-        config.build_settings['VALID_ARCHS'] = 'arm64 x86_64'
-        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
-      end
-    end
-    
-    # Fix Google ML Kit compatibility issues
-    if target.name.include?('MLKit') || target.name.include?('GoogleMLKit')
-      puts "🔧 Applying ML Kit production fix for #{target.name}..."
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-      end
-    end
-  end
-
-  # Call flutter_post_install if your Flutter version defines it
-  if self.respond_to?(:flutter_post_install)
-    flutter_post_install(installer)
-  end
-
-  # ShareExtension removed: no extension-specific CocoaPods targets or dependencies
 end

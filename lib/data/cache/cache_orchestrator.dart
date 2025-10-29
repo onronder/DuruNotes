@@ -455,6 +455,7 @@ class CacheOrchestrator {
       'title': note.title,
       'body': note.body,
       'tags': note.tags,
+      'createdAt': note.createdAt.toIso8601String(),
       'updatedAt': note.updatedAt.toIso8601String(),
       'isPinned': note.isPinned,
       'folderId': note.folderId,
@@ -472,7 +473,9 @@ class CacheOrchestrator {
       title: data['title'] as String,
       body: data['body'] as String,
       tags: List<String>.from(data['tags'] as List? ?? []),
-      createdAt: DateTime.parse(data['createdAt'] as String? ?? data['updatedAt'] as String),
+      createdAt: data['createdAt'] != null
+          ? DateTime.parse(data['createdAt'] as String)
+          : DateTime.now().toUtc(),
       updatedAt: DateTime.parse(data['updatedAt'] as String),
       isPinned: data['isPinned'] as bool? ?? false,
       folderId: data['folderId'] as String?,

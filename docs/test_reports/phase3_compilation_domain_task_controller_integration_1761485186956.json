@@ -1,0 +1,20 @@
+{
+  "test_name": "domain_task_controller_integration",
+  "timestamp": "2025-10-26T16:26:26.956099",
+  "results": {
+    "domainTaskController": {
+      "success": true,
+      "apiMethods": [
+        "createTask",
+        "getTasksForNote",
+        "toggleStatus",
+        "deleteTask",
+        "watchAllTasks",
+        "watchTasksForNote",
+        "getTaskById",
+        "updateTask"
+      ],
+      "type": "DomainTaskController"
+    }
+  }
+}

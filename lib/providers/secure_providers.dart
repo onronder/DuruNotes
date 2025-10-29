@@ -3,16 +3,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/core/error/provider_error_recovery.dart';
 import 'package:duru_notes/core/security/security_initialization.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/services/error_logging_service.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain_task;
 import 'package:duru_notes/domain/entities/note.dart' as domain_note;
 import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
-import 'package:duru_notes/features/notes/providers/notes_domain_providers.dart' hide domainNotesProvider;
-import 'package:duru_notes/features/tasks/providers/tasks_domain_providers.dart' hide domainTasksProvider;
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
-import 'package:duru_notes/providers.dart' show domainNotesProvider, domainTasksProvider, domainFoldersProvider;
+// Phase 5: Migrated to organized provider imports
+import 'package:duru_notes/features/notes/providers/notes_domain_providers.dart'
+    show domainNotesProvider;
+import 'package:duru_notes/features/folders/providers/folders_domain_providers.dart'
+    show domainFoldersProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_domain_providers.dart'
+    show domainTasksProvider, domainTasksStreamProvider;
 
 /// Secure wrapper for providers with error recovery and monitoring
 /// This provides production-grade error handling for all critical providers
@@ -78,12 +79,24 @@ final secureFilteredNotesProvider = FutureProvider.autoDispose<List<domain_note.
 
 /// Secure tasks provider with error recovery
 /// Returns domain.Task objects
-final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) {
+///
+/// NOTE: Riverpod 3.0+ - Using async* generator instead of deprecated .stream
+final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) async* {
   final recovery = SecurityInitialization.providerRecovery;
 
-  return recovery.streamWithRecovery(
+  // Use streamWithRecovery with a factory that doesn't rely on deprecated .stream
+  yield* recovery.streamWithRecovery(
     providerId: 'tasks_provider',
-    streamFactory: () => ref.watch(domainTasksStreamProvider.stream),
+    streamFactory: () async* {
+      // Riverpod 3.0: Fetch initial data with .future
+      final initialTasks = await ref.watch(domainTasksStreamProvider.future);
+      yield initialTasks;
+
+      // Listen for subsequent updates
+      ref.listen(domainTasksStreamProvider, (previous, next) {
+        // Provider will auto-rebuild when domainTasksStreamProvider changes
+      });
+    },
     fallbackValue: <domain_task.Task>[],
   );
 });
@@ -95,7 +108,7 @@ final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((re
   return recovery.executeWithRecovery(
     providerId: 'task_stats_provider',
     operation: () async {
-      final tasks = await ref.watch(domainTasksProvider.future) ?? <domain_task.Task>[];
+      final tasks = await ref.watch(domainTasksProvider.future);
       final now = DateTime.now();
 
       return {
@@ -310,8 +323,8 @@ final secureAnalyticsProvider = FutureProvider.autoDispose<Map<String, dynamic>>
   return recovery.executeWithRecovery(
     providerId: 'analytics_provider',
     operation: () async {
-      final notes = await ref.watch(domainNotesProvider.future) ?? <domain_note.Note>[];
-      final tasks = await ref.watch(domainTasksProvider.future) ?? <domain_task.Task>[];
+      final notes = await ref.watch(domainNotesProvider.future);
+      final tasks = await ref.watch(domainTasksProvider.future);
 
       return {
         'totalNotes': notes.length,

@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -86,7 +86,8 @@ class UnifiedShareService {
 
       final noteId = _getNoteId(note);
       final noteTitle = _getNoteTitle(note);
-      final noteContent = _getNoteContent(note);
+      // Note: noteContent not needed here as _formatContent extracts it directly from note
+      // final noteContent = _getNoteContent(note);
 
       _logger.debug('Sharing note: $noteId with format: ${options.format}');
 
@@ -211,7 +212,8 @@ class UnifiedShareService {
     String? outputPath,
   }) async {
     try {
-      final noteId = _getNoteId(note);
+      // Note: noteId used only for task lookup which is temporarily disabled
+      // final noteId = _getNoteId(note);
       final noteTitle = _getNoteTitle(note);
 
       // Determine file extension
@@ -234,7 +236,7 @@ class UnifiedShareService {
       }
 
       // Generate file path
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       final fileName = '${noteTitle.replaceAll(RegExp(r'[^\w\s-]'), '')}_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final filePath = outputPath ?? path.join(tempDir.path, fileName);
       final file = File(filePath);
@@ -400,7 +402,12 @@ class UnifiedShareService {
 
   Future<ShareResult> _shareText(String content, String subject) async {
     try {
-      await Share.share(content, subject: subject);
+      await SharePlus.instance.share(
+        ShareParams(
+          text: content,
+          subject: subject,
+        ),
+      );
       return const ShareResult(success: true);
     } catch (e) {
       _logger.error('Failed to share text', error: e);
@@ -414,14 +421,16 @@ class UnifiedShareService {
   Future<ShareResult> _shareHtml(dynamic note, String htmlContent, String subject) async {
     try {
       // Save HTML to temporary file
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       final htmlFile = File(path.join(tempDir.path, 'share_${DateTime.now().millisecondsSinceEpoch}.html'));
       await htmlFile.writeAsString(htmlContent);
 
       // Share the file
-      final result = await Share.shareXFiles(
-        [XFile(htmlFile.path)],
-        subject: subject,
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(htmlFile.path)],
+          subject: subject,
+        ),
       );
 
       return ShareResult(
@@ -480,13 +489,15 @@ class UnifiedShareService {
       final jsonContent = const JsonEncoder.withIndent('  ').convert(jsonData);
 
       // Save to file and share
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       final jsonFile = File(path.join(tempDir.path, 'notes_export_${DateTime.now().millisecondsSinceEpoch}.json'));
       await jsonFile.writeAsString(jsonContent);
 
-      final result = await Share.shareXFiles(
-        [XFile(jsonFile.path)],
-        subject: subject,
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(jsonFile.path)],
+          subject: subject,
+        ),
       );
 
       return ShareResult(
@@ -511,14 +522,14 @@ class UnifiedShareService {
 
   String _getNoteTitle(dynamic note) {
     if (note is domain.Note) return note.title;
-    if (note is LocalNote) return note.title;
-    throw ArgumentError('Unknown note type');
+    // LocalNote.title doesn't exist post-encryption
+    throw UnsupportedError('LocalNote title access deprecated. Use domain.Note from repository instead.');
   }
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.body;
-    throw ArgumentError('Unknown note type');
+    // LocalNote.body doesn't exist post-encryption
+    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
   }
 
   DateTime _getNoteCreatedAt(dynamic note) {
@@ -541,7 +552,14 @@ class UnifiedShareService {
       return [];
     } else {
       // Use legacy tasks
-      return await _db.getTasksForNote(noteId);
+      final localNote = await (_db.select(_db.localNotes)
+            ..where((n) => n.id.equals(noteId)))
+          .getSingleOrNull();
+      final userId = localNote?.userId;
+      if (userId == null || userId.isEmpty) {
+        return [];
+      }
+      return await _db.getTasksForNote(noteId, userId: userId);
     }
   }
 
@@ -553,8 +571,8 @@ class UnifiedShareService {
 
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
-    if (task is NoteTask) return task.content;
-    throw ArgumentError('Unknown task type');
+    // NoteTask.content doesn't exist post-encryption
+    throw UnsupportedError('NoteTask title access deprecated. Use domain.Task from repository instead.');
   }
 
   bool _isTaskCompleted(dynamic task) {

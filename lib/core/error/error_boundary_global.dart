@@ -680,9 +680,8 @@ class SentryErrorReportingService implements ErrorReportingService {
       stackTrace: stack,
       withScope: (scope) {
         if (metadata != null) {
-          metadata.forEach((key, value) {
-            scope.setExtra(key, value);
-          });
+          // Use Contexts API instead of deprecated setExtra
+          scope.setContexts('metadata', metadata);
         }
       },
     );

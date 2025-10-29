@@ -1,3 +1,8 @@
+/* COMMENTED OUT - errors
+ * This file has errors. Needs rewrite.
+ */
+
+/*
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/models/note_kind.dart';
 import 'package:uuid/uuid.dart';
@@ -155,3 +160,4 @@ SavedSearch buildTestSavedSearch({
     usageCount: usageCount ?? 0,
   );
 }
+*/

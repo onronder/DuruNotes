@@ -1,11 +1,17 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/search/search_parser.dart';
 import '../theme/cross_platform_tokens.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Modern search screen with semantic search and AI-powered suggestions
 class ModernSearchScreen extends ConsumerStatefulWidget {
@@ -20,15 +26,16 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
-  List<LocalNote> _searchResults = [];
-  List<LocalNote> _recentNotes = [];
+  AppLogger get _logger => ref.read(loggerProvider);
+
+  List<domain.Note> _searchResults = [];
+  List<domain.Note> _recentNotes = [];
   List<String> _searchSuggestions = [];
   bool _isSearching = false;
-  String _searchMode = 'all'; // all, semantic, exact
 
   // AI-powered search state
   bool _useSemanticSearch = false;
-  double _semanticThreshold = 0.7;
+  final double _semanticThreshold = 0.7;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -66,9 +73,8 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
   }
 
   Future<void> _loadRecentNotes() async {
-    // Get recent notes from database - recently updated notes as proxy for recently viewed
-    final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
-    final recentNotes = allNotes.where((n) => !n.deleted).take(5).toList();
+    // Get recent notes from repository - already decrypted domain notes
+    final recentNotes = await ref.read(notesCoreRepositoryProvider).getRecentlyViewedNotes(limit: 5);
 
     if (mounted) {
       setState(() {
@@ -91,15 +97,14 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
     });
 
     try {
-      List<LocalNote> results;
+      List<domain.Note> results;
 
       if (_useSemanticSearch) {
         // Simulate semantic search (replace with actual implementation)
         results = await _performSemanticSearch(query);
       } else {
-        // Use traditional search
-        final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
-        final searchQuery = SearchParser.parse(query);
+        // Use traditional search with repository
+        final allNotes = await ref.read(notesCoreRepositoryProvider).localNotes();
 
         results = allNotes.where((note) {
           if (note.deleted) return false;
@@ -117,20 +122,40 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
           _isSearching = false;
         });
       }
-    } catch (e) {
-      debugPrint('Search error: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Search failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'queryLength': query.length,
+          'useSemanticSearch': _useSemanticSearch,
+          'resultsBeforeError': _searchResults.length,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
           _isSearching = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Search failed. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_performSearch(query)),
+            ),
+          ),
+        );
       }
     }
   }
 
-  Future<List<LocalNote>> _performSemanticSearch(String query) async {
+  Future<List<domain.Note>> _performSemanticSearch(String query) async {
     // Placeholder for semantic search implementation
     // In production, this would use vector embeddings and similarity search
-    final allNotes = await ref.read(notesRepositoryProvider).db.localNotes();
+    final allNotes = await ref.read(notesCoreRepositoryProvider).localNotes();
 
     // Simulate semantic matching
     return allNotes.where((note) {
@@ -395,8 +420,6 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
   }
 
   Widget _buildEmptyState() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SingleChildScrollView(
@@ -522,7 +545,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
     );
   }
 
-  Widget _buildNoteCard(LocalNote note) {
+  Widget _buildNoteCard(domain.Note note) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateFormat = DateFormat.yMMMd();
 

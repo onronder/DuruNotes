@@ -1,10 +1,11 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/edit_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, folderProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,8 +21,8 @@ class FolderHierarchyView extends ConsumerStatefulWidget {
     this.padding = const EdgeInsets.all(16),
   });
 
-  final ValueChanged<LocalFolder>? onFolderTap;
-  final ValueChanged<LocalFolder>? onFolderLongPress;
+  final ValueChanged<domain.Folder>? onFolderTap;
+  final ValueChanged<domain.Folder>? onFolderLongPress;
   final String? selectedFolderId;
   final bool showActions;
   final bool showSearch;
@@ -94,11 +95,11 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     });
   }
 
-  bool _matchesSearch(LocalFolder folder) {
+  bool _matchesSearch(domain.Folder folder) {
     if (_searchQuery.isEmpty) return true;
+    // Search by folder name and description only (path is derived/computed, not in domain model)
     return folder.name.toLowerCase().contains(_searchQuery) ||
-        folder.path.toLowerCase().contains(_searchQuery) ||
-        (folder.description.toLowerCase().contains(_searchQuery) ?? false);
+        (folder.description?.toLowerCase().contains(_searchQuery) ?? false);
   }
 
   List<FolderTreeNode> _filterNodes(List<FolderTreeNode> nodes) {
@@ -121,8 +122,8 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     return filtered;
   }
 
-  Future<void> _showCreateFolderDialog([LocalFolder? parent]) async {
-    final result = await showDialog<LocalFolder>(
+  Future<void> _showCreateFolderDialog([domain.Folder? parent]) async {
+    final result = await showDialog<domain.Folder>(
       context: context,
       builder: (context) => CreateFolderDialog(parentFolder: parent),
     );
@@ -133,19 +134,19 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     }
   }
 
-  Future<void> _showEditFolderDialog(LocalFolder folder) async {
+  Future<void> _showEditFolderDialog(domain.Folder folder) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => EditFolderDialog(folder: folder),
     );
 
-    if (result ?? false && mounted) {
+    if ((result ?? false) && mounted) {
       ref.read(folderHierarchyProvider.notifier).refresh();
       ref.read(folderProvider.notifier).refresh();
     }
   }
 
-  Future<void> _showFolderActions(LocalFolder folder) async {
+  Future<void> _showFolderActions(domain.Folder folder) async {
     final result = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => _FolderActionsSheet(folder: folder),
@@ -161,7 +162,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
     }
   }
 
-  Future<void> _confirmDeleteFolder(LocalFolder folder) async {
+  Future<void> _confirmDeleteFolder(domain.Folder folder) async {
     final l10n = AppLocalizations.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -198,7 +199,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
       ),
     );
 
-    if (confirmed ?? false && mounted) {
+    if ((confirmed ?? false) && mounted) {
       final success =
           await ref.read(folderProvider.notifier).deleteFolder(folder.id);
       if (success) {
@@ -371,7 +372,7 @@ class _FolderHierarchyViewState extends ConsumerState<FolderHierarchyView>
                 }
 
                 return DragTarget<String>(
-                  onWillAcceptWithDetails: (details) => details.data != null,
+                  onWillAcceptWithDetails: (details) => true,
                   onAcceptWithDetails: (details) => _moveToRoot(details.data),
                   builder: (context, candidateData, rejectedData) {
                     return candidateData.isNotEmpty
@@ -633,7 +634,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
     BuildContext context,
     ThemeData theme,
     ColorScheme colorScheme,
-    LocalFolder folder,
+    domain.Folder folder,
   ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -706,17 +707,17 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
         ),
         subtitle: Row(
           children: [
-            if (folder.description.isNotEmpty ?? false)
+            if (folder.description != null && folder.description!.isNotEmpty)
               Flexible(
                 child: Text(
-                  folder.description,
+                  folder.description!,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            if (folder.description.isNotEmpty ?? false)
+            if (folder.description != null && folder.description!.isNotEmpty)
               const SizedBox(width: 8),
 
             // Note count badge
@@ -752,7 +753,7 @@ class _FolderTreeTileState extends State<_FolderTreeTile>
 class _FolderActionsSheet extends StatelessWidget {
   const _FolderActionsSheet({required this.folder});
 
-  final LocalFolder folder;
+  final domain.Folder folder;
 
   @override
   Widget build(BuildContext context) {
@@ -798,12 +799,13 @@ class _FolderActionsSheet extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      folder.path,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    if (folder.description != null && folder.description!.isNotEmpty)
+                      Text(
+                        folder.description!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

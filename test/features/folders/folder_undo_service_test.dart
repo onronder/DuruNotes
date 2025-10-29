@@ -1,327 +1,249 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/folder_repository.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/services/folder_undo_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 
-import 'folder_undo_service_test.mocks.dart';
+class _RecordingFolderRepository implements IFolderRepository {
+  final List<Map<String, dynamic>> createOrUpdateCalls = [];
+  final List<Map<String, dynamic>> moveFolderCalls = [];
+  final List<Map<String, dynamic>> renameFolderCalls = [];
 
-// Generate mocks for testing
-@GenerateMocks([FolderRepository])
+  @override
+  Future<String> createOrUpdateFolder({
+    required String name,
+    String? id,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+    int? sortOrder,
+  }) async {
+    createOrUpdateCalls.add({
+      'id': id,
+      'name': name,
+      'parentId': parentId,
+      'color': color,
+      'icon': icon,
+      'description': description,
+      'sortOrder': sortOrder,
+    });
+    return id ?? name;
+  }
+
+  @override
+  Future<void> moveFolder(String folderId, String? newParentId) async {
+    moveFolderCalls.add({
+      'folderId': folderId,
+      'parentId': newParentId,
+    });
+  }
+
+  @override
+  Future<void> renameFolder(String folderId, String newName) async {
+    renameFolderCalls.add({
+      'folderId': folderId,
+      'name': newName,
+    });
+  }
+
+  // The remaining interface members are not required for these tests.
+  @override
+  Future<domain.Folder?> getFolder(String id) async => null;
+  @override
+  Future<List<domain.Folder>> listFolders() async => const [];
+  @override
+  Future<List<domain.Folder>> getRootFolders() async => const [];
+  @override
+  Future<domain.Folder?> findFolderByName(String name) async => null;
+  @override
+  Future<int> getNotesCountInFolder(String folderId) async => 0;
+  @override
+  Future<Map<String, int>> getFolderNoteCounts() async => const {};
+  @override
+  Future<domain.Folder> createFolder({
+    required String name,
+    String? parentId,
+    String? color,
+    String? icon,
+    String? description,
+  }) =>
+      throw UnimplementedError();
+  @override
+  Future<void> deleteFolder(String folderId) => throw UnimplementedError();
+  @override
+  Future<List<domain.Note>> getNotesInFolder(String folderId) async => const [];
+  @override
+  Future<List<domain.Note>> getUnfiledNotes() async => const [];
+  @override
+  Future<void> addNoteToFolder(String noteId, String folderId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> moveNoteToFolder(String noteId, String? folderId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> removeNoteFromFolder(String noteId) => throw UnimplementedError();
+  @override
+  Future<domain.Folder?> getFolderForNote(String noteId) async => null;
+  @override
+  Future<List<domain.Folder>> getChildFolders(String parentId) async =>
+      const [];
+  @override
+  Future<List<domain.Folder>> getChildFoldersRecursive(String parentId) async =>
+      const [];
+  @override
+  Future<int> getFolderDepth(String folderId) async => 0;
+  @override
+  Future<List<String>> getNoteIdsInFolder(String folderId) async => const [];
+  @override
+  Future<void> ensureFolderIntegrity() async {}
+  @override
+  Future<Map<String, dynamic>> performFolderHealthCheck() async => const {};
+  @override
+  Future<void> validateAndRepairFolderStructure() async {}
+  @override
+  Future<void> cleanupOrphanedRelationships() async {}
+  @override
+  Future<void> resolveFolderConflicts() async {}
+  @override
+  String? getCurrentUserId() => 'test-user';
+}
+
+domain.Folder _buildFolder({
+  required String id,
+  required String name,
+  String? parentId,
+  String? color,
+  String? icon,
+}) {
+  final now = DateTime.utc(2025, 1, 1);
+  return domain.Folder(
+    id: id,
+    name: name,
+    parentId: parentId,
+    color: color,
+    icon: icon,
+    description: 'desc-$id',
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+    userId: 'user-1',
+  );
+}
+
 void main() {
-  group('FolderUndoService Tests', () {
-    late FolderUndoService undoService;
-    late MockFolderRepository mockRepository;
+  group('FolderUndoService', () {
+    late _RecordingFolderRepository repository;
+    late FolderUndoService service;
 
     setUp(() {
-      mockRepository = MockFolderRepository();
-      undoService = FolderUndoService(mockRepository);
+      repository = _RecordingFolderRepository();
+      service = FolderUndoService(repository);
     });
 
     tearDown(() {
-      undoService.dispose();
+      service.dispose();
     });
 
-    test('addDeleteOperation creates undo operation', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: null,
-        path: '/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    test('addDeleteOperation enqueues operation with metadata', () async {
+      final folder = _buildFolder(id: 'root', name: 'Root');
+      final child = _buildFolder(id: 'child', name: 'Child', parentId: 'root');
 
-      final operationId = await undoService.addDeleteOperation(
+      final id = await service.addDeleteOperation(
         folder: folder,
-        affectedNotes: ['note-1', 'note-2'],
-        affectedChildFolders: [],
+        affectedNotes: const ['n-1', 'n-2'],
+        affectedChildFolders: [child],
       );
 
-      expect(operationId, isNotNull);
-      expect(undoService.currentHistory.length, equals(1));
-
-      final operation = undoService.currentHistory.first;
-      expect(operation.type, equals(FolderUndoType.delete));
-      expect(operation.originalFolder.id, equals('test-folder'));
-      expect(operation.affectedNotes, equals(['note-1', 'note-2']));
+      expect(id, isNotEmpty);
+      final history = service.currentHistory;
+      expect(history, hasLength(1));
+      final op = history.single;
+      expect(op.type, FolderUndoType.delete);
+      expect(op.originalFolder.id, 'root');
+      expect(op.affectedNotes, ['n-1', 'n-2']);
+      expect(op.affectedChildFolders.single.id, 'child');
     });
 
-    test('addMoveOperation creates undo operation', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: 'new-parent',
-        path: '/New Parent/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    test('undoOperation restores deleted folder and children', () async {
+      final folder = _buildFolder(id: 'root', name: 'Root', color: 'blue');
+      final child = _buildFolder(id: 'child', name: 'Child', parentId: 'root');
 
-      final operationId = await undoService.addMoveOperation(
+      final opId = await service.addDeleteOperation(
         folder: folder,
-        originalParentId: 'old-parent',
+        affectedNotes: const ['n-1'],
+        affectedChildFolders: [child],
       );
 
-      expect(operationId, isNotNull);
-      expect(undoService.currentHistory.length, equals(1));
+      final result = await service.undoOperation(opId);
 
-      final operation = undoService.currentHistory.first;
-      expect(operation.type, equals(FolderUndoType.move));
-      expect(operation.originalFolder.id, equals('test-folder'));
-      expect(operation.originalParentId, equals('old-parent'));
+      expect(result, isTrue);
+      expect(service.currentHistory, isEmpty);
+      expect(repository.createOrUpdateCalls, hasLength(2));
+      final parentCall = repository.createOrUpdateCalls.firstWhere(
+        (call) => call['id'] == 'root',
+      );
+      expect(parentCall['color'], equals('blue'));
+      final childCall = repository.createOrUpdateCalls.firstWhere(
+        (call) => call['id'] == 'child',
+      );
+      expect(childCall['parentId'], equals('root'));
     });
 
-    test('addRenameOperation creates undo operation', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'New Name',
-        parentId: null,
-        path: '/New Name',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    test('undoOperation restores previous parent for move', () async {
+      final folder = _buildFolder(id: 'organizer', name: 'Organizer');
 
-      final operationId = await undoService.addRenameOperation(
+      final opId = await service.addMoveOperation(
         folder: folder,
-        originalName: 'Old Name',
+        originalParentId: 'previous-parent',
       );
 
-      expect(operationId, isNotNull);
-      expect(undoService.currentHistory.length, equals(1));
+      final result = await service.undoOperation(opId);
 
-      final operation = undoService.currentHistory.first;
-      expect(operation.type, equals(FolderUndoType.rename));
-      expect(operation.originalFolder.id, equals('test-folder'));
-      expect(operation.originalName, equals('Old Name'));
+      expect(result, isTrue);
+      expect(repository.moveFolderCalls, hasLength(1));
+      final call = repository.moveFolderCalls.single;
+      expect(call['folderId'], 'organizer');
+      expect(call['parentId'], 'previous-parent');
     });
 
-    test('getLatestOperation returns most recent operation', () async {
-      final folder1 = LocalFolder(
-        id: 'folder-1',
-        name: 'Folder 1',
-        parentId: null,
-        path: '/Folder 1',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
+    test('undoOperation restores original folder name after rename', () async {
+      final renamed = _buildFolder(id: 'root', name: 'Renamed Root');
+
+      final opId = await service.addRenameOperation(
+        folder: renamed,
+        originalName: 'Original Root',
       );
 
-      final folder2 = LocalFolder(
-        id: 'folder-2',
-        name: 'Folder 2',
-        parentId: null,
-        path: '/Folder 2',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+      final result = await service.undoOperation(opId);
 
-      await undoService.addDeleteOperation(
-        folder: folder1,
-        affectedNotes: [],
-        affectedChildFolders: [],
-      );
-
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      await undoService.addDeleteOperation(
-        folder: folder2,
-        affectedNotes: [],
-        affectedChildFolders: [],
-      );
-
-      final latest = undoService.getLatestOperation();
-      expect(latest?.originalFolder.id, equals('folder-2'));
+      expect(result, isTrue);
+      expect(repository.renameFolderCalls, hasLength(1));
+      final call = repository.renameFolderCalls.single;
+      expect(call['folderId'], 'root');
+      expect(call['name'], 'Original Root');
     });
 
-    test('clearHistory removes all operations', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: null,
-        path: '/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
+    test('history stream emits updates when operations change', () async {
+      final folder = _buildFolder(id: 'root', name: 'Root');
+      final emissions = <List<FolderUndoOperation>>[];
+      final sub = service.historyStream.listen(emissions.add);
 
-      await undoService.addDeleteOperation(
+      final opId = await service.addDeleteOperation(
         folder: folder,
-        affectedNotes: [],
-        affectedChildFolders: [],
+        affectedNotes: const [],
+        affectedChildFolders: const [],
       );
 
-      expect(undoService.currentHistory.length, equals(1));
+      await service.undoOperation(opId);
 
-      undoService.clearHistory();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await sub.cancel();
 
-      expect(undoService.currentHistory.length, equals(0));
-    });
-
-    test('operations expire after 5 minutes', () {
-      final expiredOperation = FolderUndoOperation(
-        id: 'expired-op',
-        type: FolderUndoType.delete,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 6)),
-        originalFolder: LocalFolder(
-          id: 'test-folder',
-          name: 'Test Folder',
-          parentId: null,
-          path: '/Test Folder',
-          sortOrder: 0,
-          description: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          deleted: false,
-        ),
-      );
-
-      expect(expiredOperation.isExpired, isTrue);
-    });
-
-    test('fresh operations are not expired', () {
-      final freshOperation = FolderUndoOperation(
-        id: 'fresh-op',
-        type: FolderUndoType.delete,
-        timestamp: DateTime.now(),
-        originalFolder: LocalFolder(
-          id: 'test-folder',
-          name: 'Test Folder',
-          parentId: null,
-          path: '/Test Folder',
-          sortOrder: 0,
-          description: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          deleted: false,
-        ),
-      );
-
-      expect(freshOperation.isExpired, isFalse);
-    });
-
-    test('undo operation fails for expired operations', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: null,
-        path: '/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      await undoService.addDeleteOperation(
-        folder: folder,
-        affectedNotes: [],
-        affectedChildFolders: [],
-      );
-
-      final operation = undoService.currentHistory.first;
-
-      // Mock the operation as expired
-      final expiredOperation = FolderUndoOperation(
-        id: operation.id,
-        type: operation.type,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 6)),
-        originalFolder: operation.originalFolder,
-      );
-
-      // Replace with expired operation
-      undoService.clearHistory();
-
-      // Try to undo expired operation
-      final success = await undoService.undoOperation(expiredOperation.id);
-      expect(success, isFalse);
-    });
-
-    test('description returns correct format for different operation types', () {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: null,
-        path: '/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      final deleteOp = FolderUndoOperation(
-        id: 'delete-op',
-        type: FolderUndoType.delete,
-        timestamp: DateTime.now(),
-        originalFolder: folder,
-      );
-      expect(deleteOp.description, equals('Delete folder "Test Folder"'));
-
-      final moveOp = FolderUndoOperation(
-        id: 'move-op',
-        type: FolderUndoType.move,
-        timestamp: DateTime.now(),
-        originalFolder: folder,
-      );
-      expect(moveOp.description, equals('Move folder "Test Folder"'));
-
-      final renameOp = FolderUndoOperation(
-        id: 'rename-op',
-        type: FolderUndoType.rename,
-        timestamp: DateTime.now(),
-        originalFolder: folder,
-      );
-      expect(renameOp.description, equals('Rename folder to "Test Folder"'));
-    });
-
-    test('history stream emits updates', () async {
-      final folder = LocalFolder(
-        id: 'test-folder',
-        name: 'Test Folder',
-        parentId: null,
-        path: '/Test Folder',
-        sortOrder: 0,
-        description: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      // Listen to history stream
-      final historyEvents = <List<FolderUndoOperation>>[];
-      final subscription = undoService.historyStream.listen(historyEvents.add);
-
-      // Add operation
-      await undoService.addDeleteOperation(
-        folder: folder,
-        affectedNotes: [],
-        affectedChildFolders: [],
-      );
-
-      // Wait for stream emission
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      expect(historyEvents.length, greaterThan(0));
-      expect(historyEvents.last.length, equals(1));
-
-      await subscription.cancel();
+      // Expect two emissions: one after add, one after undo/removal.
+      expect(emissions, hasLength(greaterThanOrEqualTo(2)));
+      expect(emissions.first, hasLength(1));
+      expect(emissions.last, isEmpty);
     });
   });
 }

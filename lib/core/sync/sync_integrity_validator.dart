@@ -64,14 +64,28 @@ class SyncIntegrityValidator {
         metrics.contentHashMismatches = hashResult.issues.length;
       }
 
-      // 4. Timestamp consistency validation
+      // 4. Task parity validation - ensure task records align across stores
+      final taskResult = await _validateTaskParity();
+      if (!taskResult.isValid) {
+        issues.addAll(taskResult.issues);
+        metrics.taskParityMismatches = taskResult.issues.length;
+      }
+
+      // 5. Timestamp consistency validation
       final timestampResult = await _validateTimestamps();
       if (!timestampResult.isValid) {
         issues.addAll(timestampResult.issues);
         metrics.timestampInconsistencies = timestampResult.issues.length;
       }
 
-      // 5. Deep validation (optional - more thorough but slower)
+      // 6. Attachment integrity validation
+      final attachmentResult = await _validateAttachmentIntegrity();
+      if (!attachmentResult.isValid) {
+        issues.addAll(attachmentResult.issues);
+        metrics.attachmentIntegrityIssues = attachmentResult.issues.length;
+      }
+
+      // 7. Deep validation (optional - more thorough but slower)
       if (deepValidation) {
         final deepResult = await _performDeepValidation(validationWindow);
         if (!deepResult.isValid) {
@@ -172,7 +186,7 @@ class SyncIntegrityValidator {
       final remoteActiveIds = await _remoteApi.fetchAllActiveIds();
       final remoteNoteCount = remoteActiveIds.length;
 
-      final localCount = localNoteCount.read<int>('count') ?? 0;
+      final localCount = localNoteCount.read<int>('count');
 
       if (localCount != remoteNoteCount) {
         issues.add(ValidationIssue(
@@ -193,7 +207,7 @@ class SyncIntegrityValidator {
       final remoteFolders = await _remoteApi.fetchAllActiveFolderIds();
       final remoteFolderCount = remoteFolders.length;
 
-      final localFolders = localFolderCount.read<int>('count') ?? 0;
+      final localFolders = localFolderCount.read<int>('count');
 
       if (localFolders != remoteFolderCount) {
         issues.add(ValidationIssue(
@@ -206,6 +220,48 @@ class SyncIntegrityValidator {
         ));
       }
 
+      // Tasks count validation
+      final localTaskCount = await _localDb.customSelect(
+        'SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0'
+      ).getSingle();
+
+      final remoteActiveTaskIds = await _remoteApi.fetchAllActiveTaskIds();
+      final remoteTaskCount = remoteActiveTaskIds.length;
+
+      final localTasks = localTaskCount.read<int>('count');
+
+      if (localTasks != remoteTaskCount) {
+        issues.add(ValidationIssue(
+          type: ValidationIssueType.countMismatch,
+          severity: ValidationSeverity.warning,
+          description: 'Task count mismatch: local=$localTasks, remote=$remoteTaskCount',
+          affectedTable: 'note_tasks',
+          localValue: localTasks.toString(),
+          remoteValue: remoteTaskCount.toString(),
+        ));
+      }
+
+      // Attachments count validation
+      final localAttachmentCount = await _localDb.customSelect(
+        'SELECT COUNT(*) as count FROM attachments'
+      ).getSingle();
+
+      final remoteAttachmentIds = await _remoteApi.fetchAllActiveAttachmentIds();
+      final remoteAttachmentCount = remoteAttachmentIds.length;
+
+      final localAttachments = localAttachmentCount.read<int>('count');
+
+      if (localAttachments != remoteAttachmentCount) {
+        issues.add(ValidationIssue(
+          type: ValidationIssueType.countMismatch,
+          severity: ValidationSeverity.warning,
+          description: 'Attachment count mismatch: local=$localAttachments, remote=$remoteAttachmentCount',
+          affectedTable: 'attachments',
+          localValue: localAttachments.toString(),
+          remoteValue: remoteAttachmentCount.toString(),
+        ));
+      }
+
     } catch (e, stackTrace) {
       _logger.error('Failed to validate record counts', error: e, stackTrace: stackTrace);
       issues.add(ValidationIssue(
@@ -213,6 +269,198 @@ class SyncIntegrityValidator {
         severity: ValidationSeverity.critical,
         description: 'Record count validation failed: $e',
         affectedTable: 'multiple',
+      ));
+    }
+
+    return ValidationResult(
+      isValid: issues.isEmpty,
+      issues: issues,
+      metrics: SyncMetrics(),
+      validationTime: DateTime.now(),
+      duration: Duration.zero,
+    );
+  }
+
+  Future<ValidationResult> _validateTaskParity() async {
+    final issues = <ValidationIssue>[];
+
+    try {
+      final localRows = await _localDb.customSelect(
+        '''
+        SELECT id
+        FROM note_tasks
+        WHERE deleted = 0
+        '''
+      ).get();
+
+      final localIds = localRows.map((row) => row.read<String>('id')).toSet();
+      final remoteIds = await _remoteApi.fetchAllActiveTaskIds();
+
+      for (final localId in localIds) {
+        if (!remoteIds.contains(localId)) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.missingRemote,
+            severity: ValidationSeverity.critical,
+            description: 'Task exists locally but not remotely',
+            affectedTable: 'note_tasks',
+            recordId: localId,
+          ));
+        }
+      }
+
+      for (final remoteId in remoteIds) {
+        if (!localIds.contains(remoteId)) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.missingLocal,
+            severity: ValidationSeverity.warning,
+            description: 'Task exists remotely but not locally',
+            affectedTable: 'note_tasks',
+            recordId: remoteId,
+          ));
+        }
+      }
+    } catch (e, stackTrace) {
+      _logger.error('Task parity validation failed', error: e, stackTrace: stackTrace);
+      issues.add(ValidationIssue(
+        type: ValidationIssueType.systemError,
+        severity: ValidationSeverity.critical,
+        description: 'Task parity validation failed: $e',
+        affectedTable: 'note_tasks',
+      ));
+    }
+
+    return ValidationResult(
+      isValid: issues.isEmpty,
+      issues: issues,
+      metrics: SyncMetrics(),
+      validationTime: DateTime.now(),
+      duration: Duration.zero,
+    );
+  }
+
+  Future<ValidationResult> _validateAttachmentIntegrity() async {
+    final issues = <ValidationIssue>[];
+
+    try {
+      final remoteAttachmentRecords = await _remoteApi.fetchAttachments();
+      final remoteAttachmentsById = <String, Map<String, dynamic>>{};
+      for (final record in remoteAttachmentRecords) {
+        final id = record['id'];
+        if (id is String && id.isNotEmpty) {
+          remoteAttachmentsById[id] = record;
+        }
+      }
+
+      final localAttachmentIds = <String>{};
+      final rows = await _localDb.customSelect('''
+        SELECT a.id,
+               a.note_id,
+               a.user_id,
+               a.size,
+               ln.id AS note_exists,
+               ln.user_id AS note_user_id
+        FROM attachments a
+        LEFT JOIN local_notes ln ON ln.id = a.note_id
+      ''').get();
+
+      for (final row in rows) {
+        final noteExists = row.read<String?>('note_exists');
+        final attachmentId = row.read<String>('id');
+        localAttachmentIds.add(attachmentId);
+        if (noteExists == null) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.foreignKeyViolation,
+            severity: ValidationSeverity.critical,
+            description: 'Attachment references missing note',
+            affectedTable: 'attachments',
+            recordId: attachmentId,
+            localValue: 'note_id=${row.read<String>('note_id')}',
+          ));
+          continue;
+        }
+
+        final attachmentUserId = row.read<String>('user_id');
+        final noteUserId = row.read<String?>('note_user_id');
+        final remoteAttachment = remoteAttachmentsById[attachmentId];
+        if (noteUserId != null && noteUserId != attachmentUserId) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.dataInconsistency,
+            severity: ValidationSeverity.critical,
+            description: 'Attachment user does not match parent note user',
+            affectedTable: 'attachments',
+            recordId: attachmentId,
+            localValue: 'attachment_user=$attachmentUserId, note_user=$noteUserId',
+          ));
+        }
+
+        if (remoteAttachment == null) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.missingRemote,
+            severity: ValidationSeverity.critical,
+            description: 'Attachment exists locally but not remotely',
+            affectedTable: 'attachments',
+            recordId: attachmentId,
+          ));
+        } else {
+          final remoteUserId = remoteAttachment['user_id'] as String?;
+          if (remoteUserId != null && remoteUserId != attachmentUserId) {
+            issues.add(ValidationIssue(
+              type: ValidationIssueType.dataInconsistency,
+              severity: ValidationSeverity.critical,
+              description: 'Attachment user mismatch between local and remote',
+              affectedTable: 'attachments',
+              recordId: attachmentId,
+              localValue: attachmentUserId,
+              remoteValue: remoteUserId,
+            ));
+          }
+
+          final remoteNoteId = remoteAttachment['note_id'] as String?;
+          final localNoteId = row.read<String>('note_id');
+          if (remoteNoteId != null && remoteNoteId != localNoteId) {
+            issues.add(ValidationIssue(
+              type: ValidationIssueType.dataInconsistency,
+              severity: ValidationSeverity.warning,
+              description: 'Attachment note mismatch between local and remote',
+              affectedTable: 'attachments',
+              recordId: attachmentId,
+              localValue: localNoteId,
+              remoteValue: remoteNoteId,
+            ));
+          }
+        }
+
+        final size = row.read<int>('size');
+        if (size < 0) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.dataInconsistency,
+            severity: ValidationSeverity.warning,
+            description: 'Attachment size is negative',
+            affectedTable: 'attachments',
+            recordId: attachmentId,
+            localValue: size.toString(),
+          ));
+        }
+      }
+
+      for (final remoteEntry in remoteAttachmentsById.entries) {
+        if (!localAttachmentIds.contains(remoteEntry.key)) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.missingLocal,
+            severity: ValidationSeverity.warning,
+            description: 'Attachment exists remotely but not locally',
+            affectedTable: 'attachments',
+            recordId: remoteEntry.key,
+          ));
+        }
+      }
+    } catch (e, stackTrace) {
+      _logger.error('Attachment integrity validation failed', error: e, stackTrace: stackTrace);
+      issues.add(ValidationIssue(
+        type: ValidationIssueType.systemError,
+        severity: ValidationSeverity.critical,
+        description: 'Attachment integrity validation failed: $e',
+        affectedTable: 'attachments',
       ));
     }
 
@@ -260,10 +508,10 @@ class SyncIntegrityValidator {
           continue;
         }
 
-        // Validate content integrity using hashes
-        final localHash = _calculateContentHash(localNote.title, localNote.encryptedMetadata);
+        // Validate content integrity using hashes with encrypted fields
+        final localHash = _calculateContentHash(localNote.titleEncrypted, localNote.encryptedMetadata);
         final remoteHash = _calculateContentHash(
-          remoteNote['title'] as String? ?? '',
+          remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String? ?? '',
           remoteNote['encrypted_metadata'] as String?,
         );
 
@@ -323,31 +571,43 @@ class SyncIntegrityValidator {
     final issues = <ValidationIssue>[];
 
     try {
-      // Check for notes with inconsistent timestamps
-      final result = await _localDb.customSelect('''
-        SELECT id, created_at, updated_at
-        FROM local_notes
-        WHERE updated_at < created_at AND deleted = 0
-      ''').get();
+      final hasCreatedAtColumn = await _tableHasColumn('local_notes', 'created_at');
 
-      for (final row in result) {
-        issues.add(ValidationIssue(
-          type: ValidationIssueType.timestampInconsistency,
-          severity: ValidationSeverity.warning,
-          description: 'Updated timestamp is before created timestamp',
-          affectedTable: 'local_notes',
-          recordId: row.read<String>('id'),
-          localValue: 'created: ${row.read<DateTime>('created_at')}, updated: ${row.read<DateTime>('updated_at')}',
-        ));
+      if (hasCreatedAtColumn) {
+        // Check for notes with inconsistent timestamps
+        final result = await _localDb.customSelect('''
+          SELECT id, created_at, updated_at
+          FROM local_notes
+          WHERE updated_at < created_at AND deleted = 0
+        ''').get();
+
+        for (final row in result) {
+          issues.add(ValidationIssue(
+            type: ValidationIssueType.timestampInconsistency,
+            severity: ValidationSeverity.warning,
+            description: 'Updated timestamp is before created timestamp',
+            affectedTable: 'local_notes',
+            recordId: row.read<String>('id'),
+            localValue: 'created: ${row.read<DateTime>('created_at')}, updated: ${row.read<DateTime>('updated_at')}',
+          ));
+        }
+      } else {
+        _logger.debug(
+          'Skipping created_at timestamp consistency check; column not present in migrated schema',
+          data: {'table': 'local_notes'},
+        );
       }
 
       // Check for future timestamps (clock sync issues)
-      final futureThreshold = DateTime.now().add(Duration(minutes: 5));
-      final futureTimestamps = await _localDb.customSelect('''
+      final futureThreshold = DateTime.now().add(const Duration(minutes: 5));
+      final futureTimestamps = await _localDb.customSelect(
+        '''
         SELECT id, updated_at
         FROM local_notes
         WHERE updated_at > ?1 AND deleted = 0
-      ''', [futureThreshold.toIso8601String()]).get();
+      ''',
+        variables: [Variable<DateTime>(futureThreshold)],
+      ).get();
 
       for (final row in futureTimestamps) {
         issues.add(ValidationIssue(
@@ -377,6 +637,14 @@ class SyncIntegrityValidator {
       validationTime: DateTime.now(),
       duration: Duration.zero,
     );
+  }
+
+  Future<bool> _tableHasColumn(String tableName, String columnName) async {
+    final sanitizedTable = tableName.replaceAll('"', '""');
+    final rows = await _localDb
+        .customSelect('PRAGMA table_info("$sanitizedTable")')
+        .get();
+    return rows.any((row) => row.read<String>('name') == columnName);
   }
 
   /// Perform deep validation (more thorough but slower)
@@ -605,10 +873,8 @@ class SyncIntegrityValidator {
 
       if (lastSync != null) {
         final lastSyncTime = lastSync.read<DateTime>('last_sync');
-        if (lastSyncTime != null) {
-          metrics.syncLag = DateTime.now().difference(lastSyncTime);
-        }
-      }
+        metrics.syncLag = DateTime.now().difference(lastSyncTime);
+            }
 
     } catch (e) {
       _logger.warning('Failed to collect sync health metrics', data: {'error': e.toString()});
@@ -711,6 +977,8 @@ class SyncMetrics {
   bool recordCountMismatch = false;
   int contentHashMismatches = 0;
   int timestampInconsistencies = 0;
+  int taskParityMismatches = 0;
+  int attachmentIntegrityIssues = 0;
   int deepValidationFailures = 0;
   int recentSyncActivity = 0;
   int failedSyncOperations = 0;
@@ -721,6 +989,8 @@ class SyncMetrics {
     'record_count_mismatch': recordCountMismatch,
     'content_hash_mismatches': contentHashMismatches,
     'timestamp_inconsistencies': timestampInconsistencies,
+    'task_parity_mismatches': taskParityMismatches,
+    'attachment_integrity_issues': attachmentIntegrityIssues,
     'deep_validation_failures': deepValidationFailures,
     'recent_sync_activity': recentSyncActivity,
     'failed_sync_operations': failedSyncOperations,

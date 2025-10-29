@@ -54,6 +54,57 @@ class InboxItem {
     return (attachments?['count'] as int?) ?? 0;
   }
 
+  // Display helpers for UI
+  String get displayTitle {
+    if (isEmail) {
+      return emailSubject ?? 'Email from ${emailFrom ?? "Unknown"}';
+    }
+    if (isWebClip) {
+      return webTitle ?? 'Web Clip';
+    }
+    return 'Unknown Item';
+  }
+
+  String get displaySubtitle {
+    if (isEmail) {
+      return emailFrom ?? 'Unknown sender';
+    }
+    if (isWebClip) {
+      if (webUrl != null && webUrl!.isNotEmpty) {
+        try {
+          final uri = Uri.parse(webUrl!);
+          return uri.host;
+        } catch (_) {
+          return webUrl!;
+        }
+      }
+      return 'Web clip';
+    }
+    return '';
+  }
+
+  String? get displayText {
+    // Get preview text, trimmed and with normalized whitespace
+    String? rawText;
+    if (isEmail) {
+      rawText = emailText;
+    } else if (isWebClip) {
+      rawText = webText;
+    }
+
+    if (rawText == null || rawText.isEmpty) return null;
+
+    // Clean up the text for preview
+    return rawText
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
+        .trim();
+  }
+
+  // Convenience aliases for backward compatibility
+  String? get from => emailFrom;
+  String? get to => emailTo;
+  String? get html => isEmail ? emailHtml : (isWebClip ? webHtml : null);
+
   InboxItem copyWith({
     String? id,
     String? userId,

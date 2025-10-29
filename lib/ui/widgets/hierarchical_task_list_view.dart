@@ -3,18 +3,21 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
-import 'package:duru_notes/data/local/app_db.dart';
-// Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart' show unifiedTaskServiceProvider;
-import 'package:duru_notes/services/unified_task_service.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show domainTaskControllerProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 import 'package:duru_notes/ui/widgets/task_group_header.dart';
-import 'package:duru_notes/ui/widgets/task_tree_widget.dart';
+import 'package:duru_notes/ui/widgets/tasks/domain_task_hierarchy_node.dart';
+import 'package:duru_notes/ui/widgets/tasks/domain_task_tree_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Hierarchical task list view with tree structure and progress tracking
-/// Uses UnifiedTaskService for all task operations - no VoidCallback usage
+/// Pure domain implementation using ITaskRepository
 class HierarchicalTaskListView extends ConsumerStatefulWidget {
   const HierarchicalTaskListView({
     super.key,
@@ -32,15 +35,27 @@ class HierarchicalTaskListView extends ConsumerStatefulWidget {
 
 class _HierarchicalTaskListViewState
     extends ConsumerState<HierarchicalTaskListView> {
-  // State tracking reserved for future expand/collapse functionality
   AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   Widget build(BuildContext context) {
-    final enhancedTaskService = ref.watch(unifiedTaskServiceProvider);
+    final taskRepository = ref.watch(taskCoreRepositoryProvider);
 
-    return StreamBuilder<List<NoteTask>>(
-      stream: enhancedTaskService.watchOpenTasks(),
+    if (taskRepository == null) {
+      return const Center(child: Text('Task repository not available'));
+    }
+
+    final taskController = ref.watch(domainTaskControllerProvider);
+
+    final Stream<List<domain.Task>> taskStream = widget.noteId != null
+        ? taskController.watchTasksForNote(
+            widget.noteId!,
+            includeCompleted: widget.showCompleted,
+          )
+        : taskController.watchAllTasks(includeCompleted: widget.showCompleted);
+
+    return StreamBuilder<List<domain.Task>>(
+      stream: taskStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -56,7 +71,7 @@ class _HierarchicalTaskListViewState
                 Text('Error: ${snapshot.error}'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.refresh(unifiedTaskServiceProvider),
+                  onPressed: () => setState(() {}),
                   child: const Text('Retry'),
                 ),
               ],
@@ -66,14 +81,11 @@ class _HierarchicalTaskListViewState
 
         var tasks = snapshot.data ?? [];
 
-        // Filter by noteId if specified
-        if (widget.noteId != null) {
-          tasks = tasks.where((t) => t.noteId == widget.noteId).toList();
-        }
-
         // Filter completed tasks if needed
         if (!widget.showCompleted) {
-          tasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
+          tasks = tasks
+              .where((t) => t.status != domain.TaskStatus.completed)
+              .toList();
         }
 
         if (tasks.isEmpty) {
@@ -90,56 +102,56 @@ class _HierarchicalTaskListViewState
           );
         }
 
-        return FutureBuilder<List<TaskHierarchyNode>>(
-          future: _buildHierarchy(tasks),
-          builder: (context, hierarchySnapshot) {
-            if (hierarchySnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        final rootNodes = _buildTaskHierarchy(tasks);
 
-            final rootNodes = hierarchySnapshot.data ?? [];
-
-            return Column(
-              children: [
-                // Hierarchy statistics
-                if (widget.noteId != null)
-                  FutureBuilder<TaskHierarchyStats>(
-                    future: ref.read(unifiedTaskServiceProvider).getHierarchyStats(widget.noteId!),
-                    builder: (context, statsSnapshot) {
-                      if (statsSnapshot.hasData &&
-                          statsSnapshot.data!.hasNesting) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child:
-                              TaskHierarchySummary(stats: statsSnapshot.data!),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-
-                // Hierarchical task tree
-                Expanded(
-                  child: TaskTreeWidget(
-                    rootNodes: rootNodes,
-                    showProgress: true,
-                    maxDepth: 5,
-                  ),
-                ),
-              ],
-            );
-          },
+        return Expanded(
+          child: DomainTaskTreeWidget(
+            rootNodes: rootNodes,
+            showProgress: true,
+            maxDepth: 5,
+            onTaskChanged: () => setState(() {}),
+          ),
         );
       },
     );
   }
 
-  Future<List<TaskHierarchyNode>> _buildHierarchy(List<NoteTask> tasks) async {
-    return ref.read(unifiedTaskServiceProvider).getTaskHierarchy(widget.noteId ?? 'all');
+  /// Build task hierarchy from domain tasks
+  List<DomainTaskHierarchyNode> _buildTaskHierarchy(List<domain.Task> tasks) {
+    final nodeMap = <String, DomainTaskHierarchyNode>{};
+    final rootNodes = <DomainTaskHierarchyNode>[];
+
+    // First pass: create all nodes
+    for (final task in tasks) {
+      nodeMap[task.id] = DomainTaskHierarchyNode(task: task, children: []);
+    }
+
+    // Second pass: build hierarchy
+    for (final task in tasks) {
+      final node = nodeMap[task.id]!;
+
+      // Check if task has parent in metadata
+      final parentTaskId = task.metadata['parentTaskId'] as String?;
+      if (parentTaskId != null && nodeMap.containsKey(parentTaskId)) {
+        final parent = nodeMap[parentTaskId]!;
+        parent.children.add(node);
+        node.parent = parent;
+      } else {
+        rootNodes.add(node);
+      }
+    }
+
+    return rootNodes;
   }
 
-  void _showCreateTaskDialog(BuildContext context) async {
-    final unifiedService = ref.read(unifiedTaskServiceProvider);
+  Future<void> _showCreateTaskDialog(BuildContext context) async {
+    final taskRepository = ref.read(taskCoreRepositoryProvider);
+    if (taskRepository == null) return;
+
+    final taskController = ref.read(domainTaskControllerProvider);
+
+    // Use TextEditingController to capture user input
+    final controller = TextEditingController();
 
     // Show task creation dialog
     final taskContent = await showDialog<String>(
@@ -147,6 +159,7 @@ class _HierarchicalTaskListViewState
       builder: (context) => AlertDialog(
         title: const Text('Create New Task'),
         content: TextField(
+          controller: controller,
           autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Task description...',
@@ -161,8 +174,7 @@ class _HierarchicalTaskListViewState
           ),
           FilledButton(
             onPressed: () {
-              // Get text from controller would be better
-              Navigator.of(context).pop('New Task');
+              Navigator.of(context).pop(controller.text);
             },
             child: const Text('Create'),
           ),
@@ -170,11 +182,15 @@ class _HierarchicalTaskListViewState
       ),
     );
 
+    // Clean up controller
+    controller.dispose();
+
     if (taskContent != null && taskContent.isNotEmpty) {
       try {
-        await unifiedService.createTask(
-          noteId: widget.noteId ?? 'standalone',
-          content: taskContent,
+        final createdTask = await taskController.createTask(
+          noteId: widget.noteId,
+          title: taskContent,
+          priority: domain.TaskPriority.medium,
         );
 
         if (mounted) {
@@ -185,8 +201,10 @@ class _HierarchicalTaskListViewState
         _logger.info(
           'Created hierarchical task',
           data: {
-            'noteId': widget.noteId,
-            'hasCustomContent': taskContent != 'New Task',
+            'noteId': createdTask.noteId,
+            'taskId': createdTask.id,
+            'isStandalone':
+                createdTask.noteId == DomainTaskController.standaloneNoteId,
           },
         );
       } catch (error, stackTrace) {
@@ -216,27 +234,19 @@ class _HierarchicalTaskListViewState
 
 /// Hierarchical task view mode for enhanced task list screen
 class HierarchicalTaskViewMode extends StatelessWidget {
-  const HierarchicalTaskViewMode({
-    super.key,
-    required this.showCompleted,
-  });
+  const HierarchicalTaskViewMode({super.key, required this.showCompleted});
 
   final bool showCompleted;
 
   @override
   Widget build(BuildContext context) {
-    return HierarchicalTaskListView(
-      showCompleted: showCompleted,
-    );
+    return HierarchicalTaskListView(showCompleted: showCompleted);
   }
 }
 
-/// Task hierarchy management panel using UnifiedTaskService
+/// Task hierarchy management panel using ITaskRepository
 class TaskHierarchyPanel extends ConsumerWidget {
-  const TaskHierarchyPanel({
-    super.key,
-    required this.noteId,
-  });
+  const TaskHierarchyPanel({super.key, required this.noteId});
 
   final String noteId;
 
@@ -250,20 +260,14 @@ class TaskHierarchyPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.account_tree,
-                color: colorScheme.primary,
-                size: 20,
-              ),
+              Icon(Icons.account_tree, color: colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Task Hierarchy',
@@ -323,26 +327,9 @@ class TaskHierarchyPanel extends ConsumerWidget {
               ),
             ],
           ),
-
-          const SizedBox(height: 12),
-
-          // Quick stats
-          FutureBuilder<TaskHierarchyStats>(
-            future: _getHierarchyStats(ref),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return TaskHierarchySummary(stats: snapshot.data!);
-              }
-              return const SizedBox.shrink();
-            },
-          ),
         ],
       ),
     );
-  }
-
-  Future<TaskHierarchyStats> _getHierarchyStats(WidgetRef ref) async {
-    return ref.read(unifiedTaskServiceProvider).getHierarchyStats(noteId);
   }
 
   void _handleBulkAction(BuildContext context, WidgetRef ref, String action) {
@@ -363,7 +350,10 @@ class TaskHierarchyPanel extends ConsumerWidget {
   }
 
   Future<void> _completeAllRootTasks(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final noteId = this.noteId;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -387,13 +377,16 @@ class TaskHierarchyPanel extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        final unifiedService = ref.read(unifiedTaskServiceProvider);
-        final tasks = await unifiedService.getTasksForNote(noteId);
-        // Phase 11: parentTaskId is stored in metadata map for domain.Task
-        final rootTasks = tasks.where((t) => t.metadata['parentTaskId'] == null).toList();
+        if (ref.read(taskCoreRepositoryProvider) == null) return;
+
+        final controller = ref.read(domainTaskControllerProvider);
+        final tasks = await controller.getTasksForNote(noteId);
+        final rootTasks = tasks
+            .where((t) => t.metadata['parentTaskId'] == null)
+            .toList();
 
         for (final task in rootTasks) {
-          await unifiedService.onStatusChanged(task.id, TaskStatus.completed);
+          await controller.setStatus(task.id, domain.TaskStatus.completed);
         }
 
         if (context.mounted) {
@@ -401,26 +394,30 @@ class TaskHierarchyPanel extends ConsumerWidget {
             SnackBar(content: Text('Completed ${rootTasks.length} root tasks')),
           );
         }
-        _logger.info(
-          'Completed all root tasks',
-          data: {'noteId': noteId, 'count': rootTasks.length},
-        );
+        ref.read(loggerProvider)
+            .info(
+              'Completed all root tasks',
+              data: {'noteId': noteId, 'count': rootTasks.length},
+            );
       } catch (error, stackTrace) {
-        _logger.error(
-          'Failed to complete all root tasks',
-          error: error,
-          stackTrace: stackTrace,
-          data: {'noteId': noteId},
-        );
+        ref.read(loggerProvider)
+            .error(
+              'Failed to complete all root tasks',
+              error: error,
+              stackTrace: stackTrace,
+              data: {'noteId': noteId},
+            );
         unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Could not complete tasks. Please try again.'),
+              content: const Text(
+                'Could not complete tasks. Please try again.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
-                onPressed: () => unawaited(_completeAllRootTasks(context, ref, noteId)),
+                onPressed: () => unawaited(_completeAllRootTasks(context, ref)),
               ),
             ),
           );
@@ -430,7 +427,10 @@ class TaskHierarchyPanel extends ConsumerWidget {
   }
 
   Future<void> _cleanupCompletedTasks(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final noteId = this.noteId;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -454,33 +454,40 @@ class TaskHierarchyPanel extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        final unifiedService = ref.read(unifiedTaskServiceProvider);
-        final tasks = await unifiedService.getTasksForNote(noteId);
-        final completedTasks =
-            tasks.where((t) => t.status == TaskStatus.completed).toList();
+        if (ref.read(taskCoreRepositoryProvider) == null) return;
+
+        final controller = ref.read(domainTaskControllerProvider);
+        final tasks = await controller.getTasksForNote(noteId);
+        final completedTasks = tasks
+            .where((t) => t.status == domain.TaskStatus.completed)
+            .toList();
 
         for (final task in completedTasks) {
-          await unifiedService.onDeleted(task.id);
+          await controller.deleteTask(task.id);
         }
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text('Archived ${completedTasks.length} completed tasks')),
+              content: Text(
+                'Archived ${completedTasks.length} completed tasks',
+              ),
+            ),
           );
         }
-        _logger.info(
-          'Archived completed tasks',
-          data: {'noteId': noteId, 'count': completedTasks.length},
-        );
+        ref.read(loggerProvider)
+            .info(
+              'Archived completed tasks',
+              data: {'noteId': noteId, 'count': completedTasks.length},
+            );
       } catch (error, stackTrace) {
-        _logger.error(
-          'Failed to archive completed tasks',
-          error: error,
-          stackTrace: stackTrace,
-          data: {'noteId': noteId},
-        );
+        ref.read(loggerProvider)
+            .error(
+              'Failed to archive completed tasks',
+              error: error,
+              stackTrace: stackTrace,
+              data: {'noteId': noteId},
+            );
         unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -489,7 +496,8 @@ class TaskHierarchyPanel extends ConsumerWidget {
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
-                onPressed: () => unawaited(_cleanupCompletedTasks(context, ref)),
+                onPressed: () =>
+                    unawaited(_cleanupCompletedTasks(context, ref)),
               ),
             ),
           );
@@ -498,3 +506,5 @@ class TaskHierarchyPanel extends ConsumerWidget {
     }
   }
 }
+
+/// Tree widget replacement is now handled by DomainTaskTreeWidget

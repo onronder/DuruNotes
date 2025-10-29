@@ -5,13 +5,14 @@
 
 class DuruNotesBackground {
   constructor() {
-    this.supabaseUrl = 'https://jtaedgpxesshdrnbgvjr.supabase.co';
-    this.supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0YWVkZ3B4ZXNzaGRybmJndmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyNDQ5ODMsImV4cCI6MjA3MDgyMDk4M30.a0O-FD0LwqZ-ikRCNnLqBZ0AoeKQKznwJjj8yPYrM-U';
-    this.fallbackSecret = 'test-secret-123'; // Should be configured by user
-    
+    this.supabaseUrl = 'https://mizzxiijxtbwrqgflpnp.supabase.co';
+    this.supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1penp4aWlqeHRid3JxZ2ZscG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4OTYxMjgsImV4cCI6MjA3NjQ3MjEyOH0.NcQfWaZ7uvWgxC5GdIJtGU6DPmVo3zfOhOjdq0qHncw';
+    // SECURITY: No default secret - must be configured by user through extension options
+    this.fallbackSecret = null;
+
     this.userSession = null;
     this.refreshTimer = null;
-    
+
     this.init();
   }
 
@@ -56,17 +57,17 @@ class DuruNotesBackground {
           const loginResult = await this.login(request.email, request.password);
           sendResponse(loginResult);
           break;
-          
+
         case 'logout':
           const logoutResult = await this.logout();
           sendResponse(logoutResult);
           break;
-          
+
         case 'refreshToken':
           const refreshResult = await this.refreshToken();
           sendResponse(refreshResult);
           break;
-          
+
         case 'getSession':
           sendResponse({
             success: true,
@@ -74,18 +75,24 @@ class DuruNotesBackground {
             isAuthenticated: !!this.userSession
           });
           break;
-          
+
         case 'setFallbackSecret':
           this.fallbackSecret = request.secret;
           await chrome.storage.local.set({ fallbackSecret: this.fallbackSecret });
           sendResponse({ success: true });
           break;
-          
+
         case 'clipCurrentTab':
           const clipResult = await this.clipCurrentTab(request.type);
           sendResponse(clipResult);
           break;
-          
+
+        case 'sendClipToServer':
+          // NEW: Handle clip requests from content script (avoids CORS)
+          const sendResult = await this.sendClipToServer(request.clipData, request.token);
+          sendResponse(sendResult);
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -410,11 +417,27 @@ class DuruNotesBackground {
   async clipCurrentTab(type = 'selection') {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+
       if (!tab) {
         return { success: false, error: 'No active tab' };
       }
-      
+
+      // CRITICAL FIX: Re-inject content script to ensure latest version with auth fixes
+      // This is necessary because content scripts are only injected at page load
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        console.log('✓ Re-injected content script with latest auth fixes');
+
+        // Wait a moment for the script to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (injectError) {
+        // Content script might already be running, that's OK
+        console.log('Content script already present or injection failed:', injectError.message);
+      }
+
       return new Promise((resolve) => {
         chrome.tabs.sendMessage(tab.id, {
           action: type === 'page' ? 'clipPage' : 'clipSelection'
@@ -422,7 +445,7 @@ class DuruNotesBackground {
           resolve(response || { success: false, error: 'No response from content script' });
         });
       });
-      
+
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -432,15 +455,23 @@ class DuruNotesBackground {
    * Handle extension install
    */
   onInstall() {
-    // Open options page on install
+    // Open options page on install for user to configure secret
     chrome.runtime.openOptionsPage();
-    
-    // Set default settings
+
+    // Set default settings (NO default secret for security)
     chrome.storage.local.set({
-      fallbackSecret: this.fallbackSecret,
       clipShortcut: 'Ctrl+Shift+S',
       autoClose: true,
       showNotifications: true
+    });
+
+    // Show notification to configure secret
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: 'Duru Notes Extension Installed',
+      message: 'Please configure your authentication in the extension options.',
+      priority: 2
     });
   }
 
@@ -459,6 +490,87 @@ class DuruNotesBackground {
    */
   async migrateSettings(previousVersion) {
     // Add migration logic here if needed
+  }
+
+  /**
+   * Send clip to server via background script (avoids CORS)
+   * Background scripts don't have CORS restrictions
+   */
+  async sendClipToServer(clipData, token) {
+    try {
+      // IMPORTANT: Check if token is expired and refresh if needed
+      if (this.userSession) {
+        const expiresAt = this.userSession.expires_at;
+        const now = Date.now();
+        const timeUntilExpiry = expiresAt - now;
+
+        // If token expires in less than 5 minutes, refresh it
+        if (timeUntilExpiry < 5 * 60 * 1000) {
+          console.log('Token expiring soon, refreshing...');
+          const refreshResult = await this.refreshToken();
+          if (refreshResult.success) {
+            token = refreshResult.token; // Use new token
+            console.log('✓ Token refreshed successfully');
+          } else {
+            console.error('Token refresh failed:', refreshResult.error);
+            return {
+              success: false,
+              error: 'Session expired. Please log in again.',
+              needsLogin: true
+            };
+          }
+        }
+      }
+
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/inbound-web`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(clipData)
+      });
+
+      // Handle non-JSON responses gracefully
+      let result;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        result = { error: text || 'Unknown error' };
+      }
+
+      if (response.ok) {
+        return {
+          success: true,
+          message: result.message || 'Clip saved successfully',
+          data: result
+        };
+      }
+
+      // If 401, token is invalid - ask user to re-login
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: 'Session expired. Please log out and log in again.',
+          needsLogin: true
+        };
+      }
+
+      return {
+        success: false,
+        error: result.error || 'Failed to save clip',
+        status: response.status
+      };
+
+    } catch (error) {
+      console.error('Send clip error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

@@ -1,3 +1,9 @@
+/* COMMENTED OUT - 5 errors - depends on commented-out PreDeploymentValidator
+ * This file depends on PreDeploymentValidator which was commented out due to errors.
+ * Needs rewrite to use new architecture.
+ */
+
+/*
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/tools/pre_deployment_validator.dart';
 import 'package:duru_notes/providers.dart';
@@ -155,3 +161,4 @@ class ValidationParams {
         quickValidation,
       );
 }
+*/

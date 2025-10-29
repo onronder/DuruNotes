@@ -172,7 +172,7 @@ Future<Map<String, dynamic>> _testProviderInitialization(ProviderContainer conta
     return {
       'success': false,
       'error': e.toString(),
-      'providers_tested': {},
+      'providers_tested': <String, bool>{},
     };
   }
 }

@@ -1,9 +1,7 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
-    show supabaseClientProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
     show taskCoreRepositoryProvider;
 // Phase 4: Migrated to organized provider imports
@@ -14,29 +12,44 @@ import 'package:duru_notes/providers/unified_reminder_provider.dart'
     show unifiedReminderCoordinatorProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart'
     show advancedReminderServiceProvider;
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 import 'package:duru_notes/services/enhanced_task_service.dart';
 import 'package:duru_notes/services/productivity_goals_service.dart';
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
-import 'package:duru_notes/services/unified_task_service.dart' as unified;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider for watching tasks for a specific note
-/// DEPRECATED: Use domainTasksForNoteProvider for domain.Task or unifiedTasksForNoteProvider
-final noteTasksProvider =
-    StreamProvider.autoDispose.family<List<NoteTask>, String>((ref, noteId) {
-  // Direct database access - TaskService.watchTasksForNote just delegates to DB
-  final db = ref.watch(appDbProvider);
-  return db.watchTasksForNote(noteId);
-});
+/// DEPRECATED: Use domainTasksForNoteProvider for domain tasks
+final noteTasksProvider = StreamProvider.autoDispose
+    .family<List<NoteTask>, String>((ref, noteId) {
+      // Direct database access - TaskService.watchTasksForNote just delegates to DB
+      final db = ref.watch(appDbProvider);
+      final client = ref.watch(supabaseClientProvider);
+      final userId = client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        return const Stream<List<NoteTask>>.empty();
+      }
+      return db.watchTasksForNote(noteId, userId);
+    });
 
 /// Provider for getting a specific task by ID
-final taskByIdProvider =
-    FutureProvider.autoDispose.family<NoteTask?, String>((ref, taskId) async {
+final taskByIdProvider = FutureProvider.autoDispose.family<NoteTask?, String>((
+  ref,
+  taskId,
+) async {
   final db = ref.watch(appDbProvider);
-  return db.getTaskById(taskId);
+  final client = ref.watch(supabaseClientProvider);
+  final userId = client.auth.currentUser?.id;
+  if (userId == null || userId.isEmpty) {
+    return null;
+  }
+  return db.getTaskById(taskId, userId: userId);
 });
 
 /// Task reminder bridge provider
@@ -49,6 +62,7 @@ final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
   final database = ref.watch(appDbProvider);
   final notificationPlugin = FlutterLocalNotificationsPlugin();
   final cryptoBox = ref.watch(cryptoBoxProvider);
+  final taskRepository = ref.watch(taskCoreRepositoryProvider);
 
   final bridge = TaskReminderBridge(
     ref,
@@ -57,10 +71,30 @@ final taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
     database: database,
     notificationPlugin: notificationPlugin,
     cryptoBox: cryptoBox,
+    taskRepository: taskRepository,
   );
 
   ref.onDispose(bridge.dispose);
   return bridge;
+});
+
+/// Domain task controller provider (domain-first task operations)
+final domainTaskControllerProvider = Provider<DomainTaskController>((ref) {
+  final taskRepository = ref.watch(taskCoreRepositoryProvider);
+  final notesRepository = ref.watch(notesCoreRepositoryProvider);
+  final enhancedService = ref.watch(enhancedTaskServiceProvider);
+  final logger = LoggerFactory.instance;
+
+  if (taskRepository == null) {
+    throw StateError('DomainTaskController requires authenticated user');
+  }
+
+  return DomainTaskController(
+    taskRepository: taskRepository,
+    notesRepository: notesRepository,
+    enhancedTaskService: enhancedService,
+    logger: logger,
+  );
 });
 
 /// Enhanced task service provider with reminder integration
@@ -81,21 +115,19 @@ final enhancedTaskServiceProvider = Provider<EnhancedTaskService>((ref) {
     reminderBridge: reminderBridge,
   );
 
-  // Note: Bidirectional sync is now handled by UnifiedTaskService
-
   return service;
 });
 
 /// Task analytics service provider
 final taskAnalyticsServiceProvider = Provider<TaskAnalyticsService>((ref) {
-  final database = ref.watch(appDbProvider);
-  final supabaseClient = ref.watch(supabaseClientProvider);
-  return TaskAnalyticsService(ref, database: database, supabaseClient: supabaseClient);
+  final taskRepository = ref.watch(taskCoreRepositoryProvider);
+  return TaskAnalyticsService(ref, taskRepository: taskRepository);
 });
 
 /// Productivity goals service provider
-final productivityGoalsServiceProvider =
-    Provider<ProductivityGoalsService>((ref) {
+final productivityGoalsServiceProvider = Provider<ProductivityGoalsService>((
+  ref,
+) {
   final database = ref.watch(appDbProvider);
   final analyticsService = ref.watch(taskAnalyticsServiceProvider);
 
@@ -113,8 +145,9 @@ final productivityGoalsServiceProvider =
 });
 
 /// Stream provider for active productivity goals
-final activeGoalsProvider =
-    StreamProvider.autoDispose<List<ProductivityGoal>>((ref) async* {
+final activeGoalsProvider = StreamProvider.autoDispose<List<ProductivityGoal>>((
+  ref,
+) async* {
   final goalsService = ref.watch(productivityGoalsServiceProvider);
 
   // Initial load
@@ -125,75 +158,4 @@ final activeGoalsProvider =
     await goalsService.updateAllGoalProgress();
     return goalsService.getActiveGoals();
   }).asyncMap((future) => future);
-});
-
-/// Provider for the unified task service that consolidates all task functionality
-final unifiedTaskServiceProvider = Provider<unified.UnifiedTaskService>((ref) {
-  final db = ref.watch(appDbProvider);
-  final taskRepository = ref.watch(taskCoreRepositoryProvider);
-
-  // Handle nullable repository - required for unified task service
-  if (taskRepository == null) {
-    throw StateError('UnifiedTaskService requires authenticated user');
-  }
-
-  final logger = LoggerFactory.instance;
-  final analytics = AnalyticsFactory.instance;
-
-  // Create enhanced task service internally to avoid circular dependency
-  // Use a lazy approach to prevent initialization loops
-  final reminderBridge = ref.watch(taskReminderBridgeProvider);
-
-  late final EnhancedTaskService enhancedService;
-  late final unified.UnifiedTaskService service;
-
-  // Initialize enhanced service after unified service is created
-  enhancedService = EnhancedTaskService(
-    database: db,
-    taskRepository: taskRepository,
-    reminderBridge: reminderBridge,
-  );
-
-  service = unified.UnifiedTaskService(
-    db: db,
-    logger: logger,
-    analytics: analytics,
-    enhancedTaskService: enhancedService,
-    taskRepository: taskRepository,
-  );
-
-  // CRITICAL: Dispose the service when provider is disposed to prevent memory leaks
-  ref.onDispose(() {
-    try {
-      service.dispose();
-    } catch (e) {
-      logger.error('Error disposing UnifiedTaskService', error: e);
-    }
-  });
-
-  return service;
-});
-
-/// Provider for task updates stream
-final unifiedTaskUpdatesProvider = StreamProvider.autoDispose<unified.TaskUpdate>((ref) {
-  final service = ref.watch(unifiedTaskServiceProvider);
-  return service.taskUpdates;
-});
-
-/// Provider for tasks by note using unified service
-/// Phase 11: Now returns domain.Task objects with decrypted content
-final unifiedTasksForNoteProvider =
-    FutureProvider.autoDispose.family<List<domain.Task>, String>((ref, noteId) async {
-  final service = ref.watch(unifiedTaskServiceProvider);
-  return service.getTasksForNote(noteId);
-});
-
-/// Provider for task statistics using unified service
-final unifiedTaskStatisticsProvider = FutureProvider.autoDispose<unified.TaskStatistics>((ref) {
-  final service = ref.watch(unifiedTaskServiceProvider);
-
-  // Refresh when task updates occur
-  ref.watch(unifiedTaskUpdatesProvider);
-
-  return service.getTaskStatistics();
 });

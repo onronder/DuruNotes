@@ -1,33 +1,41 @@
 import 'dart:async';
+import 'dart:convert'; // For base64 decoding
+import 'dart:typed_data'; // For Uint8List
 
 import 'package:duru_notes/core/errors.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/result.dart';
+import 'package:duru_notes/domain/entities/inbox_item.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_inbox_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/incoming_mail_folder_manager.dart';
+import 'package:http/http.dart' as http; // For downloading from pre-signed URLs
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing the inbound email inbox functionality
-/// This service handles fetching, converting, and managing emails from the clipper_inbox
+/// This service handles converting inbox items (email, web clips) into notes
+/// and delegates data access to InboxRepository following DDD principles.
 class InboxManagementService {
   InboxManagementService({
+    required IInboxRepository inboxRepository,
     required SupabaseClient supabase,
     required EmailAliasService aliasService,
     NotesCoreRepository? notesRepository,
     IncomingMailFolderManager? folderManager,
-    AttachmentService? attachmentService,
-  })  : _supabase = supabase,
-        _aliasService = aliasService,
-        _notesRepository = notesRepository,
-        _folderManager = folderManager,
-        _attachmentService = attachmentService;
+    AttachmentService? attachmentService, // Kept for backward compatibility
+  }) : _inboxRepository = inboxRepository,
+       _supabase = supabase,
+       _aliasService = aliasService,
+       _notesRepository = notesRepository,
+       _folderManager = folderManager;
+
+  final IInboxRepository _inboxRepository;
   final SupabaseClient _supabase;
   final EmailAliasService _aliasService;
   final NotesCoreRepository? _notesRepository;
   final IncomingMailFolderManager? _folderManager;
-  final AttachmentService? _attachmentService;
   final AppLogger _logger = LoggerFactory.instance;
 
   // Debounce timer for sync
@@ -40,39 +48,23 @@ class InboxManagementService {
   }
 
   /// List all inbox items (both email and web clips) - unified inbox
-  Future<List<InboxItem>> listInboxItems({
-    int limit = 50,
-    int offset = 0,
-  }) async {
-    return getClipperInboxItems(limit: limit, offset: offset);
-  }
-
-  /// Fetch all clipper inbox items (both email and web clips)
-  Future<List<InboxItem>> getClipperInboxItems({
+  Future<List<domain.InboxItem>> listInboxItems({
     int limit = 50,
     int offset = 0,
   }) async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        _logger.warning('No authenticated user for inbox fetch');
-        return [];
-      }
+      // Use repository to fetch unprocessed items
+      // Note: Repository doesn't support pagination yet, so we get all and slice
+      final allItems = await _inboxRepository.getUnprocessed();
 
-      final response = await _supabase
-          .from('clipper_inbox')
-          .select()
-          .eq('user_id', userId) // Strict user scoping
-          .or('source_type.eq.email_in,source_type.eq.web')
-          .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1);
+      // Apply offset and limit
+      if (offset >= allItems.length) return [];
 
-      return (response as List)
-          .map((json) => InboxItem.fromJson(json as Map<String, dynamic>))
-          .toList();
+      final endIndex = (offset + limit).clamp(0, allItems.length);
+      return allItems.sublist(offset, endIndex);
     } catch (e, stackTrace) {
       _logger.error(
-        'Error fetching inbox items',
+        'Error listing inbox items',
         error: e,
         stackTrace: stackTrace,
       );
@@ -80,47 +72,18 @@ class InboxManagementService {
     }
   }
 
-  /// Fetch inbound emails from clipper_inbox (deprecated - use getClipperInboxItems)
-  @Deprecated('Use getClipperInboxItems instead')
-  Future<List<InboundEmail>> getInboundEmails({
+  /// Fetch all clipper inbox items (both email and web clips)
+  Future<List<domain.InboxItem>> getClipperInboxItems({
     int limit = 50,
     int offset = 0,
   }) async {
-    final items = await getClipperInboxItems(limit: limit, offset: offset);
-    // Filter only email items and convert to InboundEmail for backward compatibility
-    return items
-        .where((item) => item.sourceType == 'email_in')
-        .map(
-          (item) => InboundEmail(
-            id: item.id,
-            userId: item.userId,
-            payloadJson: item.payloadJson,
-            createdAt: item.createdAt,
-          ),
-        )
-        .toList();
+    return listInboxItems(limit: limit, offset: offset);
   }
 
   /// Delete an inbox item (email or web clip)
   Future<Result<void, AppError>> deleteInboxItem(String itemId) async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        _logger.warning('No authenticated user for deletion');
-        return Result.failure(
-          const AuthError(
-            message: 'No authenticated user',
-            type: AuthErrorType.sessionExpired,
-          ),
-        );
-      }
-
-      await _supabase
-          .from('clipper_inbox')
-          .delete()
-          .eq('user_id', userId) // Strict user scoping
-          .eq('id', itemId);
-
+      await _inboxRepository.delete(itemId);
       _logger.info('Deleted inbox item', data: {'itemId': itemId});
       return Result.success(null);
     } catch (e, stackTrace) {
@@ -150,7 +113,9 @@ class InboxManagementService {
 
   /// Convert an inbox item (email or web clip) to a note - Result-based API
   /// Performance optimized: <3s from tap to synced
-  Future<Result<String, AppError>> convertItemToNote(InboxItem item) async {
+  Future<Result<String, AppError>> convertItemToNote(
+    domain.InboxItem item,
+  ) async {
     if (_notesRepository == null) {
       _logger.error('NotesRepository not available for conversion');
       return Result.failure(
@@ -220,7 +185,7 @@ class InboxManagementService {
   /// Convert an inbox item (email or web clip) to a note - Legacy API
   /// Performance optimized: <3s from tap to synced
   @Deprecated('Use convertItemToNote which returns Result<String, AppError>')
-  Future<String?> convertInboxItemToNote(InboxItem item) async {
+  Future<String?> convertInboxItemToNote(domain.InboxItem item) async {
     if (_notesRepository == null) {
       _logger.error('NotesRepository not available for conversion');
       return null;
@@ -268,25 +233,14 @@ class InboxManagementService {
 
     // Start new timer
     _syncDebounceTimer = Timer(_syncDebounceDelay, () {
-      _logger.debug(' Sync triggered after conversion (handled by UnifiedSyncService)');
+      _logger.debug(
+        ' Sync triggered after conversion (handled by UnifiedSyncService)',
+      );
       // No-op - sync happens automatically via queue
     });
   }
 
-  /// Convert an inbound email to a note (deprecated - use convertInboxItemToNote)
-  @Deprecated('Use convertInboxItemToNote instead')
-  Future<String?> convertEmailToNote(InboundEmail email) async {
-    final item = InboxItem(
-      id: email.id,
-      userId: email.userId,
-      sourceType: 'email_in',
-      payloadJson: email.payloadJson,
-      createdAt: email.createdAt,
-    );
-    return convertInboxItemToNote(item);
-  }
-
-  Future<String?> _convertEmailToNote(InboxItem item) async {
+  Future<String?> _convertEmailToNote(domain.InboxItem item) async {
     if (_notesRepository == null) {
       _logger.error('NotesRepository not available for conversion');
       return null;
@@ -296,13 +250,14 @@ class InboxManagementService {
       final phaseStopwatch = Stopwatch()..start();
 
       // Phase A: Build content and create note locally (target: <500ms)
-      final title = item.subject ?? 'Email from ${item.from ?? "Unknown"}';
-      var emailText = item.text ?? '';
+      final title =
+          item.emailSubject ?? 'Email from ${item.emailFrom ?? "Unknown"}';
+      var emailText = item.emailText ?? '';
 
       // If no text content, try to extract from HTML
-      if (emailText.isEmpty && item.html != null) {
+      if (emailText.isEmpty && item.emailHtml != null) {
         // Basic HTML to text conversion (strip tags)
-        emailText = item.html!
+        emailText = item.emailHtml!
             .replaceAll(RegExp(r'<br\s*/?>'), '\n')
             .replaceAll(RegExp(r'<p\s*>'), '\n')
             .replaceAll(RegExp('</p>'), '\n')
@@ -317,12 +272,27 @@ class InboxManagementService {
         body.write(emailText);
       }
       body.writeln('\n\n---');
-      body.writeln('From: ${item.from ?? "Unknown"}');
+      body.writeln('From: ${item.emailFrom ?? "Unknown"}');
       body.writeln('Received: ${item.createdAt.toIso8601String()}');
+
+      Map<String, dynamic>? attachmentInfo =
+          item.payload['attachments'] as Map<String, dynamic>?;
+      Map<String, dynamic>? attachmentMeta;
+      var hasAttachments = item.hasAttachments;
+
+      if (!_hasAttachmentFiles(attachmentInfo)) {
+        final resolved = await _waitForInboundAttachments(item.id);
+        if (_hasAttachmentFiles(resolved)) {
+          attachmentInfo = resolved;
+          hasAttachments = true;
+        }
+      } else {
+        hasAttachments = true;
+      }
 
       // Add tags (without # prefix for database)
       final tags = <String>['Email'];
-      if (item.hasAttachments) {
+      if (hasAttachments) {
         tags.add('Attachment');
       }
       // Add hashtags to body for display
@@ -331,31 +301,49 @@ class InboxManagementService {
       // Create metadata for the note
       final metadata = <String, dynamic>{
         'source': 'email_in',
-        'from': item.from,
-        'to': item.to,
+        'from': item.emailFrom,
+        'to': item.emailTo,
         'received_at': item.createdAt.toIso8601String(),
         'original_id': item.id,
-        'message_id': item.messageId,
+        'message_id': item.emailMessageId,
         'tags': tags,
       };
 
-      // Store attachment info for later processing
-      final attachmentInfo =
-          item.payloadJson['attachments'] as Map<String, dynamic>?;
-      if (attachmentInfo != null) {
-        metadata['attachments'] = attachmentInfo;
+      // Store attachment info in format that modern_edit_note_screen expects
+      if (_hasAttachmentFiles(attachmentInfo)) {
+        // Convert to format: {files: [{path, filename, type, size, url, url_expires_at}]}
+        // This matches what EmailAttachmentRef constructor expects in modern_edit_note_screen
+        // CRITICAL FIX: Preserve URL and expiration from backend
+        final files = ((attachmentInfo?['files'] as List?) ?? const []).map((f) {
+          return {
+            'path': f['storage_path'] ?? '',
+            'filename': f['filename'] ?? 'unnamed',
+            'type': f['content_type'] ?? 'application/octet-stream',
+            'size': f['size'] ?? 0,
+            'url': f['url'], // Pre-signed URL from backend (CRITICAL FIX)
+            'url_expires_at':
+                f['url_expires_at'], // URL expiration timestamp (CRITICAL FIX)
+          };
+        }).toList();
+
+        attachmentMeta = {
+          'files': files,
+          'count': attachmentInfo?['count'] ?? files.length,
+        };
+        metadata['attachments'] = attachmentMeta;
         metadata['attachments_pending'] = true; // Mark as pending upload
       }
 
       // Add HTML to metadata if present
-      if (item.html != null) {
-        metadata['html'] = item.html;
+      if (item.emailHtml != null) {
+        metadata['html'] = item.emailHtml;
       }
 
       // Create the note locally (should be fast)
       final note = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
+        attachmentMeta: attachmentMeta,
         metadataJson: metadata,
         tags: tags,
       );
@@ -372,13 +360,26 @@ class InboxManagementService {
 
       // Phase B: Background operations (non-blocking)
       // Process attachments in background if present
-      if (item.hasAttachments && attachmentInfo != null) {
+      _logger.info(
+        '📎 [Attachments] Checking resolved metadata',
+        data: {
+          'hasAttachmentsFlag': hasAttachments,
+          'metadataHasFiles': _hasAttachmentFiles(attachmentInfo),
+          'inboxId': item.id,
+        },
+      );
+      if (hasAttachments && attachmentInfo != null) {
+        _logger.info('📎 [Attachments] Starting background processing');
         _processAttachmentsInBackground(
           noteId,
           attachmentInfo,
           title,
           bodyWithTags,
           metadata,
+        );
+      } else {
+        _logger.warn(
+          '⚠️ [Debug] Attachment processing SKIPPED: hasAttachments=${item.hasAttachments}, attachmentInfo=${attachmentInfo != null ? 'exists' : 'null'}',
         );
       }
 
@@ -394,7 +395,7 @@ class InboxManagementService {
     }
   }
 
-  Future<String?> _convertWebClipToNote(InboxItem item) async {
+  Future<String?> _convertWebClipToNote(domain.InboxItem item) async {
     if (_notesRepository == null) {
       _logger.error('NotesRepository not available for conversion');
       return null;
@@ -407,7 +408,9 @@ class InboxManagementService {
       final title = item.webTitle ?? 'Web Clip';
       final text = item.webText ?? '';
       final url = item.webUrl ?? '';
-      final clippedAt = item.webClippedAt ?? item.createdAt.toIso8601String();
+      final clippedAt =
+          item.webClippedAt?.toIso8601String() ??
+          item.createdAt.toIso8601String();
 
       // Build body with source reference
       final body = StringBuffer();
@@ -473,18 +476,71 @@ class InboxManagementService {
     Map<String, dynamic> attachmentInfo,
     String title,
     String bodyWithTags,
-    Map<String, dynamic> metadata,
-  ) async {
+    Map<String, dynamic> metadata, {
+    int attempt = 1,
+  }) async {
+    const maxAttempts = 5;
+    if (attempt > maxAttempts) {
+      _logger.error(
+        '❌ [Attachments] Giving up after max retries: note not synced',
+        data: {'noteId': noteId, 'attempts': maxAttempts},
+      );
+      return;
+    }
+
+    final noteSynced = await _waitForNoteToSync(noteId);
+    if (!noteSynced) {
+      final retryDelay = Duration(seconds: attempt * 2);
+      _logger.warn(
+        '⚠️ [Attachments] Note not yet synced; retrying',
+        data: {
+          'noteId': noteId,
+          'attempt': attempt,
+          'maxAttempts': maxAttempts,
+          'retryInSeconds': retryDelay.inSeconds,
+        },
+      );
+
+      final metadataClone =
+          jsonDecode(jsonEncode(metadata)) as Map<String, dynamic>;
+      final attachmentClone =
+          jsonDecode(jsonEncode(attachmentInfo)) as Map<String, dynamic>;
+
+      Future<void>.delayed(retryDelay, () {
+        _processAttachmentsInBackground(
+          noteId,
+          attachmentClone,
+          title,
+          bodyWithTags,
+          metadataClone,
+          attempt: attempt + 1,
+        );
+      });
+      return;
+    }
+
     try {
-      _logger.debug(' Processing attachments in background for note $noteId');
+      _logger.info(
+        '📎 [Attachments] Processing in background',
+        data: {'noteId': noteId, 'attempt': attempt},
+      );
+      Map<String, dynamic>? attachmentsMeta;
+      final existingAttachmentsMeta = metadata['attachments'];
+      if (existingAttachmentsMeta is Map<String, dynamic>) {
+        attachmentsMeta = Map<String, dynamic>.from(existingAttachmentsMeta);
+      } else if (existingAttachmentsMeta is Map) {
+        attachmentsMeta = existingAttachmentsMeta.map<String, dynamic>(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
 
       // Extract attachment details
       final attachments = getAttachments(
-        InboxItem(
+        domain.InboxItem(
           id: '',
           userId: '',
           sourceType: 'email_in',
-          payloadJson: {'attachments': attachmentInfo},
+          payload: {'attachments': attachmentInfo},
           createdAt: DateTime.now(),
         ),
       );
@@ -494,27 +550,246 @@ class InboxManagementService {
       final attachmentLinks = StringBuffer();
       attachmentLinks.writeln('\n\n## Attachments');
 
-      for (final attachment in attachments) {
-        // For now, just add metadata about attachments
-        // In a full implementation, you would:
-        // 1. Download attachment from storage
-        // 2. Re-upload to user's attachment storage
-        // 3. Get the new URL
-        attachmentLinks.writeln(
-          '- [${attachment.filename}](${attachment.url ?? "pending"}) (${attachment.sizeFormatted})',
-        );
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.error('❌ [Attachments] No authenticated user');
+        return;
       }
+
+      int successCount = 0;
+      int failCount = 0;
+      final updatedFiles = <Map<String, dynamic>>[];
+
+      for (final attachment in attachments) {
+        try {
+          final filename = attachment.filename;
+          final size = attachment.size;
+          final mimeType = attachment.contentType;
+
+          _logger.info(
+            '📎 [Attachments] Processing: $filename ($size bytes, $mimeType)',
+          );
+
+          // VALIDATION: File size limit (50MB)
+          const maxFileSize = 50 * 1024 * 1024; // 50MB
+          if (size > maxFileSize) {
+            _logger.warn(
+              '⚠️ [Attachments] File too large: $filename (${_formatBytes(size)}) - max 50MB',
+            );
+            attachmentLinks.writeln(
+              '- ⚠️ [$filename](file-too-large) (${_formatBytes(size)} - max 50MB)',
+            );
+            failCount++;
+            continue;
+          }
+
+          // GET FILE DATA: Download from storage_path (new) or decode base64 (legacy)
+          Uint8List? fileBytes;
+          try {
+            fileBytes = await attachment.getFileData(_supabase);
+            if (fileBytes == null) {
+              _logger.warn(
+                '⚠️ [Attachments] No file data available for: $filename',
+              );
+              attachmentLinks.writeln('- ⚠️ [$filename](no-content)');
+              failCount++;
+              continue;
+            }
+            _logger.debug(
+              '✓ [Attachments] Retrieved file data: ${fileBytes.length} bytes',
+            );
+          } catch (e) {
+            _logger.error('❌ [Attachments] Failed to get file data: $e');
+            attachmentLinks.writeln('- ❌ [$filename](data-error)');
+            failCount++;
+            continue;
+          }
+
+          // UPLOAD: To final Supabase Storage location
+          final storagePath = '$userId/$noteId/$filename';
+          _logger.debug('📤 [Attachments] Uploading to: $storagePath');
+
+          try {
+            await _supabase.storage
+                .from('inbound-attachments')
+                .uploadBinary(
+                  storagePath,
+                  fileBytes,
+                  fileOptions: FileOptions(
+                    contentType: mimeType,
+                    upsert: false, // Don't overwrite existing files
+                  ),
+                );
+            _logger.info('✅ [Attachments] Uploaded: $filename');
+
+            // CLEANUP: Remove temporary file if it came from storage_path
+            if (attachment.storagePath != null) {
+              try {
+                await _supabase.storage.from('inbound-attachments-temp').remove(
+                  [attachment.storagePath!],
+                );
+                _logger.debug('🗑️ [Attachments] Cleaned up temp file');
+              } catch (cleanupError) {
+                _logger.warn(
+                  '⚠️ [Attachments] Failed to cleanup temp file: $cleanupError',
+                );
+                // Non-critical error, continue processing
+              }
+            }
+          } catch (e) {
+            _logger.error('❌ [Attachments] Upload failed: $e');
+            attachmentLinks.writeln('- ❌ [$filename](upload-error)');
+            failCount++;
+            continue;
+          }
+
+          // GET PUBLIC URL
+          final publicUrl = _supabase.storage
+              .from('inbound-attachments')
+              .getPublicUrl(storagePath);
+
+          _logger.debug('🔗 [Attachments] Public URL: $publicUrl');
+
+          // SAVE TO DATABASE
+          try {
+            // Generate unique ID for attachment (required by schema)
+            final timestamp = DateTime.now().millisecondsSinceEpoch;
+            final sanitizedFilename = filename.replaceAll(
+              RegExp(r'[^a-zA-Z0-9.]'),
+              '_',
+            );
+            final attachmentId = '${timestamp}_$sanitizedFilename';
+
+            final insertData = {
+              'id': attachmentId,
+              'user_id': userId,
+              'note_id': noteId,
+              'file_name': filename,
+              'storage_path': storagePath,
+              'mime_type': mimeType,
+              'size': size,
+              'url': publicUrl,
+              'uploaded_at': DateTime.now().toIso8601String(),
+              'created_at': DateTime.now().toIso8601String(),
+              'deleted': false,
+            };
+
+            _logger.info(
+              '💾 [Attachments] Attempting DB insert with data: $insertData',
+            );
+
+            await _supabase.from('attachments').insert(insertData);
+
+            _logger.info('✅ [Attachments] DB insert SUCCESS: $filename');
+          } catch (e, stackTrace) {
+            _logger.error(
+              '❌ [Attachments] DB insert FAILED',
+              error: e,
+              stackTrace: stackTrace,
+              data: {
+                'filename': filename,
+                'noteId': noteId,
+                'userId': userId,
+                'storagePath': storagePath,
+                'size': size,
+                'mimeType': mimeType,
+                'errorType': e.runtimeType.toString(),
+              },
+            );
+            // Print full error to console for debugging
+            print('🔴 ATTACHMENT INSERT ERROR:');
+            print('   Error: $e');
+            print('   Type: ${e.runtimeType}');
+            print('   StackTrace: $stackTrace');
+            // Try to clean up uploaded file
+            try {
+              await _supabase.storage.from('inbound-attachments').remove([
+                storagePath,
+              ]);
+              _logger.debug('🗑️ [Attachments] Cleaned up failed upload');
+            } catch (cleanupError) {
+              _logger.warn('⚠️ [Attachments] Cleanup failed: $cleanupError');
+            }
+            attachmentLinks.writeln('- ❌ [$filename](db-error)');
+            failCount++;
+            continue;
+          }
+
+          // SUCCESS: Add link to note and store updated file info
+          attachmentLinks.writeln(
+            '- 📎 [$filename]($publicUrl) (${_formatBytes(size)})',
+          );
+
+          // Store updated file info with new storage path
+          updatedFiles.add({
+            'path': storagePath,
+            'filename': filename,
+            'type': mimeType,
+            'size': size,
+          });
+
+          successCount++;
+
+          _logger.info(
+            '✅ [Attachments] Complete: $filename (${_formatBytes(size)})',
+          );
+        } catch (e, stackTrace) {
+          _logger.error(
+            '❌ [Attachments] Unexpected error processing ${attachment.filename}',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          attachmentLinks.writeln(
+            '- ❌ [${attachment.filename}](error: ${e.toString().substring(0, 50)})',
+          );
+          failCount++;
+        }
+      }
+
+      _logger.info(
+        '📊 [Attachments] Summary: $successCount succeeded, $failCount failed',
+      );
+      _logger.debug(
+        '[InboxConversion] Attachment summary for note $noteId',
+        data: {
+          'successCount': successCount,
+          'failCount': failCount,
+          'updatedFiles': updatedFiles,
+        },
+      );
 
       // Update note body with attachment links
       final updatedBody = bodyWithTags + attachmentLinks.toString();
       metadata['attachments_pending'] = false;
+      metadata['attachments_processed'] = successCount;
+      metadata['attachments_failed'] = failCount;
+
+      // Update attachments metadata with new storage paths
+      if (updatedFiles.isNotEmpty) {
+        attachmentsMeta = {
+          'files': updatedFiles,
+          'count': updatedFiles.length,
+        };
+        metadata['attachments'] = attachmentsMeta;
+      } else if (attachmentsMeta != null) {
+        metadata['attachments'] = attachmentsMeta;
+      }
 
       // Update the note with attachment info
+      final attachmentTags =
+          (metadata['tags'] as List<dynamic>?)?.cast<String>() ?? const [];
+
       await _notesRepository?.createOrUpdate(
         id: noteId,
         title: title,
         body: updatedBody,
+        attachmentMeta: attachmentsMeta,
         metadataJson: metadata,
+        tags: attachmentTags,
+      );
+      _logger.debug(
+        '[InboxConversion] Updated note $noteId metadata',
+        data: {'metadata': metadata},
       );
 
       // Trigger another sync to push the updated note
@@ -525,6 +800,99 @@ class InboxManagementService {
       _logger.debug(' Error processing attachments: $e');
       // Don't fail the conversion if attachment processing fails
     }
+  }
+
+  Future<bool> _waitForNoteToSync(
+    String noteId, {
+    Duration timeout = const Duration(seconds: 8),
+    Duration pollInterval = const Duration(milliseconds: 400),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final response = await _supabase
+            .from('notes')
+            .select('id')
+            .eq('id', noteId)
+            .maybeSingle();
+
+        if (response != null) {
+          return true;
+        }
+      } catch (error) {
+        _logger.warn(
+          '⚠️ [Attachments] Failed to verify remote note status',
+          data: {
+            'noteId': noteId,
+            'error': error.toString(),
+          },
+        );
+      }
+
+      await Future<void>.delayed(pollInterval);
+    }
+
+    _logger.warn(
+      '⚠️ [Attachments] Timed out waiting for note sync',
+      data: {'noteId': noteId, 'timeoutSeconds': timeout.inSeconds},
+    );
+    return false;
+  }
+
+  bool _hasAttachmentFiles(Map<String, dynamic>? attachmentInfo) {
+    final files = attachmentInfo?['files'];
+    if (files is List && files.isNotEmpty) {
+      return true;
+    }
+    final count = attachmentInfo?['count'];
+    if (count is num && count > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>?> _waitForInboundAttachments(
+    String inboxId, {
+    Duration timeout = const Duration(seconds: 6),
+    Duration pollInterval = const Duration(milliseconds: 400),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final response = await _supabase
+            .from('clipper_inbox')
+            .select('payload_json')
+            .eq('id', inboxId)
+            .maybeSingle();
+
+        final payload = response?['payload_json'];
+        if (payload is Map<String, dynamic>) {
+          final attachments = payload['attachments'] as Map<String, dynamic>?;
+          if (_hasAttachmentFiles(attachments)) {
+            _logger.info(
+              '📎 [Attachments] Resolved metadata from clipper_inbox',
+              data: {'inboxId': inboxId},
+            );
+            return attachments;
+          }
+        }
+      } catch (error) {
+        _logger.warning(
+          '⚠️ [Attachments] Failed to fetch latest inbox payload',
+          data: {
+            'inboxId': inboxId,
+            'error': error.toString(),
+          },
+        );
+      }
+      await Future<void>.delayed(pollInterval);
+    }
+
+    _logger.warn(
+      '⚠️ [Attachments] Timed out waiting for inbound attachment metadata',
+      data: {'inboxId': inboxId, 'timeoutSeconds': timeout.inSeconds},
+    );
+    return null;
   }
 
   /// Complete conversion tasks in background
@@ -543,17 +911,21 @@ class InboxManagementService {
         }
       }
 
-      // Delete from inbox after successful conversion
-      await deleteInboxItem(itemId);
-      _logger.debug(' Deleted inbox item $itemId');
+      // Mark as processed so it no longer appears in inbox list
+      try {
+        await _inboxRepository.markAsProcessed(itemId, noteId: noteId);
+        _logger.debug(' Marked inbox item $itemId as processed');
+      } catch (e) {
+        _logger.debug(' Failed to mark inbox item as processed: $e');
+      }
     } catch (e) {
       _logger.debug(' Error in background tasks: $e');
     }
   }
 
   /// Get attachment information for an inbox item (currently only emails have attachments)
-  List<EmailAttachment> getAttachments(InboxItem item) {
-    final attachments = item.payloadJson['attachments'];
+  List<EmailAttachment> getAttachments(domain.InboxItem item) {
+    final attachments = item.payload['attachments'];
     if (attachments == null || attachments['files'] == null) {
       return [];
     }
@@ -569,141 +941,38 @@ class InboxManagementService {
   }
 
   /// Generate a signed URL for a private attachment
+  /// PRODUCTION FIX: Uses correct bucket for temp attachments
   Future<String?> getAttachmentUrl(String filePath) async {
     try {
       // Generate a signed URL that expires in 1 hour
+      // CRITICAL FIX: Use 'inbound-attachments-temp' for temporary email attachments
       final response = await _supabase.storage
-          .from('inbound-attachments')
+          .from('inbound-attachments-temp')
           .createSignedUrl(filePath, 3600);
 
       _logger.debug(' Generated signed URL for: $filePath');
       return response;
     } catch (e, stackTrace) {
-      _logger.debug(' Error getting attachment URL for $filePath: $e');
-      _logger.debug('$stackTrace');
+      _logger.error(
+        ' Failed to generate signed URL',
+        error: e,
+        stackTrace: stackTrace,
+        data: {'filePath': filePath},
+      );
       return null;
     }
   }
-}
 
-/// Model for inbox items (email or web clips) from clipper_inbox
-class InboxItem {
-  InboxItem({
-    required this.id,
-    required this.userId,
-    required this.sourceType,
-    required this.payloadJson,
-    required this.createdAt,
-  });
-
-  factory InboxItem.fromJson(Map<String, dynamic> json) {
-    return InboxItem(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      sourceType: json['source_type'] as String,
-      payloadJson: json['payload_json'] as Map<String, dynamic>,
-      createdAt: DateTime.parse(json['created_at'] as String),
-    );
-  }
-  final String id;
-  final String userId;
-  final String sourceType;
-  final Map<String, dynamic> payloadJson;
-  final DateTime createdAt;
-
-  // Common getters
-  bool get isEmail => sourceType == 'email_in';
-  bool get isWebClip => sourceType == 'web';
-
-  // Email-specific getters
-  String? get to => isEmail ? payloadJson['to'] as String? : null;
-  String? get from => isEmail ? payloadJson['from'] as String? : null;
-  String? get subject => isEmail ? payloadJson['subject'] as String? : null;
-  String? get text => isEmail ? payloadJson['text'] as String? : null;
-  String? get html => isEmail ? payloadJson['html'] as String? : null;
-  String? get messageId =>
-      isEmail ? payloadJson['message_id'] as String? : null;
-
-  // Web clip-specific getters
-  String? get webTitle => isWebClip ? payloadJson['title'] as String? : null;
-  String? get webText => isWebClip ? payloadJson['text'] as String? : null;
-  String? get webUrl => isWebClip ? payloadJson['url'] as String? : null;
-  String? get webHtml => isWebClip ? payloadJson['html'] as String? : null;
-  String? get webClippedAt =>
-      isWebClip ? payloadJson['clipped_at'] as String? : null;
-
-  // Display helpers
-  String get displayTitle {
-    if (isEmail) return subject ?? 'Email from ${from ?? "Unknown"}';
-    if (isWebClip) return webTitle ?? 'Web Clip';
-    return 'Unknown Item';
-  }
-
-  String get displaySubtitle {
-    if (isEmail) return from ?? 'Unknown sender';
-    if (isWebClip) {
-      if (webUrl != null && webUrl!.isNotEmpty) {
-        try {
-          final uri = Uri.parse(webUrl!);
-          return uri.host;
-        } catch (_) {
-          return webUrl!;
-        }
-      }
-      return 'Web clip';
+  /// Format bytes into human-readable format
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
-    return '';
-  }
-
-  String? get displayText {
-    // Get preview text, trimmed and with normalized whitespace
-    String? rawText;
-    if (isEmail) {
-      rawText = text;
-    } else if (isWebClip) {
-      rawText = webText;
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
-
-    if (rawText == null || rawText.isEmpty) return null;
-
-    // Clean up the text for preview
-    return rawText
-        .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
-        .trim();
-  }
-
-  bool get hasAttachments {
-    if (!isEmail) return false;
-    final attachments = payloadJson['attachments'];
-    return attachments != null &&
-        attachments['count'] != null &&
-        (attachments['count'] as int) > 0;
-  }
-
-  int get attachmentCount {
-    if (!isEmail) return 0;
-    final attachments = payloadJson['attachments'];
-    return (attachments?['count'] as int?) ?? 0;
-  }
-}
-
-/// Model for inbound email from clipper_inbox (kept for backward compatibility)
-@Deprecated('Use InboxItem instead')
-class InboundEmail extends InboxItem {
-  InboundEmail({
-    required super.id,
-    required super.userId,
-    required super.payloadJson,
-    required super.createdAt,
-  }) : super(sourceType: 'email_in');
-
-  factory InboundEmail.fromJson(Map<String, dynamic> json) {
-    return InboundEmail(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      payloadJson: json['payload_json'] as Map<String, dynamic>,
-      createdAt: DateTime.parse(json['created_at'] as String),
-    );
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
 
@@ -714,20 +983,97 @@ class EmailAttachment {
     required this.type,
     required this.size,
     this.url,
+    this.urlExpiresAt, // CRITICAL FIX: URL expiration timestamp
+    this.content, // Base64-encoded file content (legacy)
+    this.storagePath, // Storage path in Supabase Storage (new)
   });
 
   factory EmailAttachment.fromJson(Map<String, dynamic> json) {
     return EmailAttachment(
       filename: json['filename'] as String? ?? 'unnamed',
-      type: json['type'] as String? ?? 'application/octet-stream',
+      type:
+          json['type'] as String? ??
+          json['content_type'] as String? ??
+          'application/octet-stream',
       size: json['size'] as int? ?? 0,
       url: json['url'] as String?,
+      urlExpiresAt: json['url_expires_at'] != null
+          ? DateTime.tryParse(json['url_expires_at'] as String)
+          : null,
+      content: json['content'] as String?, // Base64 content (legacy)
+      storagePath: json['storage_path'] as String?, // Storage path (new)
     );
   }
   final String filename;
-  final String type;
+  final String type; // Also accepts 'content_type' from JSON
   final int size;
   final String? url;
+  final DateTime? urlExpiresAt; // When the signed URL expires
+  final String? content; // Base64-encoded file content (legacy)
+  final String? storagePath; // Storage path in Supabase Storage (new)
+
+  /// Get content type (alias for type)
+  String get contentType => type;
+
+  /// Get file data from either storage_path (new) or base64 content (legacy)
+  Future<Uint8List?> getFileData(SupabaseClient supabase) async {
+    // CRITICAL FIX: First try using pre-signed URL (most reliable)
+    if (url != null && url!.isNotEmpty) {
+      // Check if URL is still valid
+      if (urlExpiresAt != null && urlExpiresAt!.isAfter(DateTime.now())) {
+        try {
+          final response = await http.get(Uri.parse(url!));
+          if (response.statusCode == 200) {
+            LoggerFactory.instance.debug(
+              '✓ Downloaded using pre-signed URL',
+              data: {'filename': filename, 'size': response.bodyBytes.length},
+            );
+            return response.bodyBytes;
+          }
+        } catch (e) {
+          LoggerFactory.instance.error(
+            'Failed to download from pre-signed URL',
+            error: e,
+            data: {'url': url!.substring(0, 100)},
+          );
+          // Fall through to try other methods
+        }
+      }
+    }
+
+    // Try storage_path (download from temp storage)
+    if (storagePath != null && storagePath!.isNotEmpty) {
+      try {
+        final bytes = await supabase.storage
+            .from('inbound-attachments-temp')
+            .download(storagePath!);
+        return bytes;
+      } catch (e) {
+        LoggerFactory.instance.error(
+          'Failed to download from storage_path',
+          error: e,
+          data: {'storagePath': storagePath},
+        );
+        // Fall through to try base64 if storage download fails
+      }
+    }
+
+    // Fallback to base64 content (legacy way)
+    if (content != null && content!.isNotEmpty) {
+      try {
+        return base64Decode(content!);
+      } catch (e) {
+        LoggerFactory.instance.error(
+          'Failed to decode base64 content',
+          error: e,
+        );
+        return null;
+      }
+    }
+
+    // No file data available
+    return null;
+  }
 
   String get sizeFormatted {
     if (size < 1024) return '$size B';

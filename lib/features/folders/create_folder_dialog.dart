@@ -1,7 +1,8 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,7 +24,7 @@ class CreateFolderDialog extends ConsumerStatefulWidget {
   });
 
   /// Parent folder object (if available)
-  final LocalFolder? parentFolder;
+  final domain.Folder? parentFolder;
 
   /// Parent folder ID (alternative to parentFolder)
   final String? parentId;
@@ -45,7 +46,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
   late AnimationController _scaleController;
   late AnimationController _slideController;
 
-  LocalFolder? _selectedParent;
+  domain.Folder? _selectedParent;
   Color _selectedColor = Colors.blue;
   IconData _selectedIcon = Icons.folder;
   bool _isCreating = false;
@@ -129,7 +130,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
   Future<void> _loadParentFolder(String parentId) async {
     try {
       final folder =
-          await ref.read(folderRepositoryProvider).getFolder(parentId);
+          await ref.read(folderRepositoryProvider)?.getFolder(parentId);
       if (mounted && folder != null) {
         setState(() {
           _selectedParent = folder;
@@ -160,7 +161,7 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
       // Store the folder data
       final folderName = _nameController.text.trim();
       final parentId = _selectedParent?.id;
-      final color = _selectedColor.value.toRadixString(16);
+      final color = _selectedColor.toARGB32().toRadixString(16);
       final icon = _selectedIcon.codePoint.toString();
       final description = _descriptionController.text.trim();
 
@@ -187,21 +188,20 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
 
         // Get the actual folder from the repository to ensure we have the correct data
         final realFolder =
-            await ref.read(folderRepositoryProvider).getFolder(realFolderId);
+            await ref.read(folderRepositoryProvider)?.getFolder(realFolderId);
 
         final folderToReturn = realFolder ??
-            LocalFolder(
+            domain.Folder(
               id: realFolderId,
               name: folderName,
               parentId: parentId,
-              path: '',
               sortOrder: 0,
               color: color,
               icon: icon,
               description: description,
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
-              deleted: false,
+              userId: '', // Will be set by repository
             );
 
         // Success: Provide haptic feedback and close dialog
@@ -213,11 +213,14 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
           Navigator.of(context).pop(folderToReturn);
         }
       } else {
+        // Failed to create folder - get error message from state
+        final errorMessage = ref.read(folderProvider).error ?? 'Failed to create folder';
+
         if (kDebugMode) {
-          debugPrint('❌ Failed to create folder - null ID returned');
+          debugPrint('❌ Failed to create folder: $errorMessage');
         }
 
-        // Failed to create folder - reset state and show error
+        // Reset state and show specific error
         setState(() {
           _isCreating = false;
         });
@@ -226,30 +229,61 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
           await HapticFeedback.heavyImpact(); // Error feedback
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Failed to create folder'),
+              content: Text(errorMessage),
               backgroundColor: Theme.of(context).colorScheme.error,
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4), // Longer duration for errors
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint('❌ Exception during folder creation: $e');
+        debugPrint('Stack trace: $stackTrace');
       }
 
-      // Error occurred - reset state and show error
+      // Error occurred - reset state and show detailed error
       if (mounted) {
         setState(() {
           _isCreating = false;
         });
 
         await HapticFeedback.heavyImpact(); // Error feedback
+
+        // Create user-friendly error message
+        String userMessage = 'Failed to create folder';
+        if (e.toString().contains('limit') || e.toString().contains('maximum')) {
+          userMessage = 'Folder limit reached. Please delete some folders first.';
+        } else if (e.toString().contains('name')) {
+          userMessage = 'Invalid folder name. Please try a different name.';
+        } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (kDebugMode) {
+          // In debug mode, show actual error
+          userMessage = 'Failed to create folder: ${e.toString()}';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create folder: ${e.toString()}'),
+            content: Text(userMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }

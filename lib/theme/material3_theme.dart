@@ -781,6 +781,7 @@ class _CustomColors extends ThemeExtension<_CustomColors> {
 
 /// Getter extension for custom colors
 extension CustomColorsExtension on ThemeData {
+  // ignore: library_private_types_in_public_api
   _CustomColors get customColors => extension<_CustomColors>()!;
 }
 

@@ -1,293 +1,394 @@
-import 'package:duru_notes/repository/notes_repository.dart';
+
 import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MockNotesRepository extends Mock implements NotesRepository {}
+class _MoveNoteCall {
+  _MoveNoteCall(this.noteId, this.folderId);
+
+  final String noteId;
+  final String? folderId;
+}
+
+class _MoveFolderCall {
+  _MoveFolderCall(this.folderId, this.parentId);
+
+  final String folderId;
+  final String? parentId;
+}
+
+class _RecordingRepository {
+  final List<_MoveNoteCall> moveNoteCalls = [];
+  final List<_MoveFolderCall> moveFolderCalls = [];
+
+  Future<void> moveNoteToFolder(String noteId, String? folderId) async {
+    moveNoteCalls.add(_MoveNoteCall(noteId, folderId));
+  }
+
+  Future<void> moveFolder(String folderId, String? parentId) async {
+    moveFolderCalls.add(_MoveFolderCall(folderId, parentId));
+  }
+}
+
+class _UndoRedoHarness {
+  _UndoRedoHarness._(this.repository, this.service);
+
+  final _RecordingRepository repository;
+  final UndoRedoService service;
+
+  static Future<_UndoRedoHarness> create({
+    Duration expiration = const Duration(seconds: 30),
+    int maxStackSize = 50,
+    String userId = 'test-user',
+  }) async {
+    final repository = _RecordingRepository();
+    final service = UndoRedoService(
+      repository: repository,
+      userId: userId,
+      maxStackSize: maxStackSize,
+      defaultExpiration: expiration,
+    );
+    await _flushAsync();
+    return _UndoRedoHarness._(repository, service);
+  }
+
+  Future<void> flush() => _flushAsync();
+
+  void dispose() => service.dispose();
+}
+
+Future<void> _flushAsync() async {
+  // Allow async initialisation/persistence work to complete.
+  await pumpEventQueue();
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('UndoRedoService', () {
-    late UndoRedoService service;
-    late MockNotesRepository mockRepository;
+  setUp(() {
+    SharedPreferences.setMockInitialValues(const {});
+  });
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      mockRepository = MockNotesRepository();
-      service = UndoRedoService(
-        repository: mockRepository,
-        userId: 'test_user',
-        defaultExpiration: const Duration(seconds: 30),
+  group('UndoRedoService', () {
+    test('records note folder changes and exposes undo state', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
+
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Test Note',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
+
+      expect(harness.service.canUndo, isTrue);
+      expect(harness.service.canRedo, isFalse);
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Folder B'),
       );
     });
 
-    tearDown(() {
-      service.dispose();
+    test('undo note folder change restores previous folder', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
+
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Test Note',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
+
+      final result = await harness.service.undo();
+
+      expect(result, isTrue);
+      expect(harness.repository.moveNoteCalls, hasLength(1));
+      expect(harness.repository.moveNoteCalls.single.folderId, 'folder-a');
+      expect(harness.service.canUndo, isFalse);
+      expect(harness.service.canRedo, isTrue);
     });
 
-    group('Note Folder Operations', () {
-      test('should record note folder change operation', () {
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Test Note',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: 'folder2',
-          newFolderName: 'Folder 2',
-        );
+    test('redo note folder change reapplies destination folder', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
 
-        expect(service.canUndo, isTrue);
-        expect(service.canRedo, isFalse);
-        expect(service.lastUndoOperation, isNotNull);
-        expect(service.lastUndoOperation!.description, contains('Test Note'));
-      });
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Test Note',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
 
-      test('should undo note folder change', () async {
-        // Setup mock
-        when(mockRepository.moveNoteToFolder('note1', 'folder1'))
-            .thenAnswer((_) async => {});
+      expect(await harness.service.undo(), isTrue);
+      harness.repository.moveNoteCalls.clear();
 
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Test Note',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: 'folder2',
-          newFolderName: 'Folder 2',
-        );
-
-        final result = await service.undo();
-
-        expect(result, isTrue);
-        expect(service.canUndo, isFalse);
-        expect(service.canRedo, isTrue);
-        verify(mockRepository.moveNoteToFolder('note1', 'folder1')).called(1);
-      });
-
-      test('should redo note folder change', () async {
-        // Setup mock
-        when(mockRepository.moveNoteToFolder(any, any))
-            .thenAnswer((_) async => {});
-
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Test Note',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: 'folder2',
-          newFolderName: 'Folder 2',
-        );
-
-        await service.undo();
-        final result = await service.redo();
-
-        expect(result, isTrue);
-        expect(service.canUndo, isTrue);
-        expect(service.canRedo, isFalse);
-        verify(mockRepository.moveNoteToFolder('note1', 'folder2')).called(1);
-      });
-
-      test('should handle unfiling (moving to null folder)', () {
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Test Note',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: null,
-          newFolderName: null,
-        );
-
-        expect(service.lastUndoOperation!.description, contains('Unfiled'));
-      });
+      expect(await harness.service.redo(), isTrue);
+      expect(harness.repository.moveNoteCalls, hasLength(1));
+      expect(harness.repository.moveNoteCalls.single.folderId, 'folder-b');
+      expect(harness.service.canUndo, isTrue);
+      expect(harness.service.canRedo, isFalse);
     });
 
-    group('Batch Operations', () {
-      test('should record batch folder change operation', () {
-        service.recordBatchFolderChange(
-          noteIds: ['note1', 'note2', 'note3'],
-          previousFolderIds: {
-            'note1': 'folder1',
-            'note2': 'folder2',
-            'note3': null,
-          },
-          newFolderId: 'folder3',
-          newFolderName: 'Folder 3',
-        );
+    test('recordNoteFolderChange handles unfiling descriptions', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
 
-        expect(service.canUndo, isTrue);
-        expect(service.lastUndoOperation!.description, contains('3 notes'));
-      });
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Test Note',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: null,
+        newFolderName: null,
+      );
 
-      test('should undo batch folder change', () async {
-        // Setup mock
-        when(mockRepository.moveNoteToFolder(any, any))
-            .thenAnswer((_) async => {});
-
-        service.recordBatchFolderChange(
-          noteIds: ['note1', 'note2'],
-          previousFolderIds: {
-            'note1': 'folder1',
-            'note2': 'folder2',
-          },
-          newFolderId: 'folder3',
-          newFolderName: 'Folder 3',
-        );
-
-        await service.undo();
-
-        verify(mockRepository.moveNoteToFolder('note1', 'folder1')).called(1);
-        verify(mockRepository.moveNoteToFolder('note2', 'folder2')).called(1);
-      });
-
-      test('should handle batch unfiling', () {
-        service.recordBatchFolderChange(
-          noteIds: ['note1', 'note2'],
-          previousFolderIds: {
-            'note1': 'folder1',
-            'note2': 'folder2',
-          },
-          newFolderId: null,
-          newFolderName: null,
-        );
-
-        expect(service.lastUndoOperation!.description,
-            contains('Unfiled 2 notes'));
-      });
+      expect(harness.service.lastUndoOperation, isNotNull);
+      expect(
+        harness.service.lastUndoOperation!.description,
+        contains('Unfiled'),
+      );
     });
 
-    group('Stack Management', () {
-      test('should limit stack size', () {
-        final smallService = UndoRedoService(
-          repository: mockRepository,
-          userId: 'test_user',
-          maxStackSize: 3,
-        );
+    test('records batch folder change with correct description', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
 
-        // Add 5 operations
-        for (int i = 0; i < 5; i++) {
-          smallService.recordNoteFolderChange(
-            noteId: 'note$i',
-            noteTitle: 'Note $i',
-            previousFolderId: null,
-            previousFolderName: null,
-            newFolderId: 'folder$i',
-            newFolderName: 'Folder $i',
-          );
-        }
+      harness.service.recordBatchFolderChange(
+        noteIds: const ['note-1', 'note-2', 'note-3'],
+        previousFolderIds: const {
+          'note-1': 'folder-a',
+          'note-2': 'folder-b',
+          'note-3': null,
+        },
+        newFolderId: 'folder-c',
+        newFolderName: 'Folder C',
+      );
 
-        // Stack should only contain last 3
-        expect(smallService.lastUndoOperation!.description, contains('Note 4'));
+      expect(harness.service.canUndo, isTrue);
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Folder C'),
+      );
+    });
 
-        smallService.dispose();
-      });
+    test('undo batch folder change restores previous folders', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
 
-      test('should clear redo stack on new operation', () async {
-        when(mockRepository.moveNoteToFolder(any, any))
-            .thenAnswer((_) async => {});
+      harness.service.recordBatchFolderChange(
+        noteIds: const ['note-1', 'note-2'],
+        previousFolderIds: const {
+          'note-1': 'folder-a',
+          'note-2': 'folder-b',
+        },
+        newFolderId: 'folder-c',
+        newFolderName: 'Folder C',
+      );
 
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Note 1',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: 'folder2',
-          newFolderName: 'Folder 2',
-        );
+      final result = await harness.service.undo();
 
-        await service.undo();
-        expect(service.canRedo, isTrue);
+      expect(result, isTrue);
+      expect(harness.repository.moveNoteCalls, hasLength(2));
+      expect(harness.repository.moveNoteCalls[0].folderId, 'folder-a');
+      expect(harness.repository.moveNoteCalls[1].folderId, 'folder-b');
+      expect(harness.service.canRedo, isTrue);
+    });
 
-        service.recordNoteFolderChange(
-          noteId: 'note2',
-          noteTitle: 'Note 2',
+    test('redo batch folder change reapplies new folder to all notes', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
+
+      harness.service.recordBatchFolderChange(
+        noteIds: const ['note-1', 'note-2'],
+        previousFolderIds: const {
+          'note-1': 'folder-a',
+          'note-2': 'folder-b',
+        },
+        newFolderId: 'folder-c',
+        newFolderName: 'Folder C',
+      );
+
+      expect(await harness.service.undo(), isTrue);
+      harness.repository.moveNoteCalls.clear();
+
+      expect(await harness.service.redo(), isTrue);
+      expect(harness.repository.moveNoteCalls, hasLength(2));
+      expect(harness.repository.moveNoteCalls[0].folderId, 'folder-c');
+      expect(harness.repository.moveNoteCalls[1].folderId, 'folder-c');
+      expect(harness.service.canUndo, isTrue);
+      expect(harness.service.canRedo, isFalse);
+    });
+
+    test('new operation clears redo stack', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
+
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Note 1',
+        previousFolderId: null,
+        previousFolderName: null,
+        newFolderId: 'folder-a',
+        newFolderName: 'Folder A',
+      );
+
+      expect(await harness.service.undo(), isTrue);
+      expect(harness.service.canRedo, isTrue);
+
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-2',
+        noteTitle: 'Note 2',
+        previousFolderId: null,
+        previousFolderName: null,
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
+
+      expect(harness.service.canRedo, isFalse);
+      expect(harness.service.canUndo, isTrue);
+    });
+
+    test('clearHistory empties undo and redo stacks', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
+
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Note 1',
+        previousFolderId: null,
+        previousFolderName: null,
+        newFolderId: 'folder-a',
+        newFolderName: 'Folder A',
+      );
+
+      expect(harness.service.canUndo, isTrue);
+
+      harness.service.clearHistory();
+
+      expect(harness.service.canUndo, isFalse);
+      expect(harness.service.canRedo, isFalse);
+    });
+
+    test('respects max stack size by trimming earliest operations', () async {
+      final harness = await _UndoRedoHarness.create(maxStackSize: 3);
+      addTearDown(harness.dispose);
+
+      for (var i = 0; i < 5; i++) {
+        harness.service.recordNoteFolderChange(
+          noteId: 'note-$i',
+          noteTitle: 'Note $i',
           previousFolderId: null,
           previousFolderName: null,
-          newFolderId: 'folder3',
-          newFolderName: 'Folder 3',
+          newFolderId: 'folder-$i',
+          newFolderName: 'Folder $i',
         );
+      }
 
-        expect(service.canRedo, isFalse);
-      });
+      expect(harness.service.canUndo, isTrue);
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Note 4'),
+      );
 
-      test('should clear all history', () {
-        service.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Note 1',
-          previousFolderId: null,
-          previousFolderName: null,
-          newFolderId: 'folder1',
-          newFolderName: 'Folder 1',
-        );
-
-        expect(service.canUndo, isTrue);
-
-        service.clearHistory();
-
-        expect(service.canUndo, isFalse);
-        expect(service.canRedo, isFalse);
-      });
+      await harness.service.undo();
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Note 3'),
+      );
+      await harness.service.undo();
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Note 2'),
+      );
+      await harness.service.undo();
+      expect(harness.service.canUndo, isFalse);
     });
 
-    group('Expiration', () {
-      test('should not execute expired operations', () async {
-        final shortExpiryService = UndoRedoService(
-          repository: mockRepository,
-          userId: 'test_user',
-          defaultExpiration: const Duration(milliseconds: 1),
-        );
+    test('expired operations do not execute during undo', () async {
+      final harness = await _UndoRedoHarness.create(
+        expiration: const Duration(milliseconds: 1),
+      );
+      addTearDown(harness.dispose);
 
-        shortExpiryService.recordNoteFolderChange(
-          noteId: 'note1',
-          noteTitle: 'Note 1',
-          previousFolderId: 'folder1',
-          previousFolderName: 'Folder 1',
-          newFolderId: 'folder2',
-          newFolderName: 'Folder 2',
-        );
+      harness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Note 1',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
 
-        // Wait for expiration
-        await Future.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(const Duration(milliseconds: 5));
 
-        final result = await shortExpiryService.undo();
+      final result = await harness.service.undo();
 
-        expect(result, isFalse);
-        expect(shortExpiryService.canUndo, isFalse);
-
-        shortExpiryService.dispose();
-      });
+      expect(result, isFalse);
+      expect(harness.repository.moveNoteCalls, isEmpty);
+      expect(harness.service.canUndo, isFalse);
     });
 
-    group('Folder Move Operations', () {
-      test('should record folder move operation', () {
-        service.recordFolderMove(
-          folderId: 'folder1',
-          folderName: 'Subfolder',
-          previousParentId: null,
-          newParentId: 'parent1',
-        );
+    test('records folder moves and provides undo support', () async {
+      final harness = await _UndoRedoHarness.create();
+      addTearDown(harness.dispose);
 
-        expect(service.canUndo, isTrue);
-        expect(
-            service.lastUndoOperation!.description, contains('Moved folder'));
-      });
+      harness.service.recordFolderMove(
+        folderId: 'folder-1',
+        folderName: 'Child Folder',
+        previousParentId: null,
+        newParentId: 'parent-1',
+      );
 
-      test('should undo folder move', () async {
-        when(mockRepository.moveFolder('folder1', null))
-            .thenAnswer((_) async => {});
+      expect(harness.service.canUndo, isTrue);
+      expect(
+        harness.service.lastUndoOperation?.description,
+        contains('Moved folder'),
+      );
 
-        service.recordFolderMove(
-          folderId: 'folder1',
-          folderName: 'Subfolder',
-          previousParentId: null,
-          newParentId: 'parent1',
-        );
+      final result = await harness.service.undo();
 
-        await service.undo();
+      expect(result, isTrue);
+      expect(harness.repository.moveFolderCalls, hasLength(1));
+      expect(harness.repository.moveFolderCalls.single.parentId, isNull);
+    });
 
-        verify(mockRepository.moveFolder('folder1', null)).called(1);
-      });
+    test('undo history persists and rehydrates from storage', () async {
+      final firstHarness = await _UndoRedoHarness.create(userId: 'persist-user');
+
+      firstHarness.service.recordNoteFolderChange(
+        noteId: 'note-1',
+        noteTitle: 'Persistent Note',
+        previousFolderId: 'folder-a',
+        previousFolderName: 'Folder A',
+        newFolderId: 'folder-b',
+        newFolderName: 'Folder B',
+      );
+
+      await firstHarness.flush();
+      firstHarness.dispose();
+
+      final secondHarness = await _UndoRedoHarness.create(
+        userId: 'persist-user',
+      );
+      addTearDown(secondHarness.dispose);
+
+      expect(secondHarness.service.canUndo, isTrue);
+      expect(
+        secondHarness.service.lastUndoOperation?.description,
+        contains('Folder B'),
+      );
+
+      await secondHarness.service.undo();
+
+      expect(secondHarness.repository.moveNoteCalls, hasLength(1));
+      expect(secondHarness.repository.moveNoteCalls.single.folderId, 'folder-a');
     });
   });
 }

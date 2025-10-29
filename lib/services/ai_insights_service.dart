@@ -195,6 +195,7 @@ class AIInsightsService {
       return;
     }
 
+    // ignore: collection_methods_unrelated_type
     final highPriorityCount = distribution[TaskPriority.high]?.totalTasks ?? 0;
     final ratio = highPriorityCount / totalTasks;
 

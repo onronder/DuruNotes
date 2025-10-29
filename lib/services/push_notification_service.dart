@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -42,11 +43,42 @@ class PushNotificationService {
 
   // Store device ID to ensure consistency
   String? _deviceId;
+  bool? _isPhysicalDevice;
 
   /// Initialize the push notification service
   Future<void> initialize() async {
     try {
       _messaging = FirebaseMessaging.instance;
+
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+        if (!kIsWeb && Platform.isIOS) {
+          final ios = await deviceInfo.iosInfo;
+          _isPhysicalDevice = ios.isPhysicalDevice;
+        } else if (!kIsWeb && Platform.isAndroid) {
+          final android = await deviceInfo.androidInfo;
+          _isPhysicalDevice = android.isPhysicalDevice;
+        } else {
+          _isPhysicalDevice = true;
+        }
+        _logger.debug(
+          'Push notification device details',
+          data: {
+            'platform': Platform.isIOS
+                ? 'ios'
+                : Platform.isAndroid
+                    ? 'android'
+                    : Platform.operatingSystem,
+            'isPhysicalDevice': _isPhysicalDevice,
+          },
+        );
+      } catch (deviceError, stack) {
+        _logger.warning(
+          'Unable to determine physical device status for push notifications',
+          data: {'error': deviceError.toString(), 'stackTrace': stack.toString()},
+        );
+        _isPhysicalDevice ??= true;
+      }
 
       // Generate or retrieve device ID
       _deviceId = await _getOrCreateDeviceId();
@@ -98,38 +130,102 @@ class PushNotificationService {
       // Check permission status
       final settings = await checkPermissionStatus();
 
-      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+      debugPrint('🔔 Initial permission status: ${settings.authorizationStatus}');
+      debugPrint('🔔 Alert setting: ${settings.alert}');
+      debugPrint('🔔 Badge setting: ${settings.badge}');
+      debugPrint('🔔 Sound setting: ${settings.sound}');
+
+      // Check if we need to request permission
+      // Accept both 'authorized' and 'provisional' as valid states
+      final isPermissionGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+
+      if (!isPermissionGranted) {
+        debugPrint('🔔 Permission not granted yet. Requesting permission...');
+
         // Request permission if not authorized
         final newSettings = await requestPermission();
 
-        if (newSettings.authorizationStatus != AuthorizationStatus.authorized) {
+        debugPrint('🔔 Permission after request: ${newSettings.authorizationStatus}');
+        debugPrint('🔔 Alert: ${newSettings.alert}, Badge: ${newSettings.badge}, Sound: ${newSettings.sound}');
+
+        // Accept both 'authorized' and 'provisional' as success
+        // Only fail if explicitly denied or permanently denied
+        final isGranted = newSettings.authorizationStatus == AuthorizationStatus.authorized ||
+            newSettings.authorizationStatus == AuthorizationStatus.provisional;
+
+        final isDenied = newSettings.authorizationStatus == AuthorizationStatus.denied;
+
+        if (isDenied) {
+          // Hard fail only on explicit denial
+          debugPrint('❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}');
+          _logger.error('❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}');
           return PushTokenResult(
             success: false,
-            error: 'Notification permission denied',
+            error: 'Notification permission denied (status: ${newSettings.authorizationStatus})',
             permissionStatus: newSettings.authorizationStatus,
           );
         }
+
+        if (!isGranted) {
+          // notDetermined or other states - log but continue to try getting token
+          debugPrint('⚠️  Permission not yet determined. Status: ${newSettings.authorizationStatus}');
+          debugPrint('🔔 Attempting to get token anyway (may work on some platforms)...');
+          _logger.warning(
+            'Notification permission not determined, attempting token retrieval',
+            data: {'status': newSettings.authorizationStatus.toString()},
+          );
+        } else {
+          debugPrint('✅ Permission granted! Status: ${newSettings.authorizationStatus}');
+        }
+      } else {
+        debugPrint('✅ Permission already granted: ${settings.authorizationStatus}');
       }
 
-      // Get FCM token
-      final token = await _getToken();
+    final runningOnUnsupportedSimulator =
+        !kIsWeb && Platform.isIOS && (_isPhysicalDevice == false);
 
-      if (token == null) {
-        return const PushTokenResult(
-          success: false,
-          error: 'Failed to get FCM token',
-        );
-      }
+    if (runningOnUnsupportedSimulator) {
+      const simMessage =
+          'FCM tokens are not available on the iOS simulator. Please test on a physical device.';
+      debugPrint('ℹ️ $simMessage');
+      _logger.warning(simMessage);
+      return PushTokenResult(
+        success: false,
+        error: simMessage,
+        permissionStatus: settings.authorizationStatus,
+      );
+    }
+
+    // Get FCM token
+    debugPrint('🔔 Attempting to get FCM token...');
+    final token = await _getToken();
+
+    if (token == null) {
+      const genericError = 'Failed to get FCM token';
+      debugPrint('❌ $genericError');
+      _logger.error(genericError);
+      return const PushTokenResult(
+        success: false,
+        error: 'Failed to get FCM token',
+      );
+    }
+
+      debugPrint('✅ Got FCM token: ${token.substring(0, 30)}...');
 
       // Get device metadata
+      debugPrint('📱 Getting device metadata...');
       final metadata = await _getDeviceMetadata();
+      debugPrint('📱 Platform: ${metadata['platform']}, App version: ${metadata['app_version']}');
 
       // Send token to backend
+      debugPrint('💾 Syncing token with backend...');
       await _syncTokenWithBackend(
         token: token,
         platform: metadata['platform']!,
         appVersion: metadata['app_version']!,
       );
+      debugPrint('✅ Token sync completed');
 
       // Set up token refresh listener
       _setupTokenRefreshListener();
@@ -224,7 +320,7 @@ class PushNotificationService {
           _logger.error('Failed to sync refreshed token: $e');
         }
       },
-      onError: (error) {
+      onError: (Object error) {
         _logger.error('Token refresh stream error: $error');
       },
     );
@@ -236,13 +332,53 @@ class PushNotificationService {
     required String platform,
     required String appVersion,
   }) async {
+    debugPrint('🔐 _syncTokenWithBackend called');
+
     if (_deviceId == null) {
+      debugPrint('❌ Device ID is null!');
       throw StateError('Device ID not available');
     }
 
+    debugPrint('📱 Device ID: $_deviceId');
+
     try {
+      // CRITICAL: Verify auth status before calling RPC
+      final session = _client.auth.currentSession;
+      final user = _client.auth.currentUser;
+
+      debugPrint('🔐 Auth Status Check:');
+      debugPrint('  User ID: ${user?.id}');
+      debugPrint('  User Email: ${user?.email}');
+      debugPrint('  Session exists: ${session != null}');
+      debugPrint('  Access token exists: ${session?.accessToken != null}');
+
+      if (session != null && session.expiresAt != null) {
+        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final secondsUntilExpiry = session.expiresAt! - now;
+        debugPrint('  Token expires in: ${secondsUntilExpiry}s');
+
+        if (secondsUntilExpiry < 0) {
+          debugPrint('  ❌ TOKEN EXPIRED!');
+          throw StateError('JWT token expired. Please re-authenticate.');
+        }
+      }
+
+      if (user == null) {
+        debugPrint('  ❌ NO USER FOUND!');
+        throw StateError('User not authenticated');
+      }
+
+      // Log what we're about to send (for debugging)
+      debugPrint('📤 Calling user_devices_upsert RPC with:');
+      debugPrint('  device_id: $_deviceId');
+      debugPrint('  push_token: ${token.substring(0, 20)}...');
+      debugPrint('  platform: $platform');
+      debugPrint('  app_version: $appVersion');
+      debugPrint('  user_id (from auth): ${user.id}');
+
       // Call Supabase RPC function to upsert device token
-      await _client.rpc(
+      debugPrint('🚀 Making RPC call...');
+      await _client.rpc<void>(
         'user_devices_upsert',
         params: {
           '_device_id': _deviceId,
@@ -252,9 +388,38 @@ class PushNotificationService {
         },
       );
 
+      debugPrint('✅ RPC call succeeded');
       _logger.info('Token synced with backend successfully');
-    } catch (e) {
-      _logger.error('Failed to sync token with backend: $e');
+
+      // Verify the insert worked by querying the database
+      debugPrint('🔍 Verifying token in database...');
+      try {
+        final checkResult = await _client
+            .from('user_devices')
+            .select('device_id, platform, push_token')
+            .eq('device_id', _deviceId!)
+            .maybeSingle();
+
+        debugPrint('🔍 Query result: $checkResult');
+
+        if (checkResult != null) {
+          debugPrint('✅ Verified: Token exists in database');
+          debugPrint('   Device ID: ${checkResult['device_id']}');
+          debugPrint('   Platform: ${checkResult['platform']}');
+          _logger.info('✅ Verified: Token exists in database');
+        } else {
+          debugPrint('⚠️  RPC succeeded but token not found in database!');
+          _logger.error('⚠️  RPC succeeded but token not found in database!');
+        }
+      } catch (e) {
+        debugPrint('⚠️  Could not verify token in database: $e');
+        _logger.warning('Could not verify token in database: $e');
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Failed to sync token with backend: $e');
+      debugPrint('Stack trace: $stack');
+      _logger.error('❌ Failed to sync token with backend: $e');
+      _logger.error('Stack trace: $stack');
       rethrow;
     }
   }

@@ -22,7 +22,7 @@ class ConnectionManager {
   // Active connection tracking
   int _activeRealtimeChannels = 0;
   int _activeQueries = 0;
-  final Queue<_QueuedRequest> _queryQueue = Queue<_QueuedRequest>();
+  final Queue<_QueuedRequest<dynamic>> _queryQueue = Queue<_QueuedRequest<dynamic>>();
 
   // Rate limiting
   final List<DateTime> _queryTimestamps = [];
@@ -128,7 +128,7 @@ class ConnectionManager {
 
     if (priority) {
       // Add to front of queue
-      final tempQueue = Queue<_QueuedRequest>.from(_queryQueue);
+      final tempQueue = Queue<_QueuedRequest<dynamic>>.from(_queryQueue);
       _queryQueue.clear();
       _queryQueue.add(request);
       _queryQueue.addAll(tempQueue);

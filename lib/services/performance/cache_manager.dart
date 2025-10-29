@@ -463,9 +463,7 @@ class FolderHierarchyCache {
 
   // Cache keys
   static const String _rootFoldersKey = 'folders:root';
-  static const String _allFoldersKey = 'folders:all';
   static const String _folderChildrenPrefix = 'folders:children:';
-  static const String _folderPathPrefix = 'folders:path:';
   static const String _folderCountPrefix = 'folders:count:';
 
   Future<List<LocalFolder>?> getRootFolders() async {

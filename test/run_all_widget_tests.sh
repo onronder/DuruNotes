@@ -57,8 +57,12 @@ skip_test() {
 echo -e "\n${BLUE}=== FLUTTER UNIT TESTS ===${NC}"
 
 # QuickCaptureService tests
-run_test "QuickCaptureService Unit Tests" \
-    "flutter test test/services/quick_capture_service_test.dart"
+if [ -f "test/services/quick_capture_service_test.dart" ]; then
+    run_test "QuickCaptureService Unit Tests" \
+        "flutter test test/services/quick_capture_service_test.dart"
+else
+    skip_test "QuickCaptureService Unit Tests" "File not found"
+fi
 
 # Widget-related Flutter tests
 if [ -f "test/widgets/quick_capture_widget_test.dart" ]; then
@@ -74,11 +78,15 @@ fi
 echo -e "\n${BLUE}=== INTEGRATION TESTS ===${NC}"
 
 # Check if emulator/simulator is running
-if flutter devices | grep -q "emulator\|simulator"; then
-    run_test "Integration Tests" \
-        "flutter test test/integration/quick_capture_integration_test.dart"
+if [ -f "test/integration/quick_capture_integration_test.dart" ]; then
+    if flutter devices | grep -q "emulator\|simulator"; then
+        run_test "Integration Tests" \
+            "flutter test test/integration/quick_capture_integration_test.dart"
+    else
+        skip_test "Integration Tests" "No emulator/simulator running"
+    fi
 else
-    skip_test "Integration Tests" "No emulator/simulator running"
+    skip_test "Integration Tests" "File not found"
 fi
 
 # =====================================================

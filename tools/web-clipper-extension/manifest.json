@@ -9,11 +9,13 @@
     "activeTab",
     "storage",
     "contextMenus",
-    "alarms"
+    "alarms",
+    "notifications",
+    "scripting"
   ],
   
   "host_permissions": [
-    "https://jtaedgpxesshdrnbgvjr.supabase.co/*"
+    "https://mizzxiijxtbwrqgflpnp.supabase.co/*"
   ],
   
   "background": {

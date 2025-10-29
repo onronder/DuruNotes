@@ -1,55 +1,74 @@
 import 'dart:convert';
 
+import 'package:duru_notes/core/utils/hash_utils.dart';
+
 import '../../data/local/app_db.dart';
 import '../../domain/entities/task.dart' as domain;
 
+/// Maps between domain Task entity and infrastructure NoteTask
+/// NOTE: This mapper works with already encrypted/decrypted data.
+/// Encryption/decryption happens at the repository level.
 class TaskMapper {
-  static domain.Task toDomain(NoteTask local) {
+  /// Convert infrastructure NoteTask to domain Task
+  /// Note: content, notes, and labels are expected to be already decrypted by the repository
+  static domain.Task toDomain(
+    NoteTask local, {
+    required String content,
+    String? notes,
+    String? labels,
+  }) {
     return domain.Task(
       id: local.id,
       noteId: local.noteId,
-      title: local.content, // Use content as title
-      description: local.notes, // Use notes as description
+      title: content, // Use decrypted content as title
+      description: notes, // Use decrypted notes as description
       status: _mapStatus(local.status),
       priority: _mapPriority(local.priority),
       dueDate: local.dueDate,
       completedAt: local.completedAt,
-      tags: _parseLabels(local.labels),
+      createdAt: local.createdAt,
+      updatedAt: local.updatedAt,
+      tags: _parseLabels(labels),
       metadata: _buildMetadata(local),
     );
   }
 
-  static NoteTask toInfrastructure(domain.Task domain) {
+  /// Convert domain Task to infrastructure NoteTask
+  /// Note: content, notes, and labels should be encrypted before passing to this method
+  static NoteTask toInfrastructure(
+    domain.Task domain, {
+    required String userId,
+    required String contentEncrypted,
+    String? notesEncrypted,
+    String? labelsEncrypted,
+  }) {
     return NoteTask(
       id: domain.id,
       noteId: domain.noteId,
-      content: domain.title, // Map title to content
-      status: _mapStatusToDb(domain.status),
-      priority: _mapPriorityToDb(domain.priority),
+      userId: userId,
+      contentEncrypted: contentEncrypted, // Encrypted content
+      status: mapStatusToDb(domain.status),
+      priority: mapPriorityToDb(domain.priority),
       dueDate: domain.dueDate,
       completedAt: domain.completedAt,
       completedBy: null, // Set to null by default
       position: 0, // Default position
-      contentHash: domain.title.hashCode.toString(), // Simple hash
+      contentHash: stableTaskHash(domain.noteId, domain.title),
       reminderId: null, // No reminder by default
-      labels: _encodeLabels(domain.tags),
-      notes: domain.description,
+      labelsEncrypted: labelsEncrypted, // Encrypted labels
+      notesEncrypted: notesEncrypted, // Encrypted notes
       estimatedMinutes: _extractEstimatedMinutes(domain.metadata),
       actualMinutes: _extractActualMinutes(domain.metadata),
       parentTaskId: _extractParentTaskId(domain.metadata),
-      createdAt: DateTime.now(), // Will be overridden by database if exists
-      updatedAt: DateTime.now(), // Will be overridden by database
+      createdAt: domain.createdAt,
+      updatedAt: domain.updatedAt,
       deleted: false, // Tasks are not deleted by default
+      encryptionVersion: 1, // Mark as encrypted
     );
   }
 
-  static List<domain.Task> toDomainList(List<NoteTask> locals) {
-    return locals.map((local) => toDomain(local)).toList();
-  }
-
-  static List<NoteTask> toInfrastructureList(List<domain.Task> domains) {
-    return domains.map((domain) => toInfrastructure(domain)).toList();
-  }
+  // Note: List conversion methods removed - repositories handle iteration
+  // and decryption/encryption for each task individually
 
   /// Map database TaskStatus to domain TaskStatus
   static domain.TaskStatus _mapStatus(TaskStatus status) {
@@ -64,7 +83,7 @@ class TaskMapper {
   }
 
   /// Map domain TaskStatus to database TaskStatus
-  static TaskStatus _mapStatusToDb(domain.TaskStatus status) {
+  static TaskStatus mapStatusToDb(domain.TaskStatus status) {
     switch (status) {
       case domain.TaskStatus.pending:
         return TaskStatus.open;
@@ -92,7 +111,7 @@ class TaskMapper {
   }
 
   /// Map domain TaskPriority to database TaskPriority
-  static TaskPriority _mapPriorityToDb(domain.TaskPriority priority) {
+  static TaskPriority mapPriorityToDb(domain.TaskPriority priority) {
     switch (priority) {
       case domain.TaskPriority.low:
         return TaskPriority.low;
@@ -122,17 +141,6 @@ class TaskMapper {
     }
   }
 
-  /// Encode tags list to labels JSON string
-  static String? _encodeLabels(List<String> tags) {
-    if (tags.isEmpty) return null;
-
-    try {
-      return json.encode(tags);
-    } catch (e) {
-      return null;
-    }
-  }
-
   /// Build metadata map from NoteTask fields
   static Map<String, dynamic> _buildMetadata(NoteTask local) {
     final metadata = <String, dynamic>{};
@@ -152,6 +160,8 @@ class TaskMapper {
 
     metadata['position'] = local.position;
     metadata['contentHash'] = local.contentHash;
+    metadata['createdAt'] = local.createdAt.toIso8601String();
+    metadata['updatedAt'] = local.updatedAt.toIso8601String();
 
     if (local.completedBy != null) {
       metadata['completedBy'] = local.completedBy;

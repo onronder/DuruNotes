@@ -10,6 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/account_key_service.dart';
 
 /// Custom exception for encryption-related errors
 ///
@@ -43,15 +44,19 @@ class EncryptionSyncService {
   EncryptionSyncService({
     required this.supabase,
     required this.secureStorage,
+    AccountKeyService? accountKeyService,
     AppLogger? logger,
-  }) : _logger = logger ?? LoggerFactory.instance;
+  })  : _logger = logger ?? LoggerFactory.instance,
+        _accountKeyService = accountKeyService;
 
   final SupabaseClient supabase;
   final FlutterSecureStorage secureStorage;
   final AppLogger _logger;
+  final AccountKeyService? _accountKeyService;
 
-  // Compatible with AccountKeyService key format
-  static const String _amkKeyPrefix = 'amk:';
+  // CRITICAL: Different prefix from AccountKeyService to prevent keychain collision
+  // AccountKeyService uses 'amk:' - we use 'encryption_sync_amk:' to avoid conflicts
+  static const String _amkKeyPrefix = 'encryption_sync_amk:';
 
   // Argon2 parameters (production-grade security)
   // Based on OWASP recommendations and security audit
@@ -78,9 +83,7 @@ class EncryptionSyncService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionSyncService');
-          scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
-        },
+          scope.setTag('operation', operation);        },
       ),
     );
   }
@@ -151,6 +154,8 @@ class EncryptionSyncService {
         key: '$_amkKeyPrefix$userId',
         value: base64Encode(amk),
       );
+      // Also update AccountKeyService so CryptoBox derives keys from the shared AMK
+      await _accountKeyService?.setLocalAmk(amk, userId: userId);
 
       _logger.info(
         'Encryption sync setup complete',
@@ -263,6 +268,7 @@ class EncryptionSyncService {
         key: '$_amkKeyPrefix$userId',
         value: base64Encode(amk),
       );
+      await _accountKeyService?.setLocalAmk(amk, userId: userId);
 
       _logger.info(
         'Encryption sync keys retrieved',
@@ -445,6 +451,7 @@ class EncryptionSyncService {
     if (userId == null) return;
 
     await secureStorage.delete(key: '$_amkKeyPrefix$userId');
+    await _accountKeyService?.clearLocalAmk();
 
     _logger.debug(
       'Cleared local encryption keys',

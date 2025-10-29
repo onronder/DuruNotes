@@ -1,24 +1,20 @@
 import 'dart:async';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:duru_notes/providers.dart'; // Import to get extension methods
-
-// Legacy type alias for backward compatibility
-typedef NotesRepository = NotesCoreRepository;
 
 /// Manager for ensuring an "Incoming Mail" folder exists and routing notes to it
 class IncomingMailFolderManager {
   IncomingMailFolderManager({
-    required NotesRepository repository,
+    required IFolderRepository folderRepository,
     required String userId,
-  })  : _repository = repository,
+  })  : _folderRepository = folderRepository,
         _userId = userId;
 
-  final NotesRepository _repository;
+  final IFolderRepository _folderRepository;
   final String _userId;
   final AppLogger _logger = LoggerFactory.instance;
   final _uuid = const Uuid();
@@ -29,16 +25,17 @@ class IncomingMailFolderManager {
   static const String _folderColor = '#2196F3'; // Material blue
   static const String _pendingAssignmentsKeyPrefix = 'incoming_mail_pending_';
 
-  /// Ensure the "Incoming Mail" folder exists and return its ID
-  Future<String> ensureIncomingMailFolderId() async {
+  /// Get the "Incoming Mail" folder ID if it exists (does NOT create folder)
+  /// Returns null if the folder doesn't exist
+  /// Use this for checking folder counts, resolving folder names, etc.
+  Future<String?> getIncomingMailFolderId() async {
     try {
       // Check cache first
       final cachedId = await _getCachedFolderId();
       if (cachedId != null) {
         // Verify the folder still exists and is not deleted
-        final folder = await _repository.getFolder(cachedId);
-        if (folder != null && !folder.deleted) {
-          // Don't log every cache hit - this is normal operation
+        final domainFolder = await _folderRepository.getFolder(cachedId);
+        if (domainFolder != null) {
           return cachedId;
         }
         // Cached folder is invalid, clear cache
@@ -49,30 +46,28 @@ class IncomingMailFolderManager {
       }
 
       // Search for existing folder - be more thorough
-      final folders = await _repository.listFolders();
+      final folders = await _folderRepository.listFolders();
 
       // Collect all matching folders (case-insensitive)
-      final matchingFolders = <LocalFolder>[];
+      final matchingFolders = <domain.Folder>[];
 
       for (final folder in folders) {
-        if (!folder.deleted) {
-          // Check exact match (case-insensitive)
-          if (folder.name.trim().toLowerCase() ==
-              _folderName.trim().toLowerCase()) {
+        // Check exact match (case-insensitive)
+        if (folder.name.trim().toLowerCase() ==
+            _folderName.trim().toLowerCase()) {
+          matchingFolders.add(folder);
+        } else {
+          // Check normalized match (handle extra spaces)
+          final normalizedFolderName = folder.name
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim()
+              .toLowerCase();
+          final normalizedTargetName = _folderName
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim()
+              .toLowerCase();
+          if (normalizedFolderName == normalizedTargetName) {
             matchingFolders.add(folder);
-          } else {
-            // Check normalized match (handle extra spaces)
-            final normalizedFolderName = folder.name
-                .replaceAll(RegExp(r'\s+'), ' ')
-                .trim()
-                .toLowerCase();
-            final normalizedTargetName = _folderName
-                .replaceAll(RegExp(r'\s+'), ' ')
-                .trim()
-                .toLowerCase();
-            if (normalizedFolderName == normalizedTargetName) {
-              matchingFolders.add(folder);
-            }
           }
         }
       }
@@ -85,26 +80,53 @@ class IncomingMailFolderManager {
 
         await _cacheFolderId(canonicalFolder.id);
         _logger.debug(
-          '[IncomingMailFolder] Found existing folder: ${canonicalFolder.id} - ${canonicalFolder.name}',
+          '[IncomingMailFolder] Found existing folder: ${canonicalFolder.id}',
         );
 
-        // If there are duplicates, merge them
+        // If there are duplicates, merge them in background
         if (matchingFolders.length > 1) {
-          _logger.debug(
-            '[IncomingMailFolder] Found ${matchingFolders.length} duplicate folders, merging...',
+          _logger.info(
+            '[IncomingMailFolder] Found ${matchingFolders.length} duplicate folders, will merge',
           );
-          await _mergeDuplicateFolders(
-            canonicalFolder,
-            matchingFolders.skip(1).toList(),
+          unawaited(
+            _mergeDuplicateFolders(
+              canonicalFolder,
+              matchingFolders.skip(1).toList(),
+            ),
           );
         }
 
         return canonicalFolder.id;
       }
 
-      // Create new folder if not found
+      // Folder doesn't exist - DO NOT CREATE IT
+      _logger.debug('[IncomingMailFolder] Folder does not exist (not creating)');
+      return null;
+    } catch (e, stackTrace) {
+      _logger.error(
+        '[IncomingMailFolder] Error getting folder ID',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
+  }
+
+  /// Ensure the "Incoming Mail" folder exists and return its ID
+  /// Creates the folder if it doesn't exist
+  /// ONLY use this when actually processing incoming emails!
+  Future<String> ensureIncomingMailFolderId() async {
+    try {
+      // First try to get existing folder
+      final existingId = await getIncomingMailFolderId();
+      if (existingId != null) {
+        return existingId;
+      }
+
+      // Create new folder only if it doesn't exist
+      _logger.info('[IncomingMailFolder] Creating Incoming Mail folder for email processing');
       final newFolderId = _uuid.v4();
-      await _repository.createOrUpdateFolder(
+      await _folderRepository.createOrUpdateFolder(
         id: newFolderId,
         name: _folderName,
         color: _folderColor,
@@ -113,11 +135,14 @@ class IncomingMailFolderManager {
       );
 
       await _cacheFolderId(newFolderId);
-      _logger.debug('[IncomingMailFolder] Created new folder: $newFolderId');
+      _logger.info('[IncomingMailFolder] Created new folder: $newFolderId');
       return newFolderId;
-    } catch (e) {
-      _logger.debug('[IncomingMailFolder] Error ensuring folder: $e');
-      // Return null on error and let the note be created without a folder
+    } catch (e, stackTrace) {
+      _logger.error(
+        '[IncomingMailFolder] Error ensuring folder exists',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -126,7 +151,7 @@ class IncomingMailFolderManager {
   Future<void> addNoteToIncomingMail(String noteId) async {
     try {
       final folderId = await ensureIncomingMailFolderId();
-      await _repository.addNoteToFolder(noteId, folderId);
+      await _folderRepository.addNoteToFolder(noteId, folderId);
       await _removePendingAssignment(noteId);
       _logger.debug(
         '[IncomingMailFolder] Added note $noteId to folder $folderId',
@@ -237,35 +262,35 @@ class IncomingMailFolderManager {
 
   /// Merge duplicate folders into the canonical folder
   Future<void> _mergeDuplicateFolders(
-    LocalFolder canonicalFolder,
-    List<LocalFolder> duplicates,
+    domain.Folder canonicalFolder,
+    List<domain.Folder> duplicates,
   ) async {
     for (final duplicate in duplicates) {
       try {
         // Get all notes in the duplicate folder
-        final notesInDuplicate = await _repository.getNotesInFolder(
+        final domainNotesInDuplicate = await _folderRepository.getNotesInFolder(
           duplicate.id,
         );
 
         // Move each note to the canonical folder
-        for (final note in notesInDuplicate) {
+        for (final domainNote in domainNotesInDuplicate) {
           try {
             // Remove from duplicate folder
-            await _repository.removeNoteFromFolder(note.id);
+            await _folderRepository.removeNoteFromFolder(domainNote.id);
             // Add to canonical folder
-            await _repository.addNoteToFolder(note.id, canonicalFolder.id);
+            await _folderRepository.addNoteToFolder(domainNote.id, canonicalFolder.id);
             _logger.debug(
-              '[IncomingMailFolder] Moved note ${note.id} from duplicate ${duplicate.id} to canonical ${canonicalFolder.id}',
+              '[IncomingMailFolder] Moved note ${domainNote.id} from duplicate ${duplicate.id} to canonical ${canonicalFolder.id}',
             );
           } catch (e) {
             _logger.debug(
-              '[IncomingMailFolder] Error moving note ${note.id}: $e',
+              '[IncomingMailFolder] Error moving note ${domainNote.id}: $e',
             );
           }
         }
 
         // Soft-delete the duplicate folder
-        await _repository.deleteFolder(duplicate.id);
+        await _folderRepository.deleteFolder(duplicate.id);
         _logger.debug(
           '[IncomingMailFolder] Soft-deleted duplicate folder: ${duplicate.id}',
         );

@@ -1,17 +1,25 @@
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Screen for managing notification preferences
-class NotificationPreferencesScreen extends StatefulWidget {
+class NotificationPreferencesScreen extends ConsumerStatefulWidget {
   const NotificationPreferencesScreen({super.key});
 
   @override
-  State<NotificationPreferencesScreen> createState() =>
+  ConsumerState<NotificationPreferencesScreen> createState() =>
       _NotificationPreferencesScreenState();
 }
 
 class _NotificationPreferencesScreenState
-    extends State<NotificationPreferencesScreen> {
+    extends ConsumerState<NotificationPreferencesScreen> {
+  AppLogger get _logger => ref.read(loggerProvider);
   final _supabase = Supabase.instance.client;
 
   bool _isLoading = true;
@@ -40,7 +48,7 @@ class _NotificationPreferencesScreenState
   @override
   void initState() {
     super.initState();
-    _loadPreferences();
+    unawaited(_loadPreferences());
   }
 
   Future<void> _loadPreferences() async {
@@ -55,6 +63,7 @@ class _NotificationPreferencesScreenState
           .maybeSingle();
 
       if (response != null) {
+        if (!mounted) return;
         setState(() {
           _preferences = response;
           _notificationsEnabled = (response['enabled'] as bool?) ?? true;
@@ -92,11 +101,30 @@ class _NotificationPreferencesScreenState
             }
           });
         });
+        _logger.info(
+          'Notification preferences loaded',
+          data: {
+            'hasQuietHours': _quietHoursEnabled,
+            'dndEnabled': _dndEnabled,
+            'eventPreferenceCount': _eventPreferences.length,
+          },
+        );
       }
-    } catch (e) {
-      _showError('Failed to load preferences: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load notification preferences',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnackBar(
+        'We could not load your notification preferences. Please try again.',
+        onRetry: () => unawaited(_loadPreferences()),
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -137,20 +165,56 @@ class _NotificationPreferencesScreenState
             .eq('user_id', user.id);
       }
 
+      _logger.info(
+        'Notification preferences saved',
+        data: {
+          'notificationsEnabled': _notificationsEnabled,
+          'pushEnabled': _pushEnabled,
+          'emailEnabled': _emailEnabled,
+          'quietHoursEnabled': _quietHoursEnabled,
+          'dndEnabled': _dndEnabled,
+        },
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Preferences saved successfully')),
         );
       }
-    } catch (e) {
-      _showError('Failed to save preferences: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to save notification preferences',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'notificationsEnabled': _notificationsEnabled,
+          'pushEnabled': _pushEnabled,
+          'emailEnabled': _emailEnabled,
+          'quietHoursEnabled': _quietHoursEnabled,
+          'dndEnabled': _dndEnabled,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnackBar(
+        'Unable to save your notification preferences. Please try again.',
+        onRetry: () => unawaited(_savePreferences()),
+      );
     }
   }
 
-  void _showError(String message) {
+  void _showErrorSnackBar(String message, {VoidCallback? onRetry}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: onRetry != null
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: onRetry,
+              )
+            : null,
+      ),
     );
   }
 

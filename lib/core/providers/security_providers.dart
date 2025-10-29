@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
 import 'package:duru_notes/core/security/secure_storage_manager.dart';
 import 'package:duru_notes/core/security/security_monitor.dart';
 import 'package:duru_notes/core/security/database_encryption.dart';
@@ -7,8 +8,27 @@ import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/services/account_key_service.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ===== PHASE 4: Core Security Providers (migrated from providers.dart) =====
+
+/// Account key service (AMK) provider
+final accountKeyServiceProvider = Provider<AccountKeyService>((ref) {
+  return AccountKeyService(ref);
+});
+
+/// Key manager provider
+final keyManagerProvider = Provider<KeyManager>((ref) {
+  return KeyManager(accountKeyService: ref.watch(accountKeyServiceProvider));
+});
+
+/// Crypto box provider
+final cryptoBoxProvider = Provider<CryptoBox>((ref) {
+  final keyManager = ref.watch(keyManagerProvider);
+  return CryptoBox(keyManager);
+});
+
+// ===== Advanced Security Providers =====
 
 /// Provider for secure storage manager
 final secureStorageManagerProvider = Provider<SecureStorageManager>((ref) {
@@ -42,8 +62,11 @@ final encryptionMigrationProvider = Provider<EncryptionFormatMigration>((ref) {
   );
   final cryptoBox = CryptoBox(keyManager);
 
+  // Use singleton AppDb instance to prevent memory leaks
+  final appDb = ref.watch(appDbProvider);
+
   return EncryptionFormatMigration(
-    db: AppDb(),
+    db: appDb,
     supabase: supabase,
     cryptoBox: cryptoBox,
     keyManager: keyManager,

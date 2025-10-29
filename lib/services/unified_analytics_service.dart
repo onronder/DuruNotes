@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:path/path.dart' as path;
-import 'package:uuid/uuid.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import '../core/migration/migration_config.dart';
@@ -274,11 +273,6 @@ class UnifiedAnalyticsService {
   UnifiedAnalyticsService._internal();
 
   final _logger = LoggerFactory.instance;
-  final _uuid = const Uuid();
-
-  // Repositories
-  late final AppDb _db;
-  late final MigrationConfig _migrationConfig;
 
   // Domain repositories
   INotesRepository? _domainNotesRepo;
@@ -286,7 +280,6 @@ class UnifiedAnalyticsService {
   IFolderRepository? _domainFoldersRepo;
   ITemplateRepository? _domainTemplatesRepo;
   ITagRepository? _domainTagsRepo;
-  ISearchRepository? _domainSearchesRepo;
 
   // Legacy repositories - not implemented yet
   // LocalNotesRepository? _legacyNotesRepo;
@@ -314,15 +307,11 @@ class UnifiedAnalyticsService {
     // LocalTemplateRepository? legacyTemplatesRepo,
     // SavedSearchesRepository? legacySearchesRepo,
   }) async {
-    _db = database;
-    _migrationConfig = migrationConfig;
-
     _domainNotesRepo = domainNotesRepo;
     _domainTasksRepo = domainTasksRepo;
     _domainFoldersRepo = domainFoldersRepo;
     _domainTemplatesRepo = domainTemplatesRepo;
     _domainTagsRepo = domainTagsRepo;
-    _domainSearchesRepo = domainSearchesRepo;
 
     // Legacy repositories removed - using domain repositories only
 
@@ -854,8 +843,7 @@ class UnifiedAnalyticsService {
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.body;
-    throw ArgumentError('Unknown note type');
+    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
   }
 
   bool _isNoteDeleted(dynamic note) {
@@ -874,11 +862,9 @@ class UnifiedAnalyticsService {
   }
 
   Future<List<String>> _getNoteTagIds(dynamic note) async {
-    if (note is domain.Note) return note.tags ?? [];
-    if (note is LocalNote) {
-      return await _db.getTagsForNote(note.id);
-    }
-    throw ArgumentError('Unknown note type');
+    if (note is domain.Note) return note.tags;
+    // LocalNote tag access deprecated post-encryption
+    throw UnsupportedError('LocalNote tag access deprecated. Use domain.Note from repository instead.');
   }
 
   DateTime _getTaskCreatedAt(dynamic task) {

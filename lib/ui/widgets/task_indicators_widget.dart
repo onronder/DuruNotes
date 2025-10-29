@@ -1,7 +1,9 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:flutter/material.dart';
 
 /// Widget for displaying visual indicators for task metadata (due date, priority, etc.)
+///
+/// POST-ENCRYPTION: Now uses domain.Task with decrypted content
 class TaskIndicatorsWidget extends StatelessWidget {
   const TaskIndicatorsWidget({
     super.key,
@@ -9,7 +11,7 @@ class TaskIndicatorsWidget extends StatelessWidget {
     this.compact = false,
   });
 
-  final NoteTask task;
+  final domain.Task task;
   final bool compact;
 
   @override
@@ -21,7 +23,7 @@ class TaskIndicatorsWidget extends StatelessWidget {
     final indicators = <Widget>[];
 
     // Priority indicator
-    if (task.priority != TaskPriority.medium) {
+    if (task.priority != domain.TaskPriority.medium) {
       indicators.add(
         _buildPriorityIndicator(task.priority, colorScheme, compact),
       );
@@ -35,28 +37,24 @@ class TaskIndicatorsWidget extends StatelessWidget {
     }
 
     // Reminder indicator
-    if (task.reminderId != null) {
+    if (task.metadata['reminderId'] != null) {
       indicators.add(
         _buildReminderIndicator(colorScheme, compact),
       );
     }
 
-    // Labels indicator
-    if (task.labels?.isNotEmpty == true) {
-      final labels =
-          task.labels!.split(',').where((l) => l.isNotEmpty).toList();
-      if (labels.isNotEmpty) {
-        indicators.add(
-          _buildLabelsIndicator(labels, colorScheme, compact),
-        );
-      }
+    // Tags indicator (domain.Task uses 'tags' not 'labels')
+    if (task.tags.isNotEmpty) {
+      indicators.add(
+        _buildLabelsIndicator(task.tags, colorScheme, compact),
+      );
     }
 
     // Time estimate indicator
-    if (task.estimatedMinutes != null) {
+    final estimatedMinutes = task.metadata['estimatedMinutes'] as int?;
+    if (estimatedMinutes != null) {
       indicators.add(
-        _buildTimeEstimateIndicator(
-            task.estimatedMinutes!, colorScheme, compact),
+        _buildTimeEstimateIndicator(estimatedMinutes, colorScheme, compact),
       );
     }
 
@@ -72,7 +70,7 @@ class TaskIndicatorsWidget extends StatelessWidget {
   }
 
   Widget _buildPriorityIndicator(
-      TaskPriority priority, ColorScheme colorScheme, bool compact) {
+      domain.TaskPriority priority, ColorScheme colorScheme, bool compact) {
     final color = _getPriorityColor(priority);
     final size = compact ? 14.0 : 16.0;
 
@@ -255,28 +253,28 @@ class TaskIndicatorsWidget extends StatelessWidget {
     );
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
 
-  String _getPriorityLabel(TaskPriority priority) {
+  String _getPriorityLabel(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return 'Low';
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return 'Medium';
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return 'High';
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return 'Urgent';
     }
   }

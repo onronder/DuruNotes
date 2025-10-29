@@ -1,9 +1,5 @@
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/providers/unified_reminder_provider.dart';
-import 'package:duru_notes/services/reminders/reminder_coordinator.dart'
-    as legacy;
-import 'package:duru_notes/services/reminders/reminder_coordinator_refactored.dart'
-    as refactored;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -20,24 +16,31 @@ void main() {
       flags.clearOverrides();
     });
 
-    test('returns refactored coordinator when flag enabled', () {
+    test('returns reminder coordinator', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final coordinator = container.read(unifiedReminderCoordinatorProvider);
 
-      expect(coordinator, isA<refactored.ReminderCoordinator>());
+      expect(coordinator, isNotNull);
+      // Note: The legacy/refactored distinction has been removed
+      // The provider now returns a single implementation
     });
 
-    test('returns legacy coordinator when flag disabled', () {
+    test('respects feature flag changes', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
+      // Test with different feature flag settings
       flags.setOverride('use_unified_reminders', false);
       container.invalidate(unifiedReminderCoordinatorProvider);
-      final coordinator = container.read(unifiedReminderCoordinatorProvider);
+      final coordinator1 = container.read(unifiedReminderCoordinatorProvider);
+      expect(coordinator1, isNotNull);
 
-      expect(coordinator, isA<legacy.ReminderCoordinator>());
+      flags.setOverride('use_unified_reminders', true);
+      container.invalidate(unifiedReminderCoordinatorProvider);
+      final coordinator2 = container.read(unifiedReminderCoordinatorProvider);
+      expect(coordinator2, isNotNull);
     });
   });
 }

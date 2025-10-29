@@ -31,9 +31,7 @@ class EncryptionFallbackService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionFallbackService');
-          scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
-        },
+          scope.setTag('operation', operation);        },
       ),
     );
   }

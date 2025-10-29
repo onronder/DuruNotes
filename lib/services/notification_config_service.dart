@@ -145,7 +145,7 @@ class NotificationConfigService {
   /// Handle notification response (when user taps notification or action)
   Future<void> handleNotificationResponse(
     NotificationResponse response,
-    Function(String action, String payload) onAction,
+    void Function(String action, String payload) onAction,
   ) async {
     try {
       _logger.info('Notification response received', data: {
@@ -160,7 +160,7 @@ class NotificationConfigService {
       final payload = response.payload ?? '{}';
 
       // Delegate to action handler
-      await onAction(action, payload);
+      onAction(action, payload);
     } catch (e, stack) {
       _logger.error(
         'Failed to handle notification response',

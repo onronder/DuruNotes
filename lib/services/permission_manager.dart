@@ -51,7 +51,7 @@ class PermissionManager {
   final Map<PermissionType, PermissionStatus> _permissionCache = {};
 
   // Stream controllers for permission observers
-  final Map<PermissionType, List<Function(PermissionStatus)>> _observers = {};
+  final Map<PermissionType, List<void Function(PermissionStatus)>> _observers = {};
 
   /// Request a specific permission type
   Future<PermissionStatus> request(PermissionType type) async {
@@ -196,7 +196,7 @@ class PermissionManager {
   /// Observe permission status changes
   void observePermission(
     PermissionType type,
-    Function(PermissionStatus) callback,
+    void Function(PermissionStatus) callback,
   ) {
     _observers[type] ??= [];
     _observers[type]!.add(callback);
@@ -205,7 +205,7 @@ class PermissionManager {
   /// Stop observing permission status changes
   void removeObserver(
     PermissionType type,
-    Function(PermissionStatus) callback,
+    void Function(PermissionStatus) callback,
   ) {
     _observers[type]?.remove(callback);
   }

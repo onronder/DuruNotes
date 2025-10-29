@@ -2,6 +2,7 @@
 ///
 /// Universal design system that adapts to platform conventions while
 /// maintaining brand consistency across iOS, Android, Web, Mac, and Windows.
+library;
 
 import 'dart:io';
 import 'dart:math' as math;

@@ -1,0 +1,409 @@
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/services/domain_task_controller.dart';
+import 'package:duru_notes/l10n/app_localizations.dart';
+import 'package:duru_notes/ui/widgets/tasks/domain_task_callbacks.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+
+/// Shared task item widget with accessibility support
+/// Production-grade version using domain.Task entities
+class DomainTaskItem extends StatelessWidget {
+  const DomainTaskItem({
+    required this.task,
+    required this.callbacks,
+    super.key,
+    this.showNoteInfo = false,
+  });
+
+  final domain.Task task;
+  final DomainTaskCallbacks callbacks;
+  final bool showNoteInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+
+    // Determine priority color
+    final priorityColor = _getPriorityColor(task.priority, colorScheme);
+
+    // Format due date
+    String? dueDateText;
+    Color? dueDateColor;
+    if (task.dueDate != null) {
+      final now = DateTime.now();
+      final dueDate = task.dueDate!;
+      final difference = dueDate.difference(now);
+
+      if (difference.isNegative && task.status != domain.TaskStatus.completed) {
+        dueDateText = l10n.overdue;
+        dueDateColor = Colors.red;
+      } else if (difference.inDays == 0) {
+        dueDateText = l10n.today;
+        dueDateColor = Colors.orange;
+      } else if (difference.inDays == 1) {
+        dueDateText = l10n.tomorrow;
+        dueDateColor = colorScheme.primary;
+      } else {
+        final dateFormat = DateFormat.MMMd(l10n.localeName);
+        dueDateText = dateFormat.format(task.dueDate!);
+        dueDateColor = colorScheme.onSurface.withValues(alpha: 0.6);
+      }
+    }
+
+    final isCompleted = task.status == domain.TaskStatus.completed;
+
+    return Semantics(
+      label:
+          '${task.title}. ${task.description ?? ""}. ${_getPriorityLabel(task.priority, l10n)}. ${dueDateText ?? ""},',
+      button: true,
+      checked: isCompleted,
+      onTapHint: isCompleted ? 'Mark as incomplete' : 'Mark as complete',
+      child: Card(
+        elevation: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isCompleted
+                ? colorScheme.outline.withValues(alpha: 0.2)
+                : priorityColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            callbacks.onEdit(task.id);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Checkbox
+                Semantics(
+                  excludeSemantics: true,
+                  child: Checkbox(
+                    value: isCompleted,
+                    onChanged: (value) async {
+                      HapticFeedback.lightImpact();
+                      await callbacks.onStatusChanged(
+                        task.id,
+                        value!
+                            ? domain.TaskStatus.completed
+                            : domain.TaskStatus.pending,
+                      );
+                    },
+                    activeColor: colorScheme.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      Text(
+                        task.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: isCompleted
+                              ? colorScheme.onSurface.withValues(alpha: 0.5)
+                              : null,
+                        ),
+                      ),
+
+                      // Description
+                      if (task.description != null &&
+                          task.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          task.description!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+
+                      // Metadata row
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          // Priority badge
+                          if (task.priority != domain.TaskPriority.medium)
+                            _buildPriorityBadge(
+                              context,
+                              task.priority,
+                              priorityColor,
+                              l10n,
+                            ),
+
+                          // Due date
+                          if (dueDateText != null)
+                            _buildDueDateChip(
+                              context,
+                              dueDateText,
+                              dueDateColor!,
+                              isCompleted,
+                            ),
+
+                          // Note info
+                          if (showNoteInfo &&
+                              !DomainTaskController.isStandaloneNoteId(
+                                task.noteId,
+                              ))
+                            _buildNoteChip(context, colorScheme),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Actions menu
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 20,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  tooltip: 'More actions',
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'edit':
+                        callbacks.onEdit(task.id);
+                        break;
+                      case 'delete':
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text(l10n.delete),
+                            content: Text(
+                              'Are you sure you want to delete "${task.title}"?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                child: Text(l10n.delete),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirmed == true) {
+                          await callbacks.onDeleted(task.id);
+                        }
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 20),
+                          const SizedBox(width: 12),
+                          Text(l10n.edit),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            l10n.delete,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriorityBadge(
+    BuildContext context,
+    domain.TaskPriority priority,
+    Color color,
+    AppLocalizations l10n,
+  ) {
+    final theme = Theme.of(context);
+    String label;
+    IconData icon;
+
+    switch (priority) {
+      case domain.TaskPriority.urgent:
+        label = l10n.highPriority;
+        icon = Icons.priority_high;
+        break;
+      case domain.TaskPriority.high:
+        label = l10n.highPriority;
+        icon = Icons.arrow_upward;
+        break;
+      case domain.TaskPriority.low:
+        label = l10n.lowPriority;
+        icon = Icons.arrow_downward;
+        break;
+      default:
+        label = l10n.mediumPriority;
+        icon = Icons.remove;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDueDateChip(
+    BuildContext context,
+    String text,
+    Color color,
+    bool isCompleted,
+  ) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: (isCompleted ? Colors.grey : color).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_today,
+            size: 14,
+            color: isCompleted ? Colors.grey : color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: isCompleted ? Colors.grey : color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoteChip(BuildContext context, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.note_outlined,
+            size: 14,
+            color: colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'From note',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPriorityColor(
+    domain.TaskPriority priority,
+    ColorScheme colorScheme,
+  ) {
+    switch (priority) {
+      case domain.TaskPriority.urgent:
+        return Colors.red;
+      case domain.TaskPriority.high:
+        return Colors.orange;
+      case domain.TaskPriority.low:
+        return Colors.blue;
+      default:
+        return colorScheme.primary;
+    }
+  }
+
+  String _getPriorityLabel(
+    domain.TaskPriority priority,
+    AppLocalizations l10n,
+  ) {
+    switch (priority) {
+      case domain.TaskPriority.urgent:
+      case domain.TaskPriority.high:
+        return l10n.highPriority;
+      case domain.TaskPriority.low:
+        return l10n.lowPriority;
+      default:
+        return l10n.mediumPriority;
+    }
+  }
+}

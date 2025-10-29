@@ -15,7 +15,7 @@ max_rows = 1000
 # Port to use for the local database URL
 port = 54322
 # The database major version to use
-major_version = 15
+major_version = 17
 
 [studio]
 # Port to use for Supabase Studio
@@ -56,6 +56,7 @@ subject = "You have been invited"
 # NOTE: Global verify_jwt not supported, must be set per function
 # Default behavior: JWT verification enabled (secure by default)
 
-[functions.email_inbox]
+[functions.email-inbox]
 # Disable JWT verification for webhook endpoints only
+# Function name must match deployed function (with hyphen, not underscore)
 verify_jwt = false

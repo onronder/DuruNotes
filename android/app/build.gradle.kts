@@ -58,6 +58,7 @@ android {
         
         create("prod") {
             dimension = "environment"
+            applicationIdSuffix = ""  // No suffix for production
             manifestPlaceholders["appName"] = "Duru Notes"
             buildConfigField("String", "FLAVOR", "\"prod\"")
         }
@@ -80,6 +81,20 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Ensure native sqlite libs are packaged for common ABIs
+    // Adjust if you use different ABI coverage
+    packagingOptions {
+        resources {
+            pickFirst("**/libsqlite3.so")
+        }
+    }
+
+    defaultConfig {
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+    }
 }
 
 dependencies {
@@ -91,6 +106,7 @@ dependencies {
     // Required for some plugins
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     
     // Fix Sentry UI tracking
     implementation("io.sentry:sentry-android:7.3.0")

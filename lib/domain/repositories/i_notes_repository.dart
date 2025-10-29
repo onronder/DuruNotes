@@ -16,6 +16,8 @@ abstract class INotesRepository {
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadataJson,
     bool? isPinned,
+    DateTime? createdAt, // SYNC FIX: Allow sync to preserve remote timestamps
+    DateTime? updatedAt, // SYNC FIX: Allow sync to preserve remote timestamps
   });
 
   /// Update an existing note
@@ -25,6 +27,7 @@ abstract class INotesRepository {
     String? body,
     bool? deleted,
     String? folderId,
+    bool updateFolder = false,
     Map<String, dynamic>? attachmentMeta,
     Map<String, dynamic>? metadata,
     List<Map<String, String?>>? links,
@@ -34,7 +37,10 @@ abstract class INotesRepository {
   /// Delete a note
   Future<void> deleteNote(String id);
 
-  /// Get all local notes
+  /// Get all local notes for sync (includes system notes like standalone task container)
+  Future<List<Note>> localNotesForSync();
+
+  /// Get all local notes for UI display (filters out system notes)
   Future<List<Note>> localNotes();
 
   /// Get recently viewed notes
@@ -62,6 +68,12 @@ abstract class INotesRepository {
 
   /// List all notes
   Future<List<Note>> list({int? limit});
+
+  /// Get count of notes in a folder
+  Future<int> getNotesCountInFolder(String folderId);
+
+  /// Get note IDs in a folder
+  Future<List<String>> getNoteIdsInFolder(String folderId);
 
   /// Sync operations
   Future<void> sync();

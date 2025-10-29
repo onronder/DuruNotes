@@ -8,9 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.view.View
 import android.widget.RemoteViews
-import com.fittechs.durunotes.MainActivity
-import com.fittechs.durunotes.R
+import com.fittechs.duruNotesApp.MainActivity
+import com.fittechs.duruNotesApp.R
 import android.util.Log
 import android.content.SharedPreferences
 import org.json.JSONArray
@@ -44,14 +45,9 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         const val EXTRA_NOTE_ID = "note_id"
         const val EXTRA_WIDGET_ID = "widget_id"
         
-        // SharedPreferences keys
+        // SharedPreferences keys for widget configuration
         const val PREFS_NAME = "QuickCaptureWidget"
-        const val PREF_AUTH_TOKEN = "auth_token"
-        const val PREF_USER_ID = "user_id"
-        const val PREF_RECENT_CAPTURES = "recent_captures"
         const val PREF_TEMPLATES = "templates"
-        const val PREF_LAST_SYNC = "last_sync"
-        const val PREF_OFFLINE_QUEUE = "offline_queue"
         
         // Widget size thresholds (dp)
         const val WIDGET_SIZE_SMALL_MAX = 110
@@ -171,7 +167,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         
         // Set up capture button
         val captureIntent = Intent(context, MainActivity::class.java).apply {
-            action = ACTION_CAPTURE_TEXT
+            setAction(ACTION_CAPTURE_TEXT)
             data = Uri.parse("durunotes://capture/text?widget=$appWidgetId")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -252,13 +248,13 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         // Set up ListView for recent captures
         val serviceIntent = Intent(context, QuickCaptureRemoteViewsService::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            setData(Uri.parse(toUri(Intent.URI_INTENT_SCHEME)))
         }
         views.setRemoteAdapter(R.id.recent_captures_list, serviceIntent)
         
         // Set pending intent template for list items
         val noteIntent = Intent(context, QuickCaptureWidgetProvider::class.java).apply {
-            action = ACTION_OPEN_NOTE
+            setAction(ACTION_OPEN_NOTE)
             putExtra(EXTRA_WIDGET_ID, appWidgetId)
         }
         val notePendingIntent = PendingIntent.getBroadcast(
@@ -276,49 +272,49 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
      * Update widget with latest data
      */
     private fun updateWidgetData(context: Context, views: RemoteViews, size: WidgetSize) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
-        // Check authentication status
-        val isAuthenticated = prefs.getString(PREF_AUTH_TOKEN, null) != null
-        
+        val storage = QuickCaptureWidgetStorage.getInstance(context)
+        val captures = storage.getRecentCaptures()
+        val isAuthenticated = !storage.getUserId().isNullOrEmpty()
+
         if (!isAuthenticated) {
-            // Show login prompt
+            val titleView = when (size) {
+                WidgetSize.SMALL -> R.id.widget_title
+                WidgetSize.MEDIUM -> R.id.widget_title
+                WidgetSize.LARGE -> R.id.widget_title
+            }
             views.setTextViewText(
-                when (size) {
-                    WidgetSize.SMALL -> R.id.widget_title
-                    WidgetSize.MEDIUM -> R.id.widget_title
-                    WidgetSize.LARGE -> R.id.widget_subtitle
-                },
-                context.getString(R.string.widget_login_required)
+                titleView,
+                context.getString(R.string.widget_login_required),
             )
+            if (size == WidgetSize.LARGE) {
+                views.setTextViewText(R.id.widget_subtitle, "")
+            }
             return
         }
-        
-        // Update last sync time for large widget
+
         if (size == WidgetSize.LARGE) {
-            val lastSync = prefs.getLong(PREF_LAST_SYNC, 0)
-            if (lastSync > 0) {
+            val updatedAt = storage.getUpdatedAtMillis()
+            if (updatedAt != null) {
                 val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-                val syncText = "Last sync: ${formatter.format(Date(lastSync))}"
+                val syncText = context.getString(
+                    R.string.widget_last_updated_format,
+                    formatter.format(Date(updatedAt)),
+                )
                 views.setTextViewText(R.id.widget_subtitle, syncText)
-            }
-        }
-        
-        // Update recent captures count for medium widget
-        if (size == WidgetSize.MEDIUM) {
-            val recentCaptures = getRecentCaptures(context)
-            if (recentCaptures.isEmpty()) {
-                views.setViewVisibility(R.id.no_captures_text, RemoteViews.VISIBLE)
             } else {
-                views.setViewVisibility(R.id.no_captures_text, RemoteViews.GONE)
+                views.setTextViewText(
+                    R.id.widget_subtitle,
+                    context.getString(R.string.widget_waiting_for_data),
+                )
             }
         }
-        
-        // Check for offline queue
-        val offlineQueue = getOfflineQueue(context)
-        if (offlineQueue.isNotEmpty()) {
-            // Show offline indicator
-            Log.d(TAG, "Offline queue has ${offlineQueue.size} items")
+
+        if (size == WidgetSize.MEDIUM) {
+            val hasCaptures = captures.isNotEmpty()
+            views.setViewVisibility(
+                R.id.no_captures_text,
+                if (hasCaptures) View.GONE else View.VISIBLE,
+            )
         }
     }
 
@@ -329,7 +325,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Handling text capture")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = ACTION_CAPTURE_TEXT
+            setAction(ACTION_CAPTURE_TEXT)
             data = Uri.parse("durunotes://capture/text")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtras(intent.extras ?: android.os.Bundle())
@@ -345,7 +341,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Handling voice capture")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = ACTION_CAPTURE_VOICE
+            setAction(ACTION_CAPTURE_VOICE)
             data = Uri.parse("durunotes://capture/voice")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtras(intent.extras ?: android.os.Bundle())
@@ -361,7 +357,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Handling camera capture")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = ACTION_CAPTURE_CAMERA
+            setAction(ACTION_CAPTURE_CAMERA)
             data = Uri.parse("durunotes://capture/camera")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtras(intent.extras ?: android.os.Bundle())
@@ -378,7 +374,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Opening template: $templateId")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = ACTION_OPEN_TEMPLATE
+            setAction(ACTION_OPEN_TEMPLATE)
             data = Uri.parse("durunotes://capture/template/$templateId")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtras(intent.extras ?: android.os.Bundle())
@@ -397,7 +393,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         
         // Request data update from app via platform channel
         val updateIntent = Intent(context, MainActivity::class.java).apply {
-            action = "com.fittechs.durunotes.REFRESH_WIDGET_DATA"
+            setAction("com.fittechs.durunotes.REFRESH_WIDGET_DATA")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_WIDGET_ID, widgetId)
         }
@@ -420,7 +416,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Opening note: $noteId")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
+            setAction(Intent.ACTION_VIEW)
             data = Uri.parse("durunotes://note/$noteId")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -435,9 +431,9 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Opening all widget captures")
         
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            data = Uri.parse("durunotes://captures/widget")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            setAction(Intent.ACTION_VIEW)
+            setData(Uri.parse("durunotes://captures/widget"))
+            setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         
         context.startActivity(launchIntent)
@@ -452,9 +448,9 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         
         val launchIntent = Intent(context, QuickCaptureConfigActivity::class.java).apply {
-            action = AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+            setAction(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
         context.startActivity(launchIntent)
@@ -468,14 +464,22 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         
         // Extract and save data from intent
         intent.extras?.let { extras ->
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().apply {
-                extras.getString("auth_token")?.let { putString(PREF_AUTH_TOKEN, it) }
-                extras.getString("user_id")?.let { putString(PREF_USER_ID, it) }
-                extras.getString("recent_captures")?.let { putString(PREF_RECENT_CAPTURES, it) }
-                extras.getString("templates")?.let { putString(PREF_TEMPLATES, it) }
-                putLong(PREF_LAST_SYNC, System.currentTimeMillis())
-                apply()
+            val payload = mutableMapOf<String, Any?>()
+            extras.getString("auth_token")?.let { payload["authToken"] = it }
+            extras.getString("user_id")?.let { payload["userId"] = it }
+            extras.getString("recent_captures")?.let { jsonString ->
+                runCatching { JSONArray(jsonString) }
+                    .getOrNull()
+                    ?.let { array -> payload["recentCaptures"] = array.toListOfMaps() }
+            }
+            extras.getString("templates")?.let { jsonString ->
+                runCatching { JSONArray(jsonString) }
+                    .getOrNull()
+                    ?.let { array -> payload["templates"] = array.toListOfMaps() }
+            }
+
+            if (payload.isNotEmpty()) {
+                QuickCaptureWidgetStorage.getInstance(context).writePayload(payload)
             }
         }
         
@@ -517,18 +521,12 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
      * Clean up widget data
      */
     private fun cleanupWidgetData(context: Context, keepOfflineQueue: Boolean) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
-        if (keepOfflineQueue) {
-            // Keep offline queue but clear other data
-            val offlineQueue = prefs.getString(PREF_OFFLINE_QUEUE, null)
-            prefs.edit().clear().apply()
-            offlineQueue?.let {
-                prefs.edit().putString(PREF_OFFLINE_QUEUE, it).apply()
-            }
-        } else {
-            // Clear all data
-            prefs.edit().clear().apply()
+        QuickCaptureWidgetStorage.getInstance(context).clearAll(keepOfflineQueue)
+        if (!keepOfflineQueue) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .apply()
         }
     }
 
@@ -536,61 +534,15 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
      * Get recent captures from SharedPreferences
      */
     private fun getRecentCaptures(context: Context): List<CaptureItem> {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val capturesJson = prefs.getString(PREF_RECENT_CAPTURES, null) ?: return emptyList()
-        
-        return try {
-            val captures = mutableListOf<CaptureItem>()
-            val jsonArray = JSONArray(capturesJson)
-            
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                captures.add(
-                    CaptureItem(
-                        id = obj.getString("id"),
-                        title = obj.getString("title"),
-                        snippet = obj.optString("snippet", ""),
-                        timestamp = obj.getLong("timestamp"),
-                        isPinned = obj.optBoolean("is_pinned", false)
-                    )
-                )
-            }
-            
-            captures
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing recent captures", e)
-            emptyList()
-        }
-    }
-
-    /**
-     * Get offline queue
-     */
-    private fun getOfflineQueue(context: Context): List<PendingCapture> {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val queueJson = prefs.getString(PREF_OFFLINE_QUEUE, null) ?: return emptyList()
-        
-        return try {
-            val queue = mutableListOf<PendingCapture>()
-            val jsonArray = JSONArray(queueJson)
-            
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                queue.add(
-                    PendingCapture(
-                        id = obj.getString("id"),
-                        content = obj.getString("content"),
-                        type = obj.getString("type"),
-                        timestamp = obj.getLong("timestamp"),
-                        templateId = obj.optString("template_id", null)
-                    )
-                )
-            }
-            
-            queue
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing offline queue", e)
-            emptyList()
+        val storage = QuickCaptureWidgetStorage.getInstance(context)
+        return storage.getRecentCaptures(maxItems = 5).map { capture ->
+            CaptureItem(
+                id = capture.id,
+                title = capture.title,
+                snippet = capture.snippet,
+                timestamp = capture.updatedAtMillis ?: System.currentTimeMillis(),
+                isPinned = false,
+            )
         }
     }
 
@@ -603,7 +555,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         widgetId: Int
     ): PendingIntent {
         val intent = Intent(context, QuickCaptureWidgetProvider::class.java).apply {
-            this.action = action
+            setAction(action)
             putExtra(EXTRA_WIDGET_ID, widgetId)
         }
         
@@ -624,7 +576,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         widgetId: Int
     ): PendingIntent {
         val intent = Intent(context, QuickCaptureWidgetProvider::class.java).apply {
-            action = ACTION_OPEN_TEMPLATE
+            setAction(ACTION_OPEN_TEMPLATE)
             putExtra(EXTRA_TEMPLATE_ID, templateId)
             putExtra(EXTRA_WIDGET_ID, widgetId)
         }
@@ -646,7 +598,7 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         widgetId: Int
     ): PendingIntent {
         val intent = Intent(context, QuickCaptureWidgetProvider::class.java).apply {
-            this.action = action
+            setAction(action)
             putExtra(EXTRA_WIDGET_ID, widgetId)
         }
         
@@ -687,14 +639,17 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         val isPinned: Boolean
     )
 
-    /**
-     * Data class for pending captures
-     */
-    data class PendingCapture(
-        val id: String,
-        val content: String,
-        val type: String,
-        val timestamp: Long,
-        val templateId: String?
-    )
+    private fun JSONArray.toListOfMaps(): List<Map<String, Any?>> {
+        val result = mutableListOf<Map<String, Any?>>()
+        for (index in 0 until length()) {
+            val obj = optJSONObject(index) ?: continue
+            val map = mutableMapOf<String, Any?>()
+            obj.keys().forEach { key ->
+                map[key] = obj.opt(key)
+            }
+            result.add(map)
+        }
+        return result
+    }
+
 }

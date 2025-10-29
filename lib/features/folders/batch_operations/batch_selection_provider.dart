@@ -1,4 +1,10 @@
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
+    show currentNotesProvider, notesPageProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show noteFolderProvider;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -152,7 +158,7 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
   }
 
   /// Quick select by search query
-  void selectBySearch(String query, List<LocalNote> allNotes) {
+  void selectBySearch(String query, List<domain.Note> allNotes) {
     if (query.isEmpty) return;
 
     final matchingIds = allNotes
@@ -174,7 +180,7 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
   }
 
   /// Select recently modified notes
-  void selectRecentlyModified(List<LocalNote> allNotes, {Duration? within}) {
+  void selectRecentlyModified(List<domain.Note> allNotes, {Duration? within}) {
     final cutoff = DateTime.now().subtract(within ?? const Duration(days: 7));
 
     final recentIds = allNotes
@@ -192,7 +198,7 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
   }
 
   /// Get selection statistics
-  BatchSelectionStats getSelectionStats(List<LocalNote> allNotes) {
+  BatchSelectionStats getSelectionStats(List<domain.Note> allNotes) {
     final selectedNotes = allNotes
         .where((note) => state.selectedNoteIds.contains(note.id))
         .toList();
@@ -208,7 +214,7 @@ final batchSelectionProvider =
 });
 
 /// Provider for selected notes objects
-final selectedNotesProvider = Provider<List<LocalNote>>((ref) {
+final selectedNotesProvider = Provider<List<domain.Note>>((ref) {
   final selectionState = ref.watch(batchSelectionProvider);
   final notesState = ref.watch(currentNotesProvider);
 
@@ -243,7 +249,7 @@ class BatchOperationCapabilities {
     required this.noteCount,
   });
 
-  factory BatchOperationCapabilities.fromNotes(List<LocalNote> notes) {
+  factory BatchOperationCapabilities.fromNotes(List<domain.Note> notes) {
     if (notes.isEmpty) {
       return const BatchOperationCapabilities(
         canMove: false,
@@ -268,7 +274,7 @@ class BatchOperationCapabilities {
     for (final _ in notes) {
       // TODO: Add encryption support when available
       // if (note.encryptedDataKey != null) encryptedCount++;
-      // TODO: Add archived and favorite fields to LocalNote
+      // TODO: Add archived and favorite fields to Note
     }
 
     return BatchOperationCapabilities(
@@ -369,8 +375,6 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
 
     try {
-      // final repository = _ref.read(notesRepositoryProvider);
-
       for (final _ in selectedNotes) {
         // TODO: Implement archive functionality in repository
         // await repository.setArchived(note.id, archive);
@@ -398,8 +402,6 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
 
     try {
-      // final repository = _ref.read(notesRepositoryProvider);
-
       for (final _ in selectedNotes) {
         // TODO: Implement favorite functionality in repository
         // await repository.setFavorite(note.id, favorite);
@@ -484,7 +486,7 @@ class BatchSelectionStats {
     this.commonTags = const [],
   });
 
-  factory BatchSelectionStats.fromNotes(List<LocalNote> notes) {
+  factory BatchSelectionStats.fromNotes(List<domain.Note> notes) {
     if (notes.isEmpty) {
       return const BatchSelectionStats(
         totalNotes: 0,
@@ -501,13 +503,13 @@ class BatchSelectionStats {
     DateTime? newest;
 
     for (final note in notes) {
-      // Count words
+      // Count words - split by whitespace for more accurate count
       totalWords += note.body.split(RegExp(r'\s+')).length;
 
       // Check encryption - TODO: Add encryption support when available
       // if (note.encryptedDataKey != null) encryptedCount++;
 
-      // Track dates using updatedAt since createdAt is not available
+      // Track dates using updatedAt
       if (oldest == null || note.updatedAt.isBefore(oldest)) {
         oldest = note.updatedAt;
       }

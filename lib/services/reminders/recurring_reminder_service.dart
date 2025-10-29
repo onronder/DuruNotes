@@ -54,12 +54,19 @@ class RecurringReminderService extends BaseReminderService {
         return null;
       }
 
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot create reminder - no authenticated user');
+        return null;
+      }
+
       // Create reminder in database using base class method
       final reminderType = config.recurrencePattern != RecurrencePattern.none
           ? ReminderType.recurring
           : ReminderType.time;
       final reminderId =
-          await createReminderInDb(config.toCompanion(reminderType));
+          await createReminderInDb(config.toCompanion(reminderType, userId));
 
       if (reminderId == null) {
         return null;
@@ -123,6 +130,13 @@ class RecurringReminderService extends BaseReminderService {
     int interval,
     DateTime? endDate,
   ) async {
+    // P0.5 SECURITY: Get current userId
+    final userId = currentUserId;
+    if (userId == null) {
+      logger.warning('Cannot schedule next recurrence - no authenticated user');
+      return;
+    }
+
     final nextTime = calculateNextOccurrence(currentTime, pattern, interval);
 
     if (nextTime != null) {
@@ -137,18 +151,17 @@ class RecurringReminderService extends BaseReminderService {
       // Update the reminder with next occurrence time
       await db.updateReminder(
         reminderId,
+        userId,
         NoteRemindersCompanion(remindAt: Value(nextTime)),
       );
 
       // Schedule the next notification
-      final reminder = await db.getReminderById(reminderId);
+      final reminder = await db.getReminderById(reminderId, userId);
       if (reminder != null) {
         await scheduleNotification(ReminderNotificationData(
           id: reminderId,
           title: reminder.notificationTitle ?? reminder.title,
-          body: reminder.notificationBody ??
-              reminder.body ??
-              'Tap to view your note',
+          body: reminder.notificationBody ?? reminder.body,
           scheduledTime: nextTime,
           payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
         ));
@@ -221,10 +234,17 @@ class RecurringReminderService extends BaseReminderService {
   /// Process due reminders and trigger recurring notifications
   Future<void> processDueReminders() async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot process due reminders - no authenticated user');
+        return;
+      }
+
       final now = DateTime.now();
 
       // Get time-based reminders that are due
-      final dueReminders = await db.getTimeRemindersToTrigger(before: now);
+      final dueReminders = await db.getTimeRemindersToTrigger(before: now, userId: userId);
 
       for (final reminder in dueReminders) {
         await _triggerTimeReminder(reminder);
@@ -249,10 +269,10 @@ class RecurringReminderService extends BaseReminderService {
   /// Trigger a time-based reminder and handle recurrence
   Future<void> _triggerTimeReminder(NoteReminder reminder) async {
     try {
-      // Mark as triggered
       // Mark as triggered (but keep active for recurring reminders)
       await db.updateReminder(
         reminder.id,
+        reminder.userId,
         NoteRemindersCompanion(
           lastTriggered: Value(DateTime.now()),
           triggerCount: Value(reminder.triggerCount + 1),
@@ -305,9 +325,17 @@ class RecurringReminderService extends BaseReminderService {
     DateTime? newEndDate,
   }) async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot update recurrence pattern - no authenticated user');
+        return;
+      }
+
       // Update database
       await db.updateReminder(
         reminderId,
+        userId,
         NoteRemindersCompanion(
           recurrencePattern: Value(newPattern),
           recurrenceInterval: Value(newInterval),
@@ -320,7 +348,7 @@ class RecurringReminderService extends BaseReminderService {
 
       // If pattern is not none, reschedule with new pattern
       if (newPattern != RecurrencePattern.none) {
-        final reminder = await db.getReminderById(reminderId);
+        final reminder = await db.getReminderById(reminderId, userId);
         if (reminder?.remindAt != null) {
           await _scheduleNextRecurrence(
             reminderId,

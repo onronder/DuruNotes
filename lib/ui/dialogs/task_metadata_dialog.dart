@@ -55,11 +55,21 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     _dueDate = widget.task?.dueDate;
     _priority = widget.task?.priority ?? domain.TaskPriority.medium;
     // Get reminderId and estimatedMinutes from metadata
-    final reminderId = widget.task?.metadata['reminderId'] as String?;
-    _hasReminder = reminderId != null;
-    _reminderTime =
-        _dueDate?.subtract(const Duration(hours: 1)); // Default 1 hour before
-    _estimatedMinutes = widget.task?.metadata['estimatedMinutes'] as int?;
+    final reminderRaw = widget.task?.metadata['reminderId'];
+    _hasReminder = reminderRaw != null;
+    _reminderTime = _dueDate?.subtract(
+      const Duration(hours: 1),
+    ); // Default 1 hour before
+    final estimatedRaw = widget.task?.metadata['estimatedMinutes'];
+    if (estimatedRaw is int) {
+      _estimatedMinutes = estimatedRaw;
+    } else if (estimatedRaw is num) {
+      _estimatedMinutes = estimatedRaw.toInt();
+    } else if (estimatedRaw is String) {
+      _estimatedMinutes = int.tryParse(estimatedRaw);
+    } else {
+      _estimatedMinutes = null;
+    }
 
     // Initialize with empty values - will be loaded asynchronously
     _notes = '';
@@ -94,7 +104,10 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
 
       // Parse labels from comma-separated string
       final labelsList = decryptedLabels.isNotEmpty
-          ? decryptedLabels.split(',').where((l) => l.trim().isNotEmpty).toList()
+          ? decryptedLabels
+                .split(',')
+                .where((l) => l.trim().isNotEmpty)
+                .toList()
           : <String>[];
 
       if (mounted) {
@@ -141,8 +154,13 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
       if (_dueDate != null) {
         // Preserve time if already set
         final time = TimeOfDay.fromDateTime(_dueDate!);
-        _dueDate =
-            DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        _dueDate = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
       } else {
         // Set to end of day by default
         _dueDate = DateTime(date.year, date.month, date.day, 23, 59);
@@ -177,7 +195,8 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
-          _reminderTime ?? _dueDate!.subtract(const Duration(hours: 1))),
+        _reminderTime ?? _dueDate!.subtract(const Duration(hours: 1)),
+      ),
     );
 
     if (time != null) {
@@ -229,7 +248,8 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
       if (_reminderTime!.isAfter(_dueDate!)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Reminder time must be before the due date')),
+            content: Text('Reminder time must be before the due date'),
+          ),
         );
         return;
       }
@@ -312,8 +332,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                 errorText: _contentError,
                 prefixIcon: const Icon(Icons.task),
                 filled: true,
-                fillColor:
-                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                fillColor: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -329,8 +350,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
               onChanged: (value) {
                 _taskContent = value;
                 setState(() {
-                  _contentError =
-                      value.trim().isEmpty ? 'Task title is required' : null;
+                  _contentError = value.trim().isEmpty
+                      ? 'Task title is required'
+                      : null;
                 });
               },
             ),
@@ -401,8 +423,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                             size: 16,
                             color: _getPriorityColor(priority),
                           ),
-                          selectedColor: _getPriorityColor(priority)
-                              .withValues(alpha: 0.2),
+                          selectedColor: _getPriorityColor(
+                            priority,
+                          ).withValues(alpha: 0.2),
                         );
                       }).toList(),
                     ),
@@ -434,8 +457,10 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: _selectReminderTime,
-                                    icon:
-                                        const Icon(Icons.access_time, size: 18),
+                                    icon: const Icon(
+                                      Icons.access_time,
+                                      size: 18,
+                                    ),
                                     label: Text(
                                       _reminderTime != null
                                           ? '${_reminderTime!.hour.toString().padLeft(2, '0')}:${_reminderTime!.minute.toString().padLeft(2, '0')}'
@@ -450,8 +475,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                                   tooltip: 'Quick reminder times',
                                   onSelected: (duration) {
                                     setState(() {
-                                      _reminderTime =
-                                          _dueDate!.subtract(duration);
+                                      _reminderTime = _dueDate!.subtract(
+                                        duration,
+                                      );
                                     });
                                   },
                                   itemBuilder: (context) => [
@@ -480,13 +506,11 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
                               _reminderTime != null
                                   ? 'Reminder: ${_formatReminderTime(_reminderTime!)}'
                                   : 'Select reminder time',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                           ],
@@ -610,9 +634,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );

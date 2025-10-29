@@ -110,7 +110,6 @@ class SearchParser {
       return const SearchQuery();
     }
 
-    final tokens = <String>[];
     final includeTags = <String>[];
     final excludeTags = <String>[];
     final keywords = <String>[];

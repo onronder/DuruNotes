@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:duru_notes/core/settings/sync_mode.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/services/unified_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,13 +15,15 @@ void unawaited(Future<void> future) {
 
 /// Notifier for managing sync mode settings
 class SyncModeNotifier extends StateNotifier<SyncMode> {
-  SyncModeNotifier(this._notesRepository, [this._onSyncComplete])
-      : super(SyncMode.automatic) {
+  SyncModeNotifier(
+    this._notesRepository,
+    this._syncService,
+  ) : super(SyncMode.automatic) {
     _loadSyncMode();
   }
 
   final NotesCoreRepository _notesRepository;
-  final VoidCallback? _onSyncComplete;
+  final UnifiedSyncService _syncService;
   static const String _syncModeKey = 'sync_mode';
 
   // Timer for periodic sync in automatic mode
@@ -28,6 +31,9 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
 
   // Track if the notifier is disposed
   bool _isDisposed = false;
+
+  // Prevent concurrent mode changes (production safety)
+  bool _isChangingMode = false;
 
   // Sync interval for automatic mode (5 minutes)
   static const Duration _autoSyncInterval = Duration(minutes: 5);
@@ -58,24 +64,55 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   }
 
   /// Set the sync mode and persist it
+  /// PRODUCTION FIX: Non-blocking implementation to prevent UI freeze
   Future<void> setMode(SyncMode mode) async {
+    // Prevent concurrent mode changes (production safety)
+    if (_isChangingMode) {
+      debugPrint('⚠️ Mode change already in progress, ignoring duplicate request');
+      return;
+    }
+    _isChangingMode = true;
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_syncModeKey, mode.name);
+      // CRITICAL: Stop any active periodic sync IMMEDIATELY
+      // This prevents race conditions between old timer and new mode
+      _stopPeriodicSync();
+
+      // Update UI state FIRST (non-blocking, immediate feedback)
       state = mode;
 
-      // Handle automatic mode setup
+      // Persist to storage in background (don't block UI)
+      // If this fails, the mode will revert on next app launch, which is acceptable
+      unawaited(_persistModeToStorage(mode));
+
+      // Setup new mode behavior
       if (mode == SyncMode.automatic) {
-        // Perform immediate sync when switching to automatic
-        unawaited(manualSync());
         // Start periodic sync timer
         _startPeriodicSync();
-      } else {
-        // Stop periodic sync when switching to manual
-        _stopPeriodicSync();
+        // PRODUCTION FIX: Don't trigger immediate sync to avoid rate limiting
+        // The periodic timer will handle the first sync after 5 minutes
+        // If user wants immediate sync, they can use the Sync Now button
+        debugPrint('📅 Automatic sync enabled - next sync in 5 minutes');
       }
+      // If manual mode, timer is already stopped above
     } catch (e) {
-      // Handle error silently - mode change will fail but won't crash
+      debugPrint('⚠️ Error changing sync mode: $e');
+      // Don't crash - degraded mode is better than app crash
+    } finally {
+      _isChangingMode = false;
+    }
+  }
+
+  /// Persist sync mode to SharedPreferences (background operation)
+  Future<void> _persistModeToStorage(SyncMode mode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance()
+          .timeout(const Duration(seconds: 5));
+      await prefs.setString(_syncModeKey, mode.name);
+      debugPrint('✅ Sync mode persisted: ${mode.name}');
+    } catch (e) {
+      debugPrint('⚠️ Failed to persist sync mode (will revert on restart): $e');
+      // Non-fatal: User's in-session mode change still works
     }
   }
 
@@ -97,21 +134,37 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       }
       debugPrint('✅ Authenticated user: ${currentUser.id}');
 
-      // Check local database
-      final localNotes = await _notesRepository.localNotes();
-      debugPrint('📊 Local database has ${localNotes.length} notes');
+      // CRITICAL FIX: Actually call the unified sync service!
+      debugPrint('📥 Calling UnifiedSyncService.syncAll()...');
+      final syncResult = await _syncService.syncAll();
 
-      // Sync is handled by the unified sync service, not here
-      // This is just for displaying current state
-      for (final note in localNotes.take(5)) {
-        debugPrint(
-          '  - ${note.title.isEmpty ? "Untitled" : note.title} (${note.updatedAt})',
-        );
+      if (syncResult.success) {
+        debugPrint('✅ Sync completed successfully');
+        debugPrint('📊 Synced: ${syncResult.syncedNotes} notes, ${syncResult.syncedTasks} tasks');
+
+        // Check local database after sync
+        final localNotes = await _notesRepository.localNotes();
+        debugPrint('📊 Local database now has ${localNotes.length} notes');
+
+        // Note: UI will refresh automatically through Riverpod streams
+        debugPrint('📱 Sync complete - UI will refresh through repository streams');
+
+        return true;
+      } else {
+        debugPrint('⚠️ Sync completed with errors: ${syncResult.message}');
+        for (final error in syncResult.errors) {
+          debugPrint('  ❌ $error');
+        }
+        return false;
+      }
+    } catch (e, stackTrace) {
+      // Handle rate limiting gracefully - it's not an error, just throttling
+      if (e.toString().contains('SyncRateLimitedException') ||
+          e.toString().contains('Sync rate limited')) {
+        debugPrint('ℹ️ Sync rate limited - will retry later');
+        return true; // Return true since this isn't a real error
       }
 
-      debugPrint('🎉 Manual sync completed successfully');
-      return true;
-    } catch (e, stackTrace) {
       debugPrint('❌ Manual sync failed: $e');
       debugPrint('Stack trace: $stackTrace');
       return false;
@@ -129,11 +182,8 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
       }
 
       // Perform background sync without blocking UI
-      final success = await manualSync();
-      if (success && !_isDisposed) {
-        // Trigger UI refresh if callback is provided
-        _onSyncComplete?.call();
-      }
+      // NOTE: manualSync() now calls _onSyncComplete internally, no need to call it here
+      await manualSync();
     });
   }
 

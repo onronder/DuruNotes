@@ -9,19 +9,16 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.content.Context
-import android.content.SharedPreferences
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
-import org.json.JSONArray
-import org.json.JSONObject
+import com.fittechs.duruNotesApp.R
 import com.fittechs.durunotes.widget.QuickCaptureWidgetProvider
-import java.util.UUID
+import com.fittechs.durunotes.widget.QuickCaptureWidgetStorage
 
 class MainActivity : FlutterActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val CHANNEL = "com.fittechs.durunotes/quick_capture"
-        private const val WIDGET_PREFS = "QuickCaptureWidget"
     }
 
     private lateinit var methodChannel: MethodChannel
@@ -51,9 +48,16 @@ class MainActivity : FlutterActivity() {
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "updateWidgetData" -> {
-                    val data = call.arguments as? Map<String, Any>
-                    updateWidgetData(data)
-                    result.success(true)
+                    val data = call.arguments as? Map<*, *>
+                    if (data != null) {
+                        @Suppress("UNCHECKED_CAST")
+                        QuickCaptureWidgetStorage.getInstance(this)
+                            .writePayload(data as Map<String, Any?>)
+                        refreshWidget()
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARGS", "Invalid widget payload", null)
+                    }
                 }
                 "refreshWidget" -> {
                     refreshWidget()
@@ -62,29 +66,11 @@ class MainActivity : FlutterActivity() {
                 "getAuthStatus" -> {
                     result.success(getAuthStatus())
                 }
-                "savePendingCapture" -> {
-                    val capture = call.arguments as? Map<String, Any>
-                    if (capture != null) {
-                        savePendingCapture(capture)
-                        result.success(true)
-                    } else {
-                        result.error("INVALID_ARGS", "Invalid capture data", null)
-                    }
-                }
-                "getPendingCaptures" -> {
-                    result.success(getPendingCaptures())
-                }
-                "clearPendingCaptures" -> {
-                    clearPendingCaptures()
-                    result.success(true)
-                }
                 "getWidgetSettings" -> {
                     val widgetId = call.argument<Int>("widgetId") ?: -1
                     result.success(getWidgetSettings(widgetId))
                 }
-                else -> {
-                    result.notImplemented()
-                }
+                else -> result.notImplemented()
             }
         }
     }
@@ -149,12 +135,12 @@ class MainActivity : FlutterActivity() {
             else -> "text"
         }
         
-        val data = mapOf(
+        val data: Map<String, Any> = mapOf(
             "type" to captureType,
             "source" to "widget",
             "widgetId" to intent.getIntExtra(QuickCaptureWidgetProvider.EXTRA_WIDGET_ID, -1)
         )
-        
+
         // Store data to process when Flutter is ready
         if (flutterEngine?.dartExecutor?.binaryMessenger != null) {
             methodChannel.invokeMethod("handleWidgetCapture", data)
@@ -169,13 +155,13 @@ class MainActivity : FlutterActivity() {
     private fun handleTemplateIntent(intent: Intent) {
         val templateId = intent.getStringExtra(QuickCaptureWidgetProvider.EXTRA_TEMPLATE_ID)
         
-        val data = mapOf(
+        val data: Map<String, Any> = mapOf(
             "type" to "template",
-            "templateId" to templateId,
+            "templateId" to (templateId ?: ""),
             "source" to "widget",
             "widgetId" to intent.getIntExtra(QuickCaptureWidgetProvider.EXTRA_WIDGET_ID, -1)
         )
-        
+
         if (flutterEngine?.dartExecutor?.binaryMessenger != null) {
             methodChannel.invokeMethod("handleWidgetCapture", data)
         } else {
@@ -220,56 +206,9 @@ class MainActivity : FlutterActivity() {
     /**
      * Update widget data from Flutter
      */
-    private fun updateWidgetData(data: Map<String, Any>?) {
+    private fun updateWidgetData(data: Map<String, Any?>?) {
         if (data == null) return
-        
-        val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-        
-        // Save auth data
-        data["authToken"]?.let { editor.putString("auth_token", it.toString()) }
-        data["userId"]?.let { editor.putString("user_id", it.toString()) }
-        
-        // Save recent captures
-        data["recentCaptures"]?.let { captures ->
-            if (captures is List<*>) {
-                val jsonArray = JSONArray()
-                captures.forEach { capture ->
-                    if (capture is Map<*, *>) {
-                        val json = JSONObject()
-                        capture.forEach { (key, value) ->
-                            json.put(key.toString(), value)
-                        }
-                        jsonArray.put(json)
-                    }
-                }
-                editor.putString("recent_captures", jsonArray.toString())
-            }
-        }
-        
-        // Save templates
-        data["templates"]?.let { templates ->
-            if (templates is List<*>) {
-                val jsonArray = JSONArray()
-                templates.forEach { template ->
-                    if (template is Map<*, *>) {
-                        val json = JSONObject()
-                        template.forEach { (key, value) ->
-                            json.put(key.toString(), value)
-                        }
-                        jsonArray.put(json)
-                    }
-                }
-                editor.putString("templates", jsonArray.toString())
-            }
-        }
-        
-        // Update last sync time
-        editor.putLong("last_sync", System.currentTimeMillis())
-        editor.apply()
-        
-        // Refresh all widgets
-        refreshWidget()
+        QuickCaptureWidgetStorage.getInstance(this).writePayload(data)
     }
 
     /**
@@ -286,6 +225,7 @@ class MainActivity : FlutterActivity() {
             ComponentName(this, QuickCaptureWidgetProvider::class.java)
         )
         
+        widgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.recent_captures_list)
         intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
         sendBroadcast(intent)
     }
@@ -294,12 +234,11 @@ class MainActivity : FlutterActivity() {
      * Get current auth status
      */
     private fun getAuthStatus(): Map<String, Any> {
-        val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val authToken = prefs.getString("auth_token", null)
-        val userId = prefs.getString("user_id", null)
-        
+        val storage = QuickCaptureWidgetStorage.getInstance(this)
+        val userId = storage.getUserId()
+        val authToken = storage.getAuthToken()
         return mapOf(
-            "isAuthenticated" to (authToken != null),
+            "isAuthenticated" to (userId != null),
             "userId" to (userId ?: ""),
             "hasToken" to (authToken != null)
         )
@@ -308,74 +247,6 @@ class MainActivity : FlutterActivity() {
     /**
      * Save a pending capture for offline processing
      */
-    private fun savePendingCapture(capture: Map<String, Any>) {
-        val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val queueJson = prefs.getString("offline_queue", "[]")
-        
-        val queue = JSONArray(queueJson)
-        
-        // Check queue size limit (max 50 items)
-        if (queue.length() >= 50) {
-            Log.w(TAG, "Offline queue full, removing oldest item")
-            // Remove the oldest item (first in queue)
-            val newQueue = JSONArray()
-            for (i in 1 until queue.length()) {
-                newQueue.put(queue.get(i))
-            }
-            queue.put(newQueue)
-        }
-        
-        val captureJson = JSONObject().apply {
-            put("id", UUID.randomUUID().toString())
-            put("timestamp", System.currentTimeMillis())
-            capture.forEach { (key, value) ->
-                put(key, value)
-            }
-        }
-        
-        queue.put(captureJson)
-        
-        prefs.edit()
-            .putString("offline_queue", queue.toString())
-            .apply()
-        
-        Log.d(TAG, "Saved pending capture, queue size: ${queue.length()}")
-    }
-
-    /**
-     * Get all pending captures
-     */
-    private fun getPendingCaptures(): List<Map<String, Any>> {
-        val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val queueJson = prefs.getString("offline_queue", "[]")
-        
-        val captures = mutableListOf<Map<String, Any>>()
-        val queue = JSONArray(queueJson)
-        
-        for (i in 0 until queue.length()) {
-            val obj = queue.getJSONObject(i)
-            val map = mutableMapOf<String, Any>()
-            obj.keys().forEach { key ->
-                map[key] = obj.get(key)
-            }
-            captures.add(map)
-        }
-        
-        return captures
-    }
-
-    /**
-     * Clear pending captures queue
-     */
-    private fun clearPendingCaptures() {
-        val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("offline_queue", "[]")
-            .apply()
-        
-        Log.d(TAG, "Cleared pending captures queue")
-    }
-
     /**
      * Get widget-specific settings
      */

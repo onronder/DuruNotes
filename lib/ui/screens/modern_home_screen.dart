@@ -320,6 +320,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
         SizedBox(height: DuruSpacing.sm),
         // Main FAB
         FloatingActionButton(
+          heroTag: 'modern_home_main_fab', // PRODUCTION FIX: Unique hero tag
           onPressed: _toggleFab,
           backgroundColor: _isFabExpanded
               ? Theme.of(context).colorScheme.surface

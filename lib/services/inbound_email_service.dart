@@ -33,14 +33,14 @@ class InboundEmailService {
       }
 
       // If no alias exists, generate one
-      final result = await _supabase.rpc(
+      final result = await _supabase.rpc<String>(
         'generate_user_alias',
         params: {'p_user_id': userId},
       );
 
       return result as String?;
-    } catch (e) {
-      debugPrint('Error getting user email alias: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error getting user email alias: $e\n$stackTrace');
       return null;
     }
   }
@@ -76,8 +76,8 @@ class InboundEmailService {
       return (response as List)
           .map((json) => InboundEmail.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      debugPrint('Error fetching inbound emails: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error fetching inbound emails: $e\n$stackTrace');
       return [];
     }
   }
@@ -98,8 +98,8 @@ class InboundEmailService {
           .eq('id', emailId);
 
       return true;
-    } catch (e) {
-      debugPrint('Error deleting inbound email: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error deleting inbound email: $e\n$stackTrace');
       return false;
     }
   }
@@ -131,8 +131,8 @@ class InboundEmailService {
       await deleteInboundEmail(email.id);
 
       return 'note_id_placeholder';
-    } catch (e) {
-      debugPrint('Error converting email to note: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error converting email to note: $e\n$stackTrace');
       return null;
     }
   }
@@ -158,8 +158,8 @@ class InboundEmailService {
           .createSignedUrl(filePath, 3600);
 
       return response;
-    } catch (e) {
-      debugPrint('Error getting attachment URL: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error getting attachment URL: $e\n$stackTrace');
       return null;
     }
   }

@@ -5,7 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { JWT } from "https://esm.sh/google-auth-library@8.7.0";
+import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 import { Logger } from "../common/logger.ts";
 import { extractJwt, verifyHmacSignature } from "../common/auth.ts";
 import {
@@ -244,19 +244,64 @@ class EnhancedFcmService {
 
       const serviceAccount = JSON.parse(serviceAccountKey);
 
-      const jwt = new JWT({
-        email: serviceAccount.client_email,
-        key: serviceAccount.private_key,
-        scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+      // Prepare JWT claims
+      const now = Math.floor(Date.now() / 1000);
+      const payload = {
+        iss: serviceAccount.client_email,
+        scope: "https://www.googleapis.com/auth/firebase.messaging",
+        aud: "https://oauth2.googleapis.com/token",
+        exp: getNumericDate(60 * 60), // 1 hour
+        iat: getNumericDate(0),
+      };
+
+      // Import the private key
+      const privateKey = serviceAccount.private_key;
+      const pemHeader = "-----BEGIN PRIVATE KEY-----";
+      const pemFooter = "-----END PRIVATE KEY-----";
+      const pemContents = privateKey
+        .replace(pemHeader, "")
+        .replace(pemFooter, "")
+        .replace(/\s/g, "");
+
+      const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+
+      const cryptoKey = await crypto.subtle.importKey(
+        "pkcs8",
+        binaryDer,
+        {
+          name: "RSASSA-PKCS1-v1_5",
+          hash: "SHA-256",
+        },
+        false,
+        ["sign"]
+      );
+
+      // Create JWT
+      const jwt = await create(
+        { alg: "RS256", typ: "JWT" },
+        payload,
+        cryptoKey
+      );
+
+      // Exchange JWT for access token
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: jwt,
+        }),
       });
 
-      const tokenResponse = await jwt.getAccessToken();
-
-      if (!tokenResponse.token) {
-        throw new ServerError("Failed to obtain FCM access token");
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        throw new ServerError(`Failed to exchange JWT for access token: ${error}`);
       }
 
-      this.accessToken = tokenResponse.token;
+      const tokenData = await tokenResponse.json();
+      this.accessToken = tokenData.access_token;
       // Cache token for 50 minutes (tokens expire in 1 hour)
       this.tokenExpiry = Date.now() + (50 * 60 * 1000);
 
@@ -854,7 +899,11 @@ serve(async (req) => {
   }
 
   try {
-    // Enhanced authentication with webhook support
+    // Check if request is from pg_cron
+    const userAgent = req.headers.get("user-agent") || "";
+    const isPgCron = userAgent.includes("pg_net");
+
+    // Enhanced authentication
     const authHeader = req.headers.get("authorization");
     const webhookSignature = req.headers.get("x-webhook-signature");
 
@@ -872,17 +921,34 @@ serve(async (req) => {
         throw new AuthenticationError("Invalid webhook signature");
       }
     } else {
-      // Standard JWT authentication
+      // JWT authentication - required for all requests (including pg_cron)
       const jwt = extractJwt(req);
 
+      // Verify service role JWT for pg_cron or verify user JWT for regular calls
       if (!jwt) {
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
         const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
 
         if (!authHeader || !serviceKey || token !== serviceKey) {
+          logger.error("auth_failed", {
+            isPgCron,
+            hasAuthHeader: !!authHeader,
+            hasServiceKey: !!serviceKey,
+            userAgent
+          });
           throw new AuthenticationError("Missing or invalid authentication");
         }
       }
+
+      // For pg_cron, verify it's using service_role
+      if (isPgCron && jwt && jwt.role !== "service_role") {
+        throw new AuthenticationError("pg_cron must use service_role JWT");
+      }
+    }
+
+    // Log pg_cron requests for monitoring
+    if (isPgCron) {
+      logger.info("pg_cron_request", { userAgent, requestId });
     }
 
     // Parse and validate request body

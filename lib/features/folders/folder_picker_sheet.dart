@@ -1,9 +1,11 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider;
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart' show unfiledNotesCountProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,10 +90,10 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
     });
   }
 
-  bool _matchesSearch(LocalFolder folder) {
+  bool _matchesSearch(domain.Folder folder) {
     if (_searchQuery.isEmpty) return true;
-    return folder.name.toLowerCase().contains(_searchQuery) ||
-        folder.path.toLowerCase().contains(_searchQuery);
+    // Search by folder name only (path is derived/computed, not in domain model)
+    return folder.name.toLowerCase().contains(_searchQuery);
   }
 
   List<FolderTreeNode> _filterNodes(List<FolderTreeNode> nodes) {
@@ -334,7 +336,7 @@ class _FolderPickerSheetState extends ConsumerState<FolderPickerSheet>
 
   Future<void> _showCreateFolderDialog() async {
     try {
-      final result = await showDialog<LocalFolder>(
+      final result = await showDialog<domain.Folder>(
         context: context,
         barrierDismissible:
             false, // Prevent accidental dismissal during creation
@@ -398,7 +400,7 @@ class _UnfiledOption extends StatelessWidget {
             data: (count) => Text(l10n.noteCount(count)),
             loading: () =>
                 const SizedBox(height: 16, child: LinearProgressIndicator()),
-            error: (_, __) => Text(l10n.loadError),
+            error: (_, _) => Text(l10n.loadError),
           ),
           trailing: isSelected
               ? Icon(Icons.check_circle, color: colorScheme.primary)
@@ -529,17 +531,6 @@ class _FolderTreeTile extends StatelessWidget {
           ),
           subtitle: Row(
             children: [
-              if (folder.path.isNotEmpty)
-                Flexible(
-                  child: Text(
-                    folder.path,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              const SizedBox(width: 8),
               // Note count badge
               if (node.noteCount > 0)
                 Container(
@@ -661,7 +652,7 @@ class _EmptySearchState extends StatelessWidget {
 }
 
 /// Show folder picker bottom sheet
-Future<LocalFolder?> showFolderPicker(
+Future<domain.Folder?> showFolderPicker(
   BuildContext context, {
   String? selectedFolderId,
   String? noteId,
@@ -669,7 +660,7 @@ Future<LocalFolder?> showFolderPicker(
   bool showCreateOption = true,
   bool showUnfiledOption = true,
 }) {
-  return showModalBottomSheet<LocalFolder>(
+  return showModalBottomSheet<domain.Folder>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

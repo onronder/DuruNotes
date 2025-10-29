@@ -140,7 +140,6 @@ class DebouncedUpdateService {
 class DebouncedUpdateManager {
   factory DebouncedUpdateManager() => _instance;
   DebouncedUpdateManager._internal();
-  final AppLogger _logger = LoggerFactory.instance;
   static final DebouncedUpdateManager _instance =
       DebouncedUpdateManager._internal();
 

@@ -197,38 +197,37 @@ enum RuleField {
   }
 
   List<RuleOperator> get availableOperators {
-    switch (valueType) {
-      case String:
-        return [
-          RuleOperator.equals,
-          RuleOperator.notEquals,
-          RuleOperator.contains,
-          RuleOperator.notContains,
-          RuleOperator.startsWith,
-          RuleOperator.endsWith,
-          RuleOperator.isEmpty,
-          RuleOperator.isNotEmpty,
-        ];
-      case DateTime:
-        return [
-          RuleOperator.equals,
-          RuleOperator.notEquals,
-          RuleOperator.greaterThan,
-          RuleOperator.lessThan,
-          RuleOperator.between,
-        ];
-      case int:
-        return [
-          RuleOperator.equals,
-          RuleOperator.notEquals,
-          RuleOperator.greaterThan,
-          RuleOperator.lessThan,
-          RuleOperator.between,
-        ];
-      case bool:
-        return [RuleOperator.equals, RuleOperator.notEquals];
-      default:
-        return [RuleOperator.equals];
+    if (valueType == String) {
+      return [
+        RuleOperator.equals,
+        RuleOperator.notEquals,
+        RuleOperator.contains,
+        RuleOperator.notContains,
+        RuleOperator.startsWith,
+        RuleOperator.endsWith,
+        RuleOperator.isEmpty,
+        RuleOperator.isNotEmpty,
+      ];
+    } else if (valueType == DateTime) {
+      return [
+        RuleOperator.equals,
+        RuleOperator.notEquals,
+        RuleOperator.greaterThan,
+        RuleOperator.lessThan,
+        RuleOperator.between,
+      ];
+    } else if (valueType == int) {
+      return [
+        RuleOperator.equals,
+        RuleOperator.notEquals,
+        RuleOperator.greaterThan,
+        RuleOperator.lessThan,
+        RuleOperator.between,
+      ];
+    } else if (valueType == bool) {
+      return [RuleOperator.equals, RuleOperator.notEquals];
+    } else {
+      return [RuleOperator.equals];
     }
   }
 }
@@ -340,7 +339,7 @@ class SmartFolderConfig {
         'rules': rules.map((r) => r.toJson()).toList(),
         'combineWithAnd': combineWithAnd,
         'customIcon': customIcon?.codePoint,
-        'customColor': customColor?.value,
+        'customColor': customColor?.toARGB32(),
         'maxResults': maxResults,
         'autoRefresh': autoRefresh,
         'refreshInterval': refreshInterval?.inSeconds,

@@ -1,6 +1,7 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/data/local/app_db.dart' as db;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/entities/note_link.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/template.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
@@ -100,7 +101,7 @@ class RepositoryAdapter {
     bool? isPinned,
   }) async {
     try {
-      return await domainNotesRepo.createOrUpdate(
+      final result = await domainNotesRepo.createOrUpdate(
         title: title,
         body: body,
         id: id,
@@ -111,6 +112,7 @@ class RepositoryAdapter {
         metadataJson: metadataJson,
         isPinned: isPinned,
       );
+      return result?.id ?? id ?? '';
     } catch (e, stack) {
       _logger.error('Failed to create/update note', error: e, stackTrace: stack);
       rethrow;
@@ -254,36 +256,61 @@ class RepositoryAdapter {
   // Utility methods for conversion between types
   // ============================================================================
 
-  LocalNote domainNoteToLocal(domain.Note note) {
-    return NoteMapper.toInfrastructure(note);
+  // NOTE: Direct conversion methods removed - encryption required for notes/templates
+  // Use repository methods which handle encryption properly
+
+  db.LocalNote domainNoteToLocal(domain.Note note, {required String titleEncrypted, required String bodyEncrypted}) {
+    return NoteMapper.toInfrastructure(note, titleEncrypted: titleEncrypted, bodyEncrypted: bodyEncrypted);
   }
 
-  domain.Note localNoteToDomain(LocalNote note, {List<String>? tags, List<domain.NoteLink>? links}) {
-    return NoteMapper.toDomain(note, tags: tags, links: links);
+  domain.Note localNoteToDomain(
+    db.LocalNote note, {
+    required String title,
+    required String body,
+    List<String>? tags,
+    List<NoteLink>? links,
+  }) {
+    return NoteMapper.toDomain(
+      note,
+      title: title,
+      body: body,
+      tags: tags,
+      links: links,
+    );
   }
 
-  LocalFolder domainFolderToLocal(domain.Folder folder) {
+  db.LocalFolder domainFolderToLocal(domain.Folder folder) {
     return FolderMapper.toInfrastructure(folder);
   }
 
-  domain.Folder localFolderToDomain(LocalFolder folder) {
+  domain.Folder localFolderToDomain(db.LocalFolder folder) {
     return FolderMapper.toDomain(folder);
   }
 
-  LocalTemplate domainTemplateToLocal(Template template) {
+  db.LocalTemplate domainTemplateToLocal(Template template) {
     return TemplateMapper.toInfrastructure(template);
   }
 
-  Template localTemplateToDomain(LocalTemplate template) {
+  Template localTemplateToDomain(db.LocalTemplate template) {
     return TemplateMapper.toDomain(template);
   }
 
-  NoteTask domainTaskToLocal(domain.Task task) {
-    return TaskMapper.toInfrastructure(task);
+  db.NoteTask domainTaskToLocal(
+    domain.Task task, {
+    required String userId,
+    required String contentEncrypted,
+    String? notesEncrypted,
+  }) {
+    return TaskMapper.toInfrastructure(
+      task,
+      userId: userId,
+      contentEncrypted: contentEncrypted,
+      notesEncrypted: notesEncrypted,
+    );
   }
 
-  domain.Task localTaskToDomain(NoteTask task) {
-    return TaskMapper.toDomain(task);
+  domain.Task localTaskToDomain(db.NoteTask task, {required String content}) {
+    return TaskMapper.toDomain(task, content: content);
   }
 
   // ============================================================================

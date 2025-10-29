@@ -78,12 +78,17 @@ class NoteSourceIcon extends StatelessWidget {
         source == 'email_in' ||
         source == 'email_inbox' ||
         source == 'email' ||
-        tags.contains('email');
+        tags.contains('email') ||
+        metadata?.containsKey('original_id') == true ||
+        metadata?.containsKey('message_id') == true ||
+        metadata?.containsKey('from') == true;
     bool looksLikeWeb() =>
         source == 'web' ||
         source == 'webclipper' ||
         tags.contains('web') ||
-        tags.contains('webclipper');
+        tags.contains('webclipper') ||
+        metadata?.containsKey('web_url') == true ||
+        metadata?.containsKey('url') == true;
 
     if (looksLikeEmail()) {
       return hasAttachments ? NoteSourceType.emailWithAttachment : NoteSourceType.email;

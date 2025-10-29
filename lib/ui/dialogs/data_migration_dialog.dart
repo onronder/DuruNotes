@@ -1,12 +1,25 @@
+// DEPRECATED: Migration service and providers have been removed
+// This dialog is kept for reference only. Encryption migration is now
+// handled automatically during app bootstrap.
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/services/data_encryption_migration_service.dart';
-import 'package:duru_notes/services/providers/migration_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Dialog for migrating plaintext data to encrypted format
 ///
-/// Features:
+/// DEPRECATED: This dialog is no longer used in the app flow.
+/// Encryption migration is now handled automatically via database schema
+/// during app bootstrap. All data is encrypted by default for new users,
+/// and existing data is migrated seamlessly when the app detects plaintext.
+///
+/// Legacy Features (for reference):
 /// - Real-time progress tracking
 /// - Dry-run preview mode
 /// - Automatic backup creation
@@ -21,9 +34,9 @@ class DataMigrationDialog extends ConsumerStatefulWidget {
 class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
   bool _isRunning = false;
   bool _isDryRun = true;
-  MigrationProgress? _progress;
   MigrationResult? _result;
   String? _error;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   Future<void> _runMigration({required bool dryRun}) async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -36,39 +49,43 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
 
     setState(() {
       _isRunning = true;
-      _progress = null;
       _result = null;
       _error = null;
       _isDryRun = dryRun;
     });
 
     try {
-      final migrationService = ref.read(dataEncryptionMigrationServiceProvider);
+      // DEPRECATED: DataEncryptionMigrationService and its provider have been removed
+      // Encryption migration is now handled automatically via database schema
+      // during app bootstrap. This dialog is kept for reference only.
+      //
+      // Migration is now handled by:
+      // - Database schema (encryption_status column)
+      // - AppBootstrap encryption initialization
+      // - Automatic detection and migration on first launch
 
-      final result = await migrationService.executeMigration(
-        userId: user.id,
-        dryRun: dryRun,
-        skipBackup: false,
-        skipValidation: false,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() {
-              _progress = progress;
-            });
-          }
-        },
+      _logger.warning(
+        'Attempted to run deprecated data migration dialog',
+        data: {'dryRun': dryRun},
       );
 
       if (mounted) {
         setState(() {
-          _result = result;
+          _error = 'Migration service is deprecated. Encryption is now handled automatically during app startup.';
           _isRunning = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Unexpected error while running deprecated migration dialog',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'dryRun': dryRun},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = 'We could not process the migration request. Please try again later.';
           _isRunning = false;
         });
       }
@@ -277,88 +294,16 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
   }
 
   Widget _buildProgressSection(ThemeData theme) {
-    if (_progress == null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Phase: ${_progress!.phase}',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Progress bar
-        LinearProgressIndicator(
-          value: _progress!.progress,
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        const SizedBox(height: 8),
-
-        // Progress text
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${_progress!.processed} / ${_progress!.total}',
-              style: theme.textTheme.bodySmall,
-            ),
-            Text(
-              '${_progress!.percentComplete}%',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-
-        if (_progress!.estimatedTimeRemaining != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'ETA: ${_formatDuration(_progress!.estimatedTimeRemaining!)}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 16),
-
-        // Stats
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildStatChip(
-              icon: Icons.check_circle_outline,
-              label: 'Success',
-              value: '${_progress!.successCount}',
-              color: Colors.green,
-            ),
-            _buildStatChip(
-              icon: Icons.error_outline,
-              label: 'Failed',
-              value: '${_progress!.failureCount}',
-              color: Colors.red,
-            ),
-          ],
-        ),
-      ],
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24.0),
+        child: CircularProgressIndicator(),
+      ),
     );
   }
 
   Widget _buildResultSection(ThemeData theme) {
     final result = _result!;
-    final isSuccess = result.isSuccess;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,20 +311,18 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         // Status header
         Row(
           children: [
-            Icon(
-              isSuccess ? Icons.check_circle : Icons.error,
-              color: isSuccess ? Colors.green : Colors.red,
+            const Icon(
+              Icons.check_circle,
+              color: Colors.green,
               size: 32,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                isSuccess
-                    ? (_isDryRun ? 'Preview Complete ✓' : 'Migration Complete ✓')
-                    : 'Migration Failed',
+                'Migration Already Complete ✓',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: isSuccess ? Colors.green : Colors.red,
+                  color: Colors.green,
                 ),
               ),
             ),
@@ -387,50 +330,15 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         ),
 
         const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 16),
 
-        // Statistics
-        if (result.notesResult != null) ...[
-          _buildResultItem(
-            'Notes',
-            result.notesResult!.successCount,
-            result.notesResult!.totalCount,
-            result.notesResult!.successRate,
+        // Message
+        if (result.message != null)
+          Text(
+            result.message!,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-          const SizedBox(height: 8),
-        ],
-
-        if (result.tasksResult != null) ...[
-          _buildResultItem(
-            'Tasks',
-            result.tasksResult!.successCount,
-            result.tasksResult!.totalCount,
-            result.tasksResult!.successRate,
-          ),
-          const SizedBox(height: 8),
-        ],
-
-        if (result.ftsResult != null) ...[
-          const Divider(),
-          const SizedBox(height: 8),
-          _buildResultItem(
-            'Search Index',
-            result.ftsResult!.notesReindexed,
-            result.ftsResult!.notesReindexed + result.ftsResult!.notesFailed,
-            result.ftsResult!.notesFailed == 0 ? 1.0 : 0.8,
-          ),
-        ],
-
-        const SizedBox(height: 16),
-
-        // Duration
-        Text(
-          'Duration: ${_formatDuration(result.duration)}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
 
         // Dry run notice
         if (_isDryRun) ...[
@@ -458,25 +366,6 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
             ),
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildResultItem(String label, int success, int total, double rate) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        Text(
-          '$success / $total (${(rate * 100).toStringAsFixed(1)}%)',
-          style: TextStyle(
-            color: rate >= 0.9 ? Colors.green : Colors.orange,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ],
     );
   }
@@ -515,45 +404,5 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         ],
       ),
     );
-  }
-
-  Widget _buildStatChip({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-    final seconds = duration.inSeconds % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m ${seconds}s';
-    } else if (minutes > 0) {
-      return '${minutes}m ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
   }
 }

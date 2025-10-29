@@ -1,4 +1,4 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_creator.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_engine.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_provider.dart';
@@ -15,7 +15,7 @@ class SmartFoldersWidget extends ConsumerWidget {
   });
 
   final void Function(SmartFolderConfig folder)? onFolderTap;
-  final void Function(LocalNote note)? onNoteTap;
+  final void Function(domain.Note note)? onNoteTap;
   final bool showExpandedView;
 
   @override
@@ -460,11 +460,11 @@ class _SmartFolderTile extends StatelessWidget {
   });
 
   final SmartFolderConfig folder;
-  final List<LocalNote> notes;
+  final List<domain.Note> notes;
   final SmartFolderStats? stats;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final void Function(LocalNote note)? onNoteTap;
+  final void Function(domain.Note note)? onNoteTap;
 
   @override
   Widget build(BuildContext context) {

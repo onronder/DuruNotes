@@ -48,13 +48,14 @@ void main() {
       test('should check feature flags correctly', () {
         final flags = FeatureFlags.instance;
 
-        expect(flags.isEnabled('use_unified_reminders'), isTrue);
+        // Check flags that actually exist in FeatureFlags class
         expect(flags.isEnabled('use_new_block_editor'), isTrue);
         expect(flags.isEnabled('use_refactored_components'), isTrue);
         expect(flags.isEnabled('use_unified_permission_manager'), isTrue);
 
-        // Test non-existent flag
+        // Test non-existent flag returns false
         expect(flags.isEnabled('non_existent_flag'), isFalse);
+        expect(flags.isEnabled('use_unified_reminders'), isFalse); // Not defined in FeatureFlags
       });
     });
 
@@ -185,7 +186,6 @@ void main() {
       });
 
       testWidgets('should handle block operations', (tester) async {
-        var changedBlocks = <NoteBlock>[];
         final blocks = [
           const NoteBlock(type: NoteBlockType.paragraph, data: 'Test'),
         ];
@@ -196,7 +196,7 @@ void main() {
               home: Scaffold(
                 body: UnifiedBlockEditor(
                   blocks: blocks,
-                  onBlocksChanged: (blocks) => changedBlocks = blocks,
+                  onBlocksChanged: (_) {},
                   config: const BlockEditorConfig(showBlockSelector: true),
                 ),
               ),
@@ -311,8 +311,8 @@ void main() {
         expect(flags.useUnifiedPermissionManager, isTrue);
         expect(flags.useRefactoredComponents, isFalse);
 
-        // Stage 2: Enable reminders
-        flags.setOverride('use_unified_reminders', true);
+        // Stage 2: Enable refactored components
+        flags.setOverride('use_refactored_components', true);
 
         expect(flags.useUnifiedPermissionManager, isTrue);
         expect(flags.useRefactoredComponents, isTrue);

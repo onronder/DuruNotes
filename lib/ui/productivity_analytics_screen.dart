@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
     show taskAnalyticsServiceProvider;
 import 'package:duru_notes/services/productivity_goals_service.dart';
@@ -149,17 +149,19 @@ class _ProductivityAnalyticsScreenState
       final analyticsService = ref.read(taskAnalyticsServiceProvider);
       final csvData = await analyticsService.exportAnalyticsAsCSV(_analytics!);
 
-      await Share.share(
-        csvData,
-        subject:
-            'Productivity Analytics - ${DateFormat.yMMMd().format(_selectedDateRange!.start)} to ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
+      await SharePlus.instance.share(
+        ShareParams(
+          text: csvData,
+          subject:
+              'Productivity Analytics - ${DateFormat.yMMMd().format(_selectedDateRange!.start)} to ${DateFormat.yMMMd().format(_selectedDateRange!.end)}',
+        ),
       );
       _logger.info(
         'Exported productivity analytics',
         data: {
           'start': _selectedDateRange!.start.toIso8601String(),
           'end': _selectedDateRange!.end.toIso8601String(),
-          'rows': _analytics!.completedTasks.length,
+          'rows': _analytics!.completionStats.totalCompleted,
         },
       );
     } catch (e) {
@@ -1032,28 +1034,28 @@ class _ProductivityAnalyticsScreenState
     }
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return Colors.green;
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return Colors.orange;
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return Colors.red;
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return Colors.purple;
     }
   }
 
-  String _getPriorityLabel(TaskPriority priority) {
+  String _getPriorityLabel(domain.TaskPriority priority) {
     switch (priority) {
-      case TaskPriority.low:
+      case domain.TaskPriority.low:
         return 'Low Priority';
-      case TaskPriority.medium:
+      case domain.TaskPriority.medium:
         return 'Medium Priority';
-      case TaskPriority.high:
+      case domain.TaskPriority.high:
         return 'High Priority';
-      case TaskPriority.urgent:
+      case domain.TaskPriority.urgent:
         return 'Urgent';
     }
   }

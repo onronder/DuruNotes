@@ -240,10 +240,10 @@ class DataConsistencyChecker {
         ));
       }
 
-      // Check content hashes
-      final localHash = _calculateContentHash(localNote.title, localNote.encryptedMetadata);
+      // Check content hashes using encrypted fields
+      final localHash = _calculateContentHash(localNote.titleEncrypted, localNote.encryptedMetadata);
       final remoteHash = _calculateContentHash(
-        remoteNote['title'] as String?,
+        remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,
       );
 
@@ -534,9 +534,9 @@ class DataConsistencyChecker {
     final taskId = localTask.id;
 
     try {
-      // Check content
-      final localContent = localTask.content;
-      final remoteContent = remoteTask['content'] as String;
+      // Check content using encrypted fields
+      final localContent = localTask.contentEncrypted;
+      final remoteContent = remoteTask['content_encrypted'] as String? ?? remoteTask['content'] as String? ?? '';
 
       if (localContent != remoteContent) {
         issues.add(ConsistencyIssue(
@@ -709,22 +709,22 @@ class DataConsistencyChecker {
   // Count helper methods
   Future<int> _getNotesCount() async {
     final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM local_notes WHERE deleted = 0').getSingle();
-    return result.read<int>('count') ?? 0;
+    return result.read<int>('count');
   }
 
   Future<int> _getFoldersCount() async {
     final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM local_folders WHERE deleted = 0').getSingle();
-    return result.read<int>('count') ?? 0;
+    return result.read<int>('count');
   }
 
   Future<int> _getRelationshipsCount() async {
     final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM note_folders').getSingle();
-    return result.read<int>('count') ?? 0;
+    return result.read<int>('count');
   }
 
   Future<int> _getTasksCount() async {
     final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0').getSingle();
-    return result.read<int>('count') ?? 0;
+    return result.read<int>('count');
   }
 
   /// Calculate content hash for comparison

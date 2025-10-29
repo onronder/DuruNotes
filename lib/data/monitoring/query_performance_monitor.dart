@@ -14,8 +14,8 @@ class QueryPerformanceMonitor {
 
   final AppDb _db;
   final AppLogger _logger;
-  final List<QueryMetric> _slowQueries = <dynamic>[];
-  final Map<String, QueryStats> _queryStats = <String, dynamic>{};
+  final List<QueryMetric> _slowQueries = [];
+  final Map<String, QueryStats> _queryStats = {};
 
   QueryPerformanceMonitor({
     required AppDb db,

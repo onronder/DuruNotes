@@ -1,0 +1,18 @@
+{
+  "test_name": "core_providers_instantiation",
+  "timestamp": "2025-10-28T23:33:00.200572",
+  "results": {
+    "appDb": {
+      "success": true,
+      "type": "AppDb"
+    },
+    "logger": {
+      "success": true,
+      "type": "ConsoleLogger"
+    },
+    "analytics": {
+      "success": true,
+      "type": "NoOpAnalytics"
+    }
+  }
+}

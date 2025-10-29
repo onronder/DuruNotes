@@ -115,15 +115,20 @@ class AuthError extends AppError {
 
   /// Creates an AuthError from a Supabase AuthException.
   factory AuthError.fromAuthException(AuthException e, [StackTrace? stack]) {
+    final lower = e.message.toLowerCase();
     var type = AuthErrorType.unauthorized;
 
-    if (e.message.contains('Invalid login')) {
+    if (lower.contains('weak') ||
+        lower.contains('pwned') ||
+        lower.contains('choose a different one')) {
+      type = AuthErrorType.weakPassword;
+    } else if (lower.contains('invalid login')) {
       type = AuthErrorType.invalidCredentials;
-    } else if (e.message.contains('expired')) {
+    } else if (lower.contains('expired')) {
       type = AuthErrorType.sessionExpired;
-    } else if (e.message.contains('not verified')) {
+    } else if (lower.contains('not verified')) {
       type = AuthErrorType.emailNotVerified;
-    } else if (e.message.contains('too many')) {
+    } else if (lower.contains('too many')) {
       type = AuthErrorType.tooManyAttempts;
     }
 
@@ -155,6 +160,8 @@ class AuthError extends AppError {
         return 'Please verify your email address';
       case AuthErrorType.tooManyAttempts:
         return 'Too many attempts. Please try again later';
+      case AuthErrorType.weakPassword:
+        return 'Password too weak. Use at least 12 characters with letters, numbers, and symbols.';
     }
   }
 }
@@ -166,6 +173,7 @@ enum AuthErrorType {
   unauthorized,
   emailNotVerified,
   tooManyAttempts,
+  weakPassword,
 }
 
 /// Validation errors for user input.

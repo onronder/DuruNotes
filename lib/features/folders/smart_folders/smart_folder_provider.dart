@@ -1,15 +1,19 @@
 import 'dart:convert';
 
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_engine.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_saved_search_presets.dart';
 import 'package:duru_notes/features/folders/smart_folders/smart_folder_types.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider for smart folder engine
 final smartFolderEngineProvider = Provider<SmartFolderEngine>((ref) {
-  final repository = ref.watch(notesRepositoryProvider);
+  // Use domain repository - always available
+  // Repository handles auth internally
+  final repository = ref.watch(notesCoreRepositoryProvider);
+  // SmartFolderEngine requires concrete NotesCoreRepository
   return SmartFolderEngine(repository);
 });
 
@@ -25,14 +29,14 @@ class SmartFoldersState {
   final List<SmartFolderConfig> folders;
   final bool isLoading;
   final String? error;
-  final Map<String, List<LocalNote>> folderContents;
+  final Map<String, List<domain.Note>> folderContents;
   final Map<String, SmartFolderStats> folderStats;
 
   SmartFoldersState copyWith({
     List<SmartFolderConfig>? folders,
     bool? isLoading,
     String? error,
-    Map<String, List<LocalNote>>? folderContents,
+    Map<String, List<domain.Note>>? folderContents,
     Map<String, SmartFolderStats>? folderStats,
   }) {
     return SmartFoldersState(
@@ -128,7 +132,7 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
       await _saveSmartFolders(folders);
 
       // Clean up state
-      final contents = Map<String, List<LocalNote>>.from(state.folderContents);
+      final contents = Map<String, List<domain.Note>>.from(state.folderContents);
       contents.remove(folderId);
 
       final stats = Map<String, SmartFolderStats>.from(state.folderStats);
@@ -152,7 +156,7 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
     try {
       state = state.copyWith(isLoading: true);
 
-      final contents = <String, List<LocalNote>>{};
+      final contents = <String, List<domain.Note>>{};
       final stats = <String, SmartFolderStats>{};
 
       // Get total notes count for statistics
@@ -185,7 +189,7 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
       final allNotes = await _engine.getAllNotes();
       final stats = SmartFolderStats.fromNotes(notes, allNotes.length);
 
-      final contents = Map<String, List<LocalNote>>.from(state.folderContents);
+      final contents = Map<String, List<domain.Note>>.from(state.folderContents);
       contents[folderId] = notes;
 
       final folderStats = Map<String, SmartFolderStats>.from(state.folderStats);
@@ -201,7 +205,7 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
   }
 
   /// Get notes for a specific smart folder
-  List<LocalNote> getNotesForFolder(String folderId) {
+  List<domain.Note> getNotesForFolder(String folderId) {
     return state.folderContents[folderId] ?? [];
   }
 
@@ -211,7 +215,7 @@ class SmartFoldersNotifier extends StateNotifier<SmartFoldersState> {
   }
 
   /// Stream notes for a smart folder with auto-refresh
-  Stream<List<LocalNote>> watchSmartFolder(String folderId) {
+  Stream<List<domain.Note>> watchSmartFolder(String folderId) {
     final folder = state.folders.firstWhere((f) => f.id == folderId);
     return _engine.watchSmartFolder(folder);
   }
@@ -276,8 +280,8 @@ final smartFolderTemplatesProvider = Provider<List<SmartFolderConfig>>((ref) {
 });
 
 /// Provider for notes in a specific smart folder
-final ProviderFamily<List<LocalNote>, String> smartFolderNotesProvider =
-    Provider.family<List<LocalNote>, String>((ref, folderId) {
+final ProviderFamily<List<domain.Note>, String> smartFolderNotesProvider =
+    Provider.family<List<domain.Note>, String>((ref, folderId) {
   final smartFoldersState = ref.watch(smartFoldersProvider);
   return smartFoldersState.folderContents[folderId] ?? [];
 });
@@ -290,8 +294,8 @@ final ProviderFamily<SmartFolderStats?, String> smartFolderStatsProvider =
 });
 
 /// Provider for streaming smart folder notes
-final StreamProviderFamily<List<LocalNote>, String> smartFolderStreamProvider =
-    StreamProvider.family<List<LocalNote>, String>((ref, folderId) {
+final StreamProviderFamily<List<domain.Note>, String> smartFolderStreamProvider =
+    StreamProvider.family<List<domain.Note>, String>((ref, folderId) {
   final notifier = ref.watch(smartFoldersProvider.notifier);
   return notifier.watchSmartFolder(folderId);
 });

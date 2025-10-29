@@ -32,20 +32,43 @@ enum SyncStatus {
   error,
 }
 
-/// Service responsible for task synchronization and conflict resolution
+/// DEPRECATED: Legacy task sync service - use UnifiedSyncService instead
+///
+/// This service has incomplete remote sync implementation (marked with TODO).
+/// Currently only syncs locally without actual remote synchronization.
+///
+/// Migrate to UnifiedSyncService for:
+/// - Complete bidirectional task sync with remote
+/// - Automatic conflict resolution
+/// - Encryption support for task data
+/// - Integration with note-embedded tasks
+/// - Proper error handling and retry logic
+///
+/// Migration example:
+/// ```dart
+/// // Old:
+/// final taskSyncService = TaskSyncService(repository: taskRepo, db: db);
+/// await taskSyncService.syncAllTasks();
+///
+/// // New:
+/// final unifiedSync = ref.watch(unifiedSyncServiceProvider);
+/// final result = await unifiedSync.syncAll();
+/// if (result.success) {
+///   // All tasks synced: ${result.syncedTasks} tasks
+/// }
+/// ```
+@Deprecated('Use UnifiedSyncService instead. This service will be removed in a future version.')
 class TaskSyncService {
   TaskSyncService({
     required ITaskRepository repository,
-    required AppDb db,
+    required AppDb db, // Kept for backward compatibility
     AppLogger? logger,
   })  : _repository = repository,
-        _db = db,
         _logger = logger ?? LoggerFactory.instance,
         _taskUpdatesController = BehaviorSubject<TaskUpdate>(),
         _syncStatusController = BehaviorSubject<SyncStatus>.seeded(SyncStatus.idle);
 
   final ITaskRepository _repository;
-  final AppDb _db;
   final AppLogger _logger;
 
   // Stream controllers for updates
@@ -78,7 +101,11 @@ class TaskSyncService {
   /// Stream of sync status
   Stream<SyncStatus> get syncStatus => _syncStatusController.stream;
 
-  /// Sync all tasks
+  /// DEPRECATED: Sync all tasks - incomplete implementation without actual remote sync
+  ///
+  /// WARNING: This method only updates local sync times without syncing to remote.
+  /// Use UnifiedSyncService.syncAll() for actual remote synchronization.
+  @Deprecated('Use UnifiedSyncService.syncAll() for complete remote sync')
   Future<void> syncAllTasks() async {
     if (_syncStatusController.value == SyncStatus.syncing) {
       _logger.debug('[TaskSyncService] Sync already in progress');
@@ -87,19 +114,22 @@ class TaskSyncService {
 
     try {
       _syncStatusController.add(SyncStatus.syncing);
-      _logger.info('[TaskSyncService] Starting full task sync');
+      _logger.warning(
+        '[TaskSyncService] DEPRECATION WARNING: syncAllTasks() does not sync to remote. '
+        'Use UnifiedSyncService.syncAll() instead.',
+      );
 
       // Get all local tasks
       final localTasks = await _repository.getAllTasks();
 
-      // TODO: Implement actual sync with remote
-      // For now, just mark as synced
+      // INCOMPLETE: This only marks tasks as synced locally without remote sync
+      // Use UnifiedSyncService for actual remote synchronization
       for (final task in localTasks) {
         _lastSyncTimes[task.id] = DateTime.now();
       }
 
       _syncStatusController.add(SyncStatus.success);
-      _logger.info('[TaskSyncService] Task sync completed successfully', data: {
+      _logger.info('[TaskSyncService] Local task sync completed (remote sync NOT performed)', data: {
         'taskCount': localTasks.length,
       });
     } catch (e, stack) {

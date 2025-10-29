@@ -190,7 +190,7 @@ async function processBatch(
       try {
         // Get user devices
         const { data: devices, error: devicesError } = await supabase
-          .rpc("get_user_device_tokens", { _user_id: notification.user_id });
+          .rpc("get_active_user_devices", { _user_id: notification.user_id });
         
         if (devicesError || !devices || devices.length === 0) {
           logger.warn("no_devices_found", { 
@@ -389,35 +389,44 @@ serve(async (req) => {
   }
   
   try {
+    // Check if request is from pg_cron
+    const userAgent = req.headers.get("user-agent") || "";
+    const isPgCron = userAgent.includes("pg_net");
+
     // Verify authentication
     const jwt = extractJwt(req);
-    
-    if (!jwt) {
+
+    if (!jwt && !isPgCron) {
       // For service-to-service calls, we accept the auto-provided SUPABASE_SERVICE_ROLE_KEY
       // This is automatically set by Supabase and is the correct service role key
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       const authHeader = req.headers.get("authorization");
-      
+
       if (!authHeader || !serviceKey) {
-        logger.error("auth_missing", { 
+        logger.error("auth_missing", {
           hasAuthHeader: !!authHeader,
-          hasServiceKey: !!serviceKey 
+          hasServiceKey: !!serviceKey
         });
         throw new AuthenticationError("Missing authentication");
       }
-      
+
       // Extract token from "Bearer <token>" format
       const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      
+
       // The SUPABASE_SERVICE_ROLE_KEY from environment is the correct one
       if (token !== serviceKey) {
-        logger.error("auth_mismatch", { 
+        logger.error("auth_mismatch", {
           tokenLength: token.length,
           serviceKeyLength: serviceKey.length,
           tokenStart: token.substring(0, 20)
         });
         throw new AuthenticationError("Invalid service role key");
       }
+    }
+
+    // Log pg_cron requests for monitoring
+    if (isPgCron) {
+      logger.info("pg_cron_request", { userAgent });
     }
     
     // Parse request body

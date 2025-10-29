@@ -1,0 +1,307 @@
+name: Critical Security Tests
+
+on:
+  push:
+    branches: [ main, develop, feature/*, hotfix/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2 AM UTC to catch any drift
+    - cron: '0 2 * * *'
+
+env:
+  FLUTTER_VERSION: '3.24.3'
+  DART_VERSION: '3.5.3'
+
+jobs:
+  critical-security-tests:
+    name: 🚨 Critical Security & Data Integrity Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: 🎯 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: |
+          flutter pub get
+          flutter pub global activate coverage
+
+      - name: 🔐 Run User Isolation Tests
+        id: user_isolation
+        run: |
+          echo "::group::User Isolation Tests"
+          flutter test test/critical/user_isolation_test.dart \
+            --coverage \
+            --reporter=github \
+            --timeout=5m || echo "USER_ISOLATION_FAILED=true" >> $GITHUB_ENV
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: 🗑️ Run Database Clearing Tests
+        id: database_clearing
+        run: |
+          echo "::group::Database Clearing Tests"
+          flutter test test/critical/database_clearing_test.dart \
+            --coverage \
+            --reporter=github \
+            --timeout=5m || echo "DATABASE_CLEARING_FAILED=true" >> $GITHUB_ENV
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: 🆔 Run User ID Validation Tests
+        id: user_id_validation
+        run: |
+          echo "::group::User ID Validation Tests"
+          flutter test test/critical/user_id_validation_test.dart \
+            --coverage \
+            --reporter=github \
+            --timeout=5m || echo "USER_ID_VALIDATION_FAILED=true" >> $GITHUB_ENV
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: 🔒 Run Encryption Integrity Tests
+        id: encryption
+        run: |
+          echo "::group::Encryption Integrity Tests"
+          flutter test test/critical/encryption_integrity_test.dart \
+            --coverage \
+            --reporter=github \
+            --timeout=5m || echo "ENCRYPTION_FAILED=true" >> $GITHUB_ENV
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: 🛡️ Run RLS Enforcement Tests
+        id: rls
+        run: |
+          echo "::group::RLS Enforcement Tests"
+          flutter test test/critical/rls_enforcement_test.dart \
+            --coverage \
+            --reporter=github \
+            --timeout=5m || echo "RLS_FAILED=true" >> $GITHUB_ENV
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: 📊 Generate Coverage Report
+        if: always()
+        run: |
+          # Merge coverage data
+          flutter pub global run coverage:format_coverage \
+            --lcov \
+            --in=coverage \
+            --out=coverage/lcov.info \
+            --report-on=lib
+
+          # Generate HTML report
+          genhtml coverage/lcov.info \
+            --output-directory coverage/html \
+            --title "Critical Security Tests Coverage" \
+            --show-details
+
+      - name: 📈 Upload Coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: critical-security
+          name: critical-security-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: 📁 Upload Coverage Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: 🔍 Security Test Results Summary
+        if: always()
+        run: |
+          echo "## 🔒 Security Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$USER_ISOLATION_FAILED" == "true" ]]; then
+            echo "| 👥 User Isolation | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 👥 User Isolation | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "$DATABASE_CLEARING_FAILED" == "true" ]]; then
+            echo "| 🗑️ Database Clearing | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🗑️ Database Clearing | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "$USER_ID_VALIDATION_FAILED" == "true" ]]; then
+            echo "| 🆔 User ID Validation | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🆔 User ID Validation | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "$ENCRYPTION_FAILED" == "true" ]]; then
+            echo "| 🔐 Encryption Integrity | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔐 Encryption Integrity | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "$RLS_FAILED" == "true" ]]; then
+            echo "| 🛡️ RLS Enforcement | ❌ **FAILED** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🛡️ RLS Enforcement | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add critical warnings
+          if [[ "$USER_ISOLATION_FAILED" == "true" ]] || [[ "$DATABASE_CLEARING_FAILED" == "true" ]]; then
+            echo "### ⚠️ CRITICAL SECURITY ISSUES DETECTED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**DO NOT DEPLOY TO PRODUCTION**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Critical data leakage vulnerabilities have been detected. These MUST be fixed before deployment." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: ❌ Fail if Critical Tests Failed
+        if: always()
+        run: |
+          if [[ "$USER_ISOLATION_FAILED" == "true" ]] || \
+             [[ "$DATABASE_CLEARING_FAILED" == "true" ]] || \
+             [[ "$USER_ID_VALIDATION_FAILED" == "true" ]] || \
+             [[ "$ENCRYPTION_FAILED" == "true" ]] || \
+             [[ "$RLS_FAILED" == "true" ]]; then
+            echo "❌ Critical security tests failed! Blocking deployment."
+            exit 1
+          fi
+          echo "✅ All critical security tests passed!"
+
+  integration-tests:
+    name: 🔄 Integration Tests
+    runs-on: ubuntu-latest
+    needs: critical-security-tests
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🎯 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🧪 Run Integration Tests
+        run: |
+          # Run all integration tests
+          flutter test integration_test/ \
+            --coverage \
+            --reporter=github \
+            --timeout=10m
+
+  performance-tests:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    needs: critical-security-tests
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🎯 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🏃 Run Performance Tests
+        run: |
+          # Check database clearing performance
+          flutter test test/critical/database_clearing_test.dart \
+            --name="should complete in less than 1 second" \
+            --reporter=github
+
+  notify-failure:
+    name: 📢 Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [critical-security-tests, integration-tests, performance-tests]
+    if: failure()
+
+    steps:
+      - name: 🚨 Send Slack Notification
+        if: github.event_name != 'pull_request'
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚨 Critical Security Tests Failed!",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "⚠️ Security Test Failure Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n*Action:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Test Results>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⛔ *DEPLOYMENT BLOCKED* - Critical security vulnerabilities detected"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  security-gate:
+    name: 🚪 Security Gate Check
+    runs-on: ubuntu-latest
+    needs: [critical-security-tests, integration-tests]
+    if: always()
+
+    steps:
+      - name: ✅ Security Gate Passed
+        if: needs.critical-security-tests.result == 'success'
+        run: |
+          echo "✅ Security gate passed - deployment allowed"
+          echo "SECURITY_GATE=PASSED" >> $GITHUB_ENV
+
+      - name: ❌ Security Gate Failed
+        if: needs.critical-security-tests.result != 'success'
+        run: |
+          echo "❌ Security gate failed - deployment blocked"
+          echo "SECURITY_GATE=FAILED" >> $GITHUB_ENV
+          exit 1

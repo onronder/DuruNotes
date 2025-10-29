@@ -29,12 +29,21 @@ class SecurityInitialization {
   static ProviderErrorRecovery get providerRecovery => _providerErrorRecovery;
 
   /// Initialize all security services
+  /// PRODUCTION FIX: Idempotent - safe to call multiple times
+  /// For re-authentication flows (sign-out → sign-up), call reset() first
   static Future<void> initialize({
     required String userId,
     String? sessionId,
     required bool debugMode,
   }) async {
-    if (_initialized) return;
+    // PRODUCTION FIX: Allow re-initialization if reset() was called
+    // This is critical for supporting sign-out → sign-up flows
+    if (_initialized) {
+      if (kDebugMode) {
+        debugPrint('ℹ️ Security services already initialized, skipping...');
+      }
+      return;
+    }
 
     try {
       // 1. Initialize Error Logging Service first
@@ -142,7 +151,28 @@ class SecurityInitialization {
   /// Check if services are initialized
   static bool get isInitialized => _initialized;
 
+  /// PRODUCTION FIX: Reset initialization state
+  /// Call this before signing out to allow fresh initialization on next sign-up
+  /// This is critical for supporting sign-out → sign-up flows
+  static void reset() {
+    if (!_initialized) return;
+
+    if (kDebugMode) {
+      debugPrint('🔄 Resetting security services initialization state...');
+    }
+
+    // Don't dispose services, just reset the flag
+    // AuthenticationGuard is now idempotent and can be re-initialized
+    _initialized = false;
+
+    if (kDebugMode) {
+      debugPrint('✅ Security services reset complete');
+    }
+  }
+
   /// Dispose all services
+  /// IMPORTANT: Call reset() instead of dispose() for sign-out flows
+  /// Only call dispose() when completely shutting down the app
   static void dispose() {
     if (!_initialized) return;
 

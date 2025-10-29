@@ -4,7 +4,9 @@ import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
 import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider;
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
 import 'package:flutter/material.dart';
@@ -309,65 +311,28 @@ class BootstrapFailureContent extends StatelessWidget {
   }
 }
 
-/// App wrapper that initializes share extension services and template migrations.
-class _AppWithShareExtension extends ConsumerStatefulWidget {
+/// App wrapper - removed share extension initialization
+/// Share extension is now initialized in app.dart AFTER security services
+class _AppWithShareExtension extends ConsumerWidget {
   const _AppWithShareExtension({required this.navigatorKey});
   final GlobalKey<NavigatorState> navigatorKey;
 
   @override
-  ConsumerState<_AppWithShareExtension> createState() =>
-      _AppWithShareExtensionState();
-}
-
-class _AppWithShareExtensionState
-    extends ConsumerState<_AppWithShareExtension> {
-  @override
-  void initState() {
-    super.initState();
-
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Log bootstrap ready event
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeServices();
-    });
-  }
-
-  Future<void> _initializeServices() async {
-    final logger = ref.read(loggerProvider);
-    final analytics = ref.read(analyticsProvider);
-
-    await _initializeShareExtension(logger);
-
-    try {
-      final migrationService = ref.read(templateMigrationServiceProvider);
-      if (await migrationService.needsMigration()) {
-        logger.info('[App] Running initial template migration');
-        await migrationService.migrateTemplates();
-        ref.invalidate(templateListProvider);
-        logger.info('[App] Template migration completed');
+      try {
+        final analytics = ref.read(analyticsProvider);
+        analytics.event(
+          'bootstrap_ready',
+          properties: {'phase': 'postBootstrap'},
+        );
+      } catch (e) {
+        // Ignore analytics errors
+        debugPrint('Analytics event failed: $e');
       }
-    } catch (error, stack) {
-      logger.error('[App] Error running template migration',
-          error: error, stackTrace: stack);
-    }
+    });
 
-    analytics.event(
-      'bootstrap_ready',
-      properties: {'phase': 'postBootstrap'},
-    );
-  }
-
-  Future<void> _initializeShareExtension(AppLogger logger) async {
-    try {
-      final shareExtensionService = ref.read(shareExtensionServiceProvider);
-      await shareExtensionService.initialize();
-      logger.info('Share extension service initialized successfully');
-    } catch (error, stack) {
-      logger.error('Failed to initialize share extension service',
-          error: error, stackTrace: stack);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return App(navigatorKey: widget.navigatorKey);
+    return App(navigatorKey: navigatorKey);
   }
 }

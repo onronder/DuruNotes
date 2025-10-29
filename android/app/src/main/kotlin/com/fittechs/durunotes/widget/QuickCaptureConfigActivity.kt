@@ -10,7 +10,7 @@ import android.widget.CheckBox
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
-import com.fittechs.durunotes.R
+import com.fittechs.duruNotesApp.R
 import org.json.JSONObject
 
 /**

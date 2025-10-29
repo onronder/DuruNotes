@@ -7,6 +7,8 @@ class Task {
   final TaskPriority priority;
   final DateTime? dueDate;
   final DateTime? completedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
   final List<String> tags;
   final Map<String, dynamic> metadata;
 
@@ -19,6 +21,8 @@ class Task {
     required this.priority,
     this.dueDate,
     this.completedAt,
+    required this.createdAt,
+    required this.updatedAt,
     required this.tags,
     required this.metadata,
   });
@@ -32,6 +36,8 @@ class Task {
     TaskPriority? priority,
     DateTime? dueDate,
     DateTime? completedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
     List<String>? tags,
     Map<String, dynamic>? metadata,
   }) {
@@ -44,6 +50,8 @@ class Task {
       priority: priority ?? this.priority,
       dueDate: dueDate ?? this.dueDate,
       completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
     );

@@ -1,11 +1,18 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
+import 'package:duru_notes/core/events/mutation_event_bus.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
+import 'package:duru_notes/services/notifications/notification_bootstrap.dart';
 import 'package:duru_notes/services/permission_manager.dart';
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:duru_notes/services/reminders/geofence_reminder_service.dart';
@@ -43,6 +50,16 @@ class ReminderCoordinator {
   final FeatureFlags _featureFlags = FeatureFlags.instance;
   final PermissionManager _permissionManager = PermissionManager.instance;
 
+  /// P0.5 SECURITY: Get current user ID for reminder operations
+  String? get currentUserId {
+    try {
+      return _ref.read(supabaseClientProvider).auth.currentUser?.id;
+    } catch (e) {
+      logger.warning('Failed to get current user ID: $e');
+      return null;
+    }
+  }
+
   /// Get the snooze service for external use
   SnoozeReminderService get snoozeService =>
       _snoozeService as SnoozeReminderService;
@@ -52,6 +69,7 @@ class ReminderCoordinator {
     if (_initialized) return;
 
     try {
+      await NotificationBootstrap.ensureInitialized(_plugin);
       // Initialize all services
       await Future.wait([
         _recurringService.initialize(),
@@ -83,8 +101,9 @@ class ReminderCoordinator {
 
   Future<bool> requestNotificationPermissions() async {
     if (_featureFlags.useUnifiedPermissionManager) {
-      final status =
-          await _permissionManager.request(PermissionType.notification);
+      final status = await _permissionManager.request(
+        PermissionType.notification,
+      );
       return status == PermissionStatus.granted;
     } else {
       // Fall back to base service method
@@ -94,8 +113,9 @@ class ReminderCoordinator {
 
   Future<bool> hasNotificationPermissions() async {
     if (_featureFlags.useUnifiedPermissionManager) {
-      return await _permissionManager
-          .hasPermission(PermissionType.notification);
+      return await _permissionManager.hasPermission(
+        PermissionType.notification,
+      );
     } else {
       // Fall back to base service method
       return await _recurringService.hasNotificationPermissions();
@@ -147,12 +167,22 @@ class ReminderCoordinator {
   }) async {
     await initialize();
 
+    final scheduledTime = remindAtUtc.toUtc();
+
+    debugPrint(
+      '[ReminderCoordinator] createTimeReminder -> '
+      'note=$noteId title="$title" remindAt=$scheduledTime '
+      'recurrence=${recurrence.name} interval=$recurrenceInterval',
+    );
+
     if (!await hasNotificationPermissions()) {
       logger.warning('Cannot create reminder - no notification permissions');
 
       if (!await requestNotificationPermissions()) {
-        analytics
-            .event('reminder.permission_denied', properties: {'type': 'time'});
+        analytics.event(
+          'reminder.permission_denied',
+          properties: {'type': 'time'},
+        );
         return null;
       }
     }
@@ -161,7 +191,7 @@ class ReminderCoordinator {
       noteId: noteId,
       title: title,
       body: body,
-      scheduledTime: remindAtUtc,
+      scheduledTime: scheduledTime,
       recurrencePattern: recurrence,
       recurrenceInterval: recurrenceInterval,
       recurrenceEndDate: recurrenceEndDate,
@@ -172,10 +202,59 @@ class ReminderCoordinator {
     final reminderId = await _recurringService.createReminder(config);
 
     if (reminderId != null) {
-      logger.info('Created time reminder', data: {
-        'id': reminderId,
-        'recurrence': recurrence.name,
-      });
+      logger.info(
+        'Created time reminder',
+        data: {'id': reminderId, 'recurrence': recurrence.name},
+      );
+      debugPrint('[ReminderCoordinator] time reminder created id=$reminderId');
+
+      // PRODUCTION: Enqueue reminder for sync to Supabase
+      final userId = currentUserId;
+      if (userId != null) {
+        try {
+          await _db.enqueue(
+            userId: userId,
+            entityId: reminderId.toString(),
+            kind: 'upsert_reminder',
+            payload: jsonEncode({
+              'noteId': noteId,
+              'type': 'time',
+              'recurrence': recurrence.name,
+              'scheduledTime': scheduledTime.toIso8601String(),
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          );
+          logger.info(
+            'Reminder enqueued for sync',
+            data: {'reminderId': reminderId, 'type': 'time'},
+          );
+        } catch (enqueueError, enqueueStack) {
+          logger.error(
+            'Failed to enqueue reminder for sync',
+            error: enqueueError,
+            stackTrace: enqueueStack,
+            data: {'reminderId': reminderId},
+          );
+          // Non-critical - reminder still created locally, will sync on next manual sync
+        }
+      } else {
+        logger.warning(
+          'Unable to enqueue reminder sync op - no authenticated user',
+          data: {'reminderId': reminderId},
+        );
+      }
+
+      MutationEventBus.instance.emitReminder(
+        kind: MutationKind.created,
+        reminderId: reminderId.toString(),
+        noteId: noteId,
+        metadata: {
+          'recurrence': recurrence.name,
+          'remindAt': scheduledTime.toIso8601String(),
+        },
+      );
+    } else {
+      debugPrint('[ReminderCoordinator] createTimeReminder returned null');
     }
 
     return reminderId;
@@ -195,13 +274,22 @@ class ReminderCoordinator {
   }) async {
     await initialize();
 
+    debugPrint(
+      '[ReminderCoordinator] createLocationReminder -> '
+      'note=$noteId title="$title" lat=$latitude lng=$longitude '
+      'radius=$radius location=${locationName ?? "unnamed"}',
+    );
+
     if (!await hasLocationPermissions()) {
-      logger
-          .warning('Cannot create location reminder - no location permissions');
+      logger.warning(
+        'Cannot create location reminder - no location permissions',
+      );
 
       if (!await requestLocationPermissions()) {
-        analytics.event('reminder.permission_denied',
-            properties: {'type': 'location'});
+        analytics.event(
+          'reminder.permission_denied',
+          properties: {'type': 'location'},
+        );
         return null;
       }
     }
@@ -224,10 +312,64 @@ class ReminderCoordinator {
     final reminderId = await _geofenceService.createReminder(config);
 
     if (reminderId != null) {
-      logger.info('Created location reminder', data: {
-        'id': reminderId,
-        'location': locationName ?? 'unnamed',
-      });
+      logger.info(
+        'Created location reminder',
+        data: {'id': reminderId, 'location': locationName ?? 'unnamed'},
+      );
+      debugPrint(
+        '[ReminderCoordinator] location reminder created id=$reminderId',
+      );
+
+      // PRODUCTION: Enqueue reminder for sync to Supabase
+      final userId = currentUserId;
+      if (userId != null) {
+        try {
+          await _db.enqueue(
+            userId: userId,
+            entityId: reminderId.toString(),
+            kind: 'upsert_reminder',
+            payload: jsonEncode({
+              'noteId': noteId,
+              'type': 'location',
+              'latitude': latitude,
+              'longitude': longitude,
+              'radius': radius,
+              'locationName': locationName,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          );
+          logger.info(
+            'Reminder enqueued for sync',
+            data: {'reminderId': reminderId, 'type': 'location'},
+          );
+        } catch (enqueueError, enqueueStack) {
+          logger.error(
+            'Failed to enqueue reminder for sync',
+            error: enqueueError,
+            stackTrace: enqueueStack,
+            data: {'reminderId': reminderId},
+          );
+          // Non-critical - reminder still created locally, will sync on next manual sync
+        }
+      } else {
+        logger.warning(
+          'Unable to enqueue location reminder sync op - no authenticated user',
+          data: {'reminderId': reminderId},
+        );
+      }
+
+      MutationEventBus.instance.emitReminder(
+        kind: MutationKind.created,
+        reminderId: reminderId.toString(),
+        noteId: noteId,
+        metadata: {
+          'locationName': locationName,
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+      );
+    } else {
+      debugPrint('[ReminderCoordinator] createLocationReminder returned null');
     }
 
     return reminderId;
@@ -246,10 +388,50 @@ class ReminderCoordinator {
         .snoozeReminder(reminderId, duration);
 
     if (snoozed) {
-      logger.info('Snoozed reminder', data: {
-        'id': reminderId,
-        'duration': duration.name,
-      });
+      logger.info(
+        'Snoozed reminder',
+        data: {'id': reminderId, 'duration': duration.name},
+      );
+
+      // PRODUCTION: Enqueue snoozed reminder for sync to Supabase
+      final userId = currentUserId;
+      if (userId != null) {
+        try {
+          await _db.enqueue(
+            userId: userId,
+            entityId: reminderId.toString(),
+            kind: 'upsert_reminder',
+            payload: jsonEncode({
+              'operation': 'snooze',
+              'duration': duration.name,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          );
+          logger.info(
+            'Snoozed reminder enqueued for sync',
+            data: {'reminderId': reminderId, 'duration': duration.name},
+          );
+        } catch (enqueueError, enqueueStack) {
+          logger.error(
+            'Failed to enqueue snoozed reminder for sync',
+            error: enqueueError,
+            stackTrace: enqueueStack,
+            data: {'reminderId': reminderId},
+          );
+          // Non-critical - reminder still snoozed locally, will sync on next manual sync
+        }
+      } else {
+        logger.warning(
+          'Unable to enqueue snoozed reminder sync op - no authenticated user',
+          data: {'reminderId': reminderId},
+        );
+      }
+
+      MutationEventBus.instance.emitReminder(
+        kind: MutationKind.updated,
+        reminderId: reminderId.toString(),
+        metadata: {'snoozed': true, 'duration': duration.name},
+      );
     }
 
     return snoozed;
@@ -258,7 +440,18 @@ class ReminderCoordinator {
   /// Get all reminders for a note
   Future<List<NoteReminder>> getRemindersForNote(String noteId) async {
     try {
-      return await _db.getRemindersForNote(noteId);
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot get reminders - no authenticated user');
+        return [];
+      }
+
+      final reminders = await _db.getRemindersForNote(noteId, userId);
+      debugPrint(
+        '[ReminderCoordinator] fetched ${reminders.length} reminders for note $noteId',
+      );
+      return reminders;
     } catch (e, stack) {
       logger.error(
         'Failed to get reminders for note',
@@ -273,7 +466,18 @@ class ReminderCoordinator {
   /// Get all active reminders
   Future<List<NoteReminder>> getActiveReminders() async {
     try {
-      return await _db.getActiveReminders();
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot get active reminders - no authenticated user');
+        return [];
+      }
+
+      final reminders = await _db.getActiveReminders(userId);
+      debugPrint(
+        '[ReminderCoordinator] fetched ${reminders.length} active reminders',
+      );
+      return reminders;
     } catch (e, stack) {
       logger.error(
         'Failed to get active reminders',
@@ -287,11 +491,20 @@ class ReminderCoordinator {
   /// Cancel a reminder
   Future<void> cancelReminder(int reminderId) async {
     try {
+      // P0.5 SECURITY: Get current userId
+      final userId = currentUserId;
+      if (userId == null) {
+        logger.warning('Cannot cancel reminder - no authenticated user');
+        return;
+      }
+
       // Determine which service should handle the cancellation
-      final reminder = await _db.getReminderById(reminderId);
+      final reminder = await _db.getReminderById(reminderId, userId);
       if (reminder == null) {
-        logger.warning('Cannot cancel reminder - not found',
-            data: {'id': reminderId});
+        logger.warning(
+          'Cannot cancel reminder - not found',
+          data: {'id': reminderId},
+        );
         return;
       }
 
@@ -308,6 +521,7 @@ class ReminderCoordinator {
           await _recurringService.cancelNotification(reminderId);
           await _db.updateReminder(
             reminderId,
+            userId,
             NoteRemindersCompanion(isActive: Value(false)),
           );
           break;
@@ -315,10 +529,43 @@ class ReminderCoordinator {
 
       logger.info('Cancelled reminder', data: {'id': reminderId});
 
-      analytics.event('reminder.cancelled', properties: {
-        'reminder_id': reminderId,
-        'type': reminder.type.name,
-      });
+      // PRODUCTION: Enqueue reminder deletion for sync to Supabase
+      try {
+        await _db.enqueue(
+          userId: userId,
+          entityId: reminderId.toString(),
+          kind: 'delete_reminder',
+          payload: jsonEncode({
+            'noteId': reminder.noteId,
+            'type': reminder.type.name,
+            'timestamp': DateTime.now().toIso8601String(),
+          }),
+        );
+        logger.info(
+          'Reminder deletion enqueued for sync',
+          data: {'reminderId': reminderId},
+        );
+      } catch (enqueueError, enqueueStack) {
+        logger.error(
+          'Failed to enqueue reminder deletion for sync',
+          error: enqueueError,
+          stackTrace: enqueueStack,
+          data: {'reminderId': reminderId},
+        );
+        // Non-critical - reminder still deleted locally, will sync on next manual sync
+      }
+
+      analytics.event(
+        'reminder.cancelled',
+        properties: {'reminder_id': reminderId, 'type': reminder.type.name},
+      );
+
+      MutationEventBus.instance.emitReminder(
+        kind: MutationKind.deleted,
+        reminderId: reminderId.toString(),
+        noteId: reminder.noteId,
+        metadata: {'type': reminder.type.name},
+      );
     } catch (e, stack) {
       logger.error(
         'Failed to cancel reminder',
@@ -339,9 +586,10 @@ class ReminderCoordinator {
       }
 
       if (reminders.isNotEmpty) {
-        logger.info('Cancelled ${reminders.length} reminders for note', data: {
-          'noteId': noteId,
-        });
+        logger.info(
+          'Cancelled ${reminders.length} reminders for note',
+          data: {'noteId': noteId},
+        );
       }
     } catch (e, stack) {
       logger.error(
@@ -385,9 +633,7 @@ class ReminderCoordinator {
       // This would typically navigate to the relevant note
       logger.info('Notification tapped', data: {'payload': payload});
 
-      analytics.event('notification.tapped', properties: {
-        'payload': payload,
-      });
+      analytics.event('notification.tapped', properties: {'payload': payload});
     } catch (e, stack) {
       logger.error(
         'Failed to handle notification tap',
@@ -416,17 +662,19 @@ class ReminderCoordinator {
   Future<Map<String, dynamic>> getReminderStatistics() async {
     try {
       final active = await getActiveReminders();
-      final snoozeStats =
-          await (_snoozeService as SnoozeReminderService).getSnoozeStats();
+      final snoozeStats = await (_snoozeService as SnoozeReminderService)
+          .getSnoozeStats();
 
       return {
         'total_active': active.length,
         'by_type': {
           'time': active.where((r) => r.type == ReminderType.time).length,
-          'recurring':
-              active.where((r) => r.type == ReminderType.recurring).length,
-          'location':
-              active.where((r) => r.type == ReminderType.location).length,
+          'recurring': active
+              .where((r) => r.type == ReminderType.recurring)
+              .length,
+          'location': active
+              .where((r) => r.type == ReminderType.location)
+              .length,
         },
         'snooze_stats': snoozeStats,
       };

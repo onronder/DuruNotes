@@ -67,9 +67,7 @@ class EncryptionService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionService');
-          scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
-        },
+          scope.setTag('operation', operation);        },
       ),
     );
   }

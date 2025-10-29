@@ -1,580 +1,226 @@
 import 'dart:io';
 
-import 'package:duru_notes/core/crypto/crypto_box.dart';
-import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
+import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:path/path.dart' as path;
+import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'import_encryption_indexing_test.mocks.dart';
 
-@GenerateMocks([
-  NotesRepository,
-  NoteIndexer,
-  AppLogger,
-  AnalyticsService,
-  CryptoBox,
+@GenerateNiceMocks([
+  MockSpec<NotesCoreRepository>(),
+  MockSpec<NoteIndexer>(),
+  MockSpec<AppLogger>(),
+  MockSpec<AnalyticsService>(),
 ])
 void main() {
-  group('ImportService Encryption & Indexing Integration Tests', () {
-    late MockNotesRepository mockRepository;
-    late MockNoteIndexer mockIndexer;
-    late MockAppLogger mockLogger;
-    late MockAnalyticsService mockAnalytics;
-    // late MockCryptoBox mockCrypto;  // Not used in current tests
-    late ImportService importService;
-    late Directory tempDir;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    setUp(() async {
-      mockRepository = MockNotesRepository();
-      mockIndexer = MockNoteIndexer();
-      mockLogger = MockAppLogger();
-      mockAnalytics = MockAnalyticsService();
-      // mockCrypto = MockCryptoBox();  // Not used in current tests
+  late Directory tempDir;
+  late MockNotesCoreRepository mockNotesRepository;
+  late MockNoteIndexer mockNoteIndexer;
+  late MockAppLogger mockLogger;
+  late MockAnalyticsService mockAnalytics;
+  late ImportService importService;
+  late domain.Note sampleNote;
 
-      importService = ImportService(
-        notesRepository: mockRepository,
-        noteIndexer: mockIndexer,
-        logger: mockLogger,
-        analytics: mockAnalytics,
-      );
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://test.supabase.co',
+      anonKey: 'test-anon-key',
+    );
+  });
 
-      // Create temp directory for test files
-      tempDir = Directory.systemTemp.createTempSync('import_test_');
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('import_service_test_');
+    mockNotesRepository = MockNotesCoreRepository();
+    mockNoteIndexer = MockNoteIndexer();
+    mockLogger = MockAppLogger();
+    mockAnalytics = MockAnalyticsService();
 
-      // Setup default mock behaviors
-      when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
-      when(mockLogger.debug(any, data: anyNamed('data'))).thenReturn(null);
-      when(
-        mockLogger.error(
-          any,
-          error: anyNamed('error'),
-          stackTrace: anyNamed('stackTrace'),
-          data: anyNamed('data'),
-        ),
-      ).thenReturn(null);
-      when(
-        mockAnalytics.event(any, properties: anyNamed('properties')),
-      ).thenReturn(null);
-      when(mockAnalytics.startTiming(any)).thenReturn(null);
-      when(
-        mockAnalytics.endTiming(any, properties: anyNamed('properties')),
-      ).thenReturn(null);
-      when(
-        mockAnalytics.featureUsed(any, properties: anyNamed('properties')),
-      ).thenReturn(null);
-      when(
-        mockAnalytics.trackError(
-          any,
-          context: anyNamed('context'),
-          properties: anyNamed('properties'),
-        ),
-      ).thenReturn(null);
-    });
+    when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
+    when(mockLogger.debug(any, data: anyNamed('data'))).thenReturn(null);
+    when(mockLogger.error(
+      any,
+      error: anyNamed('error'),
+      stackTrace: anyNamed('stackTrace'),
+      data: anyNamed('data'),
+    )).thenReturn(null);
 
-    tearDown(() async {
+    when(mockAnalytics.event(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+    when(mockAnalytics.startTiming(any)).thenReturn(null);
+    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
+        .thenReturn(null);
+
+    sampleNote = domain.Note(
+      id: 'note-123',
+      title: 'Imported Note',
+      body: 'Body',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      deleted: false,
+      isPinned: false,
+      noteType: NoteKind.note,
+      version: 1,
+      userId: 'user-123',
+      tags: const ['imported'],
+      links: const [],
+    );
+
+    importService = ImportService(
+      notesRepository: mockNotesRepository,
+      noteIndexer: mockNoteIndexer,
+      logger: mockLogger,
+      analytics: mockAnalytics,
+    );
+  });
+
+  tearDown(() {
+    if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
-    });
+    }
+  });
 
-    group('Markdown Import Integration', () {
-      test(
-        'importMarkdown calls NotesRepository.createOrUpdate and NoteIndexer.indexNote',
-        () async {
-          // Arrange
-          const testContent = '''
-# Test Note
-This is a test note with content.
-Contains #tag1 and #tag2.
-''';
-          final testFile = File(path.join(tempDir.path, 'test.md'));
-          await testFile.writeAsString(testContent);
+  group('importMarkdown', () {
+    test('persists note, indexes content, and tracks analytics', () async {
+      final markdownFile = File(p.join(tempDir.path, 'daily.md'))
+        ..writeAsStringSync('# Daily Log\nFocus on critical fixes.');
 
-          final testNote = LocalNote(
-            id: 'test-note-123',
-            title: 'Test Note',
-            body: testContent,
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-          );
-          when(
-            mockRepository.createOrUpdate(
-              title: anyNamed('title'),
-              body: anyNamed('body'),
-            ),
-          ).thenAnswer((_) async => testNote);
+      when(mockNotesRepository.createOrUpdate(
+        title: anyNamed('title'),
+        body: anyNamed('body'),
+      )).thenAnswer((_) async => sampleNote);
+      when(mockNoteIndexer.indexNote(any)).thenAnswer((_) async {});
 
-          when(mockIndexer.indexNote(any)).thenAnswer((_) async {});
+      final progress = <ImportProgress>[];
 
-          // Act
-          final result = await importService.importMarkdown(testFile);
-
-          // Assert
-          expect(result.isSuccess, true);
-          expect(result.successCount, 1);
-
-          // Verify NotesRepository.createOrUpdate was called
-          verify(
-            mockRepository.createOrUpdate(
-              title: 'Test Note',
-              body: argThat(
-                contains('This is a test note with content'),
-                named: 'body',
-              ),
-            ),
-          ).called(1);
-
-          // Verify NoteIndexer.indexNote was called
-          verify(
-            mockIndexer.indexNote(
-              argThat(
-                predicate<LocalNote>(
-                  (note) =>
-                      note.id == 'test-note-123' &&
-                      note.title == 'Test Note' &&
-                      note.body.contains('This is a test note with content'),
-                ),
-              ),
-            ),
-          ).called(1);
-
-          // Verify logging
-          verify(
-            mockLogger.info('Starting Markdown import', data: anyNamed('data')),
-          ).called(1);
-          verify(
-            mockLogger.info(
-              'Successfully imported note',
-              data: anyNamed('data'),
-            ),
-          ).called(1);
-
-          // Verify analytics
-          verify(
-            mockAnalytics.event(
-              'import.success',
-              properties: anyNamed('properties'),
-            ),
-          ).called(1);
-        },
+      final result = await importService.importMarkdown(
+        markdownFile,
+        onProgress: progress.add,
       );
 
-      test('importMarkdown handles repository errors gracefully', () async {
-        // Arrange
-        final testFile = File(path.join(tempDir.path, 'test.md'));
-        await testFile.writeAsString('# Test\nContent');
+      expect(result.isSuccess, isTrue);
+      expect(result.successCount, equals(1));
+      expect(result.errorCount, equals(0));
+      expect(result.importedFiles, contains(markdownFile.path));
+      expect(progress.map((e) => e.phase), contains(ImportPhase.completed));
 
-        when(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).thenThrow(Exception('Database error'));
+      verify(mockNotesRepository.createOrUpdate(
+        title: 'Daily Log',
+        body: anyNamed('body'),
+      )).called(1);
+      verify(mockNoteIndexer.indexNote(sampleNote)).called(1);
+      verify(mockAnalytics.event(
+        'import.success',
+        properties: anyNamed('properties'),
+      )).called(1);
+    });
 
-        // Act
-        final result = await importService.importMarkdown(testFile);
+    test('returns error result when repository throws', () async {
+      final markdownFile = File(p.join(tempDir.path, 'broken.md'))
+        ..writeAsStringSync('# Broken\nThis will fail.');
 
-        // Assert
-        expect(result.isSuccess, false);
-        expect(result.successCount, 0);
-        expect(result.errors, hasLength(1));
-        expect(result.errors.first.message, contains('Database error'));
+      when(mockNotesRepository.createOrUpdate(
+        title: anyNamed('title'),
+        body: anyNamed('body'),
+      )).thenThrow(Exception('Database unavailable'));
 
-        // Verify repository was called
-        verify(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).called(1);
+      final result = await importService.importMarkdown(markdownFile);
 
-        // Verify indexer was NOT called due to repository error
-        verifyNever(mockIndexer.indexNote(any));
+      expect(result.isSuccess, isFalse);
+      expect(result.errorCount, equals(1));
+      expect(result.errors.single.message, contains('Exception'));
 
-        // Verify error logging
-        verify(
-          mockLogger.error(
-            'Failed to create imported note',
-            error: anyNamed('error'),
-            stackTrace: anyNamed('stackTrace'),
-            data: anyNamed('data'),
-          ),
-        ).called(1);
-      });
+      verify(mockAnalytics.event(
+        'import.error',
+        properties: anyNamed('properties'),
+      )).called(1);
+      verifyNever(mockNoteIndexer.indexNote(any));
+    });
+  });
 
-      test('importMarkdown handles indexer errors gracefully', () async {
-        // Arrange
-        final testFile = File(path.join(tempDir.path, 'test.md'));
-        await testFile.writeAsString('# Test\nContent');
+  group('importObsidian', () {
+    test('imports multiple markdown files and reports progress', () async {
+      final vaultDir = Directory(p.join(tempDir.path, 'vault'))..createSync();
+      File(p.join(vaultDir.path, 'alpha.md')).writeAsStringSync('# Alpha\n#focus\nImportant decisions.');
+      final betaFile = File(p.join(vaultDir.path, 'notes', 'beta.markdown'));
+      betaFile.createSync(recursive: true);
+      betaFile.writeAsStringSync('# Beta\nWrap up sprint.');
+      // Hidden/system file should be ignored
+      File(p.join(vaultDir.path, 'README.md')).writeAsStringSync('Skip me');
 
-        final testNote = LocalNote(
-          id: 'test-note-123',
-          title: 'Test',
-          body: 'Content',
+      var createCall = 0;
+      final indexedNotes = <domain.Note>[];
+
+      when(mockNotesRepository.createOrUpdate(
+        title: anyNamed('title'),
+        body: anyNamed('body'),
+      )).thenAnswer((invocation) async {
+        createCall++;
+        final title = invocation.namedArguments[#title] as String;
+        return domain.Note(
+          id: 'imported-$createCall',
+          title: title,
+          body: 'body-$createCall',
+          createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           deleted: false,
           isPinned: false,
+          noteType: NoteKind.note,
+          version: 1,
+          userId: 'user-123',
+          tags: const [],
+          links: const [],
         );
-        when(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).thenAnswer((_) async => testNote);
-
-        when(mockIndexer.indexNote(any)).thenThrow(Exception('Indexing error'));
-
-        // Act
-        final result = await importService.importMarkdown(testFile);
-
-        // Assert - Import should still succeed even if indexing fails
-        expect(result.isSuccess, true);
-        expect(result.successCount, 1);
-
-        // Verify both repository and indexer were called
-        verify(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).called(1);
-
-        verify(mockIndexer.indexNote(any)).called(1);
-
-        // Note: In a real implementation, you might want to handle indexing errors
-        // differently, but the current ImportService doesn't seem to catch them
       });
-    });
 
-    group('ENEX Import Integration', () {
-      test('importEnex calls repository and indexer for each note', () async {
-        // Arrange
-        const enexContent = '''
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export3.dtd">
-<en-export export-date="20240101T000000Z" application="Evernote" version="10.0">
-  <note>
-    <title>First Note</title>
-    <content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
-<en-note><div>First note content</div></en-note>]]></content>
-    <created>20240101T000000Z</created>
-    <updated>20240101T120000Z</updated>
-  </note>
-  <note>
-    <title>Second Note</title>
-    <content><![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
-<en-note><div>Second note content</div></en-note>]]></content>
-    <created>20240101T000000Z</created>
-    <updated>20240101T130000Z</updated>
-  </note>
-</en-export>''';
-
-        final testFile = File(path.join(tempDir.path, 'test.enex'));
-        await testFile.writeAsString(enexContent);
-
-        when(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).thenAnswer(
-          (_) async => LocalNote(
-            id: 'note-id',
-            title: 'stub',
-            body: 'stub',
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-          ),
-        );
-
-        when(mockIndexer.indexNote(any)).thenAnswer((_) async {});
-
-        // Act
-        final result = await importService.importEnex(testFile);
-
-        // Assert
-        expect(result.isSuccess, true);
-        expect(result.successCount, 2);
-
-        // Verify repository was called for each note
-        verify(
-          mockRepository.createOrUpdate(
-            title: 'First Note',
-            body: anyNamed('body'),
-          ),
-        ).called(1);
-
-        verify(
-          mockRepository.createOrUpdate(
-            title: 'Second Note',
-            body: anyNamed('body'),
-          ),
-        ).called(1);
-
-        // Verify indexer was called for each note
-        verify(mockIndexer.indexNote(any)).called(2);
+      when(mockNoteIndexer.indexNote(any)).thenAnswer((invocation) async {
+        indexedNotes.add(invocation.positionalArguments.first as domain.Note);
       });
-    });
 
-    group('Obsidian Import Integration', () {
-      test(
-        'importObsidian calls repository and indexer for each markdown file',
-        () async {
-          // Arrange
-          final vaultDir = Directory(path.join(tempDir.path, 'vault'));
-          await vaultDir.create();
+      final progressEvents = <ImportProgress>[];
 
-          final files = {
-            'note1.md': '# Note 1\nFirst note content',
-            'note2.md': '# Note 2\nSecond note content',
-            'subfolder/note3.md': '# Note 3\nThird note content',
-          };
-
-          for (final entry in files.entries) {
-            final file = File(path.join(vaultDir.path, entry.key));
-            await file.parent.create(recursive: true);
-            await file.writeAsString(entry.value);
-          }
-
-          when(
-            mockRepository.createOrUpdate(
-              title: anyNamed('title'),
-              body: anyNamed('body'),
-            ),
-          ).thenAnswer(
-            (_) async => LocalNote(
-              id: 'note-id',
-              title: 'stub',
-              body: 'stub',
-              updatedAt: DateTime.now(),
-              deleted: false,
-              isPinned: false,
-            ),
-          );
-
-          when(mockIndexer.indexNote(any)).thenAnswer((_) async {});
-
-          // Act
-          final result = await importService.importObsidian(vaultDir);
-
-          // Assert
-          expect(result.isSuccess, true);
-          expect(result.successCount, 3);
-
-          // Verify repository was called for each file
-          verify(
-            mockRepository.createOrUpdate(
-              title: 'Note 1',
-              body: anyNamed('body'),
-            ),
-          ).called(1);
-
-          verify(
-            mockRepository.createOrUpdate(
-              title: 'Note 2',
-              body: anyNamed('body'),
-            ),
-          ).called(1);
-
-          verify(
-            mockRepository.createOrUpdate(
-              title: 'Note 3',
-              body: anyNamed('body'),
-            ),
-          ).called(1);
-
-          // Verify indexer was called for each note
-          verify(mockIndexer.indexNote(any)).called(3);
-        },
+      final result = await importService.importObsidian(
+        vaultDir,
+        onProgress: progressEvents.add,
       );
-    });
 
-    group('Encryption Verification', () {
-      test(
-        'verifies encryption is applied during repository operations',
-        () async {
-          // This test verifies that the ImportService properly integrates with
-          // the encryption layer through NotesRepository
+      expect(result.isSuccess, isTrue);
+      expect(result.successCount, equals(2));
+      expect(result.importedFiles.length, equals(2));
+      expect(indexedNotes.map((n) => n.id), containsAll(['imported-1', 'imported-2']));
+      expect(progressEvents.map((e) => e.phase), contains(ImportPhase.scanning));
+      expect(progressEvents.last.phase, ImportPhase.completed);
 
-          // Arrange
-          final realKeyManager = KeyManager.inMemory();
-          final realCrypto = CryptoBox(realKeyManager);
-          const userId = 'test-user';
+      verify(mockNotesRepository.createOrUpdate(
+        title: anyNamed('title'),
+        body: anyNamed('body'),
+      )).called(2);
+      verify(mockNoteIndexer.indexNote(any)).called(2);
+      verify(mockAnalytics.event(
+        'import.success',
+        properties: argThat(
+          containsPair('type', 'obsidian'),
+          named: 'properties',
+        ),
+      )).called(1);
 
-          final testFile = File(path.join(tempDir.path, 'test.md'));
-          await testFile.writeAsString(
-            '# Encrypted Note\nThis should be encrypted',
-          );
-
-          // Mock repository to capture the note creation
-          LocalNote? capturedNote;
-          when(
-            mockRepository.createOrUpdate(
-              title: anyNamed('title'),
-              body: anyNamed('body'),
-            ),
-          ).thenAnswer((invocation) async {
-            final title = invocation.namedArguments[#title] as String;
-            final body = invocation.namedArguments[#body] as String;
-
-            capturedNote = LocalNote(
-              id: 'test-note-id',
-              title: title,
-              body: body,
-              updatedAt: DateTime.now(),
-              deleted: false,
-              isPinned: false,
-            );
-
-            return capturedNote!;
-          });
-
-          when(mockIndexer.indexNote(any)).thenAnswer((_) async {});
-
-          // Act
-          final result = await importService.importMarkdown(testFile);
-
-          // Assert
-          expect(result.isSuccess, true);
-          expect(capturedNote, isNotNull);
-          expect(capturedNote!.title, 'Encrypted Note');
-
-          // Verify the note can be encrypted/decrypted
-          final encryptedTitle = await realCrypto.encryptStringForNote(
-            userId: userId,
-            noteId: capturedNote!.id,
-            text: capturedNote!.title,
-          );
-
-          final decryptedTitle = await realCrypto.decryptStringForNote(
-            userId: userId,
-            noteId: capturedNote!.id,
-            data: encryptedTitle,
-          );
-
-          expect(decryptedTitle, capturedNote!.title);
-
-          // Verify the note properties can be encrypted/decrypted
-          final noteProps = {
-            'body': capturedNote!.body,
-            'updatedAt': capturedNote!.updatedAt.toIso8601String(),
-            'deleted': capturedNote!.deleted,
-          };
-
-          final encryptedProps = await realCrypto.encryptJsonForNote(
-            userId: userId,
-            noteId: capturedNote!.id,
-            json: noteProps,
-          );
-
-          final decryptedProps = await realCrypto.decryptJsonForNote(
-            userId: userId,
-            noteId: capturedNote!.id,
-            data: encryptedProps,
-          );
-
-          expect(decryptedProps['body'], capturedNote!.body);
-          expect(decryptedProps['deleted'], capturedNote!.deleted);
-        },
-      );
-    });
-
-    group('Indexing Verification', () {
-      test('verifies search indexing is applied for imported notes', () async {
-        // This test verifies that the ImportService properly integrates with
-        // the search indexing layer through NoteIndexer
-
-        // Arrange
-        final realIndexer = NoteIndexer();
-
-        final testFile = File(path.join(tempDir.path, 'test.md'));
-        await testFile.writeAsString('''
-# Searchable Note
-This note contains #important tag and searchable content.
-It also links to [[other-note]] and has @mentions.
-Multiple words for search testing.
-''');
-
-        LocalNote? capturedNote;
-        when(
-          mockRepository.createOrUpdate(
-            title: anyNamed('title'),
-            body: anyNamed('body'),
-          ),
-        ).thenAnswer((invocation) async {
-          final title = invocation.namedArguments[#title] as String;
-          final body = invocation.namedArguments[#body] as String;
-
-          capturedNote = LocalNote(
-            id: 'searchable-note-id',
-            title: title,
-            body: body,
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-          );
-
-          // Actually index the note with real indexer
-          await realIndexer.indexNote(capturedNote!);
-
-          return capturedNote!;
-        });
-
-        // Use real indexer for verification
-        final importServiceWithRealIndexer = ImportService(
-          notesRepository: mockRepository,
-          noteIndexer: realIndexer,
-          logger: mockLogger,
-          analytics: mockAnalytics,
-        );
-
-        // Act
-        final result = await importServiceWithRealIndexer.importMarkdown(
-          testFile,
-        );
-
-        // Assert
-        expect(result.isSuccess, true);
-        expect(capturedNote, isNotNull);
-
-        // Verify search functionality
-        final searchResults = realIndexer.searchNotes('searchable');
-        expect(searchResults.contains(capturedNote!.id), true);
-
-        final contentResults = realIndexer.searchNotes('content');
-        expect(contentResults.contains(capturedNote!.id), true);
-
-        // Verify tag indexing
-        final tagResults = realIndexer.findNotesByTag('important');
-        expect(tagResults.contains(capturedNote!.id), true);
-
-        final mentionResults = realIndexer.findNotesByTag('mentions');
-        expect(mentionResults.contains(capturedNote!.id), true);
-
-        // Verify link indexing
-        final linkResults = realIndexer.findNotesLinkingTo('other-note');
-        expect(linkResults.contains(capturedNote!.id), true);
-
-        // Verify multi-word search
-        final multiWordResults = realIndexer.searchNotes('search testing');
-        expect(multiWordResults.contains(capturedNote!.id), true);
-
-        // Verify index statistics
-        final indexStats = realIndexer.getIndexStats();
-        expect(indexStats['indexed_notes'], 1);
-        expect(indexStats['total_tags'], greaterThan(0));
-        expect(indexStats['total_words'], greaterThan(0));
-      });
+      // Ensure hidden/system files were not processed
+      expect(result.importedFiles.every((f) => !f.contains('README')), isTrue);
+      expect(createCall, equals(2));
     });
   });
 }

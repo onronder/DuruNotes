@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart' show noteFolderIntegrationServiceProvider, rootFoldersProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,8 +311,7 @@ class _EnhancedMoveToFolderDialogState
       data: (allFolders) {
         final recentFolderObjects = _recentFolders
             .map((id) => allFolders.where((f) => f.id == id).firstOrNull)
-            .where((f) => f != null)
-            .cast<LocalFolder>()
+            .whereType<domain.Folder>()
             .toList();
 
         if (recentFolderObjects.isEmpty) {
@@ -375,7 +377,7 @@ class _EnhancedMoveToFolderDialogState
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 

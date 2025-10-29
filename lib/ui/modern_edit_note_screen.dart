@@ -1,15 +1,41 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/formatting/markdown_commands.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/core/monitoring/trace_context.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/l10n/app_localizations.dart';
+// Sprint 1 Block Parsing Fix: Import block editor and parser
+import 'package:duru_notes/core/feature_flags.dart';
+import 'package:duru_notes/core/parser/note_block_parser.dart';
+import 'package:duru_notes/models/note_block.dart';
+import 'package:duru_notes/ui/widgets/blocks/unified_block_editor.dart'
+    as unified;
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show noteLinkParserProvider, notesCoreRepositoryProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show noteFolderProvider;
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show attachmentServiceProvider, quickCaptureServiceProvider;
+import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
+    show notesPageProvider;
+import 'package:duru_notes/features/sync/providers/sync_providers.dart'
+    show syncModeProvider;
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider, loggerProvider;
+import 'package:duru_notes/features/search/providers/search_providers.dart'
+    show tagRepositoryInterfaceProvider;
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
+import 'package:duru_notes/ui/helpers/domain_note_helpers.dart';
 import 'package:duru_notes/ui/widgets/note_tag_chips.dart';
+import 'package:duru_notes/ui/widgets/note_link_autocomplete.dart';
+import 'package:duru_notes/ui/widgets/backlinks_widget.dart';
+import 'package:duru_notes/ui/widgets/interactive_note_preview.dart';
+import 'package:duru_notes/ui/_link_dialog_screen.dart';
 import 'package:duru_notes/features/templates/template_gallery_screen.dart';
 import 'package:duru_notes/features/templates/template_variable_dialog.dart';
 import 'package:duru_notes/models/template_model.dart';
@@ -17,8 +43,8 @@ import 'package:duru_notes/services/template_variable_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../theme/cross_platform_tokens.dart';
 
@@ -34,15 +60,17 @@ class ModernEditNoteScreen extends ConsumerStatefulWidget {
     this.isEditingTemplate = false,
     this.highlightTaskId,
     this.highlightTaskContent,
+    this.openInPreviewMode = false,
   });
 
   final String? noteId;
   final String? initialTitle;
   final String? initialBody;
-  final LocalFolder? initialFolder;
+  final domain.Folder? initialFolder;
   final bool isEditingTemplate;
   final String? highlightTaskId;
   final String? highlightTaskContent;
+  final bool openInPreviewMode;
 
   @override
   ConsumerState<ModernEditNoteScreen> createState() =>
@@ -59,7 +87,6 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   late AnimationController _toolbarSlideController;
   late Animation<Offset> _toolbarSlideAnimation;
   late AnimationController _saveButtonController;
-  late Animation<double> _saveButtonScale;
 
   // State
   bool _hasChanges = false;
@@ -68,18 +95,23 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   bool _showFormattingToolbar = false;
   bool _isPreviewMode = false;
   bool _isPinned = false; // Track pin state
-  LocalFolder? _selectedFolder;
+  domain.Folder? _selectedFolder;
   String? _initialText;
   late String _noteIdForTags; // Either real ID or temp ID for tags
   List<String> _currentTags = [];
+
+  AppLogger get _logger => ref.read(loggerProvider);
 
   // AI Assistant State
   bool _showAISuggestions = false;
   String? _aiSuggestion;
   bool _isAIProcessing = false;
 
+  // Sprint 1 Block Parsing Fix: Block editor state
+  List<NoteBlock> _blocks = [];
+  final FeatureFlags _featureFlags = FeatureFlags.instance;
+
   // Material-3 Design Constants
-  static const double kHeaderHeight = 64;
   static const double kToolbarIconSize = 22;
   static const double kMinTapTarget = 44;
   static const double kScreenPadding = 20;
@@ -94,11 +126,22 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
     final initialTitle = widget.initialTitle?.trimRight() ?? '';
     final initialBody = widget.initialBody ?? '';
-    final initialText =
-        initialTitle.isNotEmpty ? '$initialTitle\n$initialBody' : initialBody;
+    final initialText = initialTitle.isNotEmpty
+        ? '$initialTitle\n$initialBody'
+        : initialBody;
 
     _noteController = TextEditingController(text: initialText);
     _initialText = initialText;
+
+    // Sprint 1 Block Parsing Fix: Initialize blocks from text
+    if (_featureFlags.useBlockEditorForNotes) {
+      if (initialText.isNotEmpty) {
+        _blocks = parseMarkdownToBlocks(initialText);
+      } else {
+        // For new notes, start with an empty paragraph block
+        _blocks = [NoteBlock(type: NoteBlockType.paragraph, data: '')];
+      }
+    }
 
     // Highlight task if specified
     if (widget.highlightTaskId != null || widget.highlightTaskContent != null) {
@@ -107,21 +150,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       });
     }
 
-    // Initialize bidirectional task sync for existing notes
-    if (widget.noteId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (mounted) {
-          try {
-            // Use only bidirectional sync - legacy sync is deprecated
-            ref
-                .read(unifiedTaskServiceProvider)
-                .startWatchingNote(widget.noteId!);
-          } catch (e) {
-            debugPrint('Could not start task sync: $e');
-          }
-        }
-      });
-    }
+    // Domain tasks are now handled via controllers; no unified sync hook needed here
 
     _noteController.addListener(() {
       // mark dirty only on first mutation, still rebuild for stats
@@ -136,9 +165,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       }
     });
 
-    // REMOVED: Legacy task sync - now handled by bidirectional sync above
-    // The unifiedTaskServiceProvider.startWatchingNote() call at line 95
-    // already handles initial sync via initializeBidirectionalSync()
+    // Legacy unified task sync removed; domain controller handles note/task lifecycle.
 
     // Animation setup for toolbar slide with Material-3 timing
     _toolbarSlideController = AnimationController(
@@ -147,20 +174,17 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
     _toolbarSlideAnimation =
         Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _toolbarSlideController,
-        curve: Curves.easeOut,
-        reverseCurve: Curves.easeIn,
-      ),
-    );
+          CurvedAnimation(
+            parent: _toolbarSlideController,
+            curve: Curves.easeOut,
+            reverseCurve: Curves.easeIn,
+          ),
+        );
 
-    // Animation for save button with Material-3 timing
+    // Animation controller for save button (reserved for future use)
     _saveButtonController = AnimationController(
       duration: const Duration(milliseconds: 150),
       vsync: this,
-    );
-    _saveButtonScale = Tween<double>(begin: 1, end: 0.95).animate(
-      CurvedAnimation(parent: _saveButtonController, curve: Curves.easeInOut),
     );
 
     // Focus listener for animation triggers
@@ -185,6 +209,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     // Load metadata for existing notes
     if (widget.noteId != null) {
       _loadNoteMetadata();
+
+      // UX Enhancement: Open existing notes in preview mode by default
+      // User can tap pencil icon to edit
+      if (widget.openInPreviewMode) {
+        _isPreviewMode = true;
+      }
     }
   }
 
@@ -192,9 +222,23 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     if (widget.noteId == null) return;
 
     try {
-      final note =
-          await ref.read(notesRepositoryProvider).getNote(widget.noteId!);
+      final note = await ref
+          .read(notesCoreRepositoryProvider)
+          .getNoteById(widget.noteId!);
       if (note != null && mounted) {
+        // Load note content into editor
+        final title = note.title.trimRight();
+        final body = note.body;
+        final noteText = title.isNotEmpty ? '$title\n$body' : body;
+
+        _noteController.text = noteText;
+        _initialText = noteText;
+
+        // Sprint 1 Block Parsing Fix: Update blocks from loaded content
+        if (_featureFlags.useBlockEditorForNotes && noteText.isNotEmpty) {
+          _blocks = parseMarkdownToBlocks(noteText);
+        }
+
         // Load pin state
         setState(() {
           _isPinned = note.isPinned;
@@ -202,16 +246,22 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
         // Load existing tags
         final tags = await ref
-            .read(notesRepositoryProvider)
+            .read(tagRepositoryInterfaceProvider)
             .getTagsForNote(widget.noteId!);
         if (mounted) {
           setState(() {
-            _currentTags = tags.cast<String>();
+            _currentTags = tags;
           });
         }
       }
-    } catch (e) {
-      // Silently fail - metadata is not critical
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load note metadata',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
     }
   }
 
@@ -233,9 +283,14 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             _selectedFolder = folder;
           });
         }
-      } on Exception catch (e) {
-        // If error fetching folder, treat as unfiled
-        debugPrint('Error fetching folder for note: $e');
+      } on Exception catch (error, stackTrace) {
+        _logger.error(
+          'Failed to load folder for note',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': widget.noteId},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       }
     }
   }
@@ -265,12 +320,13 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.notifications_active,
-                    color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text('Opened from task reminder'),
+                const Icon(
+                  Icons.notifications_active,
+                  color: Colors.white,
+                  size: 20,
                 ),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Opened from task reminder')),
               ],
             ),
             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -294,26 +350,14 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     _saveButtonController.dispose();
 
     // Stop watching note for task sync - do this after controllers but before super.dispose()
-    if (widget.noteId != null) {
-      // Schedule the cleanup for the next frame to avoid using ref during disposal
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          // Check if the widget is still mounted before using ref
-          if (context.owner != null) {
-            final coordinator = ref.read(unifiedTaskServiceProvider);
-            coordinator.stopWatchingNote(widget.noteId!);
-          }
-        } catch (e) {
-          // Widget already disposed or provider not available, ignore
-          debugPrint('Could not stop watching note: $e');
-        }
-      });
-    }
 
     // Clean up temp tags if note was discarded
     if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
       // Schedule cleanup for next frame to avoid ref usage during disposal
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
         _cleanupTempTags();
       });
     }
@@ -324,30 +368,38 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   Future<void> _cleanupTempTags() async {
     // Skip cleanup - temp tags will be cleaned up by database maintenance
     // We can't use ref here as the widget might be disposed
-    debugPrint('Skipping temp tag cleanup for $_noteIdForTags');
+    _logger.debug(
+      'Skipping temp tag cleanup',
+      data: {'draftNoteId': _noteIdForTags},
+    );
   }
 
   Future<void> _remapTempTags(String realNoteId) async {
     try {
-      // Update all temp tags to use the real note ID
-      final db = ref.read(notesRepositoryProvider).db;
-      await (db.update(db.noteTags)
-            ..where((t) => t.noteId.equals(_noteIdForTags)))
-          .write(NoteTagsCompanion(noteId: Value(realNoteId)));
-
-      // Update our local reference
-      _noteIdForTags = realNoteId;
-    } catch (e) {
-      // If remapping fails, try to ensure tags are saved with the real ID
+      // Re-save all tags with the real note ID
       for (final tag in _currentTags) {
         try {
           await ref
-              .read(notesRepositoryProvider)
-              .addTag(realNoteId, tag);
-        } catch (_) {
-          // Continue with other tags even if one fails
+              .read(tagRepositoryInterfaceProvider)
+              .addTag(noteId: realNoteId, tag: tag);
+        } catch (error, stackTrace) {
+          _logger.warning(
+            'Failed to remap tag during note save',
+            data: {'noteId': realNoteId, 'tag': tag},
+          );
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         }
       }
+      // Update our local reference
+      _noteIdForTags = realNoteId;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to remap temporary tags after note save',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'draftNoteId': _noteIdForTags, 'realNoteId': realNoteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
     }
   }
 
@@ -399,16 +451,15 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       child: Scaffold(
         backgroundColor: colorScheme.surface,
         appBar: AppBar(
-          title: Text(widget.isEditingTemplate
-              ? AppLocalizations.of(context).editingTemplate
-              : (widget.noteId == null ? 'New Note' : 'Edit Note')),
+          title: Text(
+            widget.isEditingTemplate
+                ? AppLocalizations.of(context).editingTemplate
+                : (widget.noteId == null ? 'New Note' : 'Edit Note'),
+          ),
           flexibleSpace: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  DuruColors.primary,
-                  DuruColors.accent,
-                ],
+                colors: [DuruColors.primary, DuruColors.accent],
               ),
             ),
           ),
@@ -429,10 +480,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             // Template button - only for new notes
             if (widget.noteId == null && !widget.isEditingTemplate)
               IconButton(
-                icon: Icon(
-                  CupertinoIcons.doc_text,
-                  color: Colors.white,
-                ),
+                icon: Icon(CupertinoIcons.doc_text, color: Colors.white),
                 onPressed: _showTemplatePicker,
                 tooltip: 'Use Template',
               ),
@@ -458,9 +506,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             // Preview toggle
             IconButton(
               icon: Icon(
-                _isPreviewMode
-                    ? CupertinoIcons.pencil
-                    : CupertinoIcons.eye,
+                _isPreviewMode ? CupertinoIcons.pencil : CupertinoIcons.eye,
                 color: Colors.white,
               ),
               onPressed: () {
@@ -478,10 +524,15 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
-                    : Icon(CupertinoIcons.checkmark_circle_fill, color: Colors.white),
+                    : Icon(
+                        CupertinoIcons.checkmark_circle_fill,
+                        color: Colors.white,
+                      ),
                 onPressed: _isLoading ? null : () => _saveNote(),
                 tooltip: 'Save',
               ),
@@ -490,7 +541,6 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         body: SafeArea(
           child: Column(
             children: [
-
               // AI Suggestion Card
               _buildAISuggestionCard(theme, colorScheme),
 
@@ -507,7 +557,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                             : Colors.white.withValues(alpha: 0.9),
                         border: Border(
                           bottom: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.2,
+                            ),
                           ),
                         ),
                       ),
@@ -661,10 +713,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                             HapticFeedback.lightImpact();
                             _applyAISuggestion();
                           },
-                          icon: Icon(
-                            CupertinoIcons.checkmark_circle,
-                            size: 16,
-                          ),
+                          icon: Icon(CupertinoIcons.checkmark_circle, size: 16),
                           label: Text('Accept'),
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF9333EA),
@@ -674,13 +723,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                           onPressed: () {
                             _requestAISuggestion();
                           },
-                          icon: Icon(
-                            CupertinoIcons.refresh,
-                            size: 16,
-                          ),
+                          icon: Icon(CupertinoIcons.refresh, size: 16),
                           label: Text('Try Another'),
                           style: TextButton.styleFrom(
-                            foregroundColor: isDark ? Colors.white70 : Colors.grey,
+                            foregroundColor: isDark
+                                ? Colors.white70
+                                : Colors.grey,
                           ),
                         ),
                       ],
@@ -714,176 +762,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     });
   }
 
-  Widget _buildHeaderAction({
-    required IconData icon,
-    required String tooltip,
-    required bool isActive,
-    required VoidCallback onPressed,
-    required ColorScheme colorScheme,
-  }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: isActive ? colorScheme.primaryContainer : Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          size: 20,
-          color: isActive
-              ? colorScheme.onPrimaryContainer
-              : colorScheme.onSurfaceVariant,
-        ),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        constraints: const BoxConstraints(
-          minWidth: kMinTapTarget,
-          minHeight: kMinTapTarget,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionBar(ThemeData theme, ColorScheme colorScheme) {
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            DuruColors.primary.withValues(alpha: 0.05),
-            DuruColors.accent.withValues(alpha: 0.02),
-          ],
-        ),
-      ),
-      child: Row(
-        children: [
-          // Folder selector
-          _buildQuickAction(
-            icon: CupertinoIcons.folder,
-            label: _selectedFolder?.name ?? 'No Folder',
-            onTap: () => _showFolderPicker(context),
-            color: DuruColors.primary,
-            isDark: isDark,
-          ),
-          const SizedBox(width: 8),
-          // Pin toggle (for existing notes)
-          if (widget.noteId != null)
-            _buildQuickAction(
-              icon: _isPinned ? CupertinoIcons.pin_fill : CupertinoIcons.pin,
-              label: _isPinned ? 'Pinned' : 'Pin',
-              onTap: () {
-                setState(() => _isPinned = !_isPinned);
-                HapticFeedback.lightImpact();
-              },
-              color: _isPinned ? DuruColors.accent : Colors.grey,
-              isDark: isDark,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required Color color,
-    required bool isDark,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSaveButton(ThemeData theme, ColorScheme colorScheme) {
-    if (_isLoading) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-          ),
-        ),
-      );
-    }
-
-    final isEnabled = _hasChanges;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isEnabled ? _saveNote : null,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: isEnabled
-                ? LinearGradient(
-                    colors: [colorScheme.primary, colorScheme.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: isEnabled ? null : colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isEnabled ? Icons.save_rounded : Icons.check_rounded,
-                size: 18,
-                color: isEnabled
-                    ? colorScheme.onPrimary
-                    : colorScheme.onPrimaryContainer,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isEnabled ? 'Save' : 'Done',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: isEnabled
-                      ? colorScheme.onPrimary
-                      : colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Legacy UI methods removed - replaced by AppBar actions and modern toolbar
+  // (_buildHeaderAction, _buildQuickActionBar, _buildQuickAction, _buildSaveButton)
 
   Widget _buildEditor(ThemeData theme, ColorScheme colorScheme) {
     final isDark = theme.brightness == Brightness.dark;
@@ -947,7 +827,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 border: Border.all(
                   color: _contentHasFocus
                       ? DuruColors.primary.withValues(alpha: 0.3)
-                      : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+                      : (isDark ? Colors.white : Colors.grey).withValues(
+                          alpha: 0.1,
+                        ),
                   width: _contentHasFocus ? 2 : 1,
                 ),
                 boxShadow: [
@@ -960,47 +842,117 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 100),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _noteController,
-                        focusNode: _contentFocusNode,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          height: 1.7,
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontSize: 16,
-                        ),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Note title\n\nStart writing your thoughts...\n\n'
-                              'First line becomes the title',
-                          hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                            height: 1.7,
-                            color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.4),
-                            fontSize: 16,
-                          ),
-                          contentPadding: const EdgeInsets.all(24),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                        ),
-                        maxLines: null,
-                        textAlignVertical: TextAlignVertical.top,
-                        keyboardType: TextInputType.multiline,
-                      ),
-                      // Add attachments section if available
+                // Sprint 1 Block Parsing Fix: Different layouts for BlockEditor vs TextField
+                // BlockEditor has internal scrolling, TextField needs SingleChildScrollView
+                child: _featureFlags.useBlockEditorForNotes
+                    ? // BlockEditor mode: No ScrollView, let BlockEditor handle scrolling
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: kContentPadding,
+                        padding: const EdgeInsets.only(bottom: 100),
+                        child: unified.UnifiedBlockEditor(
+                          blocks: _blocks,
+                          onBlocksChanged: (newBlocks) {
+                            setState(() {
+                              _blocks = newBlocks;
+                              // Sync back to text controller for save
+                              _noteController.text = blocksToMarkdown(
+                                newBlocks,
+                              );
+                              _hasChanges = true;
+                            });
+                          },
+                          noteId: widget.noteId,
+                          config: const unified.BlockEditorConfig(
+                            allowReordering: true,
+                            showBlockSelector:
+                                false, // Hide toolbar (we have our own)
+                            enableMarkdown: true,
+                            enableTaskSync: true,
+                            useAdvancedFeatures: true,
+                          ),
                         ),
-                        child: _buildAttachmentsIfAny(),
+                      )
+                    : // TextField mode: Use SingleChildScrollView for traditional scrolling
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 100),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Legacy TextField for plain text editing
+                            NoteLinkAutocomplete(
+                              textEditingController: _noteController,
+                              focusNode: _contentFocusNode,
+                              linkParser: ref.read(noteLinkParserProvider),
+                              notesRepository: ref.read(
+                                notesCoreRepositoryProvider,
+                              ),
+                              child: TextField(
+                                controller: _noteController,
+                                focusNode: _contentFocusNode,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  height: 1.7,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontSize: 16,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Note title\n\nStart writing your thoughts...\n\n'
+                                      'First line becomes the title\n\n'
+                                      'Type @ to link to other notes',
+                                  hintStyle: theme.textTheme.bodyLarge
+                                      ?.copyWith(
+                                        height: 1.7,
+                                        color:
+                                            (isDark
+                                                    ? Colors.white
+                                                    : Colors.black87)
+                                                .withValues(alpha: 0.4),
+                                        fontSize: 16,
+                                      ),
+                                  contentPadding: const EdgeInsets.all(24),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                                maxLines: null,
+                                textAlignVertical: TextAlignVertical.top,
+                                keyboardType: TextInputType.multiline,
+                              ),
+                            ),
+                            // Add attachments section if available
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: kContentPadding,
+                              ),
+                              child: _buildAttachmentsIfAny(),
+                            ),
+
+                            // Add backlinks section for existing notes
+                            if (widget.noteId != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: BacklinksWidget(
+                                  currentNoteId: widget.noteId!,
+                                  linkParser: ref.read(noteLinkParserProvider),
+                                  notesRepository: ref.read(
+                                    notesCoreRepositoryProvider,
+                                  ),
+                                  onNavigateToNote: (noteId) {
+                                    // Navigate to the linked note
+                                    Navigator.of(context).push<void>(
+                                      MaterialPageRoute<void>(
+                                        builder: (context) =>
+                                            ModernEditNoteScreen(
+                                              noteId: noteId,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  initiallyExpanded: false,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ),
@@ -1016,29 +968,34 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     }
 
     // Get note from repository to access persistent metadata
-    return FutureBuilder<LocalNote?>(
-      future: ref.read(notesRepositoryProvider).getNote(widget.noteId!),
+    return FutureBuilder<domain.Note?>(
+      future: ref.read(notesCoreRepositoryProvider).getNoteById(widget.noteId!),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data?.encryptedMetadata == null) {
+        final note = snapshot.data;
+        if (note == null) {
           return const SizedBox.shrink();
         }
 
         try {
-          final meta = jsonDecode(snapshot.data!.encryptedMetadata!);
+          // Prefer attachmentMeta (persisted) and fall back to metadata payload.
+          final attachmentsFromMeta = DomainNoteHelpers.getAttachments(note);
+          final attachmentEntries = attachmentsFromMeta.isNotEmpty
+              ? attachmentsFromMeta
+              : _attachmentsFromMetadata(note.metadata);
 
-          final raw = (meta['attachments']?['files'] as List?)
-                  ?.cast<Map<String, dynamic>>() ??
-              const [];
-
-          final files = raw
+          final files = attachmentEntries
               .map(
                 (m) => EmailAttachmentRef(
-                  path: (m['path'] as String?) ?? '',
-                  filename: (m['filename'] as String?) ??
+                  path: (m['path'] as String?)?.trim() ?? '',
+                  filename:
+                      (m['filename'] as String?)?.trim() ??
                       _inferFilename((m['path'] as String?) ?? ''),
                   mimeType:
-                      (m['type'] as String?) ?? 'application/octet-stream',
+                      (m['type'] as String?)?.trim() ??
+                      'application/octet-stream',
                   sizeBytes: (m['size'] as num?)?.toInt() ?? 0,
+                  url: (m['url'] as String?)?.trim(),
+                  urlExpiresAt: _parseDate(m['url_expires_at']),
                 ),
               )
               .where((f) => f.path.isNotEmpty)
@@ -1048,13 +1005,70 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             return const SizedBox.shrink();
           }
 
-          return EmailAttachmentsSection(files: files);
-        } catch (e) {
-          // Error parsing metadata
+          // Determine correct bucket based on attachment paths
+          // - Paths starting with "temp/" are in inbound-attachments-temp
+          // - Paths starting with UUID (user_id) are in inbound-attachments (after processing)
+          final firstPath = files.first.path;
+          final bucketId = firstPath.startsWith('temp/')
+              ? 'inbound-attachments-temp'
+              : 'inbound-attachments';
+
+          return EmailAttachmentsSection(
+            files: files,
+            bucketId: bucketId, // Dynamic bucket based on attachment path
+            signedUrlTtlSeconds: 86400, // 24 hours for regenerated URLs
+          );
+        } catch (error, stackTrace) {
+          _logger.error(
+            'Failed to parse note attachments',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'noteId': widget.noteId},
+          );
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
           return const SizedBox.shrink();
         }
       },
     );
+  }
+
+  List<Map<String, dynamic>> _attachmentsFromMetadata(String? metadataJson) {
+    if (metadataJson == null || metadataJson.trim().isEmpty) {
+      return const [];
+    }
+    try {
+      final decoded = jsonDecode(metadataJson);
+      if (decoded is Map<String, dynamic>) {
+        final attachments = decoded['attachments'];
+        if (attachments is Map<String, dynamic>) {
+          final files = attachments['files'];
+          if (files is List) {
+            return files
+                .whereType<Map<dynamic, dynamic>>()
+                .map((entry) {
+                  final mapped = <String, dynamic>{};
+                  entry.forEach((key, value) => mapped[key.toString()] = value);
+                  return mapped;
+                })
+                .toList(growable: false);
+          }
+        }
+      }
+    } catch (error, stackTrace) {
+      _logger.warn(
+        'Failed to parse attachments from metadata',
+        data: {'error': error.toString(), 'stackTrace': stackTrace.toString()},
+      );
+    }
+    return const [];
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 
   String _inferFilename(String path) {
@@ -1081,72 +1095,78 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           ],
         ),
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(kScreenPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title display in preview
-            Text(
-              displayTitle,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: kVerticalSpacingLarge),
-
-            // Gradient separator
-            Container(
-              height: 2,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withValues(alpha: 0.3),
-                    colorScheme.secondary.withValues(alpha: 0.3),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-            const SizedBox(height: kVerticalSpacingLarge),
-
-            // Body content rendered as Markdown
-            if (bodyContent.isNotEmpty)
-              MarkdownBody(
-                data: bodyContent,
-                selectable: true,
-                styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                  p: theme.textTheme.bodyLarge?.copyWith(
-                    height: 1.7,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title display in preview
+          Padding(
+            padding: const EdgeInsets.all(kScreenPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayTitle,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
                   ),
-                  code: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                    backgroundColor: colorScheme.primaryContainer.withValues(
-                      alpha: 0.3,
-                    ),
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                  blockquote: theme.textTheme.bodyLarge?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
                 ),
-              )
-            else
-              Text(
-                'No content',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+                const SizedBox(height: kVerticalSpacingLarge),
 
-            const SizedBox(height: 100),
-          ],
-        ),
+                // Gradient separator
+                Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.primary.withValues(alpha: 0.3),
+                        colorScheme.secondary.withValues(alpha: 0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Interactive preview with checkbox support
+          Expanded(
+            child: bodyContent.isNotEmpty
+                ? InteractiveNotePreview(
+                    content: bodyContent,
+                    onContentChanged: (newContent) {
+                      // Update the note controller with new content
+                      final parts = _splitTitleBody(_noteController.text);
+                      _noteController.text = '${parts.title}\n$newContent';
+                      setState(() {
+                        _hasChanges = true;
+                      });
+                    },
+                    theme: theme,
+                    colorScheme: colorScheme,
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(kScreenPadding),
+                    child: Text(
+                      'No content',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+          ),
+
+          if (widget.noteId != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kContentPadding),
+              child: _buildAttachmentsIfAny(),
+            ),
+          const SizedBox(height: 100),
+        ],
       ),
     );
   }
@@ -1293,75 +1313,22 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
   }
 
-  void _insertMarkdown(String prefix, String suffix) {
-    final text = _noteController.text;
-    final selection = _noteController.selection;
-    final start = selection.start;
-    final end = selection.end;
-
-    if (start >= 0 && end >= 0) {
-      final selectedText = text.substring(start, end);
-      final newText = text.replaceRange(
-        start,
-        end,
-        '$prefix$selectedText$suffix',
-      );
-
-      _noteController.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(
-          offset: start + prefix.length + selectedText.length,
-        ),
-      );
-
-      HapticFeedback.lightImpact();
-    }
-  }
-
-  void _insertList(String listType) {
-    final text = _noteController.text;
-    final selection = _noteController.selection;
-    final position = selection.start;
-
-    String prefix;
-    switch (listType) {
-      case 'bullet':
-        prefix = '- '; // PRODUCTION FIX: Use standard Markdown bullet
-      case 'numbered':
-        prefix = '1. ';
-      case 'checkbox':
-        prefix = '- [ ] ';
-      default:
-        prefix = '- ';
-    }
-
-    // Find line start
-    var lineStart = position;
-    while (lineStart > 0 && text[lineStart - 1] != '\n') {
-      lineStart--;
-    }
-
-    final newText = text.replaceRange(lineStart, lineStart, prefix);
-
-    _noteController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: position + prefix.length),
-    );
-
-    HapticFeedback.lightImpact();
-  }
+  // Legacy formatting methods removed - replaced by MarkdownCommand system
+  // (_insertMarkdown, _insertList)
 
   // PRODUCTION ENHANCEMENT: Execute formatting commands with undo support
   void _executeCommand(MarkdownCommand command) {
     // Track analytics
-    ref.read(analyticsProvider).event(
-      'editor.formatting',
-      properties: {
-        'command': command.analyticsName,
-        'selection_length':
-            _noteController.selection.end - _noteController.selection.start,
-      },
-    );
+    ref
+        .read(analyticsProvider)
+        .event(
+          'editor.formatting',
+          properties: {
+            'command': command.analyticsName,
+            'selection_length':
+                _noteController.selection.end - _noteController.selection.start,
+          },
+        );
 
     // Execute command
     command.execute(_noteController);
@@ -1438,7 +1405,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     );
   }
 
-  // PRODUCTION ENHANCEMENT: Show link insertion dialog
+  // PRODUCTION ENHANCEMENT: Show link insertion dialog with note and web link support
   void _showLinkDialog() {
     final selectedText = _noteController.selection.isCollapsed
         ? ''
@@ -1447,51 +1414,27 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             _noteController.selection.end,
           );
 
-    final urlController = TextEditingController();
-    final textController = TextEditingController(text: selectedText);
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Insert Link'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: textController,
-              decoration: const InputDecoration(
-                labelText: 'Link Text',
-                hintText: 'Enter link text',
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => LinkDialogScreen(
+          initialText: selectedText,
+          linkParser: ref.read(noteLinkParserProvider),
+          notesRepository: ref.read(notesCoreRepositoryProvider),
+          onInsertLink: (linkMarkdown) {
+            // Insert the link at cursor position
+            final position = _noteController.selection.start;
+            final text = _noteController.text;
+            _noteController.value = TextEditingValue(
+              text: text.replaceRange(position, position, linkMarkdown),
+              selection: TextSelection.collapsed(
+                offset: position + linkMarkdown.length,
               ),
-              autofocus: selectedText.isEmpty,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: urlController,
-              decoration: const InputDecoration(
-                labelText: 'URL',
-                hintText: 'https://',
-              ),
-              keyboardType: TextInputType.url,
-              autofocus: selectedText.isNotEmpty,
-            ),
-          ],
+            );
+            _hasChanges = true;
+            HapticFeedback.lightImpact();
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _executeCommand(
-                LinkCommand(url: urlController.text, text: textController.text),
-              );
-            },
-            child: const Text('Insert'),
-          ),
-        ],
+        fullscreenDialog: true,
       ),
     );
   }
@@ -1521,10 +1464,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         );
 
         // Track analytics
-        ref.read(analyticsProvider).event(
-          'editor.image_inserted',
-          properties: {'source': 'toolbar', 'size': result.fileSize},
-        );
+        ref
+            .read(analyticsProvider)
+            .event(
+              'editor.image_inserted',
+              properties: {'source': 'toolbar', 'size': result.fileSize},
+            );
 
         // Mark as modified
         _hasChanges = true;
@@ -1539,13 +1484,23 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           );
         }
       }
-    } catch (e) {
-      debugPrint('Error inserting image: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to insert image into note',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'noteId': widget.noteId},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to insert image: $e'),
+            content: const Text('Failed to insert image. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_insertImage()),
+            ),
           ),
         );
       }
@@ -1600,7 +1555,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   Future<void> _showFolderPicker(BuildContext context) async {
     HapticFeedback.lightImpact();
 
-    final folder = await showModalBottomSheet<LocalFolder?>(
+    final folder = await showModalBottomSheet<domain.Folder?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1631,33 +1586,83 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       return;
     }
 
+    final logger = ref.read(loggerProvider);
+
     setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
 
-    try {
-      final repo = ref.read(notesRepositoryProvider);
+    String? noteIdToUse;
+    final traceId = const Uuid().v4();
 
-      final savedNote = await repo.createOrUpdate(
-        id: widget.noteId,
-        title: cleanTitle.isEmpty ? 'Untitled Note' : cleanTitle,
-        body: cleanBody,
-        isPinned: _isPinned, // CRITICAL FIX: Pass current pin state when saving
+    try {
+      final repo = ref.read(notesCoreRepositoryProvider);
+
+      logger.info(
+        'Note save requested',
+        data: {
+          'existingNoteId': widget.noteId,
+          'titleLength': cleanTitle.length,
+          'bodyLength': cleanBody.length,
+          'isPinned': _isPinned,
+          'hasFolder': _selectedFolder != null,
+          'traceId': traceId,
+        },
+      );
+      debugPrint(
+        '[ModernEditNote] save requested -> '
+        'existing=${widget.noteId ?? "new"} '
+        'titleLen=${cleanTitle.length} bodyLen=${cleanBody.length} '
+        'pinned=$_isPinned folder=${_selectedFolder?.id} traceId=$traceId',
+      );
+
+      final savedNote = await TraceContext.runWithNoteSaveTrace(
+        traceId,
+        () => repo.createOrUpdate(
+          id: widget.noteId,
+          title: cleanTitle.isEmpty ? 'Untitled Note' : cleanTitle,
+          body: cleanBody,
+          isPinned:
+              _isPinned, // CRITICAL FIX: Pass current pin state when saving
+        ),
       );
 
       // handle folder assignment
-      final noteIdToUse = savedNote?.id ?? widget.noteId;
-      if (noteIdToUse != null) {
-        // Initialize task sync for newly saved notes
-        if (widget.noteId == null && mounted) {
-          try {
-            // Use only bidirectional sync - legacy sync is deprecated
-            ref
-                .read(unifiedTaskServiceProvider)
-                .startWatchingNote(noteIdToUse);
-          } catch (e) {
-            debugPrint('Could not start task sync for new note: $e');
-          }
+      noteIdToUse = savedNote?.id ?? widget.noteId;
+
+      if (noteIdToUse == null) {
+        logger.error(
+          'Repository returned null note after save',
+          data: {
+            'existingNoteId': widget.noteId,
+            'titleLength': cleanTitle.length,
+            'bodyLength': cleanBody.length,
+            'traceId': traceId,
+          },
+        );
+        debugPrint('[ModernEditNote] repository returned null note');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to create note. Please try again.'),
+            ),
+          );
         }
+        return;
+      }
+      debugPrint('[ModernEditNote] repository saved noteId=$noteIdToUse');
+
+      logger.info(
+        'Note saved',
+        data: {
+          'noteId': noteIdToUse,
+          'isNew': widget.noteId == null,
+          'isPinned': _isPinned,
+          'hasFolder': _selectedFolder != null,
+          'traceId': traceId,
+        },
+      );
+
+      try {
         if (_selectedFolder != null) {
           await ref
               .read(noteFolderProvider.notifier)
@@ -1668,19 +1673,82 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               .read(noteFolderProvider.notifier)
               .removeNoteFromFolder(noteIdToUse);
         }
+      } catch (error, stackTrace) {
+        logger.error(
+          'Folder assignment update failed after note save',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': noteIdToUse, 'selectedFolder': _selectedFolder?.id},
+        );
+        debugPrint(
+          '[ModernEditNote] folder update failed for noteId=$noteIdToUse -> $error',
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      }
 
-        // Remap temp tags to real note ID if this was a new note
-        if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
+      // Remap temp tags to real note ID if this was a new note
+      if (widget.noteId == null && _noteIdForTags.startsWith('note_draft_')) {
+        try {
           await _remapTempTags(noteIdToUse);
+        } catch (error, stackTrace) {
+          logger.error(
+            'Failed to remap temp tags after note save',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'tempId': _noteIdForTags, 'noteId': noteIdToUse},
+          );
+          debugPrint(
+            '[ModernEditNote] tag remap failed for noteId=$noteIdToUse -> $error',
+          );
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         }
       }
 
       // refresh list & try sync; failures here must not block navigation
-      await ref.read(notesPageProvider.notifier).refresh();
+      try {
+        await ref.read(notesPageProvider.notifier).refresh();
+        logger.info(
+          'Notes list refreshed after save',
+          data: {'noteId': noteIdToUse},
+        );
+      } catch (error, stackTrace) {
+        logger.error(
+          'Notes refresh failed after save',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': noteIdToUse, 'traceId': traceId},
+        );
+        debugPrint(
+          '[ModernEditNote] refresh after save failed for noteId=$noteIdToUse -> $error',
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      }
       try {
         await ref.read(syncModeProvider.notifier).manualSync();
-      } catch (_) {
-        // sync failures are non-critical
+      } catch (error, stackTrace) {
+        logger.error(
+          'Manual sync after note save failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'noteId': noteIdToUse},
+        );
+        unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      }
+
+      // Sync widget cache to update iOS/Android quick capture widget
+      try {
+        final quickCaptureService = ref.read(quickCaptureServiceProvider);
+        unawaited(quickCaptureService.updateWidgetCache());
+        logger.info(
+          'Widget cache sync triggered after note save',
+          data: {'noteId': noteIdToUse},
+        );
+      } catch (error) {
+        // Widget sync is optional - log but don't block or show error
+        logger.warning(
+          'Failed to sync widget cache after note save: $error',
+          data: {'noteId': noteIdToUse},
+        );
       }
 
       if (!mounted) return;
@@ -1688,87 +1756,46 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         _hasChanges = false;
         _initialText = _noteController.text;
       });
-      Navigator.of(context).pop(); // go back to list
-    } catch (e) {
-      _showErrorSnack('Save failed: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _saveAsTemplate() async {
-    if (_isLoading) return;
-
-    final raw = _noteController.text;
-    final parts = _splitTitleBody(raw);
-
-    final cleanTitle = _stripMarkdownHeading(parts.title).trim();
-    final cleanBody = parts.body;
-
-    if (cleanTitle.isEmpty && cleanBody.trim().isEmpty) {
-      _showErrorSnack(AppLocalizations.of(context).cannotSaveEmptyTemplate);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Get the template repository
-      final templateRepository = ref.read(templateRepositoryProvider);
-
-      // Create the user template
-      final template = await templateRepository.createUserTemplate(
-        cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle,
-        cleanBody,
-        metadata: {
-          'tags': _currentTags,
-          'category': 'personal',
-          'description': 'Template created from note',
-          'icon': 'description',
-          'createdFrom': widget.noteId ?? 'new_note',
-          'createdAt': DateTime.now().toIso8601String(),
+      // UX Enhancement: Pop with result to trigger list refresh
+      Navigator.of(context).pop(true); // Signal successful save
+      debugPrint('[ModernEditNote] save completed, popping with success');
+    } catch (error, stackTrace) {
+      logger.error(
+        'Failed to save note',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'noteId': noteIdToUse ?? widget.noteId,
+          'isPinned': _isPinned,
+          'isNew': widget.noteId == null,
+          'traceId': traceId,
         },
       );
-
-      if (template.isEmpty) {
-        throw Exception('Failed to create template');
+      debugPrint(
+        '[ModernEditNote] save failed -> error=$error stack=${stackTrace.toString().split("\n").first}',
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to save note. Please try again.'),
+            backgroundColor: DuruColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () {
+                unawaited(_saveNote());
+              },
+            ),
+          ),
+        );
       }
-
-      // Track analytics event
-      final analytics = ref.read(analyticsProvider);
-      analytics.event('template_saved', properties: {
-        'template_id': template,
-        'source_note_id': widget.noteId ?? 'new_note',
-        'tags_count': _currentTags.length,
-        'has_body': cleanBody.isNotEmpty,
-        'created_at': DateTime.now().toIso8601String(),
-      });
-
-      if (!mounted) return;
-
-      // Show success message
-      _showInfoSnack(
-          AppLocalizations.of(context).templateSaved(cleanTitle.isEmpty ? 'Untitled Template' : cleanTitle));
-
-      // Optional: Navigate back or stay for further editing
-      // Navigator.of(context).pop();
-    } catch (e, stackTrace) {
-      // Log error to monitoring
-      final logger = LoggerFactory.instance;
-      logger.error('Failed to save template',
-          error: e,
-          stackTrace: stackTrace,
-          data: {
-            'noteId': widget.noteId,
-            'title': cleanTitle,
-            'bodyLength': cleanBody.length,
-          });
-
-      _showErrorSnack(AppLocalizations.of(context).failedToSaveTemplate);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // Legacy template saving method removed - UI moved to separate template management screen
+  // (_saveAsTemplate)
 
   void _showInfoSnack(String message) {
     if (!mounted) return;
@@ -1867,26 +1894,40 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         // Apply the template
         await _applyTemplate(selectedTemplate);
       }
-    } catch (e) {
-      debugPrint('Error showing template picker: $e');
-      _showErrorSnack('Failed to load templates');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to present template picker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack('Failed to load templates. Please try again.');
     }
   }
 
   Future<void> _applyTemplate(Template template) async {
     try {
-      debugPrint('🔧 Applying template: ${template.title}');
+      _logger.debug(
+        'Applying template to note',
+        data: {'templateId': template.id},
+      );
       final variableService = TemplateVariableService();
 
       // Extract variables from template
       final variables = variableService.extractVariables(template.body);
-      debugPrint('🔧 Extracted ${variables.length} variables');
+      _logger.debug(
+        'Template variables extracted',
+        data: {'templateId': template.id, 'variableCount': variables.length},
+      );
 
       String processedContent = template.body;
 
       // If template has variables, show input dialog
       if (variables.isNotEmpty) {
-        debugPrint('🔧 Showing variable dialog for ${variables.length} variables');
+        _logger.debug(
+          'Showing template variable dialog',
+          data: {'templateId': template.id, 'variableCount': variables.length},
+        );
         final values = await TemplateVariableDialog.show(
           context,
           variables: variables,
@@ -1894,24 +1935,29 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         );
 
         if (values == null) {
-          debugPrint('🔧 User cancelled variable dialog');
+          _logger.debug('Template variable dialog cancelled');
           return; // User cancelled
         }
 
-        debugPrint('🔧 User provided values: ${values.keys.length}');
+        _logger.debug(
+          'Template variable values provided',
+          data: {'templateId': template.id, 'valueCount': values.keys.length},
+        );
         // Replace variables with user values
-        processedContent = variableService.replaceVariables(template.body, values);
+        processedContent = variableService.replaceVariables(
+          template.body,
+          values,
+        );
       } else {
-        debugPrint('🔧 No variables, replacing system variables only');
+        _logger.debug('Template has no variables, applying system defaults');
         // No variables, just replace system variables
         processedContent = variableService.replaceVariables(template.body, {});
       }
 
-      debugPrint('🔧 Processed content ready, applying to editor');
       // Apply template content to editor
       setState(() {
         // Combine template title and processed body
-        final newContent = '${template.title}\n${processedContent}';
+        final newContent = '${template.title}\n$processedContent';
         _noteController.text = newContent;
         _hasChanges = true;
 
@@ -1924,27 +1970,36 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         // This could be enhanced to map template categories to folders
       });
 
-      debugPrint('🔧 Template applied to editor successfully');
       // Show success message
       _showInfoSnack('Template applied successfully');
 
       // Track analytics
       try {
-        ref.read(analyticsProvider).event(
-          'template.applied',
-          properties: {
-            'template_id': template.id,
-            'template_title': template.title,
-            'has_variables': variables.isNotEmpty,
-          },
-        );
+        ref
+            .read(analyticsProvider)
+            .event(
+              'template.applied',
+              properties: {
+                'template_id': template.id,
+                'template_title': template.title,
+                'has_variables': variables.isNotEmpty,
+              },
+            );
       } catch (analyticsError) {
-        debugPrint('Analytics error: $analyticsError');
+        _logger.warning(
+          'Failed to send template applied analytics',
+          data: {'templateId': template.id},
+        );
       }
-    } catch (e, stackTrace) {
-      debugPrint('❌ Error applying template: $e');
-      debugPrint('❌ Stack trace: $stackTrace');
-      _showErrorSnack('Failed to apply template: ${e.toString()}');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to apply template to note',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'templateId': template.id},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      _showErrorSnack('Failed to apply template. Please try again.');
     }
   }
 }

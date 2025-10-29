@@ -155,10 +155,10 @@ class ConflictResolutionEngine {
       final localUpdated = localNote.updatedAt;
       final remoteUpdated = DateTime.parse(remoteNote['updated_at'] as String);
 
-      // Calculate content hashes for comparison
-      final localHash = _calculateNoteHash(localNote.title, localNote.encryptedMetadata);
+      // Calculate content hashes for comparison using encrypted fields
+      final localHash = _calculateNoteHash(localNote.titleEncrypted, localNote.encryptedMetadata);
       final remoteHash = _calculateNoteHash(
-        remoteNote['title'] as String?,
+        remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,
       );
 
@@ -192,7 +192,7 @@ class ConflictResolutionEngine {
         remoteHash: remoteHash,
         contentSimilarity: similarity,
         localData: {
-          'title': localNote.title,
+          'title_encrypted': localNote.titleEncrypted,
           'encrypted_metadata': localNote.encryptedMetadata,
           'updated_at': localUpdated,
         },
@@ -443,9 +443,10 @@ class ConflictResolutionEngine {
     if (localNote != null) {
       await _remoteApi.upsertEncryptedNote(
         id: localNote.id,
-        titleEnc: Uint8List.fromList(utf8.encode(localNote.title)),
+        titleEnc: Uint8List.fromList(utf8.encode(localNote.titleEncrypted)),
         propsEnc: Uint8List.fromList(utf8.encode(localNote.encryptedMetadata ?? '')),
         deleted: localNote.deleted,
+        createdAt: localNote.createdAt,
       );
     }
   }
@@ -462,10 +463,14 @@ class ConflictResolutionEngine {
       await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
         LocalNotesCompanion.insert(
           id: noteId,
-          title: Value(remoteNote['title'] as String? ?? ''),
-          body: Value(''),
+          titleEncrypted: Value(remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String? ?? ''),
+          bodyEncrypted: Value(remoteNote['body_encrypted'] as String? ?? ''),
+          encryptionVersion: const Value(1),
           noteType: Value(NoteKind.note),
           encryptedMetadata: Value(remoteNote['encrypted_metadata'] as String?),
+          createdAt: remoteNote['created_at'] != null
+              ? DateTime.parse(remoteNote['created_at'] as String)
+              : DateTime.now().toUtc(),
           updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
           deleted: Value(remoteNote['deleted'] as bool? ?? false),
         ),
@@ -505,10 +510,12 @@ class ConflictResolutionEngine {
       await _localDb.into(_localDb.localNotes).insert(
         LocalNotesCompanion.insert(
           id: duplicateId,
-          title: Value(localNote.title),
-          body: Value(localNote.body),
+          titleEncrypted: Value(localNote.titleEncrypted),
+          bodyEncrypted: Value(localNote.bodyEncrypted),
+          encryptionVersion: Value(localNote.encryptionVersion),
           noteType: Value(localNote.noteType),
           encryptedMetadata: Value(localNote.encryptedMetadata),
+          createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           deleted: Value(false),
         ),
@@ -569,7 +576,7 @@ class ConflictResolutionEngine {
   ) async {
     try {
       // Simple hash-based similarity (in production, you might want more sophisticated comparison)
-      final localHash = _calculateNoteHash(localNote.title, localNote.encryptedMetadata);
+      final localHash = _calculateNoteHash(localNote.titleEncrypted, localNote.encryptedMetadata);
       final remoteHash = _calculateNoteHash(
         remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,

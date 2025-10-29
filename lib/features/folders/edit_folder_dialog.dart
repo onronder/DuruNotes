@@ -1,7 +1,9 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_picker_sheet.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class EditFolderDialog extends ConsumerStatefulWidget {
   const EditFolderDialog({required this.folder, super.key});
 
-  final LocalFolder folder;
+  final domain.Folder folder;
 
   @override
   ConsumerState<EditFolderDialog> createState() => _EditFolderDialogState();
@@ -25,7 +27,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
   late AnimationController _scaleController;
   late AnimationController _slideController;
 
-  LocalFolder? _selectedParent;
+  domain.Folder? _selectedParent;
   late Color _selectedColor;
   late IconData _selectedIcon;
   bool _isUpdating = false;
@@ -87,16 +89,10 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       _selectedColor = Colors.blue;
     }
 
-    // Initialize icon
+    // Initialize icon using helper for tree-shaking compatibility
     if (widget.folder.icon != null) {
-      try {
-        _selectedIcon = IconData(
-          int.parse(widget.folder.icon!),
-          fontFamily: 'MaterialIcons',
-        );
-      } catch (e) {
-        _selectedIcon = Icons.folder;
-      }
+      final parsedIcon = FolderIconHelpers.parseIcon(widget.folder.icon);
+      _selectedIcon = parsedIcon ?? Icons.folder;
     } else {
       _selectedIcon = Icons.folder;
     }
@@ -121,7 +117,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
     if (widget.folder.parentId != null) {
       final parent = await ref
           .read(folderRepositoryProvider)
-          .getFolder(widget.folder.parentId!);
+          ?.getFolder(widget.folder.parentId!);
       if (mounted) {
         setState(() {
           _selectedParent = parent;
@@ -152,7 +148,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
             id: widget.folder.id,
             name: _nameController.text.trim(),
             parentId: _selectedParent?.id,
-            color: _selectedColor.value.toRadixString(16),
+            color: _selectedColor.toARGB32().toRadixString(16),
             icon: _selectedIcon.codePoint.toString(),
             description: _descriptionController.text.trim().isEmpty
                 ? null
@@ -231,7 +227,7 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       if (currentId == folderId) {
         return true;
       }
-      final folder = await repository.getFolder(currentId);
+      final folder = await repository?.getFolder(currentId);
       currentId = folder?.parentId;
     }
 
@@ -477,7 +473,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Current path: ${widget.folder.path}',
+                            widget.folder.parentId != null
+                                ? 'Subfolder'
+                                : 'Root folder',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),

@@ -1,5 +1,10 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'dart:async';
+
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/tag.dart' as domain;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:duru_notes/ui/tag_notes_screen.dart';
@@ -7,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 // import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // TODO: Generate localization files
 
 class TagsScreen extends ConsumerStatefulWidget {
@@ -17,8 +23,10 @@ class TagsScreen extends ConsumerStatefulWidget {
 }
 
 class _TagsScreenState extends ConsumerState<TagsScreen> {
-  List<TagCount> _tags = [];
-  List<TagCount> _filteredTags = [];
+  AppLogger get _logger => ref.read(loggerProvider);
+
+  List<domain.TagWithCount> _tags = [];
+  List<domain.TagWithCount> _filteredTags = [];
   bool _isLoading = true;
   String _searchQuery = '';
   final _searchController = TextEditingController();
@@ -44,8 +52,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
   Future<void> _loadTags() async {
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(tagRepositoryProvider);
       final tags = await repo.listTagsWithCounts();
+      _logger.info('Loaded tags with usage counts', data: {'count': tags.length});
       if (mounted) {
         setState(() {
           _tags = tags;
@@ -53,12 +62,25 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load tags',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load tags: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to load tags. Please try again.'),
+            backgroundColor: DuruColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_loadTags()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -82,10 +104,18 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     }
 
     try {
-      final repo = ref.read(notesRepositoryProvider);
+      final repo = ref.read(tagRepositoryProvider);
       final count = await repo.renameTagEverywhere(
-        from: oldTag,
-        to: newTag.trim(),
+        oldTag: oldTag,
+        newTag: newTag.trim(),
+      );
+      _logger.info(
+        'Renamed tag',
+        data: {
+          'previousTag': oldTag,
+          'newTag': newTag.trim(),
+          'affectedNotes': count,
+        },
       );
 
       HapticFeedback.mediumImpact();
@@ -95,11 +125,26 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
         ).showSnackBar(SnackBar(content: Text('Renamed tag in $count notes')));
         _loadTags(); // Reload tags
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to rename tag',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'previousTag': oldTag,
+          'attemptedTag': newTag.trim(),
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to rename tag: $e')));
+        ).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to rename tag. Please try again.'),
+            backgroundColor: DuruColors.error,
+          ),
+        );
       }
     }
   }
@@ -130,10 +175,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
   Widget _buildStatsHeader(BuildContext context) {
     final theme = Theme.of(context);
     final totalTags = _tags.length;
-    final totalNotes = _tags.fold<int>(0, (sum, tag) => sum + tag.count);
+    final totalNotes = _tags.fold<int>(0, (sum, tag) => sum + tag.noteCount);
     final popularTag = _tags.isEmpty
         ? null
-        : _tags.reduce((a, b) => a.count > b.count ? a : b);
+        : _tags.reduce((a, b) => a.noteCount > b.noteCount ? a : b);
     final recentTag = _tags.isEmpty ? null : _tags.last;
 
     return Container(
@@ -173,7 +218,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           _buildStatItem(
             context,
             icon: CupertinoIcons.flame_fill,
-            value: popularTag?.count.toString() ?? '0',
+            value: popularTag?.noteCount.toString() ?? '0',
             label: 'Most Used',
             color: DuruColors.warning,
           ),
@@ -436,7 +481,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                 ),
                           SizedBox(height: DuruSpacing.xs),
                           Text(
-                            '${tagCount.count} ${tagCount.count == 1 ? 'note' : 'notes'}',
+                            '${tagCount.noteCount} ${tagCount.noteCount == 1 ? 'note' : 'notes'}',
                             style: TextStyle(
                               fontSize: 14,
                               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),

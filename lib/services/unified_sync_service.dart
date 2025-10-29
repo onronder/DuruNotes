@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -19,6 +21,7 @@ import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/sync/sync_coordinator.dart';
+import 'package:duru_notes/services/quick_capture_service.dart';
 
 /// Sync result with detailed information
 class SyncResult {
@@ -97,6 +100,9 @@ class UnifiedSyncService {
   INotesRepository? _domainNotesRepo;
   ITaskRepository? _domainTasksRepo;
 
+  // Widget integration
+  QuickCaptureService? _quickCaptureService;
+
   // Sync state - now managed by coordinator
   final SyncCoordinator _syncCoordinator = SyncCoordinator();
   DateTime? _lastSyncTime;
@@ -110,6 +116,45 @@ class UnifiedSyncService {
 
   // MEMORY OPTIMIZATION: Batch size for iOS (lower than Android due to stricter memory limits)
   static const int _syncBatchSize = 5; // Process 5 notes at a time to prevent memory spikes
+
+  String _cipherDebugSummary(Uint8List data) {
+    if (data.isEmpty) {
+      return 'len=0';
+    }
+    final previewLength = math.min(16, data.length);
+    final preview = base64Encode(data.sublist(0, previewLength));
+    return 'len=${data.length},previewBase64=$preview';
+  }
+
+  Uint8List _decodeCipher({
+    required dynamic value,
+    required String field,
+    required String noteId,
+  }) {
+    if (value is Uint8List) return value;
+    if (value is List<int>) return Uint8List.fromList(value);
+    if (value is List<dynamic>) {
+      return Uint8List.fromList(value.cast<int>());
+    }
+    if (value is String) {
+      try {
+        return base64Decode(value);
+      } catch (e) {
+        _logger.error(
+          'Failed to base64 decode $field for note $noteId',
+          error: e,
+          data: {'valueLength': value.length},
+        );
+        rethrow;
+      }
+    }
+
+    _logger.error(
+      'Unsupported cipher payload type for $field',
+      data: {'noteId': noteId, 'type': value.runtimeType.toString()},
+    );
+    throw ArgumentError('Unsupported cipher payload type: ${value.runtimeType}');
+  }
 
   void _captureSyncException({
     required String operation,
@@ -126,9 +171,9 @@ class UnifiedSyncService {
           scope.level = level;
           scope.setTag('service', 'UnifiedSyncService');
           scope.setTag('operation', operation);
-          data?.forEach((key, value) {
-            scope.setExtra(key, value);
-          });
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('sync_data', Map<String, dynamic>.from(data));
+          }
         },
       ),
     );
@@ -142,6 +187,7 @@ class UnifiedSyncService {
     ITaskRepository? domainTasksRepo,
     KeyManager? keyManager,
     CryptoBox? cryptoBox,
+    QuickCaptureService? quickCaptureService,
   }) async {
     // Prevent re-initialization
     if (_isInitialized) {
@@ -154,19 +200,22 @@ class UnifiedSyncService {
     _migrationConfig = migrationConfig;
     _domainNotesRepo = domainNotesRepo;
     _domainTasksRepo = domainTasksRepo;
+    _quickCaptureService = quickCaptureService;
+
+    // Use provided CryptoBox or throw error if not provided
+    // This should be initialized by the providers that already exist in the app
+    final resolvedCryptoBox = cryptoBox;
+    if (resolvedCryptoBox == null) {
+      throw ArgumentError('CryptoBox must be provided for encryption');
+    }
+    _cryptoBox = resolvedCryptoBox;
 
     _adapter = ServiceAdapter(
       db: database,
       client: client,
       useDomainModels: migrationConfig.isFeatureEnabled('notes'),
+      crypto: resolvedCryptoBox,
     );
-
-    // Use provided CryptoBox or throw error if not provided
-    // This should be initialized by the providers that already exist in the app
-    if (cryptoBox == null) {
-      throw ArgumentError('CryptoBox must be provided for encryption');
-    }
-    _cryptoBox = cryptoBox;
 
     _isInitialized = true;
     _logger.info('UnifiedSyncService initialized with CryptoBox encryption');
@@ -748,8 +797,22 @@ class UnifiedSyncService {
         for (final note in batch) {
           try {
             final noteId = note['id'] as String;
-            final titleEnc = note['title_enc'] as Uint8List;
-            final propsEnc = note['props_enc'] as Uint8List;
+            final rawTitle = note['title_enc'];
+            final rawProps = note['props_enc'];
+            final titleEnc = _decodeCipher(
+              value: rawTitle,
+              field: 'title_enc',
+              noteId: noteId,
+            );
+            final propsEnc = _decodeCipher(
+              value: rawProps,
+              field: 'props_enc',
+              noteId: noteId,
+            );
+
+            debugPrint(
+              '[DecryptDebug] note=$noteId titleType=${rawTitle.runtimeType} titleSummary=${_cipherDebugSummary(titleEnc)} propsType=${rawProps.runtimeType} propsSummary=${_cipherDebugSummary(propsEnc)}',
+            );
 
             // Decrypt title using CryptoBox (same as existing working code)
             String title;
@@ -761,6 +824,19 @@ class UnifiedSyncService {
               );
               title = titleJson['title'] as String? ?? '';
             } catch (e) {
+              final summary = _cipherDebugSummary(titleEnc);
+              _logger.warning(
+                'Title decrypt failed; attempting fallback',
+                data: {
+                  'noteId': noteId,
+                  'cipherSummary': summary,
+                  'cipherLength': titleEnc.length,
+                  'error': e.toString(),
+                },
+              );
+              debugPrint(
+                '[DecryptDebug] note=$noteId title primary decrypt failed summary=$summary error=$e',
+              );
               // Fallback: try as plain string
               try {
                 title = await _cryptoBox!.decryptStringForNote(
@@ -768,7 +844,19 @@ class UnifiedSyncService {
                   noteId: noteId,
                   data: titleEnc,
                 );
-              } catch (_) {
+              } catch (fallbackError, fallbackStack) {
+                _logger.error(
+                  'Failed to decrypt note title with fallback',
+                  error: fallbackError,
+                  stackTrace: fallbackStack,
+                  data: {
+                    'noteId': noteId,
+                    'cipherSummary': summary,
+                  },
+                );
+                debugPrint(
+                  '[DecryptDebug] note=$noteId title fallback decrypt failed summary=$summary error=$fallbackError',
+                );
                 title = 'Untitled (Decryption Failed)';
                 decryptionErrors++;
               }
@@ -789,6 +877,19 @@ class UnifiedSyncService {
               tags = (propsJson['tags'] as List?)?.cast<String>() ?? [];
               isPinned = propsJson['isPinned'] as bool? ?? false;
             } catch (e) {
+              final summary = _cipherDebugSummary(propsEnc);
+              _logger.warning(
+                'Props decrypt failed; attempting legacy fallback',
+                data: {
+                  'noteId': noteId,
+                  'cipherSummary': summary,
+                  'cipherLength': propsEnc.length,
+                  'error': e.toString(),
+                },
+              );
+              debugPrint(
+                '[DecryptDebug] note=$noteId props primary decrypt failed summary=$summary error=$e',
+              );
               // Fallback: try with legacy key
               try {
                 final result = await _cryptoBox!.decryptJsonForNoteWithFallback(
@@ -800,7 +901,23 @@ class UnifiedSyncService {
                 tags = (result.value['tags'] as List?)?.cast<String>() ?? [];
                 isPinned = result.value['isPinned'] as bool? ?? false;
                 // Legacy key detection removed - no sensitive logging
-              } catch (_) {
+                debugPrint(
+                  '[DecryptDebug] note=$noteId props legacy fallback succeeded summary=$summary usedLegacyKey=${result.usedLegacyKey}',
+                );
+              } catch (fallbackError, fallbackStack) {
+                _logger.error(
+                  'Failed to decrypt note props',
+                  error: fallbackError,
+                  stackTrace: fallbackStack,
+                  data: {
+                    'noteId': noteId,
+                    'cipherSummary': summary,
+                    'cipherLength': propsEnc.length,
+                  },
+                );
+                debugPrint(
+                  '[DecryptDebug] note=$noteId props legacy decrypt failed summary=$summary error=$fallbackError',
+                );
                 body = 'Content could not be decrypted';
                 tags = [];
                 isPinned = false;
@@ -981,12 +1098,19 @@ class UnifiedSyncService {
             json: propsJson,
           );
 
+          // Parse createdAt from noteData to preserve timestamp across devices
+          final createdAtStr = noteData['created_at']?.toString();
+          final createdAt = createdAtStr != null
+              ? DateTime.tryParse(createdAtStr)
+              : null;
+
           // Upload using the encrypted API
           await api.upsertEncryptedNote(
             id: noteId,
             titleEnc: encryptedTitle,
             propsEnc: encryptedProps,
             deleted: (noteData['deleted'] ?? false) as bool,
+            createdAt: createdAt,
           );
           _logger.info('✅ Successfully uploaded note: $noteId');
           uploadedCount++;
@@ -1058,7 +1182,13 @@ class UnifiedSyncService {
       for (final noteData in notes) {
         // Save through appropriate repository
         if (_migrationConfig!.isFeatureEnabled('notes') && _domainNotesRepo != null) {
-          // Use createOrUpdate with proper parameters
+          // SYNC FIX: Parse remote timestamps to preserve note creation times
+          final createdAtStr = noteData['created_at']?.toString();
+          final updatedAtStr = noteData['updated_at']?.toString();
+          final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
+          final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
+
+          // Use createOrUpdate with proper parameters including timestamps
           await _domainNotesRepo!.createOrUpdate(
             title: noteData['title'] as String? ?? '',
             body: noteData['body'] as String? ?? '',
@@ -1066,6 +1196,8 @@ class UnifiedSyncService {
             folderId: noteData['folder_id'] as String?,
             tags: (noteData['tags'] as List?)?.cast<String>() ?? [],
             isPinned: noteData['is_pinned'] as bool?,
+            createdAt: createdAt, // SYNC FIX: Preserve remote creation timestamp
+            updatedAt: updatedAt, // SYNC FIX: Preserve remote update timestamp
           );
         } else {
           // For local notes, save directly to database using adapter
@@ -1075,6 +1207,12 @@ class UnifiedSyncService {
         }
       }
       _logger.debug('Downloaded ${notes.length} notes');
+
+      // Refresh widget cache to reflect cross-device notes
+      if (_quickCaptureService != null) {
+        await _quickCaptureService!.updateWidgetCache();
+        _logger.info('Widget cache refreshed after sync (${notes.length} notes)');
+      }
     } catch (error, stack) {
       _logger.error('Failed to download notes', error: error, stackTrace: stack);
       _captureSyncException(
@@ -1162,7 +1300,14 @@ class UnifiedSyncService {
     if (_migrationConfig!.isFeatureEnabled('tasks') && _domainTasksRepo != null) {
       return await _domainTasksRepo!.getTasksForNote(noteId);
     } else {
-      return await _db!.getTasksForNote(noteId);
+      final localNote = await (_db!.select(_db!.localNotes)
+            ..where((n) => n.id.equals(noteId)))
+          .getSingleOrNull();
+      final userId = localNote?.userId;
+      if (userId == null || userId.isEmpty) {
+        return const <NoteTask>[];
+      }
+      return await _db!.getTasksForNote(noteId, userId: userId);
     }
   }
 
@@ -1191,10 +1336,15 @@ class UnifiedSyncService {
       await _domainTasksRepo!.createTask(task);
       return task;
     } else {
+      final userId = _client!.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        throw StateError('UnifiedSyncService: cannot create task without user');
+      }
       await _db!.into(_db!.noteTasks).insert(
         NoteTasksCompanion(
           id: Value(id),
           noteId: Value(noteId),
+          userId: Value(userId),
           contentEncrypted: Value(title), // Tasks use encrypted content now
           status: Value(completed ? TaskStatus.completed : TaskStatus.open),
           deleted: const Value(false),
@@ -1202,7 +1352,7 @@ class UnifiedSyncService {
           updatedAt: Value(DateTime.now()),
         ),
       );
-      return await _db!.getTaskById(id);
+      return await _db!.getTaskById(id, userId: userId);
     }
   }
 
@@ -1267,7 +1417,7 @@ class UnifiedSyncService {
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.bodyEncrypted ?? '';
+    if (note is LocalNote) return note.bodyEncrypted;
     throw ArgumentError('Unknown note type');
   }
 
@@ -1280,12 +1430,6 @@ class UnifiedSyncService {
   String _getTaskId(dynamic task) {
     if (task is domain.Task) return task.id;
     if (task is NoteTask) return task.id;
-    throw ArgumentError('Unknown task type');
-  }
-
-  String _getTaskTitle(dynamic task) {
-    if (task is domain.Task) return task.title;
-    if (task is NoteTask) return task.contentEncrypted ?? '';
     throw ArgumentError('Unknown task type');
   }
 

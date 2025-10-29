@@ -15,38 +15,40 @@ abstract class NotesCapturePort {
   });
 }
 
-/// Service for monitoring the clipper_inbox table
+/// Service for monitoring the clipper_inbox table (manual workflow by default)
 ///
 /// IMPORTANT: Auto-processing is DISABLED by default (kInboxAutoProcess = false)
-/// - Items remain in clipper_inbox until user manually converts them via the Inbox UI
-/// - Service only provides realtime notifications for badge updates
-/// - Manual conversion is handled by InboxManagementService
+/// - Email and web clip inbox items remain in inbox for user review
+/// - User manually converts items via InboxManagementService
+/// - Badge notifications show unread count
+/// - Items persist until user action (convert or delete)
 ///
-/// When kInboxAutoProcess = false (default):
-/// - No automatic conversion of inbox items to notes
-/// - Only realtime notifications for unread count updates
-/// - Items persist until user action
+/// When kInboxAutoProcess = false (default - MANUAL MODE):
+/// - Items remain in clipper_inbox until user manually converts them
+/// - InboxRealtimeService provides realtime badge updates
+/// - InboxUnreadService tracks unread count
+/// - Manual conversion is handled by InboxManagementService via UI
+/// - User has full control over which emails become notes
 ///
-/// When kInboxAutoProcess = true (legacy mode):
-/// - Auto-converts inbox items to notes immediately
-/// - Deletes items after conversion
-/// - Used for backward compatibility only
+/// When kInboxAutoProcess = true (AUTO MODE - not recommended):
+/// - Auto-converts inbox items to notes immediately upon arrival
+/// - Monitors via both realtime subscriptions and polling (30s interval)
+/// - Deletes items after successful conversion
+/// - User never sees items in inbox UI
+/// - No user review or control
 class ClipperInboxService {
   ClipperInboxService({
     required SupabaseClient supabase,
     required NotesCapturePort notesPort,
     required IncomingMailFolderManager folderManager,
-    InboxUnreadService? unreadService,
+    InboxUnreadService? unreadService, // Kept in constructor for backward compatibility
   })  : _supabase = supabase,
         _notesPort = notesPort,
-        _folderManager = folderManager,
-        _unreadService =
-            unreadService; // Note: unreadService is no longer used here
+        _folderManager = folderManager;
 
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
   final IncomingMailFolderManager _folderManager;
-  final InboxUnreadService? _unreadService; // Deprecated - no longer used
   final AppLogger _logger = LoggerFactory.instance;
 
   Timer? _timer;
@@ -67,25 +69,87 @@ class ClipperInboxService {
   static const Duration _normalPollingInterval = Duration(seconds: 30);
   static const Duration _realtimePollingInterval = Duration(minutes: 2);
 
-  // Feature flag to control auto-processing (disabled by default)
+  // Feature flag to control auto-processing (DISABLED - manual conversion via Inbox UI)
+  // Set to true for automatic conversion (not recommended - bypasses user review)
   static const bool kInboxAutoProcess = false;
 
   void start() {
-    // Auto-processing is disabled - inbox items must be manually converted by user
+    // Check auto-processing feature flag
     if (!kInboxAutoProcess) {
-      _logger.debug(
-        ' Auto-processing disabled - items will remain in inbox for user review',
+      _logger.info(
+        '🚫 [ClipperInbox] Auto-processing DISABLED - manual workflow active via InboxManagementService',
       );
-      // Realtime is now handled by InboxRealtimeService
+      // Realtime is now handled by UnifiedRealtimeService
+      // Badge counter handled by InboxUnreadService
+      // Manual conversion handled by InboxManagementService
       return;
     }
 
-    // Legacy auto-processing code (disabled by default)
+    // Auto-processing ENABLED - start monitoring inbox
+    _logger.info(
+      '✅ [ClipperInbox] Auto-processing ENABLED - starting service',
+    );
     stop();
     _startRealtimeSubscription();
     _startPolling();
-    // Initial poll
+
+    // Initial poll - process any pending items (including stuck items from previous sessions)
     unawaited(processOnce());
+    _logger.info('[ClipperInbox] Service started successfully - monitoring inbox for auto-conversion');
+  }
+
+  /// One-time cleanup to process any stuck inbox items (useful after re-enabling auto-process)
+  Future<void> processAllPendingItems() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.debug('🔒 [ClipperInbox] No authenticated user for cleanup');
+        return;
+      }
+
+      _logger.info('🧹 [ClipperInbox] Starting cleanup of pending inbox items...');
+
+      // Fetch ALL pending items without filtering by processed IDs
+      final rows = await _supabase
+          .from('clipper_inbox')
+          .select()
+          .eq('user_id', userId) // Strict user scoping
+          .or('source_type.eq.email_in,source_type.eq.web')
+          .order('created_at', ascending: true);
+
+      if (rows.isEmpty) {
+        _logger.info('[ClipperInbox] No pending items to clean up');
+        return;
+      }
+
+      _logger.info('📥 [ClipperInbox] Found ${rows.length} pending items to process');
+
+      // Clear processed IDs to allow reprocessing
+      final originalProcessedIds = Set<String>.from(_processedIds);
+      _processedIds.clear();
+
+      int successCount = 0;
+      int failCount = 0;
+
+      for (final row in rows) {
+        try {
+          await _handleRow(row);
+          successCount++;
+        } catch (e) {
+          failCount++;
+          _logger.error('❌ [ClipperInbox] Failed to process item ${row['id']}: $e');
+        }
+      }
+
+      _logger.info(
+        '✅ [ClipperInbox] Cleanup complete: $successCount succeeded, $failCount failed',
+      );
+
+      // Restore processed IDs for normal operation
+      _processedIds.addAll(originalProcessedIds);
+    } catch (e, st) {
+      _logger.error('❌ [ClipperInbox] Cleanup error: $e', error: e, stackTrace: st);
+    }
   }
 
   void stop() {
@@ -209,9 +273,11 @@ class ClipperInboxService {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
-        _logger.debug(' No authenticated user for processOnce');
+        _logger.debug('🔒 [ClipperInbox] No authenticated user for processOnce');
         return;
       }
+
+      _logger.debug('🔄 [ClipperInbox] Polling inbox for user: ${userId.substring(0, 8)}...');
 
       // Fetch both email and web entries - strictly scoped to user
       final rows = await _supabase
@@ -221,12 +287,28 @@ class ClipperInboxService {
           .or('source_type.eq.email_in,source_type.eq.web')
           .order('created_at', ascending: true);
 
-      for (final row in rows) {
-        await _handleRow(row);
+      if (rows.isEmpty) {
+        // Silent return - no spam in logs for normal empty state
+        return;
       }
+
+      _logger.info('📥 [ClipperInbox] Found ${rows.length} items to process');
+
+      int processed = 0;
+      int failed = 0;
+      for (final row in rows) {
+        try {
+          await _handleRow(row);
+          processed++;
+        } catch (e) {
+          failed++;
+          _logger.error('❌ [ClipperInbox] Failed to process row ${row['id']}: $e');
+        }
+      }
+
+      _logger.info('✅ [ClipperInbox] Batch complete: $processed processed, $failed failed');
     } catch (e, st) {
-      _logger.debug('clipper inbox processing error: $e');
-      _logger.debug('$st');
+      _logger.error('❌ [ClipperInbox] Processing error: $e', error: e, stackTrace: st);
     }
   }
 
@@ -270,10 +352,9 @@ class ClipperInboxService {
     }
   }
 
-  /// LEGACY: Auto-conversion method - DO NOT USE
-  /// All conversions should go through InboxManagementService.convertInboxItemToNote()
-  /// This method is only called when kInboxAutoProcess = true (disabled by default)
-  @Deprecated('Use InboxManagementService.convertInboxItemToNote instead')
+  /// ACTIVE: Auto-conversion method for email inbox items
+  /// This method is called when kInboxAutoProcess = true (enabled by default)
+  /// For manual conversion workflow, use InboxManagementService.convertInboxItemToNote()
   Future<void> _handleEmailRow(String id, Map<String, dynamic> payload) async {
     try {
       // Extract fields from payload
@@ -316,14 +397,11 @@ class ClipperInboxService {
         tags.add('Attachment');
       }
 
-      // Logging before processing
-      _logger.debug(
-        '[email_in] processing row=$id subject="$subject" from="$from"',
-      );
-      _logger.debug('[email_in] metadata keys: ${metadata.keys.join(', ')}');
-      _logger.debug(
-        '[email_in] attachments: $hasAttachments, tags: ${tags.join(', ')}',
-      );
+      // Production logging - info level for tracking
+      _logger.info('📧 [ClipperInbox/Email] Processing: "$subject" from $from (inbox_id: $id)');
+      if (hasAttachments) {
+        _logger.info('[ClipperInbox/Email] Has $attachmentCount attachment(s)');
+      }
 
       // Delegate to the same encryption + save path used by Editor V2
       final noteId = await _notesPort.createEncryptedNote(
@@ -332,6 +410,8 @@ class ClipperInboxService {
         metadataJson: metadata,
         tags: tags,
       );
+
+      _logger.info('✅ [ClipperInbox/Email] Created note: $noteId with tags: ${tags.join(', ')} (from inbox_id: $id)');
 
       // Add note to Incoming Mail folder
       try {
@@ -360,10 +440,9 @@ class ClipperInboxService {
     }
   }
 
-  /// LEGACY: Auto-conversion method - DO NOT USE
-  /// All conversions should go through InboxManagementService.convertInboxItemToNote()
-  /// This method is only called when kInboxAutoProcess = true (disabled by default)
-  @Deprecated('Use InboxManagementService.convertInboxItemToNote instead')
+  /// ACTIVE: Auto-conversion method for web clip inbox items
+  /// This method is called when kInboxAutoProcess = true (enabled by default)
+  /// For manual conversion workflow, use InboxManagementService.convertInboxItemToNote()
   Future<void> _handleWebRow(String id, Map<String, dynamic> payload) async {
     try {
       // Extract fields from web clip payload
@@ -395,10 +474,8 @@ class ClipperInboxService {
       // Build tags list - include 'Web' tag
       final tags = <String>['Web'];
 
-      // Logging before processing
-      _logger.debug('[web] processing row=$id title="$title" url="$url"');
-      _logger.debug('[web] metadata keys: ${metadata.keys.join(', ')}');
-      _logger.debug('[web] tags: ${tags.join(', ')}');
+      // Production logging - info level for tracking
+      _logger.info('🌐 [ClipperInbox/Web] Processing: "$title" from $url (inbox_id: $id)');
 
       // Create encrypted note
       final noteId = await _notesPort.createEncryptedNote(
@@ -407,6 +484,8 @@ class ClipperInboxService {
         metadataJson: metadata,
         tags: tags,
       );
+
+      _logger.info('✅ [ClipperInbox/Web] Created note: $noteId (from inbox_id: $id)');
 
       // Add note to Incoming Mail folder (serves as unified inbox)
       try {

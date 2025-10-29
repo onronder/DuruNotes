@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:drift/drift.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -10,6 +10,9 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/infrastructure/helpers/note_decryption_helper.dart';
+import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
 
 /// GDPR Compliance Service
 /// Handles all GDPR requirements including:
@@ -23,22 +26,38 @@ class GDPRComplianceService {
     required this.db,
     required this.exportService,
     required this.supabaseClient,
-  }) : _logger = LoggerFactory.instance;
+    required this.cryptoBox,
+    FlutterSecureStorage? secureStorage,
+    Future<bool> Function(String userId)? remoteDeletion,
+    Future<bool> Function(String userId)? authRevoker,
+  }) : _logger = LoggerFactory.instance,
+       _secureStorage = secureStorage ??
+           const FlutterSecureStorage(
+             aOptions: AndroidOptions(
+               encryptedSharedPreferences: true,
+               resetOnError: true,
+             ),
+             iOptions: IOSOptions(
+               accessibility: KeychainAccessibility.first_unlock_this_device,
+             ),
+           ),
+       _noteDecryptionHelper = NoteDecryptionHelper(cryptoBox),
+       _taskDecryptionHelper = TaskDecryptionHelper(cryptoBox) {
+    _remoteDeletion = remoteDeletion ?? _deleteRemoteData;
+    _authRevoker = authRevoker ?? _revokeAuthentication;
+  }
 
   final AppDb db;
   final UnifiedExportService exportService;
   final SupabaseClient supabaseClient;
+  final CryptoBox cryptoBox;
   final AppLogger _logger;
+  final NoteDecryptionHelper _noteDecryptionHelper;
+  final TaskDecryptionHelper _taskDecryptionHelper;
 
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      resetOnError: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  final FlutterSecureStorage _secureStorage;
+  late final Future<bool> Function(String userId) _remoteDeletion;
+  late final Future<bool> Function(String userId) _authRevoker;
 
   /// Export all user data in a portable format (GDPR Article 20)
   Future<File> exportAllUserData({
@@ -96,7 +115,7 @@ class GDPRComplianceService {
       exportData['userData']['auditTrail'] = auditTrail;
 
       // Create export file
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await resolveAppDocumentsDirectory();
       final fileName = 'gdpr_export_${userId}_${DateTime.now().millisecondsSinceEpoch}';
       final file = File(path.join(directory.path, '$fileName.${format.extension}'));
 
@@ -168,7 +187,7 @@ class GDPRComplianceService {
       final deletionResults = <String, bool>{};
 
       // 1. Delete from remote database (Supabase)
-      deletionResults['remote'] = await _deleteRemoteData(userId);
+      deletionResults['remote'] = await _remoteDeletion(userId);
 
       // 2. Delete from local database
       deletionResults['local'] = await _deleteLocalData(userId);
@@ -186,7 +205,7 @@ class GDPRComplianceService {
       deletionResults['files'] = await _deleteUserFiles(userId);
 
       // 7. Revoke authentication
-      deletionResults['auth'] = await _revokeAuthentication(userId);
+      deletionResults['auth'] = await _authRevoker(userId);
 
       // Log deletion
       await SecurityAuditTrail().logAccess(
@@ -293,16 +312,41 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllNotes(String userId) async {
     try {
-      final notes = await db.allNotes();
-      return notes.map((note) => {
-        'id': note.id,
-        'title': note.title,
-        'body': note.body,
-        'updatedAt': note.updatedAt.toIso8601String(),
-        'isPinned': note.isPinned,
-        'isDeleted': note.deleted,
-        'version': note.version,
-      }).toList();
+      _logger.info('[GDPR] Exporting notes with decryption for user: $userId');
+      // SECURITY FIX: Filter by userId to prevent cross-user data leakage
+      final notes = await (db.select(db.localNotes)
+        ..where((n) => n.userId.equals(userId))).get();
+
+      // Decrypt all notes in parallel for performance
+      final exportedNotes = await Future.wait(
+        notes.map((note) async {
+          String decryptedTitle = '';
+          String decryptedBody = '';
+
+          try {
+            decryptedTitle = await _noteDecryptionHelper.decryptTitle(note);
+            decryptedBody = await _noteDecryptionHelper.decryptBody(note);
+          } catch (e) {
+            _logger.warning('[GDPR] Failed to decrypt note ${note.id}: $e');
+            // On decryption failure, mark as undecryptable (GDPR requires attempt)
+            decryptedTitle = '[DECRYPTION_FAILED]';
+            decryptedBody = '[DECRYPTION_FAILED]';
+          }
+
+          return {
+            'id': note.id,
+            'title': decryptedTitle,
+            'body': decryptedBody,
+            'updatedAt': note.updatedAt.toIso8601String(),
+            'isPinned': note.isPinned,
+            'isDeleted': note.deleted,
+            'version': note.version,
+          };
+        }),
+      );
+
+      _logger.info('[GDPR] Successfully exported ${exportedNotes.length} notes');
+      return exportedNotes;
     } catch (e) {
       _logger.warning('[GDPR] Failed to export notes: $e');
       return [];
@@ -311,18 +355,49 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllTasks(String userId) async {
     try {
-      final tasks = await db.getAllTasks();
-      return tasks.map((task) => {
-        'id': task.id,
-        'noteId': task.noteId,
-        'content': task.content,
-        'status': task.status.name,
-        'isCompleted': task.status == TaskStatus.completed,
-        'dueDate': task.dueDate?.toIso8601String(),
-        'priority': task.priority.name,
-        'createdAt': task.createdAt.toIso8601String(),
-        'updatedAt': task.updatedAt.toIso8601String(),
-      }).toList();
+      _logger.info('[GDPR] Exporting tasks with decryption for user: $userId');
+      // SECURITY FIX: Filter by userId to prevent cross-user data leakage
+      // Get all note IDs for this user first
+      final userNoteIds = await (db.select(db.localNotes)
+        ..where((n) => n.userId.equals(userId)))
+        .map((n) => n.id)
+        .get();
+
+      // Then get tasks only for those notes
+      final tasks = userNoteIds.isEmpty
+        ? <NoteTask>[]
+        : await (db.select(db.noteTasks)
+            ..where((t) => t.noteId.isIn(userNoteIds))).get();
+
+      // Decrypt all tasks in parallel for performance
+      final exportedTasks = await Future.wait(
+        tasks.map((task) async {
+          String decryptedContent = '';
+
+          try {
+            decryptedContent = await _taskDecryptionHelper.decryptContent(task, task.noteId);
+          } catch (e) {
+            _logger.warning('[GDPR] Failed to decrypt task ${task.id}: $e');
+            // On decryption failure, mark as undecryptable (GDPR requires attempt)
+            decryptedContent = '[DECRYPTION_FAILED]';
+          }
+
+          return {
+            'id': task.id,
+            'noteId': task.noteId,
+            'content': decryptedContent,
+            'status': task.status.name,
+            'isCompleted': task.status == TaskStatus.completed,
+            'dueDate': task.dueDate?.toIso8601String(),
+            'priority': task.priority.name,
+            'createdAt': task.createdAt.toIso8601String(),
+            'updatedAt': task.updatedAt.toIso8601String(),
+          };
+        }),
+      );
+
+      _logger.info('[GDPR] Successfully exported ${exportedTasks.length} tasks');
+      return exportedTasks;
     } catch (e) {
       _logger.warning('[GDPR] Failed to export tasks: $e');
       return [];
@@ -331,7 +406,9 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllFolders(String userId) async {
     try {
-      final folders = await db.allFolders();
+      // SECURITY FIX: Filter by userId to prevent cross-user data leakage
+      final folders = await (db.select(db.localFolders)
+        ..where((f) => f.userId.equals(userId))).get();
       return folders.map((folder) => {
         'id': folder.id,
         'name': folder.name,
@@ -348,9 +425,30 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllTags(String userId) async {
     try {
-      final tags = await db.distinctTags();
-      return tags.map((tag) => {
-        'name': tag,
+      // SECURITY FIX: Get tags only from user's notes
+      final userNoteIds = await (db.select(db.localNotes)
+        ..where((n) => n.userId.equals(userId)))
+        .map((n) => n.id)
+        .get();
+
+      if (userNoteIds.isEmpty) {
+        return [];
+      }
+
+      // Get tags from note_tags junction table (proper implementation)
+      final noteTags = await (db.select(db.noteTags)
+        ..where((t) => t.noteId.isIn(userNoteIds)))
+        .get();
+
+      // Get unique tags with usage count
+      final tagCounts = <String, int>{};
+      for (final noteTag in noteTags) {
+        tagCounts[noteTag.tag] = (tagCounts[noteTag.tag] ?? 0) + 1;
+      }
+
+      return tagCounts.entries.map((entry) => {
+        'name': entry.key,
+        'usageCount': entry.value,
       }).toList();
     } catch (e) {
       _logger.warning('[GDPR] Failed to export tags: $e');
@@ -360,7 +458,17 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllReminders(String userId) async {
     try {
-      final reminders = await db.getAllReminders();
+      // P0.5 SECURITY: Get reminders only for this user
+      // Defense-in-depth: Filter by both userId AND noteId
+      final userNoteIds = await (db.select(db.localNotes)
+        ..where((n) => n.userId.equals(userId)))
+        .map((n) => n.id)
+        .get();
+
+      final reminders = userNoteIds.isEmpty
+        ? <NoteReminder>[]
+        : await (db.select(db.noteReminders)
+            ..where((r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds))).get();
       return reminders.map((reminder) => {
         'id': reminder.id,
         'noteId': reminder.noteId,
@@ -379,18 +487,33 @@ class GDPRComplianceService {
   Future<List<Map<String, dynamic>>> _exportAllAttachments(String userId) async {
     // Export attachment metadata only, not actual files
     try {
-      // Use direct query until getAllAttachments method is implemented
-      final attachments = await (db.select(db.localAttachments)).get();
+      // SECURITY FIX: Get attachments only for user's notes
+      final userNoteIds = await (db.select(db.localNotes)
+        ..where((n) => n.userId.equals(userId)))
+        .map((n) => n.id)
+        .get();
+
+      if (userNoteIds.isEmpty) {
+        return [];
+      }
+
+      // Get attachments for user's notes from attachments table
+      final attachments = await (db.select(db.attachments)
+        ..where((a) => a.noteId.isIn(userNoteIds)))
+        .get();
+
       return attachments.map((attachment) => {
         'id': attachment.id,
         'noteId': attachment.noteId,
-        'fileName': attachment.fileName,
+        'fileName': attachment.filename,
         'mimeType': attachment.mimeType,
         'fileSize': attachment.size,
+        'storagePath': attachment.url ?? attachment.localPath ?? '',
         'createdAt': attachment.createdAt.toIso8601String(),
       }).toList();
     } catch (e) {
       _logger.warning('[GDPR] Failed to export attachments: $e');
+      // Return empty list if attachments table doesn't exist yet
       return [];
     }
   }
@@ -514,7 +637,7 @@ class GDPRComplianceService {
     try {
       // Delete from Supabase tables
       await supabaseClient.from('notes').delete().eq('user_id', userId);
-      await supabaseClient.from('tasks').delete().eq('user_id', userId);
+      await supabaseClient.from('note_tasks').delete().eq('user_id', userId);
       await supabaseClient.from('folders').delete().eq('user_id', userId);
       await supabaseClient.from('tags').delete().eq('user_id', userId);
       await supabaseClient.from('reminders').delete().eq('user_id', userId);
@@ -547,8 +670,11 @@ class GDPRComplianceService {
         }
 
         // Delete reminders for user notes
+        // P0.5 SECURITY: Defense-in-depth - filter by both userId AND noteId
         if (userNoteIds.isNotEmpty) {
-          await (db.delete(db.noteReminders)..where((r) => r.noteId.isIn(userNoteIds))).go();
+          await (db.delete(db.noteReminders)
+              ..where((r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds)))
+              .go();
         }
       });
       return true;
@@ -561,7 +687,7 @@ class GDPRComplianceService {
   Future<bool> _deleteCachedData(String userId) async {
     try {
       // Clear app cache
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await resolveTemporaryDirectory();
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }
@@ -595,7 +721,7 @@ class GDPRComplianceService {
 
   Future<bool> _deleteUserFiles(String userId) async {
     try {
-      final documentsDir = await getApplicationDocumentsDirectory();
+      final documentsDir = await resolveAppDocumentsDirectory();
       final userDir = Directory(path.join(documentsDir.path, userId));
 
       if (await userDir.exists()) {

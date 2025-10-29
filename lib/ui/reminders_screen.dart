@@ -139,6 +139,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'reminders_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: _showAddReminderDialog,
         backgroundColor: DuruColors.primary,
         icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),

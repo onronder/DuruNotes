@@ -24,11 +24,11 @@ class FeatureFlaggedBlockFactory {
     required String? noteId,
     required int position,
     required bool isFocused,
-    required Function(NoteBlock) onChanged,
-    required Function(bool) onFocusChanged,
+    required void Function(NoteBlock) onChanged,
+    required void Function(bool) onFocusChanged,
     required VoidCallback onNewLine,
     int indentLevel = 0,
-    Function(int)? onIndentChanged,
+    void Function(int)? onIndentChanged,
     String? parentTaskId,
   }) {
     if (_featureFlags.useNewBlockEditor) {
@@ -67,7 +67,7 @@ class FeatureFlaggedBlockFactory {
   static Widget createBlockEditor({
     required String noteId,
     required List<NoteBlock> blocks,
-    required Function(List<NoteBlock>) onBlocksChanged,
+    required void Function(List<NoteBlock>) onBlocksChanged,
     ScrollController? scrollController,
     FocusNode? focusNode,
   }) {
@@ -147,8 +147,8 @@ extension FeatureFlaggedBlockContext on BuildContext {
     required String? noteId,
     required int position,
     required bool isFocused,
-    required Function(NoteBlock) onChanged,
-    required Function(bool) onFocusChanged,
+    required void Function(NoteBlock) onChanged,
+    required void Function(bool) onFocusChanged,
     required VoidCallback onNewLine,
   }) {
     return FeatureFlaggedBlockFactory.createTodoBlock(

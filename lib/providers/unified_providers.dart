@@ -4,14 +4,21 @@ import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
-import 'package:duru_notes/domain/entities/folder.dart' as domain;
-import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/domain/entities/template.dart' as domain;
-import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
-import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
-import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show migrationConfigProvider;
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateCoreRepositoryProvider;
+import 'package:duru_notes/services/unified_search_service.dart'
+    show unifiedSearchServiceProvider, SearchOptions, SearchResultType;
 
 // DEPRECATED: This file is being replaced by the new unified architecture
 // Use the providers from features/*/providers/*_unified_providers.dart instead
@@ -28,7 +35,7 @@ typedef UnifiedTask = models.UnifiedTask;
 typedef UnifiedTemplate = dynamic; // Still need to create UnifiedTemplate
 
 /// Unified notes provider - no more feature flags!
-final unifiedNotesProvider = FutureProvider<List<UnifiedNote>>((ref) async {
+final unifiedNotesProvider = FutureProvider.autoDispose<List<UnifiedNote>>((ref) async {
   final logger = LoggerFactory.instance;
 
   try {
@@ -47,16 +54,14 @@ final unifiedNotesProvider = FutureProvider<List<UnifiedNote>>((ref) async {
 });
 
 /// Unified folders provider - no more feature flags!
-final unifiedFoldersProvider = FutureProvider<List<UnifiedFolder>>((ref) async {
+final unifiedFoldersProvider = FutureProvider.autoDispose<List<UnifiedFolder>>((ref) async {
   final logger = LoggerFactory.instance;
 
   try {
     logger.info('[UnifiedProvider] Loading folders with unified architecture');
 
     // Always use domain repository
-    final db = ref.watch(appDbProvider);
-    final client = ref.watch(supabaseClientProvider);
-    final repository = FolderCoreRepository(db: db, client: client);
+    final repository = ref.watch(folderCoreRepositoryProvider);
     final folders = await repository.listFolders();
 
     // Convert to UnifiedFolder type
@@ -68,16 +73,21 @@ final unifiedFoldersProvider = FutureProvider<List<UnifiedFolder>>((ref) async {
 });
 
 /// Unified tasks provider - no more feature flags!
-final unifiedTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
+final unifiedTasksProvider = FutureProvider.autoDispose<List<UnifiedTask>>((ref) async {
   final logger = LoggerFactory.instance;
 
   try {
     logger.info('[UnifiedProvider] Loading tasks with unified architecture');
 
     // Always use domain repository
-    final db = ref.watch(appDbProvider);
-    final client = ref.watch(supabaseClientProvider);
-    final repository = TaskCoreRepository(db: db, client: client);
+    final repository = ref.watch(taskCoreRepositoryProvider);
+
+    // Task repository can be null if user is not authenticated
+    if (repository == null) {
+      logger.warning('[UnifiedProvider] Task repository not available (user not authenticated)');
+      return [];
+    }
+
     final tasks = await repository.getAllTasks();
 
     // Convert to UnifiedTask type
@@ -92,7 +102,7 @@ final unifiedTasksProvider = FutureProvider<List<UnifiedTask>>((ref) async {
 // Legacy task provider removed - use unifiedTasksProvider instead
 
 /// Unified templates provider
-final unifiedTemplatesProvider = FutureProvider<List<UnifiedTemplate>>((ref) async {
+final unifiedTemplatesProvider = FutureProvider.autoDispose<List<UnifiedTemplate>>((ref) async {
   final config = ref.watch(migrationConfigProvider);
   final logger = LoggerFactory.instance;
 
@@ -101,9 +111,7 @@ final unifiedTemplatesProvider = FutureProvider<List<UnifiedTemplate>>((ref) asy
       logger.info('[UnifiedProvider] Using domain templates');
 
       // Use domain repository
-      final db = ref.watch(appDbProvider);
-      final client = ref.watch(supabaseClientProvider);
-      final repository = TemplateCoreRepository(db: db, client: client);
+      final repository = ref.watch(templateCoreRepositoryProvider);
       final templates = await repository.getAllTemplates();
 
       return templates;
@@ -122,132 +130,134 @@ final unifiedTemplatesProvider = FutureProvider<List<UnifiedTemplate>>((ref) asy
   }
 });
 
-/// Helper to get note ID regardless of type
+/// Helper to get note ID - UnifiedNote now only wraps domain entities
 String getUnifiedNoteId(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.id;
-  } else if (note is LocalNote) {
-    return note.id;
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.id;
 }
 
-/// Helper to get note title regardless of type
+/// Helper to get note title - UnifiedNote now only wraps domain entities
 String getUnifiedNoteTitle(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.title;
-  } else if (note is LocalNote) {
-    return note.title;
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.title;
 }
 
-/// Helper to get note body regardless of type
+/// Helper to get note body - UnifiedNote now only wraps domain entities
 String getUnifiedNoteBody(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.body;
-  } else if (note is LocalNote) {
-    return note.body;
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.body;
 }
 
-/// Helper to get note pinned status regardless of type
+/// Helper to get note pinned status - UnifiedNote now only wraps domain entities
 bool getUnifiedNoteIsPinned(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.isPinned;
-  } else if (note is LocalNote) {
-    return note.isPinned;
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.isPinned;
 }
 
-/// Helper to get note folder ID regardless of type
+/// Helper to get note folder ID - UnifiedNote now only wraps domain entities
 String? getUnifiedNoteFolderId(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.folderId;
-  } else if (note is LocalNote) {
-    // LocalNote doesn't have direct folder ID, would need to query note_folders table
-    return null;
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.folderId;
 }
 
-/// Helper to get note tags regardless of type
+/// Helper to get note tags - UnifiedNote now only wraps domain entities
 List<String> getUnifiedNoteTags(UnifiedNote note) {
-  if (note is domain.Note) {
-    return note.tags;
-  } else if (note is LocalNote) {
-    // LocalNote doesn't have direct tags, would need to query note_tags table
-    return [];
-  }
-  throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  return note.tags;
 }
 
-/// Helper to get folder ID regardless of type
+/// Helper to get folder ID - UnifiedFolder now has direct property access
 String getUnifiedFolderId(UnifiedFolder folder) {
-  if (folder is domain.Folder) {
-    return folder.id;
-  } else if (folder is LocalFolder) {
-    return folder.id;
-  }
-  throw ArgumentError('Unknown folder type: ${folder.runtimeType}');
+  return folder.id;
 }
 
-/// Helper to get folder name regardless of type
+/// Helper to get folder name - UnifiedFolder now has direct property access
 String getUnifiedFolderName(UnifiedFolder folder) {
-  if (folder is domain.Folder) {
-    return folder.name;
-  } else if (folder is LocalFolder) {
-    return folder.name;
-  }
-  throw ArgumentError('Unknown folder type: ${folder.runtimeType}');
+  return folder.name;
 }
 
-/// Helper to get task ID regardless of type
+/// Helper to get task ID - UnifiedTask now only wraps domain entities
 String getUnifiedTaskId(UnifiedTask task) {
-  if (task is domain.Task) {
-    return task.id;
-  } else if (task is NoteTask) {
-    return task.id;
-  }
-  throw ArgumentError('Unknown task type: ${task.runtimeType}');
+  return task.id;
 }
 
-/// Helper to get task title regardless of type
+/// Helper to get task title - UnifiedTask now only wraps domain entities
 String getUnifiedTaskTitle(UnifiedTask task) {
   return task.content;
 }
 
-/// Helper to check if task is completed regardless of type
+/// Helper to check if task is completed - UnifiedTask now only wraps domain entities
 bool getUnifiedTaskIsCompleted(UnifiedTask task) {
-  if (task is domain.Task) {
-    return task.status == domain.TaskStatus.completed;
-  } else if (task is NoteTask) {
-    // Compare TaskStatus enum values properly
-    return task.status == TaskStatus.completed;
-  }
-  throw ArgumentError('Unknown task type: ${task.runtimeType}');
+  return task.isCompleted;
 }
 
 /// Unified search provider
-final unifiedSearchProvider = FutureProvider.family<List<UnifiedNote>, String>((ref, query) async {
+final unifiedSearchProvider = FutureProvider.autoDispose.family<List<UnifiedNote>, String>((ref, query) async {
   final config = ref.watch(migrationConfigProvider);
   final logger = LoggerFactory.instance;
 
   try {
     if (config.isFeatureEnabled('notes')) {
-      logger.info('[UnifiedSearch] Using domain search for: $query');
+      logger.info('[UnifiedSearch] Using domain search service for: $query');
 
-      // Use domain repository - search not available, use list and filter
+      final trimmedQuery = query.trim();
       final repository = ref.watch(notesCoreRepositoryProvider);
-      final allNotes = await repository.localNotes();
-      final notes = allNotes.where((n) =>
-        n.title.toLowerCase().contains(query.toLowerCase()) ||
-        n.body.toLowerCase().contains(query.toLowerCase())
-      ).toList();
 
-      return notes.map((domain.Note n) => UnifiedNote.from(n)).toList();
+      // Empty query → return recent notes without invoking the search stack
+      if (trimmedQuery.isEmpty) {
+        final allNotes = await repository.localNotes();
+        return allNotes.map((domain.Note n) => UnifiedNote.from(n)).toList();
+      }
+
+      final searchService = ref.watch(unifiedSearchServiceProvider);
+      final results = await searchService.search(
+        trimmedQuery,
+        options: const SearchOptions(
+          types: [SearchResultType.note],
+          limit: 200,
+        ),
+      );
+
+      final seenIds = <String>{};
+      final unifiedNotes = <UnifiedNote>[];
+
+      for (final item in results) {
+        if (item.type != SearchResultType.note) continue;
+
+        domain.Note? note;
+        final data = item.data;
+
+        if (data is domain.Note) {
+          note = data;
+        } else if (data is UnifiedNote) {
+          if (seenIds.add(data.id)) {
+            unifiedNotes.add(UnifiedNote.from(data));
+          }
+          continue;
+        } else if (data is String) {
+          note = await repository.getNoteById(data);
+        }
+
+        if (note == null) {
+          logger.warning(
+            '[UnifiedSearch] Skipping unexpected search result data type',
+            data: {'runtimeType': data.runtimeType.toString()},
+          );
+          continue;
+        }
+
+        if (seenIds.add(note.id)) {
+          unifiedNotes.add(UnifiedNote.from(note));
+        }
+      }
+
+      if (unifiedNotes.isNotEmpty) {
+        return unifiedNotes;
+      }
+
+      // Fallback: index may still be warming up – fall back to simple filtering
+      logger.info('[UnifiedSearch] FTS returned no results, using fallback filter');
+      final allNotes = await repository.localNotes();
+      final queryLower = trimmedQuery.toLowerCase();
+      final filtered = allNotes.where((n) =>
+        n.title.toLowerCase().contains(queryLower) ||
+        n.body.toLowerCase().contains(queryLower),
+      );
+      return filtered.map((domain.Note n) => UnifiedNote.from(n)).toList();
     } else {
       logger.info('[UnifiedSearch] Using legacy search for: $query');
 
@@ -264,7 +274,7 @@ final unifiedSearchProvider = FutureProvider.family<List<UnifiedNote>, String>((
 });
 
 /// Unified note by ID provider
-final unifiedNoteByIdProvider = FutureProvider.family<UnifiedNote?, String>((ref, noteId) async {
+final unifiedNoteByIdProvider = FutureProvider.autoDispose.family<UnifiedNote?, String>((ref, noteId) async {
   final config = ref.watch(migrationConfigProvider);
   final logger = LoggerFactory.instance;
 
@@ -334,8 +344,8 @@ class UnifiedNoteCreator {
         await db.into(db.localNotes).insert(
           LocalNotesCompanion(
             id: Value(noteId),
-            title: Value(title),
-            body: Value(body),
+            titleEncrypted: Value(title),  // Legacy path uses plaintext in encrypted field
+            bodyEncrypted: Value(body),
             updatedAt: Value(now),
             deleted: const Value(false),
             version: const Value(1),

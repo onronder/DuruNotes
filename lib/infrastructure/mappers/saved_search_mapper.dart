@@ -1,9 +1,31 @@
 import 'dart:convert';
 import 'package:duru_notes/data/local/app_db.dart' as db;
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Maps between domain SavedSearch entity and infrastructure SavedSearch
 class SavedSearchMapper {
+  // Cache userId to avoid repeated auth calls
+  static String? _cachedUserId;
+  static DateTime? _cacheTime;
+  static const _cacheValidityMinutes = 5;
+
+  /// Get current user ID with caching
+  static String _getCurrentUserId() {
+    // Return cached value if still valid
+    if (_cachedUserId != null && _cacheTime != null) {
+      final age = DateTime.now().difference(_cacheTime!);
+      if (age.inMinutes < _cacheValidityMinutes) {
+        return _cachedUserId!;
+      }
+    }
+
+    // Cache expired or not set - refresh
+    _cachedUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    _cacheTime = DateTime.now();
+    return _cachedUserId!;
+  }
+
   /// Convert infrastructure SavedSearch to domain SavedSearch
   static domain.SavedSearch toDomain(db.SavedSearch dbSearch) {
     return domain.SavedSearch(
@@ -11,7 +33,7 @@ class SavedSearchMapper {
       name: dbSearch.name,
       query: dbSearch.query,
       filters: dbSearch.parameters != null
-          ? domain.SearchFilters.fromJson(jsonDecode(dbSearch.parameters!))
+          ? domain.SearchFilters.fromJson(jsonDecode(dbSearch.parameters!) as Map<String, dynamic>)
           : null,
       isPinned: dbSearch.isPinned,
       createdAt: dbSearch.createdAt,
@@ -23,8 +45,11 @@ class SavedSearchMapper {
 
   /// Convert domain SavedSearch to infrastructure SavedSearch
   static db.SavedSearch toInfrastructure(domain.SavedSearch search) {
+    final userId = _getCurrentUserId();
+
     return db.SavedSearch(
       id: search.id,
+      userId: userId,
       name: search.name,
       query: search.query,
       searchType: 'text', // Default to text search

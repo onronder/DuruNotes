@@ -7,10 +7,8 @@ typedef NotesRepository = NotesCoreRepository;
 
 class CaptureNotesAdapter implements NotesCapturePort {
   CaptureNotesAdapter({required NotesRepository repository, required AppDb db})
-      : _repository = repository,
-        _db = db;
+      : _repository = repository;
   final NotesRepository _repository;
-  final AppDb _db;
 
   @override
   Future<String> createEncryptedNote({

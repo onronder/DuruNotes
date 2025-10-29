@@ -5,12 +5,14 @@ import 'package:duru_notes/domain/entities/template.dart' as domain;
 import 'package:duru_notes/features/templates/template_preview_dialog.dart';
 import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/features/templates/edit_template_dialog.dart';
+import 'package:duru_notes/features/templates/providers/templates_providers.dart'
+    show templateListProvider, templateCoreRepositoryProvider;
 import 'package:duru_notes/models/template_model.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/template_sharing_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:uuid/uuid.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -351,7 +353,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         margin: EdgeInsets.all(DuruSpacing.md),
         child: const Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 
@@ -1177,10 +1179,11 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       });
 
       // Apply template to create note
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
       final noteId = await repository.applyTemplate(
         templateId: template.id,
-        variableValues: {}, // Empty variables for now - will be replaced with note creation
+        variableValues:
+            <String, dynamic>{}, // Empty variables for now - will be replaced with note creation
       );
 
       debugPrint('Created note from template: $noteId');
@@ -1275,7 +1278,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
     if (confirmed ?? false) {
       try {
-        final repository = ref.read(templateRepositoryProvider);
+        final repository = ref.read(templateCoreRepositoryProvider);
         await repository.deleteTemplate(template.id);
 
         await _loadTemplates();
@@ -1328,10 +1331,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     // Parse tags from JSON string
     List<String> tagsList = [];
     try {
-      if (template.tags != null) {
-        tagsList = (jsonDecode(template.tags!) as List<dynamic>).cast<String>();
-      }
-    } catch (_) {
+      tagsList = (jsonDecode(template.tags) as List<dynamic>).cast<String>();
+        } catch (_) {
       tagsList = [];
     }
 
@@ -1419,10 +1420,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       // Parse tags from JSON string
       List<String> tagsList = [];
       try {
-        if (template.tags != null) {
-          tagsList = (jsonDecode(template.tags!) as List<dynamic>).cast<String>();
-        }
-      } catch (_) {
+        tagsList = (jsonDecode(template.tags) as List<dynamic>).cast<String>();
+            } catch (_) {
         tagsList = [];
       }
 
@@ -1477,7 +1476,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
   Future<void> _duplicateTemplate(LocalTemplate template) async {
     try {
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
 
       await repository.duplicateTemplate(
         templateId: template.id,
@@ -1568,7 +1567,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _importSingleTemplate() async {
     try {
       final sharingService = TemplateSharingService();
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
 
       final template = await sharingService.importTemplate();
       if (template != null) {
@@ -1593,7 +1592,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
             ),
           );
           // Refresh the templates list
-          ref.invalidate(templateRepositoryProvider);
+          ref.invalidate(templateCoreRepositoryProvider);
         }
       }
     } catch (e) {
@@ -1611,7 +1610,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _importTemplatePack() async {
     try {
       final sharingService = TemplateSharingService();
-      final repository = ref.read(templateRepositoryProvider);
+      final repository = ref.read(templateCoreRepositoryProvider);
 
       final templates = await sharingService.importTemplatePack();
       if (templates.isNotEmpty) {
@@ -1646,7 +1645,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
             ),
           );
           // Refresh the templates list
-          ref.invalidate(templateRepositoryProvider);
+          ref.invalidate(templateCoreRepositoryProvider);
         }
       }
     } catch (e) {

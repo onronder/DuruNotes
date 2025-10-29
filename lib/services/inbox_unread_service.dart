@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,12 +17,22 @@ enum InboxBadgeMode {
 /// Service to track unread items in the inbox
 class InboxUnreadService extends ChangeNotifier {
   InboxUnreadService({required SupabaseClient supabase})
-      : _supabase = supabase {
+    : _supabase = supabase {
     _loadSettings();
   }
+  static const List<String> _defaultSourceTypes = <String>[
+    'email_in',
+    'web',
+    'web_clip',
+    'mobile_clip',
+    'extension',
+    'share_sheet',
+    'api',
+  ];
   static const String _lastViewedKey = 'inbox_last_viewed_timestamp';
   static const String _unreadCountKey = 'inbox_unread_count';
   static const String _badgeModeKey = 'inbox_badge_mode';
+  static const String _readItemsKey = 'inbox_read_item_ids';
 
   /// Default badge mode (can be made configurable via settings)
   static const InboxBadgeMode kDefaultBadgeMode =
@@ -31,6 +43,7 @@ class InboxUnreadService extends ChangeNotifier {
   DateTime? _lastViewedTimestamp;
   int _unreadCount = 0;
   InboxBadgeMode _badgeMode = kDefaultBadgeMode;
+  final Set<String> _readItemIds = <String>{};
   bool _disposed = false;
 
   int get unreadCount => _unreadCount;
@@ -69,6 +82,14 @@ class InboxUnreadService extends ChangeNotifier {
       // Load cached count
       _unreadCount = prefs.getInt(_unreadCountKey) ?? 0;
 
+      // Load read item IDs
+      final readItems = prefs.getStringList(_readItemsKey);
+      if (readItems != null) {
+        _readItemIds
+          ..clear()
+          ..addAll(readItems);
+      }
+
       if (!_disposed) {
         notifyListeners();
       }
@@ -85,36 +106,102 @@ class InboxUnreadService extends ChangeNotifier {
     try {
       _lastViewedTimestamp = DateTime.now();
 
-      // In newSinceLastOpen mode, reset the count immediately
-      if (_badgeMode == InboxBadgeMode.newSinceLastOpen) {
-        _unreadCount = 0;
-      }
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
         _lastViewedKey,
         _lastViewedTimestamp!.millisecondsSinceEpoch,
       );
 
-      // Only reset stored count in newSinceLastOpen mode
-      if (_badgeMode == InboxBadgeMode.newSinceLastOpen) {
-        await prefs.setInt(_unreadCountKey, 0);
-      }
-
-      if (!_disposed) {
-        notifyListeners();
-      }
       _logger.debug(
         ' Marked inbox as viewed at $_lastViewedTimestamp (mode: $_badgeMode)',
       );
 
-      // In total mode, recompute to get current total
-      if (_badgeMode == InboxBadgeMode.total) {
-        await computeBadgeCount();
-      }
+      await computeBadgeCount();
     } catch (e) {
       _logger.debug(' Error marking inbox as viewed: $e');
     }
+  }
+
+  Future<void> markItemViewed(String id) async {
+    if (id.isEmpty) return;
+    final added = _readItemIds.add(id);
+    if (!added) return;
+    await _persistReadItems();
+    await computeBadgeCount();
+  }
+
+  Future<void> markItemsViewed(Iterable<String> ids) async {
+    var changed = false;
+    for (final id in ids) {
+      if (id.isEmpty) continue;
+      changed = _readItemIds.add(id) || changed;
+    }
+    if (!changed) return;
+    await _persistReadItems();
+    await computeBadgeCount();
+  }
+
+  Future<void> _persistReadItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_readItemsKey, _readItemIds.toList());
+  }
+
+  Map<String, dynamic> _parseMetadata(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is Map) {
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    }
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+        if (decoded is Map) {
+          return decoded.map((key, value) => MapEntry(key.toString(), value));
+        }
+      } catch (_) {
+        // Ignore invalid JSON payloads
+      }
+    }
+    return const <String, dynamic>{};
+  }
+
+  bool _truthy(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final normalized = value.toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
+  }
+
+  bool _shouldIgnoreMetadata(Map<String, dynamic> metadata) {
+    if (metadata.isEmpty) {
+      return false;
+    }
+
+    if (_truthy(metadata['archived']) || _truthy(metadata['deleted'])) {
+      return true;
+    }
+
+    if (_truthy(metadata['processed']) || _truthy(metadata['dismissed'])) {
+      return true;
+    }
+
+    final status = (metadata['status'] as String?)?.toLowerCase();
+    if (status == 'archived' || status == 'deleted' || status == 'dismissed') {
+      return true;
+    }
+
+    return false;
   }
 
   /// Compute badge count based on current mode
@@ -123,29 +210,71 @@ class InboxUnreadService extends ChangeNotifier {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
         _unreadCount = 0;
+        _readItemIds.clear();
         if (!_disposed) {
           notifyListeners();
         }
         return;
       }
 
-      // Build query - strictly scoped to user
+      // Build query - strictly scoped to user and unprocessed items only
+      final sourceFilter = _defaultSourceTypes
+          .map((source) => 'source_type.eq.$source')
+          .join(',');
+
       var query = _supabase
           .from('clipper_inbox')
-          .select('id')
+          .select('id,created_at,metadata')
           .eq('user_id', userId) // Strict user scoping
-          .or('source_type.eq.email_in,source_type.eq.web');
-
-      // Apply mode-specific filtering
-      if (_badgeMode == InboxBadgeMode.newSinceLastOpen &&
-          _lastViewedTimestamp != null) {
-        // Only count items newer than last viewed
-        query = query.gt('created_at', _lastViewedTimestamp!.toIso8601String());
-      }
-      // For total mode, no additional filtering needed
+          .filter('converted_to_note_id', 'is', 'null')
+          .or(sourceFilter);
 
       final response = await query;
-      final count = (response as List).length;
+      final rows = (response as List)
+          .cast<Map<String, dynamic>>()
+          .where((row) => row['id'] != null)
+          .toList();
+
+      final idsInResponse = <String>{};
+      final candidateIds = <String>[];
+
+      for (final row in rows) {
+        final id = row['id'] as String;
+        idsInResponse.add(id);
+
+        final metadata = _parseMetadata(row['metadata']);
+        if (_shouldIgnoreMetadata(metadata)) {
+          _logger.debug(
+            'Skipping inbox item due to metadata flags',
+            data: {'id': id, 'metadata': metadata},
+          );
+          continue;
+        }
+
+        if (_badgeMode == InboxBadgeMode.newSinceLastOpen &&
+            _lastViewedTimestamp != null) {
+          final createdAtStr = row['created_at'] as String?;
+          final createdAt = createdAtStr != null
+              ? DateTime.tryParse(createdAtStr)
+              : null;
+          if (createdAt == null || !createdAt.isAfter(_lastViewedTimestamp!)) {
+            continue;
+          }
+        }
+
+        candidateIds.add(id);
+      }
+
+      final beforeSize = _readItemIds.length;
+      _readItemIds.removeWhere((id) => !idsInResponse.contains(id));
+      if (_readItemIds.length != beforeSize) {
+        await _persistReadItems();
+      }
+
+      final unreadIds = candidateIds
+          .where((id) => !_readItemIds.contains(id))
+          .toList();
+      final count = unreadIds.length;
 
       if (_unreadCount != count) {
         _unreadCount = count;
@@ -188,10 +317,12 @@ class InboxUnreadService extends ChangeNotifier {
     try {
       _lastViewedTimestamp = null;
       _unreadCount = 0;
+      _readItemIds.clear();
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastViewedKey);
       await prefs.remove(_unreadCountKey);
+      await prefs.remove(_readItemsKey);
 
       if (!_disposed) {
         notifyListeners();

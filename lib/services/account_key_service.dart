@@ -22,11 +22,12 @@ typedef NotesRepository = NotesCoreRepository;
 /// - wrap/unwrap AMK to/from user_keys table in Supabase
 /// - cache AMK in secure storage locally
 class AccountKeyService {
-  AccountKeyService(this._ref, {
+  AccountKeyService(
+    this._ref, {
     FlutterSecureStorage? storage,
     SupabaseClient? client,
-  })  : _storage = storage ?? const FlutterSecureStorage(),
-        _client = client ?? Supabase.instance.client;
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _client = client ?? Supabase.instance.client;
 
   static const String _amkKeyPrefix = 'amk:';
   static const String _amkMetaPrefix = 'amk_meta:';
@@ -51,7 +52,6 @@ class AccountKeyService {
           scope.level = level;
           scope.setTag('service', 'AccountKeyService');
           scope.setTag('operation', operation);
-          data?.forEach((key, value) => scope.setExtra(key, value));
         },
       ),
     );
@@ -197,8 +197,8 @@ class AccountKeyService {
     } catch (error, stack) {
       // Table missing or other schema error => provision new AMK
       if (error.toString().contains(
-            "Could not find the table 'public.user_keys'",
-          )) {
+        "Could not find the table 'public.user_keys'",
+      )) {
         _logger.warning('user_keys table not found, provisioning new AMK');
         _captureAccountKeyException(
           operation: 'unlockAmk.fetchMissingTable',
@@ -367,10 +367,10 @@ class AccountKeyService {
       final wrappedBytes = wrapped is Uint8List
           ? wrapped
           : wrapped is List<int>
-              ? Uint8List.fromList(wrapped)
-              : wrapped is List<dynamic>
-                  ? Uint8List.fromList(wrapped.cast<int>())
-                  : _bytesFromDb(wrapped);
+          ? Uint8List.fromList(wrapped)
+          : wrapped is List<dynamic>
+          ? Uint8List.fromList(wrapped.cast<int>())
+          : _bytesFromDb(wrapped);
       amk = await _unwrapAmk(wrappedBytes, wrappingOld);
     }
 
@@ -428,14 +428,14 @@ class AccountKeyService {
     final notes = await db.allNotes();
     for (final n in notes) {
       // Enqueue to ensure they get re-encrypted and pushed with AMK-derived keys
-      await db.enqueue(n.id, 'upsert_note');
+      await db.enqueue(userId: uid, entityId: n.id, kind: 'upsert_note');
       queued++;
     }
 
     // Folders
     final folders = await db.allFolders();
     for (final f in folders) {
-      await db.enqueue(f.id, 'upsert_folder');
+      await db.enqueue(userId: uid, entityId: f.id, kind: 'upsert_folder');
       queued++;
     }
 

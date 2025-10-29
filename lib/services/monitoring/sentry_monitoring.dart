@@ -217,9 +217,14 @@ class SentryMonitoringService {
       final connectivity = await Connectivity().checkConnectivity();
       event.contexts['connectivity'] = {
         'type': connectivity.toString(),
-        'is_connected': connectivity != ConnectivityResult.none,
+        'is_connected': !connectivity.contains(ConnectivityResult.none),
       };
-    } catch (_) {}
+    } catch (error, stack) {
+      _instance._logger.warning(
+        'Failed to capture connectivity status for Sentry event',
+        data: {'error': error.toString(), 'stack': stack.toString()},
+      );
+    }
 
     // Add memory info
     event.contexts['memory'] = {'used_memory': _getUsedMemory()};
@@ -249,7 +254,10 @@ class SentryMonitoringService {
         }
       }
 
-      return breadcrumb.copyWith(data: sanitizedData);
+      // Assign directly to instance instead of using deprecated copyWith
+      breadcrumb.data?.clear();
+      breadcrumb.data?.addAll(sanitizedData);
+      return breadcrumb;
     }
 
     return breadcrumb;
@@ -439,8 +447,9 @@ class SentryMonitoringService {
       category: 'performance',
       data: {
         'status': span.status?.toString(),
-        'duration_ms':
-            span.endTimestamp?.difference(span.startTimestamp).inMilliseconds,
+        'duration_ms': span.endTimestamp
+            ?.difference(span.startTimestamp)
+            .inMilliseconds,
       },
     );
 
@@ -507,9 +516,8 @@ class SentryMonitoringService {
 
         // Add extra context
         if (extra != null) {
-          extra.forEach((key, value) {
-            scope.setExtra(key, value);
-          });
+          // Use Contexts API instead of deprecated setExtra
+          scope.setContexts('extra', extra);
         }
 
         // Set level
@@ -542,9 +550,8 @@ class SentryMonitoringService {
       level: level ?? SentryLevel.info,
       withScope: (scope) {
         if (extra != null) {
-          extra.forEach((key, value) {
-            scope.setExtra(key, value);
-          });
+          // Use Contexts API instead of deprecated setExtra
+          scope.setContexts('extra', extra);
         }
       },
     );

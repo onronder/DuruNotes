@@ -1,25 +1,81 @@
 import 'dart:async';
 
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
-import 'package:duru_notes/services/task_service.dart';
-import 'package:duru_notes/services/unified_task_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Enhanced task service with integrated reminder management
-class EnhancedTaskService extends TaskService {
+/// PRODUCTION: Uses TaskCoreRepository for CRUD operations (handles encryption), manages reminders
+class EnhancedTaskService {
   EnhancedTaskService({
-    required super.database,
+    required AppDb database,
+    required ITaskRepository taskRepository,
     required TaskReminderBridge reminderBridge,
-  })  : _reminderBridge = reminderBridge,
-        _db = database;
+    SupabaseClient? supabaseClient,
+  }) : _reminderBridge = reminderBridge,
+       _db = database,
+       _taskRepository = taskRepository,
+       _supabaseClient = supabaseClient ?? _resolveSupabaseClient();
 
   final TaskReminderBridge _reminderBridge;
   final AppDb _db;
+  final ITaskRepository _taskRepository;
+  final SupabaseClient? _supabaseClient;
 
-  // Bidirectional sync functionality moved to UnifiedTaskService
+  // Bidirectional sync functionality is coordinated by the domain layer now
 
-  @override
+  AppDb get database => _db;
+
+  static SupabaseClient? _resolveSupabaseClient() {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get _currentUserId {
+    try {
+      return _supabaseClient?.auth.currentUser?.id;
+    } catch (e) {
+      debugPrint('EnhancedTaskService: failed to resolve userId: $e');
+      return null;
+    }
+  }
+
+  String? _requireUserIdFor(String action) {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint(
+        'EnhancedTaskService: cannot perform "$action" without userId',
+      );
+      return null;
+    }
+    return userId;
+  }
+
+  Future<void> migrateStandaloneNoteId({
+    required String fromNoteId,
+    required String toNoteId,
+  }) async {
+    await _db.migrateNoteId(fromNoteId, toNoteId);
+    final userId = _currentUserId;
+    if (userId == null) {
+      debugPrint(
+        'EnhancedTaskService: unable to enqueue note sync, userId unavailable',
+      );
+      return;
+    }
+    await _db.enqueue(userId: userId, entityId: toNoteId, kind: 'upsert_note');
+  }
+
+  /// Create a new task with optional reminder integration
+  /// PRODUCTION: Uses TaskCoreRepository for actual task creation - it handles encryption
+  /// This method manages reminder integration and returns the created task ID
   Future<String> createTask({
     required String noteId,
     required String content,
@@ -33,65 +89,70 @@ class EnhancedTaskService extends TaskService {
     int? position,
     bool createReminder = true,
   }) async {
-    // Use transaction for atomicity when creating task with reminder
+    // Convert parameters to domain.Task object
+    final domainTask = domain.Task(
+      id: '', // TaskCoreRepository will generate ID
+      noteId: noteId,
+      title: content,
+      description: notes,
+      status: _mapStatusToDomain(status),
+      priority: _mapPriorityToDomain(priority),
+      dueDate: dueDate,
+      completedAt: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      tags: labels != null
+          ? (labels['labels'] as List<dynamic>?)?.cast<String>() ?? []
+          : [],
+      metadata: {
+        if (parentTaskId != null) 'parentTaskId': parentTaskId,
+        if (position != null) 'position': position,
+        if (estimatedMinutes != null) 'estimatedMinutes': estimatedMinutes,
+      },
+    );
+
+    // Create task using TaskCoreRepository (handles encryption)
+    final createdTask = await _taskRepository.createTask(domainTask);
+    final taskId = createdTask.id;
+
+    // Handle reminder creation if requested
     if (createReminder && dueDate != null) {
-      return await _db.transaction(() async {
-        // Create the task
-        final taskId = await super.createTask(
-          noteId: noteId,
-          content: content,
-          status: status,
-          priority: priority,
-          dueDate: dueDate,
-          parentTaskId: parentTaskId,
-          labels: labels,
-          notes: notes,
-          estimatedMinutes: estimatedMinutes,
-          position: position,
-        );
-
-        try {
-          final task = await _db.getTaskById(taskId);
-          if (task != null) {
-            // Create reminder and get its ID
-            final reminderId = await _reminderBridge.createTaskReminder(
-              task: task,
-              beforeDueDate: const Duration(hours: 1), // Default 1 hour before
-            );
-
-            // Link reminder to task within the same transaction
-            if (reminderId != null) {
-              await super.updateTask(
-                taskId: taskId,
-                reminderId: reminderId,
-              );
-            }
-          }
-        } catch (e) {
-          // Log but don't fail the transaction - task is more important than reminder
-          debugPrint('Failed to create reminder for task $taskId: $e');
+      try {
+        final userId = _requireUserIdFor('createTask.linkReminder');
+        if (userId == null) {
+          return taskId;
         }
+        final localTask = await _db.getTaskById(taskId, userId: userId);
+        if (localTask != null) {
+          // Create reminder and get its ID
+          final reminderId = await _reminderBridge.createTaskReminder(
+            task: localTask,
+            beforeDueDate: const Duration(hours: 1), // Default 1 hour before
+          );
 
-        return taskId;
-      });
-    } else {
-      // No reminder needed, create task normally
-      return await super.createTask(
-        noteId: noteId,
-        content: content,
-        status: status,
-        priority: priority,
-        dueDate: dueDate,
-        parentTaskId: parentTaskId,
-        labels: labels,
-        notes: notes,
-        estimatedMinutes: estimatedMinutes,
-        position: position,
-      );
+          // Link reminder to task
+          if (reminderId != null) {
+            await _db.updateTask(
+              taskId,
+              userId,
+              NoteTasksCompanion(
+                reminderId: Value(reminderId),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Don't fail task creation if reminder fails
+        debugPrint('Failed to create reminder for task $taskId: $e');
+      }
     }
+
+    return taskId;
   }
 
-  @override
+  /// Update an existing task with optional reminder sync
+  /// PRODUCTION: Uses TaskCoreRepository for content updates - it handles encryption
   Future<void> updateTask({
     required String taskId,
     String? content,
@@ -107,33 +168,68 @@ class EnhancedTaskService extends TaskService {
     bool updateReminder = true,
     bool clearReminderId = false,
   }) async {
-    // Get old task for comparison
-    final oldTask = await _db.getTaskById(taskId);
+    final userId = _requireUserIdFor('updateTask');
+    if (userId == null) {
+      throw StateError('Task update requires authenticated user');
+    }
+    // Get old task for comparison and reminder updates
+    final oldLocalTask = await _db.getTaskById(taskId, userId: userId);
 
-    // Update the task using parent implementation
-    await super.updateTask(
-      taskId: taskId,
-      content: content,
-      status: status,
-      priority: priority,
-      dueDate: dueDate,
-      labels: labels,
-      notes: notes,
-      estimatedMinutes: estimatedMinutes,
-      actualMinutes: actualMinutes,
-      reminderId: reminderId,
-      parentTaskId: parentTaskId,
-      clearReminderId: clearReminderId,
+    // Get current domain task
+    final currentTask = await _taskRepository.getTaskById(taskId);
+    if (currentTask == null) {
+      throw Exception('Task not found: $taskId');
+    }
+
+    // Build updated domain task by merging current values with updates
+    final updatedTask = domain.Task(
+      id: taskId,
+      noteId: currentTask.noteId,
+      title: content ?? currentTask.title,
+      description: notes ?? currentTask.description,
+      status: status != null ? _mapStatusToDomain(status) : currentTask.status,
+      priority: priority != null
+          ? _mapPriorityToDomain(priority)
+          : currentTask.priority,
+      dueDate: dueDate ?? currentTask.dueDate,
+      completedAt: status == TaskStatus.completed
+          ? DateTime.now()
+          : currentTask.completedAt,
+      createdAt: currentTask.createdAt,
+      updatedAt: DateTime.now(),
+      tags: labels != null
+          ? (labels['labels'] as List<dynamic>?)?.cast<String>() ?? []
+          : currentTask.tags,
+      metadata: {
+        ...currentTask.metadata,
+        if (parentTaskId != null) 'parentTaskId': parentTaskId,
+        if (estimatedMinutes != null) 'estimatedMinutes': estimatedMinutes,
+        if (actualMinutes != null) 'actualMinutes': actualMinutes,
+        if (reminderId != null) 'reminderId': reminderId,
+      },
     );
 
-    // Sync handled by UnifiedTaskService
+    // Update task using TaskCoreRepository (handles encryption)
+    await _taskRepository.updateTask(updatedTask);
+
+    // Handle reminder ID clearing separately if needed
+    if (clearReminderId) {
+      await _db.updateTask(
+        taskId,
+        userId,
+        NoteTasksCompanion(
+          reminderId: const Value(null),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    }
 
     // Handle reminder updates if enabled
-    if (updateReminder && oldTask != null) {
+    if (updateReminder && oldLocalTask != null) {
       try {
-        final newTask = await _db.getTaskById(taskId);
-        if (newTask != null) {
-          await _reminderBridge.onTaskUpdated(oldTask, newTask);
+        final newLocalTask = await _db.getTaskById(taskId, userId: userId);
+        if (newLocalTask != null) {
+          await _reminderBridge.onTaskUpdated(oldLocalTask, newLocalTask);
         }
       } catch (e) {
         // Don't fail task update if reminder fails
@@ -142,15 +238,19 @@ class EnhancedTaskService extends TaskService {
     }
   }
 
-  @override
+  /// Complete a task
   Future<void> completeTask(String taskId, {String? completedBy}) async {
+    final userId = _requireUserIdFor('completeTask');
+    if (userId == null) {
+      return;
+    }
     // Get task before completion for reminder cleanup
-    final task = await _db.getTaskById(taskId);
+    final task = await _db.getTaskById(taskId, userId: userId);
 
-    // Complete the task using parent implementation
-    await super.completeTask(taskId, completedBy: completedBy);
+    // Complete the task using AppDb directly
+    await _db.completeTask(taskId, userId, completedBy: completedBy);
 
-    // Sync handled by UnifiedTaskService
+    // Sync handled by domain synchronization flows
 
     // Cancel reminder if task had one
     if (task != null) {
@@ -165,20 +265,24 @@ class EnhancedTaskService extends TaskService {
     }
   }
 
-  @override
+  /// Toggle task status between completed and open
   Future<void> toggleTaskStatus(String taskId) async {
+    final userId = _requireUserIdFor('toggleTaskStatus');
+    if (userId == null) {
+      return;
+    }
     // Get task before toggle for reminder management
-    final oldTask = await _db.getTaskById(taskId);
+    final oldTask = await _db.getTaskById(taskId, userId: userId);
 
-    // Toggle using parent implementation
-    await super.toggleTaskStatus(taskId);
+    // Toggle using AppDb directly
+    await _db.toggleTaskStatus(taskId, userId);
 
-    // Sync handled by UnifiedTaskService
+    // Sync handled by domain synchronization flows
 
     // Handle reminder updates
     if (oldTask != null) {
       try {
-        final newTask = await _db.getTaskById(taskId);
+        final newTask = await _db.getTaskById(taskId, userId: userId);
         if (newTask != null) {
           await _reminderBridge.onTaskUpdated(oldTask, newTask);
         }
@@ -188,13 +292,17 @@ class EnhancedTaskService extends TaskService {
     }
   }
 
-  @override
+  /// Delete a task
   Future<void> deleteTask(String taskId) async {
+    final userId = _requireUserIdFor('deleteTask');
+    if (userId == null) {
+      return;
+    }
     // Get task before deletion for reminder cleanup
-    final task = await _db.getTaskById(taskId);
+    final task = await _db.getTaskById(taskId, userId: userId);
 
-    // Delete the task using parent implementation
-    await super.deleteTask(taskId);
+    // Delete the task using AppDb directly
+    await _db.deleteTaskById(taskId, userId);
 
     // Cancel reminder if task had one
     if (task != null) {
@@ -233,7 +341,11 @@ class EnhancedTaskService extends TaskService {
 
     // Create custom reminder
     try {
-      final task = await _db.getTaskById(taskId);
+      final userId = _requireUserIdFor('createTaskWithReminder.loadTask');
+      if (userId == null) {
+        return taskId;
+      }
+      final task = await _db.getTaskById(taskId, userId: userId);
       if (task != null) {
         final reminderDuration = reminderTime.difference(dueDate);
         final reminderId = await _reminderBridge.createTaskReminder(
@@ -245,10 +357,7 @@ class EnhancedTaskService extends TaskService {
 
         // Link reminder to task
         if (reminderId != null) {
-          await updateTask(
-            taskId: taskId,
-            reminderId: reminderId,
-          );
+          await updateTask(taskId: taskId, reminderId: reminderId);
         }
       }
     } catch (e) {
@@ -258,13 +367,59 @@ class EnhancedTaskService extends TaskService {
     return taskId;
   }
 
+  /// Cancel any reminder associated with the task.
+  Future<void> clearTaskReminder(String taskId) async {
+    final userId = _requireUserIdFor('clearTaskReminder');
+    if (userId == null) return;
+    final task = await _db.getTaskById(taskId, userId: userId);
+    if (task == null) return;
+
+    await _reminderBridge.cancelTaskReminder(task);
+  }
+
+  /// Reschedule a task reminder using a custom reminder time.
+  Future<void> setCustomTaskReminder({
+    required String taskId,
+    required DateTime dueDate,
+    required DateTime reminderTime,
+  }) async {
+    final userId = _requireUserIdFor('setCustomTaskReminder');
+    if (userId == null) return;
+    final task = await _db.getTaskById(taskId, userId: userId);
+    if (task == null) return;
+
+    final effectiveTask = task.copyWith(dueDate: Value(dueDate));
+
+    if (effectiveTask.reminderId != null) {
+      await _reminderBridge.cancelTaskReminder(effectiveTask);
+    }
+
+    final leadTime = dueDate.difference(reminderTime);
+    await _reminderBridge.createTaskReminder(
+      task: effectiveTask,
+      beforeDueDate: leadTime.isNegative ? Duration.zero : leadTime,
+    );
+  }
+
+  /// Refresh the reminder so it matches the latest due date using default lead time.
+  Future<void> refreshDefaultTaskReminder(String taskId) async {
+    final userId = _requireUserIdFor('refreshDefaultTaskReminder');
+    if (userId == null) return;
+    final task = await _db.getTaskById(taskId, userId: userId);
+    if (task == null || task.dueDate == null) return;
+
+    await _reminderBridge.updateTaskReminder(task);
+  }
+
   /// Snooze task reminder
   Future<void> snoozeTaskReminder({
     required String taskId,
     required Duration snoozeDuration,
   }) async {
     try {
-      final task = await _db.getTaskById(taskId);
+      final userId = _requireUserIdFor('snoozeTaskReminder');
+      if (userId == null) return;
+      final task = await _db.getTaskById(taskId, userId: userId);
       if (task != null) {
         await _reminderBridge.snoozeTaskReminder(
           task: task,
@@ -336,11 +491,19 @@ class EnhancedTaskService extends TaskService {
       await deleteTask(taskId);
 
       debugPrint(
-          'Deleted task hierarchy: $taskId (${childTasks.length + 1} tasks)');
+        'Deleted task hierarchy: $taskId (${childTasks.length + 1} tasks)',
+      );
     } catch (e) {
       debugPrint('Error deleting task hierarchy: $e');
       rethrow;
     }
+  }
+
+  /// Get subtasks for a parent task
+  Future<List<NoteTask>> getSubtasks(String parentTaskId) async {
+    final userId = _requireUserIdFor('getSubtasks');
+    if (userId == null) return [];
+    return _db.getOpenTasks(userId: userId, parentTaskId: parentTaskId);
   }
 
   /// Get all child tasks recursively
@@ -357,6 +520,22 @@ class EnhancedTaskService extends TaskService {
     return allChildren;
   }
 
+  /// Update task positions for reordering
+  Future<void> updateTaskPositions(Map<String, int> taskPositions) async {
+    final userId = _requireUserIdFor('updateTaskPositions');
+    if (userId == null) return;
+    for (final entry in taskPositions.entries) {
+      await _db.updateTask(
+        entry.key,
+        userId,
+        NoteTasksCompanion(
+          position: Value(entry.value),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    }
+  }
+
   /// Move task to different parent (change hierarchy)
   Future<void> moveTaskToParent({
     required String taskId,
@@ -364,10 +543,7 @@ class EnhancedTaskService extends TaskService {
     int? newPosition,
   }) async {
     try {
-      await updateTask(
-        taskId: taskId,
-        parentTaskId: newParentId,
-      );
+      await updateTask(taskId: taskId, parentTaskId: newParentId);
 
       if (newPosition != null) {
         await updateTaskPositions({taskId: newPosition});
@@ -378,89 +554,6 @@ class EnhancedTaskService extends TaskService {
       debugPrint('Error moving task to parent: $e');
       rethrow;
     }
-  }
-
-  /// Get task hierarchy for a note
-  Future<List<TaskHierarchyNode>> getTaskHierarchy(String noteId) async {
-    try {
-      final allTasks = await getTasksForNote(noteId);
-      return _buildTaskHierarchy(allTasks);
-    } catch (e) {
-      debugPrint('Error getting task hierarchy: $e');
-      return [];
-    }
-  }
-
-  /// Build task hierarchy from flat task list
-  List<TaskHierarchyNode> _buildTaskHierarchy(List<NoteTask> tasks) {
-    final taskMap = <String, NoteTask>{for (var task in tasks) task.id: task};
-    final rootTasks = <TaskHierarchyNode>[];
-    final nodeMap = <String, TaskHierarchyNode>{};
-
-    // Create nodes for all tasks
-    for (final task in tasks) {
-      nodeMap[task.id] = TaskHierarchyNode(
-        task: task,
-        children: [],
-        parent: null,
-      );
-    }
-
-    // Build hierarchy
-    for (final task in tasks) {
-      final node = nodeMap[task.id]!;
-
-      if (task.parentTaskId != null &&
-          nodeMap.containsKey(task.parentTaskId!)) {
-        // Add as child to parent
-        final parentNode = nodeMap[task.parentTaskId!]!;
-        parentNode.children.add(node);
-        node.parent = parentNode;
-      } else {
-        // Root task
-        rootTasks.add(node);
-      }
-    }
-
-    // Sort by position
-    rootTasks.sort((a, b) => a.task.position.compareTo(b.task.position));
-    for (final node in nodeMap.values) {
-      node.children.sort((a, b) => a.task.position.compareTo(b.task.position));
-    }
-
-    return rootTasks;
-  }
-
-  /// Calculate progress for a parent task
-  TaskProgress calculateTaskProgress(TaskHierarchyNode parentNode) {
-    var totalTasks = 1; // Include the parent task itself
-    var completedTasks = parentNode.task.status == TaskStatus.completed ? 1 : 0;
-    var totalEstimatedMinutes = parentNode.task.estimatedMinutes ?? 0;
-    var totalActualMinutes = parentNode.task.actualMinutes ?? 0;
-
-    void countSubtasks(TaskHierarchyNode node) {
-      for (final child in node.children) {
-        totalTasks++;
-        if (child.task.status == TaskStatus.completed) {
-          completedTasks++;
-        }
-        totalEstimatedMinutes += child.task.estimatedMinutes ?? 0;
-        totalActualMinutes += child.task.actualMinutes ?? 0;
-
-        // Recursively count children
-        countSubtasks(child);
-      }
-    }
-
-    countSubtasks(parentNode);
-
-    return TaskProgress(
-      totalTasks: totalTasks,
-      completedTasks: completedTasks,
-      progressPercentage: totalTasks > 0 ? (completedTasks / totalTasks) : 0.0,
-      totalEstimatedMinutes: totalEstimatedMinutes,
-      totalActualMinutes: totalActualMinutes,
-    );
   }
 
   /// Bulk complete multiple tasks
@@ -493,14 +586,39 @@ class EnhancedTaskService extends TaskService {
   ) async {
     for (final entry in taskPriorities.entries) {
       try {
-        await updateTask(
-          taskId: entry.key,
-          priority: entry.value,
-        );
+        await updateTask(taskId: entry.key, priority: entry.value);
       } catch (e) {
         debugPrint('Error updating priority for task ${entry.key}: $e');
         // Continue with other tasks
       }
+    }
+  }
+
+  // ===== Helper Methods =====
+
+  /// Map local TaskStatus to domain TaskStatus
+  domain.TaskStatus _mapStatusToDomain(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.open:
+        return domain.TaskStatus.pending;
+      case TaskStatus.completed:
+        return domain.TaskStatus.completed;
+      case TaskStatus.cancelled:
+        return domain.TaskStatus.cancelled;
+    }
+  }
+
+  /// Map local TaskPriority to domain TaskPriority
+  domain.TaskPriority _mapPriorityToDomain(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.urgent:
+        return domain.TaskPriority.urgent;
+      case TaskPriority.high:
+        return domain.TaskPriority.high;
+      case TaskPriority.medium:
+        return domain.TaskPriority.medium;
+      case TaskPriority.low:
+        return domain.TaskPriority.low;
     }
   }
 }

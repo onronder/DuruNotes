@@ -1,16 +1,13 @@
 import 'dart:async';
 
 import 'package:duru_notes/features/encryption/encryption_feature_flag.dart';
-import 'package:duru_notes/features/encryption/pending_onboarding_provider.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/core/errors.dart';
-import 'package:duru_notes/core/providers/security_providers.dart'
-    show accountKeyServiceProvider;
+// REMOVED: accountKeyServiceProvider - no longer used in signup flow
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/services/providers/services_providers.dart'
-    show pushNotificationServiceProvider;
+// REMOVED: pushNotificationServiceProvider import (no longer used here)
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,13 +27,13 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen>
     with TickerProviderStateMixin {
-  AppLogger get _logger => ref.read(loggerProvider);
+  // PRODUCTION FIX: Store logger in initState to avoid ref access after dispose
+  late final AppLogger _logger;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
-  final _passphraseController = TextEditingController();
-  final _passphraseConfirmController = TextEditingController();
+  // REMOVED: passphrase controllers - encryption setup now handled by EncryptionSetupDialog
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _isSignUp = false;
@@ -50,6 +47,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   void initState() {
     super.initState();
+
+    // PRODUCTION FIX: Initialize logger early to avoid ref access after dispose
+    _logger = ref.read(loggerProvider);
 
     // Initialize animations
     _fadeController = AnimationController(
@@ -84,8 +84,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
-    _passphraseController.dispose();
-    _passphraseConfirmController.dispose();
+    // REMOVED: passphrase controller disposal
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
@@ -101,10 +100,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     HapticFeedback.lightImpact();
 
     try {
+      debugPrint('[Auth] Starting ${_isSignUp ? 'sign up' : 'sign in'} for $email');
       if (_isSignUp) {
         final signUpRes = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
+        );
+        debugPrint(
+          '[Auth] Sign-up response user=${signUpRes.user?.id}, session=${signUpRes.session != null}',
         );
 
         _logger.info(
@@ -115,14 +118,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           },
         );
 
-        // Get the user ID from the signup response or current auth state
-        final uid =
-            signUpRes.user?.id ?? Supabase.instance.client.auth.currentUser?.id;
-        if (uid != null) {
-          // Provision AMK with passphrase, passing the user ID explicitly
-          final passphrase = _passphraseController.text;
-          final svc = ref.read(accountKeyServiceProvider);
-          await svc.provisionAmkForUser(passphrase: passphrase, userId: uid);
+        // Get the user ID / active session from signup response or auth state.
+        final currentUser =
+            signUpRes.user ?? Supabase.instance.client.auth.currentUser;
+        final currentSession =
+            signUpRes.session ?? Supabase.instance.client.auth.currentSession;
+
+        if (currentUser != null && currentSession != null) {
+          // REMOVED: AMK provisioning - now handled by EncryptionSetupDialog
+          // shown after signup via UnlockPassphraseView detecting new users
 
           // OPTIONAL: Cross-device encryption onboarding
           // SAFETY: Completely non-blocking, user can skip, feature flag controlled
@@ -133,18 +137,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           }
 
           try {
-            if (EncryptionFeatureFlags.enableCrossDeviceEncryption && EncryptionFeatureFlags.showOnSignUp) {
+            // PRODUCTION FIX: Check if widget is still mounted before using ref
+            if (!mounted) {
               if (kDebugMode) {
-                debugPrint('[Auth] ✅ Cross-device encryption enabled, flagging for onboarding');
+                debugPrint('[Auth] ⚠️ Widget unmounted before onboarding setup');
               }
+              return;
+            }
 
-              // Set flag for AuthWrapper to show onboarding
-              // This prevents unmounting issues
-              ref.read(pendingOnboardingProvider.notifier).setPending();
-            } else {
+            if (EncryptionFeatureFlags.enableCrossDeviceEncryption &&
+                EncryptionFeatureFlags.showOnSignUp) {
               if (kDebugMode) {
-                debugPrint('[Auth] ⏭️ Cross-device encryption disabled by feature flag, skipping onboarding');
+                debugPrint(
+                  '[Auth] ✅ Cross-device encryption enabled; unlock flow will prompt for passphrase setup',
+                );
               }
+            } else if (kDebugMode) {
+              debugPrint(
+                '[Auth] ⏭️ Cross-device encryption disabled by feature flag, skipping passphrase setup handshake',
+              );
             }
           } catch (e, stack) {
             _logger.error(
@@ -164,6 +175,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               debugPrint('[Auth] Stack trace: $stack');
             }
           }
+        } else {
+          _logger.info(
+            'Sign-up completed without active session; skipping AMK provisioning until email confirmation.',
+            data: {'flow': 'signUp', 'emailDomain': _extractEmailDomain(email)},
+          );
         }
 
         if (mounted) {
@@ -175,10 +191,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           );
         }
       } else {
+        debugPrint('[Auth] Attempting sign-in for $email');
         await Supabase.instance.client.auth.signInWithPassword(
           email: email,
           password: password,
         );
+        debugPrint('[Auth] Sign-in successful for $email');
 
         _logger.info(
           'User sign-in completed',
@@ -188,10 +206,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           },
         );
 
-        // Register push token after successful login
-        _registerPushTokenInBackground();
+        // CRITICAL FIX: DO NOT register push token here!
+        // This steals keyboard focus from unlock screen with permission dialog
+        // Push token registration happens in app.dart AFTER unlock succeeds
       }
     } catch (error, stack) {
+      debugPrint('[Auth] Authentication error: $error');
+      debugPrint('[Auth] Stack: $stack');
       final appError = ErrorFactory.fromException(error, stack);
       final logData = <String, dynamic>{
         'flow': _isSignUp ? 'signUp' : 'signIn',
@@ -231,22 +252,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
   }
 
-  Future<void> _registerPushTokenInBackground() async {
-    try {
-      final pushService = ref.read(pushNotificationServiceProvider);
-      await pushService.registerWithBackend();
-      _logger.debug(
-        'Push token registration executed',
-        data: {'flow': _isSignUp ? 'signUp' : 'signIn'},
-      );
-    } catch (e, stack) {
-      _logger.error(
-        'Failed to register push token',
-        error: e,
-        stackTrace: stack,
-      );
-    }
-  }
+  // REMOVED: _registerPushTokenInBackground()
+  // Push token registration now happens in app.dart AFTER unlock
+  // to prevent permission dialog from stealing keyboard focus
 
   String? _extractEmailDomain(String email) {
     final atIndex = email.indexOf('@');
@@ -497,76 +505,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   return null;
                 },
               ),
-
-              // Passphrase for encryption
-              SizedBox(height: DuruSpacing.lg),
-              Container(
-                padding: EdgeInsets.all(DuruSpacing.md),
-                decoration: BoxDecoration(
-                  color: DuruColors.primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: DuruColors.primary.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.shield_fill,
-                          size: 20,
-                          color: DuruColors.primary,
-                        ),
-                        SizedBox(width: DuruSpacing.sm),
-                        Text(
-                          'Encryption Passphrase',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: DuruSpacing.xs),
-                    Text(
-                      'This passphrase encrypts your notes. Keep it safe!',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    SizedBox(height: DuruSpacing.md),
-                    _buildTextField(
-                      controller: _passphraseController,
-                      label: 'Passphrase',
-                      icon: CupertinoIcons.lock,
-                      obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Passphrase is required for encryption';
-                        }
-                        if (value.length < 8) {
-                          return 'Passphrase must be at least 8 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: DuruSpacing.sm),
-                    _buildTextField(
-                      controller: _passphraseConfirmController,
-                      label: 'Confirm Passphrase',
-                      icon: CupertinoIcons.lock_fill,
-                      obscureText: true,
-                      validator: (value) {
-                        if (value != _passphraseController.text) {
-                          return 'Passphrases do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
+              // REMOVED: Passphrase fields - encryption setup now handled by EncryptionSetupDialog
+              // shown after signup via UnlockPassphraseView
             ],
 
             // Forgot Password Link

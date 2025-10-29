@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App Name -->
+    <string name="app_name">Duru Notes</string>
+
     <!-- Widget General -->
     <string name="widget_name">Quick Capture</string>
     <string name="widget_description">Quickly capture notes from your home screen</string>
@@ -7,6 +10,8 @@
     <string name="widget_subtitle">Quick Capture Widget</string>
     <string name="widget_loading">Loading...</string>
     <string name="widget_login_required">Please login to use widget</string>
+    <string name="widget_last_updated_format">Last updated %1$s</string>
+    <string name="widget_waiting_for_data">Waiting for recent captures…</string>
     
     <!-- Widget Actions -->
     <string name="widget_tap_to_capture">Tap to capture</string>

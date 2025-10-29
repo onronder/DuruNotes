@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:collection/collection.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
@@ -92,14 +93,10 @@ class UnifiedAISuggestionsService {
   final _logger = LoggerFactory.instance;
 
   late final AppDb _db;
-  late final MigrationConfig _migrationConfig;
 
   // Domain repositories
   INotesRepository? _domainNotesRepo;
-  ITaskRepository? _domainTasksRepo;
   IFolderRepository? _domainFoldersRepo;
-  ITemplateRepository? _domainTemplatesRepo;
-  ITagRepository? _domainTagsRepo;
 
   // Caches for performance
   final Map<String, List<AISuggestion>> _suggestionCache = {};
@@ -109,7 +106,6 @@ class UnifiedAISuggestionsService {
   // Pattern analysis
   final Map<String, int> _tagFrequency = {};
   final Map<String, int> _folderUsage = {};
-  final Map<String, List<String>> _noteRelations = {};
 
   Future<void> initialize({
     required AppDb database,
@@ -121,12 +117,8 @@ class UnifiedAISuggestionsService {
     ITagRepository? domainTagsRepo,
   }) async {
     _db = database;
-    _migrationConfig = migrationConfig;
     _domainNotesRepo = domainNotesRepo;
-    _domainTasksRepo = domainTasksRepo;
     _domainFoldersRepo = domainFoldersRepo;
-    _domainTemplatesRepo = domainTemplatesRepo;
-    _domainTagsRepo = domainTagsRepo;
 
     // Build initial patterns
     await _buildUsagePatterns();
@@ -726,27 +718,58 @@ class UnifiedAISuggestionsService {
 
   // Data access methods
   Future<List<dynamic>> _getAllNotes() async {
-    if (_migrationConfig.isFeatureEnabled('notes') && _domainNotesRepo != null) {
+    // SECURITY FIX: Always use domain repository to avoid crashes and ensure user isolation
+    if (_domainNotesRepo != null) {
       return await _domainNotesRepo!.localNotes();
     } else {
-      return await _db.select(_db.localNotes).get();
+      // Legacy fallback - DEPRECATED: Should not be used as it causes crashes with encrypted fields
+      _logger.warning('[AISuggestions] Domain repository not available. AI suggestions disabled for encrypted notes.');
+
+      // Get current user ID for filtering
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.warning('[AISuggestions] No authenticated user');
+        return [];
+      }
+
+      // SECURITY FIX: Filter by userId
+      // Note: Fetching notes but not using them due to encryption incompatibility
+      // TODO: Remove this query once domain repository is always available
+      // final notes = await (_db.select(_db.localNotes)
+      //   ..where((n) => n.userId.equals(userId))).get();
+
+      // Return empty to prevent crashes - LocalNote can't be used with encrypted fields
+      _logger.warning('[AISuggestions] Returning empty list - LocalNote incompatible with encryption');
+      return [];
     }
   }
 
   Future<List<dynamic>> _getAllFolders() async {
-    if (_migrationConfig.isFeatureEnabled('folders') && _domainFoldersRepo != null) {
+    // Always prefer domain repository when available
+    if (_domainFoldersRepo != null) {
       return await _domainFoldersRepo!.listFolders();
     } else {
-      return await _db.select(_db.localFolders).get();
+      // Legacy fallback with user isolation
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        _logger.warning('[AISuggestions] No authenticated user for folders');
+        return [];
+      }
+
+      // SECURITY FIX: Filter by userId
+      return await (_db.select(_db.localFolders)
+        ..where((f) => f.userId.equals(userId))).get();
     }
   }
 
   Future<List<String>> _getNoteTags(dynamic note) async {
-    final noteId = _getNoteId(note);
+    // Note: noteId would be used for legacy tag lookup, but that's deprecated
+    // final noteId = _getNoteId(note);
     if (note is domain.Note) {
-      return note.tags ?? [];
+      return note.tags;
     } else {
-      return await _db.getTagsForNote(noteId);
+      // Post-migration: LocalNote doesn't have tags accessible, use domain.Note from repository
+      throw UnsupportedError('LocalNote tag access deprecated. Use domain.Note from repository instead.');
     }
   }
 
@@ -759,14 +782,14 @@ class UnifiedAISuggestionsService {
 
   String _getNoteTitle(dynamic note) {
     if (note is domain.Note) return note.title;
-    if (note is LocalNote) return note.title;
-    throw ArgumentError('Unknown note type');
+    // LocalNote.title doesn't exist post-encryption
+    throw UnsupportedError('LocalNote title access deprecated. Use domain.Note from repository instead.');
   }
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    if (note is LocalNote) return note.body;
-    throw ArgumentError('Unknown note type');
+    // LocalNote.body doesn't exist post-encryption
+    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
   }
 
   String? _getNoteFolderId(dynamic note) {
@@ -777,8 +800,8 @@ class UnifiedAISuggestionsService {
 
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
-    if (task is NoteTask) return task.content;
-    throw ArgumentError('Unknown task type');
+    // NoteTask.content doesn't exist post-encryption
+    throw UnsupportedError('NoteTask title access deprecated. Use domain.Task from repository instead.');
   }
 
   String _getFolderId(dynamic folder) {

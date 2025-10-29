@@ -23,9 +23,9 @@ class VoiceTranscriptionService {
   String _lastWords = '';
 
   // Optional callback hooks
-  Function(String)? _onPartial;
-  Function(String)? _onFinal;
-  Function(String)? _onError;
+  void Function(String)? _onPartial;
+  void Function(String)? _onFinal;
+  void Function(String)? _onError;
 
   /// Initialize the speech-to-text engine (request mic permission if needed).
   Future<bool> initialize() async {
@@ -67,9 +67,9 @@ class VoiceTranscriptionService {
 
   /// Start listening for speech input.
   Future<bool> start({
-    Function(String)? onPartial,
-    Function(String)? onFinal,
-    Function(String)? onError,
+    void Function(String)? onPartial,
+    void Function(String)? onFinal,
+    void Function(String)? onError,
   }) async {
     if (!_isInitialized && !await initialize()) {
       return false;

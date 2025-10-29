@@ -1,35 +1,39 @@
 import 'dart:io';
 
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show migrationConfigProvider, analyticsProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Unified export service that works with both LocalNote and domain.Note
+/// Unified export service that works with domain.Note
 class UnifiedExportService {
   UnifiedExportService({
     required this.ref,
-    required this.db,
+    required this.notesRepository,
     required this.migrationConfig,
   }) : _logger = LoggerFactory.instance;
 
   final Ref ref;
-  final AppDb db;
+  final INotesRepository notesRepository;
   final MigrationConfig migrationConfig;
   final AppLogger _logger;
 
   /// Export a note to the specified format
   Future<File?> exportNote({
-    required dynamic note, // Can be LocalNote or domain.Note
+    required domain.Note note,
     required ExportFormat format,
     ExportOptions options = const ExportOptions(),
   }) async {
@@ -60,7 +64,7 @@ class UnifiedExportService {
       }
 
       // Save to file
-      final directory = await getTemporaryDirectory();
+      final directory = await resolveTemporaryDirectory();
       final fileName = _sanitizeFileName(noteData['title'] as String);
       final file = File(
         path.join(directory.path, '$fileName.${format.extension}'),
@@ -81,7 +85,7 @@ class UnifiedExportService {
 
   /// Export multiple notes
   Future<File?> exportNotes({
-    required List<dynamic> notes, // Can be List<LocalNote> or List<domain.Note>
+    required List<domain.Note> notes,
     required ExportFormat format,
     ExportOptions options = const ExportOptions(),
     String? customFileName,
@@ -114,7 +118,7 @@ class UnifiedExportService {
       }
 
       // Save to file
-      final directory = await getTemporaryDirectory();
+      final directory = await resolveTemporaryDirectory();
       final fileName = customFileName ?? 'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
       final file = File(
         path.join(directory.path, '$fileName.${format.extension}'),
@@ -136,9 +140,11 @@ class UnifiedExportService {
   /// Share exported file
   Future<void> shareExport(File file) async {
     try {
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Duru Notes Export',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'Duru Notes Export',
+        ),
       );
       _logger.info('[UnifiedExport] Shared file: ${file.path}');
     } catch (e, stack) {
@@ -158,39 +164,18 @@ class UnifiedExportService {
 
   // ========== PRIVATE HELPER METHODS ==========
 
-  /// Extract note data regardless of type
-  Map<String, dynamic> _extractNoteData(dynamic note) {
-    if (migrationConfig.isFeatureEnabled('notes')) {
-      // Domain note
-      if (note is domain.Note) {
-        return {
-          'id': note.id,
-          'title': note.title,
-          'body': note.body,
-          'isPinned': note.isPinned,
-          'tags': note.tags,
-          'folderId': note.folderId,
-          'updatedAt': note.updatedAt,
-          'version': note.version,
-        };
-      }
-    }
-
-    // Legacy note
-    if (note is LocalNote) {
-      return {
-        'id': note.id,
-        'title': note.title,
-        'body': note.body,
-        'isPinned': note.isPinned,
-        'tags': <String>[], // Would need to query tags separately
-        'folderId': null, // Would need to query folder separately
-        'updatedAt': note.updatedAt,
-        'version': note.version,
-      };
-    }
-
-    throw ArgumentError('Unknown note type: ${note.runtimeType}');
+  /// Extract note data from domain.Note
+  Map<String, dynamic> _extractNoteData(domain.Note note) {
+    return {
+      'id': note.id,
+      'title': note.title,
+      'body': note.body,
+      'isPinned': note.isPinned,
+      'tags': note.tags,
+      'folderId': note.folderId,
+      'updatedAt': note.updatedAt,
+      'version': note.version,
+    };
   }
 
   /// Generate markdown content
@@ -311,7 +296,7 @@ class UnifiedExportService {
         ),
       );
 
-      final directory = await getTemporaryDirectory();
+      final directory = await resolveTemporaryDirectory();
       final fileName = _sanitizeFileName(noteData['title'] as String);
       final file = File(path.join(directory.path, '$fileName.pdf'));
 
@@ -417,7 +402,7 @@ class UnifiedExportService {
         );
       }
 
-      final directory = await getTemporaryDirectory();
+      final directory = await resolveTemporaryDirectory();
       final fileName = customFileName ?? 'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
       final file = File(path.join(directory.path, '$fileName.pdf'));
 
@@ -487,12 +472,12 @@ class UnifiedExportService {
 
 /// Provider for unified export service
 final unifiedExportServiceProvider = Provider<UnifiedExportService>((ref) {
-  final db = ref.watch(appDbProvider);
+  final notesRepo = ref.watch(notesCoreRepositoryProvider);
   final config = ref.watch(migrationConfigProvider);
 
   return UnifiedExportService(
     ref: ref,
-    db: db,
+    notesRepository: notesRepo,
     migrationConfig: config,
   );
 });

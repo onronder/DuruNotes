@@ -1,12 +1,19 @@
+import 'package:duru_notes/core/settings/user_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Notifier for managing theme mode settings
+///
+/// Handles both local (SharedPreferences) and remote (database) storage:
+/// - Local: Fast access for UI rendering
+/// - Remote: Future features (web dashboard, email reports matching theme)
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
+  ThemeModeNotifier(this._preferencesService) : super(ThemeMode.system) {
     _loadThemeMode();
   }
+
+  final UserPreferencesService _preferencesService;
 
   static const String _themeModeKey = 'theme_mode';
 
@@ -22,6 +29,10 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
           orElse: () => ThemeMode.system,
         );
         state = mode;
+
+        // Sync to database in background (fire-and-forget)
+        // This ensures database is up-to-date even if it wasn't synced before
+        _preferencesService.syncThemePreference(mode.name);
       }
     } catch (e) {
       // If loading fails, keep default system mode
@@ -29,14 +40,24 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     }
   }
 
-  /// Set the theme mode and persist it
+  /// Set the theme mode and persist it to both local and remote storage
   Future<void> setThemeMode(ThemeMode mode) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // Step 1: Update local storage (fast, synchronous user feedback)
       await prefs.setString(_themeModeKey, mode.name);
+
+      // Step 2: Update UI state immediately
       state = mode;
+
+      // Step 3: Sync to database in background (fire-and-forget)
+      // This enables future features like web dashboard matching theme
+      // Don't await - run in background to avoid blocking UI
+      _preferencesService.syncThemePreference(mode.name);
     } catch (e) {
       // Handle error silently - theme change will fail but won't crash
+      // Local storage error is rare but could happen if disk is full
     }
   }
 }

@@ -169,6 +169,7 @@ class _UnifiedFolderFromDomain implements UnifiedFolder {
   @override
   LocalFolder toLocal() => LocalFolder(
     id: _folder.id,
+    userId: _folder.userId,
     name: _folder.name,
     parentId: _folder.parentId,
     path: '/${_folder.name}', // Generate path from name

@@ -15,15 +15,11 @@ final analyticsProvider = Provider<AnalyticsService>((ref) {
 });
 
 /// Migration configuration provider - controls gradual domain model adoption
+/// PRODUCTION CONFIG: All features enabled (no live users, fresh start)
 final migrationConfigProvider = Provider<MigrationConfig>((ref) {
-  // Start with default config (all features disabled for safety)
-  // This can be overridden by feature flags or environment variables
-  // MIGRATION: Enabling notes feature for testing
-  return MigrationConfigFactory.phase4Provider(
-    enableNotes: true,     // ENABLED for domain model migration
-    enableFolders: false,  // Will enable after notes work
-    enableTemplates: false,  // Will enable after folders work
-  );
+  // All domain features enabled for production-ready architecture
+  // No legacy users to migrate - using domain architecture from start
+  return MigrationConfig.developmentConfig(); // All features: true
 });
 
 /// Migration status provider - tracks migration progress

@@ -37,12 +37,6 @@ class FolderServiceWithAnalytics {
       final userMetrics = await _getUserMetrics(userId);
       final isFirstFolder = userMetrics.totalFolders == 0;
 
-      // Check A/B test variants
-      final onboardingVariant = _abTestService.getVariantConfig(
-        userId,
-        'folder_onboarding_v2',
-      );
-
       // Calculate folder depth
       final depth = await _calculateFolderDepth(parentFolderId);
 

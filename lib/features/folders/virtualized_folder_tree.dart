@@ -3,14 +3,24 @@ import 'dart:collection';
 
 import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/mappers/folder_mapper.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/performance/cache_manager.dart';
+import 'package:duru_notes/services/performance/cache_manager.dart'
+    show FolderHierarchyCache, cacheManagerProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+/// Provider for folder hierarchy cache
+final folderHierarchyCacheProvider = Provider<FolderHierarchyCache>((ref) {
+  final cacheManager = ref.watch(cacheManagerProvider);
+  return FolderHierarchyCache(cacheManager);
+});
 
 /// Virtualized folder tree for handling large hierarchies efficiently
 ///
@@ -46,7 +56,6 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
   final _scrollController = ScrollController();
 
   // Virtualization state
-  final _visibleItems = <String, VirtualFolderItem>{};
   final _expandedFolders = <String>{};
   final _loadingFolders = <String>{};
   final _folderCache = <String, List<LocalFolder>>{};
@@ -116,11 +125,14 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
 
       if (folders == null) {
         // Load from database
-        final repository = ref.read(notesRepositoryProvider);
-        folders = await repository.getRootFolders();
+        final repository = ref.read(folderCoreRepositoryProvider);
+        final domainFolders = await repository.getRootFolders();
+
+        // Convert domain folders to infrastructure folders
+        folders = domainFolders.map((f) => FolderMapper.toInfrastructure(f)).toList();
 
         // Cache the result
-        await cache.setRootFolders(folders);
+          await cache.setRootFolders(folders);
       }
 
       if (mounted) {
@@ -151,11 +163,14 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
 
       if (children == null) {
         // Load from database
-        final repository = ref.read(notesRepositoryProvider);
-        children = await repository.getChildFolders(parentId);
+        final repository = ref.read(folderCoreRepositoryProvider);
+        final domainChildren = await repository.getChildFolders(parentId);
+
+        // Convert domain folders to infrastructure folders
+        children = domainChildren.map((f) => FolderMapper.toInfrastructure(f)).toList();
 
         // Cache the result
-        await cache.setChildFolders(parentId, children);
+          await cache.setChildFolders(parentId, children);
       }
 
       if (mounted) {
@@ -420,8 +435,8 @@ class _VirtualFolderTreeItemState extends ConsumerState<VirtualFolderTreeItem>
 
       if (count == null) {
         // Load from database
-        final repository = ref.read(notesRepositoryProvider);
-        count = await repository.db.countNotesInFolder(widget.item.folder.id);
+        final db = ref.read(appDbProvider);
+        count = await db.countNotesInFolder(widget.item.folder.id);
 
         // Cache the result
         await cache.setFolderNoteCount(widget.item.folder.id, count);

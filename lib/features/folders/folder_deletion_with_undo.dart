@@ -1,8 +1,11 @@
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/folder_undo_service.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderProvider, folderHierarchyProvider;
+import 'package:duru_notes/services/folder_undo_service.dart' show FolderUndoType, FolderUndoOperation, folderUndoServiceProvider, folderUndoHistoryProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +20,7 @@ mixin FolderDeletionWithUndo {
   Future<bool> confirmAndDeleteFolder(
     BuildContext context,
     WidgetRef ref,
-    LocalFolder folder, {
+    domain.Folder folder, {
     VoidCallback? onDeleted,
     VoidCallback? onUndone,
   }) async {
@@ -63,12 +66,20 @@ mixin FolderDeletionWithUndo {
                             color: theme.colorScheme.error,
                           ),
                         ),
-                        Text(
-                          folder.path,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
+                        if (folder.parentId != null && folder.parentId!.isNotEmpty)
+                          Text(
+                            'Subfolder',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
+                          )
+                        else
+                          Text(
+                            'Root folder',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -131,7 +142,7 @@ mixin FolderDeletionWithUndo {
     _folderDeletionLogger.info('Starting folder deletion', data: {
       'folderId': folder.id,
       'folderName': folder.name,
-      'path': folder.path,
+      'parentId': folder.parentId,
     });
 
     // Track in Sentry
@@ -147,14 +158,13 @@ mixin FolderDeletionWithUndo {
     );
 
     // Gather data for undo operation before deletion
-    final notesRepo = ref.read(notesRepositoryProvider);
-    final folderRepo = ref.read(folderRepositoryProvider);
+    final folderRepo = ref.read(folderCoreRepositoryProvider);
     final undoService = ref.read(folderUndoServiceProvider);
     // final analytics = ref.read(analyticsProvider); // Not currently used
 
     try {
       // Get affected notes and child folders before deletion
-      final affectedNotes = await notesRepo.db.getNoteIdsInFolder(folder.id);
+      final affectedNotes = await folderRepo.getNoteIdsInFolder(folder.id);
       final affectedChildFolders = await folderRepo.getChildFoldersRecursive(folder.id);
 
       _folderDeletionLogger.debug('Folder deletion metadata', data: {
@@ -224,7 +234,7 @@ mixin FolderDeletionWithUndo {
           scope.setContexts('folder', {
             'id': folder.id,
             'name': folder.name,
-            'path': folder.path,
+            'parentId': folder.parentId,
           });
         },
       );
@@ -436,7 +446,7 @@ class UndoHistoryFAB extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 

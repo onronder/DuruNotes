@@ -23,6 +23,7 @@ class FolderConverter {
   static LocalFolder toLocal(domain.Folder folder) {
     return LocalFolder(
       id: folder.id,
+      userId: folder.userId,
       name: folder.name,
       parentId: folder.parentId,
       path: folder.parentId != null ? '/${folder.parentId}/${folder.name}' : '/${folder.name}',
@@ -36,12 +37,12 @@ class FolderConverter {
     );
   }
 
-  /// Convert List<LocalFolder> to List<domain.Folder>
+  /// Convert `List<LocalFolder>` to `List<domain.Folder>`
   static List<domain.Folder> fromLocalList(List<LocalFolder> localFolders, {String? userId}) {
     return localFolders.map((local) => fromLocal(local, userId: userId)).toList();
   }
 
-  /// Convert List<domain.Folder> to List<LocalFolder>
+  /// Convert `List<domain.Folder>` to `List<LocalFolder>`
   static List<LocalFolder> toLocalList(List<domain.Folder> domainFolders) {
     return domainFolders.map((folder) => toLocal(folder)).toList();
   }

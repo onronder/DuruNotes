@@ -1,4 +1,4 @@
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show tagRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +14,7 @@ class NoteTagChips extends ConsumerStatefulWidget {
   });
   final String noteId;
   final List<String> initialTags;
-  final Function(List<String>)? onTagsChanged;
+  final void Function(List<String>)? onTagsChanged;
   final bool editable;
 
   @override
@@ -45,13 +45,13 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
   }
 
   Future<void> _loadAvailableTags() async {
-    final repo = ref.read(notesRepositoryProvider);
+    final repo = ref.read(tagRepositoryProvider);
     final tagCounts = await repo.listTagsWithCounts();
     if (mounted) {
       setState(() {
-        // tagCounts is List<Map<String, dynamic>>, extract tags
-        _availableTags = tagCounts.cast<Map<String, dynamic>>()
-            .map((tc) => tc['tag'] as String)
+        // tagCounts is List<TagWithCount>, extract tag names
+        _availableTags = tagCounts
+            .map((tc) => tc.tag)
             .toList();
       });
     }
@@ -88,8 +88,8 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     });
 
     // Update in database
-    final repo = ref.read(notesRepositoryProvider);
-    await repo.addTag(widget.noteId, normalizedTag);
+    final repo = ref.read(tagRepositoryProvider);
+    await repo.addTag(noteId: widget.noteId, tag: normalizedTag);
 
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();
@@ -104,8 +104,8 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     });
 
     // Update in database
-    final repo = ref.read(notesRepositoryProvider);
-    await repo.removeTag(widget.noteId, tag);
+    final repo = ref.read(tagRepositoryProvider);
+    await repo.removeTag(noteId: widget.noteId, tag: tag);
 
     widget.onTagsChanged?.call(_tags);
     HapticFeedback.lightImpact();
@@ -275,7 +275,7 @@ class CompactTagChips extends StatelessWidget {
   });
   final List<String> tags;
   final int maxTags;
-  final Function(String)? onTagTap;
+  final void Function(String)? onTagTap;
 
   @override
   Widget build(BuildContext context) {

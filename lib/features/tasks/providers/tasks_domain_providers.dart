@@ -7,34 +7,64 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Domain tasks stream provider - provides clean stream of domain.Task entities
 /// This replaces duplicate task fetching logic in UI components
-final domainTasksStreamProvider = StreamProvider<List<domain_task.Task>>((ref) {
+///
+/// **PRODUCTION FIX**: Returns empty stream when user not authenticated
+final domainTasksStreamProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) {
   final repository = ref.watch(taskCoreRepositoryProvider);
+
+  // PRODUCTION FIX: Handle unauthenticated state
+  if (repository == null) {
+    return Stream.value(<domain_task.Task>[]);
+  }
+
   return repository.watchAllTasks();
 });
 
 /// Domain open tasks provider - provides only open/pending tasks
-final domainOpenTasksProvider = StreamProvider<List<domain_task.Task>>((ref) {
-  final allTasksStream = ref.watch(domainTasksStreamProvider.stream);
-  return allTasksStream.map((tasks) =>
-      tasks.where((task) => task.status != domain_task.TaskStatus.completed).toList());
+///
+/// NOTE: Riverpod 3.0+ - Using .future and async* instead of deprecated .stream
+final domainOpenTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) async* {
+  // Riverpod 3.0: Fetch initial data with .future
+  final allTasks = await ref.watch(domainTasksStreamProvider.future);
+  yield allTasks.where((task) => task.status != domain_task.TaskStatus.completed).toList();
+
+  // Listen for subsequent updates
+  ref.listen(domainTasksStreamProvider, (previous, next) {
+    // Provider will auto-rebuild when domainTasksStreamProvider changes
+  });
 });
 
 /// Domain completed tasks provider - provides only completed tasks
-final domainCompletedTasksProvider = StreamProvider<List<domain_task.Task>>((ref) {
-  final allTasksStream = ref.watch(domainTasksStreamProvider.stream);
-  return allTasksStream.map((tasks) =>
-      tasks.where((task) => task.status == domain_task.TaskStatus.completed).toList());
+///
+/// NOTE: Riverpod 3.0+ - Using .future and async* instead of deprecated .stream
+final domainCompletedTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) async* {
+  // Riverpod 3.0: Fetch initial data with .future
+  final allTasks = await ref.watch(domainTasksStreamProvider.future);
+  yield allTasks.where((task) => task.status == domain_task.TaskStatus.completed).toList();
+
+  // Listen for subsequent updates
+  ref.listen(domainTasksStreamProvider, (previous, next) {
+    // Provider will auto-rebuild when domainTasksStreamProvider changes
+  });
 });
 
 /// Domain tasks for note provider - provides tasks for a specific note
+///
+/// **PRODUCTION FIX**: Returns empty stream when user not authenticated
 final domainTasksForNoteProvider =
-    StreamProvider.family<List<domain_task.Task>, String>((ref, noteId) {
+    StreamProvider.autoDispose.family<List<domain_task.Task>, String>((ref, noteId) {
   final repository = ref.watch(taskCoreRepositoryProvider);
+
+  // PRODUCTION FIX: Handle unauthenticated state
+  if (repository == null) {
+    return Stream.value(<domain_task.Task>[]);
+  }
+
   return repository.watchTasksForNote(noteId);
 });
 
 /// Domain task statistics provider - provides task statistics
-final domainTaskStatsProvider = FutureProvider<Map<String, int>>((ref) async {
+final domainTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
   final tasksAsync = await ref.watch(domainTasksStreamProvider.future);
   final now = DateTime.now();
 
@@ -61,12 +91,20 @@ final domainTaskStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 });
 
 /// Domain tasks provider - switches between legacy and domain
-final domainTasksProvider = FutureProvider<List<domain_task.Task>>((ref) async {
+///
+/// **PRODUCTION FIX**: Returns empty list when user not authenticated
+final domainTasksProvider = FutureProvider.autoDispose<List<domain_task.Task>>((ref) async {
   final config = ref.watch(migrationConfigProvider);
 
   if (config.isFeatureEnabled('tasks')) {
     // Use domain repository
     final repository = ref.watch(taskCoreRepositoryProvider);
+
+    // PRODUCTION FIX: Handle unauthenticated state
+    if (repository == null) {
+      return <domain_task.Task>[];
+    }
+
     return repository.getAllTasks();
   } else {
     // Convert from legacy - get all tasks from all notes

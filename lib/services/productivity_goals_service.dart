@@ -12,18 +12,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Service for managing productivity goals and tracking progress
 class ProductivityGoalsService {
   ProductivityGoalsService({
-    required AppDb database,
+    required AppDb database, // Kept for backward compatibility
     required TaskAnalyticsService analyticsService,
-  })  : _db = database,
-        _analyticsService = analyticsService;
+  }) : _analyticsService = analyticsService;
 
-  final AppDb _db;
   final TaskAnalyticsService _analyticsService;
   final AppLogger _logger = LoggerFactory.instance;
 
   // Track resources for proper disposal
   final List<Timer> _activeTimers = [];
-  final List<StreamController> _activeControllers = [];
+  final List<StreamController<dynamic>> _activeControllers = [];
 
   static const String _goalsKey = 'productivity_goals';
   static const String _achievementsKey = 'productivity_achievements';
@@ -382,7 +380,7 @@ class ProductivityGoalsService {
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
-        color: const Color(0xFF5FD0CB), // Duru accent color for success
+        color: Color(0xFF5FD0CB), // Duru accent color for success
       );
 
       const iosDetails = DarwinNotificationDetails(

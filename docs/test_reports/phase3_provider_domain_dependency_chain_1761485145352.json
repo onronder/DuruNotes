@@ -1,0 +1,33 @@
+{
+  "test_name": "domain_dependency_chain",
+  "timestamp": "2025-10-26T16:25:45.352731",
+  "results": {
+    "domainTaskController": {
+      "success": true,
+      "resolvedDependencies": [
+        "taskCoreRepository (Supabase init required)",
+        "notesCoreRepository ([notesCoreRepositoryProvider] Security services must be initialized before creating repositories. This provider should only be accessed after the FutureBuilder in app.dart completes SecurityInitialization.initialize().)",
+        "enhancedTaskService (Supabase init required)",
+        "logger"
+      ],
+      "totalDependencies": 4
+    },
+    "enhancedTaskService": {
+      "success": true,
+      "resolvedDependencies": [
+        "appDb",
+        "taskReminderBridge (Supabase init required)"
+      ],
+      "totalDependencies": 2
+    },
+    "taskReminderBridge": {
+      "success": true,
+      "resolvedDependencies": [
+        "unifiedReminderCoordinator",
+        "advancedReminderService",
+        "appDb"
+      ],
+      "totalDependencies": 3
+    }
+  }
+}

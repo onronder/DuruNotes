@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,9 @@ class PerformanceMonitor {
   final _metrics = PerformanceMetrics();
   final _transactions = <String, ISentrySpan>{};
   final _timers = <String, Stopwatch>{};
+  final SecurityAuditTrail _auditTrail = SecurityAuditTrail();
+
+  static const int _indexBuildSlowThresholdMs = 1000;
 
   // Frame tracking
   int _frameCount = 0;
@@ -77,7 +81,8 @@ class PerformanceMonitor {
       _metrics.recordOperation(operation, timer.elapsedMilliseconds);
 
       _logger.debug(
-          'Ended transaction: $operation (${timer.elapsedMilliseconds}ms)');
+        'Ended transaction: $operation (${timer.elapsedMilliseconds}ms)',
+      );
     }
   }
 
@@ -89,21 +94,39 @@ class PerformanceMonitor {
       final result = await action();
       stopwatch.stop();
 
-      _metrics.recordOperation(operation, stopwatch.elapsedMilliseconds);
+      final durationMs = stopwatch.elapsedMilliseconds;
+      _metrics.recordOperation(operation, durationMs);
 
       // Log slow operations
-      if (stopwatch.elapsedMilliseconds > 1000) {
-        _logger.warning('Slow operation detected', data: {
-          'operation': operation,
-          'duration_ms': stopwatch.elapsedMilliseconds,
-        });
+      if (durationMs > 1000) {
+        _logger.warning(
+          'Slow operation detected',
+          data: {'operation': operation, 'duration_ms': durationMs},
+        );
+      }
+
+      if (_isIndexBuildOperation(operation)) {
+        await _reportIndexBuild(operation, durationMs, success: true);
       }
 
       return result;
-    } catch (e) {
+    } catch (e, stack) {
       stopwatch.stop();
-      _metrics.recordOperation(operation, stopwatch.elapsedMilliseconds,
-          success: false);
+      final durationMs = stopwatch.elapsedMilliseconds;
+      _metrics.recordOperation(operation, durationMs, success: false);
+
+      if (_isIndexBuildOperation(operation)) {
+        unawaited(
+          _reportIndexBuild(
+            operation,
+            durationMs,
+            success: false,
+            error: e,
+            stackTrace: stack,
+          ),
+        );
+      }
+
       rethrow;
     }
   }
@@ -116,13 +139,31 @@ class PerformanceMonitor {
       final result = action();
       stopwatch.stop();
 
-      _metrics.recordOperation(operation, stopwatch.elapsedMilliseconds);
+      final durationMs = stopwatch.elapsedMilliseconds;
+      _metrics.recordOperation(operation, durationMs);
+
+      if (_isIndexBuildOperation(operation)) {
+        unawaited(_reportIndexBuild(operation, durationMs, success: true));
+      }
 
       return result;
-    } catch (e) {
+    } catch (e, stack) {
       stopwatch.stop();
-      _metrics.recordOperation(operation, stopwatch.elapsedMilliseconds,
-          success: false);
+      final durationMs = stopwatch.elapsedMilliseconds;
+      _metrics.recordOperation(operation, durationMs, success: false);
+
+      if (_isIndexBuildOperation(operation)) {
+        unawaited(
+          _reportIndexBuild(
+            operation,
+            durationMs,
+            success: false,
+            error: e,
+            stackTrace: stack,
+          ),
+        );
+      }
+
       rethrow;
     }
   }
@@ -140,11 +181,14 @@ class PerformanceMonitor {
           _droppedFrames++;
 
           if (timing.totalSpan.inMilliseconds > 100) {
-            _logger.warning('Severe frame drop detected', data: {
-              'duration_ms': timing.totalSpan.inMilliseconds,
-              'build_ms': timing.buildDuration.inMilliseconds,
-              'raster_ms': timing.rasterDuration.inMilliseconds,
-            });
+            _logger.warning(
+              'Severe frame drop detected',
+              data: {
+                'duration_ms': timing.totalSpan.inMilliseconds,
+                'build_ms': timing.buildDuration.inMilliseconds,
+                'raster_ms': timing.rasterDuration.inMilliseconds,
+              },
+            );
           }
         }
       }
@@ -177,32 +221,35 @@ class PerformanceMonitor {
     try {
       // Get memory info from platform
       const platform = MethodChannel('com.example.duru_notes/performance');
-      platform.invokeMethod<Map>('getMemoryInfo').then((info) {
-        if (info != null) {
-          final snapshot = MemorySnapshot(
-            timestamp: DateTime.now(),
-            usedMemoryBytes: info['used'] as int? ?? 0,
-            totalMemoryBytes: info['total'] as int? ?? 0,
-          );
+      platform
+          .invokeMethod<Map<dynamic, dynamic>>('getMemoryInfo')
+          .then((info) {
+            if (info != null) {
+              final snapshot = MemorySnapshot(
+                timestamp: DateTime.now(),
+                usedMemoryBytes: info['used'] as int? ?? 0,
+                totalMemoryBytes: info['total'] as int? ?? 0,
+              );
 
-          _memorySnapshots.add(snapshot);
+              _memorySnapshots.add(snapshot);
 
-          // Keep only last 10 snapshots
-          while (_memorySnapshots.length > 10) {
-            _memorySnapshots.removeFirst();
-          }
+              // Keep only last 10 snapshots
+              while (_memorySnapshots.length > 10) {
+                _memorySnapshots.removeFirst();
+              }
 
-          _updateMemoryMetrics();
-        }
-      }).catchError((error) {
-        // Platform channel not available, use Dart memory info
-        final snapshot = MemorySnapshot(
-          timestamp: DateTime.now(),
-          usedMemoryBytes: 0, // Would need platform-specific implementation
-          totalMemoryBytes: 0,
-        );
-        _memorySnapshots.add(snapshot);
-      });
+              _updateMemoryMetrics();
+            }
+          })
+          .catchError((error) {
+            // Platform channel not available, use Dart memory info
+            final snapshot = MemorySnapshot(
+              timestamp: DateTime.now(),
+              usedMemoryBytes: 0, // Would need platform-specific implementation
+              totalMemoryBytes: 0,
+            );
+            _memorySnapshots.add(snapshot);
+          });
     } catch (e) {
       _logger.debug('Memory monitoring not available');
     }
@@ -218,18 +265,22 @@ class PerformanceMonitor {
     if (_memorySnapshots.length >= 3) {
       final growth =
           latest.usedMemoryBytes - _memorySnapshots.first.usedMemoryBytes;
-      final duration =
-          latest.timestamp.difference(_memorySnapshots.first.timestamp);
+      final duration = latest.timestamp.difference(
+        _memorySnapshots.first.timestamp,
+      );
 
       if (duration.inMinutes > 0) {
         final growthRate = growth / duration.inMinutes; // Bytes per minute
 
         if (growthRate > 1024 * 1024) {
           // More than 1MB per minute
-          _logger.warning('Potential memory leak detected', data: {
-            'growth_rate_mb_per_min': growthRate / (1024 * 1024),
-            'total_growth_mb': growth / (1024 * 1024),
-          });
+          _logger.warning(
+            'Potential memory leak detected',
+            data: {
+              'growth_rate_mb_per_min': growthRate / (1024 * 1024),
+              'total_growth_mb': growth / (1024 * 1024),
+            },
+          );
         }
       }
     }
@@ -246,15 +297,14 @@ class PerformanceMonitor {
 
     // Send to Sentry as breadcrumb
     if (!kDebugMode) {
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: 'Metric: $name',
-        category: 'performance',
-        data: {
-          'value': value,
-          if (unit != null) 'unit': unit,
-        },
-        level: SentryLevel.info,
-      ));
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Metric: $name',
+          category: 'performance',
+          data: {'value': value, if (unit != null) 'unit': unit},
+          level: SentryLevel.info,
+        ),
+      );
     }
   }
 
@@ -288,6 +338,63 @@ class PerformanceMonitor {
       transaction.finish();
     }
   }
+
+  bool _isIndexBuildOperation(String operation) =>
+      operation.startsWith('db.index_build');
+
+  Future<void> _reportIndexBuild(
+    String operation,
+    int durationMs, {
+    required bool success,
+    Object? error,
+    StackTrace? stackTrace,
+  }) async {
+    final indexName = operation.startsWith('db.index_build.')
+        ? operation.substring('db.index_build.'.length)
+        : operation;
+
+    final metadata = <String, dynamic>{
+      'operation': operation,
+      'index': indexName,
+      'duration_ms': durationMs,
+      'success': success,
+      if (error != null) 'error': error.toString(),
+      if (stackTrace != null) 'stackTrace': stackTrace.toString(),
+    };
+
+    final bool isSlowOrFailed =
+        !success || durationMs >= _indexBuildSlowThresholdMs;
+
+    try {
+      await _auditTrail.logEvent(
+        SecurityEventType.performanceHardening,
+        success ? 'Index build completed' : 'Index build failed',
+        metadata: metadata,
+        severity: isSlowOrFailed
+            ? SecuritySeverity.warning
+            : SecuritySeverity.info,
+      );
+    } catch (logError, logStack) {
+      _logger.error(
+        'Failed to log index build event',
+        error: logError,
+        stackTrace: logStack,
+        data: metadata,
+      );
+    }
+
+    if (isSlowOrFailed) {
+      _logger.warning(
+        success ? 'Index build completed slowly' : 'Index build failed',
+        data: metadata,
+      );
+    } else {
+      _logger.debug(
+        'Index build completed',
+        data: {'index': indexName, 'duration_ms': durationMs},
+      );
+    }
+  }
 }
 
 /// Performance metrics container
@@ -300,8 +407,11 @@ class PerformanceMetrics {
   final Map<String, OperationMetric> operationDurations = {};
   final Map<String, CustomMetric> customMetrics = {};
 
-  void recordOperation(String operation, int durationMs,
-      {bool success = true}) {
+  void recordOperation(
+    String operation,
+    int durationMs, {
+    bool success = true,
+  }) {
     operationCount++;
 
     if (durationMs > 1000) {
@@ -333,14 +443,14 @@ class PerformanceMetrics {
   }
 
   Map<String, dynamic> toJson() => {
-        'fps': fps.toStringAsFixed(1),
-        'dropped_frame_rate': (droppedFrameRate * 100).toStringAsFixed(2),
-        'memory_usage_mb': memoryUsageMB.toStringAsFixed(2),
-        'operation_count': operationCount,
-        'slow_operation_count': slowOperationCount,
-        'operations': operationDurations.map((k, v) => MapEntry(k, v.toJson())),
-        'custom_metrics': customMetrics.map((k, v) => MapEntry(k, v.toJson())),
-      };
+    'fps': fps.toStringAsFixed(1),
+    'dropped_frame_rate': (droppedFrameRate * 100).toStringAsFixed(2),
+    'memory_usage_mb': memoryUsageMB.toStringAsFixed(2),
+    'operation_count': operationCount,
+    'slow_operation_count': slowOperationCount,
+    'operations': operationDurations.map((k, v) => MapEntry(k, v.toJson())),
+    'custom_metrics': customMetrics.map((k, v) => MapEntry(k, v.toJson())),
+  };
 }
 
 /// Operation performance metric
@@ -374,13 +484,13 @@ class OperationMetric {
   }
 
   Map<String, dynamic> toJson() => {
-        'count': count,
-        'average_ms': averageDuration.toStringAsFixed(2),
-        'min_ms': minDuration,
-        'max_ms': maxDuration,
-        'total_ms': totalDuration,
-        'success_rate': (successRate * 100).toStringAsFixed(2),
-      };
+    'count': count,
+    'average_ms': averageDuration.toStringAsFixed(2),
+    'min_ms': minDuration,
+    'max_ms': maxDuration,
+    'total_ms': totalDuration,
+    'success_rate': (successRate * 100).toStringAsFixed(2),
+  };
 }
 
 /// Custom metric
@@ -398,10 +508,10 @@ class CustomMetric {
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'value': value,
-        if (unit != null) 'unit': unit,
-        'timestamp': timestamp.toIso8601String(),
-      };
+    'value': value,
+    if (unit != null) 'unit': unit,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 /// Memory snapshot
@@ -437,12 +547,12 @@ class PerformanceReport {
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'timestamp': timestamp.toIso8601String(),
-        'metrics': metrics.toJson(),
-        'memory_trend': _getMemoryTrend(),
-        'top_slow_operations': _getTopSlowOperations(),
-        'recommendations': _getRecommendations(),
-      };
+    'timestamp': timestamp.toIso8601String(),
+    'metrics': metrics.toJson(),
+    'memory_trend': _getMemoryTrend(),
+    'top_slow_operations': _getTopSlowOperations(),
+    'recommendations': _getRecommendations(),
+  };
 
   Map<String, dynamic> _getMemoryTrend() {
     if (memorySnapshots.length < 2) {
@@ -464,15 +574,18 @@ class PerformanceReport {
   List<Map<String, dynamic>> _getTopSlowOperations() {
     final sorted = operations.entries.toList()
       ..sort(
-          (a, b) => b.value.averageDuration.compareTo(a.value.averageDuration));
+        (a, b) => b.value.averageDuration.compareTo(a.value.averageDuration),
+      );
 
     return sorted
         .take(5)
-        .map((e) => {
-              'operation': e.key,
-              'average_ms': e.value.averageDuration.toStringAsFixed(2),
-              'count': e.value.count,
-            })
+        .map(
+          (e) => {
+            'operation': e.key,
+            'average_ms': e.value.averageDuration.toStringAsFixed(2),
+            'count': e.value.count,
+          },
+        )
         .toList();
   }
 
@@ -481,25 +594,30 @@ class PerformanceReport {
 
     if (metrics.droppedFrameRate > 0.05) {
       recommendations.add(
-          'High frame drop rate detected (${(metrics.droppedFrameRate * 100).toStringAsFixed(1)}%). Consider optimizing heavy UI operations.');
+        'High frame drop rate detected (${(metrics.droppedFrameRate * 100).toStringAsFixed(1)}%). Consider optimizing heavy UI operations.',
+      );
     }
 
     if (metrics.memoryUsageMB > 200) {
       recommendations.add(
-          'High memory usage (${metrics.memoryUsageMB.toStringAsFixed(0)}MB). Consider clearing caches or optimizing data structures.');
+        'High memory usage (${metrics.memoryUsageMB.toStringAsFixed(0)}MB). Consider clearing caches or optimizing data structures.',
+      );
     }
 
     if (metrics.slowOperationCount > 10) {
       recommendations.add(
-          'Multiple slow operations detected (${metrics.slowOperationCount}). Review operation performance.');
+        'Multiple slow operations detected (${metrics.slowOperationCount}). Review operation performance.',
+      );
     }
 
-    final slowestOp = operations.entries
-        .reduce((a, b) => a.value.maxDuration > b.value.maxDuration ? a : b);
+    final slowestOp = operations.entries.reduce(
+      (a, b) => a.value.maxDuration > b.value.maxDuration ? a : b,
+    );
 
     if (slowestOp.value.maxDuration > 5000) {
       recommendations.add(
-          'Operation "${slowestOp.key}" took ${slowestOp.value.maxDuration}ms. Consider optimizing or adding progress indicators.');
+        'Operation "${slowestOp.key}" took ${slowestOp.value.maxDuration}ms. Consider optimizing or adding progress indicators.',
+      );
     }
 
     return recommendations;

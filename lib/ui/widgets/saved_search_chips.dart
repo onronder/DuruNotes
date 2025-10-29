@@ -1,16 +1,22 @@
 // lib/ui/widgets/saved_search_chips.dart
+import 'dart:async';
+
 import 'package:duru_notes/core/accessibility_utils.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/debounce_utils.dart';
 import 'package:duru_notes/core/haptic_utils.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
+import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:duru_notes/features/search/providers/search_providers.dart';
 import 'package:duru_notes/search/saved_search_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 typedef SavedSearchTap = void Function(SavedSearchPreset preset);
-typedef CustomSearchTap = void Function(SavedSearch search);
+typedef CustomSearchTap = void Function(domain.SavedSearch search);
 typedef TagCountProvider = Future<Map<String, int>> Function();
 typedef FolderCountProvider = Future<int> Function(String folderName);
 
@@ -40,6 +46,7 @@ class SavedSearchChips extends ConsumerStatefulWidget {
 class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
   Map<String, int> _counts = {};
   bool _loading = false;
+  AppLogger get _logger => ref.read(loggerProvider);
 
   @override
   void initState() {
@@ -92,8 +99,17 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
           _loading = false;
         });
       }
-    } catch (e) {
-      debugPrint('Error loading counts: $e');
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to load saved search counts',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'hasTagProvider': widget.getTagCounts != null,
+          'hasFolderProvider': widget.getFolderCount != null,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() => _loading = false);
       }
@@ -184,7 +200,9 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       allChips.addAll(
         visiblePresets.map((preset) {
           final count = _getCountForPreset(preset);
-          final showBadge = count != null && count > 0;
+          // Don't show badge for Email Notes preset (user preference)
+          final showBadge = count != null && count > 0 &&
+              preset.key != SavedSearchKey.emailNotes;
 
           return _buildPresetChip(preset, count, showBadge);
         }),
@@ -193,8 +211,8 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       // Custom saved searches
       allChips.addAll(
         customSearchesAsync.maybeWhen(
-          data: (searches) => searches.map(_buildCustomSearchChip).toList(),
-          orElse: () => [],
+          data: (searches) => searches.map<Widget>((s) => _buildCustomSearchChip(s)).toList(),
+          orElse: () => <Widget>[],
         ),
       );
     }
@@ -219,7 +237,7 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
         scrollDirection: Axis.horizontal,
         padding: widget.padding,
         physics: const ClampingScrollPhysics(),
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemCount: allChips.length,
         itemBuilder: (context, index) => AnimatedSwitcher(
           duration: AnimationConfig.standard,
@@ -260,7 +278,7 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
     );
   }
 
-  Widget _buildCustomSearchChip(SavedSearch search) {
+  Widget _buildCustomSearchChip(domain.SavedSearch search) {
     return AccessibilityUtils.semanticChip(
       label: search.name,
       onTap: () {

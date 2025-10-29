@@ -758,6 +758,7 @@ class _ExpandableFabState extends State<ExpandableFab>
 
   Widget _buildMainFab() {
     return FloatingActionButton(
+      heroTag: 'animated_fab_main', // PRODUCTION FIX: Unique hero tag
       onPressed: _toggle,
       child: AnimatedBuilder(
         animation: _expandAnimation,

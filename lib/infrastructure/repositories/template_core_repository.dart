@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
 import 'package:duru_notes/domain/entities/template.dart';
 import 'package:duru_notes/infrastructure/mappers/template_mapper.dart';
@@ -15,12 +17,43 @@ class TemplateCoreRepository implements ITemplateRepository {
   TemplateCoreRepository({
     required this.db,
     required this.client,
-  })  : _logger = LoggerFactory.instance;
+    required INotesRepository notesRepository,
+    String? Function()? userIdResolver,
+  }) : _logger = LoggerFactory.instance,
+       _notesRepository = notesRepository,
+       _userIdResolver = userIdResolver;
 
   final AppDb db;
   final SupabaseClient client;
   final AppLogger _logger;
   final _uuid = const Uuid();
+  final INotesRepository _notesRepository;
+  final String? Function()? _userIdResolver;
+
+  String? _currentUserId() =>
+      _userIdResolver?.call() ?? client.auth.currentUser?.id;
+
+  Future<void> _enqueuePendingOp({
+    required String entityId,
+    required String kind,
+    String? payload,
+  }) async {
+    final userId = _currentUserId();
+    if (userId == null) {
+      _logger.warning(
+        'Skipping template enqueue - no authenticated user',
+        data: {'entityId': entityId, 'kind': kind},
+      );
+      return;
+    }
+
+    await db.enqueue(
+      userId: userId,
+      entityId: entityId,
+      kind: kind,
+      payload: payload,
+    );
+  }
 
   void _captureRepositoryException({
     required String method,
@@ -38,7 +71,9 @@ class TemplateCoreRepository implements ITemplateRepository {
           scope.setTag('layer', 'repository');
           scope.setTag('repository', 'TemplateCoreRepository');
           scope.setTag('method', method);
-          data?.forEach((key, value) => scope.setExtra(key, value));
+          if (data != null && data.isNotEmpty) {
+            scope.setContexts('payload', data);
+          }
         },
       ),
     );
@@ -48,19 +83,26 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<List<Template>> getAllTemplates() async {
     try {
       // Security: Return system templates + user's own templates only
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get templates without authenticated user, returning system templates only');
+        _logger.warning(
+          'Cannot get templates without authenticated user, returning system templates only',
+        );
         final systemTemplates = await db.getSystemTemplates();
         return TemplateMapper.toDomainList(systemTemplates);
       }
 
-      final allTemplates = await (db.select(db.localTemplates)
-            ..where((t) =>
-                (t.isSystem.equals(true)) | // System templates available to all
-                (t.userId.equals(userId)))  // User's own templates
-            ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
-          .get();
+      final allTemplates =
+          await (db.select(db.localTemplates)
+                ..where(
+                  (t) =>
+                      (t.isSystem.equals(
+                        true,
+                      )) | // System templates available to all
+                      (t.userId.equals(userId)),
+                ) // User's own templates
+                ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+              .get();
 
       return TemplateMapper.toDomainList(allTemplates);
     } catch (e, stack) {
@@ -81,7 +123,11 @@ class TemplateCoreRepository implements ITemplateRepository {
       final localTemplates = await db.getSystemTemplates();
       return TemplateMapper.toDomainList(localTemplates);
     } catch (e, stack) {
-      _logger.error('Failed to get system templates', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get system templates',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getSystemTemplates',
         error: e,
@@ -95,21 +141,26 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<List<Template>> getUserTemplates() async {
     try {
       // Security: Only return templates belonging to current user
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
         _logger.warning('Cannot get user templates without authenticated user');
         return [];
       }
 
-      final localTemplates = await (db.select(db.localTemplates)
-            ..where((t) => t.userId.equals(userId))
-            ..where((t) => t.isSystem.equals(false))
-            ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
-          .get();
+      final localTemplates =
+          await (db.select(db.localTemplates)
+                ..where((t) => t.userId.equals(userId))
+                ..where((t) => t.isSystem.equals(false))
+                ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+              .get();
 
       return TemplateMapper.toDomainList(localTemplates);
     } catch (e, stack) {
-      _logger.error('Failed to get user templates', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get user templates',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getUserTemplates',
         error: e,
@@ -123,28 +174,42 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<Template?> getTemplateById(String id) async {
     try {
       // Security: Verify template is system template OR belongs to current user
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        _logger.warning('Cannot get template without authenticated user, checking system templates only');
-        final systemTemplate = await (db.select(db.localTemplates)
-              ..where((t) => t.id.equals(id))
-              ..where((t) => t.isSystem.equals(true)))
-            .getSingleOrNull();
-        return systemTemplate != null ? TemplateMapper.toDomain(systemTemplate) : null;
+        _logger.warning(
+          'Cannot get template without authenticated user, checking system templates only',
+        );
+        final systemTemplate =
+            await (db.select(db.localTemplates)
+                  ..where((t) => t.id.equals(id))
+                  ..where((t) => t.isSystem.equals(true)))
+                .getSingleOrNull();
+        return systemTemplate != null
+            ? TemplateMapper.toDomain(systemTemplate)
+            : null;
       }
 
-      final localTemplate = await (db.select(db.localTemplates)
-            ..where((t) => t.id.equals(id))
-            ..where((t) =>
-                (t.isSystem.equals(true)) | // System templates available to all
-                (t.userId.equals(userId)))) // User's own templates
-          .getSingleOrNull();
+      final localTemplate =
+          await (db.select(db.localTemplates)
+                ..where((t) => t.id.equals(id))
+                ..where(
+                  (t) =>
+                      (t.isSystem.equals(
+                        true,
+                      )) | // System templates available to all
+                      (t.userId.equals(userId)),
+                )) // User's own templates
+              .getSingleOrNull();
 
       if (localTemplate == null) return null;
 
       return TemplateMapper.toDomain(localTemplate);
     } catch (e, stack) {
-      _logger.error('Failed to get template by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get template by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTemplateById',
         error: e,
@@ -158,9 +223,11 @@ class TemplateCoreRepository implements ITemplateRepository {
   @override
   Future<Template> createTemplate(Template template) async {
     try {
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create template without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create template without authenticated user',
+        );
         _logger.warning(
           'Cannot create template without authenticated user',
           data: {'templateName': template.name},
@@ -181,19 +248,29 @@ class TemplateCoreRepository implements ITemplateRepository {
           : template;
 
       // Map to infrastructure model
-      final localTemplate = TemplateMapper.toInfrastructure(templateToCreate);
+      final localTemplate = TemplateMapper.toInfrastructure(
+        templateToCreate,
+      ).copyWith(userId: Value(userId));
 
       // Insert into database
       await db.upsertTemplate(localTemplate);
 
       // Enqueue for sync if it's a user template
       if (!templateToCreate.isSystem) {
-        await db.enqueue(templateToCreate.id, 'upsert_template');
+        await _enqueuePendingOp(
+          entityId: templateToCreate.id,
+          kind: 'upsert_template',
+          payload: jsonEncode({'userId': userId, 'isSystem': false}),
+        );
       }
 
       return templateToCreate;
     } catch (e, stack) {
-      _logger.error('Failed to create template: ${template.name}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create template: ${template.name}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createTemplate',
         error: e,
@@ -208,9 +285,11 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<Template> updateTemplate(Template template) async {
     try {
       // Security: Verify user is authenticated
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot update template without authenticated user');
+        final authorizationError = StateError(
+          'Cannot update template without authenticated user',
+        );
         _logger.warning(
           'Cannot update template without authenticated user',
           data: {'templateId': template.id},
@@ -226,15 +305,22 @@ class TemplateCoreRepository implements ITemplateRepository {
       }
 
       // Security: Verify template exists and belongs to user (or is system template)
-      final existing = await (db.select(db.localTemplates)
-            ..where((t) => t.id.equals(template.id))
-            ..where((t) =>
-                (t.isSystem.equals(true)) | // Can't update system templates anyway
-                (t.userId.equals(userId)))) // Must own the template
-          .getSingleOrNull();
+      final existing =
+          await (db.select(db.localTemplates)
+                ..where((t) => t.id.equals(template.id))
+                ..where(
+                  (t) =>
+                      (t.isSystem.equals(
+                        true,
+                      )) | // Can't update system templates anyway
+                      (t.userId.equals(userId)),
+                )) // Must own the template
+              .getSingleOrNull();
 
       if (existing == null) {
-        final missingError = StateError('Template not found or does not belong to user');
+        final missingError = StateError(
+          'Template not found or does not belong to user',
+        );
         _logger.warning(
           'Template update attempted on non-existent template',
           data: {'templateId': template.id, 'userId': userId},
@@ -272,17 +358,30 @@ class TemplateCoreRepository implements ITemplateRepository {
       );
 
       // Map to infrastructure model
-      final localTemplate = TemplateMapper.toInfrastructure(updatedTemplate);
+      final localTemplate = TemplateMapper.toInfrastructure(
+        updatedTemplate,
+      ).copyWith(userId: Value(userId));
 
       // Update in database
       await db.upsertTemplate(localTemplate);
 
       // Enqueue for sync
-      await db.enqueue(updatedTemplate.id, 'upsert_template');
+      await _enqueuePendingOp(
+        entityId: updatedTemplate.id,
+        kind: 'upsert_template',
+        payload: jsonEncode({
+          'userId': userId,
+          'isSystem': updatedTemplate.isSystem,
+        }),
+      );
 
       return updatedTemplate;
     } catch (e, stack) {
-      _logger.error('Failed to update template: ${template.id}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update template: ${template.id}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'updateTemplate',
         error: e,
@@ -297,9 +396,11 @@ class TemplateCoreRepository implements ITemplateRepository {
   Future<void> deleteTemplate(String id) async {
     try {
       // Security: Verify user is authenticated
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot delete template without authenticated user');
+        final authorizationError = StateError(
+          'Cannot delete template without authenticated user',
+        );
         _logger.warning(
           'Cannot delete template without authenticated user',
           data: {'templateId': id},
@@ -315,13 +416,16 @@ class TemplateCoreRepository implements ITemplateRepository {
       }
 
       // Security: Verify template exists and belongs to user
-      final existing = await (db.select(db.localTemplates)
-            ..where((t) => t.id.equals(id))
-            ..where((t) => t.userId.equals(userId)))
-          .getSingleOrNull();
+      final existing =
+          await (db.select(db.localTemplates)
+                ..where((t) => t.id.equals(id))
+                ..where((t) => t.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (existing == null) {
-        _logger.warning('Template $id not found or does not belong to user $userId');
+        _logger.warning(
+          'Template $id not found or does not belong to user $userId',
+        );
         return;
       }
 
@@ -349,11 +453,22 @@ class TemplateCoreRepository implements ITemplateRepository {
       }
 
       // Enqueue for sync deletion
-      await db.enqueue(id, 'delete_template');
+      await _enqueuePendingOp(
+        entityId: id,
+        kind: 'delete_template',
+        payload: jsonEncode({
+          'userId': existing.userId,
+          'isSystem': existing.isSystem,
+        }),
+      );
 
       _logger.info('Deleted template: $id');
     } catch (e, stack) {
-      _logger.error('Failed to delete template: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to delete template: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'deleteTemplate',
         error: e,
@@ -400,7 +515,10 @@ class TemplateCoreRepository implements ITemplateRepository {
           emitTemplates();
 
           // Set up periodic refresh (since Drift doesn't provide stream for custom queries)
-          timer = Timer.periodic(const Duration(seconds: 5), (_) => emitTemplates());
+          timer = Timer.periodic(
+            const Duration(seconds: 5),
+            (_) => emitTemplates(),
+          );
         },
         onCancel: () {
           timer?.cancel();
@@ -409,7 +527,11 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return controller.stream;
     } catch (e, stack) {
-      _logger.error('Failed to create template watch stream', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create template watch stream',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'watchTemplates',
         error: e,
@@ -428,9 +550,11 @@ class TemplateCoreRepository implements ITemplateRepository {
     Map<String, dynamic> variables = const {},
   }) async {
     try {
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
       if (userId == null || userId.isEmpty) {
-        final authorizationError = StateError('Cannot create template without authenticated user');
+        final authorizationError = StateError(
+          'Cannot create template without authenticated user',
+        );
         _logger.warning(
           'Cannot create template from note without authenticated user',
           data: {'templateName': templateName, 'noteTitle': noteTitle},
@@ -461,7 +585,11 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return await createTemplate(template);
     } catch (e, stack) {
-      _logger.error('Failed to create template from note', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create template from note',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'createTemplateFromNote',
         error: e,
@@ -499,29 +627,37 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       String processedContent = template.content;
 
-      // Replace variables in format {{variableName}}
-      for (final entry in variableValues.entries) {
-        final placeholder = '{{${entry.key}}}';
-        processedContent = processedContent.replaceAll(placeholder, entry.value.toString());
+      Map<String, dynamic> normalizeMap(Map<String, dynamic> map) {
+        return map.map((key, value) => MapEntry(key.toString(), value));
       }
 
-      // Replace any remaining placeholders with defaults from template variables
-      for (final entry in template.variables.entries) {
+      final normalizedVariables = normalizeMap(template.variables);
+      final resolvedVariables = normalizeMap(variableValues);
+
+      for (final entry in resolvedVariables.entries) {
+        final placeholder = '{{${entry.key}}}';
+        processedContent = processedContent.replaceAll(
+          placeholder,
+          entry.value?.toString() ?? '',
+        );
+      }
+
+      for (final entry in normalizedVariables.entries) {
         final placeholder = '{{${entry.key}}}';
         if (processedContent.contains(placeholder)) {
-          final defaultValue = entry.value.toString();
-          processedContent = processedContent.replaceAll(placeholder, defaultValue);
+          processedContent = processedContent.replaceAll(
+            placeholder,
+            entry.value?.toString() ?? '',
+          );
         }
       }
 
-      // Create a note from the processed template
-      // Note: This is a simplified implementation
-      // In production, this would use a proper notes repository
-      final noteId = _uuid.v4();
-      final userId = client.auth.currentUser?.id;
+      final userId = _currentUserId();
 
       if (userId == null) {
-        final authorizationError = StateError('User must be authenticated to create note from template');
+        final authorizationError = StateError(
+          'User must be authenticated to create note from template',
+        );
         _logger.warning(
           'Cannot apply template without authenticated user',
           data: {'templateId': templateId},
@@ -536,14 +672,168 @@ class TemplateCoreRepository implements ITemplateRepository {
         throw authorizationError;
       }
 
-      // TODO: Properly create note using notes repository
-      // For now, just return the generated ID
-      // The UI should be updated to create the note directly
-      _logger.info('Template $templateId applied, generated note ID: $noteId');
+      String? resolveStringValue(Map<String, dynamic> source, String key) {
+        if (source.containsKey(key)) {
+          final value = source[key];
+          if (value == null) return null;
+          if (value is String) return value;
+          return value.toString();
+        }
+        return null;
+      }
 
-      return noteId;
+      List<String> resolveStringList(dynamic value) {
+        if (value == null) return const [];
+        if (value is List) {
+          return value
+              .map((e) => e?.toString() ?? '')
+              .where((element) => element.trim().isNotEmpty)
+              .toList();
+        }
+        if (value is String) {
+          return value
+              .split(',')
+              .map((e) => e.trim())
+              .where((element) => element.isNotEmpty)
+              .toList();
+        }
+        return const [];
+      }
+
+      List<Map<String, String?>> resolveLinks(dynamic value) {
+        if (value == null) return const [];
+        if (value is List) {
+          return value.map<Map<String, String?>>((entry) {
+            if (entry is Map) {
+              return {
+                'title':
+                    entry['title']?.toString() ??
+                    entry['text']?.toString() ??
+                    entry['target']?.toString(),
+                'targetId':
+                    entry['id']?.toString() ?? entry['targetId']?.toString(),
+              };
+            }
+            final text = entry.toString();
+            return {'title': text, 'targetId': null};
+          }).toList();
+        }
+        if (value is String && value.trim().isNotEmpty) {
+          return [
+            {'title': value.trim(), 'targetId': null},
+          ];
+        }
+        return const [];
+      }
+
+      Map<String, dynamic>? resolveMetadata(dynamic value) {
+        if (value == null) return null;
+        if (value is Map<String, dynamic>) {
+          return value;
+        }
+        if (value is Map) {
+          return value.map<String, dynamic>(
+            (key, dynamic val) => MapEntry(key.toString(), val),
+          );
+        }
+        if (value is String && value.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is Map<String, dynamic>) {
+              return decoded;
+            }
+          } catch (_) {
+            return {'value': value};
+          }
+        }
+        return null;
+      }
+
+      String resolveTitle() {
+        final variableTitle =
+            resolveStringValue(resolvedVariables, 'title') ??
+            resolveStringValue(resolvedVariables, 'noteTitle') ??
+            resolveStringValue(normalizedVariables, 'title') ??
+            resolveStringValue(normalizedVariables, 'noteTitle');
+        if (variableTitle != null && variableTitle.trim().isNotEmpty) {
+          return variableTitle.trim();
+        }
+        final firstLine = processedContent.trim().split('\n').first;
+        if (firstLine.startsWith('#')) {
+          return firstLine.replaceFirst(RegExp(r'^#+\s*'), '').trim();
+        }
+        return template.name.isNotEmpty ? template.name : 'New Note';
+      }
+
+      List<String> resolveTags() {
+        final fromValues = resolveStringList(resolvedVariables['tags']);
+        if (fromValues.isNotEmpty) return fromValues;
+        return resolveStringList(normalizedVariables['tags']);
+      }
+
+      List<Map<String, String?>> resolveLinkList() {
+        final fromValues = resolveLinks(resolvedVariables['links']);
+        if (fromValues.isNotEmpty) return fromValues;
+        return resolveLinks(normalizedVariables['links']);
+      }
+
+      final noteTitle = resolveTitle();
+      final tags = resolveTags();
+      final links = resolveLinkList();
+      final folderId =
+          resolveStringValue(resolvedVariables, 'folderId') ??
+          resolveStringValue(normalizedVariables, 'folderId');
+      final metadata =
+          resolveMetadata(resolvedVariables['metadata']) ??
+          resolveMetadata(normalizedVariables['metadata']);
+      final attachmentMeta =
+          resolveMetadata(resolvedVariables['attachmentMeta']) ??
+          resolveMetadata(normalizedVariables['attachmentMeta']);
+      final isPinned =
+          (resolveStringValue(resolvedVariables, 'isPinned') ??
+                  resolveStringValue(normalizedVariables, 'isPinned'))
+              ?.toLowerCase() ==
+          'true';
+
+      final createdNote = await _notesRepository.createOrUpdate(
+        title: noteTitle,
+        body: processedContent.trim(),
+        folderId: folderId,
+        tags: tags,
+        links: links,
+        metadataJson: metadata,
+        attachmentMeta: attachmentMeta,
+        isPinned: isPinned,
+      );
+
+      if (createdNote == null) {
+        final creationError = StateError('Failed to create note from template');
+        _captureRepositoryException(
+          method: 'applyTemplate',
+          error: creationError,
+          stackTrace: StackTrace.current,
+          data: {'templateId': templateId},
+        );
+        throw creationError;
+      }
+
+      _logger.info(
+        'Template applied successfully',
+        data: {
+          'templateId': templateId,
+          'noteId': createdNote.id,
+          'tags': tags.length,
+          'links': links.length,
+        },
+      );
+
+      return createdNote.id;
     } catch (e, stack) {
-      _logger.error('Failed to apply template: $templateId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to apply template: $templateId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'applyTemplate',
         error: e,
@@ -568,7 +858,11 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return stats;
     } catch (e, stack) {
-      _logger.error('Failed to get template usage stats', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get template usage stats',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getTemplateUsageStats',
         error: e,
@@ -589,12 +883,20 @@ class TemplateCoreRepository implements ITemplateRepository {
       final normalizedQuery = query.toLowerCase();
 
       return allTemplates.where((template) {
-        final matchesName = template.name.toLowerCase().contains(normalizedQuery);
-        final matchesContent = template.content.toLowerCase().contains(normalizedQuery);
+        final matchesName = template.name.toLowerCase().contains(
+          normalizedQuery,
+        );
+        final matchesContent = template.content.toLowerCase().contains(
+          normalizedQuery,
+        );
         return matchesName || matchesContent;
       }).toList();
     } catch (e, stack) {
-      _logger.error('Failed to search templates with query: $query', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to search templates with query: $query',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'searchTemplates',
         error: e,
@@ -606,6 +908,7 @@ class TemplateCoreRepository implements ITemplateRepository {
   }
 
   /// Duplicate an existing template
+  @override
   Future<Template> duplicateTemplate({
     required String templateId,
     String? newName,
@@ -640,7 +943,11 @@ class TemplateCoreRepository implements ITemplateRepository {
 
       return await createTemplate(duplicatedTemplate);
     } catch (e, stack) {
-      _logger.error('Failed to duplicate template: $templateId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to duplicate template: $templateId',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'duplicateTemplate',
         error: e,
@@ -665,7 +972,9 @@ class TemplateCoreRepository implements ITemplateRepository {
       for (final match in matches) {
         final variableName = match.group(1)?.trim();
         if (variableName != null && !variables.containsKey(variableName)) {
-          _logger.warning('Template ${template.id} has undefined variable: $variableName');
+          _logger.warning(
+            'Template ${template.id} has undefined variable: $variableName',
+          );
           return false;
         }
       }
@@ -674,14 +983,20 @@ class TemplateCoreRepository implements ITemplateRepository {
       for (final variableName in variables.keys) {
         final placeholder = '{{$variableName}}';
         if (!content.contains(placeholder)) {
-          _logger.warning('Template ${template.id} has unused variable: $variableName');
+          _logger.warning(
+            'Template ${template.id} has unused variable: $variableName',
+          );
           // This is just a warning, not an error
         }
       }
 
       return true;
     } catch (e, stack) {
-      _logger.error('Failed to validate template: ${template.id}', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to validate template: ${template.id}',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'validateTemplate',
         error: e,
@@ -720,7 +1035,11 @@ class TemplateCoreRepository implements ITemplateRepository {
         await _createDefaultSystemTemplates();
       }
     } catch (e, stack) {
-      _logger.error('Failed to ensure system templates exist', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to ensure system templates exist',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'ensureSystemTemplatesExist',
         error: e,
@@ -855,7 +1174,10 @@ class TemplateCoreRepository implements ITemplateRepository {
         final localTemplate = TemplateMapper.toInfrastructure(template);
         await db.upsertTemplate(localTemplate);
       } catch (e) {
-        _logger.error('Failed to create system template: ${template.name}', error: e);
+        _logger.error(
+          'Failed to create system template: ${template.name}',
+          error: e,
+        );
       }
     }
 

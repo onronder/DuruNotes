@@ -1,5 +1,4 @@
 import 'package:duru_notes/core/bootstrap/bootstrap_error.dart';
-import 'package:duru_notes/core/bootstrap/enhanced_app_bootstrap.dart';
 import 'package:duru_notes/core/config/config_validator.dart';
 import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/repository/base_repository.dart';
@@ -250,7 +249,7 @@ void main() {
       expect(cache.get('key1'), 'value1');
 
       // Wait for expiration
-      await Future.delayed(const Duration(milliseconds: 150));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(cache.get('key1'), null);
       expect(cache.containsKey('key1'), false);
     });
@@ -558,7 +557,7 @@ void main() {
       expect(cache.get('item_5'), isNotNull); // Just added
 
       // Wait for TTL expiration
-      await Future.delayed(const Duration(milliseconds: 1100));
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
       cache.clearExpired();
 
       // All should be expired except item_5 which was added later

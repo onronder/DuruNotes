@@ -1,15 +1,13 @@
 import 'package:duru_notes/core/feature_flags.dart';
-import 'package:duru_notes/data/local/app_db.dart'
-    show TaskPriority, TaskStatus;
-import 'package:duru_notes/models/local_folder.dart';
-import 'package:duru_notes/models/note_task.dart' as legacy;
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/models/local_folder.dart' as legacy;
 import 'package:duru_notes/ui/widgets/analytics/unified_metric_card.dart';
 import 'package:duru_notes/ui/widgets/folders/folder_item_base.dart';
 import 'package:duru_notes/ui/widgets/settings/settings_components.dart';
 import 'package:duru_notes/ui/widgets/shared/dialog_actions.dart';
 import 'package:duru_notes/ui/widgets/shared/dialog_header.dart';
-import 'package:duru_notes/ui/widgets/tasks/task_widget_adapter.dart';
-import 'package:duru_notes/ui/widgets/tasks/task_widget_factory.dart';
+import 'package:duru_notes/ui/widgets/tasks/domain_task_callbacks.dart';
+import 'package:duru_notes/ui/widgets/tasks/domain_task_widget_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -71,23 +69,24 @@ void main() {
       testWidgets('Task list with multiple display modes', (tester) async {
         final now = DateTime.now();
         final tasks = [
-          legacy.UiNoteTask(
+          _buildTask(
             id: '1',
-            content: 'Task 1',
-            priority: legacy.UiTaskPriority.high,
-            createdAt: now,
-            updatedAt: now,
+            title: 'Task 1',
+            priority: domain.TaskPriority.high,
+            status: domain.TaskStatus.pending,
+            dueDate: now.add(const Duration(days: 1)),
+            tags: const ['tag1', 'tag2'],
           ),
-          legacy.UiNoteTask(
+          _buildTask(
             id: '2',
-            content: 'Task 2',
-            status: legacy.UiTaskStatus.completed,
-            createdAt: now,
-            updatedAt: now,
+            title: 'Task 2',
+            priority: domain.TaskPriority.medium,
+            status: domain.TaskStatus.completed,
+            dueDate: now.add(const Duration(days: 2)),
           ),
         ];
 
-        final callbacks = _RecordingCallbacks();
+        final callbacks = _RecordingDomainCallbacks();
 
         await tester.pumpWidget(
           MaterialApp(
@@ -95,9 +94,9 @@ void main() {
               body: ListView(
                 children: tasks
                     .map(
-                      (task) => TaskWidgetFactory.create(
-                        mode: TaskDisplayMode.list,
-                        uiTask: task,
+                      (task) => DomainTaskWidgetFactory.create(
+                        mode: DomainTaskDisplayMode.list,
+                        task: task,
                         callbacks: callbacks,
                       ),
                     )
@@ -107,14 +106,10 @@ void main() {
           ),
         );
 
-        // Verify tasks render
         expect(find.text('Task 1'), findsOneWidget);
         expect(find.text('Task 2'), findsOneWidget);
-
-        // High-priority chip rendered for first task
         expect(find.text('High'), findsOneWidget);
 
-        // Completed task checkbox reflects status
         expect(
           tester.widget<Checkbox>(find.byType(Checkbox).at(0)).value,
           isFalse,
@@ -126,35 +121,31 @@ void main() {
       });
 
       testWidgets('Task interaction callbacks work correctly', (tester) async {
-        final now = DateTime.now();
-        final task = legacy.UiNoteTask(
+        final task = _buildTask(
           id: 'test-task',
-          content: 'Interactive Task',
-          createdAt: now,
-          updatedAt: now,
+          title: 'Interactive Task',
+          status: domain.TaskStatus.pending,
         );
 
-        final callbacks = _RecordingCallbacks();
+        final callbacks = _RecordingDomainCallbacks();
 
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
-              body: TaskWidgetFactory.create(
-                mode: TaskDisplayMode.list,
-                uiTask: task,
+              body: DomainTaskWidgetFactory.create(
+                mode: DomainTaskDisplayMode.list,
+                task: task,
                 callbacks: callbacks,
               ),
             ),
           ),
         );
 
-        // Test checkbox toggle
         await tester.tap(find.byType(Checkbox));
         await tester.pump();
         expect(callbacks.lastStatusChangeId, equals('test-task'));
-        expect(callbacks.lastStatus, equals(TaskStatus.completed));
+        expect(callbacks.lastStatus, equals(domain.TaskStatus.completed));
 
-        // Test edit tap
         await tester.tap(find.text('Interactive Task'));
         await tester.pump();
         expect(callbacks.lastEditedTaskId, equals('test-task'));
@@ -165,7 +156,7 @@ void main() {
       testWidgets('Folder hierarchy with expand/collapse', (tester) async {
         bool expanded = false;
 
-        final folder = LocalFolder(
+        final folder = legacy.LocalFolder(
           id: '1',
           name: 'Documents',
           hasChildren: true,
@@ -419,16 +410,15 @@ void main() {
                       ),
                     ),
                   ),
-                  TaskWidgetFactory.create(
-                    mode: TaskDisplayMode.compact,
-                    uiTask: legacy.UiNoteTask(
+                  DomainTaskWidgetFactory.create(
+                    mode: DomainTaskDisplayMode.compact,
+                    task: _buildTask(
                       id: '1',
-                      content: 'Review documents',
-                      priority: legacy.UiTaskPriority.high,
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
+                      title: 'Review documents',
+                      priority: domain.TaskPriority.high,
+                      status: domain.TaskStatus.pending,
                     ),
-                    callbacks: const _NoopCallbacks(),
+                    callbacks: const _NoopDomainCallbacks(),
                   ),
 
                   // Folder section
@@ -443,9 +433,10 @@ void main() {
                     ),
                   ),
                   CompactFolderItem(
-                    folder: LocalFolder(
+                    folder: legacy.LocalFolder(
                       id: '1',
                       name: 'Work',
+                      hasChildren: false,
                       createdAt: DateTime.now(),
                       updatedAt: DateTime.now(),
                     ),
@@ -466,8 +457,8 @@ void main() {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: UnifiedMetricCard.simple(
-                      title: 'Completed',
-                      value: '85%',
+                     title: 'Completed',
+                     value: '85%',
                       icon: Icons.check_circle,
                       color: Colors.green,
                     ),
@@ -493,11 +484,36 @@ void main() {
   });
 }
 
-class _RecordingCallbacks implements UnifiedTaskCallbacks {
+domain.Task _buildTask({
+  required String id,
+  required String title,
+  domain.TaskStatus status = domain.TaskStatus.pending,
+  domain.TaskPriority priority = domain.TaskPriority.medium,
+  DateTime? dueDate,
+  List<String> tags = const [],
+}) {
+  final now = DateTime.now();
+  return domain.Task(
+    id: id,
+    noteId: 'note1',
+    title: title,
+    description: '',
+    status: status,
+    priority: priority,
+    dueDate: dueDate,
+    completedAt: status == domain.TaskStatus.completed ? now : null,
+    createdAt: now,
+    updatedAt: now,
+    tags: tags,
+    metadata: const {},
+  );
+}
+
+class _RecordingDomainCallbacks implements DomainTaskCallbacks {
   String? lastStatusChangeId;
-  TaskStatus? lastStatus;
+  domain.TaskStatus? lastStatus;
   String? lastPriorityChangeId;
-  TaskPriority? lastPriority;
+  domain.TaskPriority? lastPriority;
   String? lastEditedTaskId;
   String? lastDeletedTaskId;
   String? lastContentChangeId;
@@ -505,7 +521,10 @@ class _RecordingCallbacks implements UnifiedTaskCallbacks {
   DateTime? lastDueDate;
 
   @override
-  Future<void> onStatusChanged(String taskId, TaskStatus newStatus) async {
+  Future<void> onStatusChanged(
+    String taskId,
+    domain.TaskStatus newStatus,
+  ) async {
     lastStatusChangeId = taskId;
     lastStatus = newStatus;
   }
@@ -513,7 +532,7 @@ class _RecordingCallbacks implements UnifiedTaskCallbacks {
   @override
   Future<void> onPriorityChanged(
     String taskId,
-    TaskPriority newPriority,
+    domain.TaskPriority newPriority,
   ) async {
     lastPriorityChangeId = taskId;
     lastPriority = newPriority;
@@ -541,16 +560,19 @@ class _RecordingCallbacks implements UnifiedTaskCallbacks {
   }
 }
 
-class _NoopCallbacks implements UnifiedTaskCallbacks {
-  const _NoopCallbacks();
+class _NoopDomainCallbacks implements DomainTaskCallbacks {
+  const _NoopDomainCallbacks();
 
   @override
-  Future<void> onStatusChanged(String taskId, TaskStatus newStatus) async {}
+  Future<void> onStatusChanged(
+    String taskId,
+    domain.TaskStatus newStatus,
+  ) async {}
 
   @override
   Future<void> onPriorityChanged(
     String taskId,
-    TaskPriority newPriority,
+    domain.TaskPriority newPriority,
   ) async {}
 
   @override

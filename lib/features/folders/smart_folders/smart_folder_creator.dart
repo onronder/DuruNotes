@@ -631,7 +631,7 @@ class _RuleBuilder extends StatelessWidget {
     BuildContext context,
     Type fieldType,
     dynamic currentValue,
-    Function(dynamic) onValueChanged,
+    void Function(dynamic) onValueChanged,
     String label,
   ) {
     if (fieldType == bool) {

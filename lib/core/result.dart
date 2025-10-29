@@ -260,7 +260,7 @@ class Failure<T, E> extends Result<T, E> {
 
 /// Extension methods for Result with nullable values.
 extension ResultNullableExtensions<T, E> on Result<T?, E> {
-  /// Converts a Result<T?, E> to Result<T, E> by providing a default value for null.
+  /// Converts a `Result<T?, E>` to `Result<T, E>` by providing a default value for null.
   Result<T, E> notNull(E Function() onNull) {
     return when(
       success: (value) =>
@@ -270,21 +270,21 @@ extension ResultNullableExtensions<T, E> on Result<T?, E> {
   }
 }
 
-/// Extension methods for Future<Result>.
+/// Extension methods for `Future<Result>`.
 extension FutureResultExtensions<T, E> on Future<Result<T, E>> {
-  /// Maps the success value of a Future<Result>.
+  /// Maps the success value of a `Future<Result>`.
   Future<Result<U, E>> mapAsync<U>(U Function(T value) transform) async {
     final result = await this;
     return result.map(transform);
   }
 
-  /// Maps the error of a Future<Result>.
+  /// Maps the error of a `Future<Result>`.
   Future<Result<T, F>> mapErrorAsync<F>(F Function(E error) transform) async {
     final result = await this;
     return result.mapError(transform);
   }
 
-  /// Flat maps the success value of a Future<Result>.
+  /// Flat maps the success value of a `Future<Result>`.
   Future<Result<U, E>> flatMapAsync<U>(
     Future<Result<U, E>> Function(T value) transform,
   ) async {

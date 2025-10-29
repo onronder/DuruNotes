@@ -3,37 +3,72 @@ import 'dart:convert';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
+import 'package:duru_notes/services/notifications/notification_bootstrap.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:duru_notes/services/task_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:duru_notes/core/crypto/crypto_box.dart';
+import 'package:duru_notes/infrastructure/helpers/task_decryption_helper.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 /// Bridge service that connects task management with the reminder system
+/// PRODUCTION: Uses AppDb directly - no longer depends on deprecated TaskService
 class TaskReminderBridge {
-  TaskReminderBridge(this._ref, {
+  TaskReminderBridge(
+    this._ref, {
     required dynamic reminderCoordinator,
     required AdvancedReminderService advancedReminderService,
-    required TaskService taskService,
     required AppDb database,
     required FlutterLocalNotificationsPlugin notificationPlugin,
-  })  : _reminderCoordinator = reminderCoordinator,
-        _advancedReminderService = advancedReminderService,
-        _taskService = taskService,
-        _db = database,
-        _notificationPlugin = notificationPlugin;
+    required CryptoBox cryptoBox,
+    ITaskRepository? taskRepository,
+  }) : _reminderCoordinator = reminderCoordinator,
+       _advancedReminderService = advancedReminderService,
+       _db = database,
+       _notificationPlugin = notificationPlugin,
+       _decryptionHelper = TaskDecryptionHelper(cryptoBox),
+       _taskRepository = taskRepository;
 
   final Ref _ref;
   final dynamic _reminderCoordinator;
   final AdvancedReminderService _advancedReminderService;
-  final TaskService _taskService;
   final AppDb _db;
   final FlutterLocalNotificationsPlugin _notificationPlugin;
-  GlobalKey<NavigatorState> get _navigatorKey => _ref.read(navigatorKeyProvider);
+  final TaskDecryptionHelper _decryptionHelper;
+  final ITaskRepository? _taskRepository;
+  static const Uuid _uuid = Uuid();
+  GlobalKey<NavigatorState> get _navigatorKey =>
+      _ref.read(navigatorKeyProvider);
   AppLogger get _logger => _ref.read(loggerProvider);
+
+  /// P0.5 SECURITY: Get current user ID for database operations
+  String? get _currentUserId {
+    try {
+      return _ref.read(supabaseClientProvider).auth.currentUser?.id;
+    } catch (e) {
+      _logger.warning('Failed to get current user ID: $e');
+      return null;
+    }
+  }
+
+  String? _requireUserIdFor(String action) {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) {
+      _logger.warning(
+        'TaskReminderBridge: cannot perform "$action" without userId',
+      );
+      return null;
+    }
+    return userId;
+  }
 
   static const String _taskChannelId = 'task_reminders';
   static const String _taskChannelName = 'Task Reminders';
@@ -58,6 +93,7 @@ class TaskReminderBridge {
     }
 
     try {
+      await NotificationBootstrap.ensureInitialized(_notificationPlugin);
       // Create dedicated notification channel for tasks
       const channel = AndroidNotificationChannel(
         _taskChannelId,
@@ -70,7 +106,8 @@ class TaskReminderBridge {
 
       await _notificationPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
 
       _initialized = true;
@@ -108,36 +145,62 @@ class TaskReminderBridge {
     int attempts = 0;
     while (attempts < _maxRetries) {
       try {
-        // Create the reminder
-        final dynamic reminderIdResult =
-            await _reminderCoordinator.createTimeReminder(
-          noteId: task.noteId,
-          title: _formatTaskReminderTitle(task),
-          body: _formatTaskReminderBody(task),
-          remindAtUtc: reminderTime,
-          customNotificationTitle: _formatTaskNotificationTitle(task),
-          customNotificationBody: _formatTaskNotificationBody(task),
-        );
+        // Create the reminder (decrypt task content for readable notifications)
+        final reminderBody = await _formatTaskReminderBody(task);
+        final notificationBody = await _formatTaskNotificationBody(task);
+        final reminderTimeUtc = reminderTime.toUtc();
+
+        final dynamic reminderIdResult = await _reminderCoordinator
+            .createTimeReminder(
+              noteId: task.noteId,
+              title: _formatTaskReminderTitle(task),
+              body: reminderBody,
+              remindAtUtc: reminderTimeUtc,
+              customNotificationTitle: _formatTaskNotificationTitle(task),
+              customNotificationBody: notificationBody,
+            );
 
         final int? reminderId = reminderIdResult is int
             ? reminderIdResult
             : int.tryParse('$reminderIdResult');
 
         if (reminderId != null) {
-          // Update task with reminder ID
-          await _taskService.updateTask(
-            taskId: task.id,
-            reminderId: reminderId,
-          );
+          // Update task with reminder ID using AppDb directly
+          final userId = task.userId.isNotEmpty
+              ? task.userId
+              : _requireUserIdFor('createTaskReminder.linkTask');
+          if (userId != null) {
+            await _db.updateTask(
+              task.id,
+              userId,
+              NoteTasksCompanion(
+                reminderId: Value(reminderId),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
+          }
 
           _logger.info(
             'Created and linked task reminder',
             data: {
               'taskId': task.id,
               'reminderId': reminderId,
-              'reminderTime': reminderTime.toIso8601String(),
+              'reminderTime': reminderTimeUtc.toIso8601String(),
               'attempts': attempts + 1,
             },
+          );
+
+          await _syncRemoteReminder(
+            task: task,
+            scheduledAtUtc: reminderTimeUtc,
+            title: _formatTaskReminderTitle(task),
+            body: reminderBody,
+            metadata: {
+              'beforeDue': beforeDueDate?.inMinutes,
+              'customNotificationBody': notificationBody,
+              'reminderId': reminderId,
+            },
+            isActive: true,
           );
         }
 
@@ -180,12 +243,21 @@ class TaskReminderBridge {
       if (task.dueDate != null && task.status != TaskStatus.completed) {
         final newReminderId = await createTaskReminder(task: task);
 
-        // Update task with new reminder ID
+        // Update task with new reminder ID using AppDb directly
         if (newReminderId != null) {
-          await _taskService.updateTask(
-            taskId: task.id,
-            reminderId: newReminderId,
-          );
+          final userId = task.userId.isNotEmpty
+              ? task.userId
+              : _requireUserIdFor('updateTaskReminder.linkTask');
+          if (userId != null) {
+            await _db.updateTask(
+              task.id,
+              userId,
+              NoteTasksCompanion(
+                reminderId: Value(newReminderId),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
+          }
         }
       }
 
@@ -207,13 +279,27 @@ class TaskReminderBridge {
     try {
       await _advancedReminderService.deleteReminder(task.reminderId!);
 
-      // Clear reminder ID from task
-      await _taskService.updateTask(taskId: task.id, clearReminderId: true);
+      // Clear reminder ID from task using AppDb directly
+      final userId = task.userId.isNotEmpty
+          ? task.userId
+          : _requireUserIdFor('cancelTaskReminder.clearLink');
+      if (userId != null) {
+        await _db.updateTask(
+          task.id,
+          userId,
+          NoteTasksCompanion(
+            reminderId: const Value(null),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+      }
 
       _logger.info(
         'Cancelled task reminder',
         data: {'taskId': task.id, 'reminderId': task.reminderId},
       );
+
+      await _deactivateRemoteReminder(task);
     } catch (e, stack) {
       _logger.error(
         'Failed to cancel task reminder',
@@ -232,8 +318,15 @@ class TaskReminderBridge {
     if (task.reminderId == null || task.dueDate == null) return;
 
     try {
+      // P0.5 SECURITY: Get userId before operations
+      final userId = _currentUserId;
+      if (userId == null) {
+        _logger.warning('Cannot snooze task reminder - no authenticated user');
+        return;
+      }
+
       // Get the reminder to check snooze count
-      final reminder = await _db.getReminderById(task.reminderId!);
+      final reminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
       if (reminder == null) {
         _logger.warning('Reminder not found for task ${task.id}');
         return;
@@ -246,7 +339,8 @@ class TaskReminderBridge {
       final snoozeDurationEnum = _durationToSnoozeDuration(snoozeDuration);
 
       // Use the snooze service for consistent snooze handling
-      final success = await snoozeService.snoozeReminder(
+      final success =
+          await snoozeService.snoozeReminder(
             task.reminderId!,
             snoozeDurationEnum,
           ) ==
@@ -269,7 +363,7 @@ class TaskReminderBridge {
       }
 
       // Get the updated reminder to get new snooze time
-      final updatedReminder = await _db.getReminderById(task.reminderId!);
+      final updatedReminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
       if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
         _logger.info(
           'Snoozed task reminder via SnoozeService',
@@ -280,6 +374,19 @@ class TaskReminderBridge {
             'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
             'snoozeCount': updatedReminder.snoozeCount,
           },
+        );
+
+        await _syncRemoteReminder(
+          task: task,
+          scheduledAtUtc: updatedReminder.snoozedUntil!,
+          title: _formatTaskNotificationTitle(task, isSnoozed: true),
+          body: await _formatTaskNotificationBody(task),
+          metadata: {
+            'reminderId': task.reminderId,
+            'snoozeCount': updatedReminder.snoozeCount,
+            'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
+          },
+          isActive: true,
         );
       }
     } catch (e, stack) {
@@ -354,10 +461,11 @@ class TaskReminderBridge {
   /// Notify user that max snooze limit has been reached
   Future<void> _notifyMaxSnoozeReached(NoteTask task) async {
     try {
+      final taskTitle = await _resolveTaskTitle(task);
       await _notificationPlugin.show(
         task.id.hashCode + 1000, // Different ID to avoid conflict
         '⚠️ Snooze Limit Reached',
-        'Task "${task.content}" has been snoozed 5 times. Please complete or reschedule it.',
+        'Task "$taskTitle" has been snoozed 5 times. Please complete or reschedule it.',
         NotificationDetails(
           android: AndroidNotificationDetails(
             _taskChannelId,
@@ -395,7 +503,9 @@ class TaskReminderBridge {
 
       if (taskId == null) return;
 
-      final task = await _db.getTaskById(taskId);
+      final userId = _requireUserIdFor('handleTaskNotificationAction');
+      if (userId == null) return;
+      final task = await _db.getTaskById(taskId, userId: userId);
       if (task == null) return;
 
       switch (action) {
@@ -458,7 +568,14 @@ class TaskReminderBridge {
   /// Complete task from notification
   Future<void> _completeTaskFromNotification(NoteTask task) async {
     try {
-      await _taskService.completeTask(task.id);
+      final userId = task.userId.isNotEmpty
+          ? task.userId
+          : _requireUserIdFor('completeTaskFromNotification');
+      if (userId == null) {
+        return;
+      }
+      // Complete task using AppDb directly
+      await _db.completeTask(task.id, userId, completedBy: userId);
       await cancelTaskReminder(task);
 
       // Show completion notification
@@ -569,7 +686,7 @@ class TaskReminderBridge {
         importance: Importance.low,
         priority: Priority.low,
         icon: '@mipmap/ic_launcher',
-        color: const Color(0xFF5FD0CB), // Duru accent color for completion
+        color: Color(0xFF5FD0CB), // Duru accent color for completion
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -583,10 +700,11 @@ class TaskReminderBridge {
         iOS: iosDetails,
       );
 
+      final taskTitle = await _resolveTaskTitle(task);
       await _notificationPlugin.show(
         task.id.hashCode,
         '✅ Task Completed',
-        task.content,
+        taskTitle,
         details,
       );
     } catch (e, stack) {
@@ -594,6 +712,90 @@ class TaskReminderBridge {
         'Failed to show task completion notification',
         error: e,
         stackTrace: stack,
+      );
+    }
+  }
+
+  String _remoteReminderIdForTask(String taskId) {
+    return _uuid.v5(Namespace.url.value, 'duru-notes-task-reminder:$taskId');
+  }
+
+  Future<void> _syncRemoteReminder({
+    required NoteTask task,
+    required DateTime scheduledAtUtc,
+    required String title,
+    required String body,
+    Map<String, dynamic>? metadata,
+    required bool isActive,
+  }) async {
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        _logger.warning(
+          'Skipping remote reminder sync - no authenticated user',
+          data: {'taskId': task.id},
+        );
+        return;
+      }
+
+      final remoteId = _remoteReminderIdForTask(task.id);
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+
+      final row = <String, dynamic>{
+        'id': remoteId,
+        'user_id': userId,
+        'note_id': task.noteId,
+        'title': title,
+        'body': body,
+        'type': 'task_time',
+        'remind_at': scheduledAtUtc.toIso8601String(),
+        'is_active': isActive,
+        'recurrence_pattern': 'none',
+        'recurrence_interval': 1,
+        'metadata': {'taskId': task.id, if (metadata != null) ...metadata},
+        'updated_at': nowIso,
+        'created_at': nowIso,
+      };
+
+      await client.from('reminders').upsert(row);
+      _logger.debug(
+        'Synced reminder to Supabase',
+        data: {'taskId': task.id, 'remoteId': remoteId, 'active': isActive},
+      );
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to sync reminder to Supabase',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id},
+      );
+    }
+  }
+
+  Future<void> _deactivateRemoteReminder(NoteTask task) async {
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
+      final remoteId = _remoteReminderIdForTask(task.id);
+      await client
+          .from('reminders')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', remoteId)
+          .eq('user_id', userId);
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to deactivate remote reminder',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'taskId': task.id},
       );
     }
   }
@@ -606,6 +808,7 @@ class TaskReminderBridge {
     await initialize();
 
     try {
+      final reminderTimeUtc = reminderTime.toUtc();
       final payload = jsonEncode({
         'taskId': task.id,
         'noteId': task.noteId,
@@ -651,11 +854,14 @@ class TaskReminderBridge {
         iOS: iosDetails,
       );
 
+      // Decrypt task content for readable notification
+      final notificationBody = await _formatTaskNotificationBody(task);
+
       await _notificationPlugin.zonedSchedule(
         task.id.hashCode,
         _formatTaskNotificationTitle(task),
-        _formatTaskNotificationBody(task),
-        _toTZDateTime(reminderTime),
+        notificationBody,
+        _toTZDateTime(reminderTimeUtc),
         details,
         payload: payload,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -665,8 +871,20 @@ class TaskReminderBridge {
         'Scheduled task notification',
         data: {
           'taskId': task.id,
-          'reminderTime': reminderTime.toIso8601String(),
+          'reminderTime': reminderTimeUtc.toIso8601String(),
         },
+      );
+
+      await _syncRemoteReminder(
+        task: task,
+        scheduledAtUtc: reminderTimeUtc,
+        title: _formatTaskReminderTitle(task),
+        body: notificationBody,
+        metadata: {
+          if (task.reminderId != null) 'reminderId': task.reminderId,
+          'source': 'local_notification',
+        },
+        isActive: true,
       );
     } catch (e, stack) {
       _logger.error(
@@ -685,10 +903,13 @@ class TaskReminderBridge {
   }
 
   /// Format task reminder body
-  String _formatTaskReminderBody(NoteTask task) {
-    final dueText =
-        task.dueDate != null ? ' (Due: ${_formatDueTime(task.dueDate!)})' : '';
-    return '${task.content}$dueText';
+  Future<String> _formatTaskReminderBody(NoteTask task) async {
+    final dueText = task.dueDate != null
+        ? ' (Due: ${_formatDueTime(task.dueDate!)})'
+        : '';
+
+    final taskTitle = await _resolveTaskTitle(task);
+    return '$taskTitle$dueText';
   }
 
   /// Format task notification title
@@ -699,12 +920,15 @@ class TaskReminderBridge {
   }
 
   /// Format task notification body
-  String _formatTaskNotificationBody(NoteTask task) {
+  Future<String> _formatTaskNotificationBody(NoteTask task) async {
     final buffer = StringBuffer();
-    buffer.write(task.content);
+
+    final taskTitle = await _resolveTaskTitle(task);
+    buffer.write(taskTitle);
 
     if (task.dueDate != null) {
-      final timeUntilDue = task.dueDate!.difference(DateTime.now());
+      final dueDate = task.dueDate!;
+      final timeUntilDue = dueDate.difference(DateTime.now());
       if (timeUntilDue.isNegative) {
         buffer.write(' • Overdue!');
       } else if (timeUntilDue.inMinutes < 60) {
@@ -712,7 +936,7 @@ class TaskReminderBridge {
       } else if (timeUntilDue.inHours < 24) {
         buffer.write(' • Due in ${timeUntilDue.inHours}h');
       } else {
-        buffer.write(' • Due ${_formatDueTime(task.dueDate!)}');
+        buffer.write(' • Due ${_formatDueTime(dueDate)}');
       }
     }
 
@@ -721,6 +945,51 @@ class TaskReminderBridge {
     }
 
     return buffer.toString();
+  }
+
+  Future<String> _resolveTaskTitle(NoteTask task) async {
+    const fallbackLength = 8;
+
+    final repository = _taskRepository;
+    if (repository != null) {
+      try {
+        final domainTask = await repository.getTaskById(task.id);
+        final title = domainTask?.title.trim();
+        if (title != null && title.isNotEmpty) {
+          return title;
+        }
+      } catch (e, stack) {
+        _logger.error(
+          'Failed to load task title from repository',
+          error: e,
+          stackTrace: stack,
+          data: {'taskId': task.id},
+        );
+      }
+    }
+
+    try {
+      final decrypted = await _decryptionHelper.decryptContent(
+        task,
+        task.noteId,
+      );
+      final trimmed = decrypted.trim();
+      if (trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to decrypt task content for title fallback',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': task.id},
+      );
+    }
+
+    final safeLength = fallbackLength > task.id.length
+        ? task.id.length
+        : fallbackLength;
+    return 'Task ${task.id.substring(0, safeLength)}';
   }
 
   /// Get priority color value for notifications
@@ -833,7 +1102,12 @@ class TaskReminderBridge {
   /// Get all task reminders
   Future<List<NoteTask>> getTasksWithReminders() async {
     try {
-      final tasks = await _taskService.getOpenTasks();
+      // Get open tasks using AppDb directly
+      final userId = _requireUserIdFor('getTasksWithReminders');
+      if (userId == null) {
+        return [];
+      }
+      final tasks = await _db.getOpenTasks(userId: userId);
       return tasks.where((task) => task.reminderId != null).toList();
     } catch (e, stack) {
       _logger.error(
@@ -865,6 +1139,13 @@ class TaskReminderBridge {
   /// Clean up orphaned reminders
   Future<void> cleanupOrphanedReminders() async {
     try {
+      // P0.5 SECURITY: Get userId for queries
+      final userId = _currentUserId;
+      if (userId == null) {
+        _logger.warning('Cannot cleanup orphaned reminders - no authenticated user');
+        return;
+      }
+
       // Get all tasks with reminder IDs
       final tasksWithReminders = await getTasksWithReminders();
       final activeReminderIds = tasksWithReminders
@@ -873,7 +1154,7 @@ class TaskReminderBridge {
           .toSet();
 
       // Get all reminders from database
-      final allReminders = await _db.getAllReminders();
+      final allReminders = await _db.getAllReminders(userId); // P0.5 SECURITY
 
       // Find orphaned reminders (reminders without corresponding tasks)
       for (final reminder in allReminders) {

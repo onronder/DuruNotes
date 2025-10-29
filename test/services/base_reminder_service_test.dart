@@ -1,369 +1,243 @@
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
 
 import 'base_reminder_service_test.mocks.dart';
 
-// Generate mocks
-@GenerateMocks([
-  FlutterLocalNotificationsPlugin,
-  AppDb,
+final _pluginProvider = Provider<FlutterLocalNotificationsPlugin>((ref) {
+  throw UnimplementedError('Override in tests');
+});
+
+final _dbProvider = Provider<AppDb>((ref) {
+  throw UnimplementedError('Override in tests');
+});
+
+final _reminderServiceProvider = Provider<TestReminderService>((ref) {
+  final plugin = ref.watch(_pluginProvider);
+  final db = ref.watch(_dbProvider);
+  return TestReminderService(ref, plugin, db);
+});
+
+class TestReminderService extends BaseReminderService {
+  TestReminderService(
+    super.ref,
+    super.plugin,
+    super.db,
+  );
+
+  @override
+  Future<int?> createReminder(ReminderConfig config) async => -1;
+}
+
+@GenerateNiceMocks([
+  MockSpec<FlutterLocalNotificationsPlugin>(),
+  MockSpec<AppDb>(),
+  MockSpec<AnalyticsService>(),
+  MockSpec<AppLogger>(),
+  MockSpec<SupabaseClient>(),
+  MockSpec<GoTrueClient>(),
+  MockSpec<User>(),
 ])
 void main() {
-  group('BaseReminderService Tests', () {
-    late MockFlutterLocalNotificationsPlugin mockPlugin;
-    late MockAppDb mockDb;
-    late TestReminderService service;
+  TestWidgetsFlutterBinding.ensureInitialized();
+  tz_data.initializeTimeZones();
 
-    setUp(() {
-      mockPlugin = MockFlutterLocalNotificationsPlugin();
-      mockDb = MockAppDb();
-      service = TestReminderService(
-        plugin: mockPlugin,
-        db: mockDb,
-      );
-    });
+  late ProviderContainer container;
+  late TestReminderService service;
+  late MockFlutterLocalNotificationsPlugin mockPlugin;
+  late MockAppDb mockDb;
+  late MockAnalyticsService mockAnalytics;
+  late MockAppLogger mockLogger;
+  late MockSupabaseClient mockSupabase;
+  late MockGoTrueClient mockAuth;
+  late MockUser mockUser;
 
-    group('Permission Management', () {
-      test('should request notification permissions', () async {
-        // Arrange
-        service.setPermissionResponse(true);
+  setUp(() {
+    mockPlugin = MockFlutterLocalNotificationsPlugin();
+    mockDb = MockAppDb();
+    mockAnalytics = MockAnalyticsService();
+    mockLogger = MockAppLogger();
+    mockSupabase = MockSupabaseClient();
+    mockAuth = MockGoTrueClient();
+    mockUser = MockUser();
 
-        // Act
-        final result = await service.requestNotificationPermissions();
+    when(mockSupabase.auth).thenReturn(mockAuth);
+    when(mockAuth.currentUser).thenReturn(mockUser);
+    when(mockUser.id).thenReturn('user-123');
 
-        // Assert
-        expect(result, isTrue);
-      });
-
-      test('should check notification permissions', () async {
-        // Arrange
-        service.setPermissionStatus(true);
-
-        // Act
-        final result = await service.hasNotificationPermissions();
-
-        // Assert
-        expect(result, isTrue);
-      });
-
-      test('should handle permission denial', () async {
-        // Arrange
-        service.setPermissionResponse(false);
-
-        // Act
-        final result = await service.requestNotificationPermissions();
-
-        // Assert
-        expect(result, isFalse);
-      });
-    });
-
-    group('Database Operations', () {
-      test('should create reminder in database', () async {
-        // Arrange
-        const expectedId = 123;
-        service.setDbCreateResponse(expectedId);
-
-        // Act
-        final companion = NoteRemindersCompanion.insert(
-          noteId: 'test-note',
-          reminderTime: DateTime.now(),
-        );
-        final result = await service.createReminderInDb(companion);
-
-        // Assert
-        expect(result, equals(expectedId));
-      });
-
-      test('should handle database creation failure', () async {
-        // Arrange
-        service.setDbCreateResponse(null);
-
-        // Act
-        final companion = NoteRemindersCompanion.insert(
-          noteId: 'test-note',
-          reminderTime: DateTime.now(),
-        );
-        final result = await service.createReminderInDb(companion);
-
-        // Assert
-        expect(result, isNull);
-      });
-
-      test('should update reminder status', () async {
-        // Arrange
-        const reminderId = 123;
-        service.setUpdateSuccess(true);
-
-        // Act
-        await service.updateReminderStatus(reminderId, true, false, false);
-
-        // Assert
-        expect(service.lastUpdatedId, equals(reminderId));
-        expect(service.lastUpdatedStatus, isTrue);
-      });
-    });
-
-    group('Notification Scheduling', () {
-      test('should schedule notification with correct data', () async {
-        // Arrange
-        final notificationData = ReminderNotificationData(
-          id: 1,
-          title: 'Test Reminder',
-          body: 'Test Body',
-          scheduledDate: DateTime.now().add(const Duration(hours: 1)),
-        );
-
-        // Act
-        await service.scheduleNotification(notificationData);
-
-        // Assert
-        expect(service.lastScheduledNotification, equals(notificationData));
-      });
-
-      test('should get notification actions', () {
-        // Act
-        final actions = service.getNotificationActions();
-
-        // Assert
-        expect(actions, isNotEmpty);
-        expect(actions.any((a) => a.id == 'complete'), isTrue);
-        expect(actions.any((a) => a.id == 'snooze'), isTrue);
-      });
-    });
-
-    group('Analytics Tracking', () {
-      test('should track reminder creation event', () {
-        // Arrange
-        const event = 'reminder_created';
-        final properties = {'type': 'recurring', 'noteId': 'test'};
-
-        // Act
-        service.trackReminderEvent(event, properties);
-
-        // Assert
-        expect(service.lastTrackedEvent, equals(event));
-        expect(service.lastTrackedProperties, equals(properties));
-      });
-
-      test('should track reminder cancellation', () {
-        // Arrange
-        const event = 'reminder_cancelled';
-        final properties = {'id': 123};
-
-        // Act
-        service.trackReminderEvent(event, properties);
-
-        // Assert
-        expect(service.lastTrackedEvent, equals(event));
-        expect(service.lastTrackedProperties?['id'], equals(123));
-      });
-    });
-
-    group('Reminder Operations', () {
-      test('should create reminder successfully', () async {
-        // Arrange
-        service.setPermissionStatus(true);
-        service.setDbCreateResponse(123);
-        final config = ReminderConfig(
-          noteId: 'test-note',
-          reminderTime: DateTime.now().add(const Duration(hours: 1)),
-          type: ReminderType.oneTime,
-        );
-
-        // Act
-        final result = await service.createReminder(config);
-
-        // Assert
-        expect(result, equals(123));
-        expect(service.lastScheduledNotification, isNotNull);
-      });
-
-      test('should not create reminder without permissions', () async {
-        // Arrange
-        service.setPermissionStatus(false);
-        final config = ReminderConfig(
-          noteId: 'test-note',
-          reminderTime: DateTime.now().add(const Duration(hours: 1)),
-          type: ReminderType.oneTime,
-        );
-
-        // Act
-        final result = await service.createReminder(config);
-
-        // Assert
-        expect(result, isNull);
-      });
-
-      test('should cancel reminder', () async {
-        // Arrange
-        const reminderId = 123;
-        service.setCancelSuccess(true);
-
-        // Act
-        await service.cancelReminder(reminderId);
-
-        // Assert
-        expect(service.lastCancelledId, equals(reminderId));
-      });
-    });
-  });
-}
-
-// Test implementation of BaseReminderService
-class TestReminderService extends BaseReminderService {
-  bool _hasPermission = false;
-  bool _permissionResponse = false;
-  int? _dbCreateResponse;
-  bool _updateSuccess = false;
-  bool _cancelSuccess = false;
-
-  // Tracking for assertions
-  ReminderNotificationData? lastScheduledNotification;
-  String? lastTrackedEvent;
-  Map<String, dynamic>? lastTrackedProperties;
-  int? lastUpdatedId;
-  bool? lastUpdatedStatus;
-  int? lastCancelledId;
-
-  TestReminderService({
-    required super.plugin,
-    required super.db,
-  });
-
-  void setPermissionStatus(bool status) => _hasPermission = status;
-  void setPermissionResponse(bool response) => _permissionResponse = response;
-  void setDbCreateResponse(int? id) => _dbCreateResponse = id;
-  void setUpdateSuccess(bool success) => _updateSuccess = success;
-  void setCancelSuccess(bool success) => _cancelSuccess = success;
-
-  @override
-  Future<bool> requestNotificationPermissions() async {
-    return _permissionResponse;
-  }
-
-  @override
-  Future<bool> hasNotificationPermissions() async {
-    return _hasPermission;
-  }
-
-  @override
-  Future<int?> createReminderInDb(NoteRemindersCompanion companion) async {
-    return _dbCreateResponse;
-  }
-
-  @override
-  Future<void> updateReminderStatus(
-    int id,
-    bool isCompleted,
-    bool isActive,
-    bool isSnoozed,
-  ) async {
-    lastUpdatedId = id;
-    lastUpdatedStatus = isCompleted;
-    if (!_updateSuccess) {
-      throw Exception('Update failed');
-    }
-  }
-
-  @override
-  Future<void> scheduleNotification(ReminderNotificationData data) async {
-    lastScheduledNotification = data;
-  }
-
-  @override
-  List<AndroidNotificationAction> getNotificationActions() {
-    return [
-      const AndroidNotificationAction('complete', 'Complete'),
-      const AndroidNotificationAction('snooze', 'Snooze'),
-    ];
-  }
-
-  @override
-  void trackReminderEvent(String event, Map<String, dynamic> properties) {
-    lastTrackedEvent = event;
-    lastTrackedProperties = properties;
-  }
-
-  @override
-  Future<int?> createReminder(ReminderConfig config) async {
-    if (!await hasNotificationPermissions()) {
-      return null;
-    }
-
-    final companion = NoteRemindersCompanion.insert(
-      noteId: config.noteId,
-      reminderTime: config.reminderTime,
+    container = ProviderContainer(
+      overrides: [
+        loggerProvider.overrideWithValue(mockLogger),
+        analyticsProvider.overrideWithValue(mockAnalytics),
+        supabaseClientProvider.overrideWithValue(mockSupabase),
+        _pluginProvider.overrideWithValue(mockPlugin),
+        _dbProvider.overrideWithValue(mockDb),
+      ],
     );
 
-    final id = await createReminderInDb(companion);
-    if (id != null) {
-      await scheduleNotification(
-        ReminderNotificationData(
-          id: id,
-          title: 'Reminder',
-          body: 'Note reminder',
-          scheduledDate: config.reminderTime,
-        ),
+    service = container.read(_reminderServiceProvider);
+  });
+
+  tearDown(() {
+    container.dispose();
+  });
+
+  group('BaseReminderService database operations', () {
+    test('createReminderInDb returns inserted identifier', () async {
+      when(mockDb.createReminder(any))
+          .thenAnswer((_) async => 99);
+
+      final config = ReminderConfig(
+        noteId: 'note-123',
+        title: 'Project checkpoint',
+        scheduledTime: DateTime.utc(2025, 10, 20, 12),
       );
-      trackReminderEvent('reminder_created', {
-        'id': id,
-        'type': config.type.toString(),
+      final companion = config.toCompanion(ReminderType.time, 'user-123');
+
+      final result = await service.createReminderInDb(companion);
+
+      expect(result, 99);
+      verify(mockDb.createReminder(companion)).called(1);
+    });
+
+    test('updateReminderStatus updates record when user authenticated',
+        () async {
+      NoteRemindersCompanion? updatedCompanion;
+      when(mockDb.updateReminder(any, any, any)).thenAnswer((invocation) async {
+        updatedCompanion =
+            invocation.positionalArguments[2] as NoteRemindersCompanion;
       });
-    }
-    return id;
-  }
 
-  @override
-  Future<void> cancelReminder(int id) async {
-    lastCancelledId = id;
-    if (!_cancelSuccess) {
-      throw Exception('Cancel failed');
-    }
-    trackReminderEvent('reminder_cancelled', {'id': id});
-  }
-}
+      await service.updateReminderStatus(42, true);
 
-// Supporting classes for testing
-class ReminderConfig {
-  final String noteId;
-  final DateTime reminderTime;
-  final ReminderType type;
+      verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
+      expect(updatedCompanion, isNotNull);
+      expect(updatedCompanion!.isActive.value, isTrue);
+    });
 
-  ReminderConfig({
-    required this.noteId,
-    required this.reminderTime,
-    required this.type,
+    test('updateReminderStatus skips update when user missing', () async {
+      when(mockAuth.currentUser).thenReturn(null);
+
+      await service.updateReminderStatus(13, false);
+
+      verifyNever(mockDb.updateReminder(any, any, any));
+    });
+
+    test('getRemindersForNote delegates to database with user scope',
+        () async {
+      final reminder = NoteReminder(
+        id: 1,
+        noteId: 'note-abc',
+        userId: 'user-123',
+        title: 'Sync meeting',
+        body: 'Discuss roadmap',
+        type: ReminderType.time,
+        remindAt: DateTime.utc(2025, 10, 20, 9),
+        isActive: true,
+        latitude: null,
+        longitude: null,
+        radius: null,
+        locationName: null,
+        recurrencePattern: RecurrencePattern.none,
+        recurrenceEndDate: null,
+        recurrenceInterval: 1,
+        snoozedUntil: null,
+        snoozeCount: 0,
+        notificationTitle: null,
+        notificationBody: null,
+        notificationImage: null,
+        timeZone: 'UTC',
+        createdAt: DateTime.utc(2025, 10, 19),
+        lastTriggered: null,
+        triggerCount: 0,
+      );
+
+      when(mockDb.getRemindersForNote('note-abc', 'user-123'))
+          .thenAnswer((_) async => [reminder]);
+
+      final results = await service.getRemindersForNote('note-abc');
+
+      expect(results, hasLength(1));
+      expect(results.first.title, 'Sync meeting');
+    });
+
+    test('getRemindersForNote returns empty when unauthenticated', () async {
+      when(mockAuth.currentUser).thenReturn(null);
+
+      final results = await service.getRemindersForNote('note-xyz');
+
+      expect(results, isEmpty);
+      verifyNever(mockDb.getRemindersForNote(any, any));
+    });
   });
-}
 
-enum ReminderType { oneTime, recurring, location }
+  group('BaseReminderService notifications', () {
+    test('scheduleNotification delegates to plugin', () async {
+      when(
+        mockPlugin.zonedSchedule(
+          any,
+          any,
+          any,
+          any,
+          any,
+          androidScheduleMode: anyNamed('androidScheduleMode'),
+          payload: anyNamed('payload'),
+        ),
+      ).thenAnswer((_) async {});
 
-class ReminderNotificationData {
-  final int id;
-  final String title;
-  final String body;
-  final DateTime scheduledDate;
+      final data = ReminderNotificationData(
+        id: 77,
+        title: 'Daily review',
+        body: 'Capture notes before wrap-up',
+        scheduledTime: DateTime.now().add(const Duration(hours: 1)),
+        payload: 'note-123',
+      );
 
-  ReminderNotificationData({
-    required this.id,
-    required this.title,
-    required this.body,
-    required this.scheduledDate,
+      await service.scheduleNotification(data);
+
+      verify(
+        mockPlugin.zonedSchedule(
+          77,
+          'Daily review',
+          'Capture notes before wrap-up',
+          any,
+          any,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: 'note-123',
+        ),
+      ).called(1);
+    });
+
+    test('cancelNotification cancels scheduled entry', () async {
+      when(mockPlugin.cancel(any)).thenAnswer((_) async {});
+
+      await service.cancelNotification(88);
+
+      verify(mockPlugin.cancel(88)).called(1);
+    });
+
+    test('getPendingNotifications returns plugin list', () async {
+      when(mockPlugin.pendingNotificationRequests()).thenAnswer(
+        (_) async => [
+          const PendingNotificationRequest(1, 'Title', 'Body', 'payload'),
+        ],
+      );
+
+      final pending = await service.getPendingNotifications();
+
+      expect(pending, hasLength(1));
+      expect(pending.first.id, 1);
+      verify(mockPlugin.pendingNotificationRequests()).called(1);
+    });
   });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ReminderNotificationData &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          title == other.title &&
-          body == other.body;
-
-  @override
-  int get hashCode => id.hashCode ^ title.hashCode ^ body.hashCode;
 }

@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
@@ -48,7 +48,7 @@ class AudioRecordingService {
       _analytics.startTiming('audio_recording_session');
 
       // Generate recording file path
-      final directory = await getTemporaryDirectory();
+      final directory = await resolveTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final sessionPrefix = sessionId != null ? '${sessionId}_' : '';
       final filename = '${sessionPrefix}voice_note_$timestamp.m4a';

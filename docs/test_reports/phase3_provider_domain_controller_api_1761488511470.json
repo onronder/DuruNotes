@@ -1,0 +1,16 @@
+{
+  "test_name": "domain_controller_api",
+  "timestamp": "2025-10-26T17:21:51.470065",
+  "results": {
+    "methodTypes": {
+      "createTask": "({String? noteId, required String title, String? description, TaskPriority priority, TaskStatus status, DateTime? dueDate, DateTime? completedAt, List<String> tags, Map<String, dynamic>? metadata, bool createReminder, DateTime? reminderTime, String? parentTaskId, int? estimatedMinutes}) => Future<Task>",
+      "getTasksForNote": "(String) => Future<List<Task>>",
+      "toggleStatus": "(String) => Future<void>",
+      "deleteTask": "(String) => Future<void>",
+      "watchAllTasks": "({bool includeCompleted}) => Stream<List<Task>>",
+      "watchTasksForNote": "(String, {bool includeCompleted}) => Stream<List<Task>>",
+      "getTaskById": "(String) => Future<Task?>",
+      "updateTask": "(Task, {String? title, String? description, TaskPriority? priority, DateTime? dueDate, DateTime? reminderTime, bool? hasReminder, TaskStatus? status, List<String>? tags, int? estimatedMinutes, int? actualMinutes, Map<String, dynamic>? metadata}) => Future<Task>"
+    }
+  }
+}

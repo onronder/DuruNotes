@@ -1,7 +1,8 @@
-import 'package:duru_notes/data/local/app_db.dart';
+import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
-import 'package:duru_notes/providers.dart';
+// Phase 10: Migrated to organized provider imports
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +19,7 @@ class DraggableFolderTree extends ConsumerStatefulWidget {
     this.showNoteCount = true,
   });
 
-  final void Function(LocalFolder folder)? onFolderSelected;
+  final void Function(domain.Folder folder)? onFolderSelected;
   final void Function(String folderId, String? newParentId, int newPosition)?
       onFolderMoved;
   final String? selectedFolderId;
@@ -618,7 +619,7 @@ class _DraggableFolderItemState extends State<_DraggableFolderItem>
       );
 
       child = DragTarget<String>(
-        onWillAcceptWithDetails: (data) => data != folder.id,
+        onWillAcceptWithDetails: (data) => data.data != folder.id,
         onAcceptWithDetails: (details) {
           widget.onAcceptDrop?.call(details.data, folder.id);
         },

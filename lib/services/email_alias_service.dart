@@ -14,24 +14,26 @@ class EmailAliasService {
   static const Duration _cacheExpiration = Duration(days: 7);
 
   /// Get the inbound email domain from environment configuration
+  /// Priority: dotenv > compile-time > fallback to in.durunotes.app
   String get inboundDomain {
-    // ALWAYS use in.durunotes.app - this is the correct domain for production
-    // Ignore any compile-time or dotenv overrides to prevent misconfiguration
-    const correctDomain = 'in.durunotes.app';
-
-    // Debug logging to see what values are present (but we won't use them)
+    // Try to get from dotenv first (development/testing)
     final fromDotenv = dotenv.env['INBOUND_EMAIL_DOMAIN'];
+    if (fromDotenv != null && fromDotenv.isNotEmpty) {
+      _logger.info('[EmailAliasService] Using domain from dotenv: $fromDotenv');
+      return fromDotenv;
+    }
+
+    // Try compile-time environment variable (production builds)
     const fromCompileTime = String.fromEnvironment('INBOUND_EMAIL_DOMAIN');
+    if (fromCompileTime.isNotEmpty) {
+      _logger.info('[EmailAliasService] Using domain from compile-time: $fromCompileTime');
+      return fromCompileTime;
+    }
 
-    _logger.debug(
-      '[EmailAliasService] Domain from dotenv: $fromDotenv (ignored)',
-    );
-    _logger.debug(
-      '[EmailAliasService] Domain from compile-time: ${fromCompileTime.isEmpty ? "(empty)" : fromCompileTime} (ignored)',
-    );
-    _logger.debug('[EmailAliasService] Using correct domain: $correctDomain');
-
-    return correctDomain;
+    // Fallback to default production domain
+    const fallbackDomain = 'in.durunotes.app';
+    _logger.info('[EmailAliasService] Using fallback domain: $fallbackDomain');
+    return fallbackDomain;
   }
 
   /// Get or create the user's email alias with caching

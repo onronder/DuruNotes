@@ -14,6 +14,7 @@ class FeatureFlags {
     'use_new_block_editor': true, // ENABLED for development
     'use_refactored_components': true, // ENABLED for development
     'use_unified_permission_manager': true, // ENABLED for development
+    'use_block_editor_for_notes': false, // ❌ DISABLED - Breaks regular note creation, needs proper integration
   };
 
   // Override flags for testing/development
@@ -50,4 +51,8 @@ class FeatureFlags {
   bool get useRefactoredComponents => isEnabled('use_refactored_components');
   bool get useUnifiedPermissionManager =>
       isEnabled('use_unified_permission_manager');
+
+  /// Sprint 1: Use BlockEditor for notes instead of plain TextField
+  /// When enabled, notes are parsed into blocks and todos become interactive
+  bool get useBlockEditorForNotes => isEnabled('use_block_editor_for_notes');
 }

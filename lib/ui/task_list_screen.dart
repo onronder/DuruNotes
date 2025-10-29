@@ -1,6 +1,14 @@
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/services/unified_task_service.dart';
+import 'dart:async';
+
+import 'package:duru_notes/domain/entities/task.dart' as domain;
+import 'package:duru_notes/domain/entities/task.dart' show TaskPriority, TaskStatus;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
+    show taskCoreRepositoryProvider;
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
+    show domainTaskControllerProvider;
+import 'package:duru_notes/services/domain_task_controller.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/dialogs/task_metadata_dialog.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
@@ -8,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 // Using TaskViewMode from enhanced_task_list_screen.dart
 
@@ -24,6 +33,43 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   late TabController _tabController;
   TaskViewMode _viewMode = TaskViewMode.grouped;
   bool _showCompleted = false;
+
+  DomainTaskController? _controllerOrNull({bool showSnackbar = true}) {
+    final logger = ref.read(loggerProvider);
+    final repository = ref.read(taskCoreRepositoryProvider);
+    if (repository == null) {
+      logger.warning(
+        'Domain task controller unavailable (unauthenticated user)',
+        data: {'screen': 'TaskList'},
+      );
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in to manage tasks.')),
+        );
+      }
+      return null;
+    }
+
+    try {
+      return ref.read(domainTaskControllerProvider);
+    } on StateError catch (error, stackTrace) {
+      logger.error(
+        'Failed to obtain domain task controller',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'screen': 'TaskList'},
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tasks temporarily unavailable. Please retry.'),
+          ),
+        );
+      }
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -129,6 +175,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'task_list_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: () => _showCreateStandaloneTaskDialog(context),
         backgroundColor: DuruColors.primary,
         icon: const Icon(CupertinoIcons.add, color: Colors.white),
@@ -157,11 +204,11 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
-      child: StreamBuilder<List<NoteTask>>(
-        stream: ref.watch(unifiedTaskServiceProvider).watchOpenTasks(),
+      child: StreamBuilder<List<domain.Task>>(
+        stream: ref.watch(taskCoreRepositoryProvider)?.watchAllTasks() ?? Stream.value([]),
         builder: (context, snapshot) {
           final tasks = snapshot.data ?? [];
-          final pendingTasks = tasks.where((t) => t.status != TaskStatus.completed).length;
+          final pendingTasks = tasks.where((t) => t.status != domain.TaskStatus.completed).length;
           final completedToday = tasks.where((t) {
             if (t.completedAt == null) return false;
             final now = DateTime.now();
@@ -172,7 +219,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           final overdueTasks = tasks.where((t) {
             if (t.dueDate == null) return false;
             return t.dueDate!.isBefore(DateTime.now()) &&
-                t.status != TaskStatus.completed;
+                t.status != domain.TaskStatus.completed;
           }).length;
 
           return Row(
@@ -258,773 +305,94 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   }
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
-    try {
-      final enhancedTaskService = ref.read(enhancedTaskServiceProvider);
+    final logger = ref.read(loggerProvider);
 
-      // Create a standalone task (not tied to any note)
-      final taskId = await enhancedTaskService.createTask(
-        noteId: '', // Empty string for standalone tasks
-        content: metadata.taskContent, // Use the task content from metadata
+    try {
+      final controller = _controllerOrNull();
+      if (controller == null) return;
+
+      await controller.createTask(
+        title: metadata.taskContent,
+        description: metadata.notes,
         priority: metadata.priority,
         dueDate: metadata.dueDate,
-        labels: metadata.labels.isNotEmpty ? {'labels': metadata.labels} : null,
-        notes: metadata.notes,
+        tags: metadata.labels,
+        createReminder: metadata.hasReminder,
+        reminderTime: metadata.reminderTime,
         estimatedMinutes: metadata.estimatedMinutes,
-        createReminder: metadata.hasReminder && metadata.reminderTime != null,
+        metadata: metadata.estimatedMinutes != null
+            ? {'estimatedMinutes': metadata.estimatedMinutes}
+            : null,
       );
 
-      // Set up custom reminder time if different from due date
-      if (metadata.hasReminder &&
-          metadata.reminderTime != null &&
-          metadata.reminderTime != metadata.dueDate &&
-          taskId.isNotEmpty) {
-        try {
-          // Get the created task to update its reminder
-          final db = ref.read(appDbProvider);
-          final task = await db.getTaskById(taskId);
-          if (task != null) {
-            final reminderBridge = ref.read(taskReminderBridgeProvider);
-            await reminderBridge.updateTaskReminder(task);
-          }
-        } catch (e) {
-          debugPrint('Failed to update reminder time: $e');
-        }
-      }
+      logger.info(
+        'Standalone task created via domain controller',
+        data: {
+          'hasReminder': metadata.hasReminder,
+          'priority': metadata.priority.name,
+          'titleLength': metadata.taskContent.length,
+        },
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(metadata.hasReminder
-                ? 'Task created with reminder'
-                : 'Task created successfully'),
+            content: Text(
+              metadata.hasReminder
+                  ? 'Task created with reminder'
+                  : 'Task created successfully',
+            ),
             action: SnackBarAction(
               label: 'View',
               onPressed: () {
-                // Check if widget is still mounted before calling setState
-                if (mounted) {
-                  // Refresh the task list
-                  setState(() {});
-                }
+                if (mounted) setState(() {});
               },
             ),
           ),
         );
       }
-    } catch (e) {
+    } catch (error, stackTrace) {
+      logger.error(
+        'Failed to create standalone task',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'hasReminder': metadata.hasReminder,
+          'priority': metadata.priority.name,
+        },
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating task: $e')),
+          SnackBar(
+            content: const Text('Failed to create task. Please try again.'),
+            backgroundColor: DuruColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaited(_createStandaloneTask(metadata)),
+            ),
+          ),
         );
       }
     }
   }
 
-  Future<void> _showCreateTaskDialog() async {
-    final contentController = TextEditingController();
-    DateTime? selectedDate;
-    TaskPriority selectedPriority = TaskPriority.medium;
+  // Legacy method _showCreateTaskDialog removed - replaced by _showCreateStandaloneTaskDialog
+  // which uses TaskMetadataDialog for enhanced task creation with reminders and metadata
 
-    await showDialog<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('New Task'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: contentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Task description',
-                    hintText: 'What needs to be done?',
-                  ),
-                  maxLines: 3,
-                  minLines: 1,
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  title: const Text('Due Date'),
-                  subtitle: Text(
-                    selectedDate != null
-                        ? DateFormat.yMMMd().format(selectedDate!)
-                        : 'No due date',
-                  ),
-                  trailing: Icon(CupertinoIcons.calendar, color: DuruColors.primary),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      setState(() {
-                        selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time?.hour ?? 0,
-                          time?.minute ?? 0,
-                        );
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<TaskPriority>(
-                  initialValue: selectedPriority,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                  items: TaskPriority.values.map((priority) {
-                    return DropdownMenuItem(
-                      value: priority,
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getPriorityIcon(priority),
-                            color: _getPriorityColor(priority),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(_getPriorityLabel(priority)),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (priority) {
-                    if (priority != null) {
-                      setState(() => selectedPriority = priority);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (contentController.text.isNotEmpty) {
-                  // Create task without note ID (standalone task)
-                  final taskService = ref.read(unifiedTaskServiceProvider);
-                  await taskService.createTask(
-                    noteId: '', // Empty for standalone tasks
-                    content: contentController.text,
-                    priority: selectedPriority,
-                    dueDate: selectedDate,
-                  );
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getPriorityIcon(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return CupertinoIcons.arrow_down_circle;
-      case TaskPriority.medium:
-        return CupertinoIcons.minus_circle;
-      case TaskPriority.high:
-        return CupertinoIcons.arrow_up_circle;
-      case TaskPriority.urgent:
-        return CupertinoIcons.exclamationmark_triangle_fill;
-    }
-  }
-
-  Color _getPriorityColor(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return DuruColors.surfaceVariant;
-      case TaskPriority.medium:
-        return DuruColors.primary;
-      case TaskPriority.high:
-        return DuruColors.warning;
-      case TaskPriority.urgent:
-        return DuruColors.error;
-    }
-  }
-
-  String _getPriorityLabel(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return 'Low';
-      case TaskPriority.medium:
-        return 'Medium';
-      case TaskPriority.high:
-        return 'High';
-      case TaskPriority.urgent:
-        return 'Urgent';
-    }
-  }
+  // Helper methods _getPriorityIcon, _getPriorityColor, _getPriorityLabel removed
+  // They were only used by _TaskCard which has been removed
+  // _TaskCalendarView has its own copies of these methods
 }
 
-/// Task list view widget
-class _TaskListView extends ConsumerWidget {
-  const _TaskListView({
-    required this.filter,
-    required this.sortBy,
-    required this.showCompleted,
-  });
+// Legacy widget _TaskListView removed - replaced by EnhancedTaskListView from enhanced_task_list_screen.dart
+// which provides modern unified task list view with Smart Groups and Simple List modes
 
-  final TaskFilter filter;
-  final TaskSortBy sortBy;
-  final bool showCompleted;
+// Legacy widget _TaskCard removed - was only used by _TaskListView and _TasksByDateView
+// Modern task display is handled by EnhancedTaskListView
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(unifiedTaskServiceProvider);
-
-    return StreamBuilder<List<NoteTask>>(
-      stream: taskService.watchOpenTasks(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        var tasks = snapshot.data ?? [];
-
-        // Apply filter
-        tasks = _applyFilter(tasks, filter);
-
-        // Apply sort
-        tasks = _applySort(tasks, sortBy);
-
-        // Show/hide completed
-        if (!showCompleted) {
-          tasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
-        }
-
-        if (tasks.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.checkmark_circle, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
-                const SizedBox(height: 16),
-                Text(
-                  'No tasks found',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Create a new task to get started',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: tasks.length,
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return _TaskCard(task: task);
-          },
-        );
-      },
-    );
-  }
-
-  List<NoteTask> _applyFilter(List<NoteTask> tasks, TaskFilter filter) {
-    final now = DateTime.now();
-    switch (filter) {
-      case TaskFilter.all:
-        return tasks;
-      case TaskFilter.today:
-        return tasks.where((t) {
-          if (t.dueDate == null) return false;
-          return t.dueDate!.year == now.year &&
-              t.dueDate!.month == now.month &&
-              t.dueDate!.day == now.day;
-        }).toList();
-      case TaskFilter.week:
-        final weekEnd = now.add(const Duration(days: 7));
-        return tasks.where((t) {
-          if (t.dueDate == null) return false;
-          return t.dueDate!.isBefore(weekEnd);
-        }).toList();
-      case TaskFilter.overdue:
-        return tasks.where((t) {
-          if (t.dueDate == null) return false;
-          return t.dueDate!.isBefore(now) && t.status != TaskStatus.completed;
-        }).toList();
-      case TaskFilter.highPriority:
-        return tasks.where((t) {
-          return t.priority == TaskPriority.high ||
-              t.priority == TaskPriority.urgent;
-        }).toList();
-    }
-  }
-
-  List<NoteTask> _applySort(List<NoteTask> tasks, TaskSortBy sortBy) {
-    final sorted = List<NoteTask>.from(tasks);
-    switch (sortBy) {
-      case TaskSortBy.dueDate:
-        sorted.sort((a, b) {
-          if (a.dueDate == null && b.dueDate == null) return 0;
-          if (a.dueDate == null) return 1;
-          if (b.dueDate == null) return -1;
-          return a.dueDate!.compareTo(b.dueDate!);
-        });
-        break;
-      case TaskSortBy.priority:
-        sorted.sort((a, b) => b.priority.index.compareTo(a.priority.index));
-        break;
-      case TaskSortBy.created:
-        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
-      case TaskSortBy.alphabetical:
-        sorted.sort((a, b) => a.content.compareTo(b.content));
-        break;
-    }
-    return sorted;
-  }
-}
-
-/// Task card widget
-class _TaskCard extends ConsumerWidget {
-  const _TaskCard({required this.task});
-
-  final NoteTask task;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(unifiedTaskServiceProvider);
-    final isOverdue = task.dueDate != null &&
-        task.dueDate!.isBefore(DateTime.now()) &&
-        task.status != TaskStatus.completed;
-
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: DuruSpacing.xs, horizontal: DuruSpacing.md),
-      decoration: BoxDecoration(
-        color: isOverdue
-            ? DuruColors.error.withValues(alpha: 0.05)
-            : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isOverdue
-              ? DuruColors.error.withValues(alpha: 0.2)
-              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.all(DuruSpacing.sm),
-        leading: Container(
-          padding: EdgeInsets.all(DuruSpacing.xs),
-          decoration: BoxDecoration(
-            color: task.status == TaskStatus.completed
-                ? DuruColors.accent.withValues(alpha: 0.1)
-                : DuruColors.primary.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Checkbox(
-            value: task.status == TaskStatus.completed,
-            activeColor: DuruColors.accent,
-            onChanged: (_) => taskService.toggleTaskStatus(task.id),
-          ),
-        ),
-        title: Text(
-          task.content,
-          style: TextStyle(
-            decoration: task.status == TaskStatus.completed
-                ? TextDecoration.lineThrough
-                : null,
-            color: task.status == TaskStatus.completed
-                ? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-                : null,
-          ),
-        ),
-        subtitle: Row(
-          children: [
-            if (task.dueDate != null) ...[
-              Icon(
-                CupertinoIcons.clock,
-                size: 16,
-                color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                DateFormat.MMMd().add_jm().format(task.dueDate!),
-                style: TextStyle(
-                  color: isOverdue ? DuruColors.error : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Icon(
-              _getPriorityIcon(task.priority),
-              size: 16,
-              color: _getPriorityColor(task.priority),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              _getPriorityLabel(task.priority),
-              style: TextStyle(
-                color: _getPriorityColor(task.priority),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          icon: Icon(CupertinoIcons.ellipsis_vertical, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: ListTile(leading: Icon(CupertinoIcons.pencil, color: DuruColors.primary), title: Text('Edit')),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: ListTile(
-                leading: Icon(CupertinoIcons.trash, color: DuruColors.error),
-                title: Text('Delete'),
-              ),
-            ),
-            if (task.noteId.isNotEmpty)
-              const PopupMenuItem(
-                value: 'open_note',
-                child: ListTile(
-                  leading: Icon(CupertinoIcons.doc_text, color: DuruColors.primary),
-                  title: Text('Open Note'),
-                ),
-              ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'edit':
-                _showEditTaskDialog(context, ref, task);
-                break;
-              case 'delete':
-                taskService.deleteTask(task.id);
-                break;
-              case 'open_note':
-                // Navigate to note
-                Navigator.pushNamed(context, '/note', arguments: task.noteId);
-                break;
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showEditTaskDialog(
-    BuildContext context,
-    WidgetRef ref,
-    NoteTask task,
-  ) async {
-    final contentController = TextEditingController(text: task.content);
-    var selectedDate = task.dueDate;
-    var selectedPriority = task.priority;
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Icon(CupertinoIcons.pencil_circle_fill, color: DuruColors.primary, size: 28),
-              SizedBox(width: DuruSpacing.sm),
-              const Text('Edit Task'),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: contentController,
-                  decoration: InputDecoration(
-                    labelText: 'Task description',
-                    prefixIcon: Icon(CupertinoIcons.text_alignleft, color: DuruColors.primary),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  maxLines: 3,
-                  minLines: 1,
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  title: const Text('Due Date'),
-                  subtitle: Text(
-                    selectedDate != null
-                        ? DateFormat.yMMMd().format(selectedDate!)
-                        : 'No due date',
-                  ),
-                  trailing: Icon(CupertinoIcons.calendar, color: DuruColors.primary),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      setState(() {
-                        selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time?.hour ?? 0,
-                          time?.minute ?? 0,
-                        );
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<TaskPriority>(
-                  initialValue: selectedPriority,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                  items: TaskPriority.values.map((priority) {
-                    return DropdownMenuItem(
-                      value: priority,
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getPriorityIcon(priority),
-                            color: _getPriorityColor(priority),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(_getPriorityLabel(priority)),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (priority) {
-                    if (priority != null) {
-                      setState(() => selectedPriority = priority);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (contentController.text.isNotEmpty) {
-                  final taskService = ref.read(unifiedTaskServiceProvider);
-                  await taskService.updateTask(
-                    taskId: task.id,
-                    content: contentController.text,
-                    priority: selectedPriority,
-                    dueDate: selectedDate,
-                  );
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getPriorityIcon(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return CupertinoIcons.arrow_down_circle;
-      case TaskPriority.medium:
-        return CupertinoIcons.minus_circle;
-      case TaskPriority.high:
-        return CupertinoIcons.arrow_up_circle;
-      case TaskPriority.urgent:
-        return CupertinoIcons.exclamationmark_triangle_fill;
-    }
-  }
-
-  Color _getPriorityColor(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return DuruColors.surfaceVariant;
-      case TaskPriority.medium:
-        return DuruColors.primary;
-      case TaskPriority.high:
-        return DuruColors.warning;
-      case TaskPriority.urgent:
-        return DuruColors.error;
-    }
-  }
-
-  String _getPriorityLabel(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return 'Low';
-      case TaskPriority.medium:
-        return 'Medium';
-      case TaskPriority.high:
-        return 'High';
-      case TaskPriority.urgent:
-        return 'Urgent';
-    }
-  }
-}
-
-/// Tasks grouped by date view
-class _TasksByDateView extends ConsumerWidget {
-  const _TasksByDateView({required this.showCompleted});
-
-  final bool showCompleted;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final taskService = ref.watch(unifiedTaskServiceProvider);
-
-    return FutureBuilder<Map<String, List<NoteTask>>>(
-      future: _getTasksGroupedByDate(taskService),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final groupedTasks = snapshot.data ?? {};
-
-        if (groupedTasks.isEmpty) {
-          return const Center(child: Text('No tasks with due dates'));
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: groupedTasks.length,
-          itemBuilder: (context, index) {
-            final dateGroup = groupedTasks.keys.elementAt(index);
-            final tasks = groupedTasks[dateGroup]!;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    dateGroup,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                ...tasks.map((task) => _TaskCard(task: task)),
-                const SizedBox(height: 8),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<Map<String, List<NoteTask>>> _getTasksGroupedByDate(
-    UnifiedTaskService taskService,
-  ) async {
-    final tasks = await taskService.getOpenTasks();
-    final grouped = <String, List<NoteTask>>{};
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-
-    for (final task in tasks) {
-      if (!showCompleted && task.status == TaskStatus.completed) {
-        continue;
-      }
-
-      String group;
-      if (task.dueDate == null) {
-        group = 'No Due Date';
-      } else {
-        final taskDate = DateTime(
-          task.dueDate!.year,
-          task.dueDate!.month,
-          task.dueDate!.day,
-        );
-
-        if (taskDate.isBefore(today)) {
-          group = 'Overdue';
-        } else if (taskDate == today) {
-          group = 'Today';
-        } else if (taskDate == tomorrow) {
-          group = 'Tomorrow';
-        } else if (taskDate.difference(today).inDays < 7) {
-          group = 'This Week';
-        } else if (taskDate.difference(today).inDays < 30) {
-          group = 'This Month';
-        } else {
-          group = 'Later';
-        }
-      }
-
-      grouped.putIfAbsent(group, () => []).add(task);
-    }
-
-    // Sort groups
-    final sortedGroups = <String, List<NoteTask>>{};
-    const order = [
-      'Overdue',
-      'Today',
-      'Tomorrow',
-      'This Week',
-      'This Month',
-      'Later',
-      'No Due Date',
-    ];
-
-    for (final key in order) {
-      if (grouped.containsKey(key)) {
-        sortedGroups[key] = grouped[key]!;
-      }
-    }
-
-    return sortedGroups;
-  }
-}
+// Legacy widget _TasksByDateView removed - unused widget that grouped tasks by date categories
+// Replaced by EnhancedTaskListView which provides more flexible Smart Groups functionality
 
 /// Task calendar view
 class _TaskCalendarView extends ConsumerStatefulWidget {
@@ -1036,6 +404,42 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
   late DateTime _selectedMonth;
   DateTime? _selectedDate;
 
+  DomainTaskController? _controllerOrNull({bool showSnackbar = true}) {
+    final logger = ref.read(loggerProvider);
+    final repository = ref.read(taskCoreRepositoryProvider);
+    if (repository == null) {
+      logger.warning(
+        'Domain task controller unavailable for calendar view',
+        data: {'selectedMonth': _selectedMonth.toIso8601String()},
+      );
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in to manage tasks.')),
+        );
+      }
+      return null;
+    }
+
+    try {
+      return ref.read(domainTaskControllerProvider);
+    } on StateError catch (error, stackTrace) {
+      logger.error(
+        'Failed to obtain domain task controller in calendar view',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+      if (showSnackbar && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tasks temporarily unavailable. Please retry.'),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1045,7 +449,6 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
 
   @override
   Widget build(BuildContext context) {
-    final taskService = ref.watch(unifiedTaskServiceProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -1087,8 +490,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
         ),
         // Calendar grid
         Expanded(
-          child: FutureBuilder<Map<DateTime, List<NoteTask>>>(
-            future: _getTasksForMonth(taskService),
+          child: FutureBuilder<Map<DateTime, List<domain.Task>>>(
+            future: _getTasksForMonth(),
             builder: (context, snapshot) {
               final tasksByDate = snapshot.data ?? {};
 
@@ -1210,9 +613,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
     );
   }
 
-  Future<Map<DateTime, List<NoteTask>>> _getTasksForMonth(
-    UnifiedTaskService taskService,
-  ) async {
+  Future<Map<DateTime, List<domain.Task>>> _getTasksForMonth() async {
     final startOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
     final endOfMonth = DateTime(
       _selectedMonth.year,
@@ -1220,12 +621,22 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
       0,
     );
 
-    final tasks = await taskService.getTasksByDateRange(
-      startOfMonth,
-      endOfMonth,
-    );
+    // Use repository to get all tasks, then filter by date range
+    final taskRepo = ref.read(taskCoreRepositoryProvider);
 
-    final tasksByDate = <DateTime, List<NoteTask>>{};
+    // Handle nullable repository
+    if (taskRepo == null) {
+      return {};
+    }
+
+    final allTasks = await taskRepo.getAllTasks();
+    final tasks = allTasks.where((task) {
+      if (task.dueDate == null) return false;
+      return task.dueDate!.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
+             task.dueDate!.isBefore(endOfMonth.add(const Duration(days: 1)));
+    }).toList();
+
+    final tasksByDate = <DateTime, List<domain.Task>>{};
     for (final task in tasks) {
       if (task.dueDate != null) {
         final date = DateTime(
@@ -1243,7 +654,7 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
   void _showTasksForDate(
     BuildContext context,
     DateTime date,
-    List<NoteTask> tasks,
+    List<domain.Task> tasks,
   ) {
     showModalBottomSheet<void>(
       context: context,
@@ -1265,21 +676,54 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
               )
             else
               ...tasks.map(
-                (task) => ListTile(
-                  leading: Checkbox(
-                    value: task.status == TaskStatus.completed,
-                    onChanged: (_) {
-                      ref.read(unifiedTaskServiceProvider).toggleTaskStatus(task.id);
-                      Navigator.pop(context);
-                    },
-                  ),
-                  title: Text(task.content),
-                  subtitle: Text(_getPriorityLabel(task.priority)),
-                  trailing: Icon(
-                    _getPriorityIcon(task.priority),
-                    color: _getPriorityColor(task.priority),
-                  ),
-                ),
+                (task) {
+                  // Use task.title directly (already decrypted in domain.Task)
+                  final content = task.title;
+                  return ListTile(
+                    leading: Checkbox(
+                      value: task.status == TaskStatus.completed,
+                      onChanged: (_) async {
+                        final logger = ref.read(loggerProvider);
+                        final controller = _controllerOrNull();
+                        if (controller == null) return;
+                        try {
+                          await controller.toggleStatus(task.id);
+                          if (mounted) setState(() {});
+                          Navigator.pop(context);
+                        } catch (error, stackTrace) {
+                          logger.error(
+                            'Failed to toggle task status from calendar',
+                            error: error,
+                            stackTrace: stackTrace,
+                            data: {'taskId': task.id},
+                          );
+                          unawaited(
+                            Sentry.captureException(
+                              error,
+                              stackTrace: stackTrace,
+                            ),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Could not toggle task. Please try again.',
+                                ),
+                                backgroundColor: DuruColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    title: Text(content),
+                    subtitle: Text(_getPriorityLabel(task.priority)),
+                    trailing: Icon(
+                      _getPriorityIcon(task.priority),
+                      color: _getPriorityColor(task.priority),
+                    ),
+                  );
+                },
               ),
           ],
         ),

@@ -1,111 +1,214 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/services/deep_link_service.dart';
-import 'package:duru_notes/services/task_reminder_bridge.dart';
-import 'package:duru_notes/services/notification_config_service.dart';
-import 'package:duru_notes/repository/notes_repository.dart';
-import 'package:duru_notes/providers.dart';
-import 'package:duru_notes/models/note_kind.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 
-@GenerateMocks([
-  AppDb,
-  NotesRepository,
-  TaskReminderBridge,
-])
-import 'deep_linking_test.mocks.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart'
+    show AppLogger, NoOpLogger;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
+import 'package:duru_notes/domain/entities/note.dart' as note_domain;
+import 'package:duru_notes/domain/entities/task.dart' as task_domain;
+import 'package:duru_notes/domain/repositories/i_task_repository.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart';
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
+import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/services/deep_link_service.dart';
+import 'package:duru_notes/services/enhanced_task_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+
+class _TestRef implements Ref<Object?> {
+  _TestRef(this._logger);
+  final AppLogger _logger;
+
+  @override
+  ProviderContainer get container =>
+      throw UnsupportedError('container is not available in tests');
+
+  @override
+  T refresh<T>(Refreshable<T> provider) =>
+      throw UnsupportedError('refresh not supported in tests');
+
+  @override
+  void invalidate(ProviderOrFamily provider) =>
+      throw UnsupportedError('invalidate not supported in tests');
+
+  @override
+  void notifyListeners() =>
+      throw UnsupportedError('notifyListeners not supported in tests');
+
+  @override
+  void listenSelf(
+    void Function(Object? previous, Object? next) listener, {
+    void Function(Object error, StackTrace stackTrace)? onError,
+  }) => throw UnsupportedError('listenSelf not supported in tests');
+
+  @override
+  void invalidateSelf() =>
+      throw UnsupportedError('invalidateSelf not supported in tests');
+
+  @override
+  void onAddListener(void Function() cb) =>
+      throw UnsupportedError('onAddListener not supported in tests');
+
+  @override
+  void onRemoveListener(void Function() cb) =>
+      throw UnsupportedError('onRemoveListener not supported in tests');
+
+  @override
+  void onResume(void Function() cb) =>
+      throw UnsupportedError('onResume not supported in tests');
+
+  @override
+  void onCancel(void Function() cb) =>
+      throw UnsupportedError('onCancel not supported in tests');
+
+  @override
+  void onDispose(void Function() cb) =>
+      throw UnsupportedError('onDispose not supported in tests');
+
+  @override
+  T read<T>(ProviderListenable<T> provider) {
+    if (identical(provider, loggerProvider)) {
+      return _logger as T;
+    }
+    throw UnsupportedError('No override registered for $provider');
+  }
+
+  @override
+  bool exists(ProviderBase<Object?> provider) =>
+      throw UnsupportedError('exists not supported in tests');
+
+  @override
+  T watch<T>(ProviderListenable<T> provider) =>
+      throw UnsupportedError('watch not supported in tests');
+
+  @override
+  KeepAliveLink keepAlive() =>
+      throw UnsupportedError('keepAlive not supported in tests');
+
+  @override
+  ProviderSubscription<T> listen<T>(
+    ProviderListenable<T> provider,
+    void Function(T? previous, T next) listener, {
+    void Function(Object error, StackTrace stackTrace)? onError,
+    bool fireImmediately = false,
+  }) => throw UnsupportedError('listen not supported in tests');
+}
+
+class _MockTaskRepository extends Mock implements ITaskRepository {
+  final Map<String, task_domain.Task?> tasks = <String, task_domain.Task?>{};
+
+  @override
+  Future<task_domain.Task?> getTaskById(String id) =>
+      super.noSuchMethod(
+            Invocation.method(#getTaskById, [id]),
+            returnValue: Future.value(tasks[id]),
+            returnValueForMissingStub: Future.value(tasks[id]),
+          )
+          as Future<task_domain.Task?>;
+}
+
+class _MockNotesCoreRepository extends Mock implements NotesCoreRepository {
+  final Map<String, note_domain.Note?> notes = <String, note_domain.Note?>{};
+
+  @override
+  Future<note_domain.Note?> getNoteById(String id) =>
+      super.noSuchMethod(
+            Invocation.method(#getNoteById, [id]),
+            returnValue: Future<note_domain.Note?>.value(notes[id]),
+            returnValueForMissingStub: Future<note_domain.Note?>.value(notes[id]),
+          )
+          as Future<note_domain.Note?>;
+}
+
+class _MockEnhancedTaskService extends Mock implements EnhancedTaskService {
+  @override
+  Future<void> handleTaskNotificationAction({
+    required String action,
+    required String payload,
+  }) =>
+      super.noSuchMethod(
+            Invocation.method(#handleTaskNotificationAction, [], {
+              #action: action,
+              #payload: payload,
+            }),
+            returnValue: Future<void>.value(),
+            returnValueForMissingStub: Future<void>.value(),
+          )
+          as Future<void>;
+}
 
 void main() {
-  late MockAppDb mockDb;
-  late MockNotesRepository mockNotesRepo;
-  late MockTaskReminderBridge mockTaskBridge;
-  late ProviderContainer container;
-  late DeepLinkService deepLinkService;
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late _TestRef testRef;
+  late _MockTaskRepository mockTaskRepository;
+  late _MockNotesCoreRepository mockNotesRepository;
+  late _MockEnhancedTaskService mockEnhancedTaskService;
+  late DeepLinkService service;
+
+  T reader<T>(ProviderListenable<T> provider) {
+    if (identical(provider, taskRepositoryProvider)) {
+      return mockTaskRepository as T;
+    }
+    if (identical(provider, notesCoreRepositoryProvider)) {
+      return mockNotesRepository as T;
+    }
+    if (identical(provider, enhancedTaskServiceProvider)) {
+      return mockEnhancedTaskService as T;
+    }
+    throw UnsupportedError('No override for $provider');
+  }
+
+  task_domain.Task buildTask({required String id, required String noteId}) {
+    final now = DateTime.now();
+    return task_domain.Task(
+      id: id,
+      noteId: noteId,
+      title: 'Follow up',
+      description: null,
+      status: task_domain.TaskStatus.pending,
+      priority: task_domain.TaskPriority.medium,
+      dueDate: null,
+      completedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      tags: const [],
+      metadata: const {},
+    );
+  }
 
   setUp(() {
-    mockDb = MockAppDb();
-    mockNotesRepo = MockNotesRepository();
-    mockTaskBridge = MockTaskReminderBridge();
+    testRef = _TestRef(const NoOpLogger());
+    mockTaskRepository = _MockTaskRepository();
+    mockNotesRepository = _MockNotesCoreRepository();
+    mockEnhancedTaskService = _MockEnhancedTaskService();
 
-    container = ProviderContainer(
-      overrides: [
-        appDbProvider.overrideWithValue(mockDb),
-        notesRepositoryProvider.overrideWithValue(mockNotesRepo),
-      ],
-    );
-
-    deepLinkService = DeepLinkService(read: container.read);
-
-    when(mockNotesRepo.listTagsWithCounts()).thenAnswer((_) async => []);
-    when(mockNotesRepo.getFolderForNote(any)).thenAnswer((_) async => null);
+    service = DeepLinkService(testRef, read: reader);
   });
 
-  tearDown(() {
-    container.dispose();
-  });
-
-  group('Deep Linking from Notifications', () {
-    testWidgets('should handle task reminder notification tap', (tester) async {
-      const taskId = 'task-123';
-      const noteId = 'note-456';
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: noteId,
-        content: 'Test Task',
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        position: 0,
-        contentHash: 'hash',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      final note = LocalNote(
-        id: noteId,
-        title: 'Test Note',
-        body: '- [ ] Test Task\n- [ ] Another Task',
-        updatedAt: DateTime.now(),
-        deleted: false,
-        isPinned: false,
-        noteType: NoteKind.note,
-      );
-
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
-      when(mockNotesRepo.getNote(noteId)).thenAnswer((_) async => note);
-
-      final testNavigatorKey = GlobalKey<NavigatorState>();
+  group('handleDeepLink', () {
+    testWidgets('shows warning when task lookup fails', (tester) async {
+      const taskId = 'task-missing';
+      mockTaskRepository.tasks[taskId] = null;
 
       await tester.pumpWidget(
-        ProviderScope(
-          parent: container,
-          child: MaterialApp(
-            navigatorKey: testNavigatorKey,
-            home: Builder(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
               builder: (context) {
-                return Scaffold(
-                  body: Center(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // Simulate notification tap
-                        await deepLinkService.handleDeepLink(
-                          context: context,
-                          payload: jsonEncode({
-                            'type': 'task_reminder',
-                            'taskId': taskId,
-                            'noteId': noteId,
-                          }),
-                        );
-                      },
-                      child: const Text('Simulate Notification'),
-                    ),
+                return ElevatedButton(
+                  onPressed: () => service.handleDeepLink(
+                    context: context,
+                    payload: jsonEncode({
+                      'type': 'task_reminder',
+                      'taskId': taskId,
+                      'noteId': 'note-1',
+                    }),
                   ),
+                  child: const Text('Trigger'),
                 );
               },
             ),
@@ -113,236 +216,88 @@ void main() {
         ),
       );
 
-      // Tap the button to simulate notification
-      await tester.tap(find.text('Simulate Notification'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trigger'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
 
-      // Ensure deep link executed without throwing and attempted navigation
+      expect(find.text('Task not found or has been deleted'), findsOneWidget);
+      verify(mockTaskRepository.getTaskById(taskId)).called(1);
+      verifyZeroInteractions(mockNotesRepository);
     });
 
-    testWidgets('should handle task completion action', (tester) async {
-      const taskId = 'task-789';
-      const noteId = 'note-abc';
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: noteId,
-        content: 'Complete this task',
-        status: TaskStatus.open,
-        priority: TaskPriority.high,
-        position: 0,
-        contentHash: 'hash',
-        reminderId: 42,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
-      when(mockTaskBridge.handleTaskNotificationAction(
-        action: anyNamed('action'),
-        payload: anyNamed('payload'),
-      )).thenAnswer((_) async {});
-
-      // Test complete action
-      await mockTaskBridge.handleTaskNotificationAction(
-        action: 'complete_task',
-        payload: jsonEncode({
-          'taskId': taskId,
-          'noteId': noteId,
-        }),
-      );
-
-      verify(mockTaskBridge.handleTaskNotificationAction(
-        action: 'complete_task',
-        payload: anyNamed('payload'),
-      )).called(1);
-    });
-
-    testWidgets('should handle snooze action', (tester) async {
-      const taskId = 'task-snooze';
-      const noteId = 'note-snooze';
-
-      final task = NoteTask(
-        id: taskId,
-        noteId: noteId,
-        content: 'Snooze this task',
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        position: 0,
-        contentHash: 'hash',
-        reminderId: 99,
-        dueDate: DateTime.now().add(const Duration(hours: 2)),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
-      when(mockTaskBridge.handleTaskNotificationAction(
-        action: anyNamed('action'),
-        payload: anyNamed('payload'),
-      )).thenAnswer((_) async {});
-
-      // Test snooze actions
-      await mockTaskBridge.handleTaskNotificationAction(
-        action: 'snooze_task_15',
-        payload: jsonEncode({
-          'taskId': taskId,
-          'noteId': noteId,
-        }),
-      );
-
-      verify(mockTaskBridge.handleTaskNotificationAction(
-        action: 'snooze_task_15',
-        payload: anyNamed('payload'),
-      )).called(1);
-
-      await mockTaskBridge.handleTaskNotificationAction(
-        action: 'snooze_task_1h',
-        payload: jsonEncode({
-          'taskId': taskId,
-          'noteId': noteId,
-        }),
-      );
-
-      verify(mockTaskBridge.handleTaskNotificationAction(
-        action: 'snooze_task_1h',
-        payload: anyNamed('payload'),
-      )).called(1);
-    });
-  });
-
-  group('App State Handling', () {
-    test('should store pending deep link when app not ready', () async {
-      const taskId = 'task-pending';
-      const noteId = 'note-pending';
-
-      // Simulate app not ready (no navigator context)
-      // This is tested in TaskReminderBridge
-      final bridge = mockTaskBridge;
-
-      // When context is null, the deep link should be stored
-      // This behavior is implemented in TaskReminderBridge
-
-      // Verify that pending deep link is processed when app becomes ready
-      // This would be tested with integration tests
-    });
-
-    test('should handle task not found gracefully', () async {
-      const taskId = 'task-missing';
+    testWidgets('shows warning when note lookup fails', (tester) async {
+      const taskId = 'task-123';
       const noteId = 'note-missing';
 
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => null);
-      when(mockNotesRepo.getNote(noteId)).thenAnswer((_) async => null);
-
-      // Should not throw, just show error message
-      await deepLinkService.handleDeepLink(
-        context: MockBuildContext(),
-        payload: jsonEncode({
-          'type': 'task_reminder',
-          'taskId': taskId,
-          'noteId': noteId,
-        }),
+      final task = buildTask(id: taskId, noteId: noteId);
+      mockTaskRepository.tasks[taskId] = task;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () => service.handleDeepLink(
+                    context: context,
+                    payload: jsonEncode({
+                      'type': 'task',
+                      'taskId': taskId,
+                      'noteId': noteId,
+                    }),
+                  ),
+                  child: const Text('Trigger'),
+                );
+              },
+            ),
+          ),
+        ),
       );
 
-      // Verify graceful handling (no exceptions thrown)
+      await tester.tap(find.text('Trigger'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Note not found or has been deleted'), findsOneWidget);
+      verify(mockTaskRepository.getTaskById(taskId)).called(1);
+      verify(mockNotesRepository.getNoteById(noteId)).called(1);
     });
   });
 
-  group('Notification Configuration', () {
-    test('should have correct Android actions', () {
-      final configService = NotificationConfigService.instance;
-      final actions = configService.getTaskNotificationActions();
+  group('handleTaskNotificationAction', () {
+    test('delegates to EnhancedTaskService', () async {
+      mockTaskRepository.tasks.clear();
 
-      expect(actions.length, equals(5));
+      await service.handleTaskNotificationAction(
+        action: 'complete_task',
+        payload: '{"taskId":"task-42"}',
+      );
 
-      // Check action IDs
-      final actionIds = actions.map((a) => a.id).toList();
-      expect(actionIds, contains('complete_task'));
-      expect(actionIds, contains('snooze_task_15'));
-      expect(actionIds, contains('snooze_task_1h'));
-      expect(actionIds, contains('snooze_task_tomorrow'));
-      expect(actionIds, contains('open_task'));
-    });
-
-    test('should have correct iOS categories', () {
-      final configService = NotificationConfigService.instance;
-      final settings = configService.getInitializationSettings();
-
-      expect(settings.iOS, isNotNull);
-
-      // The categories are defined in the settings
-      final iosSettings = settings.iOS as DarwinInitializationSettings;
-      expect(iosSettings.notificationCategories, isNotNull);
-      expect(iosSettings.notificationCategories.length, greaterThan(0));
-
-      // Find task reminder category
-      final taskCategory = iosSettings.notificationCategories
-          .firstWhere((c) => c.identifier == 'TASK_REMINDER');
-
-      expect(taskCategory.actions.length, equals(6));
-
-      // Check action identifiers
-      final actionIds = taskCategory.actions.map((a) => a.identifier).toList();
-      expect(actionIds, contains('complete_task'));
-      expect(actionIds, contains('snooze_task_5'));
-      expect(actionIds, contains('snooze_task_15'));
-      expect(actionIds, contains('snooze_task_1h'));
-      expect(actionIds, contains('snooze_task_tomorrow'));
-      expect(actionIds, contains('open_task'));
+      verify(
+        mockEnhancedTaskService.handleTaskNotificationAction(
+          action: 'complete_task',
+          payload: '{"taskId":"task-42"}',
+        ),
+      ).called(1);
     });
   });
 
-  group('Task Highlighting', () {
-    test('should pass highlight parameters to note editor', () async {
-      const taskId = 'task-highlight';
-      const noteId = 'note-highlight';
-      const taskContent = 'Highlighted Task';
+  group('deep link builders', () {
+    test('createTaskDeepLink encodes parameters', () {
+      final link = service.createTaskDeepLink('task-1', noteId: 'note-1');
+      expect(link, startsWith('durunotes://task?data='));
+      final encoded = link.split('data=').last;
+      final decoded = jsonDecode(Uri.decodeComponent(encoded)) as Map;
+      expect(decoded['type'], equals('task'));
+      expect(decoded['taskId'], equals('task-1'));
+      expect(decoded['noteId'], equals('note-1'));
+    });
 
-      final task = NoteTask(
-        id: taskId,
-        noteId: noteId,
-        content: taskContent,
-        status: TaskStatus.open,
-        priority: TaskPriority.medium,
-        position: 5,
-        contentHash: 'hash',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        deleted: false,
-      );
-
-      final note = LocalNote(
-        id: noteId,
-        title: 'Test Note',
-        body: '''
-# Tasks
-- [ ] First Task
-- [ ] Second Task
-- [ ] Third Task
-- [ ] Fourth Task
-- [ ] Highlighted Task
-- [ ] Last Task
-''',
-        updatedAt: DateTime.now(),
-        deleted: false,
-        isPinned: false,
-        noteType: NoteKind.note,
-      );
-
-      when(mockDb.getTaskById(taskId)).thenAnswer((_) async => task);
-      when(mockNotesRepo.getNote(noteId)).thenAnswer((_) async => note);
-
-      // The deep link service should pass highlighting parameters
-      // This would be verified in the ModernEditNoteScreen
-      // which would highlight the task content
-
-      expect(task.content, equals(taskContent));
-      expect(note.body.contains(taskContent), isTrue);
+    test('createNoteDeepLink encodes note id', () {
+      final link = service.createNoteDeepLink('note-42');
+      final encoded = link.split('data=').last;
+      final decoded = jsonDecode(Uri.decodeComponent(encoded)) as Map;
+      expect(decoded['type'], equals('note'));
+      expect(decoded['noteId'], equals('note-42'));
     });
   });
 }
-
-// Mock BuildContext for testing
-class MockBuildContext extends Mock implements BuildContext {}

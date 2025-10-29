@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
-import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/core/converters/task_converter.dart';
+import 'package:duru_notes/ui/utils/accessibility_helper.dart';
 import 'package:intl/intl.dart';
 
 /// Task card display styles
@@ -13,10 +12,10 @@ enum TaskCardStyle {
   detailed,  // Everything including description
 }
 
-/// Unified task card component
-/// Supports both NoteTask (database) and domain.Task types
+/// Task card component for displaying domain.Task entities
+/// Post-encryption migration: Only works with domain.Task (already decrypted)
 class DuruTaskCard extends StatelessWidget {
-  final dynamic task; // Can be NoteTask or domain.Task
+  final domain.Task task;
   final TaskCardStyle style;
   final VoidCallback? onTap;
   final ValueChanged<bool?>? onStatusChanged;
@@ -35,14 +34,7 @@ class DuruTaskCard extends StatelessWidget {
     this.onDelete,
     this.isSelected = false,
     this.showSubtasks = false,
-  }) : assert(task is NoteTask || task is domain.Task,
-            'Task must be either NoteTask or domain.Task');
-
-  /// Factory constructor to create from database task
-  factory DuruTaskCard.fromDb(NoteTask dbTask) {
-    final domainTask = TaskConverter.fromLocal(dbTask);
-    return DuruTaskCard(task: domainTask);
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -58,47 +50,62 @@ class DuruTaskCard extends StatelessWidget {
     final isCompleted = _isTaskCompleted();
     final title = _getTaskTitle();
 
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: DuruSpacing.md,
-        vertical: DuruSpacing.xs,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: DuruSpacing.sm,
-              vertical: DuruSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: isCompleted,
-                  onChanged: onStatusChanged,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  activeColor: DuruColors.primary,
-                ),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      decoration: isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
-                      color: isCompleted
-                          ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
-                          : null,
+    return A11yHelper.taskCard(
+      title: title,
+      isCompleted: isCompleted,
+      isSelected: isSelected,
+      onTap: onTap,
+      onToggle: onStatusChanged,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: DuruSpacing.md,
+          vertical: DuruSpacing.xs,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: DuruSpacing.sm,
+                vertical: DuruSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  A11yHelper.checkbox(
+                    label: title,
+                    value: isCompleted,
+                    hint: isCompleted ? 'Mark as incomplete' : 'Mark as complete',
+                    onTap: () => onStatusChanged?.call(!isCompleted),
+                    child: Checkbox(
+                      value: isCompleted,
+                      onChanged: onStatusChanged,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      activeColor: DuruColors.primary,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: isCompleted
+                              ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -114,7 +121,15 @@ class DuruTaskCard extends StatelessWidget {
     final priority = _getTaskPriority();
     final dueDate = _getTaskDueDate();
 
-    return Container(
+    return A11yHelper.taskCard(
+      title: title,
+      isCompleted: isCompleted,
+      dueDate: dueDate != null ? _formatDueDate(dueDate) : null,
+      priority: _getPriorityLabel(priority),
+      isSelected: isSelected,
+      onTap: onTap,
+      onToggle: onStatusChanged,
+      child: Container(
       margin: EdgeInsets.symmetric(
         horizontal: DuruSpacing.md,
         vertical: DuruSpacing.sm,
@@ -151,13 +166,19 @@ class DuruTaskCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Checkbox
-                Checkbox(
+                A11yHelper.checkbox(
+                  label: title,
                   value: isCompleted,
-                  onChanged: onStatusChanged,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
+                  hint: isCompleted ? 'Mark as incomplete' : 'Mark as complete',
+                  onTap: () => onStatusChanged?.call(!isCompleted),
+                  child: Checkbox(
+                    value: isCompleted,
+                    onChanged: onStatusChanged,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    activeColor: DuruColors.primary,
                   ),
-                  activeColor: DuruColors.primary,
                 ),
 
                 // Task content
@@ -168,7 +189,7 @@ class DuruTaskCard extends StatelessWidget {
                       // Title with priority indicator
                       Row(
                         children: [
-                          if (priority == TaskPriority.high) ...[
+                          if (priority == domain.TaskPriority.high) ...[
                             Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: DuruSpacing.xs,
@@ -187,19 +208,21 @@ class DuruTaskCard extends StatelessWidget {
                             SizedBox(width: DuruSpacing.xs),
                           ],
                           Expanded(
-                            child: Text(
-                              title,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                decoration: isCompleted
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                color: isCompleted
-                                    ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
-                                    : null,
+                            child: ExcludeSemantics(
+                              child: Text(
+                                title,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  decoration: isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: isCompleted
+                                      ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
+                                      : null,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -235,17 +258,22 @@ class DuruTaskCard extends StatelessWidget {
 
                 // Actions menu
                 if (!isSelected)
-                  IconButton(
+                  A11yHelper.iconButton(
+                    label: 'More options for task: $title',
+                    hint: 'Open menu with edit, complete, due date, priority, and delete actions',
                     onPressed: () => _showTaskMenu(context),
-                    icon: Icon(
-                      CupertinoIcons.ellipsis_vertical,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                    child: IconButton(
+                      onPressed: () => _showTaskMenu(context),
+                      icon: Icon(
+                        CupertinoIcons.ellipsis_vertical,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                   ),
               ],
@@ -253,6 +281,7 @@ class DuruTaskCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -266,7 +295,17 @@ class DuruTaskCard extends StatelessWidget {
     final dueDate = _getTaskDueDate();
     final tags = _getTaskTags();
 
-    return Container(
+    return A11yHelper.taskCard(
+      title: title,
+      description: description,
+      isCompleted: isCompleted,
+      dueDate: dueDate != null ? _formatDueDate(dueDate) : null,
+      priority: _getPriorityLabel(priority),
+      tags: tags,
+      isSelected: isSelected,
+      onTap: onTap,
+      onToggle: onStatusChanged,
+      child: Container(
       margin: EdgeInsets.symmetric(
         horizontal: DuruSpacing.md,
         vertical: DuruSpacing.sm,
@@ -302,7 +341,7 @@ class DuruTaskCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Priority indicator bar
-                if (priority == TaskPriority.high)
+                if (priority == domain.TaskPriority.high)
                   Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -463,70 +502,33 @@ class DuruTaskCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
   // Helper methods to extract task properties
   bool _isTaskCompleted() {
-    if (task is NoteTask) {
-      return (task as NoteTask).status == TaskStatus.completed;
-    } else if (task is domain.Task) {
-      return (task as domain.Task).status == domain.TaskStatus.completed;
-    }
-    return false;
+    return task.status == domain.TaskStatus.completed;
   }
 
   String _getTaskTitle() {
-    if (task is NoteTask) {
-      return (task as NoteTask).content;
-    } else if (task is domain.Task) {
-      return (task as domain.Task).title;
-    }
-    return '';
+    return task.title;
   }
 
   String? _getTaskDescription() {
-    if (task is NoteTask) {
-      return (task as NoteTask).notes;
-    } else if (task is domain.Task) {
-      return (task as domain.Task).description;
-    }
-    return null;
+    return task.description;
   }
 
-  TaskPriority _getTaskPriority() {
-    if (task is NoteTask) {
-      return (task as NoteTask).priority;
-    } else if (task is domain.Task) {
-      return TaskConverter.convertPriorityToLocal((task as domain.Task).priority);
-    }
-    return TaskPriority.medium;
+  domain.TaskPriority _getTaskPriority() {
+    return task.priority;
   }
 
   DateTime? _getTaskDueDate() {
-    if (task is NoteTask) {
-      return (task as NoteTask).dueDate;
-    } else if (task is domain.Task) {
-      return (task as domain.Task).dueDate;
-    }
-    return null;
+    return task.dueDate;
   }
 
   List<String> _getTaskTags() {
-    if (task is domain.Task) {
-      return (task as domain.Task).tags;
-    }
-    // NoteTask stores tags in labels JSON field
-    if (task is NoteTask) {
-      final labels = (task as NoteTask).labels;
-      if (labels != null && labels.isNotEmpty) {
-        try {
-          final decoded = labels.split(',');
-          return decoded;
-        } catch (_) {}
-      }
-    }
-    return [];
+    return task.tags;
   }
 
   bool _isDueSoon(DateTime dueDate) {
@@ -552,21 +554,21 @@ class DuruTaskCard extends StatelessWidget {
     }
   }
 
-  Color _getPriorityColor(TaskPriority priority) {
+  Color _getPriorityColor(domain.TaskPriority priority) {
     return switch (priority) {
-      TaskPriority.urgent => Colors.red.shade900,
-      TaskPriority.high => Colors.red,
-      TaskPriority.medium => Colors.blue,
-      TaskPriority.low => Colors.grey,
+      domain.TaskPriority.urgent => Colors.red.shade900,
+      domain.TaskPriority.high => Colors.red,
+      domain.TaskPriority.medium => Colors.blue,
+      domain.TaskPriority.low => Colors.grey,
     };
   }
 
-  String _getPriorityLabel(TaskPriority priority) {
+  String _getPriorityLabel(domain.TaskPriority priority) {
     return switch (priority) {
-      TaskPriority.urgent => 'Urgent',
-      TaskPriority.high => 'High',
-      TaskPriority.medium => 'Normal',
-      TaskPriority.low => 'Low',
+      domain.TaskPriority.urgent => 'Urgent',
+      domain.TaskPriority.high => 'High',
+      domain.TaskPriority.medium => 'Normal',
+      domain.TaskPriority.low => 'Low',
     };
   }
 
@@ -578,49 +580,88 @@ class DuruTaskCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(CupertinoIcons.pencil),
-              title: const Text('Edit'),
+            A11yHelper.menuItem(
+              label: 'Edit',
+              hint: 'Edit this task',
+              icon: CupertinoIcons.pencil,
               onTap: () {
                 Navigator.pop(context);
                 onEdit?.call();
               },
-            ),
-            ListTile(
-              leading: Icon(
-                _isTaskCompleted()
-                    ? CupertinoIcons.circle
-                    : CupertinoIcons.checkmark_circle,
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.pencil),
+                title: const Text('Edit'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onEdit?.call();
+                },
               ),
-              title: Text(_isTaskCompleted() ? 'Mark as incomplete' : 'Mark as complete'),
+            ),
+            A11yHelper.menuItem(
+              label: _isTaskCompleted() ? 'Mark as incomplete' : 'Mark as complete',
+              hint: _isTaskCompleted() ? 'Reopen this task' : 'Complete this task',
+              icon: _isTaskCompleted() ? CupertinoIcons.circle : CupertinoIcons.checkmark_circle,
               onTap: () {
                 Navigator.pop(context);
                 onStatusChanged?.call(!_isTaskCompleted());
               },
-            ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.calendar),
-              title: const Text('Set due date'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.flag),
-              title: const Text('Set priority'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(
-                CupertinoIcons.delete,
-                color: Colors.red,
+              child: ListTile(
+                leading: Icon(
+                  _isTaskCompleted()
+                      ? CupertinoIcons.circle
+                      : CupertinoIcons.checkmark_circle,
+                ),
+                title: Text(_isTaskCompleted() ? 'Mark as incomplete' : 'Mark as complete'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onStatusChanged?.call(!_isTaskCompleted());
+                },
               ),
-              title: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
+            ),
+            A11yHelper.menuItem(
+              label: 'Set due date',
+              hint: 'Choose when this task is due',
+              icon: CupertinoIcons.calendar,
+              onTap: () => Navigator.pop(context),
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.calendar),
+                title: const Text('Set due date'),
+                onTap: () => Navigator.pop(context),
               ),
+            ),
+            A11yHelper.menuItem(
+              label: 'Set priority',
+              hint: 'Change task priority level',
+              icon: CupertinoIcons.flag,
+              onTap: () => Navigator.pop(context),
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.flag),
+                title: const Text('Set priority'),
+                onTap: () => Navigator.pop(context),
+              ),
+            ),
+            A11yHelper.menuItem(
+              label: 'Delete',
+              hint: 'Delete this task permanently',
+              icon: CupertinoIcons.delete,
               onTap: () {
                 Navigator.pop(context);
                 onDelete?.call();
               },
+              child: ListTile(
+                leading: const Icon(
+                  CupertinoIcons.delete,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  onDelete?.call();
+                },
+              ),
             ),
           ],
         ),

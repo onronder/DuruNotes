@@ -1,27 +1,23 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
-import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
-import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart' as infra;
-import 'package:duru_notes/services/export_service.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
+import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
-import 'package:duru_notes/models/note_kind.dart';
-import 'package:duru_notes/providers.dart' hide migrationConfigProvider, analyticsProvider;
-import 'package:duru_notes/core/providers/infrastructure_providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show migrationConfigProvider, analyticsProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 import 'package:csv/csv.dart';
 import 'package:xml/xml.dart' as xml;
-import 'package:archive/archive.dart';
 
 /// Import formats supported by the service
 enum ImportFormat {
@@ -114,17 +110,19 @@ class ImportResult {
       '${failedNotes > 0 ? ', failed $failedNotes' : ''}';
 }
 
-/// Unified import service that works with both LocalNote and domain.Note
+/// Unified import service that works with domain.Note
 class UnifiedImportService {
   UnifiedImportService({
     required this.ref,
-    required this.db,
+    required this.notesRepository,
+    required this.folderRepository,
     required this.migrationConfig,
   })  : _logger = LoggerFactory.instance,
         _uuid = const Uuid();
 
   final Ref ref;
-  final AppDb db;
+  final INotesRepository notesRepository;
+  final IFolderRepository folderRepository;
   final MigrationConfig migrationConfig;
   final AppLogger _logger;
   final Uuid _uuid;
@@ -511,8 +509,8 @@ class UnifiedImportService {
       final noteElements = document.findAllElements('note');
 
       for (final noteElement in noteElements) {
-        final title = noteElement.findElements('title').firstOrNull?.text ?? 'Untitled';
-        final content = noteElement.findElements('content').firstOrNull?.text ?? '';
+        final title = noteElement.findElements('title').firstOrNull?.innerText ?? 'Untitled';
+        final content = noteElement.findElements('content').firstOrNull?.innerText ?? '';
 
         // Parse content from ENML to plain text/markdown
         final body = _convertEnmlToMarkdown(content);
@@ -521,17 +519,17 @@ class UnifiedImportService {
         final tags = <String>[];
         final tagElements = noteElement.findElements('tag');
         for (final tag in tagElements) {
-          tags.add(tag.text);
+          tags.add(tag.innerText);
         }
 
         // Extract dates
-        final created = noteElement.findElements('created').firstOrNull?.text;
-        final updated = noteElement.findElements('updated').firstOrNull?.text;
+        final created = noteElement.findElements('created').firstOrNull?.innerText;
+        final updated = noteElement.findElements('updated').firstOrNull?.innerText;
 
         // Extract attributes
         final attributes = noteElement.findElements('note-attributes').firstOrNull;
-        final source = attributes?.findElements('source').firstOrNull?.text;
-        final sourceUrl = attributes?.findElements('source-url').firstOrNull?.text;
+        final source = attributes?.findElements('source').firstOrNull?.innerText;
+        final sourceUrl = attributes?.findElements('source-url').firstOrNull?.innerText;
 
         notes.add({
           'title': title,
@@ -816,15 +814,8 @@ class UnifiedImportService {
   /// Check if a note with the given title already exists
   Future<bool> _checkDuplicate(String title) async {
     try {
-      if (migrationConfig.isFeatureEnabled('notes')) {
-        final client = Supabase.instance.client;
-        final repository = NotesCoreRepository(db: db, client: client);
-        final notes = await repository.getAll();
-        return notes.any((n) => n.title == title);
-      } else {
-        final notes = await db.select(db.localNotes).get();
-        return notes.any((n) => n.title == title);
-      }
+      final notes = await notesRepository.localNotes();
+      return notes.any((n) => n.title == title);
     } catch (e) {
       _logger.warning('[UnifiedImport] Failed to check duplicate');
       return false;
@@ -834,56 +825,38 @@ class UnifiedImportService {
   /// Create or get folder by name
   Future<String> _createOrGetFolder(String name, String? parentId) async {
     try {
-      if (migrationConfig.isFeatureEnabled('folders')) {
-        final client = Supabase.instance.client;
-        final repository = infra.FolderCoreRepository(db: db, client: client);
-        final folders = await repository.listFolders();
+      final folders = await folderRepository.listFolders();
 
-        // Check if folder exists
-        final existing = folders.firstWhere(
-          (f) => f.name == name,
-          orElse: () => domain.Folder(
-            id: '',
-            name: '',
-            parentId: null,
-            color: null,
-            icon: null,
-            sortOrder: 0,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            userId: '',
-          ),
-        );
-
-        if (existing.id.isNotEmpty) {
-          return existing.id;
-        }
-
-        // Create new folder
-        final newFolder = await repository.createFolder(
-          name: name,
-          parentId: parentId,
-          color: '#048ABF',
-          icon: 'folder',
-        );
-
-        return newFolder.id;
-      } else {
-        // Use legacy folder creation via table insertion
-        final folderId = const Uuid().v4();
-        final companion = LocalFoldersCompanion.insert(
-          id: folderId,
-          name: name,
-          parentId: Value(parentId),
-          path: parentId != null ? '/$parentId/$name' : '/$name',
-          sortOrder: Value(0),
-          description: Value(''),
+      // Check if folder exists
+      final existing = folders.firstWhere(
+        (f) => f.name == name && f.parentId == parentId,
+        orElse: () => domain.Folder(
+          id: '',
+          name: '',
+          parentId: null,
+          color: null,
+          icon: null,
+          sortOrder: 0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-        );
-        await db.into(db.localFolders).insert(companion);
-        return folderId;
+          userId: '',
+        ),
+      );
+
+      if (existing.id.isNotEmpty) {
+        return existing.id;
       }
+
+      // Create new folder
+      final newFolder = await folderRepository.createFolder(
+        name: name,
+        description: name, // Use name as description for imported folders
+        parentId: parentId,
+        color: '#048ABF',
+        icon: 'folder',
+      );
+
+      return newFolder.id;
     } catch (e, stack) {
       _logger.error('[UnifiedImport] Failed to create folder: $name', error: e, stackTrace: stack);
       return _uuid.v4(); // Return a new ID anyway
@@ -901,79 +874,13 @@ class UnifiedImportService {
     DateTime? updatedAt,
   }) async {
     try {
-      if (migrationConfig.isFeatureEnabled('notes')) {
-        // Use domain repository
-        final client = Supabase.instance.client;
-        final repository = NotesCoreRepository(db: db, client: client);
-
-        final note = domain.Note(
-          id: _uuid.v4(),
-          title: title,
-          body: body,
-          folderId: folderId,
-          isPinned: false,
-          tags: tags,
-          links: [],
-          version: 1,
-          updatedAt: updatedAt ?? DateTime.now(),
-          deleted: false,
-          noteType: NoteKind.note,
-          userId: '',
-        );
-
-        await repository.create(note);
-      } else {
-        // Use legacy creation
-        final noteId = _uuid.v4();
-        final companion = LocalNotesCompanion.insert(
-          id: noteId,
-          title: Value(title),
-          body: Value(body),
-          isPinned: Value(false),
-          version: Value(1),
-          updatedAt: updatedAt ?? DateTime.now(),
-          deleted: Value(false),
-        );
-
-        await db.into(db.localNotes).insert(companion);
-
-        // Add to folder if specified
-        if (folderId != null) {
-          await db.into(db.noteFolders).insert(
-            NoteFoldersCompanion.insert(
-              noteId: noteId,
-              folderId: folderId,
-              addedAt: DateTime.now(),
-            ),
-          );
-        }
-
-        // Add tags
-        for (final tag in tags) {
-          // Get or create tag
-          final existingTag = await (db.select(db.tags)
-            ..where((t) => t.name.equals(tag)))
-            .getSingleOrNull();
-
-          final tagId = existingTag?.id ?? _uuid.v4();
-
-          if (existingTag == null) {
-            await db.into(db.tags).insert(
-              TagsCompanion.insert(
-                id: tagId,
-                name: tag,
-              ),
-            );
-          }
-
-          await db.into(db.noteTags).insert(
-            NoteTagsCompanion.insert(
-              noteId: noteId,
-              tag: tag,
-            ),
-          );
-        }
-      }
+      await notesRepository.createOrUpdate(
+        title: title,
+        body: body,
+        folderId: folderId,
+        tags: tags,
+        isPinned: false,
+      );
     } catch (e, stack) {
       _logger.error('[UnifiedImport] Failed to create note: $title', error: e, stackTrace: stack);
       rethrow;
@@ -1026,12 +933,14 @@ class UnifiedImportService {
 
 /// Provider for unified import service
 final unifiedImportServiceProvider = Provider<UnifiedImportService>((ref) {
-  final db = ref.watch(appDbProvider);
+  final notesRepo = ref.watch(notesCoreRepositoryProvider);
+  final folderRepo = ref.watch(folderCoreRepositoryProvider);
   final config = ref.watch(migrationConfigProvider);
 
   return UnifiedImportService(
     ref: ref,
-    db: db,
+    notesRepository: notesRepo,
+    folderRepository: folderRepo,
     migrationConfig: config,
   );
 });
