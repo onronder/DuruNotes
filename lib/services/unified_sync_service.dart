@@ -1089,7 +1089,8 @@ class UnifiedSyncService {
             'body': (noteData['body'] ?? noteData['content'] ?? ''),
             'tags': (noteData['tags'] ?? <Map<String, dynamic>>[]),
             'isPinned': (noteData['is_pinned'] ?? false),
-            'updatedAt': DateTime.now().toIso8601String(),
+            // TIMESTAMP FIX: Preserve note's existing updated_at, don't overwrite with now
+            'updatedAt': noteData['updated_at'],
           };
 
           final encryptedProps = await _cryptoBox!.encryptJsonForNote(

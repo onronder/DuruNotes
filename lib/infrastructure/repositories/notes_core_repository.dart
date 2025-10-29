@@ -1692,7 +1692,8 @@ class NotesCoreRepository implements INotesRepository {
       final now = DateTime.now().toUtc();
       // SYNC FIX: Use provided timestamps if available (from sync), otherwise use now (user creation)
       final finalCreatedAt = createdAt ?? existingNote?.createdAt ?? now;
-      final finalUpdatedAt = updatedAt ?? now;
+      // TIMESTAMP FIX: Preserve existing updated_at unless explicitly provided or creating new note
+      final finalUpdatedAt = updatedAt ?? existingNote?.updatedAt ?? now;
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
         _logger.warning(
