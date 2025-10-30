@@ -754,7 +754,7 @@ Future<void> _saveTestResults(String testName, Map<String, dynamic> results) asy
     'results': results,
   };
 
-  final reportFile = File('/Users/onronder/duru-notes/docs/test_reports/phase3_migration_${testName}_${DateTime.now().millisecondsSinceEpoch}.json');
+  final reportFile = File('docs/test_reports/phase3_migration_${testName}_${DateTime.now().millisecondsSinceEpoch}.json');
 
   // Ensure directory exists
   await reportFile.parent.create(recursive: true);

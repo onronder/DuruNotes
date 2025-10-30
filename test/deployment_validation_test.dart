@@ -367,7 +367,7 @@ List<String> _generateNextSteps(bool isHealthy, Map<String, dynamic> results) {
 
 /// Save baseline report to file
 Future<void> _saveBaselineReport(Map<String, dynamic> results) async {
-  final reportFile = File('/Users/onronder/duru-notes/docs/deployment_baseline_report.json');
+  final reportFile = File('docs/deployment_baseline_report.json');
 
   // Ensure directory exists
   await reportFile.parent.create(recursive: true);
