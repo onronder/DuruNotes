@@ -10,7 +10,6 @@ import { Logger } from "../common/logger.ts";
 import { extractJwt, verifyHmacSignature } from "../common/auth.ts";
 import {
   ApiError,
-  ValidationError,
   AuthenticationError,
   RateLimitError,
   ServerError,
@@ -19,6 +18,14 @@ import {
 import { CircuitBreaker } from "../common/circuit-breaker.ts";
 import { MetricsCollector } from "../common/metrics.ts";
 import { RetryPolicy } from "../common/retry.ts";
+import type {
+  SupabaseClient,
+  NotificationEvent,
+  UserDevice,
+  DeliveryResult,
+  NotificationUpdate,
+  NotificationStatus,
+} from "./types.ts";
 
 const logger = new Logger("fcm-notification-v2");
 const metrics = new MetricsCollector("fcm_notifications");
@@ -112,7 +119,7 @@ interface EnhancedFcmMessage {
   };
   webpush?: {
     headers?: Record<string, string>;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
     notification?: {
       title?: string;
       body?: string;
@@ -145,9 +152,9 @@ interface EnhancedFcmMessage {
  * FCM Token Management with validation and cleanup
  */
 class FcmTokenManager {
-  private supabase: any;
+  private supabase: SupabaseClient;
 
-  constructor(supabase: any) {
+  constructor(supabase: SupabaseClient) {
     this.supabase = supabase;
   }
 
@@ -245,7 +252,6 @@ class EnhancedFcmService {
       const serviceAccount = JSON.parse(serviceAccountKey);
 
       // Prepare JWT claims
-      const now = Math.floor(Date.now() / 1000);
       const payload = {
         iss: serviceAccount.client_email,
         scope: "https://www.googleapis.com/auth/firebase.messaging",
@@ -488,7 +494,7 @@ class EnhancedFcmService {
  * Enhanced notification processing with advanced features
  */
 async function processNotificationBatch(
-  supabase: any,
+  supabase: SupabaseClient,
   batchSize: number = 50
 ): Promise<{
   processed: number;
@@ -501,7 +507,7 @@ async function processNotificationBatch(
     processed: 0,
     delivered: 0,
     failed: 0,
-    errors: [] as string[],
+    errors: [],
   };
 
   try {
@@ -534,7 +540,7 @@ async function processNotificationBatch(
     const tokenManager = new FcmTokenManager(supabase);
 
     // Group notifications by user for efficiency
-    const userNotifications = new Map<string, any[]>();
+    const userNotifications = new Map<string, NotificationEvent[]>();
     for (const notification of notifications) {
       const userId = notification.user_id;
       if (!userNotifications.has(userId)) {
@@ -565,7 +571,7 @@ async function processNotificationBatch(
           }
 
           // Validate and cleanup tokens
-          const tokens = devices.map((d: any) => d.push_token);
+          const tokens = devices.map((d: UserDevice) => d.push_token);
           const validTokens = await tokenManager.validateAndCleanupTokens(tokens);
 
           if (validTokens.length === 0) {
@@ -580,9 +586,9 @@ async function processNotificationBatch(
           }
 
           // Build enhanced notification messages
-          const messages = await buildEnhancedMessages(
+          const messages = buildEnhancedMessages(
             notification,
-            devices.filter((d: any) => validTokens.includes(d.push_token))
+            devices.filter((d: UserDevice) => validTokens.includes(d.push_token))
           );
 
           // Send notifications
@@ -658,10 +664,10 @@ async function processNotificationBatch(
 /**
  * Build platform-optimized FCM messages
  */
-async function buildEnhancedMessages(
-  notification: any,
-  devices: any[]
-): Promise<EnhancedFcmMessage[]> {
+function buildEnhancedMessages(
+  notification: NotificationEvent,
+  devices: UserDevice[]
+): EnhancedFcmMessage[] {
   const template = notification.notification_templates?.push_template || {};
   const payload = notification.payload || {};
 
@@ -773,10 +779,10 @@ async function buildEnhancedMessages(
  * Record delivery results for analytics
  */
 async function recordDeliveryResults(
-  supabase: any,
+  supabase: SupabaseClient,
   notificationId: string,
-  devices: any[],
-  results: Array<{ success: boolean; error?: string; messageIndex: number }>
+  devices: UserDevice[],
+  results: DeliveryResult[]
 ): Promise<void> {
   const deliveryRecords = results.map((result, index) => ({
     notification_event_id: notificationId,
@@ -799,13 +805,13 @@ async function recordDeliveryResults(
  * Update notification status
  */
 async function updateNotificationStatus(
-  supabase: any,
+  supabase: SupabaseClient,
   notificationId: string,
-  status: string,
+  status: NotificationStatus,
   errorMessage?: string | null,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<void> {
-  const update: any = {
+  const update: NotificationUpdate = {
     status,
     updated_at: new Date().toISOString(),
   };
@@ -837,9 +843,10 @@ async function updateNotificationStatus(
 /**
  * Interpolate template variables with enhanced functionality
  */
-function interpolateTemplate(template: string, data: Record<string, any>): string {
+function interpolateTemplate(template: string, data: Record<string, unknown>): string {
   return template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (match, path) => {
-    const value = path.split('.').reduce((obj: any, key: string) => obj?.[key], data);
+    const value = path.split('.').reduce((obj: Record<string, unknown> | undefined, key: string) =>
+      obj?.[key] as Record<string, unknown> | undefined, data);
     return value !== undefined ? String(value) : match;
   });
 }
@@ -847,7 +854,7 @@ function interpolateTemplate(template: string, data: Record<string, any>): strin
 /**
  * Health check endpoint for monitoring
  */
-async function handleHealthCheck(): Promise<Response> {
+function handleHealthCheck(): Response {
   const health = {
     status: "healthy",
     timestamp: new Date().toISOString(),
@@ -888,7 +895,7 @@ serve(async (req) => {
 
   // Health check endpoint
   if (req.method === "GET" && new URL(req.url).pathname.endsWith("/health")) {
-    return await handleHealthCheck();
+    return handleHealthCheck();
   }
 
   if (req.method !== "POST") {

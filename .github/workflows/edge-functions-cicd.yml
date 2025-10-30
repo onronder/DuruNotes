@@ -561,10 +561,8 @@ jobs:
         run: |
           echo "🔄 Initiating rollback..."
 
-          # Restore previous Kong configuration
-          curl -X POST "${{ secrets.KONG_ADMIN_URL_PRODUCTION }}/config" \
-            -H "Kong-Admin-Token: ${{ secrets.KONG_ADMIN_TOKEN_PRODUCTION }}" \
-            -F config=@backups/previous/kong-config.yml
+          # Use kubectl to rollback to previous deployment
+          kubectl rollout undo deployment/kong-gateway
 
           # Verify rollback
           sleep 30
