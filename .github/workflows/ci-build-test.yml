@@ -222,7 +222,7 @@ jobs:
     name: Integration Tests
     runs-on: macos-14
     timeout-minutes: 45
-    if: github.event_name == 'pull_request'
+    if: false  # Disabled: No real device-based integration tests exist. Widget tests moved to test/ directory. Re-enable when implementing real integration tests.
 
     steps:
       - name: Checkout code
