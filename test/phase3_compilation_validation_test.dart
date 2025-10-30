@@ -411,6 +411,10 @@ void main() {
                     container.read(unifiedReminderCoordinatorProvider);
                     resolvedDependencies.add(dep);
                     break;
+                  case 'advancedReminderService':
+                    container.read(advancedReminderServiceProvider);
+                    resolvedDependencies.add(dep);
+                    break;
                   case 'taskCoreRepository':
                     container.read(taskCoreRepositoryProvider);
                     resolvedDependencies.add(dep);
