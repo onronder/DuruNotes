@@ -38,6 +38,12 @@ jobs:
           flutter pub get
           flutter pub global activate coverage
 
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
+
       - name: Generate mocks
         run: |
           flutter pub run build_runner build --delete-conflicting-outputs
@@ -266,6 +272,12 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
 
       - name: Run widget tests
         run: |
