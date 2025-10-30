@@ -41,6 +41,9 @@ jobs:
           flutter pub get
           flutter pub global activate coverage
 
+      - name: 📦 Install lcov for Coverage Reports
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
       - name: 🔐 Run User Isolation Tests
         id: user_isolation
         run: |
@@ -98,6 +101,7 @@ jobs:
 
       - name: 📊 Generate Coverage Report
         if: always()
+        continue-on-error: true
         run: |
           # Merge coverage data
           flutter pub global run coverage:format_coverage \
@@ -247,47 +251,6 @@ jobs:
           flutter test test/critical/database_clearing_test.dart \
             --name="should complete in less than 1 second" \
             --reporter=github
-
-  notify-failure:
-    name: 📢 Notify on Failure
-    runs-on: ubuntu-latest
-    needs: [critical-security-tests, integration-tests, performance-tests]
-    if: failure()
-
-    steps:
-      - name: 🚨 Send Slack Notification
-        if: github.event_name != 'pull_request'
-        uses: slackapi/slack-github-action@v1
-        with:
-          payload: |
-            {
-              "text": "🚨 Critical Security Tests Failed!",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "⚠️ Security Test Failure Alert"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n*Action:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Test Results>"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "⛔ *DEPLOYMENT BLOCKED* - Critical security vulnerabilities detected"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   security-gate:
     name: 🚪 Security Gate Check

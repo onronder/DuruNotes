@@ -249,27 +249,6 @@ jobs:
     if: always()
 
     steps:
-      - name: Notify Slack
-        if: success()
-        uses: slackapi/slack-github-action@v1
-        with:
-          payload: |
-            {
-              "text": "Duru Notes ${{ needs.create-release.outputs.version }} deployed successfully!",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "🚀 *Duru Notes Production Deployment*\n\n*Version:* ${{ needs.create-release.outputs.version }}\n*Status:* Success\n*Android:* ${{ needs.build-android-prod.result }}\n*iOS:* ${{ needs.build-ios-prod.result }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
       - name: Update deployment tracker
         run: |
           echo "Deployment completed at $(date)" >> deployment-log.txt
