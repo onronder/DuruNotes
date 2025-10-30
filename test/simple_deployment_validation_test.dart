@@ -277,9 +277,7 @@ List<String> _generateBasicNextSteps(
 
 /// Save baseline report to file
 Future<void> _saveBaselineReport(Map<String, dynamic> results) async {
-  final reportFile = File(
-    'docs/simple_deployment_baseline_report.json',
-  );
+  final reportFile = File('docs/simple_deployment_baseline_report.json');
 
   // Ensure directory exists
   await reportFile.parent.create(recursive: true);
