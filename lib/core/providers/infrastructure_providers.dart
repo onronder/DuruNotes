@@ -3,6 +3,13 @@ import 'package:duru_notes/core/migration/migration_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Supabase client provider - provides access to the Supabase client
+/// This provider-based approach allows for better testability and dependency injection
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  return Supabase.instance.client;
+});
 
 /// Logger provider
 final loggerProvider = Provider<AppLogger>((ref) {

@@ -1,4 +1,6 @@
 import 'package:duru_notes/core/providers/database_providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show supabaseClientProvider;
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart';
 import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
@@ -14,7 +16,7 @@ final taskRepositoryProvider = Provider<ITaskRepository?>((ref) {
   // Rebuild when auth state changes
   ref.watch(authStateChangesProvider);
 
-  final client = Supabase.instance.client;
+  final client = ref.watch(supabaseClientProvider);
   final userId = client.auth.currentUser?.id;
 
   // Return null instead of throwing to prevent crashes on logout
@@ -31,7 +33,7 @@ final taskRepositoryProvider = Provider<ITaskRepository?>((ref) {
 /// Task core repository provider (domain architecture)
 /// Returns null when user is not authenticated to prevent crashes
 final taskCoreRepositoryProvider = Provider<ITaskRepository?>((ref) {
-  final client = Supabase.instance.client;
+  final client = ref.watch(supabaseClientProvider);
   final userId = client.auth.currentUser?.id;
 
   // Return null if not authenticated
