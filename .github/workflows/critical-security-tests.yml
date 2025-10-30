@@ -202,6 +202,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: critical-security-tests
     timeout-minutes: 20
+    if: false  # Disabled: No real device-based integration tests exist yet. Widget tests moved to test/ directory.
 
     steps:
       - name: 📥 Checkout Repository
