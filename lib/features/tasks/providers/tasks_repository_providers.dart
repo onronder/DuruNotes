@@ -9,7 +9,6 @@ import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart
 import 'package:duru_notes/core/providers/security_providers.dart'
     show cryptoBoxProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Task repository provider for sync (now uses domain architecture)
 /// Returns null when user is not authenticated to prevent crashes on logout

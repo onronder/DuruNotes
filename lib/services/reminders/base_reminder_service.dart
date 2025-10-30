@@ -6,7 +6,7 @@ import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';

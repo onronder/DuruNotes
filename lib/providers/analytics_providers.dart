@@ -3,7 +3,7 @@ import 'package:duru_notes/core/providers/database_providers.dart'
     show appDbProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
     show taskAnalyticsServiceProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:duru_notes/services/task_analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

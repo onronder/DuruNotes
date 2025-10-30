@@ -12,7 +12,7 @@ import 'package:duru_notes/providers/unified_reminder_provider.dart'
     show unifiedReminderCoordinatorProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart'
     show advancedReminderServiceProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
     show notesCoreRepositoryProvider;
