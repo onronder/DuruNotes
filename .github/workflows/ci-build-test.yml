@@ -166,8 +166,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15
-        run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+      - name: Select Latest Xcode
+        run: |
+          # Find and select the latest available Xcode version
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$LATEST_XCODE" ]; then
+            LATEST_XCODE="/Applications/Xcode.app"
+          fi
+          echo "Using Xcode at: $LATEST_XCODE"
+          sudo xcode-select -s "$LATEST_XCODE/Contents/Developer"
+          xcodebuild -version
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -186,6 +194,12 @@ jobs:
       - name: Setup Firebase config
         run: |
           echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/Runner/GoogleService-Info.plist
+
+      - name: Clean CocoaPods cache
+        run: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod cache clean --all || true
 
       - name: Install CocoaPods
         run: |
@@ -227,9 +241,10 @@ jobs:
       - name: Start iOS Simulator
         run: |
           xcrun simctl boot "iPhone 15 Pro" || true
+          sleep 5
 
       - name: Run integration tests
-        run: flutter test integration_test/
+        run: flutter test integration_test/ --device-id=booted
 
   # Job 6: Security Scan
   security:
