@@ -52,7 +52,7 @@ jobs:
         run: |
           flutter pub global run coverage:format_coverage \
             --lcov --in=coverage --out=coverage/lcov.info \
-            --packages=.packages --report-on=lib
+            --packages=.dart_tool/package_config.json --report-on=lib
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

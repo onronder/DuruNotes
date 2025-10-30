@@ -82,7 +82,7 @@ jobs:
             --lcov \
             --in=coverage \
             --out=coverage/lcov.info \
-            --packages=.packages \
+            --packages=.dart_tool/package_config.json \
             --report-on=lib
 
   # Job 3: Android Build
