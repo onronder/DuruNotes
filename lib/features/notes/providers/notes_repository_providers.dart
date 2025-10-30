@@ -1,7 +1,8 @@
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:duru_notes/data/remote/supabase_note_api.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart';
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show authStateChangesProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

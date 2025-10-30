@@ -7,9 +7,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/database_providers.dart'
     show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
-    show loggerProvider, analyticsProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
-    show supabaseClientProvider;
+    show loggerProvider, analyticsProvider, supabaseClientProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
