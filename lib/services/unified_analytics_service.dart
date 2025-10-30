@@ -872,10 +872,12 @@ class UnifiedAnalyticsService {
 
   // Type-agnostic property accessors
   DateTime _getNoteCreatedAt(dynamic note) {
-    if (note is domain.Note)
+    if (note is domain.Note) {
       return note.updatedAt; // Note doesn't have createdAt
-    if (note is LocalNote)
+    }
+    if (note is LocalNote) {
       return note.updatedAt; // LocalNote doesn't have createdAt
+    }
     throw ArgumentError('Unknown note type');
   }
 
@@ -916,8 +918,9 @@ class UnifiedAnalyticsService {
   }
 
   DateTime _getTaskCreatedAt(dynamic task) {
-    if (task is domain.Task)
+    if (task is domain.Task) {
       return DateTime.now(); // Task doesn't have createdAt
+    }
     if (task is NoteTask) return task.createdAt;
     throw ArgumentError('Unknown task type');
   }

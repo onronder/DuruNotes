@@ -89,8 +89,9 @@ final domainTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((
   }).length;
 
   final overdueCount = tasksAsync.where((t) {
-    if (t.dueDate == null || t.status == domain_task.TaskStatus.completed)
+    if (t.dueDate == null || t.status == domain_task.TaskStatus.completed) {
       return false;
+    }
     return t.dueDate!.isBefore(now);
   }).length;
 

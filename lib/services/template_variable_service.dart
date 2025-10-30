@@ -107,10 +107,12 @@ class TemplateVariableService {
     if (lowerName.contains('time')) return VariableType.time;
     if (lowerName.contains('email')) return VariableType.email;
     if (lowerName.contains('phone')) return VariableType.phone;
-    if (lowerName.contains('url') || lowerName.contains('link'))
+    if (lowerName.contains('url') || lowerName.contains('link')) {
       return VariableType.url;
-    if (lowerName.contains('number') || lowerName.contains('count'))
+    }
+    if (lowerName.contains('number') || lowerName.contains('count')) {
       return VariableType.number;
+    }
 
     // Check default value
     if (defaultValue != null) {

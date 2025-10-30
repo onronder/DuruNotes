@@ -1013,8 +1013,9 @@ class SyncIntegrityValidator {
   String _calculateContentHash(String? title, String? encryptedMetadata) {
     final content = <int>[];
     if (title != null) content.addAll(utf8.encode(title));
-    if (encryptedMetadata != null)
+    if (encryptedMetadata != null) {
       content.addAll(utf8.encode(encryptedMetadata));
+    }
 
     final digest = sha256.convert(content);
     return digest.toString();
