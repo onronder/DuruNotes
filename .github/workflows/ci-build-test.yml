@@ -283,16 +283,40 @@ jobs:
           FLUTTER_BIN="$(which flutter)"
           FLUTTER_ROOT_DIR="$(dirname "$(dirname "$FLUTTER_BIN")")"
           APP_PATH="$GITHUB_WORKSPACE"
-          for file in ios/Flutter/Generated.xcconfig ios/Flutter/Flutter-Generated.xcconfig; do
-            if [ -f "$file" ]; then
-              sed -i.bak \
-                -e "s|^FLUTTER_ROOT=.*|FLUTTER_ROOT=$FLUTTER_ROOT_DIR|g" \
-                -e "s|^FLUTTER_APPLICATION_PATH=.*|FLUTTER_APPLICATION_PATH=$APP_PATH|g" \
-                -e "s|^PACKAGE_CONFIG=.*|PACKAGE_CONFIG=$APP_PATH/.dart_tool/package_config.json|g" \
-                "$file"
-              rm -f "${file}.bak"
-            fi
-          done
+          export FLUTTER_ROOT_DIR
+          export APP_PATH
+          python3 - <<'PY'
+import os
+import pathlib
+import re
+
+flutter_root = os.environ["FLUTTER_ROOT_DIR"]
+app_path = os.environ["APP_PATH"]
+package_config = f"{app_path}/.dart_tool/package_config.json"
+
+def rewrite(path: pathlib.Path, patterns):
+    text = path.read_text()
+    for pattern, repl in patterns:
+        text = re.sub(pattern, repl, text, flags=re.MULTILINE)
+    path.write_text(text)
+
+for relative in ["ios/Flutter/Generated.xcconfig", "ios/Flutter/Flutter-Generated.xcconfig"]:
+    path = pathlib.Path(relative)
+    if path.exists():
+        rewrite(path, [
+            (r"^FLUTTER_ROOT=.*$", f"FLUTTER_ROOT={flutter_root}"),
+            (r"^FLUTTER_APPLICATION_PATH=.*$", f"FLUTTER_APPLICATION_PATH={app_path}"),
+            (r"^PACKAGE_CONFIG=.*$", f"PACKAGE_CONFIG={package_config}"),
+        ])
+
+env_script = pathlib.Path("ios/Flutter/flutter_export_environment.sh")
+if env_script.exists():
+    rewrite(env_script, [
+        (r'^export "FLUTTER_ROOT=.*"$', f'export "FLUTTER_ROOT={flutter_root}"'),
+        (r'^export "FLUTTER_APPLICATION_PATH=.*"$', f'export "FLUTTER_APPLICATION_PATH={app_path}"'),
+        (r'^export "PACKAGE_CONFIG=.*"$', f'export "PACKAGE_CONFIG={package_config}"'),
+    ])
+PY
 
       - name: Setup environment files
         run: |
