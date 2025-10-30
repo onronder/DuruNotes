@@ -278,6 +278,22 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Normalize Flutter iOS configs
+        run: |
+          FLUTTER_BIN="$(which flutter)"
+          FLUTTER_ROOT_DIR="$(dirname "$(dirname "$FLUTTER_BIN")")"
+          APP_PATH="$GITHUB_WORKSPACE"
+          for file in ios/Flutter/Generated.xcconfig ios/Flutter/Flutter-Generated.xcconfig; do
+            if [ -f "$file" ]; then
+              sed -i.bak \
+                -e "s|^FLUTTER_ROOT=.*|FLUTTER_ROOT=$FLUTTER_ROOT_DIR|g" \
+                -e "s|^FLUTTER_APPLICATION_PATH=.*|FLUTTER_APPLICATION_PATH=$APP_PATH|g" \
+                -e "s|^PACKAGE_CONFIG=.*|PACKAGE_CONFIG=$APP_PATH/.dart_tool/package_config.json|g" \
+                "$file"
+              rm -f "${file}.bak"
+            fi
+          done
+
       - name: Setup environment files
         run: |
           cat <<'EOF' > assets/env/.env.prod
