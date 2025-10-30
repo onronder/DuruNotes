@@ -33,6 +33,12 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -61,6 +67,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
 
       - name: Get dependencies
         run: flutter pub get
