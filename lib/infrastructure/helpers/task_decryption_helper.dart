@@ -42,8 +42,9 @@ class TaskDecryptionHelper {
   /// The encrypted data is stored as a JSON string: {"n":"...", "c":"...", "m":"..."}
   /// We convert it to UTF-8 bytes and pass to CryptoBox for decryption.
   Future<String?> decryptLabels(NoteTask task, String noteId) async {
-    if (task.labelsEncrypted == null || task.labelsEncrypted!.isEmpty)
+    if (task.labelsEncrypted == null || task.labelsEncrypted!.isEmpty) {
       return null;
+    }
 
     final userId = task.userId;
 
@@ -68,8 +69,9 @@ class TaskDecryptionHelper {
   /// The encrypted data is stored as a JSON string: {"n":"...", "c":"...", "m":"..."}
   /// We convert it to UTF-8 bytes and pass to CryptoBox for decryption.
   Future<String?> decryptNotes(NoteTask task, String noteId) async {
-    if (task.notesEncrypted == null || task.notesEncrypted!.isEmpty)
+    if (task.notesEncrypted == null || task.notesEncrypted!.isEmpty) {
       return null;
+    }
 
     final userId = task.userId;
 

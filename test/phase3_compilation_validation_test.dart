@@ -14,6 +14,8 @@ import 'package:duru_notes/features/folders/providers/folders_repository_provide
     show folderCoreRepositoryProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
     show domainTaskControllerProvider;
+import 'package:duru_notes/services/advanced_reminder_service.dart'
+    show advancedReminderServiceProvider;
 import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 import 'package:mockito/mockito.dart';
