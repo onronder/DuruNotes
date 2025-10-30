@@ -90,6 +90,12 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
+
       - name: Setup production environment
         run: |
           echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod

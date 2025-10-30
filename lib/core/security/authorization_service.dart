@@ -22,6 +22,10 @@ class AuthorizationService {
   final SupabaseClient _supabase;
   final AppLogger _logger;
 
+  /// Cached user ID to avoid repeated Supabase auth access
+  /// This significantly improves performance in tight loops (e.g., batch operations)
+  String? _cachedUserId;
+
   AuthorizationService({required SupabaseClient supabase, AppLogger? logger})
     : _supabase = supabase,
       _logger = logger ?? LoggerFactory.instance;
@@ -29,7 +33,19 @@ class AuthorizationService {
   /// Get the currently authenticated user's ID
   ///
   /// Returns null if no user is authenticated.
-  String? get currentUserId => _supabase.auth.currentUser?.id;
+  /// The result is cached to avoid repeated Supabase auth access.
+  String? get currentUserId {
+    _cachedUserId ??= _supabase.auth.currentUser?.id;
+    return _cachedUserId;
+  }
+
+  /// Invalidate the cached user ID
+  ///
+  /// Call this when the auth state changes (e.g., user signs in/out).
+  /// This ensures the cache is refreshed on the next access.
+  void invalidateCache() {
+    _cachedUserId = null;
+  }
 
   /// Require the current user to be authenticated
   ///
