@@ -12,6 +12,7 @@ void main() {
     late ProviderContainer container;
 
     setUpAll(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
       container = ProviderContainer();
     });
 
@@ -130,10 +131,10 @@ Future<Map<String, dynamic>> _testLocalDatabase(
 
     // Test basic database operations
     final noteCount = await appDb
-        .customSelect('SELECT COUNT(*) as count FROM notes')
+        .customSelect('SELECT COUNT(*) as count FROM local_notes')
         .getSingle();
     final folderCount = await appDb
-        .customSelect('SELECT COUNT(*) as count FROM folders')
+        .customSelect('SELECT COUNT(*) as count FROM local_folders')
         .getSingle();
 
     return {
