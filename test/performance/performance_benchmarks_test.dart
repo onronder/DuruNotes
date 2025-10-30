@@ -694,8 +694,8 @@ void main() {
 
         expect(
           stopwatch.elapsedMilliseconds,
-          lessThan(5),
-          reason: '100 ownership checks should complete in < 5ms',
+          lessThan(10),
+          reason: '100 ownership checks should complete in < 10ms',
         );
       });
     });

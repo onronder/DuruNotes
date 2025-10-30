@@ -249,7 +249,6 @@ jobs:
         run: |
           # Check database clearing performance
           flutter test test/critical/database_clearing_test.dart \
-            --name="should complete in less than 1 second" \
             --reporter=github
 
   security-gate:
