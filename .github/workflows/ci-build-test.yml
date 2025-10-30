@@ -203,13 +203,21 @@ jobs:
 
       - name: Setup environment files
         run: |
-          echo "${{ secrets.ENV_DEV }}" > assets/env/.env.dev
-          echo "${{ secrets.ENV_STAGING }}" > assets/env/.env.staging
-          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          cat <<'EOF' > assets/env/.env.dev
+          ${{ secrets.ENV_DEV }}
+          EOF
+          cat <<'EOF' > assets/env/.env.staging
+          ${{ secrets.ENV_STAGING }}
+          EOF
+          cat <<'EOF' > assets/env/.env.prod
+          ${{ secrets.ENV_PROD }}
+          EOF
 
       - name: Setup Firebase config
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
+          cat <<'EOF' > android/app/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
 
       - name: Build APK
         run: flutter build apk --release --flavor ${{ matrix.flavor }}
@@ -272,11 +280,15 @@ jobs:
 
       - name: Setup environment files
         run: |
-          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          cat <<'EOF' > assets/env/.env.prod
+          ${{ secrets.ENV_PROD }}
+          EOF
 
       - name: Setup Firebase config
         run: |
-          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/Runner/GoogleService-Info.plist
+          cat <<'EOF' > ios/Runner/GoogleService-Info.plist
+          ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+          EOF
 
       - name: Reset CocoaPods workspace
         run: |
