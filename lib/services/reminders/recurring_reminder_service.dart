@@ -13,11 +13,7 @@ import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 /// - Managing recurrence end dates and intervals
 /// - Scheduling notifications for time-based reminders
 class RecurringReminderService extends BaseReminderService {
-  RecurringReminderService(
-    super.ref,
-    super.plugin,
-    super.db,
-  );
+  RecurringReminderService(super.ref, super.plugin, super.db);
 
   @override
   Future<int?> createReminder(ReminderConfig config) async {
@@ -36,7 +32,8 @@ class RecurringReminderService extends BaseReminderService {
       if (config.recurrencePattern != RecurrencePattern.none &&
           config.recurrenceInterval < 1) {
         logger.warning(
-            'Invalid recurrence interval: ${config.recurrenceInterval}');
+          'Invalid recurrence interval: ${config.recurrenceInterval}',
+        );
         trackReminderEvent('reminder_creation_failed', {
           'reason': 'invalid_interval',
           'type': 'recurring',
@@ -65,23 +62,27 @@ class RecurringReminderService extends BaseReminderService {
       final reminderType = config.recurrencePattern != RecurrencePattern.none
           ? ReminderType.recurring
           : ReminderType.time;
-      final reminderId =
-          await createReminderInDb(config.toCompanion(reminderType, userId));
+      final reminderId = await createReminderInDb(
+        config.toCompanion(reminderType, userId),
+      );
 
       if (reminderId == null) {
         return null;
       }
 
       // Schedule the notification
-      await scheduleNotification(ReminderNotificationData(
-        id: reminderId,
-        title: config.customNotificationTitle ?? config.title,
-        body: config.customNotificationBody ??
-            config.body ??
-            'Tap to view your note',
-        scheduledTime: config.scheduledTime,
-        payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
-      ));
+      await scheduleNotification(
+        ReminderNotificationData(
+          id: reminderId,
+          title: config.customNotificationTitle ?? config.title,
+          body:
+              config.customNotificationBody ??
+              config.body ??
+              'Tap to view your note',
+          scheduledTime: config.scheduledTime,
+          payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
+        ),
+      );
 
       // If recurring, schedule next occurrence
       if (config.recurrencePattern != RecurrencePattern.none) {
@@ -98,14 +99,18 @@ class RecurringReminderService extends BaseReminderService {
         'type': 'recurring',
         'has_recurrence': config.recurrencePattern != RecurrencePattern.none,
         'recurrence_pattern': config.recurrencePattern.name,
-        'hours_from_now':
-            config.scheduledTime.difference(DateTime.now()).inHours,
+        'hours_from_now': config.scheduledTime
+            .difference(DateTime.now())
+            .inHours,
       });
 
-      trackFeatureUsage('recurring_reminder_created', properties: {
-        'pattern': config.recurrencePattern.name,
-        'interval': config.recurrenceInterval,
-      });
+      trackFeatureUsage(
+        'recurring_reminder_created',
+        properties: {
+          'pattern': config.recurrencePattern.name,
+          'interval': config.recurrenceInterval,
+        },
+      );
 
       return reminderId;
     } catch (e, stack) {
@@ -144,7 +149,8 @@ class RecurringReminderService extends BaseReminderService {
       if (endDate != null && nextTime.isAfter(endDate)) {
         await updateReminderStatus(reminderId, false);
         logger.info(
-            'Recurrence ended for reminder $reminderId - exceeded end date');
+          'Recurrence ended for reminder $reminderId - exceeded end date',
+        );
         return;
       }
 
@@ -158,13 +164,18 @@ class RecurringReminderService extends BaseReminderService {
       // Schedule the next notification
       final reminder = await db.getReminderById(reminderId, userId);
       if (reminder != null) {
-        await scheduleNotification(ReminderNotificationData(
-          id: reminderId,
-          title: reminder.notificationTitle ?? reminder.title,
-          body: reminder.notificationBody ?? reminder.body,
-          scheduledTime: nextTime,
-          payload: jsonEncode({'reminderId': reminderId, 'type': 'recurring'}),
-        ));
+        await scheduleNotification(
+          ReminderNotificationData(
+            id: reminderId,
+            title: reminder.notificationTitle ?? reminder.title,
+            body: reminder.notificationBody ?? reminder.body,
+            scheduledTime: nextTime,
+            payload: jsonEncode({
+              'reminderId': reminderId,
+              'type': 'recurring',
+            }),
+          ),
+        );
 
         logger.info(
           'Scheduled next recurrence for reminder $reminderId at $nextTime',
@@ -244,7 +255,10 @@ class RecurringReminderService extends BaseReminderService {
       final now = DateTime.now();
 
       // Get time-based reminders that are due
-      final dueReminders = await db.getTimeRemindersToTrigger(before: now, userId: userId);
+      final dueReminders = await db.getTimeRemindersToTrigger(
+        before: now,
+        userId: userId,
+      );
 
       for (final reminder in dueReminders) {
         await _triggerTimeReminder(reminder);
@@ -328,7 +342,9 @@ class RecurringReminderService extends BaseReminderService {
       // P0.5 SECURITY: Get current userId
       final userId = currentUserId;
       if (userId == null) {
-        logger.warning('Cannot update recurrence pattern - no authenticated user');
+        logger.warning(
+          'Cannot update recurrence pattern - no authenticated user',
+        );
         return;
       }
 

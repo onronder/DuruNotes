@@ -1,7 +1,7 @@
 /// Note type enumeration to distinguish between regular notes and templates
 enum NoteKind {
   note, // Regular note (default)
-  template // Note template
+  template, // Note template
 }
 
 /// Extension methods for NoteKind enum

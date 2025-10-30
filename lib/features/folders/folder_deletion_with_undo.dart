@@ -4,8 +4,14 @@ import 'package:duru_notes/features/folders/providers/folders_repository_provide
     show folderCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderProvider, folderHierarchyProvider;
-import 'package:duru_notes/services/folder_undo_service.dart' show FolderUndoType, FolderUndoOperation, folderUndoServiceProvider, folderUndoHistoryProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderProvider, folderHierarchyProvider;
+import 'package:duru_notes/services/folder_undo_service.dart'
+    show
+        FolderUndoType,
+        FolderUndoOperation,
+        folderUndoServiceProvider,
+        folderUndoHistoryProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,11 +55,7 @@ mixin FolderDeletionWithUndo {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.folder,
-                    color: theme.colorScheme.error,
-                    size: 20,
-                  ),
+                  Icon(Icons.folder, color: theme.colorScheme.error, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -66,7 +68,8 @@ mixin FolderDeletionWithUndo {
                             color: theme.colorScheme.error,
                           ),
                         ),
-                        if (folder.parentId != null && folder.parentId!.isNotEmpty)
+                        if (folder.parentId != null &&
+                            folder.parentId!.isNotEmpty)
                           Text(
                             'Subfolder',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -131,29 +134,29 @@ mixin FolderDeletionWithUndo {
     );
 
     if (!(confirmed ?? false)) {
-      _folderDeletionLogger.info('Folder deletion cancelled by user', data: {
-        'folderId': folder.id,
-        'folderName': folder.name,
-      });
+      _folderDeletionLogger.info(
+        'Folder deletion cancelled by user',
+        data: {'folderId': folder.id, 'folderName': folder.name},
+      );
       return false;
     }
 
     // Log deletion attempt
-    _folderDeletionLogger.info('Starting folder deletion', data: {
-      'folderId': folder.id,
-      'folderName': folder.name,
-      'parentId': folder.parentId,
-    });
+    _folderDeletionLogger.info(
+      'Starting folder deletion',
+      data: {
+        'folderId': folder.id,
+        'folderName': folder.name,
+        'parentId': folder.parentId,
+      },
+    );
 
     // Track in Sentry
     await Sentry.addBreadcrumb(
       Breadcrumb(
         message: 'Folder deletion started',
         category: 'folder.delete',
-        data: {
-          'folderId': folder.id,
-          'folderName': folder.name,
-        },
+        data: {'folderId': folder.id, 'folderName': folder.name},
       ),
     );
 
@@ -165,21 +168,30 @@ mixin FolderDeletionWithUndo {
     try {
       // Get affected notes and child folders before deletion
       final affectedNotes = await folderRepo.getNoteIdsInFolder(folder.id);
-      final affectedChildFolders = await folderRepo.getChildFoldersRecursive(folder.id);
+      final affectedChildFolders = await folderRepo.getChildFoldersRecursive(
+        folder.id,
+      );
 
-      _folderDeletionLogger.debug('Folder deletion metadata', data: {
-        'affectedNotes': affectedNotes.length,
-        'childFolders': affectedChildFolders.length,
-      });
+      _folderDeletionLogger.debug(
+        'Folder deletion metadata',
+        data: {
+          'affectedNotes': affectedNotes.length,
+          'childFolders': affectedChildFolders.length,
+        },
+      );
 
       // Perform the deletion
-      final success = await ref.read(folderProvider.notifier).deleteFolder(folder.id);
+      final success = await ref
+          .read(folderProvider.notifier)
+          .deleteFolder(folder.id);
 
       if (!success) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete folder: ${ref.read(folderProvider).error}'),
+              content: Text(
+                'Failed to delete folder: ${ref.read(folderProvider).error}',
+              ),
               backgroundColor: theme.colorScheme.error,
             ),
           );
@@ -217,13 +229,11 @@ mixin FolderDeletionWithUndo {
 
       return true;
     } catch (e, stackTrace) {
-      _folderDeletionLogger.error('Failed to delete folder',
+      _folderDeletionLogger.error(
+        'Failed to delete folder',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'folderId': folder.id,
-          'folderName': folder.name,
-        },
+        data: {'folderId': folder.id, 'folderName': folder.name},
       );
 
       await Sentry.captureException(
@@ -260,17 +270,19 @@ mixin FolderDeletionWithUndo {
   ) async {
     final undoService = ref.read(folderUndoServiceProvider);
 
-    _folderDeletionLogger.info('Starting undo operation', data: {
-      'operationId': operationId,
-    });
+    _folderDeletionLogger.info(
+      'Starting undo operation',
+      data: {'operationId': operationId},
+    );
 
     try {
       final success = await undoService.undoOperation(operationId);
 
       if (success) {
-        _folderDeletionLogger.info('Undo operation succeeded', data: {
-          'operationId': operationId,
-        });
+        _folderDeletionLogger.info(
+          'Undo operation succeeded',
+          data: {'operationId': operationId},
+        );
         // Refresh folder providers
         ref.read(folderProvider.notifier).refresh();
         ref.read(folderHierarchyProvider.notifier).refresh();
@@ -288,9 +300,10 @@ mixin FolderDeletionWithUndo {
           );
         }
       } else {
-        _folderDeletionLogger.warning('Undo operation failed', data: {
-          'operationId': operationId,
-        });
+        _folderDeletionLogger.warning(
+          'Undo operation failed',
+          data: {'operationId': operationId},
+        );
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -302,12 +315,11 @@ mixin FolderDeletionWithUndo {
         }
       }
     } catch (e, stackTrace) {
-      _folderDeletionLogger.error('Undo operation failed with exception',
+      _folderDeletionLogger.error(
+        'Undo operation failed with exception',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'operationId': operationId,
-        },
+        data: {'operationId': operationId},
       );
 
       await Sentry.captureException(
@@ -315,9 +327,7 @@ mixin FolderDeletionWithUndo {
         stackTrace: stackTrace,
         withScope: (scope) {
           scope.setTag('operation', 'folder_undo');
-          scope.setContexts('undo', {
-            'operationId': operationId,
-          });
+          scope.setContexts('undo', {'operationId': operationId});
         },
       );
 
@@ -479,10 +489,14 @@ class UndoHistoryFAB extends ConsumerWidget {
                       ? null
                       : () async {
                           Navigator.of(context).pop();
-                          final success = await undoService.undoOperation(operation.id);
+                          final success = await undoService.undoOperation(
+                            operation.id,
+                          );
                           if (success && context.mounted) {
                             ref.read(folderProvider.notifier).refresh();
-                            ref.read(folderHierarchyProvider.notifier).refresh();
+                            ref
+                                .read(folderHierarchyProvider.notifier)
+                                .refresh();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Operation undone')),
                             );

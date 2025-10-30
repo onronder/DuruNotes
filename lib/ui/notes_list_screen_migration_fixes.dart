@@ -10,7 +10,9 @@ class NotesListMigrationHelper {
       return note;
     }
     // Cannot convert domain.Note to LocalNote without encryption context
-    throw ArgumentError('Cannot convert ${note.runtimeType} to LocalNote without encryption - use repository layer instead');
+    throw ArgumentError(
+      'Cannot convert ${note.runtimeType} to LocalNote without encryption - use repository layer instead',
+    );
   }
 
   /// Get note ID safely from any note type

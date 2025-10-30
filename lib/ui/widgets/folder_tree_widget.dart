@@ -456,10 +456,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         'Failed to rename folder',
         error: error,
         stackTrace: stackTrace,
-        data: {
-          'folderId': folder.id,
-          'attemptedName': trimmedName,
-        },
+        data: {'folderId': folder.id, 'attemptedName': trimmedName},
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       _showErrorSnackBar(
@@ -507,7 +504,11 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         );
         _logger.info(
           'Folder created',
-          data: {'folderId': folder.id, 'parentId': parentId, 'name': folder.name},
+          data: {
+            'folderId': folder.id,
+            'parentId': parentId,
+            'name': folder.name,
+          },
         );
         HapticFeedback.mediumImpact();
         if (mounted) {
@@ -718,10 +719,7 @@ class _FolderTreeWidgetState extends ConsumerState<FolderTreeWidget> {
         content: Text(message),
         backgroundColor: Theme.of(context).colorScheme.error,
         action: onRetry != null
-            ? SnackBarAction(
-                label: 'Retry',
-                onPressed: onRetry,
-              )
+            ? SnackBarAction(label: 'Retry', onPressed: onRetry)
             : null,
       ),
     );

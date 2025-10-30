@@ -20,7 +20,8 @@ class NoteDecryptionHelper {
   Future<String> decryptTitle(LocalNote note) async {
     if (note.titleEncrypted.isEmpty) return '';
 
-    final userId = note.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
+    final userId =
+        note.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
     if (userId.isEmpty) {
       print('⚠️ Cannot decrypt title without user ID for note ${note.id}');
       return '';
@@ -48,7 +49,8 @@ class NoteDecryptionHelper {
   Future<String> decryptBody(LocalNote note) async {
     if (note.bodyEncrypted.isEmpty) return '';
 
-    final userId = note.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
+    final userId =
+        note.userId ?? Supabase.instance.client.auth.currentUser?.id ?? '';
     if (userId.isEmpty) {
       print('⚠️ Cannot decrypt body without user ID for note ${note.id}');
       return '';
@@ -73,7 +75,11 @@ class NoteDecryptionHelper {
   ///
   /// DEPRECATED: This method is not used by the repository.
   /// The repository encrypts directly via CryptoBox.encryptStringForNote()
-  Future<String> encryptTitle(String userId, String noteId, String title) async {
+  Future<String> encryptTitle(
+    String userId,
+    String noteId,
+    String title,
+  ) async {
     final titleBytes = await crypto.encryptJsonForNote(
       userId: userId,
       noteId: noteId,

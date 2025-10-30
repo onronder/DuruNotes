@@ -16,11 +16,14 @@
 import 'dart:io';
 
 void main(List<String> arguments) {
-  final dryRun = arguments.contains('--dry-run') || !arguments.contains('--apply');
-  final category = arguments.firstWhere(
-    (arg) => arg.startsWith('--category='),
-    orElse: () => '--category=all',
-  ).split('=')[1];
+  final dryRun =
+      arguments.contains('--dry-run') || !arguments.contains('--apply');
+  final category = arguments
+      .firstWhere(
+        (arg) => arg.startsWith('--category='),
+        orElse: () => '--category=all',
+      )
+      .split('=')[1];
 
   print('╔════════════════════════════════════════════════════════════════╗');
   print('║  Riverpod Provider Lifecycle Fix Script                       ║');
@@ -47,7 +50,9 @@ void main(List<String> arguments) {
       break;
     default:
       print('Unknown category: $category');
-      print('Valid categories: feature-providers, ui-refread, service-cleanup, all');
+      print(
+        'Valid categories: feature-providers, ui-refread, service-cleanup, all',
+      );
       exit(1);
   }
 
@@ -109,12 +114,16 @@ class RiverpodLifecycleFixer {
           !line.contains('autoDispose') &&
           !line.contains('//') && // Not commented
           !_isGlobalProvider(lines, i)) {
-
-        newLine = line.replaceFirst('FutureProvider<', 'FutureProvider.autoDispose<');
+        newLine = line.replaceFirst(
+          'FutureProvider<',
+          'FutureProvider.autoDispose<',
+        );
         if (newLine != line) {
           modified = true;
           providersFixed++;
-          fixes.add('${file.path}:${i + 1} - Added autoDispose to FutureProvider');
+          fixes.add(
+            '${file.path}:${i + 1} - Added autoDispose to FutureProvider',
+          );
         }
       }
 
@@ -122,12 +131,16 @@ class RiverpodLifecycleFixer {
       if (line.contains('FutureProvider.family<') &&
           !line.contains('autoDispose') &&
           !line.contains('//')) {
-
-        newLine = line.replaceFirst('FutureProvider.family<', 'FutureProvider.autoDispose.family<');
+        newLine = line.replaceFirst(
+          'FutureProvider.family<',
+          'FutureProvider.autoDispose.family<',
+        );
         if (newLine != line) {
           modified = true;
           providersFixed++;
-          fixes.add('${file.path}:${i + 1} - Added autoDispose to FutureProvider.family');
+          fixes.add(
+            '${file.path}:${i + 1} - Added autoDispose to FutureProvider.family',
+          );
         }
       }
 
@@ -136,12 +149,16 @@ class RiverpodLifecycleFixer {
           !line.contains('autoDispose') &&
           !line.contains('//') &&
           !_isGlobalProvider(lines, i)) {
-
-        newLine = line.replaceFirst('StreamProvider<', 'StreamProvider.autoDispose<');
+        newLine = line.replaceFirst(
+          'StreamProvider<',
+          'StreamProvider.autoDispose<',
+        );
         if (newLine != line) {
           modified = true;
           providersFixed++;
-          fixes.add('${file.path}:${i + 1} - Added autoDispose to StreamProvider');
+          fixes.add(
+            '${file.path}:${i + 1} - Added autoDispose to StreamProvider',
+          );
         }
       }
 
@@ -149,12 +166,16 @@ class RiverpodLifecycleFixer {
       if (line.contains('StreamProvider.family<') &&
           !line.contains('autoDispose') &&
           !line.contains('//')) {
-
-        newLine = line.replaceFirst('StreamProvider.family<', 'StreamProvider.autoDispose.family<');
+        newLine = line.replaceFirst(
+          'StreamProvider.family<',
+          'StreamProvider.autoDispose.family<',
+        );
         if (newLine != line) {
           modified = true;
           providersFixed++;
-          fixes.add('${file.path}:${i + 1} - Added autoDispose to StreamProvider.family');
+          fixes.add(
+            '${file.path}:${i + 1} - Added autoDispose to StreamProvider.family',
+          );
         }
       }
 
@@ -164,12 +185,16 @@ class RiverpodLifecycleFixer {
           !line.contains('//') &&
           !_isGlobalProvider(lines, i) &&
           _isUIStateProvider(lines, i)) {
-
-        newLine = line.replaceFirst('StateProvider<', 'StateProvider.autoDispose<');
+        newLine = line.replaceFirst(
+          'StateProvider<',
+          'StateProvider.autoDispose<',
+        );
         if (newLine != line) {
           modified = true;
           providersFixed++;
-          fixes.add('${file.path}:${i + 1} - Added autoDispose to StateProvider');
+          fixes.add(
+            '${file.path}:${i + 1} - Added autoDispose to StateProvider',
+          );
         }
       }
 
@@ -272,8 +297,7 @@ class RiverpodLifecycleFixer {
         final line = lines[i];
 
         // Detect start of build method
-        if (line.contains('Widget build(') ||
-            line.contains('Widget build (')) {
+        if (line.contains('Widget build(') || line.contains('Widget build (')) {
           inBuildMethod = true;
           braceCount = 0;
         }
@@ -289,7 +313,7 @@ class RiverpodLifecycleFixer {
             warnings.add(
               '⚠️  ${file.path}:${i + 1} - ref.read() in build method\n'
               '    Should use ref.watch() instead\n'
-              '    Line: ${line.trim()}'
+              '    Line: ${line.trim()}',
             );
           }
 
@@ -302,7 +326,9 @@ class RiverpodLifecycleFixer {
     }
 
     if (warnings.isNotEmpty) {
-      print('\n⚠️  Found $refReadIssues instances of ref.read in build methods:\n');
+      print(
+        '\n⚠️  Found $refReadIssues instances of ref.read in build methods:\n',
+      );
       for (final warning in warnings) {
         print(warning);
         print('');
@@ -314,18 +340,20 @@ class RiverpodLifecycleFixer {
 
   bool _isInCallback(List<String> lines, int index) {
     // Simple heuristic: if previous lines contain callback markers
-    final context = lines.sublist(
-      (index - 5).clamp(0, lines.length),
-      (index + 1).clamp(0, lines.length)
-    ).join('\n');
+    final context = lines
+        .sublist(
+          (index - 5).clamp(0, lines.length),
+          (index + 1).clamp(0, lines.length),
+        )
+        .join('\n');
 
     return context.contains('onPressed') ||
-           context.contains('onTap') ||
-           context.contains('onChanged') ||
-           context.contains('onSubmitted') ||
-           context.contains('listener') ||
-           context.contains('callback') ||
-           context.contains('=>');
+        context.contains('onTap') ||
+        context.contains('onChanged') ||
+        context.contains('onSubmitted') ||
+        context.contains('listener') ||
+        context.contains('callback') ||
+        context.contains('=>');
   }
 
   void findResourceLeaks() {
@@ -340,9 +368,11 @@ class RiverpodLifecycleFixer {
     for (final file in serviceFiles) {
       final content = file.readAsStringSync();
       final hasStreamController = content.contains('StreamController');
-      final hasTimer = content.contains('Timer(') || content.contains('Timer.periodic');
+      final hasTimer =
+          content.contains('Timer(') || content.contains('Timer.periodic');
       final hasSubscription = content.contains('.listen(');
-      final hasDispose = content.contains('dispose()') || content.contains('close()');
+      final hasDispose =
+          content.contains('dispose()') || content.contains('close()');
 
       if ((hasStreamController || hasTimer || hasSubscription) && !hasDispose) {
         resourceLeaks++;
@@ -351,7 +381,7 @@ class RiverpodLifecycleFixer {
           '   Has resources but missing dispose():\n'
           '   ${hasStreamController ? '   - StreamController ✗\n' : ''}'
           '   ${hasTimer ? '   - Timer ✗\n' : ''}'
-          '   ${hasSubscription ? '   - Subscription ✗\n' : ''}'
+          '   ${hasSubscription ? '   - Subscription ✗\n' : ''}',
         );
       }
     }
@@ -368,9 +398,13 @@ class RiverpodLifecycleFixer {
   }
 
   void printSummary() {
-    print('\n╔════════════════════════════════════════════════════════════════╗');
+    print(
+      '\n╔════════════════════════════════════════════════════════════════╗',
+    );
     print('║  Summary                                                       ║');
-    print('╚════════════════════════════════════════════════════════════════╝\n');
+    print(
+      '╚════════════════════════════════════════════════════════════════╝\n',
+    );
 
     print('Providers fixed: $providersFixed');
     print('ref.read issues found: $refReadIssues');

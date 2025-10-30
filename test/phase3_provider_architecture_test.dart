@@ -57,62 +57,63 @@ Future<void> _saveTestResults(
 void main() {
   group('Phase 3: Provider Architecture Tests', () {
     group('Core Provider Validation', () {
-      test('Core infrastructure providers resolve dependencies correctly',
-          () async {
-        print('\n🏗️ Testing core infrastructure provider dependencies...');
+      test(
+        'Core infrastructure providers resolve dependencies correctly',
+        () async {
+          print('\n🏗️ Testing core infrastructure provider dependencies...');
 
-        final container = ProviderContainer();
-        final providerTests = <String, Map<String, dynamic>>{};
+          final container = ProviderContainer();
+          final providerTests = <String, Map<String, dynamic>>{};
 
-        try {
-          print('  📊 Testing AppDb provider...');
-          providerTests['appDb'] = {
-            'success': true,
-            'type': container.read(appDbProvider).runtimeType.toString(),
-            'dependencies': const <String>[],
-          };
+          try {
+            print('  📊 Testing AppDb provider...');
+            providerTests['appDb'] = {
+              'success': true,
+              'type': container.read(appDbProvider).runtimeType.toString(),
+              'dependencies': const <String>[],
+            };
 
-          print('  📝 Testing Logger provider...');
-          final logger = container.read(loggerProvider);
-          expect(logger, isA<AppLogger>());
-          providerTests['logger'] = {
-            'success': true,
-            'type': logger.runtimeType.toString(),
-            'dependencies': const ['bootstrap'],
-          };
+            print('  📝 Testing Logger provider...');
+            final logger = container.read(loggerProvider);
+            expect(logger, isA<AppLogger>());
+            providerTests['logger'] = {
+              'success': true,
+              'type': logger.runtimeType.toString(),
+              'dependencies': const ['bootstrap'],
+            };
 
-          print('  📈 Testing Analytics provider...');
-          final analytics = container.read(analyticsProvider);
-          expect(analytics, isA<AnalyticsService>());
-          providerTests['analytics'] = {
-            'success': true,
-            'type': analytics.runtimeType.toString(),
-            'dependencies': const ['bootstrap'],
-          };
+            print('  📈 Testing Analytics provider...');
+            final analytics = container.read(analyticsProvider);
+            expect(analytics, isA<AnalyticsService>());
+            providerTests['analytics'] = {
+              'success': true,
+              'type': analytics.runtimeType.toString(),
+              'dependencies': const ['bootstrap'],
+            };
 
-          print('  ✅ Core infrastructure providers validation completed');
-        } catch (e, stack) {
-          providerTests['error'] = {
-            'success': false,
-            'message': e.toString(),
-            'stack': stack.toString(),
-          };
-          print('  ❌ Core infrastructure providers validation failed: $e');
-        } finally {
-          container.dispose();
-        }
+            print('  ✅ Core infrastructure providers validation completed');
+          } catch (e, stack) {
+            providerTests['error'] = {
+              'success': false,
+              'message': e.toString(),
+              'stack': stack.toString(),
+            };
+            print('  ❌ Core infrastructure providers validation failed: $e');
+          } finally {
+            container.dispose();
+          }
 
-        await _saveTestResults('core_infrastructure', providerTests);
-        expect(
-          providerTests.values
-              .where((entry) => entry.containsKey('success'))
-              .every((entry) => entry['success'] == true),
-          isTrue,
-        );
-      });
+          await _saveTestResults('core_infrastructure', providerTests);
+          expect(
+            providerTests.values
+                .where((entry) => entry.containsKey('success'))
+                .every((entry) => entry['success'] == true),
+            isTrue,
+          );
+        },
+      );
 
-      test('Domain task service providers expose expected prerequisites',
-          () async {
+      test('Domain task service providers expose expected prerequisites', () async {
         print('\n📋 Testing domain task provider prerequisites...');
 
         final container = ProviderContainer();
@@ -129,7 +130,9 @@ void main() {
                   : 'Unexpected non-null repository',
             };
             if (repo == null) {
-              print('    ✅ taskCoreRepository unavailable without authentication');
+              print(
+                '    ✅ taskCoreRepository unavailable without authentication',
+              );
             }
           } catch (e) {
             if (_isSupabaseNotInitialized(e)) {
@@ -137,7 +140,9 @@ void main() {
                 'success': true,
                 'note': 'Supabase not initialized (expected in tests)',
               };
-              print('    ✅ taskCoreRepository requires Supabase initialization (expected)');
+              print(
+                '    ✅ taskCoreRepository requires Supabase initialization (expected)',
+              );
             } else {
               rethrow;
             }
@@ -157,7 +162,9 @@ void main() {
                 'success': true,
                 'note': 'Supabase not initialized (expected in tests)',
               };
-              print('    ✅ enhancedTaskService requires Supabase initialization (expected)');
+              print(
+                '    ✅ enhancedTaskService requires Supabase initialization (expected)',
+              );
             } else {
               rethrow;
             }
@@ -186,7 +193,9 @@ void main() {
                 'success': true,
                 'note': 'Supabase not initialized (expected in tests)',
               };
-              print('    ✅ domainTaskController requires Supabase initialization (expected)');
+              print(
+                '    ✅ domainTaskController requires Supabase initialization (expected)',
+              );
             } else {
               rethrow;
             }
@@ -205,7 +214,9 @@ void main() {
                 'success': true,
                 'note': 'Supabase not initialized (expected in tests)',
               };
-              print('    ✅ taskReminderBridge requires Supabase initialization (expected)');
+              print(
+                '    ✅ taskReminderBridge requires Supabase initialization (expected)',
+              );
             } else {
               rethrow;
             }
@@ -226,7 +237,9 @@ void main() {
 
         try {
           print('  🎯 Reading unifiedReminderCoordinatorProvider...');
-          final coordinator = container.read(unifiedReminderCoordinatorProvider);
+          final coordinator = container.read(
+            unifiedReminderCoordinatorProvider,
+          );
           results['unifiedReminderCoordinator'] = {
             'success': true,
             'type': coordinator.runtimeType.toString(),
@@ -254,101 +267,108 @@ void main() {
         await _saveTestResults('reminder_system', results);
         expect(
           results.entries
-              .where((entry) => entry.value is Map &&
-                  (entry.value as Map).containsKey('success'))
-              .every((entry) =>
-                  (entry.value as Map<String, dynamic>)['success'] == true),
+              .where(
+                (entry) =>
+                    entry.value is Map &&
+                    (entry.value as Map).containsKey('success'),
+              )
+              .every(
+                (entry) =>
+                    (entry.value as Map<String, dynamic>)['success'] == true,
+              ),
           isTrue,
         );
       });
     });
 
     group('Domain Dependency Graph Validation', () {
-      test('Domain task dependency chain resolves expected providers', () async {
-        print('\n🔗 Testing domain task dependency chain...');
+      test(
+        'Domain task dependency chain resolves expected providers',
+        () async {
+          print('\n🔗 Testing domain task dependency chain...');
 
-        final container = ProviderContainer();
-        final results = <String, dynamic>{};
+          final container = ProviderContainer();
+          final results = <String, dynamic>{};
 
-        try {
-          final dependencyMap = <String, List<String>>{
-            'domainTaskController': [
-              'taskCoreRepository',
-              'notesCoreRepository',
-              'enhancedTaskService',
-              'logger',
-            ],
-            'enhancedTaskService': [
-              'appDb',
-              'taskReminderBridge',
-            ],
-            'taskReminderBridge': [
-              'unifiedReminderCoordinator',
-              'advancedReminderService',
-              'appDb',
-            ],
-          };
-
-          for (final entry in dependencyMap.entries) {
-            final resolved = <String>[];
-            print('  🔍 Testing ${entry.key} dependencies...');
-
-            for (final dep in entry.value) {
-              try {
-                switch (dep) {
-                  case 'taskCoreRepository':
-                    container.read(taskCoreRepositoryProvider);
-                    break;
-                  case 'notesCoreRepository':
-                    container.read(notesCoreRepositoryProvider);
-                    break;
-                  case 'enhancedTaskService':
-                    container.read(enhancedTaskServiceProvider);
-                    break;
-                  case 'logger':
-                    container.read(loggerProvider);
-                    break;
-                  case 'appDb':
-                    container.read(appDbProvider);
-                    break;
-                  case 'taskReminderBridge':
-                    container.read(taskReminderBridgeProvider);
-                    break;
-                  case 'unifiedReminderCoordinator':
-                    container.read(unifiedReminderCoordinatorProvider);
-                    break;
-                  case 'advancedReminderService':
-                    container.read(advancedReminderServiceProvider);
-                    break;
-                }
-                resolved.add(dep);
-              } catch (e) {
-                if (_isSupabaseNotInitialized(e)) {
-                  resolved.add('$dep (Supabase init required)');
-                  print('    ⚠️ $dep requires Supabase initialization (expected)');
-                } else if (e is StateError) {
-                  resolved.add('$dep (${e.message})');
-                } else {
-                  rethrow;
-                }
-              }
-            }
-
-            results[entry.key] = {
-              'success': true,
-              'resolvedDependencies': resolved,
-              'totalDependencies': entry.value.length,
+          try {
+            final dependencyMap = <String, List<String>>{
+              'domainTaskController': [
+                'taskCoreRepository',
+                'notesCoreRepository',
+                'enhancedTaskService',
+                'logger',
+              ],
+              'enhancedTaskService': ['appDb', 'taskReminderBridge'],
+              'taskReminderBridge': [
+                'unifiedReminderCoordinator',
+                'advancedReminderService',
+                'appDb',
+              ],
             };
 
-            print('    ✅ Dependencies processed for ${entry.key}');
-          }
-        } finally {
-          container.dispose();
-        }
+            for (final entry in dependencyMap.entries) {
+              final resolved = <String>[];
+              print('  🔍 Testing ${entry.key} dependencies...');
 
-        await _saveTestResults('domain_dependency_chain', results);
-        expect(results.isNotEmpty, isTrue);
-      });
+              for (final dep in entry.value) {
+                try {
+                  switch (dep) {
+                    case 'taskCoreRepository':
+                      container.read(taskCoreRepositoryProvider);
+                      break;
+                    case 'notesCoreRepository':
+                      container.read(notesCoreRepositoryProvider);
+                      break;
+                    case 'enhancedTaskService':
+                      container.read(enhancedTaskServiceProvider);
+                      break;
+                    case 'logger':
+                      container.read(loggerProvider);
+                      break;
+                    case 'appDb':
+                      container.read(appDbProvider);
+                      break;
+                    case 'taskReminderBridge':
+                      container.read(taskReminderBridgeProvider);
+                      break;
+                    case 'unifiedReminderCoordinator':
+                      container.read(unifiedReminderCoordinatorProvider);
+                      break;
+                    case 'advancedReminderService':
+                      container.read(advancedReminderServiceProvider);
+                      break;
+                  }
+                  resolved.add(dep);
+                } catch (e) {
+                  if (_isSupabaseNotInitialized(e)) {
+                    resolved.add('$dep (Supabase init required)');
+                    print(
+                      '    ⚠️ $dep requires Supabase initialization (expected)',
+                    );
+                  } else if (e is StateError) {
+                    resolved.add('$dep (${e.message})');
+                  } else {
+                    rethrow;
+                  }
+                }
+              }
+
+              results[entry.key] = {
+                'success': true,
+                'resolvedDependencies': resolved,
+                'totalDependencies': entry.value.length,
+              };
+
+              print('    ✅ Dependencies processed for ${entry.key}');
+            }
+          } finally {
+            container.dispose();
+          }
+
+          await _saveTestResults('domain_dependency_chain', results);
+          expect(results.isNotEmpty, isTrue);
+        },
+      );
 
       test('Circular dependency detection for domain providers', () async {
         print('\n🔄 Testing for circular dependencies (domain)...');
@@ -392,7 +412,9 @@ void main() {
                     resolvedProviders.add(providerName);
                   } catch (e) {
                     if (_isSupabaseNotInitialized(e)) {
-                      resolvedProviders.add('$providerName (Supabase init required)');
+                      resolvedProviders.add(
+                        '$providerName (Supabase init required)',
+                      );
                     } else {
                       rethrow;
                     }
@@ -404,7 +426,9 @@ void main() {
                     resolvedProviders.add(providerName);
                   } catch (e) {
                     if (_isSupabaseNotInitialized(e)) {
-                      resolvedProviders.add('$providerName (Supabase init required)');
+                      resolvedProviders.add(
+                        '$providerName (Supabase init required)',
+                      );
                     } else {
                       rethrow;
                     }
@@ -416,7 +440,9 @@ void main() {
                     resolvedProviders.add(providerName);
                   } catch (e) {
                     if (_isSupabaseNotInitialized(e)) {
-                      resolvedProviders.add('$providerName (Supabase init required)');
+                      resolvedProviders.add(
+                        '$providerName (Supabase init required)',
+                      );
                     } else {
                       rethrow;
                     }
@@ -430,7 +456,9 @@ void main() {
                     resolvedProviders.add('$providerName (${e.message})');
                   } catch (e) {
                     if (_isSupabaseNotInitialized(e)) {
-                      resolvedProviders.add('$providerName (Supabase init required)');
+                      resolvedProviders.add(
+                        '$providerName (Supabase init required)',
+                      );
                     } else {
                       rethrow;
                     }
@@ -442,7 +470,9 @@ void main() {
                     resolvedProviders.add(providerName);
                   } catch (e) {
                     if (_isSupabaseNotInitialized(e)) {
-                      resolvedProviders.add('$providerName (Supabase init required)');
+                      resolvedProviders.add(
+                        '$providerName (Supabase init required)',
+                      );
                     } else {
                       rethrow;
                     }
@@ -482,7 +512,9 @@ void main() {
                 'stack': stack.toString(),
                 'resolvedProviders': resolvedProviders,
               };
-              print('    ❌ Potential circular dependency in scenario ${i + 1}: $e');
+              print(
+                '    ❌ Potential circular dependency in scenario ${i + 1}: $e',
+              );
             }
           } finally {
             container.dispose();
@@ -491,8 +523,9 @@ void main() {
 
         await _saveTestResults('circular_dependency', results);
         expect(
-          results.values
-              .every((value) => (value as Map<String, dynamic>)['success'] == true),
+          results.values.every(
+            (value) => (value as Map<String, dynamic>)['success'] == true,
+          ),
           isTrue,
         );
       });
@@ -568,15 +601,15 @@ void main() {
           'toggleStatus': controller.toggleStatus.runtimeType.toString(),
           'deleteTask': controller.deleteTask.runtimeType.toString(),
           'watchAllTasks': controller.watchAllTasks.runtimeType.toString(),
-          'watchTasksForNote': controller.watchTasksForNote.runtimeType.toString(),
+          'watchTasksForNote': controller.watchTasksForNote.runtimeType
+              .toString(),
           'getTaskById': controller.getTaskById.runtimeType.toString(),
           'updateTask': controller.updateTask.runtimeType.toString(),
         };
 
-        await _saveTestResults(
-          'domain_controller_api',
-          {'methodTypes': methodTypes},
-        );
+        await _saveTestResults('domain_controller_api', {
+          'methodTypes': methodTypes,
+        });
         expect(methodTypes.length, equals(8));
       });
     });

@@ -7,9 +7,9 @@ import 'package:intl/intl.dart';
 
 /// Task card display styles
 enum TaskCardStyle {
-  minimal,   // Just checkbox and title
-  standard,  // Checkbox, title, and metadata
-  detailed,  // Everything including description
+  minimal, // Just checkbox and title
+  standard, // Checkbox, title, and metadata
+  detailed, // Everything including description
 }
 
 /// Task card component for displaying domain.Task entities
@@ -76,7 +76,9 @@ class DuruTaskCard extends StatelessWidget {
                   A11yHelper.checkbox(
                     label: title,
                     value: isCompleted,
-                    hint: isCompleted ? 'Mark as incomplete' : 'Mark as complete',
+                    hint: isCompleted
+                        ? 'Mark as incomplete'
+                        : 'Mark as complete',
                     onTap: () => onStatusChanged?.call(!isCompleted),
                     child: Checkbox(
                       value: isCompleted,
@@ -96,7 +98,9 @@ class DuruTaskCard extends StatelessWidget {
                               ? TextDecoration.lineThrough
                               : null,
                           color: isCompleted
-                              ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
+                              ? theme.colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                )
                               : null,
                         ),
                         maxLines: 1,
@@ -130,158 +134,164 @@ class DuruTaskCard extends StatelessWidget {
       onTap: onTap,
       onToggle: onStatusChanged,
       child: Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: DuruSpacing.md,
-        vertical: DuruSpacing.sm,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? DuruColors.primary.withValues(alpha: 0.08)
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
+        margin: EdgeInsets.symmetric(
+          horizontal: DuruSpacing.md,
+          vertical: DuruSpacing.sm,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? DuruColors.primary
-                    : theme.colorScheme.outline.withValues(alpha: 0.1),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.2)
-                      : Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                    ? DuruColors.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected
+                      ? DuruColors.primary
+                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                  width: isSelected ? 2 : 1,
                 ),
-              ],
-            ),
-            padding: EdgeInsets.all(DuruSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Checkbox
-                A11yHelper.checkbox(
-                  label: title,
-                  value: isCompleted,
-                  hint: isCompleted ? 'Mark as incomplete' : 'Mark as complete',
-                  onTap: () => onStatusChanged?.call(!isCompleted),
-                  child: Checkbox(
-                    value: isCompleted,
-                    onChanged: onStatusChanged,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    activeColor: DuruColors.primary,
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-
-                // Task content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title with priority indicator
-                      Row(
-                        children: [
-                          if (priority == domain.TaskPriority.high) ...[
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: DuruSpacing.xs,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Icon(
-                                CupertinoIcons.exclamationmark,
-                                size: 12,
-                                color: Colors.red,
-                              ),
-                            ),
-                            SizedBox(width: DuruSpacing.xs),
-                          ],
-                          Expanded(
-                            child: ExcludeSemantics(
-                              child: Text(
-                                title,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  decoration: isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  color: isCompleted
-                                      ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
-                                      : null,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
+                ],
+              ),
+              padding: EdgeInsets.all(DuruSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Checkbox
+                  A11yHelper.checkbox(
+                    label: title,
+                    value: isCompleted,
+                    hint: isCompleted
+                        ? 'Mark as incomplete'
+                        : 'Mark as complete',
+                    onTap: () => onStatusChanged?.call(!isCompleted),
+                    child: Checkbox(
+                      value: isCompleted,
+                      onChanged: onStatusChanged,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
                       ),
+                      activeColor: DuruColors.primary,
+                    ),
+                  ),
 
-                      // Due date if present
-                      if (dueDate != null) ...[
-                        SizedBox(height: DuruSpacing.xs),
+                  // Task content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title with priority indicator
                         Row(
                           children: [
-                            Icon(
-                              CupertinoIcons.calendar,
-                              size: 14,
-                              color: _isDueSoon(dueDate)
-                                  ? Colors.orange
-                                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                            ),
-                            SizedBox(width: DuruSpacing.xs),
-                            Text(
-                              _formatDueDate(dueDate),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: _isDueSoon(dueDate)
-                                    ? Colors.orange
-                                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            if (priority == domain.TaskPriority.high) ...[
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: DuruSpacing.xs,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.exclamationmark,
+                                  size: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              SizedBox(width: DuruSpacing.xs),
+                            ],
+                            Expanded(
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  title,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: isCompleted
+                                        ? theme.colorScheme.onSurfaceVariant
+                                              .withValues(alpha: 0.6)
+                                        : null,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
 
-                // Actions menu
-                if (!isSelected)
-                  A11yHelper.iconButton(
-                    label: 'More options for task: $title',
-                    hint: 'Open menu with edit, complete, due date, priority, and delete actions',
-                    onPressed: () => _showTaskMenu(context),
-                    child: IconButton(
-                      onPressed: () => _showTaskMenu(context),
-                      icon: Icon(
-                        CupertinoIcons.ellipsis_vertical,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
+                        // Due date if present
+                        if (dueDate != null) ...[
+                          SizedBox(height: DuruSpacing.xs),
+                          Row(
+                            children: [
+                              Icon(
+                                CupertinoIcons.calendar,
+                                size: 14,
+                                color: _isDueSoon(dueDate)
+                                    ? Colors.orange
+                                    : theme.colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.6),
+                              ),
+                              SizedBox(width: DuruSpacing.xs),
+                              Text(
+                                _formatDueDate(dueDate),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: _isDueSoon(dueDate)
+                                      ? Colors.orange
+                                      : theme.colorScheme.onSurfaceVariant
+                                            .withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-              ],
+
+                  // Actions menu
+                  if (!isSelected)
+                    A11yHelper.iconButton(
+                      label: 'More options for task: $title',
+                      hint:
+                          'Open menu with edit, complete, due date, priority, and delete actions',
+                      onPressed: () => _showTaskMenu(context),
+                      child: IconButton(
+                        onPressed: () => _showTaskMenu(context),
+                        icon: Icon(
+                          CupertinoIcons.ellipsis_vertical,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -306,203 +316,216 @@ class DuruTaskCard extends StatelessWidget {
       onTap: onTap,
       onToggle: onStatusChanged,
       child: Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: DuruSpacing.md,
-        vertical: DuruSpacing.sm,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? DuruColors.primary.withValues(alpha: 0.08)
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
+        margin: EdgeInsets.symmetric(
+          horizontal: DuruSpacing.md,
+          vertical: DuruSpacing.sm,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? DuruColors.primary
-                    : theme.colorScheme.outline.withValues(alpha: 0.1),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.25)
-                      : Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                    ? DuruColors.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? DuruColors.primary
+                      : theme.colorScheme.outline.withValues(alpha: 0.1),
+                  width: isSelected ? 2 : 1,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Priority indicator bar
-                if (priority == domain.TaskPriority.high)
-                  Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.25)
+                        : Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Priority indicator bar
+                  if (priority == domain.TaskPriority.high)
+                    Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
                       ),
                     ),
-                  ),
 
-                Padding(
-                  padding: EdgeInsets.all(DuruSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Checkbox
-                          Checkbox(
-                            value: isCompleted,
-                            onChanged: onStatusChanged,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
+                  Padding(
+                    padding: EdgeInsets.all(DuruSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Checkbox
+                            Checkbox(
+                              value: isCompleted,
+                              onChanged: onStatusChanged,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              activeColor: DuruColors.primary,
                             ),
-                            activeColor: DuruColors.primary,
-                          ),
 
-                          // Title and description
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    decoration: isCompleted
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                    color: isCompleted
-                                        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
-                                        : null,
-                                  ),
-                                ),
-                                if (description != null && description.isNotEmpty) ...[
-                                  SizedBox(height: DuruSpacing.sm),
+                            // Title and description
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    description,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                      height: 1.5,
-                                    ),
-                                    maxLines: 4,
-                                    overflow: TextOverflow.ellipsis,
+                                    title,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          decoration: isCompleted
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: isCompleted
+                                              ? theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant
+                                                    .withValues(alpha: 0.6)
+                                              : null,
+                                        ),
                                   ),
+                                  if (description != null &&
+                                      description.isNotEmpty) ...[
+                                    SizedBox(height: DuruSpacing.sm),
+                                    Text(
+                                      description,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            height: 1.5,
+                                          ),
+                                      maxLines: 4,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ),
-
-                          // Actions menu
-                          if (!isSelected)
-                            IconButton(
-                              onPressed: () => _showTaskMenu(context),
-                              icon: Icon(
-                                CupertinoIcons.ellipsis,
-                                size: 20,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
                               ),
                             ),
-                        ],
-                      ),
 
-                      // Tags
-                      if (tags.isNotEmpty) ...[
-                        SizedBox(height: DuruSpacing.md),
-                        Wrap(
-                          spacing: DuruSpacing.xs,
-                          runSpacing: DuruSpacing.xs,
-                          children: tags.map((tag) {
-                            return Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: DuruSpacing.sm,
-                                vertical: DuruSpacing.xs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '#$tag',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.primary,
+                            // Actions menu
+                            if (!isSelected)
+                              IconButton(
+                                onPressed: () => _showTaskMenu(context),
+                                icon: Icon(
+                                  CupertinoIcons.ellipsis,
+                                  size: 20,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
                                 ),
                               ),
-                            );
-                          }).toList(),
+                          ],
                         ),
-                      ],
 
-                      // Metadata footer
-                      SizedBox(height: DuruSpacing.md),
-                      Row(
-                        children: [
-                          // Due date
-                          if (dueDate != null) ...[
-                            Icon(
-                              CupertinoIcons.calendar,
-                              size: 16,
-                              color: _isDueSoon(dueDate)
-                                  ? Colors.orange
-                                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                            ),
-                            SizedBox(width: DuruSpacing.xs),
-                            Text(
-                              _formatDueDate(dueDate),
-                              style: theme.textTheme.bodySmall?.copyWith(
+                        // Tags
+                        if (tags.isNotEmpty) ...[
+                          SizedBox(height: DuruSpacing.md),
+                          Wrap(
+                            spacing: DuruSpacing.xs,
+                            runSpacing: DuruSpacing.xs,
+                            children: tags.map((tag) {
+                              return Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: DuruSpacing.sm,
+                                  vertical: DuruSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer
+                                      .withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '#$tag',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+
+                        // Metadata footer
+                        SizedBox(height: DuruSpacing.md),
+                        Row(
+                          children: [
+                            // Due date
+                            if (dueDate != null) ...[
+                              Icon(
+                                CupertinoIcons.calendar,
+                                size: 16,
                                 color: _isDueSoon(dueDate)
                                     ? Colors.orange
-                                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                    : theme.colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.6),
                               ),
-                            ),
-                            SizedBox(width: DuruSpacing.md),
-                          ],
+                              SizedBox(width: DuruSpacing.xs),
+                              Text(
+                                _formatDueDate(dueDate),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: _isDueSoon(dueDate)
+                                      ? Colors.orange
+                                      : theme.colorScheme.onSurfaceVariant
+                                            .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              SizedBox(width: DuruSpacing.md),
+                            ],
 
-                          // Priority badge
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: DuruSpacing.sm,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getPriorityColor(priority).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _getPriorityLabel(priority),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: _getPriorityColor(priority),
-                                fontWeight: FontWeight.w500,
+                            // Priority badge
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: DuruSpacing.sm,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getPriorityColor(
+                                  priority,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _getPriorityLabel(priority),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: _getPriorityColor(priority),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -598,9 +621,15 @@ class DuruTaskCard extends StatelessWidget {
               ),
             ),
             A11yHelper.menuItem(
-              label: _isTaskCompleted() ? 'Mark as incomplete' : 'Mark as complete',
-              hint: _isTaskCompleted() ? 'Reopen this task' : 'Complete this task',
-              icon: _isTaskCompleted() ? CupertinoIcons.circle : CupertinoIcons.checkmark_circle,
+              label: _isTaskCompleted()
+                  ? 'Mark as incomplete'
+                  : 'Mark as complete',
+              hint: _isTaskCompleted()
+                  ? 'Reopen this task'
+                  : 'Complete this task',
+              icon: _isTaskCompleted()
+                  ? CupertinoIcons.circle
+                  : CupertinoIcons.checkmark_circle,
               onTap: () {
                 Navigator.pop(context);
                 onStatusChanged?.call(!_isTaskCompleted());
@@ -611,7 +640,11 @@ class DuruTaskCard extends StatelessWidget {
                       ? CupertinoIcons.circle
                       : CupertinoIcons.checkmark_circle,
                 ),
-                title: Text(_isTaskCompleted() ? 'Mark as incomplete' : 'Mark as complete'),
+                title: Text(
+                  _isTaskCompleted()
+                      ? 'Mark as incomplete'
+                      : 'Mark as complete',
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   onStatusChanged?.call(!_isTaskCompleted());
@@ -649,10 +682,7 @@ class DuruTaskCard extends StatelessWidget {
                 onDelete?.call();
               },
               child: ListTile(
-                leading: const Icon(
-                  CupertinoIcons.delete,
-                  color: Colors.red,
-                ),
+                leading: const Icon(CupertinoIcons.delete, color: Colors.red),
                 title: const Text(
                   'Delete',
                   style: TextStyle(color: Colors.red),

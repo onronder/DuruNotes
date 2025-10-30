@@ -1,4 +1,3 @@
-
 import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -184,10 +183,7 @@ void main() {
 
       harness.service.recordBatchFolderChange(
         noteIds: const ['note-1', 'note-2'],
-        previousFolderIds: const {
-          'note-1': 'folder-a',
-          'note-2': 'folder-b',
-        },
+        previousFolderIds: const {'note-1': 'folder-a', 'note-2': 'folder-b'},
         newFolderId: 'folder-c',
         newFolderName: 'Folder C',
       );
@@ -201,30 +197,30 @@ void main() {
       expect(harness.service.canRedo, isTrue);
     });
 
-    test('redo batch folder change reapplies new folder to all notes', () async {
-      final harness = await _UndoRedoHarness.create();
-      addTearDown(harness.dispose);
+    test(
+      'redo batch folder change reapplies new folder to all notes',
+      () async {
+        final harness = await _UndoRedoHarness.create();
+        addTearDown(harness.dispose);
 
-      harness.service.recordBatchFolderChange(
-        noteIds: const ['note-1', 'note-2'],
-        previousFolderIds: const {
-          'note-1': 'folder-a',
-          'note-2': 'folder-b',
-        },
-        newFolderId: 'folder-c',
-        newFolderName: 'Folder C',
-      );
+        harness.service.recordBatchFolderChange(
+          noteIds: const ['note-1', 'note-2'],
+          previousFolderIds: const {'note-1': 'folder-a', 'note-2': 'folder-b'},
+          newFolderId: 'folder-c',
+          newFolderName: 'Folder C',
+        );
 
-      expect(await harness.service.undo(), isTrue);
-      harness.repository.moveNoteCalls.clear();
+        expect(await harness.service.undo(), isTrue);
+        harness.repository.moveNoteCalls.clear();
 
-      expect(await harness.service.redo(), isTrue);
-      expect(harness.repository.moveNoteCalls, hasLength(2));
-      expect(harness.repository.moveNoteCalls[0].folderId, 'folder-c');
-      expect(harness.repository.moveNoteCalls[1].folderId, 'folder-c');
-      expect(harness.service.canUndo, isTrue);
-      expect(harness.service.canRedo, isFalse);
-    });
+        expect(await harness.service.redo(), isTrue);
+        expect(harness.repository.moveNoteCalls, hasLength(2));
+        expect(harness.repository.moveNoteCalls[0].folderId, 'folder-c');
+        expect(harness.repository.moveNoteCalls[1].folderId, 'folder-c');
+        expect(harness.service.canUndo, isTrue);
+        expect(harness.service.canRedo, isFalse);
+      },
+    );
 
     test('new operation clears redo stack', () async {
       final harness = await _UndoRedoHarness.create();
@@ -360,7 +356,9 @@ void main() {
     });
 
     test('undo history persists and rehydrates from storage', () async {
-      final firstHarness = await _UndoRedoHarness.create(userId: 'persist-user');
+      final firstHarness = await _UndoRedoHarness.create(
+        userId: 'persist-user',
+      );
 
       firstHarness.service.recordNoteFolderChange(
         noteId: 'note-1',
@@ -388,7 +386,10 @@ void main() {
       await secondHarness.service.undo();
 
       expect(secondHarness.repository.moveNoteCalls, hasLength(1));
-      expect(secondHarness.repository.moveNoteCalls.single.folderId, 'folder-a');
+      expect(
+        secondHarness.repository.moveNoteCalls.single.folderId,
+        'folder-a',
+      );
     });
   });
 }

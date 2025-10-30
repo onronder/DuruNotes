@@ -33,10 +33,9 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getAllTasks() async => _tasks.values.toList();
 
   @override
-  Future<List<domain.Task>> getPendingTasks() async =>
-      _tasks.values
-          .where((task) => task.status == domain.TaskStatus.pending)
-          .toList();
+  Future<List<domain.Task>> getPendingTasks() async => _tasks.values
+      .where((task) => task.status == domain.TaskStatus.pending)
+      .toList();
 
   @override
   Future<domain.Task?> getTaskById(String id) async => _tasks[id];
@@ -65,23 +64,21 @@ class _FakeTaskRepository implements ITaskRepository {
   }
 
   @override
-  Stream<List<domain.Task>> watchTasks() => Stream.value(_tasks.values.toList());
+  Stream<List<domain.Task>> watchTasks() =>
+      Stream.value(_tasks.values.toList());
 
   @override
   Stream<List<domain.Task>> watchAllTasks() => watchTasks();
 
   @override
-  Stream<List<domain.Task>> watchTasksForNote(String noteId) =>
-      Stream.value(_tasks.values
-          .where((task) => task.noteId == noteId)
-          .toList());
+  Stream<List<domain.Task>> watchTasksForNote(String noteId) => Stream.value(
+    _tasks.values.where((task) => task.noteId == noteId).toList(),
+  );
 
   @override
-  Future<List<domain.Task>> searchTasks(String query) async =>
-      _tasks.values
-          .where((task) =>
-              task.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+  Future<List<domain.Task>> searchTasks(String query) async => _tasks.values
+      .where((task) => task.title.toLowerCase().contains(query.toLowerCase()))
+      .toList();
 
   @override
   Future<void> toggleTaskStatus(String id) async {
@@ -95,7 +92,10 @@ class _FakeTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<void> updateTaskPriority(String id, domain.TaskPriority priority) async {
+  Future<void> updateTaskPriority(
+    String id,
+    domain.TaskPriority priority,
+  ) async {
     final task = _tasks[id];
     if (task != null) {
       _tasks[id] = task.copyWith(priority: priority);
@@ -111,10 +111,12 @@ class _FakeTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<List<domain.Task>> getCompletedTasks({int? limit, DateTime? since}) async =>
-      _tasks.values
-          .where((task) => task.status == domain.TaskStatus.completed)
-          .toList();
+  Future<List<domain.Task>> getCompletedTasks({
+    int? limit,
+    DateTime? since,
+  }) async => _tasks.values
+      .where((task) => task.status == domain.TaskStatus.completed)
+      .toList();
 
   @override
   Future<List<domain.Task>> getOverdueTasks() async => const <domain.Task>[];
@@ -123,13 +125,14 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getTasksByDateRange({
     required DateTime start,
     required DateTime end,
-  }) async =>
-      _tasks.values
-          .where((task) =>
-              task.dueDate != null &&
-              task.dueDate!.isAfter(start) &&
-              task.dueDate!.isBefore(end))
-          .toList();
+  }) async => _tasks.values
+      .where(
+        (task) =>
+            task.dueDate != null &&
+            task.dueDate!.isAfter(start) &&
+            task.dueDate!.isBefore(end),
+      )
+      .toList();
 
   @override
   Future<void> deleteTasksForNote(String noteId) async {
@@ -140,8 +143,9 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<Map<String, int>> getTaskStatistics() async => const <String, int>{};
 
   @override
-  Future<List<domain.Task>> getTasksByPriority(domain.TaskPriority priority) async =>
-      _tasks.values.where((task) => task.priority == priority).toList();
+  Future<List<domain.Task>> getTasksByPriority(
+    domain.TaskPriority priority,
+  ) async => _tasks.values.where((task) => task.priority == priority).toList();
 
   @override
   Future<void> addTagToTask(String taskId, String tag) async {}
@@ -150,15 +154,17 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<void> removeTagFromTask(String taskId, String tag) async {}
 
   @override
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {}
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {}
 
   @override
   Future<domain.Task> createSubtask({
     required String parentTaskId,
     required String title,
     String? description,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async =>
@@ -171,10 +177,10 @@ class _RecordingEnhancedTaskService extends EnhancedTaskService {
     ITaskRepository taskRepository,
     TaskReminderBridge reminderBridge,
   ) : super(
-          database: database,
-          taskRepository: taskRepository,
-          reminderBridge: reminderBridge,
-        );
+        database: database,
+        taskRepository: taskRepository,
+        reminderBridge: reminderBridge,
+      );
 
   String nextCreateTaskId = 'task-id';
   Map<String, dynamic>? lastCreateArgs;
@@ -321,48 +327,51 @@ void main() {
       );
     });
 
-    test('createTask schedules custom reminder when reminderTime supplied', () async {
-      final dueDate = now.add(const Duration(days: 1));
-      final reminderTime = dueDate.subtract(const Duration(hours: 2));
-      const taskId = 'task-123';
-      enhancedService.nextCreateTaskId = taskId;
+    test(
+      'createTask schedules custom reminder when reminderTime supplied',
+      () async {
+        final dueDate = now.add(const Duration(days: 1));
+        final reminderTime = dueDate.subtract(const Duration(hours: 2));
+        const taskId = 'task-123';
+        enhancedService.nextCreateTaskId = taskId;
 
-      final createdTask = _task(
-        id: taskId,
-        createdAt: now,
-        updatedAt: now,
-        dueDate: dueDate,
-      );
-      taskRepository.seedTask(createdTask);
+        final createdTask = _task(
+          id: taskId,
+          createdAt: now,
+          updatedAt: now,
+          dueDate: dueDate,
+        );
+        taskRepository.seedTask(createdTask);
 
-      final task = await controller.createTask(
-        noteId: 'note-1',
-        title: 'Plan sprint',
-        dueDate: dueDate,
-        reminderTime: reminderTime,
-        createReminder: true,
-        tags: const ['focus'],
-      );
+        final task = await controller.createTask(
+          noteId: 'note-1',
+          title: 'Plan sprint',
+          dueDate: dueDate,
+          reminderTime: reminderTime,
+          createReminder: true,
+          tags: const ['focus'],
+        );
 
-      expect(task.id, taskId);
+        expect(task.id, taskId);
 
-      final createArgs = enhancedService.lastCreateArgs;
-      expect(createArgs, isNotNull);
-      expect(createArgs!['noteId'], 'note-1');
-      expect(createArgs['content'], 'Plan sprint');
-      expect(createArgs['status'], TaskStatus.open);
-      expect(createArgs['createReminder'], isFalse);
-      final labels = createArgs['labels'] as Map<String, dynamic>?;
-      expect(labels, isNotNull);
-      expect(labels!['labels'], equals(['focus']));
+        final createArgs = enhancedService.lastCreateArgs;
+        expect(createArgs, isNotNull);
+        expect(createArgs!['noteId'], 'note-1');
+        expect(createArgs['content'], 'Plan sprint');
+        expect(createArgs['status'], TaskStatus.open);
+        expect(createArgs['createReminder'], isFalse);
+        final labels = createArgs['labels'] as Map<String, dynamic>?;
+        expect(labels, isNotNull);
+        expect(labels!['labels'], equals(['focus']));
 
-      final reminderArgs = enhancedService.lastCustomReminderArgs;
-      expect(reminderArgs, isNotNull);
-      expect(reminderArgs!['taskId'], taskId);
-      expect(reminderArgs['dueDate'], dueDate);
-      expect(reminderArgs['reminderTime'], reminderTime);
-      expect(enhancedService.lastClearedTaskId, isNull);
-    });
+        final reminderArgs = enhancedService.lastCustomReminderArgs;
+        expect(reminderArgs, isNotNull);
+        expect(reminderArgs!['taskId'], taskId);
+        expect(reminderArgs['dueDate'], dueDate);
+        expect(reminderArgs['reminderTime'], reminderTime);
+        expect(enhancedService.lastClearedTaskId, isNull);
+      },
+    );
 
     test('updateTask clears reminder when hasReminder is false', () async {
       const taskId = 'task-456';
@@ -380,10 +389,7 @@ void main() {
       );
       taskRepository.seedTask(existingTask);
 
-      await controller.updateTask(
-        existingTask,
-        hasReminder: false,
-      );
+      await controller.updateTask(existingTask, hasReminder: false);
 
       final updateArgs = enhancedService.lastUpdateArgs;
       expect(updateArgs, isNotNull);
@@ -395,41 +401,41 @@ void main() {
       expect(enhancedService.refreshReminderCalls, isEmpty);
     });
 
-    test('updateTask sets custom reminder when reminderTime provided', () async {
-      const taskId = 'task-789';
-      final dueDate = now.add(const Duration(days: 4));
-      final reminderTime = dueDate.subtract(const Duration(hours: 3));
-      final existingTask = _task(
-        id: taskId,
-        createdAt: now,
-        updatedAt: now,
-        dueDate: dueDate,
-        metadata: const {
-          'estimatedMinutes': 10,
-          'actualMinutes': 2,
-        },
-      );
-      taskRepository.seedTask(existingTask);
+    test(
+      'updateTask sets custom reminder when reminderTime provided',
+      () async {
+        const taskId = 'task-789';
+        final dueDate = now.add(const Duration(days: 4));
+        final reminderTime = dueDate.subtract(const Duration(hours: 3));
+        final existingTask = _task(
+          id: taskId,
+          createdAt: now,
+          updatedAt: now,
+          dueDate: dueDate,
+          metadata: const {'estimatedMinutes': 10, 'actualMinutes': 2},
+        );
+        taskRepository.seedTask(existingTask);
 
-      await controller.updateTask(
-        existingTask,
-        hasReminder: true,
-        reminderTime: reminderTime,
-      );
+        await controller.updateTask(
+          existingTask,
+          hasReminder: true,
+          reminderTime: reminderTime,
+        );
 
-      final updateArgs = enhancedService.lastUpdateArgs;
-      expect(updateArgs, isNotNull);
-      expect(updateArgs!['taskId'], taskId);
-      expect(updateArgs['clearReminderId'], isFalse);
-      expect(updateArgs['updateReminder'], isFalse);
+        final updateArgs = enhancedService.lastUpdateArgs;
+        expect(updateArgs, isNotNull);
+        expect(updateArgs!['taskId'], taskId);
+        expect(updateArgs['clearReminderId'], isFalse);
+        expect(updateArgs['updateReminder'], isFalse);
 
-      final customReminderArgs = enhancedService.lastCustomReminderArgs;
-      expect(customReminderArgs, isNotNull);
-      expect(customReminderArgs!['taskId'], taskId);
-      expect(customReminderArgs['dueDate'], dueDate);
-      expect(customReminderArgs['reminderTime'], reminderTime);
-      expect(enhancedService.lastClearedTaskId, isNull);
-      expect(enhancedService.refreshReminderCalls, isEmpty);
-    });
+        final customReminderArgs = enhancedService.lastCustomReminderArgs;
+        expect(customReminderArgs, isNotNull);
+        expect(customReminderArgs!['taskId'], taskId);
+        expect(customReminderArgs['dueDate'], dueDate);
+        expect(customReminderArgs['reminderTime'], reminderTime);
+        expect(enhancedService.lastClearedTaskId, isNull);
+        expect(enhancedService.refreshReminderCalls, isEmpty);
+      },
+    );
   });
 }

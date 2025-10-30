@@ -36,9 +36,10 @@ class PerformanceDashboard {
       _checkPerformanceMetrics();
     });
 
-    _logger.info('Performance monitoring started', data: {
-      'interval_minutes': interval.inMinutes,
-    });
+    _logger.info(
+      'Performance monitoring started',
+      data: {'interval_minutes': interval.inMinutes},
+    );
   }
 
   /// Stop performance monitoring
@@ -57,7 +58,10 @@ class PerformanceDashboard {
       'query_performance': queryStats,
       'cache_performance': cacheStats,
       'health_status': _getHealthStatus(queryStats, cacheStats),
-      'recommendations': _getOptimizationRecommendations(queryStats, cacheStats),
+      'recommendations': _getOptimizationRecommendations(
+        queryStats,
+        cacheStats,
+      ),
     };
   }
 
@@ -83,19 +87,22 @@ class PerformanceDashboard {
       }
 
       if (issues.isNotEmpty) {
-        _logger.warning('Performance issues detected', data: {
-          'issues': issues,
-          'report': report,
-        });
+        _logger.warning(
+          'Performance issues detected',
+          data: {'issues': issues, 'report': report},
+        );
 
         // Trigger optimization if needed
         _triggerAutoOptimization(report);
       } else {
         _logger.debug('Performance monitoring: All metrics within thresholds');
       }
-
     } catch (e, stackTrace) {
-      _logger.error('Performance monitoring failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Performance monitoring failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -110,27 +117,37 @@ class PerformanceDashboard {
     final cacheHitRatio = cacheStats['hit_ratio'] as num? ?? 0;
 
     return {
-      'overall_status': _getOverallStatus(avgQueryTime, slowQueryRate, cacheHitRatio),
-      'slow_queries': avgQueryTime > complexQueryThresholdMs || slowQueryRate > 0.1,
+      'overall_status': _getOverallStatus(
+        avgQueryTime,
+        slowQueryRate,
+        cacheHitRatio,
+      ),
+      'slow_queries':
+          avgQueryTime > complexQueryThresholdMs || slowQueryRate > 0.1,
       'low_cache_hit_ratio': cacheHitRatio < minimumCacheHitRatio,
       'memory_pressure': _checkMemoryPressure(cacheStats),
-      'database_healthy': avgQueryTime < complexQueryThresholdMs && slowQueryRate < 0.05,
+      'database_healthy':
+          avgQueryTime < complexQueryThresholdMs && slowQueryRate < 0.05,
     };
   }
 
   /// Get overall system status
-  String _getOverallStatus(num avgQueryTime, num slowQueryRate, num cacheHitRatio) {
+  String _getOverallStatus(
+    num avgQueryTime,
+    num slowQueryRate,
+    num cacheHitRatio,
+  ) {
     if (avgQueryTime < criticalQueryThresholdMs &&
         slowQueryRate < 0.02 &&
         cacheHitRatio > 0.9) {
       return 'excellent';
     } else if (avgQueryTime < complexQueryThresholdMs &&
-               slowQueryRate < 0.05 &&
-               cacheHitRatio > minimumCacheHitRatio) {
+        slowQueryRate < 0.05 &&
+        cacheHitRatio > minimumCacheHitRatio) {
       return 'good';
     } else if (avgQueryTime < complexQueryThresholdMs * 1.5 &&
-               slowQueryRate < 0.1 &&
-               cacheHitRatio > 0.6) {
+        slowQueryRate < 0.1 &&
+        cacheHitRatio > 0.6) {
       return 'fair';
     } else {
       return 'poor';
@@ -167,31 +184,43 @@ class PerformanceDashboard {
     final slowQueryRate = summary['slow_query_rate'] as num? ?? 0;
 
     if (avgQueryTime > complexQueryThresholdMs) {
-      recommendations.add('Consider adding indexes for frequently executed queries');
+      recommendations.add(
+        'Consider adding indexes for frequently executed queries',
+      );
     }
 
     if (slowQueryRate > 0.1) {
-      recommendations.add('Review and optimize slow queries identified in monitoring');
+      recommendations.add(
+        'Review and optimize slow queries identified in monitoring',
+      );
     }
 
     // Cache performance recommendations
     final cacheHitRatio = cacheStats['hit_ratio'] as num? ?? 0;
 
     if (cacheHitRatio < 0.7) {
-      recommendations.add('Increase cache sizes or implement cache warming strategy');
+      recommendations.add(
+        'Increase cache sizes or implement cache warming strategy',
+      );
     }
 
     if (cacheHitRatio < 0.5) {
-      recommendations.add('Review cache invalidation patterns and TTL settings');
+      recommendations.add(
+        'Review cache invalidation patterns and TTL settings',
+      );
     }
 
     // Memory recommendations
     if (_checkMemoryPressure(cacheStats)) {
-      recommendations.add('Consider implementing cache eviction or increasing memory limits');
+      recommendations.add(
+        'Consider implementing cache eviction or increasing memory limits',
+      );
     }
 
     if (recommendations.isEmpty) {
-      recommendations.add('Performance is optimal - no immediate action required');
+      recommendations.add(
+        'Performance is optimal - no immediate action required',
+      );
     }
 
     return recommendations;
@@ -210,16 +239,13 @@ class PerformanceDashboard {
       }
 
       // Additional auto-optimizations can be added here
-
     } catch (e) {
       _logger.warning('Auto-optimization failed: $e');
     }
   }
 
   /// Export performance data for analysis
-  Future<String> exportPerformanceData({
-    Duration? period,
-  }) async {
+  Future<String> exportPerformanceData({Duration? period}) async {
     try {
       final report = getPerformanceReport();
 
@@ -233,7 +259,11 @@ class PerformanceDashboard {
 
       return exportData.toString();
     } catch (e, stackTrace) {
-      _logger.error('Performance data export failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Performance data export failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }

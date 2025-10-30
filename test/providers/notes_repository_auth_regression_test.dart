@@ -45,8 +45,7 @@ class _FakeFolderRepository implements IFolderRepository {
     String? icon,
     String? description,
     int? sortOrder,
-  }) async =>
-      id ?? 'folder-id';
+  }) async => id ?? 'folder-id';
 
   @override
   Future<domain_folder.Folder> createFolder({
@@ -55,8 +54,7 @@ class _FakeFolderRepository implements IFolderRepository {
     String? color,
     String? icon,
     String? description,
-  }) async =>
-      _folder(name: name, id: 'folder-created');
+  }) async => _folder(name: name, id: 'folder-created');
 
   @override
   Future<void> deleteFolder(String folderId) async {}
@@ -74,8 +72,7 @@ class _FakeFolderRepository implements IFolderRepository {
   @override
   Future<List<domain_folder.Folder>> getChildFoldersRecursive(
     String parentId,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<int> getFolderDepth(String folderId) async => 0;
@@ -236,7 +233,9 @@ void main() {
             (ref) => NotesPaginationNotifier.empty(ref),
           ),
           folderProvider.overrideWith((ref) => FolderNotifier.empty()),
-          folderHierarchyProvider.overrideWith((ref) => FolderHierarchyNotifier.empty()),
+          folderHierarchyProvider.overrideWith(
+            (ref) => FolderHierarchyNotifier.empty(),
+          ),
           noteFolderProvider.overrideWith((ref) => NoteFolderNotifier.empty()),
           syncModeProvider.overrideWith((ref) {
             final repo = ref.watch(notesCoreRepositoryProvider);
@@ -262,14 +261,11 @@ void main() {
       });
 
       test('notesCoreRepositoryProvider survives auth state invalidation', () {
-        expect(
-          () {
-            container.invalidate(authStateChangesProvider);
-            container.invalidate(notesCoreRepositoryProvider);
-            container.read(notesCoreRepositoryProvider);
-          },
-          returnsNormally,
-        );
+        expect(() {
+          container.invalidate(authStateChangesProvider);
+          container.invalidate(notesCoreRepositoryProvider);
+          container.read(notesCoreRepositoryProvider);
+        }, returnsNormally);
       });
     });
 
@@ -306,7 +302,9 @@ void main() {
       });
 
       test('currentNotesProvider returns empty list with no data', () {
-        final notes = container.read(notes_state_providers.currentNotesProvider);
+        final notes = container.read(
+          notes_state_providers.currentNotesProvider,
+        );
         expect(notes, isEmpty);
       });
     });
@@ -344,26 +342,20 @@ void main() {
     group('Auth State Transitions', () {
       test('providers handle repeated invalidation gracefully', () {
         for (var i = 0; i < 5; i++) {
-          expect(
-            () {
-              container.invalidate(authStateChangesProvider);
-              container.invalidate(notesCoreRepositoryProvider);
-              container.read(notesCoreRepositoryProvider);
-            },
-            returnsNormally,
-          );
+          expect(() {
+            container.invalidate(authStateChangesProvider);
+            container.invalidate(notesCoreRepositoryProvider);
+            container.read(notesCoreRepositoryProvider);
+          }, returnsNormally);
         }
       });
 
       test('dependent providers rebuild without throwing', () {
-        expect(
-          () {
-            container.invalidate(authStateChangesProvider);
-            container.read(notesCoreRepositoryProvider);
-            container.read(searchServiceProvider);
-          },
-          returnsNormally,
-        );
+        expect(() {
+          container.invalidate(authStateChangesProvider);
+          container.read(notesCoreRepositoryProvider);
+          container.read(searchServiceProvider);
+        }, returnsNormally);
       });
     });
 
@@ -377,14 +369,11 @@ void main() {
     group('Performance & Memory', () {
       test('providers tolerate repeated invalidation cycles', () {
         for (var i = 0; i < 10; i++) {
-          expect(
-            () {
-              container.invalidate(authStateChangesProvider);
-              container.read(searchServiceProvider);
-              container.read(syncModeProvider);
-            },
-            returnsNormally,
-          );
+          expect(() {
+            container.invalidate(authStateChangesProvider);
+            container.read(searchServiceProvider);
+            container.read(syncModeProvider);
+          }, returnsNormally);
         }
       });
     });
@@ -442,7 +431,9 @@ void main() {
             (ref) => NotesPaginationNotifier.empty(ref),
           ),
           folderProvider.overrideWith((ref) => FolderNotifier.empty()),
-          folderHierarchyProvider.overrideWith((ref) => FolderHierarchyNotifier.empty()),
+          folderHierarchyProvider.overrideWith(
+            (ref) => FolderHierarchyNotifier.empty(),
+          ),
           noteFolderProvider.overrideWith((ref) => NoteFolderNotifier.empty()),
           syncModeProvider.overrideWith((ref) {
             final repo = ref.watch(notesCoreRepositoryProvider);
@@ -451,21 +442,23 @@ void main() {
         ],
       );
 
-      await authedDb.into(authedDb.localNotes).insert(
-        LocalNotesCompanion.insert(
-          id: 'signed-note',
-          userId: const Value('user-auth'),
-          titleEncrypted: const Value('enc::Auth Note'),
-          bodyEncrypted: const Value('enc::Body'),
-          createdAt: DateTime.utc(2025, 1, 1),
-          updatedAt: DateTime.utc(2025, 1, 1),
-          deleted: const Value(false),
-          noteType: Value(NoteKind.note),
-          isPinned: const Value(false),
-          version: const Value(1),
-          encryptionVersion: const Value(1),
-        ),
-      );
+      await authedDb
+          .into(authedDb.localNotes)
+          .insert(
+            LocalNotesCompanion.insert(
+              id: 'signed-note',
+              userId: const Value('user-auth'),
+              titleEncrypted: const Value('enc::Auth Note'),
+              bodyEncrypted: const Value('enc::Body'),
+              createdAt: DateTime.utc(2025, 1, 1),
+              updatedAt: DateTime.utc(2025, 1, 1),
+              deleted: const Value(false),
+              noteType: Value(NoteKind.note),
+              isPinned: const Value(false),
+              version: const Value(1),
+              encryptionVersion: const Value(1),
+            ),
+          );
     });
 
     tearDown(() async {
@@ -481,11 +474,15 @@ void main() {
       expect(notes.first.id, equals('signed-note'));
     });
 
-    test('unfiledNotesCountProvider reports count for authenticated user', () async {
-      final count =
-          await authedContainer.read(unfiledNotesCountProvider.future);
-      expect(count, equals(1));
-    });
+    test(
+      'unfiledNotesCountProvider reports count for authenticated user',
+      () async {
+        final count = await authedContainer.read(
+          unfiledNotesCountProvider.future,
+        );
+        expect(count, equals(1));
+      },
+    );
   });
 
   group('Migration Verification', () {

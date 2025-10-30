@@ -1,7 +1,8 @@
 import 'package:duru_notes/features/folders/batch_operations/batch_selection_provider.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/notes/providers/notes_state_providers.dart' show currentNotesProvider;
+import 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
+    show currentNotesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -163,8 +164,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.folder_outlined,
                           tooltip: 'Move to folder',
-                          onPressed:
-                              capabilities.canMove ? _showFolderPicker : null,
+                          onPressed: capabilities.canMove
+                              ? _showFolderPicker
+                              : null,
                           isLoading: operationsState.isLoading,
                         ),
 
@@ -174,8 +176,9 @@ class _BatchOperationsBarState extends ConsumerState<BatchOperationsBar>
                         _BatchActionButton(
                           icon: Icons.delete_outline,
                           tooltip: 'Delete notes',
-                          onPressed:
-                              capabilities.canDelete ? _confirmDelete : null,
+                          onPressed: capabilities.canDelete
+                              ? _confirmDelete
+                              : null,
                           isLoading: operationsState.isLoading,
                           isDestructive: true,
                         ),

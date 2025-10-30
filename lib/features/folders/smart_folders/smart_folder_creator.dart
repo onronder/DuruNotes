@@ -85,8 +85,9 @@ class _SmartFolderCreatorState extends ConsumerState<SmartFolderCreator> {
     setState(() {
       _nameController.text = template.name;
       _selectedType = template.type;
-      _rules =
-          template.rules.map((r) => r.copyWith(id: const Uuid().v4())).toList();
+      _rules = template.rules
+          .map((r) => r.copyWith(id: const Uuid().v4()))
+          .toList();
       _combineWithAnd = template.combineWithAnd;
     });
   }

@@ -22,7 +22,8 @@ class ConnectionManager {
   // Active connection tracking
   int _activeRealtimeChannels = 0;
   int _activeQueries = 0;
-  final Queue<_QueuedRequest<dynamic>> _queryQueue = Queue<_QueuedRequest<dynamic>>();
+  final Queue<_QueuedRequest<dynamic>> _queryQueue =
+      Queue<_QueuedRequest<dynamic>>();
 
   // Rate limiting
   final List<DateTime> _queryTimestamps = [];
@@ -181,9 +182,9 @@ class ConnectionManager {
           .then(request.completer.complete)
           .catchError(request.completer.completeError)
           .whenComplete(() {
-        _activeQueries--;
-        _processQueue(); // Process next in queue
-      });
+            _activeQueries--;
+            _processQueue(); // Process next in queue
+          });
     }
   }
 

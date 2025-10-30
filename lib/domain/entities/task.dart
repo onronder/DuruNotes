@@ -84,4 +84,5 @@ class Task {
 }
 
 enum TaskStatus { pending, inProgress, completed, cancelled }
+
 enum TaskPriority { low, medium, high, urgent }

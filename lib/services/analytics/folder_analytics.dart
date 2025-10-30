@@ -47,8 +47,10 @@ class FolderAnalyticsEvents {
   // Organization features
   static const String notesMovedToFolder = 'notes_moved_to_folder';
   static const String notesRemovedFromFolder = 'notes_removed_from_folder';
-  static const String folderReorganizationStarted = 'folder_reorganization_started';
-  static const String folderReorganizationCompleted = 'folder_reorganization_completed';
+  static const String folderReorganizationStarted =
+      'folder_reorganization_started';
+  static const String folderReorganizationCompleted =
+      'folder_reorganization_completed';
   static const String folderMerged = 'folder_merged';
   static const String folderSplit = 'folder_split';
 
@@ -183,8 +185,10 @@ class FolderKPIs {
 
   static const FolderKPI advancedFeatureAdoption = FolderKPI(
     name: 'Advanced Feature Adoption',
-    description: 'Users using advanced folder features (bulk ops, templates, etc)',
-    calculation: 'COUNT(DISTINCT user_id WITH advanced_feature) / COUNT(DISTINCT user_id)',
+    description:
+        'Users using advanced folder features (bulk ops, templates, etc)',
+    calculation:
+        'COUNT(DISTINCT user_id WITH advanced_feature) / COUNT(DISTINCT user_id)',
     targetValue: 0.35,
     alertThreshold: 0.15,
   );
@@ -227,8 +231,10 @@ class FolderKPIs {
 
   static const FolderKPI folderUserRetention = FolderKPI(
     name: 'Folder User Retention',
-    description: '30-day retention for users who create folders vs those who don\'t',
-    calculation: 'RETENTION(folder_creators, 30) / RETENTION(non_folder_creators, 30)',
+    description:
+        '30-day retention for users who create folders vs those who don\'t',
+    calculation:
+        'RETENTION(folder_creators, 30) / RETENTION(non_folder_creators, 30)',
     targetValue: 1.5, // 50% better retention
     alertThreshold: 1.2,
   );
@@ -236,7 +242,8 @@ class FolderKPIs {
   static const FolderKPI folderDrivenProductivity = FolderKPI(
     name: 'Folder-Driven Productivity',
     description: 'Average notes created per user with folders vs without',
-    calculation: 'AVG(notes_created | has_folders) / AVG(notes_created | no_folders)',
+    calculation:
+        'AVG(notes_created | has_folders) / AVG(notes_created | no_folders)',
     targetValue: 2.0,
     alertThreshold: 1.3,
   );
@@ -287,7 +294,8 @@ class FolderAnalyticsService {
       FolderAnalyticsEvents.folderCreated,
       properties: {
         FolderAnalyticsProperties.folderId: folderId,
-        if (parentFolderId != null) FolderAnalyticsProperties.parentFolderId: parentFolderId,
+        if (parentFolderId != null)
+          FolderAnalyticsProperties.parentFolderId: parentFolderId,
         FolderAnalyticsProperties.folderDepth: depth,
         FolderAnalyticsProperties.isFirstTime: isFirstFolder,
         ...?additionalProperties,
@@ -343,9 +351,7 @@ class FolderAnalyticsService {
 
     _analyticsService.event(
       FolderAnalyticsEvents.folderLoadStarted,
-      properties: {
-        FolderAnalyticsProperties.folderId: folderId,
-      },
+      properties: {FolderAnalyticsProperties.folderId: folderId},
     );
   }
 
@@ -363,12 +369,15 @@ class FolderAnalyticsService {
       _timingEvents.remove(key);
 
       _analyticsService.event(
-        success ? FolderAnalyticsEvents.folderLoadCompleted : FolderAnalyticsEvents.folderLoadFailed,
+        success
+            ? FolderAnalyticsEvents.folderLoadCompleted
+            : FolderAnalyticsEvents.folderLoadFailed,
         properties: {
           FolderAnalyticsProperties.folderId: folderId,
           FolderAnalyticsProperties.loadTimeMs: duration,
           if (errorCode != null) FolderAnalyticsProperties.errorCode: errorCode,
-          if (itemCount != null) FolderAnalyticsProperties.folderTotalItemCount: itemCount,
+          if (itemCount != null)
+            FolderAnalyticsProperties.folderTotalItemCount: itemCount,
         },
       );
     }

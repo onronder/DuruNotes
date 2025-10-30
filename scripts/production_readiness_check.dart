@@ -52,7 +52,10 @@ class ProductionSecurityChecklist {
     print('\n📋 Checking for exposed secrets...');
 
     final patterns = [
-      RegExp('api[_-]?key\\s*[:=]\\s*["\'][\\w\\-]+["\']', caseSensitive: false),
+      RegExp(
+        'api[_-]?key\\s*[:=]\\s*["\'][\\w\\-]+["\']',
+        caseSensitive: false,
+      ),
       RegExp('secret\\s*[:=]\\s*["\'][\\w\\-]+["\']', caseSensitive: false),
       RegExp('password\\s*[:=]\\s*["\'][\\w\\-]+["\']', caseSensitive: false),
       RegExp('token\\s*[:=]\\s*["\'][\\w\\-]+["\']', caseSensitive: false),
@@ -95,7 +98,9 @@ class ProductionSecurityChecklist {
   Future<void> checkEncryptionImplementation() async {
     print('\n📋 Checking encryption implementation...');
 
-    final encryptionFile = File('lib/services/security/proper_encryption_service.dart');
+    final encryptionFile = File(
+      'lib/services/security/proper_encryption_service.dart',
+    );
     final exists = await encryptionFile.exists();
 
     if (exists) {
@@ -110,7 +115,9 @@ class ProductionSecurityChecklist {
         name: 'Encryption Implementation',
         passed: allGood,
         severity: Severity.critical,
-        message: allGood ? 'Proper encryption in place' : 'Encryption issues found',
+        message: allGood
+            ? 'Proper encryption in place'
+            : 'Encryption issues found',
       );
 
       if (allGood) {
@@ -132,14 +139,17 @@ class ProductionSecurityChecklist {
     final searchFile = File('lib/services/unified_search_service.dart');
     if (await searchFile.exists()) {
       final content = await searchFile.readAsString();
-      final hasStub = content.contains('// TODO: Implement search') ||
-                      content.contains('final notes = <domain.Note>[];');
+      final hasStub =
+          content.contains('// TODO: Implement search') ||
+          content.contains('final notes = <domain.Note>[];');
 
       results['search'] = CheckResult(
         name: 'Search Implementation',
         passed: !hasStub,
         severity: Severity.critical,
-        message: hasStub ? 'Search using stub implementation' : 'Search properly implemented',
+        message: hasStub
+            ? 'Search using stub implementation'
+            : 'Search properly implemented',
       );
 
       if (!hasStub) {
@@ -172,7 +182,9 @@ class ProductionSecurityChecklist {
         name: 'Authentication Security',
         passed: allPassed,
         severity: Severity.critical,
-        message: allPassed ? 'Authentication secure' : 'Authentication vulnerabilities',
+        message: allPassed
+            ? 'Authentication secure'
+            : 'Authentication vulnerabilities',
       );
 
       for (final entry in checks.entries) {
@@ -190,18 +202,23 @@ class ProductionSecurityChecklist {
   Future<void> checkFirebaseConfiguration() async {
     print('\n📋 Checking Firebase configuration...');
 
-    final firebaseFile = File('lib/core/config/firebase_environment_bridge.dart');
+    final firebaseFile = File(
+      'lib/core/config/firebase_environment_bridge.dart',
+    );
     if (await firebaseFile.exists()) {
       final content = await firebaseFile.readAsString();
 
-      final hasHardcodedValues = content.contains('259019439896') ||
-                                 content.contains('durunotes.firebasestorage');
+      final hasHardcodedValues =
+          content.contains('259019439896') ||
+          content.contains('durunotes.firebasestorage');
 
       results['firebase_config'] = CheckResult(
         name: 'Firebase Configuration',
         passed: !hasHardcodedValues,
         severity: Severity.high,
-        message: hasHardcodedValues ? 'Hardcoded values found' : 'Environment-based config',
+        message: hasHardcodedValues
+            ? 'Hardcoded values found'
+            : 'Environment-based config',
       );
 
       if (!hasHardcodedValues) {
@@ -217,10 +234,9 @@ class ProductionSecurityChecklist {
   Future<void> checkRepositoryPermissions() async {
     print('\n📋 Checking repository permissions...');
 
-    final repoFiles = await Directory('lib/infrastructure/repositories')
-        .list()
-        .where((entity) => entity.path.endsWith('.dart'))
-        .toList();
+    final repoFiles = await Directory(
+      'lib/infrastructure/repositories',
+    ).list().where((entity) => entity.path.endsWith('.dart')).toList();
 
     var hasPermissionChecks = false;
     for (final file in repoFiles) {
@@ -238,7 +254,9 @@ class ProductionSecurityChecklist {
       name: 'Repository Permissions',
       passed: hasPermissionChecks,
       severity: Severity.high,
-      message: hasPermissionChecks ? 'Permission checks found' : 'Missing permission validation',
+      message: hasPermissionChecks
+          ? 'Permission checks found'
+          : 'Missing permission validation',
     );
 
     if (hasPermissionChecks) {
@@ -269,7 +287,9 @@ class ProductionSecurityChecklist {
       name: 'Rate Limiting',
       passed: rateLimiterExists && hasRateLimiting,
       severity: Severity.high,
-      message: hasRateLimiting ? 'Rate limiting active' : 'Rate limiting incomplete',
+      message: hasRateLimiting
+          ? 'Rate limiting active'
+          : 'Rate limiting incomplete',
     );
 
     if (rateLimiterExists && hasRateLimiting) {
@@ -284,7 +304,9 @@ class ProductionSecurityChecklist {
   Future<void> checkSQLInjectionProtection() async {
     print('\n📋 Checking SQL injection protection...');
 
-    final validationFile = File('lib/services/security/input_validation_service.dart');
+    final validationFile = File(
+      'lib/services/security/input_validation_service.dart',
+    );
     if (await validationFile.exists()) {
       final content = await validationFile.readAsString();
 
@@ -296,8 +318,8 @@ class ProductionSecurityChecklist {
         passed: hasSQLPatterns && hasValidation,
         severity: Severity.high,
         message: (hasSQLPatterns && hasValidation)
-          ? 'SQL injection protection active'
-          : 'SQL injection protection incomplete',
+            ? 'SQL injection protection active'
+            : 'SQL injection protection incomplete',
       );
 
       if (hasSQLPatterns && hasValidation) {
@@ -347,7 +369,9 @@ class ProductionSecurityChecklist {
         name: 'Security Headers',
         passed: hasCSP && hasHSTS,
         severity: Severity.medium,
-        message: (hasCSP && hasHSTS) ? 'Headers configured' : 'Headers incomplete',
+        message: (hasCSP && hasHSTS)
+            ? 'Headers configured'
+            : 'Headers incomplete',
       );
 
       if (hasCSP && hasHSTS) {
@@ -373,7 +397,9 @@ class ProductionSecurityChecklist {
       name: 'Error Handling',
       passed: exists,
       severity: Severity.medium,
-      message: exists ? 'Error logging configured' : 'Error handling incomplete',
+      message: exists
+          ? 'Error logging configured'
+          : 'Error handling incomplete',
     );
 
     if (exists) {
@@ -388,7 +414,9 @@ class ProductionSecurityChecklist {
   Future<void> checkDataValidation() async {
     print('\n📋 Checking data validation...');
 
-    final validationFile = File('lib/services/security/input_validation_service.dart');
+    final validationFile = File(
+      'lib/services/security/input_validation_service.dart',
+    );
     final exists = await validationFile.exists();
 
     if (exists) {
@@ -512,7 +540,9 @@ class ProductionSecurityChecklist {
         }
       });
     } else {
-      print('\n✅ PRODUCTION READY - All critical and high priority checks passed');
+      print(
+        '\n✅ PRODUCTION READY - All critical and high priority checks passed',
+      );
     }
 
     // Generate report file
@@ -525,15 +555,18 @@ class ProductionSecurityChecklist {
       'high_issues': high,
       'medium_issues': medium,
       'production_ready': critical == 0 && high == 0,
-      'details': results.map((key, value) => MapEntry(key, {
-        'passed': value.passed,
-        'severity': value.severity.toString(),
-        'message': value.message,
-      })),
+      'details': results.map(
+        (key, value) => MapEntry(key, {
+          'passed': value.passed,
+          'severity': value.severity.toString(),
+          'message': value.message,
+        }),
+      ),
     };
 
-    File('production_readiness_report.json')
-      .writeAsStringSync(jsonEncode(report));
+    File(
+      'production_readiness_report.json',
+    ).writeAsStringSync(jsonEncode(report));
 
     print('\n📄 Report saved to: production_readiness_report.json');
 

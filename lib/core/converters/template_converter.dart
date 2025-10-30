@@ -35,9 +35,7 @@ class TemplateConverter {
     // Serialize variables to JSON metadata
     String? metadata;
     if (template.variables.isNotEmpty) {
-      metadata = jsonEncode({
-        'variables': template.variables,
-      });
+      metadata = jsonEncode({'variables': template.variables});
     }
 
     return LocalTemplate(
@@ -57,12 +55,16 @@ class TemplateConverter {
   }
 
   /// Convert `List<LocalTemplate>` to `List<domain.Template>`
-  static List<domain.Template> fromLocalList(List<LocalTemplate> localTemplates) {
+  static List<domain.Template> fromLocalList(
+    List<LocalTemplate> localTemplates,
+  ) {
     return localTemplates.map((local) => fromLocal(local)).toList();
   }
 
   /// Convert `List<domain.Template>` to `List<LocalTemplate>`
-  static List<LocalTemplate> toLocalList(List<domain.Template> domainTemplates) {
+  static List<LocalTemplate> toLocalList(
+    List<domain.Template> domainTemplates,
+  ) {
     return domainTemplates.map((template) => toLocal(template)).toList();
   }
 

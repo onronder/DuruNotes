@@ -48,15 +48,15 @@ class FolderSyncEvent {
   final ConflictInfo? conflictInfo;
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'timestamp': timestamp.toIso8601String(),
-        'folderId': folderId,
-        'folderName': folderName,
-        'userId': userId,
-        'metadata': metadata,
-        'error': error?.toString(),
-        'conflictInfo': conflictInfo?.toJson(),
-      };
+    'type': type.name,
+    'timestamp': timestamp.toIso8601String(),
+    'folderId': folderId,
+    'folderName': folderName,
+    'userId': userId,
+    'metadata': metadata,
+    'error': error?.toString(),
+    'conflictInfo': conflictInfo?.toJson(),
+  };
 }
 
 /// Information about sync conflicts
@@ -74,21 +74,21 @@ class ConflictInfo {
   final LocalFolder? mergedVersion;
 
   Map<String, dynamic> toJson() => {
-        'localVersion': {
-          'id': localVersion.id,
-          'name': localVersion.name,
-          'updatedAt': localVersion.updatedAt.toIso8601String(),
-        },
-        'remoteVersion': remoteVersion,
-        'resolution': resolution.name,
-        'mergedVersion': mergedVersion != null
-            ? {
-                'id': mergedVersion!.id,
-                'name': mergedVersion!.name,
-                'updatedAt': mergedVersion!.updatedAt.toIso8601String(),
-              }
-            : null,
-      };
+    'localVersion': {
+      'id': localVersion.id,
+      'name': localVersion.name,
+      'updatedAt': localVersion.updatedAt.toIso8601String(),
+    },
+    'remoteVersion': remoteVersion,
+    'resolution': resolution.name,
+    'mergedVersion': mergedVersion != null
+        ? {
+            'id': mergedVersion!.id,
+            'name': mergedVersion!.name,
+            'updatedAt': mergedVersion!.updatedAt.toIso8601String(),
+          }
+        : null,
+  };
 }
 
 /// Conflict resolution strategies
@@ -268,8 +268,9 @@ class FolderSyncAudit {
     if (limit == null) {
       return List.from(_recentEvents);
     }
-    final startIndex =
-        _recentEvents.length > limit ? _recentEvents.length - limit : 0;
+    final startIndex = _recentEvents.length > limit
+        ? _recentEvents.length - limit
+        : 0;
     return _recentEvents.sublist(startIndex);
   }
 
@@ -435,7 +436,8 @@ class FolderSyncAudit {
   }
 
   double _calculateErrorRate() {
-    final totalOps = (_eventCounts[FolderSyncEventType.createCompleted] ?? 0) +
+    final totalOps =
+        (_eventCounts[FolderSyncEventType.createCompleted] ?? 0) +
         (_eventCounts[FolderSyncEventType.updateCompleted] ?? 0) +
         (_eventCounts[FolderSyncEventType.deleteCompleted] ?? 0) +
         (_eventCounts[FolderSyncEventType.createFailed] ?? 0) +
@@ -446,7 +448,8 @@ class FolderSyncAudit {
       return 0;
     }
 
-    final errors = (_eventCounts[FolderSyncEventType.createFailed] ?? 0) +
+    final errors =
+        (_eventCounts[FolderSyncEventType.createFailed] ?? 0) +
         (_eventCounts[FolderSyncEventType.updateFailed] ?? 0) +
         (_eventCounts[FolderSyncEventType.deleteFailed] ?? 0);
 
@@ -454,7 +457,8 @@ class FolderSyncAudit {
   }
 
   double _calculateConflictRate() {
-    final totalOps = (_eventCounts[FolderSyncEventType.updateCompleted] ?? 0) +
+    final totalOps =
+        (_eventCounts[FolderSyncEventType.updateCompleted] ?? 0) +
         (_eventCounts[FolderSyncEventType.updateFailed] ?? 0);
 
     if (totalOps == 0) {

@@ -14,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Automatic cache size management
 class EnhancedCacheStrategy {
   EnhancedCacheStrategy({AppLogger? logger})
-      : _logger = logger ?? LoggerFactory.instance {
+    : _logger = logger ?? LoggerFactory.instance {
     _initialize();
   }
 
@@ -40,7 +40,8 @@ class EnhancedCacheStrategy {
     // L1 Cache configuration - optimized for real-world usage
     _hotNotesCache = _cacheManager.registerCache<String, dynamic>(
       name: 'hot_notes',
-      maxSize: 500, // Increased from 200 - typical user has 100-300 active notes
+      maxSize:
+          500, // Increased from 200 - typical user has 100-300 active notes
       ttl: const Duration(minutes: 15), // Increased TTL for stability
     );
 
@@ -69,7 +70,9 @@ class EnhancedCacheStrategy {
   Future<void> _initializePersistentCache() async {
     try {
       _prefs = await SharedPreferences.getInstance();
-      _logger.info('Enhanced cache strategy initialized with L2 persistent cache');
+      _logger.info(
+        'Enhanced cache strategy initialized with L2 persistent cache',
+      );
     } catch (e) {
       _logger.warning('Failed to initialize persistent cache: $e');
     }
@@ -87,7 +90,10 @@ class EnhancedCacheStrategy {
 
       // Cache related data for warming
       if (noteData['tags'] != null) {
-        _tagsCache.set('note_tags:$noteId', List<String>.from(noteData['tags'] as List));
+        _tagsCache.set(
+          'note_tags:$noteId',
+          List<String>.from(noteData['tags'] as List),
+        );
       }
 
       // L2 Cache (persistent) for frequently accessed notes
@@ -139,7 +145,10 @@ class EnhancedCacheStrategy {
   void cacheNoteTags(String noteId, List<String> tags) {
     try {
       _tagsCache.set('note_tags:$noteId', tags);
-      _logger.debug('Note tags cached', data: {'noteId': noteId, 'tagCount': tags.length});
+      _logger.debug(
+        'Note tags cached',
+        data: {'noteId': noteId, 'tagCount': tags.length},
+      );
     } catch (e) {
       _logger.warning('Failed to cache note tags: $e');
     }
@@ -169,7 +178,10 @@ class EnhancedCacheStrategy {
   void cachePopularTags(String userId, List<String> tags) {
     try {
       _tagsCache.set('popular_tags:$userId', tags);
-      _logger.debug('Popular tags cached', data: {'userId': userId, 'tagCount': tags.length});
+      _logger.debug(
+        'Popular tags cached',
+        data: {'userId': userId, 'tagCount': tags.length},
+      );
     } catch (e) {
       _logger.warning('Failed to cache popular tags: $e');
     }
@@ -232,7 +244,11 @@ class EnhancedCacheStrategy {
   // ============================================================================
 
   /// Cache search results
-  void cacheSearchResults(String query, Map<String, dynamic> filters, List<dynamic> results) {
+  void cacheSearchResults(
+    String query,
+    Map<String, dynamic> filters,
+    List<dynamic> results,
+  ) {
     try {
       final cacheKey = _generateSearchCacheKey(query, filters);
       final cacheData = {
@@ -242,17 +258,20 @@ class EnhancedCacheStrategy {
       };
 
       _searchResultsCache.set(cacheKey, cacheData);
-      _logger.debug('Search results cached', data: {
-        'query': query,
-        'resultCount': results.length,
-      });
+      _logger.debug(
+        'Search results cached',
+        data: {'query': query, 'resultCount': results.length},
+      );
     } catch (e) {
       _logger.warning('Failed to cache search results: $e');
     }
   }
 
   /// Get cached search results
-  List<dynamic>? getCachedSearchResults(String query, Map<String, dynamic> filters) {
+  List<dynamic>? getCachedSearchResults(
+    String query,
+    Map<String, dynamic> filters,
+  ) {
     _totalRequests++;
 
     try {
@@ -396,17 +415,18 @@ class EnhancedCacheStrategy {
     try {
       final hitRatio = getCacheHitRatio();
 
-      if (hitRatio < 0.7) { // Below 70% hit ratio
+      if (hitRatio < 0.7) {
+        // Below 70% hit ratio
         // Increase cache sizes for better performance
-        _logger.info('Optimizing cache sizes for better hit ratio', data: {
-          'current_hit_ratio': hitRatio,
-        });
+        _logger.info(
+          'Optimizing cache sizes for better hit ratio',
+          data: {'current_hit_ratio': hitRatio},
+        );
       }
 
       // Log cache statistics
       final stats = getCacheStatistics();
       _logger.info('Cache performance metrics', data: stats);
-
     } catch (e) {
       _logger.warning('Cache optimization failed: $e');
     }
@@ -418,9 +438,8 @@ class EnhancedCacheStrategy {
 
   /// Generate cache key for search results
   String _generateSearchCacheKey(String query, Map<String, dynamic> filters) {
-    final filtersString = filters.entries
-        .map((e) => '${e.key}:${e.value}')
-        .toList()..sort();
+    final filtersString =
+        filters.entries.map((e) => '${e.key}:${e.value}').toList()..sort();
 
     return 'search:${query.hashCode}:${filtersString.join(',')}';
   }

@@ -10,8 +10,6 @@
 /// by checking note ownership.
 library;
 
-
-
 void main() {
   /* COMMENTED OUT - 9 errors - uses old APIs
    * Needs rewrite to use new architecture.

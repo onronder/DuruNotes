@@ -16,12 +16,15 @@ class TestInitialization {
   static bool _supabaseInitialized = false;
   static bool _securityInitialized = false;
 
-  static const MethodChannel _sharedPreferencesChannel =
-      MethodChannel('plugins.flutter.io/shared_preferences');
-  static const MethodChannel _packageInfoChannel =
-      MethodChannel('dev.fluttercommunity.plus/package_info');
-  static const MethodChannel _secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  static const MethodChannel _sharedPreferencesChannel = MethodChannel(
+    'plugins.flutter.io/shared_preferences',
+  );
+  static const MethodChannel _packageInfoChannel = MethodChannel(
+    'dev.fluttercommunity.plus/package_info',
+  );
+  static const MethodChannel _secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   static final Map<String, String> _secureStorageData = {};
 
@@ -85,13 +88,13 @@ class TestInitialization {
   static void _setupSharedPreferencesMock() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_sharedPreferencesChannel, (
-      MethodCall methodCall,
-    ) async {
-      if (methodCall.method == 'getAll') {
-        return <String, dynamic>{}; // Empty preferences
-      }
-      return null;
-    });
+          MethodCall methodCall,
+        ) async {
+          if (methodCall.method == 'getAll') {
+            return <String, dynamic>{}; // Empty preferences
+          }
+          return null;
+        });
   }
 
   /// Initialize Supabase with mock/test configuration
@@ -121,53 +124,51 @@ class TestInitialization {
   static Future<void> _initializeSecurityMocks() async {
     // Package info mock
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      _packageInfoChannel,
-      (MethodCall methodCall) async {
-        if (methodCall.method == 'getAll') {
-          return {
-            'appName': 'DuruNotes',
-            'packageName': 'com.duru.notes.test',
-            'version': '1.0.0-test',
-            'buildNumber': '1',
-            'buildSignature': 'test',
-            'installerStore': 'test',
-          };
-        }
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(_packageInfoChannel, (
+          MethodCall methodCall,
+        ) async {
+          if (methodCall.method == 'getAll') {
+            return {
+              'appName': 'DuruNotes',
+              'packageName': 'com.duru.notes.test',
+              'version': '1.0.0-test',
+              'buildNumber': '1',
+              'buildSignature': 'test',
+              'installerStore': 'test',
+            };
+          }
+          return null;
+        });
 
     // Secure storage mock
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      _secureStorageChannel,
-      (MethodCall methodCall) async {
-        final arguments =
-            (methodCall.arguments as Map?)?.cast<String, dynamic>() ?? {};
-        switch (methodCall.method) {
-          case 'write':
-            _secureStorageData[arguments['key'] as String? ?? ''] =
-                arguments['value'] as String? ?? '';
-            return null;
-          case 'read':
-            return _secureStorageData[arguments['key'] as String? ?? ''];
-          case 'readAll':
-            return _secureStorageData;
-          case 'delete':
-            _secureStorageData.remove(arguments['key'] as String? ?? '');
-            return null;
-          case 'deleteAll':
-            _secureStorageData.clear();
-            return null;
-          case 'containsKey':
-            return _secureStorageData.containsKey(
-              arguments['key'] as String? ?? '',
-            );
-        }
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(_secureStorageChannel, (
+          MethodCall methodCall,
+        ) async {
+          final arguments =
+              (methodCall.arguments as Map?)?.cast<String, dynamic>() ?? {};
+          switch (methodCall.method) {
+            case 'write':
+              _secureStorageData[arguments['key'] as String? ?? ''] =
+                  arguments['value'] as String? ?? '';
+              return null;
+            case 'read':
+              return _secureStorageData[arguments['key'] as String? ?? ''];
+            case 'readAll':
+              return _secureStorageData;
+            case 'delete':
+              _secureStorageData.remove(arguments['key'] as String? ?? '');
+              return null;
+            case 'deleteAll':
+              _secureStorageData.clear();
+              return null;
+            case 'containsKey':
+              return _secureStorageData.containsKey(
+                arguments['key'] as String? ?? '',
+              );
+          }
+          return null;
+        });
 
     SecurityInitialization.reset();
   }

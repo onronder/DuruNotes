@@ -231,8 +231,9 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
         unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                const Text('Could not upload attachment. Please try again.'),
+            content: const Text(
+              'Could not upload attachment. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -555,7 +556,9 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
     // Data format: "row1col1|row1col2\nrow2col1|row2col2"
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(8),
@@ -625,18 +628,18 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
                   Text(
                     fileName.isNotEmpty ? fileName : 'Untitled attachment',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     'Attachment file',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),

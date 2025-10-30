@@ -194,8 +194,9 @@ void main() {
 
     await repository.pushAllPending();
 
-    final captured = verify(mockApi.upsertReminder(captureAny)).captured.single
-        as Map<String, dynamic>;
+    final captured =
+        verify(mockApi.upsertReminder(captureAny)).captured.single
+            as Map<String, dynamic>;
     expect(captured['id'], reminderId);
     expect(captured['note_id'], 'note-1');
     expect(captured['user_id'], 'user-123');
@@ -207,21 +208,24 @@ void main() {
     expect(remaining, isEmpty);
   });
 
-  test('pushAllPending deletes remote reminder when delete op enqueued', () async {
-    when(mockApi.deleteReminder(any)).thenAnswer((_) async {});
+  test(
+    'pushAllPending deletes remote reminder when delete op enqueued',
+    () async {
+      when(mockApi.deleteReminder(any)).thenAnswer((_) async {});
 
-    await db.enqueue(
-      userId: 'user-123',
-      entityId: '42',
-      kind: 'delete_reminder',
-    );
+      await db.enqueue(
+        userId: 'user-123',
+        entityId: '42',
+        kind: 'delete_reminder',
+      );
 
-    await repository.pushAllPending();
+      await repository.pushAllPending();
 
-    verify(mockApi.deleteReminder('42')).called(1);
-    final remaining = await db.getPendingOpsForUser('user-123');
-    expect(remaining, isEmpty);
-  });
+      verify(mockApi.deleteReminder('42')).called(1);
+      final remaining = await db.getPendingOpsForUser('user-123');
+      expect(remaining, isEmpty);
+    },
+  );
 
   test(
     'pullSince ingests remote notes and updates last sync timestamp',
@@ -306,9 +310,7 @@ void main() {
         ],
       );
 
-      when(
-        mockApi.fetchEncryptedFolders(since: anyNamed('since')),
-      ).thenAnswer(
+      when(mockApi.fetchEncryptedFolders(since: anyNamed('since'))).thenAnswer(
         (_) async => [
           {
             'id': 'folder-42',

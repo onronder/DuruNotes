@@ -34,17 +34,21 @@ Future<void> createTestNote(
       ? base64Encode(bodyBytes)
       : base64Encode(utf8.encode(body));
 
-  await db.into(db.localNotes).insert(LocalNotesCompanion.insert(
-    id: noteId,
-    userId: Value(userId),
-    titleEncrypted: Value(titleEncrypted),
-    bodyEncrypted: Value(bodyEncrypted),
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-    noteType: Value(NoteKind.note),
-    deleted: Value(false),
-    encryptionVersion: Value(1),
-  ));
+  await db
+      .into(db.localNotes)
+      .insert(
+        LocalNotesCompanion.insert(
+          id: noteId,
+          userId: Value(userId),
+          titleEncrypted: Value(titleEncrypted),
+          bodyEncrypted: Value(bodyEncrypted),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          noteType: Value(NoteKind.note),
+          deleted: Value(false),
+          encryptionVersion: Value(1),
+        ),
+      );
 }
 
 @GenerateNiceMocks([
@@ -100,39 +104,47 @@ void main() {
 
     final secureStorageState = <String, String?>{};
 
-    when(mockSecureStorage.write(
-      key: anyNamed('key'),
-      value: anyNamed('value'),
-      aOptions: anyNamed('aOptions'),
-      iOptions: anyNamed('iOptions'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockSecureStorage.write(
+        key: anyNamed('key'),
+        value: anyNamed('value'),
+        aOptions: anyNamed('aOptions'),
+        iOptions: anyNamed('iOptions'),
+      ),
+    ).thenAnswer((invocation) async {
       final key = invocation.namedArguments[#key] as String;
       final value = invocation.namedArguments[#value] as String?;
       secureStorageState[key] = value;
     });
 
-    when(mockSecureStorage.read(
-      key: anyNamed('key'),
-      aOptions: anyNamed('aOptions'),
-      iOptions: anyNamed('iOptions'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockSecureStorage.read(
+        key: anyNamed('key'),
+        aOptions: anyNamed('aOptions'),
+        iOptions: anyNamed('iOptions'),
+      ),
+    ).thenAnswer((invocation) async {
       final key = invocation.namedArguments[#key] as String;
       return secureStorageState[key];
     });
 
-    when(mockSecureStorage.delete(
-      key: anyNamed('key'),
-      aOptions: anyNamed('aOptions'),
-      iOptions: anyNamed('iOptions'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockSecureStorage.delete(
+        key: anyNamed('key'),
+        aOptions: anyNamed('aOptions'),
+        iOptions: anyNamed('iOptions'),
+      ),
+    ).thenAnswer((invocation) async {
       final key = invocation.namedArguments[#key] as String;
       secureStorageState.remove(key);
     });
 
-    when(mockSecureStorage.deleteAll(
-      aOptions: anyNamed('aOptions'),
-      iOptions: anyNamed('iOptions'),
-    )).thenAnswer((_) async {
+    when(
+      mockSecureStorage.deleteAll(
+        aOptions: anyNamed('aOptions'),
+        iOptions: anyNamed('iOptions'),
+      ),
+    ).thenAnswer((_) async {
       secureStorageState.clear();
     });
 
@@ -152,20 +164,24 @@ void main() {
       }
     }
 
-    when(mockCryptoBox.decryptStringForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      data: anyNamed('data'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockCryptoBox.decryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        data: anyNamed('data'),
+      ),
+    ).thenAnswer((invocation) async {
       final data = invocation.namedArguments[#data] as List<int>;
       return decodeEncryptedString(data);
     });
 
-    when(mockCryptoBox.decryptJsonForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      data: anyNamed('data'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockCryptoBox.decryptJsonForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        data: anyNamed('data'),
+      ),
+    ).thenAnswer((invocation) async {
       final data = invocation.namedArguments[#data] as List<int>;
       final value = decodeEncryptedString(data);
 
@@ -185,11 +201,7 @@ void main() {
         };
       }
 
-      return {
-        'content': value,
-        'labels': value,
-        'notes': value,
-      };
+      return {'content': value, 'labels': value, 'notes': value};
     });
 
     // Create GDPR service
@@ -209,72 +221,78 @@ void main() {
   });
 
   group('GDPR Data Export Compliance Tests - Production Grade', () {
-    test('exportAllUserData returns plaintext note titles and bodies', () async {
-      // Arrange - Create encrypted note in database
-      await createTestNote(
-        db,
-        testNoteId,
-        userId: testUserId,
-        titleBytes: plainTitle.codeUnits,
-        bodyBytes: plainBody.codeUnits,
-      );
+    test(
+      'exportAllUserData returns plaintext note titles and bodies',
+      () async {
+        // Arrange - Create encrypted note in database
+        await createTestNote(
+          db,
+          testNoteId,
+          userId: testUserId,
+          titleBytes: plainTitle.codeUnits,
+          bodyBytes: plainBody.codeUnits,
+        );
 
-      // Act - Export user data
-      final exportFile = await gdprService.exportAllUserData(
-        userId: testUserId,
-        format: ExportFormat.json,
-      );
+        // Act - Export user data
+        final exportFile = await gdprService.exportAllUserData(
+          userId: testUserId,
+          format: ExportFormat.json,
+        );
 
-      // Assert - Read exported JSON
-      final exportJson = jsonDecode(await exportFile.readAsString());
-      final notes = exportJson['userData']['notes'] as List;
+        // Assert - Read exported JSON
+        final exportJson = jsonDecode(await exportFile.readAsString());
+        final notes = exportJson['userData']['notes'] as List;
 
-      // GDPR Compliance Verification
-      expect(notes.length, 1, reason: 'Should export exactly one note');
-      final exportedNote = notes.first as Map<String, dynamic>;
+        // GDPR Compliance Verification
+        expect(notes.length, 1, reason: 'Should export exactly one note');
+        final exportedNote = notes.first as Map<String, dynamic>;
 
-      // CRITICAL: Verify plaintext export (not encrypted)
-      expect(
-        exportedNote['title'],
-        equals(plainTitle),
-        reason: 'GDPR VIOLATION: Note title must be plaintext for portability',
-      );
-      expect(
-        exportedNote['body'],
-        equals(plainBody),
-        reason: 'GDPR VIOLATION: Note body must be plaintext for portability',
-      );
+        // CRITICAL: Verify plaintext export (not encrypted)
+        expect(
+          exportedNote['title'],
+          equals(plainTitle),
+          reason:
+              'GDPR VIOLATION: Note title must be plaintext for portability',
+        );
+        expect(
+          exportedNote['body'],
+          equals(plainBody),
+          reason: 'GDPR VIOLATION: Note body must be plaintext for portability',
+        );
 
-      // Verify no encrypted markers
-      expect(exportedNote['title'], isNot(contains('[ENCRYPTED]')));
-      expect(exportedNote['body'], isNot(contains('[ENCRYPTED]')));
+        // Verify no encrypted markers
+        expect(exportedNote['title'], isNot(contains('[ENCRYPTED]')));
+        expect(exportedNote['body'], isNot(contains('[ENCRYPTED]')));
 
-      // Verify metadata
-      expect(exportedNote['id'], equals(testNoteId));
-      expect(exportedNote['isDeleted'], isFalse);
+        // Verify metadata
+        expect(exportedNote['id'], equals(testNoteId));
+        expect(exportedNote['isDeleted'], isFalse);
 
-      // Cleanup
-      await exportFile.delete();
-    });
+        // Cleanup
+        await exportFile.delete();
+      },
+    );
 
     test('exportAllUserData returns plaintext task content', () async {
       // Arrange - Create note first (required for task foreign key)
       await createTestNote(db, testNoteId, userId: testUserId);
 
       // Create encrypted task
-      await db.into(db.noteTasks).insert(
-        NoteTasksCompanion.insert(
-          id: testTaskId,
-          noteId: testNoteId,
-          userId: testUserId,
-          contentEncrypted: base64Encode(plainTaskContent.codeUnits),
-          contentHash: 'hash',
-          status: Value(TaskStatus.open),
-          priority: Value(TaskPriority.medium),
-          position: Value(0),
-          encryptionVersion: Value(1),
-        ),
-      );
+      await db
+          .into(db.noteTasks)
+          .insert(
+            NoteTasksCompanion.insert(
+              id: testTaskId,
+              noteId: testNoteId,
+              userId: testUserId,
+              contentEncrypted: base64Encode(plainTaskContent.codeUnits),
+              contentHash: 'hash',
+              status: Value(TaskStatus.open),
+              priority: Value(TaskPriority.medium),
+              position: Value(0),
+              encryptionVersion: Value(1),
+            ),
+          );
 
       // Act - Export user data
       final exportFile = await gdprService.exportAllUserData(
@@ -294,7 +312,8 @@ void main() {
       expect(
         exportedTask['content'],
         equals(plainTaskContent),
-        reason: 'GDPR VIOLATION: Task content must be plaintext for portability',
+        reason:
+            'GDPR VIOLATION: Task content must be plaintext for portability',
       );
       expect(exportedTask['content'], isNot(contains('[ENCRYPTED]')));
       expect(exportedTask['id'], equals(testTaskId));
@@ -355,8 +374,11 @@ void main() {
 
       // Verify export metadata is GDPR compliant
       final metadata = exportJson['exportMetadata'] as Map<String, dynamic>;
-      expect(metadata['gdprCompliant'], isTrue,
-          reason: 'Must explicitly declare GDPR compliance');
+      expect(
+        metadata['gdprCompliant'],
+        isTrue,
+        reason: 'Must explicitly declare GDPR compliance',
+      );
       expect(metadata['userId'], equals(testUserId));
       expect(metadata['exportDate'], isNotNull);
       expect(metadata['version'], isNotNull);
@@ -365,30 +387,53 @@ void main() {
       final userData = exportJson['userData'] as Map<String, dynamic>;
 
       // Personal data
-      expect(userData.containsKey('profile'), isTrue,
-          reason: 'Must include user profile data');
+      expect(
+        userData.containsKey('profile'),
+        isTrue,
+        reason: 'Must include user profile data',
+      );
 
       // Content data
-      expect(userData.containsKey('notes'), isTrue,
-          reason: 'Must include all notes');
-      expect(userData.containsKey('tasks'), isTrue,
-          reason: 'Must include all tasks');
-      expect(userData.containsKey('folders'), isTrue,
-          reason: 'Must include folder structure');
-      expect(userData.containsKey('tags'), isTrue,
-          reason: 'Must include tags');
+      expect(
+        userData.containsKey('notes'),
+        isTrue,
+        reason: 'Must include all notes',
+      );
+      expect(
+        userData.containsKey('tasks'),
+        isTrue,
+        reason: 'Must include all tasks',
+      );
+      expect(
+        userData.containsKey('folders'),
+        isTrue,
+        reason: 'Must include folder structure',
+      );
+      expect(userData.containsKey('tags'), isTrue, reason: 'Must include tags');
 
       // Metadata and settings
-      expect(userData.containsKey('reminders'), isTrue,
-          reason: 'Must include reminder settings');
-      expect(userData.containsKey('attachments'), isTrue,
-          reason: 'Must include attachment metadata');
-      expect(userData.containsKey('preferences'), isTrue,
-          reason: 'Must include user preferences');
+      expect(
+        userData.containsKey('reminders'),
+        isTrue,
+        reason: 'Must include reminder settings',
+      );
+      expect(
+        userData.containsKey('attachments'),
+        isTrue,
+        reason: 'Must include attachment metadata',
+      );
+      expect(
+        userData.containsKey('preferences'),
+        isTrue,
+        reason: 'Must include user preferences',
+      );
 
       // Audit data
-      expect(userData.containsKey('auditTrail'), isTrue,
-          reason: 'Must include user activity audit trail');
+      expect(
+        userData.containsKey('auditTrail'),
+        isTrue,
+        reason: 'Must include user activity audit trail',
+      );
 
       // Cleanup
       await exportFile.delete();
@@ -414,18 +459,33 @@ void main() {
       final csvContent = await exportFile.readAsString();
 
       // CRITICAL: CSV should contain plaintext, not [ENCRYPTED]
-      expect(csvContent, contains(plainTitle),
-          reason: 'CSV export must contain plaintext title');
-      expect(csvContent, contains(plainBody),
-          reason: 'CSV export must contain plaintext body');
-      expect(csvContent, isNot(contains('[ENCRYPTED]')),
-          reason: 'CSV must not contain encryption markers');
+      expect(
+        csvContent,
+        contains(plainTitle),
+        reason: 'CSV export must contain plaintext title',
+      );
+      expect(
+        csvContent,
+        contains(plainBody),
+        reason: 'CSV export must contain plaintext body',
+      );
+      expect(
+        csvContent,
+        isNot(contains('[ENCRYPTED]')),
+        reason: 'CSV must not contain encryption markers',
+      );
 
       // Verify CSV structure
-      expect(csvContent, contains('GDPR Data Export'),
-          reason: 'CSV must identify as GDPR export');
-      expect(csvContent, contains(testUserId),
-          reason: 'CSV must identify user');
+      expect(
+        csvContent,
+        contains('GDPR Data Export'),
+        reason: 'CSV must identify as GDPR export',
+      );
+      expect(
+        csvContent,
+        contains(testUserId),
+        reason: 'CSV must identify user',
+      );
 
       // Cleanup
       await exportFile.delete();
@@ -457,17 +517,29 @@ void main() {
       final exportJson = jsonDecode(await exportFile.readAsString());
       final notes = exportJson['userData']['notes'] as List;
 
-      expect(notes.length, 1,
-          reason: 'Should only export current user\'s notes');
-      expect(notes.first['id'], equals('user1-note'),
-          reason: 'Should export correct user\'s note');
+      expect(
+        notes.length,
+        1,
+        reason: 'Should only export current user\'s notes',
+      );
+      expect(
+        notes.first['id'],
+        equals('user1-note'),
+        reason: 'Should export correct user\'s note',
+      );
 
       // Verify no cross-user data leakage
       final exportContent = await exportFile.readAsString();
-      expect(exportContent, isNot(contains('other-user-456')),
-          reason: 'Must not leak other user IDs');
-      expect(exportContent, isNot(contains('User 2 Note')),
-          reason: 'Must not leak other user data');
+      expect(
+        exportContent,
+        isNot(contains('other-user-456')),
+        reason: 'Must not leak other user IDs',
+      );
+      expect(
+        exportContent,
+        isNot(contains('User 2 Note')),
+        reason: 'Must not leak other user data',
+      );
 
       // Cleanup
       await exportFile.delete();
@@ -475,68 +547,75 @@ void main() {
   });
 
   group('GDPR Right to Erasure Tests - Production Grade', () {
-    test('deleteAllUserData performs complete deletion with verification',
-        () async {
-      // Arrange - Create comprehensive test data
-      await createTestNote(
-        db,
-        testNoteId,
-        userId: testUserId,
-        title: 'Test Note',
-      );
-
-      await db.into(db.noteTasks).insert(
-        NoteTasksCompanion.insert(
-          id: testTaskId,
-          noteId: testNoteId,
+    test(
+      'deleteAllUserData performs complete deletion with verification',
+      () async {
+        // Arrange - Create comprehensive test data
+        await createTestNote(
+          db,
+          testNoteId,
           userId: testUserId,
-          contentEncrypted: base64Encode([]),
-          contentHash: 'hash',
-          status: Value(TaskStatus.open),
-          priority: Value(TaskPriority.medium),
-          position: Value(0),
-          encryptionVersion: Value(1),
-        ),
-      );
+          title: 'Test Note',
+        );
 
-      // Generate deletion code
-      final code = await gdprService.generateDeletionCode(testUserId);
-      expect(code.length, equals(6),
-          reason: 'Deletion code must be 6 characters');
-      expect(code, matches(RegExp(r'^[A-Z0-9]{6}$')),
-          reason: 'Deletion code must be alphanumeric');
+        await db
+            .into(db.noteTasks)
+            .insert(
+              NoteTasksCompanion.insert(
+                id: testTaskId,
+                noteId: testNoteId,
+                userId: testUserId,
+                contentEncrypted: base64Encode([]),
+                contentHash: 'hash',
+                status: Value(TaskStatus.open),
+                priority: Value(TaskPriority.medium),
+                position: Value(0),
+                encryptionVersion: Value(1),
+              ),
+            );
 
-      // Act - Delete all user data
-      await gdprService.deleteAllUserData(
-        userId: testUserId,
-        confirmationCode: code,
-        createBackup: false,
-      );
+        // Generate deletion code
+        final code = await gdprService.generateDeletionCode(testUserId);
+        expect(
+          code.length,
+          equals(6),
+          reason: 'Deletion code must be 6 characters',
+        );
+        expect(
+          code,
+          matches(RegExp(r'^[A-Z0-9]{6}$')),
+          reason: 'Deletion code must be alphanumeric',
+        );
 
-      // Assert - Verify complete deletion
-      // 1. Notes should be marked as deleted (soft delete)
-      final notes = await (db.select(db.localNotes)
-            ..where((n) => n.userId.equals(testUserId)))
-          .get();
-      expect(notes.every((n) => n.deleted), isTrue,
-          reason: 'All notes must be marked as deleted');
+        // Act - Delete all user data
+        await gdprService.deleteAllUserData(
+          userId: testUserId,
+          confirmationCode: code,
+          createBackup: false,
+        );
 
-      // 2. Tasks should be deleted
-      final tasks = await (db.select(db.noteTasks)
-            ..where((t) => t.noteId.equals(testNoteId)))
-          .get();
-      expect(tasks, isEmpty,
-          reason: 'All associated tasks must be deleted');
-    });
+        // Assert - Verify complete deletion
+        // 1. Notes should be marked as deleted (soft delete)
+        final notes = await (db.select(
+          db.localNotes,
+        )..where((n) => n.userId.equals(testUserId))).get();
+        expect(
+          notes.every((n) => n.deleted),
+          isTrue,
+          reason: 'All notes must be marked as deleted',
+        );
+
+        // 2. Tasks should be deleted
+        final tasks = await (db.select(
+          db.noteTasks,
+        )..where((t) => t.noteId.equals(testNoteId))).get();
+        expect(tasks, isEmpty, reason: 'All associated tasks must be deleted');
+      },
+    );
 
     test('deleteAllUserData requires valid confirmation code', () async {
       // Arrange
-      await createTestNote(
-        db,
-        testNoteId,
-        userId: testUserId,
-        title: 'Test',
-      );
+      await createTestNote(db, testNoteId, userId: testUserId, title: 'Test');
 
       // Act & Assert - Should throw with invalid code
       expect(
@@ -545,20 +624,25 @@ void main() {
           confirmationCode: 'INVALID',
           createBackup: false,
         ),
-        throwsA(isA<GDPRException>().having(
-          (e) => e.message,
-          'message',
-          contains('Invalid confirmation code'),
-        )),
+        throwsA(
+          isA<GDPRException>().having(
+            (e) => e.message,
+            'message',
+            contains('Invalid confirmation code'),
+          ),
+        ),
         reason: 'Must reject invalid confirmation codes',
       );
 
       // Verify data was NOT deleted
-      final notes = await (db.select(db.localNotes)
-            ..where((n) => n.userId.equals(testUserId)))
-          .get();
-      expect(notes, isNotEmpty,
-          reason: 'Data should not be deleted with invalid code');
+      final notes = await (db.select(
+        db.localNotes,
+      )..where((n) => n.userId.equals(testUserId))).get();
+      expect(
+        notes,
+        isNotEmpty,
+        reason: 'Data should not be deleted with invalid code',
+      );
     });
 
     test('deleteAllUserData creates backup when requested', () async {
@@ -582,11 +666,14 @@ void main() {
       // Assert - Backup should be created before deletion
       // Note: In production, verify backup file exists in temp directory
       // For this test, we verify the deletion still succeeded
-      final notes = await (db.select(db.localNotes)
-            ..where((n) => n.userId.equals(testUserId)))
-          .get();
-      expect(notes.every((n) => n.deleted), isTrue,
-          reason: 'Data should be deleted even with backup');
+      final notes = await (db.select(
+        db.localNotes,
+      )..where((n) => n.userId.equals(testUserId))).get();
+      expect(
+        notes.every((n) => n.deleted),
+        isTrue,
+        reason: 'Data should be deleted even with backup',
+      );
     });
   });
 
@@ -603,8 +690,11 @@ void main() {
       expect(consents.containsKey('personalizedAds'), isTrue);
 
       // Default values should be false (opt-in required)
-      expect(consents.values.every((granted) => granted == false), isTrue,
-          reason: 'Consents should default to false (GDPR requires opt-in)');
+      expect(
+        consents.values.every((granted) => granted == false),
+        isTrue,
+        reason: 'Consents should default to false (GDPR requires opt-in)',
+      );
     });
 
     test('updateUserConsent persists consent changes', () async {
@@ -617,8 +707,11 @@ void main() {
 
       // Assert - Consent should be persisted
       final consents = await gdprService.getUserConsents(testUserId);
-      expect(consents['analytics'], isTrue,
-          reason: 'Consent change must be persisted');
+      expect(
+        consents['analytics'],
+        isTrue,
+        reason: 'Consent change must be persisted',
+      );
     });
 
     test('updateUserConsent allows revoking consent', () async {
@@ -638,8 +731,11 @@ void main() {
 
       // Assert - Consent should be revoked
       final consents = await gdprService.getUserConsents(testUserId);
-      expect(consents['marketing'], isFalse,
-          reason: 'User must be able to revoke consent (GDPR requirement)');
+      expect(
+        consents['marketing'],
+        isFalse,
+        reason: 'User must be able to revoke consent (GDPR requirement)',
+      );
     });
   });
 
@@ -661,10 +757,16 @@ void main() {
       expect(policy['tasks']['retention'], isNotNull);
 
       // Verify auto-delete flags
-      expect(policy['notes']['autoDelete'], isFalse,
-          reason: 'User notes should not auto-delete');
-      expect(policy['auditLogs']['autoDelete'], isTrue,
-          reason: 'Audit logs should auto-delete after retention period');
+      expect(
+        policy['notes']['autoDelete'],
+        isFalse,
+        reason: 'User notes should not auto-delete',
+      );
+      expect(
+        policy['auditLogs']['autoDelete'],
+        isTrue,
+        reason: 'Audit logs should auto-delete after retention period',
+      );
     });
   });
 }

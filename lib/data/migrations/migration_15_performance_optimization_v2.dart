@@ -14,7 +14,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// Performance target: &lt;50ms for critical path queries, &lt;100ms for complex operations
 class Migration15PerformanceOptimizationV2 {
   static const int version = 15;
-  static const String description = 'Performance optimization V2 - eliminate remaining bottlenecks';
+  static const String description =
+      'Performance optimization V2 - eliminate remaining bottlenecks';
 
   /// Apply migration to database (idempotent - safe to run multiple times)
   static Future<void> apply(AppDb db) async {
@@ -243,8 +244,9 @@ class Migration15PerformanceOptimizationV2 {
       ''');
 
       logger.info('Migration 15 completed successfully');
-      logger.info('Applied ${_getIndexCount()} performance optimization indexes');
-
+      logger.info(
+        'Applied ${_getIndexCount()} performance optimization indexes',
+      );
     } catch (e, stackTrace) {
       logger.error('Migration 15 failed', error: e, stackTrace: stackTrace);
       rethrow;
@@ -265,10 +267,12 @@ class Migration15PerformanceOptimizationV2 {
   /// Check if migration is already applied
   static Future<bool> _isMigrationAlreadyApplied(AppDb db) async {
     try {
-      final result = await db.customSelect(
-        'SELECT COUNT(*) as count FROM schema_versions WHERE version = ?',
-        variables: [Variable.withInt(version)],
-      ).getSingleOrNull();
+      final result = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM schema_versions WHERE version = ?',
+            variables: [Variable.withInt(version)],
+          )
+          .getSingleOrNull();
 
       return (result?.read<int>('count') ?? 0) > 0;
     } catch (e) {
@@ -302,11 +306,16 @@ class Migration15PerformanceOptimizationV2 {
       ];
 
       for (final indexName in criticalIndexes) {
-        final result = await db.customSelect('''
+        final result = await db
+            .customSelect(
+              '''
           SELECT COUNT(*) as count
           FROM sqlite_master
           WHERE type = 'index' AND name = ?
-        ''', variables: [Variable.withString(indexName)]).getSingleOrNull();
+        ''',
+              variables: [Variable.withString(indexName)],
+            )
+            .getSingleOrNull();
 
         if ((result?.read<int>('count') ?? 0) == 0) {
           return false;
@@ -330,8 +339,12 @@ class Migration15PerformanceOptimizationV2 {
       ''').getSingleOrNull();
 
       // Get database page count and size
-      final pageResult = await db.customSelect('PRAGMA page_count').getSingleOrNull();
-      final pageSizeResult = await db.customSelect('PRAGMA page_size').getSingleOrNull();
+      final pageResult = await db
+          .customSelect('PRAGMA page_count')
+          .getSingleOrNull();
+      final pageSizeResult = await db
+          .customSelect('PRAGMA page_size')
+          .getSingleOrNull();
 
       final pageCount = pageResult?.read<int>('page_count') ?? 0;
       final pageSize = pageSizeResult?.read<int>('page_size') ?? 4096;

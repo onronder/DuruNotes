@@ -72,11 +72,12 @@ class QuickCaptureService {
   }) : _notesRepository = notesRepository,
        _templateRepository = templateRepository,
        _quickCaptureRepository = quickCaptureRepository,
-      _analyticsService = analyticsService,
-      _logger = logger,
-      _supabaseClient = supabaseClient,
-      _attachmentService = attachmentService,
-       _widgetSyncer = widgetSyncer ??
+       _analyticsService = analyticsService,
+       _logger = logger,
+       _supabaseClient = supabaseClient,
+       _attachmentService = attachmentService,
+       _widgetSyncer =
+           widgetSyncer ??
            (Platform.isIOS
                ? IosQuickCaptureWidgetSyncer(logger: logger)
                : const NoopQuickCaptureWidgetSyncer());

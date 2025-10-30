@@ -71,13 +71,11 @@ class Migration25SecurityUserIdPopulation {
       );
 
       // 3. Ensure system templates have userId = null
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         UPDATE local_templates
         SET user_id = NULL
         WHERE is_system = 1
-        ''',
-      );
+        ''');
     });
   }
 
@@ -152,27 +150,23 @@ class Migration25SecurityUserIdPopulation {
     DatabaseConnectionUser db,
   ) async {
     // Get folder stats
-    final folderStats = await db.customSelect(
-      '''
+    final folderStats = await db.customSelect('''
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) as with_user_id,
         SUM(CASE WHEN user_id IS NULL THEN 1 ELSE 0 END) as without_user_id
       FROM local_folders
-      ''',
-    ).getSingleOrNull();
+      ''').getSingleOrNull();
 
     // Get template stats
-    final templateStats = await db.customSelect(
-      '''
+    final templateStats = await db.customSelect('''
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN is_system = 1 THEN 1 ELSE 0 END) as system_templates,
         SUM(CASE WHEN is_system = 0 AND user_id IS NOT NULL THEN 1 ELSE 0 END) as user_with_user_id,
         SUM(CASE WHEN is_system = 0 AND user_id IS NULL THEN 1 ELSE 0 END) as user_without_user_id
       FROM local_templates
-      ''',
-    ).getSingleOrNull();
+      ''').getSingleOrNull();
 
     return {
       'totalFolders': folderStats?.data['total'] as int? ?? 0,
@@ -209,14 +203,12 @@ class Migration25SecurityUserIdPopulation {
   static Future<List<Map<String, dynamic>>> getFoldersWithoutUserId(
     DatabaseConnectionUser db,
   ) async {
-    final result = await db.customSelect(
-      '''
+    final result = await db.customSelect('''
       SELECT id, name, path, created_at
       FROM local_folders
       WHERE user_id IS NULL
       ORDER BY created_at DESC
-      ''',
-    ).get();
+      ''').get();
 
     return result.map((row) => row.data).toList();
   }
@@ -225,15 +217,13 @@ class Migration25SecurityUserIdPopulation {
   static Future<List<Map<String, dynamic>>> getUserTemplatesWithoutUserId(
     DatabaseConnectionUser db,
   ) async {
-    final result = await db.customSelect(
-      '''
+    final result = await db.customSelect('''
       SELECT id, title, category, created_at
       FROM local_templates
       WHERE user_id IS NULL
       AND is_system = 0
       ORDER BY created_at DESC
-      ''',
-    ).get();
+      ''').get();
 
     return result.map((row) => row.data).toList();
   }
@@ -245,30 +235,24 @@ class Migration25SecurityUserIdPopulation {
   static Future<void> rollback(DatabaseConnectionUser db) async {
     await db.transaction(() async {
       // Clear userId from folders
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         UPDATE local_folders
         SET user_id = NULL
-        ''',
-      );
+        ''');
 
       // Clear userId from user templates
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         UPDATE local_templates
         SET user_id = NULL
         WHERE is_system = 0
-        ''',
-      );
+        ''');
 
       // Ensure system templates have userId = null
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         UPDATE local_templates
         SET user_id = NULL
         WHERE is_system = 1
-        ''',
-      );
+        ''');
     });
   }
 }
@@ -281,8 +265,8 @@ class UserIdPopulationGuide {
 
   /// Check if userId population is needed
   Future<bool> isPopulationNeeded() async {
-    final stats = await Migration25SecurityUserIdPopulation
-        .getUserIdPopulationStats(db);
+    final stats =
+        await Migration25SecurityUserIdPopulation.getUserIdPopulationStats(db);
 
     return stats['foldersWithoutUserId']! > 0 ||
         stats['userTemplatesWithoutUserId']! > 0;
@@ -290,8 +274,8 @@ class UserIdPopulationGuide {
 
   /// Get detailed migration status report
   Future<String> getStatusReport() async {
-    final stats = await Migration25SecurityUserIdPopulation
-        .getUserIdPopulationStats(db);
+    final stats =
+        await Migration25SecurityUserIdPopulation.getUserIdPopulationStats(db);
 
     final buffer = StringBuffer();
     buffer.writeln('=== User ID Population Status ===');
@@ -305,15 +289,18 @@ class UserIdPopulationGuide {
     buffer.writeln('  Total: ${stats['totalTemplates']}');
     buffer.writeln('  System templates: ${stats['systemTemplates']}');
     buffer.writeln(
-        '  User templates with userId: ${stats['userTemplatesWithUserId']}');
+      '  User templates with userId: ${stats['userTemplatesWithUserId']}',
+    );
     buffer.writeln(
-        '  User templates without userId: ${stats['userTemplatesWithoutUserId']}');
+      '  User templates without userId: ${stats['userTemplatesWithoutUserId']}',
+    );
     buffer.writeln();
 
-    final isComplete = await Migration25SecurityUserIdPopulation
-        .validateUserIdPopulation(db);
+    final isComplete =
+        await Migration25SecurityUserIdPopulation.validateUserIdPopulation(db);
     buffer.writeln(
-        'Status: ${isComplete ? "✅ Complete" : "⚠️  Incomplete - Action Required"}');
+      'Status: ${isComplete ? "✅ Complete" : "⚠️  Incomplete - Action Required"}',
+    );
 
     return buffer.toString();
   }

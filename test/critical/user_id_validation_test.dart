@@ -1,7 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
-import 'package:duru_notes/core/providers/search_providers.dart' show noteIndexerProvider;
+import 'package:duru_notes/core/providers/search_providers.dart'
+    show noteIndexerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,14 +14,14 @@ import '../helpers/security_test_setup.dart';
 class _StubGoTrueClient extends GoTrueClient {
   _StubGoTrueClient(User? user)
     : _session = user == null
-            ? null
-            : Session(
-                accessToken: 'stub-access-token',
-                refreshToken: 'stub-refresh-token',
-                tokenType: 'bearer',
-                expiresIn: 3600,
-                user: user,
-              ),
+          ? null
+          : Session(
+              accessToken: 'stub-access-token',
+              refreshToken: 'stub-refresh-token',
+              tokenType: 'bearer',
+              expiresIn: 3600,
+              user: user,
+            ),
       super(
         url: 'https://stub.supabase.co/auth/v1',
         headers: const {},
@@ -43,8 +44,9 @@ class _StubSupabaseClient extends SupabaseClient {
         'https://stub.supabase.co',
         'stub-public-anon-key',
         authOptions: const AuthClientOptions(autoRefreshToken: false),
-        realtimeClientOptions:
-            const RealtimeClientOptions(logLevel: RealtimeLogLevel.error),
+        realtimeClientOptions: const RealtimeClientOptions(
+          logLevel: RealtimeLogLevel.error,
+        ),
       );
 
   final GoTrueClient _auth;
@@ -87,11 +89,11 @@ class _RepoHarness {
   late final CryptoBox crypto;
 
   NotesCoreRepository buildRepo(String? userId) => NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientFor(userId),
-        indexer: indexer,
-      );
+    db: db,
+    crypto: crypto,
+    client: _clientFor(userId),
+    indexer: indexer,
+  );
 
   Future<void> dispose() async {
     container.dispose();
@@ -123,8 +125,9 @@ void main() {
       );
 
       expect(result, isNotNull);
-      final stored =
-          await (harness.db.select(harness.db.localNotes)).getSingle();
+      final stored = await (harness.db.select(
+        harness.db.localNotes,
+      )).getSingle();
       expect(stored.userId, equals('user-a'));
     });
 
@@ -158,8 +161,9 @@ void main() {
         isPinned: true,
       );
 
-      final stored =
-          await (harness.db.select(harness.db.localNotes)).getSingle();
+      final stored = await (harness.db.select(
+        harness.db.localNotes,
+      )).getSingle();
       expect(stored.version, equals(1));
       expect(stored.isPinned, isFalse);
     });
@@ -176,8 +180,9 @@ void main() {
 
       await repoUserB.deleteNote(note!.id);
 
-      final stored =
-          await (harness.db.select(harness.db.localNotes)).getSingle();
+      final stored = await (harness.db.select(
+        harness.db.localNotes,
+      )).getSingle();
       expect(stored.deleted, isFalse);
     });
   });

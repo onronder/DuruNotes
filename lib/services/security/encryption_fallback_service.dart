@@ -10,7 +10,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Service to handle encryption fallbacks when decryption fails
 class EncryptionFallbackService {
-  static final EncryptionFallbackService _instance = EncryptionFallbackService._internal();
+  static final EncryptionFallbackService _instance =
+      EncryptionFallbackService._internal();
   factory EncryptionFallbackService() => _instance;
   EncryptionFallbackService._internal();
 
@@ -31,11 +32,11 @@ class EncryptionFallbackService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionFallbackService');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
-
 
   /// Attempt to decrypt note with fallback handling
   Future<Map<String, dynamic>> decryptNoteWithFallback({
@@ -58,7 +59,10 @@ class EncryptionFallbackService {
         title = await _decryptField(titleEnc, encryptionService, 'title');
       }
     } catch (error, stack) {
-      _logger.warning('Failed to decrypt title for note $noteId', data: {'error': error.toString()});
+      _logger.warning(
+        'Failed to decrypt title for note $noteId',
+        data: {'error': error.toString()},
+      );
       _captureFallbackException(
         operation: 'decryptNote.title',
         error: error,
@@ -79,14 +83,21 @@ class EncryptionFallbackService {
         tags = (props['tags'] as List<dynamic>?)?.cast<String>() ?? [];
       }
     } catch (error, stack) {
-      _logger.warning('Failed to decrypt props for note $noteId', data: {'error': error.toString()});
+      _logger.warning(
+        'Failed to decrypt props for note $noteId',
+        data: {'error': error.toString()},
+      );
       _captureFallbackException(
         operation: 'decryptNote.props',
         error: error,
         stackTrace: stack,
         data: {'noteId': noteId},
       );
-      final fallbackProps = await _createFallbackProps(noteId, propsEnc, error.toString());
+      final fallbackProps = await _createFallbackProps(
+        noteId,
+        propsEnc,
+        error.toString(),
+      );
       body = fallbackProps['body'] as String;
       folderId = fallbackProps['folder_id'] as String?;
       isPinned = fallbackProps['is_pinned'] as bool;
@@ -96,14 +107,16 @@ class EncryptionFallbackService {
 
     // Store fallback data if decryption failed
     if (decryptionFailed) {
-      await _storeFallbackNote(FallbackNote(
-        id: noteId,
-        fallbackTitle: title,
-        fallbackBody: body,
-        createdAt: createdAt,
-        isRecoverable: await _checkIfRecoverable(titleEnc, propsEnc),
-        rawData: await _extractRawData(titleEnc, propsEnc),
-      ));
+      await _storeFallbackNote(
+        FallbackNote(
+          id: noteId,
+          fallbackTitle: title,
+          fallbackBody: body,
+          createdAt: createdAt,
+          isRecoverable: await _checkIfRecoverable(titleEnc, propsEnc),
+          rawData: await _extractRawData(titleEnc, propsEnc),
+        ),
+      );
     }
 
     return {
@@ -241,7 +254,8 @@ class EncryptionFallbackService {
     dynamic propsEnc,
     String error,
   ) async {
-    final fallbackBody = '''This note could not be decrypted automatically.
+    final fallbackBody =
+        '''This note could not be decrypted automatically.
 
 Possible causes:
 • The note was encrypted with an older version of the app
@@ -271,7 +285,9 @@ The original encrypted data has been preserved and may be recoverable with a fut
         final titleBytes = _asBytes(titleEnc);
         final titleStr = utf8.decode(titleBytes, allowMalformed: true);
         // Look for JSON structure or base64 patterns
-        if (titleStr.contains('{') || titleStr.contains('eyJ') || titleStr.contains('=')) {
+        if (titleStr.contains('{') ||
+            titleStr.contains('eyJ') ||
+            titleStr.contains('=')) {
           return true;
         }
       }
@@ -280,7 +296,9 @@ The original encrypted data has been preserved and may be recoverable with a fut
         final propsBytes = _asBytes(propsEnc);
         final propsStr = utf8.decode(propsBytes, allowMalformed: true);
         // Look for JSON structure or base64 patterns
-        if (propsStr.contains('{') || propsStr.contains('eyJ') || propsStr.contains('=')) {
+        if (propsStr.contains('{') ||
+            propsStr.contains('eyJ') ||
+            propsStr.contains('=')) {
           return true;
         }
       }
@@ -342,7 +360,11 @@ The original encrypted data has been preserved and may be recoverable with a fut
 
       await prefs.setStringList('fallback_notes', fallbackData);
     } catch (error, stack) {
-      _logger.error('Failed to store fallback note', error: error, stackTrace: stack);
+      _logger.error(
+        'Failed to store fallback note',
+        error: error,
+        stackTrace: stack,
+      );
       _captureFallbackException(
         operation: 'storeFallbackNote',
         error: error,
@@ -382,7 +404,8 @@ The original encrypted data has been preserved and may be recoverable with a fut
       await encryptionService.initialize();
 
       if (fallbackNote.rawData != null) {
-        final rawData = jsonDecode(fallbackNote.rawData!) as Map<String, dynamic>;
+        final rawData =
+            jsonDecode(fallbackNote.rawData!) as Map<String, dynamic>;
 
         if (rawData['titleRaw'] != null) {
           final titleBytes = base64Decode(rawData['titleRaw'] as String);

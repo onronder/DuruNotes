@@ -16,10 +16,8 @@ class ValidationResult {
 
   factory ValidationResult.valid() => const ValidationResult(isValid: true);
 
-  factory ValidationResult.invalid(List<String> errors) => ValidationResult(
-        isValid: false,
-        errors: errors,
-      );
+  factory ValidationResult.invalid(List<String> errors) =>
+      ValidationResult(isValid: false, errors: errors);
 }
 
 /// Service responsible for task validation
@@ -27,8 +25,8 @@ class TaskValidationService {
   TaskValidationService({
     required ITaskRepository repository,
     AppLogger? logger,
-  })  : _repository = repository,
-        _logger = logger ?? LoggerFactory.instance;
+  }) : _repository = repository,
+       _logger = logger ?? LoggerFactory.instance;
 
   final ITaskRepository _repository;
   final AppLogger _logger;
@@ -57,7 +55,9 @@ class TaskValidationService {
     if (content.isEmpty) {
       errors.add('Task content cannot be empty');
     } else if (content.length > maxContentLength) {
-      errors.add('Task content exceeds maximum length of $maxContentLength characters');
+      errors.add(
+        'Task content exceeds maximum length of $maxContentLength characters',
+      );
     }
 
     // Validate due date
@@ -76,10 +76,10 @@ class TaskValidationService {
 
     // Log validation result
     if (errors.isNotEmpty) {
-      _logger.debug('[TaskValidationService] Validation failed', data: {
-        'errors': errors,
-        'warnings': warnings,
-      });
+      _logger.debug(
+        '[TaskValidationService] Validation failed',
+        data: {'errors': errors, 'warnings': warnings},
+      );
     }
 
     return errors.isEmpty
@@ -90,16 +90,18 @@ class TaskValidationService {
   /// Check if a task can be deleted
   Future<bool> canDelete(String taskId) async {
     try {
-      _logger.debug('[TaskValidationService] Checking if task can be deleted', data: {
-        'taskId': taskId,
-      });
+      _logger.debug(
+        '[TaskValidationService] Checking if task can be deleted',
+        data: {'taskId': taskId},
+      );
 
       // Check if task exists
       final task = await _repository.getTaskById(taskId);
       if (task == null) {
-        _logger.warning('[TaskValidationService] Task not found', data: {
-          'taskId': taskId,
-        });
+        _logger.warning(
+          '[TaskValidationService] Task not found',
+          data: {'taskId': taskId},
+        );
         return false;
       }
 
@@ -108,16 +110,21 @@ class TaskValidationService {
       final hasSubtasks = allTasks.any((t) => _getParentTaskId(t) == taskId);
 
       if (hasSubtasks) {
-        _logger.info('[TaskValidationService] Cannot delete task with subtasks', data: {
-          'taskId': taskId,
-        });
+        _logger.info(
+          '[TaskValidationService] Cannot delete task with subtasks',
+          data: {'taskId': taskId},
+        );
         return false;
       }
 
       return true;
     } catch (e, stack) {
-      _logger.error('[TaskValidationService] Failed to check delete permission',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskValidationService] Failed to check delete permission',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return false;
     }
   }
@@ -125,10 +132,10 @@ class TaskValidationService {
   /// Check if a task can be moved to a target parent
   Future<bool> canMove(String taskId, String? targetParentId) async {
     try {
-      _logger.debug('[TaskValidationService] Checking if task can be moved', data: {
-        'taskId': taskId,
-        'targetParentId': targetParentId,
-      });
+      _logger.debug(
+        '[TaskValidationService] Checking if task can be moved',
+        data: {'taskId': taskId, 'targetParentId': targetParentId},
+      );
 
       // Cannot move to itself
       if (taskId == targetParentId) {
@@ -139,9 +146,10 @@ class TaskValidationService {
       // Check if task exists
       final task = await _repository.getTaskById(taskId);
       if (task == null) {
-        _logger.warning('[TaskValidationService] Task not found', data: {
-          'taskId': taskId,
-        });
+        _logger.warning(
+          '[TaskValidationService] Task not found',
+          data: {'taskId': taskId},
+        );
         return false;
       }
 
@@ -153,58 +161,66 @@ class TaskValidationService {
       // Check if target parent exists
       final targetParent = await _repository.getTaskById(targetParentId);
       if (targetParent == null) {
-        _logger.warning('[TaskValidationService] Target parent not found', data: {
-          'targetParentId': targetParentId,
-        });
+        _logger.warning(
+          '[TaskValidationService] Target parent not found',
+          data: {'targetParentId': targetParentId},
+        );
         return false;
       }
 
       // Check if tasks are in the same note
       if (task.noteId != targetParent.noteId) {
-        _logger.warning('[TaskValidationService] Cannot move task to different note', data: {
-          'taskId': taskId,
-          'taskNote': task.noteId,
-          'targetNote': targetParent.noteId,
-        });
+        _logger.warning(
+          '[TaskValidationService] Cannot move task to different note',
+          data: {
+            'taskId': taskId,
+            'taskNote': task.noteId,
+            'targetNote': targetParent.noteId,
+          },
+        );
         return false;
       }
 
       // Check for circular dependency
       if (await _wouldCreateCycle(taskId, targetParentId)) {
-        _logger.warning('[TaskValidationService] Move would create circular dependency', data: {
-          'taskId': taskId,
-          'targetParentId': targetParentId,
-        });
+        _logger.warning(
+          '[TaskValidationService] Move would create circular dependency',
+          data: {'taskId': taskId, 'targetParentId': targetParentId},
+        );
         return false;
       }
 
       // Check hierarchy depth
       final targetDepth = await _getTaskDepth(targetParentId);
       if (targetDepth >= maxHierarchyDepth - 1) {
-        _logger.warning('[TaskValidationService] Move would exceed max hierarchy depth', data: {
-          'targetDepth': targetDepth,
-          'maxDepth': maxHierarchyDepth,
-        });
+        _logger.warning(
+          '[TaskValidationService] Move would exceed max hierarchy depth',
+          data: {'targetDepth': targetDepth, 'maxDepth': maxHierarchyDepth},
+        );
         return false;
       }
 
       // Check number of children for target parent
       final targetChildren = await _getChildCount(targetParentId);
       if (targetChildren >= maxChildrenPerTask) {
-        _logger.warning('[TaskValidationService] Target parent has too many children', data: {
-          'childCount': targetChildren,
-          'maxChildren': maxChildrenPerTask,
-        });
+        _logger.warning(
+          '[TaskValidationService] Target parent has too many children',
+          data: {
+            'childCount': targetChildren,
+            'maxChildren': maxChildrenPerTask,
+          },
+        );
         return false;
       }
 
       return true;
     } catch (e, stack) {
-      _logger.error('[TaskValidationService] Failed to check move permission',
-          error: e, stackTrace: stack, data: {
-            'taskId': taskId,
-            'targetParentId': targetParentId,
-          });
+      _logger.error(
+        '[TaskValidationService] Failed to check move permission',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'targetParentId': targetParentId},
+      );
       return false;
     }
   }
@@ -223,7 +239,9 @@ class TaskValidationService {
         return true; // Cycle detected
       }
       visited.add(currentId);
-      currentId = taskMap[currentId] != null ? _getParentTaskId(taskMap[currentId]!) : null;
+      currentId = taskMap[currentId] != null
+          ? _getParentTaskId(taskMap[currentId]!)
+          : null;
     }
 
     return false;
@@ -235,11 +253,15 @@ class TaskValidationService {
     final taskMap = {for (final task in allTasks) task.id: task};
 
     int depth = 0;
-    String? currentId = taskMap[taskId] != null ? _getParentTaskId(taskMap[taskId]!) : null;
+    String? currentId = taskMap[taskId] != null
+        ? _getParentTaskId(taskMap[taskId]!)
+        : null;
 
     while (currentId != null && depth < maxHierarchyDepth) {
       depth++;
-      currentId = taskMap[currentId] != null ? _getParentTaskId(taskMap[currentId]!) : null;
+      currentId = taskMap[currentId] != null
+          ? _getParentTaskId(taskMap[currentId]!)
+          : null;
     }
 
     return depth;

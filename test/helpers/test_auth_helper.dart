@@ -42,10 +42,7 @@ class TestUser {
   }
 
   /// Create a session for this user
-  supabase.Session toSession({
-    String? accessToken,
-    String? refreshToken,
-  }) {
+  supabase.Session toSession({String? accessToken, String? refreshToken}) {
     return supabase.Session(
       accessToken: accessToken ?? 'test-access-token-$id',
       refreshToken: refreshToken ?? 'test-refresh-token-$id',
@@ -80,13 +77,14 @@ class AuthTestHelper {
 
     // Mock Supabase auth response
     final mockAuth = supabaseClient.auth as dynamic;
-    when(mockAuth.signUp(
-      email: user.email,
-      password: user.password,
-    )).thenAnswer((_) async => supabase.AuthResponse(
-      session: user.toSession(),
-      user: user.toSupabaseUser(),
-    ));
+    when(
+      mockAuth.signUp(email: user.email, password: user.password),
+    ).thenAnswer(
+      (_) async => supabase.AuthResponse(
+        session: user.toSession(),
+        user: user.toSupabaseUser(),
+      ),
+    );
 
     // Set current user
     when(mockAuth.currentUser).thenReturn(user.toSupabaseUser());
@@ -118,13 +116,14 @@ class AuthTestHelper {
 
     // Mock Supabase auth
     final mockAuth = supabaseClient.auth as dynamic;
-    when(mockAuth.signInWithPassword(
-      email: user.email,
-      password: user.password,
-    )).thenAnswer((_) async => supabase.AuthResponse(
-      session: user.toSession(),
-      user: user.toSupabaseUser(),
-    ));
+    when(
+      mockAuth.signInWithPassword(email: user.email, password: user.password),
+    ).thenAnswer(
+      (_) async => supabase.AuthResponse(
+        session: user.toSession(),
+        user: user.toSupabaseUser(),
+      ),
+    );
 
     // Set current user
     when(mockAuth.currentUser).thenReturn(user.toSupabaseUser());
@@ -219,10 +218,12 @@ class AuthTestHelper {
       refreshToken: 'new-refresh-token-${currentUser!.id}',
     );
 
-    when(mockAuth.refreshSession()).thenAnswer((_) async => supabase.AuthResponse(
-      session: newSession,
-      user: currentUser!.toSupabaseUser(),
-    ));
+    when(mockAuth.refreshSession()).thenAnswer(
+      (_) async => supabase.AuthResponse(
+        session: newSession,
+        user: currentUser!.toSupabaseUser(),
+      ),
+    );
 
     when(mockAuth.currentSession).thenReturn(newSession);
 
@@ -290,7 +291,9 @@ class AuthTestHelper {
     for (final note in notes) {
       if (note.userId != null && note.userId != expectedUserId) {
         if (kDebugMode) {
-          debugPrint('[AuthTestHelper] ❌ User isolation breach: Note ${note.id} has userId ${note.userId}, expected $expectedUserId');
+          debugPrint(
+            '[AuthTestHelper] ❌ User isolation breach: Note ${note.id} has userId ${note.userId}, expected $expectedUserId',
+          );
         }
         return false;
       }
@@ -300,7 +303,9 @@ class AuthTestHelper {
     for (final task in tasks) {
       if (task.userId != expectedUserId) {
         if (kDebugMode) {
-          debugPrint('[AuthTestHelper] ❌ User isolation breach: Task ${task.id} has userId ${task.userId}, expected $expectedUserId');
+          debugPrint(
+            '[AuthTestHelper] ❌ User isolation breach: Task ${task.id} has userId ${task.userId}, expected $expectedUserId',
+          );
         }
         return false;
       }
@@ -310,7 +315,9 @@ class AuthTestHelper {
     for (final folder in folders) {
       if (folder.userId != expectedUserId) {
         if (kDebugMode) {
-          debugPrint('[AuthTestHelper] ❌ User isolation breach: Folder ${folder.id} has userId ${folder.userId}, expected $expectedUserId');
+          debugPrint(
+            '[AuthTestHelper] ❌ User isolation breach: Folder ${folder.id} has userId ${folder.userId}, expected $expectedUserId',
+          );
         }
         return false;
       }
@@ -394,7 +401,9 @@ class SecurityTestUtils {
     final notes = await database.select(database.localNotes).get();
     for (final note in notes) {
       if (note.userId != null && note.userId != expectedUserId) {
-        violations.add('Note ${note.id} belongs to ${note.userId}, expected $expectedUserId');
+        violations.add(
+          'Note ${note.id} belongs to ${note.userId}, expected $expectedUserId',
+        );
       }
     }
 
@@ -402,7 +411,9 @@ class SecurityTestUtils {
     final tasks = await database.select(database.noteTasks).get();
     for (final task in tasks) {
       if (task.userId != expectedUserId) {
-        violations.add('Task ${task.id} belongs to ${task.userId}, expected $expectedUserId');
+        violations.add(
+          'Task ${task.id} belongs to ${task.userId}, expected $expectedUserId',
+        );
       }
     }
 
@@ -410,7 +421,9 @@ class SecurityTestUtils {
     final folders = await database.select(database.localFolders).get();
     for (final folder in folders) {
       if (folder.userId != expectedUserId) {
-        violations.add('Folder ${folder.id} belongs to ${folder.userId}, expected $expectedUserId');
+        violations.add(
+          'Folder ${folder.id} belongs to ${folder.userId}, expected $expectedUserId',
+        );
       }
     }
 
@@ -418,7 +431,9 @@ class SecurityTestUtils {
     final searches = await database.select(database.savedSearches).get();
     for (final search in searches) {
       if (search.userId != null && search.userId != expectedUserId) {
-        violations.add('Search ${search.id} belongs to ${search.userId}, expected $expectedUserId');
+        violations.add(
+          'Search ${search.id} belongs to ${search.userId}, expected $expectedUserId',
+        );
       }
     }
 
@@ -426,7 +441,9 @@ class SecurityTestUtils {
     final reminders = await database.select(database.noteReminders).get();
     for (final reminder in reminders) {
       if (reminder.userId != expectedUserId) {
-        violations.add('Reminder ${reminder.id} belongs to ${reminder.userId}, expected $expectedUserId');
+        violations.add(
+          'Reminder ${reminder.id} belongs to ${reminder.userId}, expected $expectedUserId',
+        );
       }
     }
 

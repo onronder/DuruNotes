@@ -29,7 +29,7 @@ class PushTokenResult {
 /// Service for managing push notifications and FCM tokens
 class PushNotificationService {
   PushNotificationService(this._ref, {SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   final Ref _ref;
   final SupabaseClient _client;
@@ -67,15 +67,18 @@ class PushNotificationService {
             'platform': Platform.isIOS
                 ? 'ios'
                 : Platform.isAndroid
-                    ? 'android'
-                    : Platform.operatingSystem,
+                ? 'android'
+                : Platform.operatingSystem,
             'isPhysicalDevice': _isPhysicalDevice,
           },
         );
       } catch (deviceError, stack) {
         _logger.warning(
           'Unable to determine physical device status for push notifications',
-          data: {'error': deviceError.toString(), 'stackTrace': stack.toString()},
+          data: {
+            'error': deviceError.toString(),
+            'stackTrace': stack.toString(),
+          },
         );
         _isPhysicalDevice ??= true;
       }
@@ -130,14 +133,17 @@ class PushNotificationService {
       // Check permission status
       final settings = await checkPermissionStatus();
 
-      debugPrint('🔔 Initial permission status: ${settings.authorizationStatus}');
+      debugPrint(
+        '🔔 Initial permission status: ${settings.authorizationStatus}',
+      );
       debugPrint('🔔 Alert setting: ${settings.alert}');
       debugPrint('🔔 Badge setting: ${settings.badge}');
       debugPrint('🔔 Sound setting: ${settings.sound}');
 
       // Check if we need to request permission
       // Accept both 'authorized' and 'provisional' as valid states
-      final isPermissionGranted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+      final isPermissionGranted =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
 
       if (!isPermissionGranted) {
@@ -146,77 +152,98 @@ class PushNotificationService {
         // Request permission if not authorized
         final newSettings = await requestPermission();
 
-        debugPrint('🔔 Permission after request: ${newSettings.authorizationStatus}');
-        debugPrint('🔔 Alert: ${newSettings.alert}, Badge: ${newSettings.badge}, Sound: ${newSettings.sound}');
+        debugPrint(
+          '🔔 Permission after request: ${newSettings.authorizationStatus}',
+        );
+        debugPrint(
+          '🔔 Alert: ${newSettings.alert}, Badge: ${newSettings.badge}, Sound: ${newSettings.sound}',
+        );
 
         // Accept both 'authorized' and 'provisional' as success
         // Only fail if explicitly denied or permanently denied
-        final isGranted = newSettings.authorizationStatus == AuthorizationStatus.authorized ||
+        final isGranted =
+            newSettings.authorizationStatus == AuthorizationStatus.authorized ||
             newSettings.authorizationStatus == AuthorizationStatus.provisional;
 
-        final isDenied = newSettings.authorizationStatus == AuthorizationStatus.denied;
+        final isDenied =
+            newSettings.authorizationStatus == AuthorizationStatus.denied;
 
         if (isDenied) {
           // Hard fail only on explicit denial
-          debugPrint('❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}');
-          _logger.error('❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}');
+          debugPrint(
+            '❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}',
+          );
+          _logger.error(
+            '❌ Permission explicitly denied. Status: ${newSettings.authorizationStatus}',
+          );
           return PushTokenResult(
             success: false,
-            error: 'Notification permission denied (status: ${newSettings.authorizationStatus})',
+            error:
+                'Notification permission denied (status: ${newSettings.authorizationStatus})',
             permissionStatus: newSettings.authorizationStatus,
           );
         }
 
         if (!isGranted) {
           // notDetermined or other states - log but continue to try getting token
-          debugPrint('⚠️  Permission not yet determined. Status: ${newSettings.authorizationStatus}');
-          debugPrint('🔔 Attempting to get token anyway (may work on some platforms)...');
+          debugPrint(
+            '⚠️  Permission not yet determined. Status: ${newSettings.authorizationStatus}',
+          );
+          debugPrint(
+            '🔔 Attempting to get token anyway (may work on some platforms)...',
+          );
           _logger.warning(
             'Notification permission not determined, attempting token retrieval',
             data: {'status': newSettings.authorizationStatus.toString()},
           );
         } else {
-          debugPrint('✅ Permission granted! Status: ${newSettings.authorizationStatus}');
+          debugPrint(
+            '✅ Permission granted! Status: ${newSettings.authorizationStatus}',
+          );
         }
       } else {
-        debugPrint('✅ Permission already granted: ${settings.authorizationStatus}');
+        debugPrint(
+          '✅ Permission already granted: ${settings.authorizationStatus}',
+        );
       }
 
-    final runningOnUnsupportedSimulator =
-        !kIsWeb && Platform.isIOS && (_isPhysicalDevice == false);
+      final runningOnUnsupportedSimulator =
+          !kIsWeb && Platform.isIOS && (_isPhysicalDevice == false);
 
-    if (runningOnUnsupportedSimulator) {
-      const simMessage =
-          'FCM tokens are not available on the iOS simulator. Please test on a physical device.';
-      debugPrint('ℹ️ $simMessage');
-      _logger.warning(simMessage);
-      return PushTokenResult(
-        success: false,
-        error: simMessage,
-        permissionStatus: settings.authorizationStatus,
-      );
-    }
+      if (runningOnUnsupportedSimulator) {
+        const simMessage =
+            'FCM tokens are not available on the iOS simulator. Please test on a physical device.';
+        debugPrint('ℹ️ $simMessage');
+        _logger.warning(simMessage);
+        return PushTokenResult(
+          success: false,
+          error: simMessage,
+          permissionStatus: settings.authorizationStatus,
+        );
+      }
 
-    // Get FCM token
-    debugPrint('🔔 Attempting to get FCM token...');
-    final token = await _getToken();
+      // Get FCM token
+      debugPrint('🔔 Attempting to get FCM token...');
+      final token = await _getToken();
 
-    if (token == null) {
-      const genericError = 'Failed to get FCM token';
-      debugPrint('❌ $genericError');
-      _logger.error(genericError);
-      return const PushTokenResult(
-        success: false,
-        error: 'Failed to get FCM token',
-      );
-    }
+      if (token == null) {
+        const genericError = 'Failed to get FCM token';
+        debugPrint('❌ $genericError');
+        _logger.error(genericError);
+        return const PushTokenResult(
+          success: false,
+          error: 'Failed to get FCM token',
+        );
+      }
 
       debugPrint('✅ Got FCM token: ${token.substring(0, 30)}...');
 
       // Get device metadata
       debugPrint('📱 Getting device metadata...');
       final metadata = await _getDeviceMetadata();
-      debugPrint('📱 Platform: ${metadata['platform']}, App version: ${metadata['app_version']}');
+      debugPrint(
+        '📱 Platform: ${metadata['platform']}, App version: ${metadata['app_version']}',
+      );
 
       // Send token to backend
       debugPrint('💾 Syncing token with backend...');
@@ -260,7 +287,8 @@ class PushNotificationService {
           apnsToken = await _messaging!.getAPNSToken();
           if (apnsToken == null) {
             _logger.warning(
-                'APNs token not available yet, attempt ${retries + 1}/$maxRetries');
+              'APNs token not available yet, attempt ${retries + 1}/$maxRetries',
+            );
             if (retries < maxRetries - 1) {
               await Future<void>.delayed(retryDelay);
             }
@@ -453,8 +481,9 @@ class PushNotificationService {
     random[6] = (random[6] & 0x0f) | 0x40;
     random[8] = (random[8] & 0x3f) | 0x80;
 
-    final hex =
-        random.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    final hex = random
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
 
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
   }

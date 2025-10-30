@@ -101,14 +101,15 @@ void main() {
     mockCrypto = MockCryptoBox();
 
     mockAdvancedService = MockAdvancedReminderService();
-    when(mockAdvancedService.deleteReminder(any))
-        .thenAnswer((_) async => {});
+    when(mockAdvancedService.deleteReminder(any)).thenAnswer((_) async => {});
 
     mockNotifications = MockFlutterLocalNotificationsPlugin();
     when(mockNotifications.initialize(any)).thenAnswer((_) async => true);
     when(
-      mockNotifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>(),
+      mockNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >(),
     ).thenReturn(null);
     when(
       mockNotifications.zonedSchedule(
@@ -122,22 +123,11 @@ void main() {
         matchDateTimeComponents: anyNamed('matchDateTimeComponents'),
       ),
     ).thenAnswer((_) async {});
-    when(mockNotifications.show(any, any, any, any))
-        .thenAnswer((_) async {});
+    when(mockNotifications.show(any, any, any, any)).thenAnswer((_) async {});
 
     mockLogger = MockAppLogger();
-    when(
-      mockLogger.info(
-        any,
-        data: anyNamed('data'),
-      ),
-    ).thenReturn(null);
-    when(
-      mockLogger.warning(
-        any,
-        data: anyNamed('data'),
-      ),
-    ).thenReturn(null);
+    when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
+    when(mockLogger.warning(any, data: anyNamed('data'))).thenReturn(null);
     when(
       mockLogger.error(
         any,
@@ -180,7 +170,9 @@ void main() {
     required String userId,
   }) async {
     final now = DateTime.utc(2025, 10, 29);
-    await db.into(db.localNotes).insert(
+    await db
+        .into(db.localNotes)
+        .insert(
           app_db.LocalNotesCompanion.insert(
             id: noteId,
             createdAt: now,
@@ -193,8 +185,8 @@ void main() {
             noteType: Value(NoteKind.note),
             version: const Value(1),
             userId: Value(userId),
-        ),
-      );
+          ),
+        );
   }
 
   Future<app_db.NoteTask> insertTask({
@@ -205,7 +197,9 @@ void main() {
     int? reminderId,
   }) async {
     final now = DateTime.utc(2025, 10, 29, 12);
-    await db.into(db.noteTasks).insert(
+    await db
+        .into(db.noteTasks)
+        .insert(
           app_db.NoteTasksCompanion.insert(
             id: taskId,
             noteId: noteId,
@@ -284,8 +278,7 @@ void main() {
 
       expect(reminderId, equals(321));
 
-      final updatedTask =
-          await db.getTaskById('task-1', userId: _userA);
+      final updatedTask = await db.getTaskById('task-1', userId: _userA);
       expect(updatedTask!.reminderId, equals(321));
       expect(fakeCoordinator.createCalls, hasLength(1));
       expect(fakeCoordinator.createCalls.single['noteId'], 'note-1');
@@ -322,8 +315,7 @@ void main() {
 
       expect(reminderId, equals(555));
 
-      final storedTask =
-          await db.getTaskById('task-unauth', userId: _userA);
+      final storedTask = await db.getTaskById('task-unauth', userId: _userA);
       expect(storedTask!.reminderId, isNull);
 
       final auditEvents = _eventsFor(
@@ -349,8 +341,7 @@ void main() {
           reminderId: 777,
         );
 
-        final storedTask =
-            await db.getTaskById('task-2', userId: _userA);
+        final storedTask = await db.getTaskById('task-2', userId: _userA);
         final taskWithoutUser = storedTask!.copyWith(
           userId: '',
           reminderId: const Value(777),
@@ -362,8 +353,7 @@ void main() {
 
         verify(mockAdvancedService.deleteReminder(777)).called(1);
 
-        final postTask =
-            await db.getTaskById('task-2', userId: _userA);
+        final postTask = await db.getTaskById('task-2', userId: _userA);
         expect(postTask!.reminderId, equals(777));
 
         final auditEvents = _eventsFor(
@@ -376,61 +366,52 @@ void main() {
       },
     );
 
-    test(
-      'snoozeTaskReminder prevents cross-user reminder access',
-      () async {
-        await setupBridge(supabaseUserId: _userB);
-        await insertNote(noteId: 'note-3', userId: _userA);
-        await insertTask(
-          taskId: 'task-3',
-          noteId: 'note-3',
-          userId: _userA,
-          dueDate: DateTime.now().add(const Duration(hours: 4)),
-          reminderId: null,
+    test('snoozeTaskReminder prevents cross-user reminder access', () async {
+      await setupBridge(supabaseUserId: _userB);
+      await insertNote(noteId: 'note-3', userId: _userA);
+      await insertTask(
+        taskId: 'task-3',
+        noteId: 'note-3',
+        userId: _userA,
+        dueDate: DateTime.now().add(const Duration(hours: 4)),
+        reminderId: null,
+      );
+
+      final reminderId = await insertReminder(
+        noteId: 'note-3',
+        userId: _userA,
+        remindAt: DateTime.now().add(const Duration(hours: 2)),
+        snoozeCount: 1,
+      );
+
+      await db.updateTask(
+        'task-3',
+        _userA,
+        app_db.NoteTasksCompanion(reminderId: Value(reminderId)),
+      );
+
+      final taskForSnooze = (await db.getTaskById('task-3', userId: _userA))!;
+
+      final events = await _captureAuditEvents(() async {
+        await bridge.snoozeTaskReminder(
+          task: taskForSnooze,
+          snoozeDuration: const Duration(minutes: 15),
         );
+      });
 
-        final reminderId = await insertReminder(
-          noteId: 'note-3',
-          userId: _userA,
-          remindAt: DateTime.now().add(const Duration(hours: 2)),
-          snoozeCount: 1,
-        );
+      expect(fakeSnoozeService.calls, isEmpty);
 
-        await db.updateTask(
-          'task-3',
-          _userA,
-          app_db.NoteTasksCompanion(
-            reminderId: Value(reminderId),
-          ),
-        );
+      final storedReminder = await db.getReminderById(reminderId, _userA);
+      expect(storedReminder!.snoozeCount, equals(1));
 
-        final taskForSnooze = (await db.getTaskById(
-          'task-3',
-          userId: _userA,
-        ))!;
-
-        final events = await _captureAuditEvents(() async {
-          await bridge.snoozeTaskReminder(
-            task: taskForSnooze,
-            snoozeDuration: const Duration(minutes: 15),
-          );
-        });
-
-        expect(fakeSnoozeService.calls, isEmpty);
-
-        final storedReminder =
-            await db.getReminderById(reminderId, _userA);
-        expect(storedReminder!.snoozeCount, equals(1));
-
-        final auditEvents = _eventsFor(
-          events,
-          'taskReminderBridge.snoozeTaskReminder',
-        );
-        expect(auditEvents, isNotEmpty);
-        expect(auditEvents.last.metadata?['granted'], isFalse);
-        expect(auditEvents.last.metadata?['reason'], 'not_found');
-      },
-    );
+      final auditEvents = _eventsFor(
+        events,
+        'taskReminderBridge.snoozeTaskReminder',
+      );
+      expect(auditEvents, isNotEmpty);
+      expect(auditEvents.last.metadata?['granted'], isFalse);
+      expect(auditEvents.last.metadata?['reason'], 'not_found');
+    });
   });
 }
 

@@ -22,8 +22,8 @@ class FtsService {
     required this.db,
     AppLogger? logger,
     SecurityAuditTrail? auditTrail,
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _auditTrail = auditTrail ?? SecurityAuditTrail();
+  }) : _logger = logger ?? LoggerFactory.instance,
+       _auditTrail = auditTrail ?? SecurityAuditTrail();
 
   final AppDb db;
   final AppLogger _logger;
@@ -48,18 +48,18 @@ class FtsService {
     String? folderPath,
   }) async {
     try {
-      _logger.debug('Indexing note for FTS', data: {
-        'noteId': noteId,
-        'titleLength': title.length,
-        'bodyLength': body.length,
-        'hasFolderPath': folderPath != null,
-      });
+      _logger.debug(
+        'Indexing note for FTS',
+        data: {
+          'noteId': noteId,
+          'titleLength': title.length,
+          'bodyLength': body.length,
+          'hasFolderPath': folderPath != null,
+        },
+      );
 
       // Delete existing FTS entry (if any)
-      await db.customStatement(
-        'DELETE FROM fts_notes WHERE id = ?',
-        [noteId],
-      );
+      await db.customStatement('DELETE FROM fts_notes WHERE id = ?', [noteId]);
 
       // Insert new FTS entry with decrypted content
       await db.customStatement(
@@ -117,10 +117,7 @@ class FtsService {
     try {
       _logger.debug('Removing note from FTS', data: {'noteId': noteId});
 
-      await db.customStatement(
-        'DELETE FROM fts_notes WHERE id = ?',
-        [noteId],
-      );
+      await db.customStatement('DELETE FROM fts_notes WHERE id = ?', [noteId]);
 
       return true;
     } catch (e, stackTrace) {
@@ -148,18 +145,18 @@ class FtsService {
     int successful = 0;
 
     try {
-      _logger.info('Batch indexing notes for FTS', data: {
-        'count': notes.length,
-      });
+      _logger.info(
+        'Batch indexing notes for FTS',
+        data: {'count': notes.length},
+      );
 
       await db.transaction(() async {
         for (final note in notes) {
           try {
             // Delete existing
-            await db.customStatement(
-              'DELETE FROM fts_notes WHERE id = ?',
-              [note.id],
-            );
+            await db.customStatement('DELETE FROM fts_notes WHERE id = ?', [
+              note.id,
+            ]);
 
             // Insert new
             await db.customStatement(
@@ -177,11 +174,14 @@ class FtsService {
         }
       });
 
-      _logger.info('Batch indexing completed', data: {
-        'total': notes.length,
-        'successful': successful,
-        'failed': notes.length - successful,
-      });
+      _logger.info(
+        'Batch indexing completed',
+        data: {
+          'total': notes.length,
+          'successful': successful,
+          'failed': notes.length - successful,
+        },
+      );
 
       // Audit log for batch operations
       await _auditTrail.logEvent(
@@ -219,8 +219,11 @@ class FtsService {
   ///
   /// **Warning**: This is an expensive operation. Use sparingly.
   Future<({int total, int successful, int failed})> reindexAllNotes({
-    required Future<List<({String id, String title, String body, String? folderPath})>>
-        Function() notesFetcher,
+    required Future<
+      List<({String id, String title, String body, String? folderPath})>
+    >
+    Function()
+    notesFetcher,
   }) async {
     try {
       _logger.info('Starting FTS reindex of all notes');
@@ -239,12 +242,15 @@ class FtsService {
 
       final duration = DateTime.now().difference(startTime);
 
-      _logger.info('FTS reindex completed', data: {
-        'total': notes.length,
-        'successful': successful,
-        'failed': failed,
-        'durationMs': duration.inMilliseconds,
-      });
+      _logger.info(
+        'FTS reindex completed',
+        data: {
+          'total': notes.length,
+          'successful': successful,
+          'failed': failed,
+          'durationMs': duration.inMilliseconds,
+        },
+      );
 
       // Audit log
       await _auditTrail.logEvent(
@@ -256,16 +262,14 @@ class FtsService {
           'failed': failed,
           'durationMs': duration.inMilliseconds,
         },
-        severity: failed == 0 ? SecuritySeverity.info : SecuritySeverity.warning,
+        severity: failed == 0
+            ? SecuritySeverity.info
+            : SecuritySeverity.warning,
       );
 
       return (total: notes.length, successful: successful, failed: failed);
     } catch (e, stackTrace) {
-      _logger.error(
-        'FTS reindex failed',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _logger.error('FTS reindex failed', error: e, stackTrace: stackTrace);
 
       await _auditTrail.logEvent(
         SecurityEventType.securityViolation,
@@ -287,45 +291,37 @@ class FtsService {
       _logger.info('Verifying FTS integrity');
 
       // Count notes that should be in FTS but aren't
-      final missingResult = await db.customSelect(
-        '''
+      final missingResult = await db.customSelect('''
         SELECT COUNT(*) as count
         FROM local_notes
         WHERE deleted = 0 AND note_type = 0
         AND id NOT IN (SELECT id FROM fts_notes)
-        ''',
-      ).getSingle();
+        ''').getSingle();
       final missing = missingResult.data['count'] as int;
 
       // Count FTS entries that shouldn't be there (deleted/template notes)
-      final staleResult = await db.customSelect(
-        '''
+      final staleResult = await db.customSelect('''
         SELECT COUNT(*) as count
         FROM fts_notes
         WHERE id NOT IN (
           SELECT id FROM local_notes
           WHERE deleted = 0 AND note_type = 0
         )
-        ''',
-      ).getSingle();
+        ''').getSingle();
       final stale = staleResult.data['count'] as int;
 
       final healthy = missing == 0 && stale == 0;
 
-      _logger.info('FTS integrity check', data: {
-        'missing': missing,
-        'stale': stale,
-        'healthy': healthy,
-      });
+      _logger.info(
+        'FTS integrity check',
+        data: {'missing': missing, 'stale': stale, 'healthy': healthy},
+      );
 
       if (!healthy) {
         await _auditTrail.logEvent(
           SecurityEventType.securityViolation,
           'FTS integrity issues detected',
-          metadata: {
-            'missingEntries': missing,
-            'staleEntries': stale,
-          },
+          metadata: {'missingEntries': missing, 'staleEntries': stale},
           severity: SecuritySeverity.warning,
         );
       }
@@ -346,8 +342,11 @@ class FtsService {
   /// Removes stale entries and adds missing ones.
   /// Returns true if repair was successful.
   Future<bool> repairFts({
-    required Future<List<({String id, String title, String body, String? folderPath})>>
-        Function(List<String> ids) notesFetcher,
+    required Future<
+      List<({String id, String title, String body, String? folderPath})>
+    >
+    Function(List<String> ids)
+    notesFetcher,
   }) async {
     try {
       _logger.info('Starting FTS repair');
@@ -361,28 +360,27 @@ class FtsService {
 
       // Remove stale entries
       if (integrity.stale > 0) {
-        await db.customStatement(
-          '''
+        await db.customStatement('''
           DELETE FROM fts_notes
           WHERE id NOT IN (
             SELECT id FROM local_notes
             WHERE deleted = 0 AND note_type = 0
           )
-          ''',
+          ''');
+        _logger.info(
+          'Removed stale FTS entries',
+          data: {'count': integrity.stale},
         );
-        _logger.info('Removed stale FTS entries', data: {'count': integrity.stale});
       }
 
       // Find missing note IDs
       if (integrity.missing > 0) {
-        final missingIds = await db.customSelect(
-          '''
+        final missingIds = await db.customSelect('''
           SELECT id
           FROM local_notes
           WHERE deleted = 0 AND note_type = 0
           AND id NOT IN (SELECT id FROM fts_notes)
-          ''',
-        ).get();
+          ''').get();
 
         final ids = missingIds.map((row) => row.data['id'] as String).toList();
 
@@ -390,10 +388,10 @@ class FtsService {
         final notes = await notesFetcher(ids);
         final indexed = await indexNotesBatch(notes);
 
-        _logger.info('Added missing FTS entries', data: {
-          'requested': ids.length,
-          'indexed': indexed,
-        });
+        _logger.info(
+          'Added missing FTS entries',
+          data: {'requested': ids.length, 'indexed': indexed},
+        );
       }
 
       // Verify repair succeeded
@@ -409,16 +407,14 @@ class FtsService {
           'afterStale': postRepair.stale,
           'success': postRepair.healthy,
         },
-        severity: postRepair.healthy ? SecuritySeverity.info : SecuritySeverity.warning,
+        severity: postRepair.healthy
+            ? SecuritySeverity.info
+            : SecuritySeverity.warning,
       );
 
       return postRepair.healthy;
     } catch (e, stackTrace) {
-      _logger.error(
-        'FTS repair failed',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _logger.error('FTS repair failed', error: e, stackTrace: stackTrace);
       return false;
     }
   }

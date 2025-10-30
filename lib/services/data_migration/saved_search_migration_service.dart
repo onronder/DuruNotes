@@ -29,8 +29,8 @@ class SavedSearchMigrationService {
   Future<SavedSearchMigrationResult> runAutoMigration() async {
     try {
       // Check if migration is needed
-      final stats = await Migration26SavedSearchesUserId
-          .getUserIdPopulationStats(db);
+      final stats =
+          await Migration26SavedSearchesUserId.getUserIdPopulationStats(db);
 
       final totalSearches = stats['totalSearches'] ?? 0;
       final searchesWithoutUserId = stats['searchesWithoutUserId'] ?? 0;
@@ -89,17 +89,15 @@ class SavedSearchMigrationService {
       );
 
       // Verify migration completed
-      final verificationStats = await Migration26SavedSearchesUserId
-          .getUserIdPopulationStats(db);
-      final remainingWithoutUserId = verificationStats['searchesWithoutUserId'] ?? 0;
+      final verificationStats =
+          await Migration26SavedSearchesUserId.getUserIdPopulationStats(db);
+      final remainingWithoutUserId =
+          verificationStats['searchesWithoutUserId'] ?? 0;
 
       if (remainingWithoutUserId > 0) {
         logger.error(
           'SavedSearch migration: Migration incomplete',
-          data: {
-            'expected': 0,
-            'actual': remainingWithoutUserId,
-          },
+          data: {'expected': 0, 'actual': remainingWithoutUserId},
         );
         return SavedSearchMigrationResult(
           status: MigrationStatus.failed,
@@ -141,15 +139,17 @@ class SavedSearchMigrationService {
 
   /// Check if migration is needed
   Future<bool> isMigrationNeeded() async {
-    final stats = await Migration26SavedSearchesUserId
-        .getUserIdPopulationStats(db);
+    final stats = await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+      db,
+    );
     return (stats['searchesWithoutUserId'] ?? 0) > 0;
   }
 
   /// Get count of searches needing migration
   Future<int> getSearchesNeedingMigration() async {
-    final stats = await Migration26SavedSearchesUserId
-        .getUserIdPopulationStats(db);
+    final stats = await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+      db,
+    );
     return stats['searchesWithoutUserId'] ?? 0;
   }
 
@@ -182,16 +182,14 @@ class SavedSearchMigrationService {
 
       logger.info(
         'SavedSearch migration: Manually migrated searches for user',
-        data: {
-          'userId': userId,
-          'searchesMigrated': searchesNeedingMigration,
-        },
+        data: {'userId': userId, 'searchesMigrated': searchesNeedingMigration},
       );
 
       return SavedSearchMigrationResult(
         status: MigrationStatus.success,
         searchesProcessed: searchesNeedingMigration,
-        message: 'Successfully migrated $searchesNeedingMigration saved searches',
+        message:
+            'Successfully migrated $searchesNeedingMigration saved searches',
       );
     } catch (e, stackTrace) {
       logger.error(
@@ -212,8 +210,9 @@ class SavedSearchMigrationService {
   /// WARNING: This permanently deletes data
   Future<SavedSearchMigrationResult> deleteOrphanedSearches() async {
     try {
-      final count = await Migration26SavedSearchesUserId
-          .deleteOrphanedSearches(db);
+      final count = await Migration26SavedSearchesUserId.deleteOrphanedSearches(
+        db,
+      );
 
       logger.warning(
         'SavedSearch migration: Deleted orphaned searches',

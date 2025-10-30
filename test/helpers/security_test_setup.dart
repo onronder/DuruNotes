@@ -87,9 +87,7 @@ class SecurityTestSetup {
   static EncryptionMocks? get currentMocks => _currentMocks;
 
   /// Create provider overrides for encryption services
-  static List<Override> createProviderOverrides({
-    EncryptionMocks? mocks,
-  }) {
+  static List<Override> createProviderOverrides({EncryptionMocks? mocks}) {
     final m = mocks ?? _currentMocks;
     if (m == null) {
       throw StateError('No mocks available. Call setupMockEncryption first.');
@@ -125,31 +123,39 @@ class SecurityTestSetup {
     // Configure mocks based on desired state
     switch (status) {
       case EncryptionStatus.notSetup:
-        when(mocks.encryptionSyncService.getLocalAmk())
-            .thenAnswer((_) async => null);
-        when(mocks.encryptionSyncService.isEncryptionSetup())
-            .thenAnswer((_) async => false);
+        when(
+          mocks.encryptionSyncService.getLocalAmk(),
+        ).thenAnswer((_) async => null);
+        when(
+          mocks.encryptionSyncService.isEncryptionSetup(),
+        ).thenAnswer((_) async => false);
         break;
 
       case EncryptionStatus.locked:
-        when(mocks.encryptionSyncService.getLocalAmk())
-            .thenAnswer((_) async => null);
-        when(mocks.encryptionSyncService.isEncryptionSetup())
-            .thenAnswer((_) async => true);
+        when(
+          mocks.encryptionSyncService.getLocalAmk(),
+        ).thenAnswer((_) async => null);
+        when(
+          mocks.encryptionSyncService.isEncryptionSetup(),
+        ).thenAnswer((_) async => true);
         break;
 
       case EncryptionStatus.unlocked:
-        when(mocks.encryptionSyncService.getLocalAmk())
-            .thenAnswer((_) async => utf8.encode('test-amk'));
-        when(mocks.encryptionSyncService.isEncryptionSetup())
-            .thenAnswer((_) async => true);
+        when(
+          mocks.encryptionSyncService.getLocalAmk(),
+        ).thenAnswer((_) async => utf8.encode('test-amk'));
+        when(
+          mocks.encryptionSyncService.isEncryptionSetup(),
+        ).thenAnswer((_) async => true);
         break;
 
       case EncryptionStatus.error:
-        when(mocks.encryptionSyncService.getLocalAmk())
-            .thenThrow(Exception(error ?? 'Test error'));
-        when(mocks.encryptionSyncService.isEncryptionSetup())
-            .thenAnswer((_) async => true);
+        when(
+          mocks.encryptionSyncService.getLocalAmk(),
+        ).thenThrow(Exception(error ?? 'Test error'));
+        when(
+          mocks.encryptionSyncService.isEncryptionSetup(),
+        ).thenAnswer((_) async => true);
         break;
 
       case EncryptionStatus.loading:
@@ -167,14 +173,12 @@ class SecurityTestSetup {
     String Function()? userIdResolver,
   }) {
     // Use the testing constructor that bypasses security initialization
-    return SecureApiWrapper.testing(
-      api: api,
-      userIdResolver: userIdResolver,
-    );
+    return SecureApiWrapper.testing(api: api, userIdResolver: userIdResolver);
   }
 
   /// Stub common encryption operations for a mock
-  static void stubCommonEncryptionOps(MockEncryptionSyncService mock, {
+  static void stubCommonEncryptionOps(
+    MockEncryptionSyncService mock, {
     bool isSetup = false,
     bool hasAmk = false,
     String? password,
@@ -182,11 +186,7 @@ class SecurityTestSetup {
     final amkBytes = hasAmk
         ? Uint8List.fromList(utf8.encode('test-amk-${password ?? 'default'}'))
         : null;
-    mock.configure(
-      amk: amkBytes,
-      isSetup: isSetup,
-      password: password,
-    );
+    mock.configure(amk: amkBytes, isSetup: isSetup, password: password);
   }
 
   static void _applyDefaultStubs(
@@ -207,11 +207,11 @@ class SecurityTestSetup {
   }
 
   /// Create a properly initialized CryptoBox for tests
-  static CryptoBox createTestCryptoBox({
-    bool encryptionEnabled = true,
-  }) {
+  static CryptoBox createTestCryptoBox({bool encryptionEnabled = true}) {
     final accountKeyService = MockAccountKeyService(
-      amk: encryptionEnabled ? Uint8List.fromList(utf8.encode('test-amk')) : null,
+      amk: encryptionEnabled
+          ? Uint8List.fromList(utf8.encode('test-amk'))
+          : null,
     );
 
     final keyManager = KeyManager.inMemory(
@@ -238,7 +238,9 @@ class SecurityTestSetup {
 
   /// Verify encryption was used in an operation
   static void verifyEncryptionUsed(MockEncryptionService mock) {
-    verify(mock.encryptData(any, keyId: anyNamed('keyId'))).called(greaterThan(0));
+    verify(
+      mock.encryptData(any, keyId: anyNamed('keyId')),
+    ).called(greaterThan(0));
   }
 
   /// Verify decryption was used in an operation
@@ -250,7 +252,9 @@ class SecurityTestSetup {
   }
 
   /// Setup encryption for integration tests
-  static Future<void> setupIntegrationTestEncryption(WidgetTester tester) async {
+  static Future<void> setupIntegrationTestEncryption(
+    WidgetTester tester,
+  ) async {
     // Setup mocks
     final mocks = await setupMockEncryption();
 
@@ -270,10 +274,7 @@ class SecurityTestSetup {
   }
 
   /// Create a test encryption key
-  static EncryptionKey createTestKey({
-    String? id,
-    int version = 1,
-  }) {
+  static EncryptionKey createTestKey({String? id, int version = 1}) {
     final keyBytes = Uint8List.fromList(List<int>.generate(32, (i) => i));
 
     return EncryptionKey(
@@ -286,8 +287,9 @@ class SecurityTestSetup {
 
   /// Mock successful encryption operation
   static void mockSuccessfulEncryption(MockEncryptionService mock) {
-    when(mock.encryptData(argThat(anything), keyId: anyNamed('keyId')))
-        .thenAnswer((invocation) async {
+    when(
+      mock.encryptData(argThat(anything), keyId: anyNamed('keyId')),
+    ).thenAnswer((invocation) async {
       final data = invocation.positionalArguments[0];
       final keyId = invocation.namedArguments[#keyId] as String?;
 
@@ -305,8 +307,9 @@ class SecurityTestSetup {
 
   /// Mock failed encryption operation
   static void mockFailedEncryption(MockEncryptionService mock, String error) {
-    when(mock.encryptData(argThat(anything), keyId: anyNamed('keyId')))
-        .thenThrow(Exception(error));
+    when(
+      mock.encryptData(argThat(anything), keyId: anyNamed('keyId')),
+    ).thenThrow(Exception(error));
   }
 }
 

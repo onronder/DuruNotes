@@ -72,8 +72,9 @@ class _ProductivityAnalyticsScreenState
         endDate: _selectedDateRange!.end,
       );
 
-      final insights =
-          await analyticsService.getProductivityInsights(analytics);
+      final insights = await analyticsService.getProductivityInsights(
+        analytics,
+      );
 
       if (mounted) {
         setState(() {
@@ -166,10 +167,7 @@ class _ProductivityAnalyticsScreenState
       );
     } catch (e) {
       if (mounted) {
-        _logger.error(
-          'Failed to export analytics',
-          error: e,
-        );
+        _logger.error('Failed to export analytics', error: e);
         if (_reportExportError) {
           _reportExportError = false;
           unawaited(Sentry.captureException(e));
@@ -205,25 +203,21 @@ class _ProductivityAnalyticsScreenState
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              CupertinoIcons.flag_fill,
-              color: Colors.white,
-            ),
+            icon: const Icon(CupertinoIcons.flag_fill, color: Colors.white),
             onPressed: _showGoalsDialog,
             tooltip: 'Set Goals',
           ),
           IconButton(
-            icon: const Icon(
-              CupertinoIcons.calendar,
-              color: Colors.white,
-            ),
+            icon: const Icon(CupertinoIcons.calendar, color: Colors.white),
             onPressed: _selectDateRange,
             tooltip: 'Select date range',
           ),
           IconButton(
             icon: Icon(
               CupertinoIcons.share,
-              color: Colors.white.withValues(alpha: _analytics != null ? 1.0 : 0.5),
+              color: Colors.white.withValues(
+                alpha: _analytics != null ? 1.0 : 0.5,
+              ),
             ),
             onPressed: _analytics != null ? _exportData : null,
             tooltip: 'Export data',
@@ -301,10 +295,7 @@ class _ProductivityAnalyticsScreenState
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          DuruColors.primary,
-                          DuruColors.accent,
-                        ],
+                        colors: [DuruColors.primary, DuruColors.accent],
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -350,16 +341,16 @@ class _ProductivityAnalyticsScreenState
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _analytics == null
-                    ? _buildErrorState()
-                    : TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildOverviewTab(),
-                          _buildTimeAnalysisTab(),
-                          _buildTrendsTab(),
-                          _buildInsightsTab(),
-                        ],
-                      ),
+                ? _buildErrorState()
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverviewTab(),
+                      _buildTimeAnalysisTab(),
+                      _buildTrendsTab(),
+                      _buildInsightsTab(),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -401,7 +392,9 @@ class _ProductivityAnalyticsScreenState
           Text(
             'Complete some tasks to see your productivity insights',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -453,7 +446,8 @@ class _ProductivityAnalyticsScreenState
                         'Your Productivity Score',
                         style: TextStyle(
                           fontSize: 14,
-                          color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
+                          color: (isDark ? Colors.white : Colors.black87)
+                              .withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
@@ -490,8 +484,9 @@ class _ProductivityAnalyticsScreenState
               ),
               AnalyticsSummaryCard(
                 title: 'Average per Day',
-                value:
-                    analytics.completionStats.averagePerDay.toStringAsFixed(1),
+                value: analytics.completionStats.averagePerDay.toStringAsFixed(
+                  1,
+                ),
                 subtitle: 'tasks completed daily',
                 icon: CupertinoIcons.calendar_today,
                 color: DuruColors.primary,
@@ -521,7 +516,9 @@ class _ProductivityAnalyticsScreenState
           _buildModernChartSection(
             title: 'Task Completion Trends',
             icon: CupertinoIcons.graph_square_fill,
-            child: TaskCompletionChart(completionStats: analytics.completionStats),
+            child: TaskCompletionChart(
+              completionStats: analytics.completionStats,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -531,7 +528,8 @@ class _ProductivityAnalyticsScreenState
             title: 'Priority Distribution',
             icon: CupertinoIcons.chart_pie_fill,
             child: PriorityDistributionChart(
-                priorityDistribution: analytics.priorityDistribution),
+              priorityDistribution: analytics.priorityDistribution,
+            ),
           ),
         ],
       ),
@@ -586,11 +584,7 @@ class _ProductivityAnalyticsScreenState
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: Colors.white,
-                  ),
+                  child: Icon(icon, size: 20, color: Colors.white),
                 ),
                 SizedBox(width: 8),
                 Text(
@@ -604,10 +598,7 @@ class _ProductivityAnalyticsScreenState
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -627,8 +618,8 @@ class _ProductivityAnalyticsScreenState
               Expanded(
                 child: AnalyticsSummaryCard(
                   title: 'Accurate Estimates',
-                  value:
-                      analytics.timeAccuracyStats.accurateEstimates.toString(),
+                  value: analytics.timeAccuracyStats.accurateEstimates
+                      .toString(),
                   subtitle: 'within 20% of actual',
                   icon: Icons.check,
                   color: Colors.green,
@@ -684,15 +675,16 @@ class _ProductivityAnalyticsScreenState
                 Text(
                   'Productivity Score',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   _getScoreDescription(
-                      analytics.productivityTrends.productivityScore),
+                    analytics.productivityTrends.productivityScore,
+                  ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -705,7 +697,8 @@ class _ProductivityAnalyticsScreenState
             context,
             'Weekly Productivity',
             WeeklyTrendsChart(
-                weeklyTrends: analytics.productivityTrends.weeklyTrends),
+              weeklyTrends: analytics.productivityTrends.weeklyTrends,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -715,8 +708,9 @@ class _ProductivityAnalyticsScreenState
             context,
             'Most Productive Hours',
             HourlyProductivityChart(
-                hourlyDistribution:
-                    analytics.productivityTrends.hourlyDistribution),
+              hourlyDistribution:
+                  analytics.productivityTrends.hourlyDistribution,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -758,20 +752,18 @@ class _ProductivityAnalyticsScreenState
                       children: [
                         Text(
                           'Overall Productivity',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _getScoreDescription(insights.overallScore),
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),
@@ -787,9 +779,9 @@ class _ProductivityAnalyticsScreenState
           if (insights.insights.isNotEmpty) ...[
             Text(
               'Key Insights',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...insights.insights.map((insight) => _buildInsightCard(insight)),
@@ -801,19 +793,19 @@ class _ProductivityAnalyticsScreenState
           if (insights.recommendations.isNotEmpty) ...[
             Text(
               'Recommendations',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...insights.recommendations.map(
-                (recommendation) => _buildRecommendationCard(recommendation)),
+              (recommendation) => _buildRecommendationCard(recommendation),
+            ),
           ],
         ],
       ),
     );
   }
-
 
   Widget _buildTimeBreakdownSection(ProductivityAnalytics analytics) {
     return Column(
@@ -821,9 +813,9 @@ class _ProductivityAnalyticsScreenState
       children: [
         Text(
           'Time Breakdown by Priority',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         Card(
@@ -831,8 +823,9 @@ class _ProductivityAnalyticsScreenState
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: analytics.priorityDistribution.distribution.entries
-                  .map((entry) {
+              children: analytics.priorityDistribution.distribution.entries.map((
+                entry,
+              ) {
                 final priority = entry.key;
                 final stats = entry.value;
 
@@ -855,22 +848,16 @@ class _ProductivityAnalyticsScreenState
                           children: [
                             Text(
                               _getPriorityLabel(priority),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                             Text(
                               'Avg: ${stats.averageActualTime.toStringAsFixed(0)}m per task',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                           ],
@@ -878,10 +865,8 @@ class _ProductivityAnalyticsScreenState
                       ),
                       Text(
                         '${stats.completedTasks} tasks',
-                        style:
-                            Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -936,7 +921,9 @@ class _ProductivityAnalyticsScreenState
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: impactColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -979,11 +966,7 @@ class _ProductivityAnalyticsScreenState
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.lightbulb,
-              color: Colors.amber,
-              size: 20,
-            ),
+            Icon(Icons.lightbulb, color: Colors.amber, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

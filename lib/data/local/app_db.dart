@@ -1399,10 +1399,7 @@ class AppDb extends _$AppDb {
       ORDER BY count DESC, tag ASC
       ''',
       readsFrom: {noteTags, localNotes},
-      variables: [
-        Variable<String>(owner),
-        Variable<String>(owner),
-      ],
+      variables: [Variable<String>(owner), Variable<String>(owner)],
     ).get();
 
     return rows

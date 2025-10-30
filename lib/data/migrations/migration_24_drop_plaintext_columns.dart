@@ -46,10 +46,12 @@ class Migration24DropPlaintextColumns {
   static Future<bool> _verifyEncryptionComplete(Migrator m) async {
     try {
       // Check for any unencrypted notes
-      final unencryptedNotes = await m.database.customSelect(
-        'SELECT COUNT(*) as count FROM local_notes '
-        'WHERE encryption_version = 0 AND deleted = 0',
-      ).getSingle();
+      final unencryptedNotes = await m.database
+          .customSelect(
+            'SELECT COUNT(*) as count FROM local_notes '
+            'WHERE encryption_version = 0 AND deleted = 0',
+          )
+          .getSingle();
 
       final notesCount = unencryptedNotes.data['count'] as int;
       if (notesCount > 0) {
@@ -60,10 +62,12 @@ class Migration24DropPlaintextColumns {
       }
 
       // Check for any unencrypted tasks
-      final unencryptedTasks = await m.database.customSelect(
-        'SELECT COUNT(*) as count FROM note_tasks '
-        'WHERE encryption_version = 0 AND deleted = 0',
-      ).getSingle();
+      final unencryptedTasks = await m.database
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_tasks '
+            'WHERE encryption_version = 0 AND deleted = 0',
+          )
+          .getSingle();
 
       final tasksCount = unencryptedTasks.data['count'] as int;
       if (tasksCount > 0) {
@@ -290,9 +294,9 @@ class Migration24DropPlaintextColumns {
   static Future<bool> verify(AppDb db) async {
     try {
       // Check that plaintext columns no longer exist in local_notes
-      final notesColumns = await db.customSelect(
-        'PRAGMA table_info(local_notes)',
-      ).get();
+      final notesColumns = await db
+          .customSelect('PRAGMA table_info(local_notes)')
+          .get();
 
       final hasPlaintextTitle = notesColumns.any(
         (row) => row.data['name'] == 'title',
@@ -320,9 +324,9 @@ class Migration24DropPlaintextColumns {
       }
 
       // Check that data was preserved
-      final rowCount = await db.customSelect(
-        'SELECT COUNT(*) as count FROM local_notes',
-      ).getSingle();
+      final rowCount = await db
+          .customSelect('SELECT COUNT(*) as count FROM local_notes')
+          .getSingle();
 
       _logger.info(
         'Migration 24 verification passed. ${rowCount.data['count']} notes verified.',

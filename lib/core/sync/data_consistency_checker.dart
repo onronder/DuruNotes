@@ -30,11 +30,14 @@ class DataConsistencyChecker {
     Set<String>? specificTables,
   }) async {
     final stopwatch = Stopwatch()..start();
-    _logger.info('Starting data consistency check', data: {
-      'check_since': checkSince?.toIso8601String(),
-      'deep_check': deepCheck,
-      'specific_tables': specificTables?.toList(),
-    });
+    _logger.info(
+      'Starting data consistency check',
+      data: {
+        'check_since': checkSince?.toIso8601String(),
+        'deep_check': deepCheck,
+        'specific_tables': specificTables?.toList(),
+      },
+    );
 
     try {
       final issues = <ConsistencyIssue>[];
@@ -50,7 +53,10 @@ class DataConsistencyChecker {
 
       // 2. Check folders consistency
       if (specificTables == null || specificTables.contains('folders')) {
-        final folderIssues = await _checkFoldersConsistency(checkSince, deepCheck);
+        final folderIssues = await _checkFoldersConsistency(
+          checkSince,
+          deepCheck,
+        );
         issues.addAll(folderIssues);
         metrics.foldersChecked = await _getFoldersCount();
         metrics.folderIssues = folderIssues.length;
@@ -87,12 +93,17 @@ class DataConsistencyChecker {
       stopwatch.stop();
       metrics.checkDuration = stopwatch.elapsed;
 
-      _logger.info('Data consistency check completed', data: {
-        'total_issues': issues.length,
-        'critical_issues': issues.where((i) => i.severity == ConsistencySeverity.critical).length,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'deep_check': deepCheck,
-      });
+      _logger.info(
+        'Data consistency check completed',
+        data: {
+          'total_issues': issues.length,
+          'critical_issues': issues
+              .where((i) => i.severity == ConsistencySeverity.critical)
+              .length,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'deep_check': deepCheck,
+        },
+      );
 
       return ConsistencyCheckResult(
         isConsistent: issues.isEmpty,
@@ -106,7 +117,6 @@ class DataConsistencyChecker {
           'specific_tables': specificTables?.toList(),
         },
       );
-
     } catch (e, stackTrace) {
       stopwatch.stop();
       _logger.error(
@@ -148,19 +158,25 @@ class DataConsistencyChecker {
         if (remoteNote == null) {
           // Local note missing from remote
           if (!localNote.deleted) {
-            issues.add(ConsistencyIssue(
-              type: ConsistencyIssueType.missingRemote,
-              severity: ConsistencySeverity.warning,
-              table: 'notes',
-              recordId: localNote.id,
-              description: 'Note exists locally but missing from remote',
-              localValue: 'exists',
-              remoteValue: 'missing',
-            ));
+            issues.add(
+              ConsistencyIssue(
+                type: ConsistencyIssueType.missingRemote,
+                severity: ConsistencySeverity.warning,
+                table: 'notes',
+                recordId: localNote.id,
+                description: 'Note exists locally but missing from remote',
+                localValue: 'exists',
+                remoteValue: 'missing',
+              ),
+            );
           }
         } else {
           // Check consistency between local and remote
-          final noteIssues = await _validateNoteConsistency(localNote, remoteNote, deepCheck);
+          final noteIssues = await _validateNoteConsistency(
+            localNote,
+            remoteNote,
+            deepCheck,
+          );
           issues.addAll(noteIssues);
         }
       }
@@ -171,27 +187,34 @@ class DataConsistencyChecker {
         final localExists = localNotes.any((local) => local.id == remoteId);
 
         if (!localExists && !(remoteNote['deleted'] as bool? ?? false)) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingLocal,
-            severity: ConsistencySeverity.warning,
-            table: 'notes',
-            recordId: remoteId,
-            description: 'Note exists remotely but missing locally',
-            localValue: 'missing',
-            remoteValue: 'exists',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingLocal,
+              severity: ConsistencySeverity.warning,
+              table: 'notes',
+              recordId: remoteId,
+              description: 'Note exists remotely but missing locally',
+              localValue: 'missing',
+              remoteValue: 'exists',
+            ),
+          );
         }
       }
-
     } catch (e, stackTrace) {
-      _logger.error('Notes consistency check failed', error: e, stackTrace: stackTrace);
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'notes',
-        recordId: 'system',
-        description: 'Notes consistency check failed: $e',
-      ));
+      _logger.error(
+        'Notes consistency check failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'notes',
+          recordId: 'system',
+          description: 'Notes consistency check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -212,15 +235,17 @@ class DataConsistencyChecker {
       final remoteDeleted = remoteNote['deleted'] as bool? ?? false;
 
       if (localDeleted != remoteDeleted) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.deletionMismatch,
-          severity: ConsistencySeverity.critical,
-          table: 'notes',
-          recordId: noteId,
-          description: 'Deletion status mismatch between local and remote',
-          localValue: localDeleted.toString(),
-          remoteValue: remoteDeleted.toString(),
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.deletionMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'notes',
+            recordId: noteId,
+            description: 'Deletion status mismatch between local and remote',
+            localValue: localDeleted.toString(),
+            remoteValue: remoteDeleted.toString(),
+          ),
+        );
       }
 
       // Check timestamps
@@ -229,49 +254,59 @@ class DataConsistencyChecker {
       final timeDiff = localUpdated.difference(remoteUpdated).abs();
 
       if (timeDiff > Duration(minutes: 5)) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.timestampMismatch,
-          severity: ConsistencySeverity.warning,
-          table: 'notes',
-          recordId: noteId,
-          description: 'Significant timestamp difference (${timeDiff.inMinutes} minutes)',
-          localValue: localUpdated.toIso8601String(),
-          remoteValue: remoteUpdated.toIso8601String(),
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.timestampMismatch,
+            severity: ConsistencySeverity.warning,
+            table: 'notes',
+            recordId: noteId,
+            description:
+                'Significant timestamp difference (${timeDiff.inMinutes} minutes)',
+            localValue: localUpdated.toIso8601String(),
+            remoteValue: remoteUpdated.toIso8601String(),
+          ),
+        );
       }
 
       // Check content hashes using encrypted fields
-      final localHash = _calculateContentHash(localNote.titleEncrypted, localNote.encryptedMetadata);
+      final localHash = _calculateContentHash(
+        localNote.titleEncrypted,
+        localNote.encryptedMetadata,
+      );
       final remoteHash = _calculateContentHash(
-        remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String?,
+        remoteNote['title_encrypted'] as String? ??
+            remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,
       );
 
       if (localHash != remoteHash) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.contentMismatch,
-          severity: ConsistencySeverity.critical,
-          table: 'notes',
-          recordId: noteId,
-          description: 'Content hash mismatch between local and remote',
-          localValue: localHash,
-          remoteValue: remoteHash,
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.contentMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'notes',
+            recordId: noteId,
+            description: 'Content hash mismatch between local and remote',
+            localValue: localHash,
+            remoteValue: remoteHash,
+          ),
+        );
       }
 
       // Deep checks
       if (deepCheck) {
         await _performDeepNoteValidation(localNote, remoteNote, issues);
       }
-
     } catch (e) {
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'notes',
-        recordId: noteId,
-        description: 'Note validation failed: $e',
-      ));
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'notes',
+          recordId: noteId,
+          description: 'Note validation failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -293,23 +328,33 @@ class DataConsistencyChecker {
       final localFolders = await localQuery.get();
 
       // Get remote folders
-      final remoteFolders = await _remoteApi.fetchEncryptedFolders(since: since);
-      final remoteFoldersMap = {for (var folder in remoteFolders) folder['id']: folder};
+      final remoteFolders = await _remoteApi.fetchEncryptedFolders(
+        since: since,
+      );
+      final remoteFoldersMap = {
+        for (var folder in remoteFolders) folder['id']: folder,
+      };
 
       // Check each local folder
       for (final localFolder in localFolders) {
         final remoteFolder = remoteFoldersMap[localFolder.id];
 
         if (remoteFolder == null && !localFolder.deleted) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingRemote,
-            severity: ConsistencySeverity.warning,
-            table: 'folders',
-            recordId: localFolder.id,
-            description: 'Folder exists locally but missing from remote',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingRemote,
+              severity: ConsistencySeverity.warning,
+              table: 'folders',
+              recordId: localFolder.id,
+              description: 'Folder exists locally but missing from remote',
+            ),
+          );
         } else if (remoteFolder != null) {
-          final folderIssues = await _validateFolderConsistency(localFolder, remoteFolder, deepCheck);
+          final folderIssues = await _validateFolderConsistency(
+            localFolder,
+            remoteFolder,
+            deepCheck,
+          );
           issues.addAll(folderIssues);
         }
       }
@@ -317,28 +362,37 @@ class DataConsistencyChecker {
       // Check for remote folders missing locally
       for (final remoteFolder in remoteFolders) {
         final remoteFolderId = remoteFolder['id'] as String;
-        final localExists = localFolders.any((local) => local.id == remoteFolderId);
+        final localExists = localFolders.any(
+          (local) => local.id == remoteFolderId,
+        );
 
         if (!localExists && !(remoteFolder['deleted'] as bool? ?? false)) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingLocal,
-            severity: ConsistencySeverity.warning,
-            table: 'folders',
-            recordId: remoteFolderId,
-            description: 'Folder exists remotely but missing locally',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingLocal,
+              severity: ConsistencySeverity.warning,
+              table: 'folders',
+              recordId: remoteFolderId,
+              description: 'Folder exists remotely but missing locally',
+            ),
+          );
         }
       }
-
     } catch (e, stackTrace) {
-      _logger.error('Folders consistency check failed', error: e, stackTrace: stackTrace);
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'folders',
-        recordId: 'system',
-        description: 'Folders consistency check failed: $e',
-      ));
+      _logger.error(
+        'Folders consistency check failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'folders',
+          recordId: 'system',
+          description: 'Folders consistency check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -359,51 +413,61 @@ class DataConsistencyChecker {
       final remoteDeleted = remoteFolder['deleted'] as bool? ?? false;
 
       if (localDeleted != remoteDeleted) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.deletionMismatch,
-          severity: ConsistencySeverity.critical,
-          table: 'folders',
-          recordId: folderId,
-          description: 'Folder deletion status mismatch',
-          localValue: localDeleted.toString(),
-          remoteValue: remoteDeleted.toString(),
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.deletionMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'folders',
+            recordId: folderId,
+            description: 'Folder deletion status mismatch',
+            localValue: localDeleted.toString(),
+            remoteValue: remoteDeleted.toString(),
+          ),
+        );
       }
 
       // Check content hashes
-      final localHash = _calculateContentHash(localFolder.name, localFolder.description);
+      final localHash = _calculateContentHash(
+        localFolder.name,
+        localFolder.description,
+      );
       final remoteHash = _calculateContentHash(
         remoteFolder['name'] as String?,
         remoteFolder['description'] as String?,
       );
 
       if (localHash != remoteHash) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.contentMismatch,
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.contentMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'folders',
+            recordId: folderId,
+            description: 'Folder content hash mismatch',
+            localValue: localHash,
+            remoteValue: remoteHash,
+          ),
+        );
+      }
+    } catch (e) {
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
           severity: ConsistencySeverity.critical,
           table: 'folders',
           recordId: folderId,
-          description: 'Folder content hash mismatch',
-          localValue: localHash,
-          remoteValue: remoteHash,
-        ));
-      }
-
-    } catch (e) {
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'folders',
-        recordId: folderId,
-        description: 'Folder validation failed: $e',
-      ));
+          description: 'Folder validation failed: $e',
+        ),
+      );
     }
 
     return issues;
   }
 
   /// Check note-folder relationships consistency
-  Future<List<ConsistencyIssue>> _checkNoteFolderRelationships(bool deepCheck) async {
+  Future<List<ConsistencyIssue>> _checkNoteFolderRelationships(
+    bool deepCheck,
+  ) async {
     final issues = <ConsistencyIssue>[];
 
     try {
@@ -421,15 +485,18 @@ class DataConsistencyChecker {
         final relationKey = '${localRelation.noteId}-${localRelation.folderId}';
 
         if (!remoteRelationsSet.contains(relationKey)) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingRemote,
-            severity: ConsistencySeverity.warning,
-            table: 'note_folders',
-            recordId: relationKey,
-            description: 'Note-folder relationship exists locally but missing remotely',
-            localValue: 'exists',
-            remoteValue: 'missing',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingRemote,
+              severity: ConsistencySeverity.warning,
+              table: 'note_folders',
+              recordId: relationKey,
+              description:
+                  'Note-folder relationship exists locally but missing remotely',
+              localValue: 'exists',
+              remoteValue: 'missing',
+            ),
+          );
         }
       }
 
@@ -439,18 +506,22 @@ class DataConsistencyChecker {
           .toSet();
 
       for (final remoteRelation in remoteRelations) {
-        final relationKey = '${remoteRelation['note_id']}-${remoteRelation['folder_id']}';
+        final relationKey =
+            '${remoteRelation['note_id']}-${remoteRelation['folder_id']}';
 
         if (!localRelationsSet.contains(relationKey)) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingLocal,
-            severity: ConsistencySeverity.warning,
-            table: 'note_folders',
-            recordId: relationKey,
-            description: 'Note-folder relationship exists remotely but missing locally',
-            localValue: 'missing',
-            remoteValue: 'exists',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingLocal,
+              severity: ConsistencySeverity.warning,
+              table: 'note_folders',
+              recordId: relationKey,
+              description:
+                  'Note-folder relationship exists remotely but missing locally',
+              localValue: 'missing',
+              remoteValue: 'exists',
+            ),
+          );
         }
       }
 
@@ -458,16 +529,21 @@ class DataConsistencyChecker {
         // Check referential integrity
         await _checkRelationshipReferentialIntegrity(issues);
       }
-
     } catch (e, stackTrace) {
-      _logger.error('Note-folder relationships check failed', error: e, stackTrace: stackTrace);
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'note_folders',
-        recordId: 'system',
-        description: 'Relationship consistency check failed: $e',
-      ));
+      _logger.error(
+        'Note-folder relationships check failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'note_folders',
+          recordId: 'system',
+          description: 'Relationship consistency check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -497,28 +573,39 @@ class DataConsistencyChecker {
         final remoteTask = remoteTasksMap[localTask.id];
 
         if (remoteTask == null && !localTask.deleted) {
-          issues.add(ConsistencyIssue(
-            type: ConsistencyIssueType.missingRemote,
-            severity: ConsistencySeverity.warning,
-            table: 'note_tasks',
-            recordId: localTask.id,
-            description: 'Task exists locally but missing from remote',
-          ));
+          issues.add(
+            ConsistencyIssue(
+              type: ConsistencyIssueType.missingRemote,
+              severity: ConsistencySeverity.warning,
+              table: 'note_tasks',
+              recordId: localTask.id,
+              description: 'Task exists locally but missing from remote',
+            ),
+          );
         } else if (remoteTask != null) {
-          final taskIssues = await _validateTaskConsistency(localTask, remoteTask, deepCheck);
+          final taskIssues = await _validateTaskConsistency(
+            localTask,
+            remoteTask,
+            deepCheck,
+          );
           issues.addAll(taskIssues);
         }
       }
-
     } catch (e, stackTrace) {
-      _logger.error('Tasks consistency check failed', error: e, stackTrace: stackTrace);
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'note_tasks',
-        recordId: 'system',
-        description: 'Tasks consistency check failed: $e',
-      ));
+      _logger.error(
+        'Tasks consistency check failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'note_tasks',
+          recordId: 'system',
+          description: 'Tasks consistency check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -536,18 +623,23 @@ class DataConsistencyChecker {
     try {
       // Check content using encrypted fields
       final localContent = localTask.contentEncrypted;
-      final remoteContent = remoteTask['content_encrypted'] as String? ?? remoteTask['content'] as String? ?? '';
+      final remoteContent =
+          remoteTask['content_encrypted'] as String? ??
+          remoteTask['content'] as String? ??
+          '';
 
       if (localContent != remoteContent) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.contentMismatch,
-          severity: ConsistencySeverity.critical,
-          table: 'note_tasks',
-          recordId: taskId,
-          description: 'Task content mismatch',
-          localValue: localContent,
-          remoteValue: remoteContent,
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.contentMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'note_tasks',
+            recordId: taskId,
+            description: 'Task content mismatch',
+            localValue: localContent,
+            remoteValue: remoteContent,
+          ),
+        );
       }
 
       // Check status
@@ -555,15 +647,17 @@ class DataConsistencyChecker {
       final remoteStatus = remoteTask['status'] as String;
 
       if (localStatus != remoteStatus) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.statusMismatch,
-          severity: ConsistencySeverity.warning,
-          table: 'note_tasks',
-          recordId: taskId,
-          description: 'Task status mismatch',
-          localValue: localStatus,
-          remoteValue: remoteStatus,
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.statusMismatch,
+            severity: ConsistencySeverity.warning,
+            table: 'note_tasks',
+            recordId: taskId,
+            description: 'Task status mismatch',
+            localValue: localStatus,
+            remoteValue: remoteStatus,
+          ),
+        );
       }
 
       // Check deletion status
@@ -571,32 +665,37 @@ class DataConsistencyChecker {
       final remoteDeleted = remoteTask['deleted'] as bool? ?? false;
 
       if (localDeleted != remoteDeleted) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.deletionMismatch,
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.deletionMismatch,
+            severity: ConsistencySeverity.critical,
+            table: 'note_tasks',
+            recordId: taskId,
+            description: 'Task deletion status mismatch',
+            localValue: localDeleted.toString(),
+            remoteValue: remoteDeleted.toString(),
+          ),
+        );
+      }
+    } catch (e) {
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
           severity: ConsistencySeverity.critical,
           table: 'note_tasks',
           recordId: taskId,
-          description: 'Task deletion status mismatch',
-          localValue: localDeleted.toString(),
-          remoteValue: remoteDeleted.toString(),
-        ));
-      }
-
-    } catch (e) {
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'note_tasks',
-        recordId: taskId,
-        description: 'Task validation failed: $e',
-      ));
+          description: 'Task validation failed: $e',
+        ),
+      );
     }
 
     return issues;
   }
 
   /// Perform deep consistency checks
-  Future<List<ConsistencyIssue>> _performDeepConsistencyChecks(DateTime? since) async {
+  Future<List<ConsistencyIssue>> _performDeepConsistencyChecks(
+    DateTime? since,
+  ) async {
     final issues = <ConsistencyIssue>[];
 
     try {
@@ -608,16 +707,21 @@ class DataConsistencyChecker {
 
       // Check data type consistency
       await _checkDataTypeConsistency(issues);
-
     } catch (e, stackTrace) {
-      _logger.error('Deep consistency checks failed', error: e, stackTrace: stackTrace);
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'system',
-        recordId: 'deep_check',
-        description: 'Deep consistency check failed: $e',
-      ));
+      _logger.error(
+        'Deep consistency checks failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'system',
+          recordId: 'deep_check',
+          description: 'Deep consistency check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -637,14 +741,16 @@ class DataConsistencyChecker {
       ''').get();
 
       for (final task in orphanedTasks) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.referentialIntegrityViolation,
-          severity: ConsistencySeverity.critical,
-          table: 'note_tasks',
-          recordId: task.read<String>('id'),
-          description: 'Orphaned task references non-existent note',
-          localValue: 'note_id: ${task.read<String>('note_id')}',
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.referentialIntegrityViolation,
+            severity: ConsistencySeverity.critical,
+            table: 'note_tasks',
+            recordId: task.read<String>('id'),
+            description: 'Orphaned task references non-existent note',
+            localValue: 'note_id: ${task.read<String>('note_id')}',
+          ),
+        );
       }
 
       // Check orphaned note-folder relationships
@@ -657,23 +763,27 @@ class DataConsistencyChecker {
       ''').get();
 
       for (final relation in orphanedRelations) {
-        issues.add(ConsistencyIssue(
-          type: ConsistencyIssueType.referentialIntegrityViolation,
-          severity: ConsistencySeverity.critical,
-          table: 'note_folders',
-          recordId: '${relation.read<String>('note_id')}-${relation.read<String>('folder_id')}',
-          description: 'Orphaned note-folder relationship',
-        ));
+        issues.add(
+          ConsistencyIssue(
+            type: ConsistencyIssueType.referentialIntegrityViolation,
+            severity: ConsistencySeverity.critical,
+            table: 'note_folders',
+            recordId:
+                '${relation.read<String>('note_id')}-${relation.read<String>('folder_id')}',
+            description: 'Orphaned note-folder relationship',
+          ),
+        );
       }
-
     } catch (e) {
-      issues.add(ConsistencyIssue(
-        type: ConsistencyIssueType.systemError,
-        severity: ConsistencySeverity.critical,
-        table: 'system',
-        recordId: 'referential_integrity',
-        description: 'Referential integrity check failed: $e',
-      ));
+      issues.add(
+        ConsistencyIssue(
+          type: ConsistencyIssueType.systemError,
+          severity: ConsistencySeverity.critical,
+          table: 'system',
+          recordId: 'referential_integrity',
+          description: 'Referential integrity check failed: $e',
+        ),
+      );
     }
 
     return issues;
@@ -690,11 +800,15 @@ class DataConsistencyChecker {
     // This is a placeholder for more sophisticated validation
   }
 
-  Future<void> _checkRelationshipReferentialIntegrity(List<ConsistencyIssue> issues) async {
+  Future<void> _checkRelationshipReferentialIntegrity(
+    List<ConsistencyIssue> issues,
+  ) async {
     // Additional referential integrity checks
   }
 
-  Future<void> _checkEncryptionConsistency(List<ConsistencyIssue> issues) async {
+  Future<void> _checkEncryptionConsistency(
+    List<ConsistencyIssue> issues,
+  ) async {
     // Check that encrypted data is properly formatted
   }
 
@@ -708,22 +822,36 @@ class DataConsistencyChecker {
 
   // Count helper methods
   Future<int> _getNotesCount() async {
-    final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM local_notes WHERE deleted = 0').getSingle();
+    final result = await _localDb
+        .customSelect(
+          'SELECT COUNT(*) as count FROM local_notes WHERE deleted = 0',
+        )
+        .getSingle();
     return result.read<int>('count');
   }
 
   Future<int> _getFoldersCount() async {
-    final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM local_folders WHERE deleted = 0').getSingle();
+    final result = await _localDb
+        .customSelect(
+          'SELECT COUNT(*) as count FROM local_folders WHERE deleted = 0',
+        )
+        .getSingle();
     return result.read<int>('count');
   }
 
   Future<int> _getRelationshipsCount() async {
-    final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM note_folders').getSingle();
+    final result = await _localDb
+        .customSelect('SELECT COUNT(*) as count FROM note_folders')
+        .getSingle();
     return result.read<int>('count');
   }
 
   Future<int> _getTasksCount() async {
-    final result = await _localDb.customSelect('SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0').getSingle();
+    final result = await _localDb
+        .customSelect(
+          'SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0',
+        )
+        .getSingle();
     return result.read<int>('count');
   }
 
@@ -772,8 +900,11 @@ class ConsistencyCheckResult {
     error: error,
   );
 
-  bool get hasCriticalIssues => issues.any((issue) => issue.severity == ConsistencySeverity.critical);
-  List<ConsistencyIssue> get criticalIssues => issues.where((issue) => issue.severity == ConsistencySeverity.critical).toList();
+  bool get hasCriticalIssues =>
+      issues.any((issue) => issue.severity == ConsistencySeverity.critical);
+  List<ConsistencyIssue> get criticalIssues => issues
+      .where((issue) => issue.severity == ConsistencySeverity.critical)
+      .toList();
 }
 
 class ConsistencyIssue {
@@ -811,9 +942,18 @@ class ConsistencyMetrics {
   int integrityIssues = 0;
   Duration? checkDuration;
 
-  int get totalRecordsChecked => notesChecked + foldersChecked + relationshipsChecked + tasksChecked;
-  int get totalIssuesFound => noteIssues + folderIssues + relationshipIssues + taskIssues + deepIssues + integrityIssues;
-  double get consistencyRate => totalRecordsChecked > 0 ? (totalRecordsChecked - totalIssuesFound) / totalRecordsChecked : 1.0;
+  int get totalRecordsChecked =>
+      notesChecked + foldersChecked + relationshipsChecked + tasksChecked;
+  int get totalIssuesFound =>
+      noteIssues +
+      folderIssues +
+      relationshipIssues +
+      taskIssues +
+      deepIssues +
+      integrityIssues;
+  double get consistencyRate => totalRecordsChecked > 0
+      ? (totalRecordsChecked - totalIssuesFound) / totalRecordsChecked
+      : 1.0;
 
   Map<String, dynamic> toJson() => {
     'notes_checked': notesChecked,
@@ -844,8 +984,4 @@ enum ConsistencyIssueType {
   systemError,
 }
 
-enum ConsistencySeverity {
-  info,
-  warning,
-  critical,
-}
+enum ConsistencySeverity { info, warning, critical }

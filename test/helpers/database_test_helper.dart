@@ -68,19 +68,21 @@ class DatabaseTestHelper {
   }) async {
     final now = DateTime.now();
 
-    await db.into(db.localNotes).insert(
-      LocalNotesCompanion.insert(
-        id: id,
-        titleEncrypted: Value(titleEncrypted ?? ''),
-        bodyEncrypted: Value(bodyEncrypted ?? ''),
-        createdAt: updatedAt ?? now,
-        updatedAt: updatedAt ?? now,
-        deleted: Value(deleted),
-        isPinned: Value(isPinned),
-        userId: Value(userId),
-        encryptionVersion: Value(encryptionVersion),
-      ),
-    );
+    await db
+        .into(db.localNotes)
+        .insert(
+          LocalNotesCompanion.insert(
+            id: id,
+            titleEncrypted: Value(titleEncrypted ?? ''),
+            bodyEncrypted: Value(bodyEncrypted ?? ''),
+            createdAt: updatedAt ?? now,
+            updatedAt: updatedAt ?? now,
+            deleted: Value(deleted),
+            isPinned: Value(isPinned),
+            userId: Value(userId),
+            encryptionVersion: Value(encryptionVersion),
+          ),
+        );
   }
 
   /// Insert test saved search
@@ -139,21 +141,23 @@ class DatabaseTestHelper {
   }) async {
     final now = DateTime.now();
 
-    await db.into(db.localFolders).insert(
-      LocalFoldersCompanion.insert(
-        id: id,
-        userId: userId,
-        name: name,
-        parentId: Value(parentId),
-        path: path ?? '/$name',
-        sortOrder: Value(sortOrder),
-        color: Value(color),
-        icon: Value(icon),
-        description: Value(description ?? ''),
-        createdAt: createdAt ?? now,
-        updatedAt: updatedAt ?? now,
-      ),
-    );
+    await db
+        .into(db.localFolders)
+        .insert(
+          LocalFoldersCompanion.insert(
+            id: id,
+            userId: userId,
+            name: name,
+            parentId: Value(parentId),
+            path: path ?? '/$name',
+            sortOrder: Value(sortOrder),
+            color: Value(color),
+            icon: Value(icon),
+            description: Value(description ?? ''),
+            createdAt: createdAt ?? now,
+            updatedAt: updatedAt ?? now,
+          ),
+        );
   }
 
   /// Insert test task
@@ -178,26 +182,30 @@ class DatabaseTestHelper {
   }) async {
     final now = DateTime.now();
 
-    await db.into(db.noteTasks).insert(
-      NoteTasksCompanion.insert(
-        id: id,
-        noteId: noteId,
-        userId: userId,
-        contentEncrypted: contentEncrypted,
-        contentHash: contentHash ?? 'test-hash-${DateTime.now().millisecondsSinceEpoch}',
-        labelsEncrypted: Value(labelsEncrypted),
-        notesEncrypted: Value(notesEncrypted),
-        status: Value(status),
-        priority: Value(priority),
-        position: Value(position),
-        createdAt: Value(createdAt ?? now),
-        updatedAt: Value(updatedAt ?? now),
-        dueDate: Value(dueDate),
-        parentTaskId: Value(parentTaskId),
-        deleted: Value(deleted),
-        encryptionVersion: Value(encryptionVersion),
-      ),
-    );
+    await db
+        .into(db.noteTasks)
+        .insert(
+          NoteTasksCompanion.insert(
+            id: id,
+            noteId: noteId,
+            userId: userId,
+            contentEncrypted: contentEncrypted,
+            contentHash:
+                contentHash ??
+                'test-hash-${DateTime.now().millisecondsSinceEpoch}',
+            labelsEncrypted: Value(labelsEncrypted),
+            notesEncrypted: Value(notesEncrypted),
+            status: Value(status),
+            priority: Value(priority),
+            position: Value(position),
+            createdAt: Value(createdAt ?? now),
+            updatedAt: Value(updatedAt ?? now),
+            dueDate: Value(dueDate),
+            parentTaskId: Value(parentTaskId),
+            deleted: Value(deleted),
+            encryptionVersion: Value(encryptionVersion),
+          ),
+        );
   }
 
   /// Check if a table column exists (useful for migration tests)
@@ -207,9 +215,9 @@ class DatabaseTestHelper {
     String columnName,
   ) async {
     try {
-      await db.customSelect(
-        'SELECT $columnName FROM $tableName LIMIT 1',
-      ).getSingleOrNull();
+      await db
+          .customSelect('SELECT $columnName FROM $tableName LIMIT 1')
+          .getSingleOrNull();
       return true;
     } catch (e) {
       return false;
@@ -228,9 +236,9 @@ class DatabaseTestHelper {
 
   /// Get row count for a table
   static Future<int> getTableRowCount(AppDb db, String tableName) async {
-    final result = await db.customSelect(
-      'SELECT COUNT(*) as count FROM $tableName',
-    ).getSingle();
+    final result = await db
+        .customSelect('SELECT COUNT(*) as count FROM $tableName')
+        .getSingle();
     return result.data['count'] as int;
   }
 
@@ -243,8 +251,7 @@ class DatabaseTestHelper {
   static Future<bool> verifyIntegrity(AppDb db) async {
     try {
       final result = await db.customSelect('PRAGMA integrity_check').get();
-      return result.isNotEmpty &&
-             result.first.data['integrity_check'] == 'ok';
+      return result.isNotEmpty && result.first.data['integrity_check'] == 'ok';
     } catch (e) {
       return false;
     }
@@ -272,9 +279,7 @@ abstract class DatabaseTest {
   }
 
   /// Helper to run test with automatic database setup/teardown
-  Future<void> runDatabaseTest(
-    Future<void> Function(AppDb db) testBody,
-  ) async {
+  Future<void> runDatabaseTest(Future<void> Function(AppDb db) testBody) async {
     await initializeDatabase();
     try {
       await testBody(testDb);

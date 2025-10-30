@@ -15,11 +15,7 @@ import 'package:geolocator/geolocator.dart' as geo;
 /// - Managing location permissions
 /// - Cleanup and disposal of geofence resources
 class GeofenceReminderService extends BaseReminderService {
-  GeofenceReminderService(
-    super.ref,
-    super.plugin,
-    super.db,
-  );
+  GeofenceReminderService(super.ref, super.plugin, super.db);
 
   GeofenceService? _geofenceService;
   bool _geofenceInitialized = false;
@@ -59,8 +55,9 @@ class GeofenceReminderService extends BaseReminderService {
 
       // Set up geofence status change listener
       _geofenceService?.addGeofenceStatusChangeListener(
-          (geofence, radius, status, location) async =>
-              _onGeofenceStatusChanged(geofence, radius, status, location));
+        (geofence, radius, status, location) async =>
+            _onGeofenceStatusChanged(geofence, radius, status, location),
+      );
     } catch (e, stack) {
       logger.error(
         'Failed to initialize geofence service',
@@ -97,7 +94,8 @@ class GeofenceReminderService extends BaseReminderService {
         return false;
       }
 
-      final granted = permission == geo.LocationPermission.whileInUse ||
+      final granted =
+          permission == geo.LocationPermission.whileInUse ||
           permission == geo.LocationPermission.always;
 
       trackReminderEvent(
@@ -150,7 +148,9 @@ class GeofenceReminderService extends BaseReminderService {
       // P0.5 SECURITY: Get current userId
       final userId = currentUserId;
       if (userId == null) {
-        logger.warning('Cannot create location reminder - no authenticated user');
+        logger.warning(
+          'Cannot create location reminder - no authenticated user',
+        );
         return null;
       }
 
@@ -164,8 +164,9 @@ class GeofenceReminderService extends BaseReminderService {
         latitude: Value(latitude),
         longitude: Value(longitude),
         radius: Value(radius),
-        locationName:
-            locationName != null ? Value(locationName) : const Value.absent(),
+        locationName: locationName != null
+            ? Value(locationName)
+            : const Value.absent(),
         notificationTitle: config.customNotificationTitle != null
             ? Value(config.customNotificationTitle)
             : const Value.absent(),
@@ -197,10 +198,13 @@ class GeofenceReminderService extends BaseReminderService {
         'has_location_name': locationName != null,
       });
 
-      trackFeatureUsage('geofence_reminder_created', properties: {
-        'radius': radius,
-        'has_custom_location': locationName != null,
-      });
+      trackFeatureUsage(
+        'geofence_reminder_created',
+        properties: {
+          'radius': radius,
+          'has_custom_location': locationName != null,
+        },
+      );
 
       return reminderId;
     } catch (e, stack) {
@@ -234,12 +238,7 @@ class GeofenceReminderService extends BaseReminderService {
       id: 'reminder_$reminderId',
       latitude: latitude,
       longitude: longitude,
-      radius: [
-        GeofenceRadius(
-          id: 'radius_$reminderId',
-          length: radius,
-        ),
-      ],
+      radius: [GeofenceRadius(id: 'radius_$reminderId', length: radius)],
     );
 
     try {
@@ -314,19 +313,19 @@ class GeofenceReminderService extends BaseReminderService {
     try {
       final locationText = reminder.locationName ?? 'location';
       final title = reminder.notificationTitle ?? '📍 Location Reminder';
-      final body = reminder.notificationBody ??
+      final body =
+          reminder.notificationBody ??
           "You're near $locationText - ${reminder.title}";
 
-      await scheduleNotification(ReminderNotificationData(
-        id: reminder.id,
-        title: title,
-        body: body,
-        scheduledTime: DateTime.now(), // Immediate notification
-        payload: jsonEncode({
-          'reminderId': reminder.id,
-          'type': 'location',
-        }),
-      ));
+      await scheduleNotification(
+        ReminderNotificationData(
+          id: reminder.id,
+          title: title,
+          body: body,
+          scheduledTime: DateTime.now(), // Immediate notification
+          payload: jsonEncode({'reminderId': reminder.id, 'type': 'location'}),
+        ),
+      );
     } catch (e, stack) {
       logger.error(
         'Failed to show location notification',

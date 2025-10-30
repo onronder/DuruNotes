@@ -100,7 +100,9 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
 
   /// Apply preset-based filtering using SavedSearchRegistry
   List<domain.Note> _applyPresetFilter(
-      List<domain.Note> notes, SavedSearchPreset preset) {
+    List<domain.Note> notes,
+    SavedSearchPreset preset,
+  ) {
     switch (preset.key) {
       case SavedSearchKey.attachments:
         return notes.where(AppDb.noteHasAttachmentsDomain).toList();
@@ -499,9 +501,9 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
           padding: const EdgeInsets.all(16),
           child: Text(
             'Saved Searches',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         SizedBox(
@@ -532,9 +534,9 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
           padding: const EdgeInsets.all(16),
           child: Text(
             'Recent Notes',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         Expanded(
@@ -554,7 +556,8 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
   Widget buildResults(BuildContext context) {
     // Check if we need async search (has folder filter)
     final filters = _parseSearchQuery(query);
-    final needsAsync = filters['folderName'] != null &&
+    final needsAsync =
+        filters['folderName'] != null &&
         resolveFolderIdByName != null &&
         getFolderNoteIdSet != null;
 
@@ -775,10 +778,10 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
             Text(
               'No results found',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -786,10 +789,10 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                   ? 'No $filterDescription found'
                   : 'Try different keywords',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -812,10 +815,10 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                   query.contains('has:attachment')
                       ? Icons.attach_file
                       : query.contains('from:email')
-                          ? Icons.email
-                          : query.contains('from:web')
-                              ? Icons.language
-                              : Icons.search,
+                      ? Icons.email
+                      : query.contains('from:web')
+                      ? Icons.language
+                      : Icons.search,
                   size: 20,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -823,16 +826,16 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                 Text(
                   filterDescription,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   '${results.length} ${results.length == 1 ? 'note' : 'notes'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -893,8 +896,8 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
             Text(
               preview,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -903,10 +906,10 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
           Text(
             _formatDate(note.updatedAt),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -949,8 +952,8 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                     child: Text(
                       note.title.isEmpty ? '(Untitled)' : note.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -979,10 +982,10 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                   Text(
                     _formatDate(note.updatedAt),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
                   ),
                   const Spacer(),
                   Container(
@@ -999,9 +1002,9 @@ class NoteSearchDelegate extends SearchDelegate<domain.Note?> {
                     child: Text(
                       '#${index + 1}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

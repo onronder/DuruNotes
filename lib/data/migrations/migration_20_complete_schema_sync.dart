@@ -13,7 +13,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// - Notification system tables
 class Migration20CompleteSchemaSync {
   static const int version = 20;
-  static const String description = 'Complete schema synchronization with Supabase';
+  static const String description =
+      'Complete schema synchronization with Supabase';
 
   static Future<void> apply(AppDb db) async {
     final logger = LoggerFactory.instance;
@@ -446,72 +447,132 @@ class Migration20CompleteSchemaSync {
       // ============================================
 
       // User-based queries - only create if columns exist (FIXED: Use correct table names)
-      await _createIndexSafely(db, 'idx_local_notes_user_id', 'local_notes', 'user_id');
-      await _createIndexSafely(db, 'idx_local_folders_user_id', 'local_folders', 'user_id');
-      await _createIndexSafely(db, 'idx_local_templates_user_id', 'local_templates', 'user_id');
+      await _createIndexSafely(
+        db,
+        'idx_local_notes_user_id',
+        'local_notes',
+        'user_id',
+      );
+      await _createIndexSafely(
+        db,
+        'idx_local_folders_user_id',
+        'local_folders',
+        'user_id',
+      );
+      await _createIndexSafely(
+        db,
+        'idx_local_templates_user_id',
+        'local_templates',
+        'user_id',
+      );
       await _createIndexSafely(db, 'idx_tags_user_id', 'tags', 'user_id');
-      await _createIndexSafely(db, 'idx_local_attachments_user_id', 'local_attachments', 'user_id');
+      await _createIndexSafely(
+        db,
+        'idx_local_attachments_user_id',
+        'local_attachments',
+        'user_id',
+      );
 
       // Performance indexes - only create if columns exist (FIXED: Use correct table names)
       if (await _columnExists(db, 'local_notes', 'updated_at')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_local_notes_updated_at ON local_notes(updated_at DESC)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_local_notes_updated_at ON local_notes(updated_at DESC)',
+        );
       }
       if (await _columnExists(db, 'local_notes', 'created_at')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_local_notes_created_at ON local_notes(created_at DESC)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_local_notes_created_at ON local_notes(created_at DESC)',
+        );
       }
       if (await _columnExists(db, 'local_notes', 'deleted')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_local_notes_deleted ON local_notes(deleted)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_local_notes_deleted ON local_notes(deleted)',
+        );
       }
       if (await _columnExists(db, 'local_notes', 'is_pinned')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_local_notes_pinned ON local_notes(is_pinned)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_local_notes_pinned ON local_notes(is_pinned)',
+        );
       }
 
       // Relationship indexes - check tables and columns exist
       if (await _tableExists(db, 'note_tags')) {
         // The NoteTags table has 'noteId' and 'tag' columns
         if (await _columnExists(db, 'note_tags', 'noteId')) {
-          await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_tags_note_id ON note_tags(noteId)');
+          await db.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_note_tags_note_id ON note_tags(noteId)',
+          );
         }
         if (await _columnExists(db, 'note_tags', 'tag')) {
-          await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag)');
+          await db.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag)',
+          );
         }
       }
       if (await _tableExists(db, 'note_folders')) {
         // The NoteFolders table has 'noteId' and 'folderId' columns
         if (await _columnExists(db, 'note_folders', 'noteId')) {
-          await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_folders_note_id ON note_folders(noteId)');
+          await db.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_note_folders_note_id ON note_folders(noteId)',
+          );
         }
         if (await _columnExists(db, 'note_folders', 'folderId')) {
-          await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_folders_folder_id ON note_folders(folderId)');
+          await db.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_note_folders_folder_id ON note_folders(folderId)',
+          );
         }
       }
       if (await _tableExists(db, 'note_blocks')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_blocks_note_id ON note_blocks(note_id)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_note_blocks_idx ON note_blocks(note_id, idx)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_note_blocks_note_id ON note_blocks(note_id)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_note_blocks_idx ON note_blocks(note_id, idx)',
+        );
       }
 
       // Notification indexes - check tables exist
       if (await _tableExists(db, 'notification_events')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_notif_events_user_id ON notification_events(user_id)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_notif_events_status ON notification_events(status)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_notif_events_scheduled ON notification_events(scheduled_for)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_notif_events_user_id ON notification_events(user_id)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_notif_events_status ON notification_events(status)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_notif_events_scheduled ON notification_events(scheduled_for)',
+        );
       }
       if (await _tableExists(db, 'notification_deliveries')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_notif_deliveries_event_id ON notification_deliveries(event_id)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_notif_deliveries_user_id ON notification_deliveries(user_id)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_notif_deliveries_event_id ON notification_deliveries(event_id)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_notif_deliveries_user_id ON notification_deliveries(user_id)',
+        );
       }
 
       // Security indexes - check tables exist
       if (await _tableExists(db, 'security_events')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_security_events_user_id ON security_events(user_id)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at DESC)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_security_events_user_id ON security_events(user_id)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at DESC)',
+        );
       }
       if (await _tableExists(db, 'login_attempts')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email)',
+        );
       }
       if (await _tableExists(db, 'user_sessions')) {
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)');
-        await db.customStatement('CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active)');
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active)',
+        );
       }
 
       // ============================================
@@ -523,8 +584,9 @@ class Migration20CompleteSchemaSync {
         VALUES ($version, CURRENT_TIMESTAMP, '$description')
       ''');
 
-      logger.info('Migration 20 completed successfully - Full schema sync achieved');
-
+      logger.info(
+        'Migration 20 completed successfully - Full schema sync achieved',
+      );
     } catch (e, stack) {
       logger.error('Failed to apply Migration 20: $e\nStack: $stack');
       rethrow;
@@ -549,9 +611,9 @@ class Migration20CompleteSchemaSync {
     logger.info('Skipping table renaming to maintain app compatibility');
 
     // Check if tables exist
-    final tables = await db.customSelect(
-      "SELECT name FROM sqlite_master WHERE type='table'"
-    ).get();
+    final tables = await db
+        .customSelect("SELECT name FROM sqlite_master WHERE type='table'")
+        .get();
 
     final tableNames = tables.map((t) => t.read<String>('name')).toSet();
     logger.info('Existing tables: ${tableNames.join(', ')}');
@@ -577,55 +639,77 @@ class Migration20CompleteSchemaSync {
 
     // Add user_id to local_notes if it doesn't exist
     if (!await _columnExists(db, 'local_notes', 'user_id')) {
-      await db.customStatement('ALTER TABLE local_notes ADD COLUMN user_id TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_notes ADD COLUMN user_id TEXT',
+      );
     }
 
     // Add user_id to local_folders if it doesn't exist
     if (!await _columnExists(db, 'local_folders', 'user_id')) {
-      await db.customStatement('ALTER TABLE local_folders ADD COLUMN user_id TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_folders ADD COLUMN user_id TEXT',
+      );
     }
 
     // Add user_id to local_templates if it doesn't exist
     if (!await _columnExists(db, 'local_templates', 'user_id')) {
-      await db.customStatement('ALTER TABLE local_templates ADD COLUMN user_id TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_templates ADD COLUMN user_id TEXT',
+      );
     }
 
     // Add user_id to local_attachments if it doesn't exist
     if (!await _columnExists(db, 'local_attachments', 'user_id')) {
-      await db.customStatement('ALTER TABLE local_attachments ADD COLUMN user_id TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_attachments ADD COLUMN user_id TEXT',
+      );
     }
 
     // Add missing columns to local_templates
     if (!await _columnExists(db, 'local_templates', 'is_system')) {
-      await db.customStatement('ALTER TABLE local_templates ADD COLUMN is_system BOOLEAN DEFAULT FALSE');
+      await db.customStatement(
+        'ALTER TABLE local_templates ADD COLUMN is_system BOOLEAN DEFAULT FALSE',
+      );
     }
     if (!await _columnExists(db, 'local_templates', 'category')) {
-      await db.customStatement('ALTER TABLE local_templates ADD COLUMN category TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_templates ADD COLUMN category TEXT',
+      );
     }
     if (!await _columnExists(db, 'local_templates', 'icon')) {
-      await db.customStatement('ALTER TABLE local_templates ADD COLUMN icon TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_templates ADD COLUMN icon TEXT',
+      );
     }
 
     // Add missing columns to local_attachments
     if (!await _columnExists(db, 'local_attachments', 'ocr_text_enc')) {
-      await db.customStatement('ALTER TABLE local_attachments ADD COLUMN ocr_text_enc TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_attachments ADD COLUMN ocr_text_enc TEXT',
+      );
     }
 
     // Add missing columns to local_notes
     if (!await _columnExists(db, 'local_notes', 'encrypted_metadata')) {
-      await db.customStatement('ALTER TABLE local_notes ADD COLUMN encrypted_metadata TEXT');
+      await db.customStatement(
+        'ALTER TABLE local_notes ADD COLUMN encrypted_metadata TEXT',
+      );
     }
     if (!await _columnExists(db, 'local_notes', 'note_type')) {
-      await db.customStatement('ALTER TABLE local_notes ADD COLUMN note_type INTEGER DEFAULT 0');
+      await db.customStatement(
+        'ALTER TABLE local_notes ADD COLUMN note_type INTEGER DEFAULT 0',
+      );
     }
   }
 
   /// Check if a table exists
   static Future<bool> _tableExists(AppDb db, String table) async {
     try {
-      final result = await db.customSelect(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'"
-      ).getSingleOrNull();
+      final result = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'",
+          )
+          .getSingleOrNull();
       return result != null;
     } catch (e) {
       return false;
@@ -633,11 +717,13 @@ class Migration20CompleteSchemaSync {
   }
 
   /// Check if a column exists in a table
-  static Future<bool> _columnExists(AppDb db, String table, String column) async {
+  static Future<bool> _columnExists(
+    AppDb db,
+    String table,
+    String column,
+  ) async {
     try {
-      final result = await db.customSelect(
-        "PRAGMA table_info('$table')"
-      ).get();
+      final result = await db.customSelect("PRAGMA table_info('$table')").get();
 
       for (final row in result) {
         if (row.read<String>('name') == column) {
@@ -651,9 +737,16 @@ class Migration20CompleteSchemaSync {
   }
 
   /// Create an index safely, checking if the column exists first
-  static Future<void> _createIndexSafely(AppDb db, String indexName, String table, String column) async {
+  static Future<void> _createIndexSafely(
+    AppDb db,
+    String indexName,
+    String table,
+    String column,
+  ) async {
     if (await _columnExists(db, table, column)) {
-      await db.customStatement('CREATE INDEX IF NOT EXISTS $indexName ON $table($column)');
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS $indexName ON $table($column)',
+      );
     }
   }
 
@@ -662,29 +755,48 @@ class Migration20CompleteSchemaSync {
     try {
       // List of required tables (FIXED: Use correct table names the app expects)
       final requiredTables = [
-        'local_notes', 'local_folders', 'local_templates', 'local_attachments', 'tags',
-        'note_tags', 'note_folders', 'note_blocks', 'note_tasks',
-        'profiles', 'user_keys', 'user_sessions', 'user_devices',
-        'security_events', 'login_attempts', 'rate_limits',
-        'notification_events', 'notification_preferences',
-        'analytics_events', 'clipper_inbox'
+        'local_notes',
+        'local_folders',
+        'local_templates',
+        'local_attachments',
+        'tags',
+        'note_tags',
+        'note_folders',
+        'note_blocks',
+        'note_tasks',
+        'profiles',
+        'user_keys',
+        'user_sessions',
+        'user_devices',
+        'security_events',
+        'login_attempts',
+        'rate_limits',
+        'notification_events',
+        'notification_preferences',
+        'analytics_events',
+        'clipper_inbox',
       ];
 
       // Check each table exists
       for (final tableName in requiredTables) {
-        final result = await db.customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'"
-        ).get();
+        final result = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'",
+            )
+            .get();
 
         if (result.isEmpty) {
-          LoggerFactory.instance.error('Migration 20 verification failed: Table $tableName missing');
+          LoggerFactory.instance.error(
+            'Migration 20 verification failed: Table $tableName missing',
+          );
           return false;
         }
       }
 
-      LoggerFactory.instance.info('Migration 20 verification passed - All tables present');
+      LoggerFactory.instance.info(
+        'Migration 20 verification passed - All tables present',
+      );
       return true;
-
     } catch (e) {
       LoggerFactory.instance.error('Migration 20 verification failed: $e');
       return false;

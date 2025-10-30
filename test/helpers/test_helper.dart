@@ -13,14 +13,14 @@ library;
 /// Example usage:
 /// ```dart
 /// void main() {
-  /* COMMENTED OUT - 16 errors - old test helper utilities
+/* COMMENTED OUT - 16 errors - old test helper utilities
    * This test uses old models/APIs that no longer exist after domain migration.
    * Needs complete rewrite to use new domain models and architecture.
    *
    * TODO: Rewrite test for new architecture
    */
 
-  /*
+/*
 ///   late TestEnvironment env;
 ///
 ///   setUpAll(() async {

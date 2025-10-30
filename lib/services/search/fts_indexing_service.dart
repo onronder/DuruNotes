@@ -60,10 +60,44 @@ class FTSIndexingService {
 
   // Stop words (common words to ignore for better relevance)
   static const _stopWords = {
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'you', 'your', 'this', 'they', 'but',
-    'have', 'had', 'what', 'when', 'where', 'who', 'which', 'why', 'how',
+    'a',
+    'an',
+    'and',
+    'are',
+    'as',
+    'at',
+    'be',
+    'by',
+    'for',
+    'from',
+    'has',
+    'he',
+    'in',
+    'is',
+    'it',
+    'its',
+    'of',
+    'on',
+    'that',
+    'the',
+    'to',
+    'was',
+    'will',
+    'with',
+    'you',
+    'your',
+    'this',
+    'they',
+    'but',
+    'have',
+    'had',
+    'what',
+    'when',
+    'where',
+    'who',
+    'which',
+    'why',
+    'how',
   };
 
   /// Initialize the service
@@ -76,7 +110,9 @@ class FTSIndexingService {
         _startAutoSave();
       }
 
-      _logger.info('[FTS] Initialization complete. Indexed $documentCount documents');
+      _logger.info(
+        '[FTS] Initialization complete. Indexed $documentCount documents',
+      );
     } catch (e, stack) {
       _logger.error('[FTS] Failed to initialize', error: e, stackTrace: stack);
       rethrow;
@@ -149,7 +185,11 @@ class FTSIndexingService {
 
       _logger.debug('[FTS] Indexed note $noteId with ${tokens.length} tokens');
     } catch (e, stack) {
-      _logger.error('[FTS] Failed to index note $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        '[FTS] Failed to index note $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -184,7 +224,11 @@ class FTSIndexingService {
 
       _logger.debug('[FTS] Removed note $noteId from index');
     } catch (e, stack) {
-      _logger.error('[FTS] Failed to remove note $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        '[FTS] Failed to remove note $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -221,7 +265,11 @@ class FTSIndexingService {
       _logger.debug('[FTS] Found ${rankedResults.length} results for: $query');
       return rankedResults;
     } catch (e, stack) {
-      _logger.error('[FTS] Search failed for query: $query', error: e, stackTrace: stack);
+      _logger.error(
+        '[FTS] Search failed for query: $query',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -246,8 +294,9 @@ class FTSIndexingService {
       'termCount': _index.length,
       'averageTermsPerDocument': documentCount > 0
           ? _termFrequencies.values
-              .map((tf) => tf.length)
-              .reduce((a, b) => a + b) / documentCount
+                    .map((tf) => tf.length)
+                    .reduce((a, b) => a + b) /
+                documentCount
           : 0,
       'indexSizeBytes': _estimateMemoryUsage(),
     };
@@ -476,7 +525,10 @@ class FTSIndexingService {
     }
 
     // Center snippet around match
-    final start = (firstMatch - maxLength ~/ 2).clamp(0, body.length - maxLength);
+    final start = (firstMatch - maxLength ~/ 2).clamp(
+      0,
+      body.length - maxLength,
+    );
     final end = (start + maxLength).clamp(0, body.length);
 
     var snippet = body.substring(start, end);
@@ -492,7 +544,8 @@ class FTSIndexingService {
 
     // Inverted index
     for (final entry in _index.entries) {
-      size += entry.key.length + entry.value.length * 36; // String + Set overhead
+      size +=
+          entry.key.length + entry.value.length * 36; // String + Set overhead
     }
 
     // Documents
@@ -529,7 +582,11 @@ class FTSIndexingService {
       await file.writeAsString(jsonEncode(data));
       _logger.debug('[FTS] Index saved to disk');
     } catch (e, stack) {
-      _logger.error('[FTS] Failed to save index to disk', error: e, stackTrace: stack);
+      _logger.error(
+        '[FTS] Failed to save index to disk',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -583,7 +640,11 @@ class FTSIndexingService {
 
       _logger.info('[FTS] Loaded index from disk: $documentCount documents');
     } catch (e, stack) {
-      _logger.error('[FTS] Failed to load index from disk', error: e, stackTrace: stack);
+      _logger.error(
+        '[FTS] Failed to load index from disk',
+        error: e,
+        stackTrace: stack,
+      );
       // Continue with empty index on error
     }
   }

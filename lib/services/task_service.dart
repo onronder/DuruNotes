@@ -14,16 +14,18 @@ import 'package:duru_notes/data/local/app_db.dart';
 /// - createTask() → taskRepository.createTask()
 /// - updateTask() → taskRepository.updateTask()
 /// - All fields are automatically encrypted/decrypted by the repository
-@Deprecated('Use TaskCoreRepository instead - this service cannot handle encryption')
+@Deprecated(
+  'Use TaskCoreRepository instead - this service cannot handle encryption',
+)
 class TaskService {
   TaskService({required AppDb database}) : _db = database;
 
   final AppDb _db;
 
   UnsupportedError _deprecatedError(String method) => UnsupportedError(
-        'TaskService.$method is deprecated. Use TaskCoreRepository/EnhancedTaskService instead. '
-        '(database=${_db.runtimeType})',
-      );
+    'TaskService.$method is deprecated. Use TaskCoreRepository/EnhancedTaskService instead. '
+    '(database=${_db.runtimeType})',
+  );
 
   /// Create a new task
   @Deprecated('Use TaskCoreRepository.createTask() instead')
@@ -86,25 +88,20 @@ class TaskService {
     DateTime? dueBefore,
     TaskPriority? priority,
     String? parentTaskId,
-  }) =>
-      throw _deprecatedError('getOpenTasks');
+  }) => throw _deprecatedError('getOpenTasks');
 
   /// Get tasks for a specific date range
   Future<List<NoteTask>> getTasksByDateRange({
     required DateTime start,
     required DateTime end,
-  }) =>
-      throw _deprecatedError('getTasksByDateRange');
+  }) => throw _deprecatedError('getTasksByDateRange');
 
   /// Get overdue tasks
   Future<List<NoteTask>> getOverdueTasks() =>
       throw _deprecatedError('getOverdueTasks');
 
   /// Get completed tasks
-  Future<List<NoteTask>> getCompletedTasks({
-    DateTime? since,
-    int? limit,
-  }) =>
+  Future<List<NoteTask>> getCompletedTasks({DateTime? since, int? limit}) =>
       throw _deprecatedError('getCompletedTasks');
 
   /// Get tasks for today
@@ -124,10 +121,7 @@ class TaskService {
       throw _deprecatedError('watchTasksForNote');
 
   /// Sync tasks with note content
-  Future<void> syncTasksWithNoteContent(
-    String noteId,
-    String noteContent,
-  ) =>
+  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) =>
       throw _deprecatedError('syncTasksWithNoteContent');
 
   /// Get task statistics

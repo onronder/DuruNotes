@@ -4,7 +4,8 @@ import 'package:duru_notes/domain/entities/template.dart' as domain_template;
 import 'package:duru_notes/features/templates/providers/templates_providers.dart'
     show templateCoreRepositoryProvider;
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
@@ -62,7 +63,8 @@ class CreateTemplateDialog extends ConsumerStatefulWidget {
   final List<String>? sourceTags;
 
   @override
-  ConsumerState<CreateTemplateDialog> createState() => _CreateTemplateDialogState();
+  ConsumerState<CreateTemplateDialog> createState() =>
+      _CreateTemplateDialogState();
 }
 
 class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
@@ -146,10 +148,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
     return Dialog(
       clipBehavior: Clip.hardEdge,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 600,
-          maxHeight: 700,
-        ),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Column(
           children: [
             // Header
@@ -186,7 +185,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                     ),
                   ),
                   IconButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     icon: Icon(Icons.close, color: colorScheme.onPrimary),
                   ),
                 ],
@@ -206,18 +207,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
               child: TabBar(
                 controller: _tabController,
                 tabs: const [
-                  Tab(
-                    icon: Icon(Icons.info_outline),
-                    text: 'Basic Info',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.article),
-                    text: 'Content',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.tune),
-                    text: 'Settings',
-                  ),
+                  Tab(icon: Icon(Icons.info_outline), text: 'Basic Info'),
+                  Tab(icon: Icon(Icons.article), text: 'Content'),
+                  Tab(icon: Icon(Icons.tune), text: 'Settings'),
                 ],
               ),
             ),
@@ -281,7 +273,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
 
                   // Cancel button
                   TextButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
 
@@ -374,7 +368,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: colorScheme.outline.withValues(alpha: 0.5),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -388,7 +384,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                   title: Text(
                     category.toUpperCase(),
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                       color: isSelected ? colorScheme.primary : null,
                     ),
                   ),
@@ -428,7 +426,8 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           TextFormField(
             controller: _bodyController,
             decoration: const InputDecoration(
-              hintText: 'Enter your template content here...\n\nTip: Use {{variable}} for placeholders',
+              hintText:
+                  'Enter your template content here...\n\nTip: Use {{variable}} for placeholders',
               border: OutlineInputBorder(),
             ),
             maxLines: 12,
@@ -483,36 +482,46 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [
-                    '{{date}}',
-                    '{{time}}',
-                    '{{datetime}}',
-                    '{{title}}',
-                    '{{name}}',
-                    '{{project}}',
-                  ].map(
-                    (variable) => InkWell(
-                      onTap: () => _insertVariable(variable),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: colorScheme.tertiary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: colorScheme.tertiary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          variable,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontFamily: 'monospace',
-                            color: colorScheme.tertiary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ).toList(),
+                  children:
+                      [
+                            '{{date}}',
+                            '{{time}}',
+                            '{{datetime}}',
+                            '{{title}}',
+                            '{{name}}',
+                            '{{project}}',
+                          ]
+                          .map(
+                            (variable) => InkWell(
+                              onTap: () => _insertVariable(variable),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.tertiary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: colorScheme.tertiary.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  variable,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontFamily: 'monospace',
+                                    color: colorScheme.tertiary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                 ),
               ],
             ),
@@ -553,7 +562,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
           Container(
             padding: EdgeInsets.all(DuruSpacing.md),
             decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: colorScheme.outline.withValues(alpha: 0.5),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: GridView.builder(
@@ -585,7 +596,9 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                       borderRadius: BorderRadius.circular(8),
                       border: isSelected
                           ? Border.all(color: colorScheme.primary)
-                          : Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+                          : Border.all(
+                              color: colorScheme.outline.withValues(alpha: 0.2),
+                            ),
                     ),
                     child: Icon(
                       icon,
@@ -630,11 +643,7 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
                         color: _getCategoryColor(_selectedCategory),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
-                        _selectedIcon,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child: Icon(_selectedIcon, color: Colors.white, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -685,7 +694,8 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
     final currentPosition = _bodyController.selection.base.offset;
     final currentText = _bodyController.text;
 
-    final newText = currentText.substring(0, currentPosition) +
+    final newText =
+        currentText.substring(0, currentPosition) +
         variable +
         currentText.substring(currentPosition);
 
@@ -705,7 +715,8 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
   Future<void> _createTemplate() async {
     if (!_formKey.currentState!.validate()) {
       // Find the first tab with validation errors
-      if (_titleController.text.trim().isEmpty || _bodyController.text.trim().isEmpty) {
+      if (_titleController.text.trim().isEmpty ||
+          _bodyController.text.trim().isEmpty) {
         _tabController.animateTo(_titleController.text.trim().isEmpty ? 0 : 1);
       }
       return;
@@ -758,19 +769,24 @@ class _CreateTemplateDialogState extends ConsumerState<CreateTemplateDialog>
       );
 
       // Track analytics
-      analytics.event('template_created', properties: {
-        'template_category': _selectedCategory,
-        'has_variables': _hasVariables(_bodyController.text),
-        'created_from_note': widget.sourceNote != null,
-        'content_length': _bodyController.text.length,
-        'has_tags': tags.isNotEmpty,
-      });
+      analytics.event(
+        'template_created',
+        properties: {
+          'template_category': _selectedCategory,
+          'has_variables': _hasVariables(_bodyController.text),
+          'created_from_note': widget.sourceNote != null,
+          'content_length': _bodyController.text.length,
+          'has_tags': tags.isNotEmpty,
+        },
+      );
 
       if (mounted) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Template "${_titleController.text.trim()}" created successfully'),
+            content: Text(
+              'Template "${_titleController.text.trim()}" created successfully',
+            ),
             action: SnackBarAction(
               label: 'Use Now',
               onPressed: () {

@@ -27,7 +27,9 @@ abstract class UnifiedTask {
   factory UnifiedTask.from(dynamic task) {
     if (task is domain.Task) return UnifiedTask.fromDomain(task);
     if (task is UnifiedTask) return task;
-    throw ArgumentError('Unknown task type: ${task.runtimeType}. Only domain.Task is supported post-migration.');
+    throw ArgumentError(
+      'Unknown task type: ${task.runtimeType}. Only domain.Task is supported post-migration.',
+    );
   }
 
   // Convert to domain format
@@ -36,7 +38,8 @@ abstract class UnifiedTask {
   // Helper methods
   bool get isCompleted => status == domain.TaskStatus.completed.toString();
   bool get isPending => status == domain.TaskStatus.pending.toString();
-  bool get isOverdue => dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
+  bool get isOverdue =>
+      dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
 }
 
 class _UnifiedTaskFromDomain implements UnifiedTask {
@@ -84,7 +87,8 @@ class _UnifiedTaskFromDomain implements UnifiedTask {
   List<String> get tags => _task.tags;
 
   @override
-  Map<String, dynamic>? get metadata => _task.metadata.isNotEmpty ? _task.metadata : null;
+  Map<String, dynamic>? get metadata =>
+      _task.metadata.isNotEmpty ? _task.metadata : null;
 
   @override
   bool get isCompleted => _task.status == domain.TaskStatus.completed;
@@ -93,7 +97,8 @@ class _UnifiedTaskFromDomain implements UnifiedTask {
   bool get isPending => _task.status == domain.TaskStatus.pending;
 
   @override
-  bool get isOverdue => dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
+  bool get isOverdue =>
+      dueDate != null && dueDate!.isBefore(DateTime.now()) && !isCompleted;
 
   @override
   domain.Task toDomain() => _task;

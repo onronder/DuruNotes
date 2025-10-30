@@ -15,10 +15,8 @@ void unawaited(Future<void> future) {
 
 /// Notifier for managing sync mode settings
 class SyncModeNotifier extends StateNotifier<SyncMode> {
-  SyncModeNotifier(
-    this._notesRepository,
-    this._syncService,
-  ) : super(SyncMode.automatic) {
+  SyncModeNotifier(this._notesRepository, this._syncService)
+    : super(SyncMode.automatic) {
     _loadSyncMode();
   }
 
@@ -68,7 +66,9 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   Future<void> setMode(SyncMode mode) async {
     // Prevent concurrent mode changes (production safety)
     if (_isChangingMode) {
-      debugPrint('⚠️ Mode change already in progress, ignoring duplicate request');
+      debugPrint(
+        '⚠️ Mode change already in progress, ignoring duplicate request',
+      );
       return;
     }
     _isChangingMode = true;
@@ -106,8 +106,9 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
   /// Persist sync mode to SharedPreferences (background operation)
   Future<void> _persistModeToStorage(SyncMode mode) async {
     try {
-      final prefs = await SharedPreferences.getInstance()
-          .timeout(const Duration(seconds: 5));
+      final prefs = await SharedPreferences.getInstance().timeout(
+        const Duration(seconds: 5),
+      );
       await prefs.setString(_syncModeKey, mode.name);
       debugPrint('✅ Sync mode persisted: ${mode.name}');
     } catch (e) {
@@ -140,14 +141,18 @@ class SyncModeNotifier extends StateNotifier<SyncMode> {
 
       if (syncResult.success) {
         debugPrint('✅ Sync completed successfully');
-        debugPrint('📊 Synced: ${syncResult.syncedNotes} notes, ${syncResult.syncedTasks} tasks');
+        debugPrint(
+          '📊 Synced: ${syncResult.syncedNotes} notes, ${syncResult.syncedTasks} tasks',
+        );
 
         // Check local database after sync
         final localNotes = await _notesRepository.localNotes();
         debugPrint('📊 Local database now has ${localNotes.length} notes');
 
         // Note: UI will refresh automatically through Riverpod streams
-        debugPrint('📱 Sync complete - UI will refresh through repository streams');
+        debugPrint(
+          '📱 Sync complete - UI will refresh through repository streams',
+        );
 
         return true;
       } else {

@@ -7,7 +7,9 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show analyticsProvider, loggerProvider;
 import 'package:duru_notes/providers/feature_flagged_providers.dart'
-    show featureFlaggedReminderCoordinatorProvider, featureFlaggedAdvancedReminderServiceProvider;
+    show
+        featureFlaggedReminderCoordinatorProvider,
+        featureFlaggedAdvancedReminderServiceProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -44,14 +46,16 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
     super.initState();
     _loadReminders();
     // Log screen view ref.read(analyticsProvider)
-    ref.read(analyticsProvider).event(
-      'screen_view',
-      properties: {
-        'screen': 'RemindersScreen',
-        'note_id': widget.noteId,
-        'has_note_title': widget.noteTitle.isNotEmpty,
-      },
-    );
+    ref
+        .read(analyticsProvider)
+        .event(
+          'screen_view',
+          properties: {
+            'screen': 'RemindersScreen',
+            'note_id': widget.noteId,
+            'has_note_title': widget.noteTitle.isNotEmpty,
+          },
+        );
   }
 
   void _showErrorSnack(String message, {VoidCallback? onRetry}) {
@@ -62,10 +66,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         content: Text(message),
         backgroundColor: Theme.of(context).colorScheme.error,
         action: onRetry != null
-            ? SnackBarAction(
-                label: 'Retry',
-                onPressed: onRetry,
-              )
+            ? SnackBarAction(label: 'Retry', onPressed: onRetry)
             : null,
       ),
     );
@@ -78,7 +79,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
       final reminders = await coordinator.getRemindersForNote(widget.noteId);
       if (mounted) {
         setState(() {
-          _reminders = reminders != null ? List<NoteReminder>.from(reminders as List) : [];
+          _reminders = reminders != null
+              ? List<NoteReminder>.from(reminders as List)
+              : [];
           _loading = false;
         });
         _logger.debug(
@@ -116,7 +119,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           : const Color(0xFFF8FAFB),
       appBar: ModernAppBar(
         title: 'Reminders',
-        subtitle: widget.noteTitle.isNotEmpty ? widget.noteTitle : 'Manage notifications',
+        subtitle: widget.noteTitle.isNotEmpty
+            ? widget.noteTitle
+            : 'Manage notifications',
         showGradient: true,
         actions: [
           ModernAppBarAction(
@@ -143,7 +148,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         onPressed: _showAddReminderDialog,
         backgroundColor: DuruColors.primary,
         icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),
-        label: const Text('Add Reminder', style: TextStyle(color: Colors.white)),
+        label: const Text(
+          'Add Reminder',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
     );
   }
@@ -151,10 +159,12 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
   Widget _buildStatsHeader(BuildContext context) {
     final theme = Theme.of(context);
     final activeReminders = _reminders.where((r) => r.isActive).length;
-    final recurringReminders = _reminders.where((r) =>
-        r.recurrencePattern != RecurrencePattern.none).length;
-    final locationReminders = _reminders.where((r) =>
-        r.type == ReminderType.location).length;
+    final recurringReminders = _reminders
+        .where((r) => r.recurrencePattern != RecurrencePattern.none)
+        .length;
+    final locationReminders = _reminders
+        .where((r) => r.type == ReminderType.location)
+        .length;
 
     return Container(
       margin: EdgeInsets.all(DuruSpacing.md),
@@ -232,7 +242,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -266,16 +278,18 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
             Text(
               'No reminders set',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             SizedBox(height: DuruSpacing.sm),
             Text(
               'Add time-based or location-based reminders for this note',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: DuruSpacing.xl),
@@ -292,7 +306,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                 ),
               ),
               icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),
-              label: const Text('Add Reminder', style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Add Reminder',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -310,7 +327,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   Widget _buildReminderCard(NoteReminder reminder) {
     final theme = Theme.of(context);
-    final isSnoozed = reminder.snoozedUntil != null &&
+    final isSnoozed =
+        reminder.snoozedUntil != null &&
         reminder.snoozedUntil!.isAfter(DateTime.now());
 
     return Container(
@@ -332,8 +350,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                   isSnoozed
                       ? DuruColors.warning.withValues(alpha: 0.05)
                       : reminder.isActive
-                          ? DuruColors.accent.withValues(alpha: 0.03)
-                          : theme.colorScheme.surface,
+                      ? DuruColors.accent.withValues(alpha: 0.03)
+                      : theme.colorScheme.surface,
                   theme.colorScheme.surface,
                 ],
               ),
@@ -342,8 +360,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                 color: isSnoozed
                     ? DuruColors.warning.withValues(alpha: 0.2)
                     : reminder.isActive
-                        ? DuruColors.accent.withValues(alpha: 0.2)
-                        : theme.colorScheme.outline.withValues(alpha: 0.1),
+                    ? DuruColors.accent.withValues(alpha: 0.2)
+                    : theme.colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               ),
               boxShadow: [
@@ -364,7 +382,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                     Container(
                       padding: EdgeInsets.all(DuruSpacing.sm),
                       decoration: BoxDecoration(
-                        color: _getReminderColor(reminder).withValues(alpha: 0.1),
+                        color: _getReminderColor(
+                          reminder,
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: _getReminderIcon(reminder.type),
@@ -391,7 +411,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                               reminder.body,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -407,17 +428,23 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                       icon: Icon(
                         CupertinoIcons.ellipsis_vertical,
                         size: 20,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      onSelected: (value) => _handleReminderAction(value, reminder),
+                      onSelected: (value) =>
+                          _handleReminderAction(value, reminder),
                       itemBuilder: (context) => [
                         PopupMenuItem(
                           value: 'edit',
                           child: ListTile(
-                            leading: Icon(CupertinoIcons.pencil, color: DuruColors.primary),
+                            leading: Icon(
+                              CupertinoIcons.pencil,
+                              color: DuruColors.primary,
+                            ),
                             title: const Text('Edit'),
                             contentPadding: EdgeInsets.zero,
                           ),
@@ -426,7 +453,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           PopupMenuItem(
                             value: 'unsnooze',
                             child: ListTile(
-                              leading: Icon(CupertinoIcons.bell, color: DuruColors.primary),
+                              leading: Icon(
+                                CupertinoIcons.bell,
+                                color: DuruColors.primary,
+                              ),
                               title: const Text('Un-snooze'),
                               contentPadding: EdgeInsets.zero,
                             ),
@@ -435,7 +465,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           PopupMenuItem(
                             value: 'deactivate',
                             child: ListTile(
-                              leading: Icon(CupertinoIcons.pause_fill, color: DuruColors.warning),
+                              leading: Icon(
+                                CupertinoIcons.pause_fill,
+                                color: DuruColors.warning,
+                              ),
                               title: const Text('Deactivate'),
                               contentPadding: EdgeInsets.zero,
                             ),
@@ -444,7 +477,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           PopupMenuItem(
                             value: 'activate',
                             child: ListTile(
-                              leading: Icon(CupertinoIcons.play_arrow_solid, color: DuruColors.accent),
+                              leading: Icon(
+                                CupertinoIcons.play_arrow_solid,
+                                color: DuruColors.accent,
+                              ),
                               title: const Text('Activate'),
                               contentPadding: EdgeInsets.zero,
                             ),
@@ -452,7 +488,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                         PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
-                            leading: Icon(CupertinoIcons.trash, color: DuruColors.error),
+                            leading: Icon(
+                              CupertinoIcons.trash,
+                              color: DuruColors.error,
+                            ),
                             title: Text(
                               'Delete',
                               style: TextStyle(color: DuruColors.error),
@@ -476,7 +515,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                       if (reminder.snoozedUntil != null)
                         _buildInfoBadge(
                           icon: CupertinoIcons.moon_zzz_fill,
-                          label: 'Snoozed until ${_formatDateTime(reminder.snoozedUntil!)}',
+                          label:
+                              'Snoozed until ${_formatDateTime(reminder.snoozedUntil!)}',
                           color: DuruColors.warning,
                         ),
                       if (reminder.remindAt != null)
@@ -488,7 +528,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                       if (reminder.recurrencePattern != RecurrencePattern.none)
                         _buildInfoBadge(
                           icon: CupertinoIcons.repeat,
-                          label: _getRecurrenceLabel(reminder.recurrencePattern),
+                          label: _getRecurrenceLabel(
+                            reminder.recurrencePattern,
+                          ),
                           color: DuruColors.accent,
                         ),
                     ],
@@ -562,10 +604,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -665,7 +704,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   Future<void> _unsnoozeReminder(NoteReminder reminder) async {
     try {
-      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+      final reminderService = ref.read(
+        featureFlaggedAdvancedReminderServiceProvider,
+      );
       await reminderService.updateReminder(
         reminder.id,
         const NoteRemindersCompanion(snoozedUntil: Value(null)),
@@ -697,7 +738,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   Future<void> _deactivateReminder(NoteReminder reminder) async {
     try {
-      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+      final reminderService = ref.read(
+        featureFlaggedAdvancedReminderServiceProvider,
+      );
       await reminderService.updateReminder(
         reminder.id,
         const NoteRemindersCompanion(isActive: Value(false)),
@@ -729,7 +772,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
   Future<void> _activateReminder(NoteReminder reminder) async {
     try {
-      final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+      final reminderService = ref.read(
+        featureFlaggedAdvancedReminderServiceProvider,
+      );
       // Mark isActive = true in database
       await reminderService.updateReminder(
         reminder.id,
@@ -780,7 +825,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
     );
     if (confirmed ?? false) {
       try {
-        final reminderService = ref.read(featureFlaggedAdvancedReminderServiceProvider);
+        final reminderService = ref.read(
+          featureFlaggedAdvancedReminderServiceProvider,
+        );
         await reminderService.deleteReminder(reminder.id);
         await _loadReminders();
         if (mounted) {
@@ -1016,10 +1063,7 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
         content: Text(message),
         backgroundColor: Theme.of(context).colorScheme.error,
         action: onRetry != null
-            ? SnackBarAction(
-                label: 'Retry',
-                onPressed: onRetry,
-              )
+            ? SnackBarAction(label: 'Retry', onPressed: onRetry)
             : null,
       ),
     );
@@ -1258,8 +1302,8 @@ class _TimeReminderFormState extends ConsumerState<TimeReminderForm> {
         recurrenceEndDate: _recurrenceEndDate,
         customNotificationTitle:
             _notificationTitleController.text.trim().isEmpty
-                ? null
-                : _notificationTitleController.text.trim(),
+            ? null
+            : _notificationTitleController.text.trim(),
         customNotificationBody: _notificationBodyController.text.trim().isEmpty
             ? null
             : _notificationBodyController.text.trim(),
@@ -1520,11 +1564,13 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       });
       final coord = ref.read(featureFlaggedReminderCoordinatorProvider);
       // Ensure permissions for location
-      var havePerms = (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
+      var havePerms =
+          (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
       if (!havePerms) {
         await coord.requestNotificationPermissions();
         await coord.requestLocationPermissions();
-        havePerms = (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
+        havePerms =
+            (await coord.hasRequiredPermissions(includeLocation: true)) as bool;
       }
       if (!havePerms) {
         if (mounted) {
@@ -1546,7 +1592,11 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
       });
       _logger.info(
         'Captured current location for reminder',
-        data: {'latitude': _latitude, 'longitude': _longitude, 'noteId': widget.noteId},
+        data: {
+          'latitude': _latitude,
+          'longitude': _longitude,
+          'noteId': widget.noteId,
+        },
       );
     } catch (error, stackTrace) {
       _logger.error(
@@ -1657,8 +1707,8 @@ class _LocationReminderFormState extends ConsumerState<LocationReminderForm> {
             : _locationNameController.text.trim(),
         customNotificationTitle:
             _notificationTitleController.text.trim().isEmpty
-                ? null
-                : _notificationTitleController.text.trim(),
+            ? null
+            : _notificationTitleController.text.trim(),
         customNotificationBody: _notificationBodyController.text.trim().isEmpty
             ? null
             : _notificationBodyController.text.trim(),

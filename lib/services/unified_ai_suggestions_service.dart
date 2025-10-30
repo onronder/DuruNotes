@@ -86,7 +86,8 @@ class ContentImprovementSuggestion {
 
 /// Unified AI suggestions service supporting both domain and legacy models
 class UnifiedAISuggestionsService {
-  static final UnifiedAISuggestionsService _instance = UnifiedAISuggestionsService._internal();
+  static final UnifiedAISuggestionsService _instance =
+      UnifiedAISuggestionsService._internal();
   factory UnifiedAISuggestionsService() => _instance;
   UnifiedAISuggestionsService._internal();
 
@@ -153,9 +154,12 @@ class UnifiedAISuggestionsService {
       _cacheTimestamps[noteId] = DateTime.now();
 
       return suggestions;
-
     } catch (e, stack) {
-      _logger.error('Failed to get suggestions for note', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get suggestions for note',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -172,9 +176,12 @@ class UnifiedAISuggestionsService {
       suggestions.addAll(await _suggestTaskDueDate(task));
 
       return suggestions;
-
     } catch (e, stack) {
-      _logger.error('Failed to get suggestions for task', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get suggestions for task',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -192,81 +199,111 @@ class UnifiedAISuggestionsService {
         final content = _getNoteContent(note).toLowerCase();
 
         // Meeting notes pattern
-        if (content.contains('meeting') || content.contains('agenda') || content.contains('minutes')) {
+        if (content.contains('meeting') ||
+            content.contains('agenda') ||
+            content.contains('minutes')) {
           patterns.putIfAbsent('meetings', () => []).add(note);
         }
 
         // Project notes pattern
-        if (content.contains('project') || content.contains('milestone') || content.contains('deadline')) {
+        if (content.contains('project') ||
+            content.contains('milestone') ||
+            content.contains('deadline')) {
           patterns.putIfAbsent('projects', () => []).add(note);
         }
 
         // Ideas pattern
-        if (content.contains('idea') || content.contains('brainstorm') || content.contains('concept')) {
+        if (content.contains('idea') ||
+            content.contains('brainstorm') ||
+            content.contains('concept')) {
           patterns.putIfAbsent('ideas', () => []).add(note);
         }
 
         // Research pattern
-        if (content.contains('research') || content.contains('study') || content.contains('analysis')) {
+        if (content.contains('research') ||
+            content.contains('study') ||
+            content.contains('analysis')) {
           patterns.putIfAbsent('research', () => []).add(note);
         }
 
         // Daily notes pattern
-        if (content.contains('today') || content.contains('daily') || content.contains('journal')) {
+        if (content.contains('today') ||
+            content.contains('daily') ||
+            content.contains('journal')) {
           patterns.putIfAbsent('daily', () => []).add(note);
         }
       }
 
       // Create suggestions for significant patterns
       if ((patterns['meetings']?.length ?? 0) > 5) {
-        suggestions.add(SmartFolderSuggestion(
-          name: 'Meeting Notes',
-          description: 'All notes related to meetings and discussions',
-          criteria: {'contentContains': ['meeting', 'agenda', 'minutes']},
-          estimatedCount: patterns['meetings']!.length,
-        ));
+        suggestions.add(
+          SmartFolderSuggestion(
+            name: 'Meeting Notes',
+            description: 'All notes related to meetings and discussions',
+            criteria: {
+              'contentContains': ['meeting', 'agenda', 'minutes'],
+            },
+            estimatedCount: patterns['meetings']!.length,
+          ),
+        );
       }
 
       if ((patterns['projects']?.length ?? 0) > 5) {
-        suggestions.add(SmartFolderSuggestion(
-          name: 'Project Documentation',
-          description: 'Notes related to projects and milestones',
-          criteria: {'contentContains': ['project', 'milestone', 'deadline']},
-          estimatedCount: patterns['projects']!.length,
-        ));
+        suggestions.add(
+          SmartFolderSuggestion(
+            name: 'Project Documentation',
+            description: 'Notes related to projects and milestones',
+            criteria: {
+              'contentContains': ['project', 'milestone', 'deadline'],
+            },
+            estimatedCount: patterns['projects']!.length,
+          ),
+        );
       }
 
       if ((patterns['ideas']?.length ?? 0) > 3) {
-        suggestions.add(SmartFolderSuggestion(
-          name: 'Ideas & Brainstorming',
-          description: 'Creative ideas and brainstorming sessions',
-          criteria: {'contentContains': ['idea', 'brainstorm', 'concept']},
-          estimatedCount: patterns['ideas']!.length,
-        ));
+        suggestions.add(
+          SmartFolderSuggestion(
+            name: 'Ideas & Brainstorming',
+            description: 'Creative ideas and brainstorming sessions',
+            criteria: {
+              'contentContains': ['idea', 'brainstorm', 'concept'],
+            },
+            estimatedCount: patterns['ideas']!.length,
+          ),
+        );
       }
 
       return suggestions;
-
     } catch (e, stack) {
-      _logger.error('Failed to suggest smart folders', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to suggest smart folders',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Get content improvement suggestions
-  Future<List<ContentImprovementSuggestion>> suggestContentImprovements(dynamic note) async {
+  Future<List<ContentImprovementSuggestion>> suggestContentImprovements(
+    dynamic note,
+  ) async {
     try {
       final suggestions = <ContentImprovementSuggestion>[];
       final content = _getNoteContent(note);
 
       // Check for formatting improvements
       if (!content.contains('#') && content.length > 500) {
-        suggestions.add(ContentImprovementSuggestion(
-          type: 'structure',
-          original: content.substring(0, math.min(100, content.length)),
-          improved: '# Main Topic\n\n## Section 1\n${content.substring(0, math.min(100, content.length))}',
-          reason: 'Add headers to improve document structure',
-        ));
+        suggestions.add(
+          ContentImprovementSuggestion(
+            type: 'structure',
+            original: content.substring(0, math.min(100, content.length)),
+            improved:
+                '# Main Topic\n\n## Section 1\n${content.substring(0, math.min(100, content.length))}',
+            reason: 'Add headers to improve document structure',
+          ),
+        );
       }
 
       // Check for list formatting
@@ -274,17 +311,20 @@ class UnifiedAISuggestionsService {
       final matches = bulletPattern.allMatches(content);
       if (matches.length > 3) {
         // Suggest numbered list for sequential items
-        final hasSequentialWords = content.contains('first') ||
-                                   content.contains('second') ||
-                                   content.contains('then') ||
-                                   content.contains('finally');
+        final hasSequentialWords =
+            content.contains('first') ||
+            content.contains('second') ||
+            content.contains('then') ||
+            content.contains('finally');
         if (hasSequentialWords) {
-          suggestions.add(ContentImprovementSuggestion(
-            type: 'formatting',
-            original: '• Item one\n• Item two\n• Item three',
-            improved: '1. Item one\n2. Item two\n3. Item three',
-            reason: 'Use numbered lists for sequential items',
-          ));
+          suggestions.add(
+            ContentImprovementSuggestion(
+              type: 'formatting',
+              original: '• Item one\n• Item two\n• Item three',
+              improved: '1. Item one\n2. Item two\n3. Item three',
+              reason: 'Use numbered lists for sequential items',
+            ),
+          );
         }
       }
 
@@ -292,12 +332,14 @@ class UnifiedAISuggestionsService {
       final actionWords = ['todo', 'need to', 'must', 'should', 'will'];
       for (final word in actionWords) {
         if (content.toLowerCase().contains(word)) {
-          suggestions.add(ContentImprovementSuggestion(
-            type: 'formatting',
-            original: 'Need to complete the report',
-            improved: '- [ ] Complete the report',
-            reason: 'Convert action items to task checkboxes',
-          ));
+          suggestions.add(
+            ContentImprovementSuggestion(
+              type: 'formatting',
+              original: 'Need to complete the report',
+              improved: '- [ ] Complete the report',
+              reason: 'Convert action items to task checkboxes',
+            ),
+          );
           break;
         }
       }
@@ -308,19 +350,24 @@ class UnifiedAISuggestionsService {
       for (final match in urlMatches) {
         final url = match.group(0)!;
         if (!content.contains('[$url]') && !content.contains('](url)')) {
-          suggestions.add(ContentImprovementSuggestion(
-            type: 'formatting',
-            original: url,
-            improved: '[Link]($url)',
-            reason: 'Format URLs as markdown links',
-          ));
+          suggestions.add(
+            ContentImprovementSuggestion(
+              type: 'formatting',
+              original: url,
+              improved: '[Link]($url)',
+              reason: 'Format URLs as markdown links',
+            ),
+          );
         }
       }
 
       return suggestions;
-
     } catch (e, stack) {
-      _logger.error('Failed to suggest content improvements', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to suggest content improvements',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -332,7 +379,9 @@ class UnifiedAISuggestionsService {
     final content = _getNoteContent(note);
 
     // If title is empty or generic, suggest based on content
-    if (currentTitle.isEmpty || currentTitle == 'Untitled' || currentTitle == 'New Note') {
+    if (currentTitle.isEmpty ||
+        currentTitle == 'Untitled' ||
+        currentTitle == 'New Note') {
       // Extract first line or header
       final lines = content.split('\n');
       for (final line in lines) {
@@ -347,12 +396,14 @@ class UnifiedAISuggestionsService {
             suggestedTitle = '${suggestedTitle.substring(0, 47)}...';
           }
 
-          suggestions.add(AISuggestion(
-            type: SuggestionType.noteTitle,
-            value: suggestedTitle,
-            confidence: 0.8,
-            reasoning: 'Based on the first line of your note',
-          ));
+          suggestions.add(
+            AISuggestion(
+              type: SuggestionType.noteTitle,
+              value: suggestedTitle,
+              confidence: 0.8,
+              reasoning: 'Based on the first line of your note',
+            ),
+          );
           break;
         }
       }
@@ -360,12 +411,14 @@ class UnifiedAISuggestionsService {
       // Suggest based on content patterns
       if (content.toLowerCase().contains('meeting')) {
         final dateStr = DateTime.now().toString().split(' ')[0];
-        suggestions.add(AISuggestion(
-          type: SuggestionType.noteTitle,
-          value: 'Meeting Notes - $dateStr',
-          confidence: 0.7,
-          reasoning: 'Detected meeting-related content',
-        ));
+        suggestions.add(
+          AISuggestion(
+            type: SuggestionType.noteTitle,
+            value: 'Meeting Notes - $dateStr',
+            confidence: 0.7,
+            reasoning: 'Detected meeting-related content',
+          ),
+        );
       }
     }
 
@@ -393,13 +446,15 @@ class UnifiedAISuggestionsService {
       if (content.contains(entry.key)) {
         for (final tag in entry.value) {
           if (!currentTags.contains(tag)) {
-            suggestions.add(AISuggestion(
-              type: SuggestionType.noteTags,
-              value: tag,
-              confidence: 0.6 + (_tagFrequency[tag] ?? 0) / 100,
-              reasoning: 'Based on content analysis',
-              metadata: {'keyword': entry.key},
-            ));
+            suggestions.add(
+              AISuggestion(
+                type: SuggestionType.noteTags,
+                value: tag,
+                confidence: 0.6 + (_tagFrequency[tag] ?? 0) / 100,
+                reasoning: 'Based on content analysis',
+                metadata: {'keyword': entry.key},
+              ),
+            );
           }
         }
       }
@@ -412,13 +467,15 @@ class UnifiedAISuggestionsService {
 
     for (final entry in frequentTags) {
       if (!currentTags.contains(entry.key)) {
-        suggestions.add(AISuggestion(
-          type: SuggestionType.noteTags,
-          value: entry.key,
-          confidence: 0.5,
-          reasoning: 'Frequently used tag',
-          metadata: {'frequency': entry.value},
-        ));
+        suggestions.add(
+          AISuggestion(
+            type: SuggestionType.noteTags,
+            value: entry.key,
+            confidence: 0.5,
+            reasoning: 'Frequently used tag',
+            metadata: {'frequency': entry.value},
+          ),
+        );
       }
     }
 
@@ -439,13 +496,15 @@ class UnifiedAISuggestionsService {
         final score = _calculateFolderRelevance(content, folderName);
 
         if (score > 0.5) {
-          suggestions.add(AISuggestion(
-            type: SuggestionType.noteFolder,
-            value: _getFolderId(folder),
-            confidence: score,
-            reasoning: 'Content matches folder theme',
-            metadata: {'folderName': _getFolderName(folder)},
-          ));
+          suggestions.add(
+            AISuggestion(
+              type: SuggestionType.noteFolder,
+              value: _getFolderId(folder),
+              confidence: score,
+              reasoning: 'Content matches folder theme',
+              metadata: {'folderName': _getFolderName(folder)},
+            ),
+          );
         }
       }
     }
@@ -484,16 +543,18 @@ class UnifiedAISuggestionsService {
         .take(5);
 
     for (final entry in topRelated) {
-      suggestions.add(AISuggestion(
-        type: SuggestionType.relatedNotes,
-        value: _getNoteId(entry.key),
-        confidence: entry.value,
-        reasoning: 'Similar content detected',
-        metadata: {
-          'title': _getNoteTitle(entry.key),
-          'similarity': entry.value,
-        },
-      ));
+      suggestions.add(
+        AISuggestion(
+          type: SuggestionType.relatedNotes,
+          value: _getNoteId(entry.key),
+          confidence: entry.value,
+          reasoning: 'Similar content detected',
+          metadata: {
+            'title': _getNoteTitle(entry.key),
+            'similarity': entry.value,
+          },
+        ),
+      );
     }
 
     return suggestions;
@@ -515,16 +576,15 @@ class UnifiedAISuggestionsService {
 
       // Check for exact duplicates
       if (contentHash == otherHash) {
-        suggestions.add(AISuggestion(
-          type: SuggestionType.duplicateDetection,
-          value: _getNoteId(otherNote),
-          confidence: 1.0,
-          reasoning: 'Exact duplicate content found',
-          metadata: {
-            'title': _getNoteTitle(otherNote),
-            'type': 'exact',
-          },
-        ));
+        suggestions.add(
+          AISuggestion(
+            type: SuggestionType.duplicateDetection,
+            value: _getNoteId(otherNote),
+            confidence: 1.0,
+            reasoning: 'Exact duplicate content found',
+            metadata: {'title': _getNoteTitle(otherNote), 'type': 'exact'},
+          ),
+        );
       } else {
         // Check for near duplicates
         final similarity = _calculateSimilarity(
@@ -533,17 +593,19 @@ class UnifiedAISuggestionsService {
         );
 
         if (similarity > 0.8) {
-          suggestions.add(AISuggestion(
-            type: SuggestionType.duplicateDetection,
-            value: _getNoteId(otherNote),
-            confidence: similarity,
-            reasoning: 'Very similar content found',
-            metadata: {
-              'title': _getNoteTitle(otherNote),
-              'type': 'similar',
-              'similarity': similarity,
-            },
-          ));
+          suggestions.add(
+            AISuggestion(
+              type: SuggestionType.duplicateDetection,
+              value: _getNoteId(otherNote),
+              confidence: similarity,
+              reasoning: 'Very similar content found',
+              metadata: {
+                'title': _getNoteTitle(otherNote),
+                'type': 'similar',
+                'similarity': similarity,
+              },
+            ),
+          );
         }
       }
     }
@@ -556,7 +618,13 @@ class UnifiedAISuggestionsService {
     final taskTitle = _getTaskTitle(task).toLowerCase();
 
     // Keywords for priority detection
-    final urgentKeywords = ['urgent', 'asap', 'immediately', 'critical', 'emergency'];
+    final urgentKeywords = [
+      'urgent',
+      'asap',
+      'immediately',
+      'critical',
+      'emergency',
+    ];
     final highKeywords = ['important', 'priority', 'deadline', 'must'];
     final lowKeywords = ['maybe', 'someday', 'eventually', 'optional'];
 
@@ -591,12 +659,14 @@ class UnifiedAISuggestionsService {
       }
     }
 
-    suggestions.add(AISuggestion(
-      type: SuggestionType.taskPriority,
-      value: suggestedPriority,
-      confidence: confidence,
-      reasoning: 'Based on task description keywords',
-    ));
+    suggestions.add(
+      AISuggestion(
+        type: SuggestionType.taskPriority,
+        value: suggestedPriority,
+        confidence: confidence,
+        reasoning: 'Based on task description keywords',
+      ),
+    );
 
     return suggestions;
   }
@@ -617,12 +687,14 @@ class UnifiedAISuggestionsService {
 
     for (final entry in patterns.entries) {
       if (taskTitle.contains(entry.key)) {
-        suggestions.add(AISuggestion(
-          type: SuggestionType.taskDueDate,
-          value: entry.value.toIso8601String(),
-          confidence: 0.7,
-          reasoning: 'Detected time reference: ${entry.key}',
-        ));
+        suggestions.add(
+          AISuggestion(
+            type: SuggestionType.taskDueDate,
+            value: entry.value.toIso8601String(),
+            confidence: 0.7,
+            reasoning: 'Detected time reference: ${entry.key}',
+          ),
+        );
       }
     }
 
@@ -648,10 +720,15 @@ class UnifiedAISuggestionsService {
         _folderUsage[folderId] = 0; // Would count notes in folder
       }
 
-      _logger.debug('Built usage patterns: ${_tagFrequency.length} tags, ${_folderUsage.length} folders');
-
+      _logger.debug(
+        'Built usage patterns: ${_tagFrequency.length} tags, ${_folderUsage.length} folders',
+      );
     } catch (e, stack) {
-      _logger.error('Failed to build usage patterns', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to build usage patterns',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -671,7 +748,17 @@ class UnifiedAISuggestionsService {
         .toList();
 
     // Remove common words
-    final stopWords = {'the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'will'};
+    final stopWords = {
+      'the',
+      'and',
+      'for',
+      'with',
+      'this',
+      'that',
+      'from',
+      'have',
+      'will',
+    };
     return words.where((w) => !stopWords.contains(w)).toList();
   }
 
@@ -688,7 +775,9 @@ class UnifiedAISuggestionsService {
   }
 
   double _calculateFolderRelevance(String content, String folderName) {
-    final folderWords = folderName.split(RegExp(r'[\s_-]+')).map((w) => w.toLowerCase());
+    final folderWords = folderName
+        .split(RegExp(r'[\s_-]+'))
+        .map((w) => w.toLowerCase());
     int matches = 0;
 
     for (final word in folderWords) {
@@ -723,7 +812,9 @@ class UnifiedAISuggestionsService {
       return await _domainNotesRepo!.localNotes();
     } else {
       // Legacy fallback - DEPRECATED: Should not be used as it causes crashes with encrypted fields
-      _logger.warning('[AISuggestions] Domain repository not available. AI suggestions disabled for encrypted notes.');
+      _logger.warning(
+        '[AISuggestions] Domain repository not available. AI suggestions disabled for encrypted notes.',
+      );
 
       // Get current user ID for filtering
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -739,7 +830,9 @@ class UnifiedAISuggestionsService {
       //   ..where((n) => n.userId.equals(userId))).get();
 
       // Return empty to prevent crashes - LocalNote can't be used with encrypted fields
-      _logger.warning('[AISuggestions] Returning empty list - LocalNote incompatible with encryption');
+      _logger.warning(
+        '[AISuggestions] Returning empty list - LocalNote incompatible with encryption',
+      );
       return [];
     }
   }
@@ -757,8 +850,9 @@ class UnifiedAISuggestionsService {
       }
 
       // SECURITY FIX: Filter by userId
-      return await (_db.select(_db.localFolders)
-        ..where((f) => f.userId.equals(userId))).get();
+      return await (_db.select(
+        _db.localFolders,
+      )..where((f) => f.userId.equals(userId))).get();
     }
   }
 
@@ -769,7 +863,9 @@ class UnifiedAISuggestionsService {
       return note.tags;
     } else {
       // Post-migration: LocalNote doesn't have tags accessible, use domain.Note from repository
-      throw UnsupportedError('LocalNote tag access deprecated. Use domain.Note from repository instead.');
+      throw UnsupportedError(
+        'LocalNote tag access deprecated. Use domain.Note from repository instead.',
+      );
     }
   }
 
@@ -783,13 +879,17 @@ class UnifiedAISuggestionsService {
   String _getNoteTitle(dynamic note) {
     if (note is domain.Note) return note.title;
     // LocalNote.title doesn't exist post-encryption
-    throw UnsupportedError('LocalNote title access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote title access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
     // LocalNote.body doesn't exist post-encryption
-    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote content access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   String? _getNoteFolderId(dynamic note) {
@@ -801,7 +901,9 @@ class UnifiedAISuggestionsService {
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
     // NoteTask.content doesn't exist post-encryption
-    throw UnsupportedError('NoteTask title access deprecated. Use domain.Task from repository instead.');
+    throw UnsupportedError(
+      'NoteTask title access deprecated. Use domain.Task from repository instead.',
+    );
   }
 
   String _getFolderId(dynamic folder) {

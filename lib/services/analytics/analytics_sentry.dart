@@ -11,8 +11,8 @@ class SentryAnalytics extends AnalyticsService {
   SentryAnalytics({
     required AppLogger logger,
     required EnvironmentConfig config,
-  })  : _logger = logger,
-        _config = config;
+  }) : _logger = logger,
+       _config = config;
 
   final Map<String, DateTime> _timingEvents = {};
   String? _currentUserId;

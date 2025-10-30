@@ -112,9 +112,9 @@ class _ParagraphBlockWidgetState extends State<ParagraphBlockWidget> {
           ),
           style: widget.isQuote
               ? Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey.shade700,
-                  )
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey.shade700,
+                )
               : Theme.of(context).textTheme.bodyLarge,
           maxLines: null,
           textInputAction: TextInputAction.newline,

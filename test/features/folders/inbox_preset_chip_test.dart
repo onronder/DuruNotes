@@ -361,8 +361,9 @@ void main() {
       incomingFolder.id,
       reason: 'Notifier should receive the target folder id',
     );
-    final currentAfterTap =
-        harness.container.read(folder_state.currentFolderProvider);
+    final currentAfterTap = harness.container.read(
+      folder_state.currentFolderProvider,
+    );
     expect(
       currentAfterTap,
       isNotNull,
@@ -377,10 +378,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(harness.container.read(isInboxFilterActiveProvider), isFalse);
-    expect(
-      harness.container.read(folder_state.currentFolderProvider),
-      isNull,
-    );
+    expect(harness.container.read(folder_state.currentFolderProvider), isNull);
   });
 
   testWidgets('Inbox chip remains visible when active with zero items', (

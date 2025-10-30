@@ -27,13 +27,16 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 ///   // Sync completed
 /// }
 /// ```
-@Deprecated('Use UnifiedSyncService instead. This service will be removed in a future version.')
+@Deprecated(
+  'Use UnifiedSyncService instead. This service will be removed in a future version.',
+)
 class SyncService {
   final INotesRepository repository;
   final AppLogger _logger = LoggerFactory.instance;
 
   /// Stream of sync changes for UI updates
-  final StreamController<void> _changesController = StreamController<void>.broadcast();
+  final StreamController<void> _changesController =
+      StreamController<void>.broadcast();
   Stream<void> get changes => _changesController.stream;
 
   SyncService(this.repository);
@@ -69,7 +72,9 @@ class SyncService {
       await Sentry.captureException(
         e,
         stackTrace: stack,
-        hint: Hint.withMap({'context': 'SyncService.syncIfOnline (deprecated)'}),
+        hint: Hint.withMap({
+          'context': 'SyncService.syncIfOnline (deprecated)',
+        }),
       );
 
       // Don't rethrow to maintain backward compatibility

@@ -45,7 +45,6 @@ void main() async {
     print('   2. Run: flutter test test/security/');
     print('   3. Review: PRODUCTION_SECURITY_AUDIT_V2_REPORT.md');
     print('   4. Run full test suite before deployment');
-
   } catch (e) {
     print('\n❌ ERROR APPLYING FIXES: $e');
     exit(1);
@@ -306,13 +305,17 @@ class UnauthorizedException implements Exception {
 }
 ''';
 
-  final file = File('lib/infrastructure/security/repository_permission_validator.dart');
+  final file = File(
+    'lib/infrastructure/security/repository_permission_validator.dart',
+  );
   await file.parent.create(recursive: true);
   await file.writeAsString(permissionMixin);
   print('   ✅ Created repository permission validator mixin');
 
   // Update a sample repository to show usage
-  print('   📝 Note: Add "with RepositoryPermissionValidator" to all repository implementations');
+  print(
+    '   📝 Note: Add "with RepositoryPermissionValidator" to all repository implementations',
+  );
 }
 
 Future<void> generateVerificationScript() async {

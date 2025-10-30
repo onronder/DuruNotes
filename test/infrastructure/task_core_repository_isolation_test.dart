@@ -115,17 +115,19 @@ void main() {
       required String noteId,
       required String userId,
     }) async {
-      await db.into(db.localNotes).insert(
-        LocalNotesCompanion.insert(
-          id: noteId,
-          userId: Value(userId),
-          titleEncrypted: const Value('seed-title'),
-          bodyEncrypted: const Value('seed-body'),
-          encryptionVersion: const Value(1),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
+      await db
+          .into(db.localNotes)
+          .insert(
+            LocalNotesCompanion.insert(
+              id: noteId,
+              userId: Value(userId),
+              titleEncrypted: const Value('seed-title'),
+              bodyEncrypted: const Value('seed-body'),
+              encryptionVersion: const Value(1),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          );
     }
 
     test('createTask throws when no authenticated user', () async {
@@ -142,12 +144,14 @@ void main() {
       await insertNote(noteId: 'note-a', userId: 'user-a');
       await insertNote(noteId: 'note-b', userId: 'user-b');
 
-      final userATask =
-          await repository.createTask(task0(noteId: 'note-a', title: 'A'));
+      final userATask = await repository.createTask(
+        task0(noteId: 'note-a', title: 'A'),
+      );
 
       signIn('user-b');
-      final userBTask =
-          await repository.createTask(task0(noteId: 'note-b', title: 'B'));
+      final userBTask = await repository.createTask(
+        task0(noteId: 'note-b', title: 'B'),
+      );
 
       signIn('user-a');
       final tasksForA = await repository.getAllTasks();
@@ -166,8 +170,11 @@ void main() {
 
       signIn('user-b');
       final foreignLookup = await repository.getTaskById(task.id);
-      expect(foreignLookup, isNull,
-          reason: 'Foreign user must not access another user task');
+      expect(
+        foreignLookup,
+        isNull,
+        reason: 'Foreign user must not access another user task',
+      );
 
       signIn('user-a');
       final ownedLookup = await repository.getTaskById(task.id);

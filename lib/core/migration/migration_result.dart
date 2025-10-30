@@ -21,19 +21,11 @@ class DecryptionResult<T> {
   final T? value;
   final String? error;
 
-  DecryptionResult._({
-    required this.success,
-    this.value,
-    this.error,
-  });
+  DecryptionResult._({required this.success, this.value, this.error});
 
-  factory DecryptionResult.success(T value) => DecryptionResult._(
-    success: true,
-    value: value,
-  );
+  factory DecryptionResult.success(T value) =>
+      DecryptionResult._(success: true, value: value);
 
-  factory DecryptionResult.failure(String error) => DecryptionResult._(
-    success: false,
-    error: error,
-  );
+  factory DecryptionResult.failure(String error) =>
+      DecryptionResult._(success: false, error: error);
 }

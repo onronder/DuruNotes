@@ -314,7 +314,9 @@ class InboxManagementService {
         // Convert to format: {files: [{path, filename, type, size, url, url_expires_at}]}
         // This matches what EmailAttachmentRef constructor expects in modern_edit_note_screen
         // CRITICAL FIX: Preserve URL and expiration from backend
-        final files = ((attachmentInfo?['files'] as List?) ?? const []).map((f) {
+        final files = ((attachmentInfo?['files'] as List?) ?? const []).map((
+          f,
+        ) {
           return {
             'path': f['storage_path'] ?? '',
             'filename': f['filename'] ?? 'unnamed',
@@ -766,10 +768,7 @@ class InboxManagementService {
 
       // Update attachments metadata with new storage paths
       if (updatedFiles.isNotEmpty) {
-        attachmentsMeta = {
-          'files': updatedFiles,
-          'count': updatedFiles.length,
-        };
+        attachmentsMeta = {'files': updatedFiles, 'count': updatedFiles.length};
         metadata['attachments'] = attachmentsMeta;
       } else if (attachmentsMeta != null) {
         metadata['attachments'] = attachmentsMeta;
@@ -822,10 +821,7 @@ class InboxManagementService {
       } catch (error) {
         _logger.warn(
           '⚠️ [Attachments] Failed to verify remote note status',
-          data: {
-            'noteId': noteId,
-            'error': error.toString(),
-          },
+          data: {'noteId': noteId, 'error': error.toString()},
         );
       }
 
@@ -879,10 +875,7 @@ class InboxManagementService {
       } catch (error) {
         _logger.warning(
           '⚠️ [Attachments] Failed to fetch latest inbox payload',
-          data: {
-            'inboxId': inboxId,
-            'error': error.toString(),
-          },
+          data: {'inboxId': inboxId, 'error': error.toString()},
         );
       }
       await Future<void>.delayed(pollInterval);

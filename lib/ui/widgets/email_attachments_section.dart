@@ -15,11 +15,12 @@ class EmailAttachmentRef {
     required this.filename,
     required this.mimeType,
     required this.sizeBytes,
-    this.url,  // CRITICAL FIX: Pre-signed URL from backend
-    this.urlExpiresAt,  // When the URL expires
+    this.url, // CRITICAL FIX: Pre-signed URL from backend
+    this.urlExpiresAt, // When the URL expires
   });
 
-  final String path; // "temp/<user_id>/file.ext" or "<user_id>/<folder>/file.ext"
+  final String
+  path; // "temp/<user_id>/file.ext" or "<user_id>/<folder>/file.ext"
   final String filename; // "file.ext"
   final String mimeType; // "image/png", "application/pdf", ...
   final int sizeBytes;

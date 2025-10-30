@@ -54,7 +54,7 @@ class EncryptionFormatFix {
       } on FormatException {
         // SECURITY: Never treat encrypted data as plaintext
         throw FormatException(
-          'Unsupported encrypted data format. Data appears corrupted or in unknown format.'
+          'Unsupported encrypted data format. Data appears corrupted or in unknown format.',
         );
       }
     }
@@ -71,12 +71,16 @@ class EncryptionFormatFix {
       if (json is! Map<String, dynamic>) return false;
 
       // Must have required fields
-      if (!json.containsKey('n') || !json.containsKey('c') || !json.containsKey('m')) {
+      if (!json.containsKey('n') ||
+          !json.containsKey('c') ||
+          !json.containsKey('m')) {
         return false;
       }
 
       // Fields must be base64 strings
-      if (json['n'] is! String || json['c'] is! String || json['m'] is! String) {
+      if (json['n'] is! String ||
+          json['c'] is! String ||
+          json['m'] is! String) {
         return false;
       }
 
@@ -130,7 +134,9 @@ class EncryptionFormatFix {
           'm': base64Encode(mac),
         };
 
-        final result = Uint8List.fromList(utf8.encode(jsonEncode(reconstructed)));
+        final result = Uint8List.fromList(
+          utf8.encode(jsonEncode(reconstructed)),
+        );
 
         if (isValidEncryptedFormat(result)) {
           print('Successfully reconstructed encrypted data format!');
@@ -166,7 +172,11 @@ void runValidationTests() {
 
   // Test 1: Valid JSON format should pass through unchanged
   print('Test 1: Valid JSON format preservation');
-  final validJson = {'n': 'base64nonce==', 'c': 'base64cipher==', 'm': 'base64mac=='};
+  final validJson = {
+    'n': 'base64nonce==',
+    'c': 'base64cipher==',
+    'm': 'base64mac==',
+  };
   final result1 = EncryptionFormatFix.asBytesCorrected(validJson);
   final decoded1 = jsonDecode(utf8.decode(result1));
   assert(decoded1['n'] == validJson['n']);
@@ -184,7 +194,9 @@ void runValidationTests() {
 
   // Test 3: Format validation
   print('Test 3: Format validation');
-  final validData = Uint8List.fromList(utf8.encode('{"n":"test","c":"test","m":"test"}'));
+  final validData = Uint8List.fromList(
+    utf8.encode('{"n":"test","c":"test","m":"test"}'),
+  );
   assert(EncryptionFormatFix.isValidEncryptedFormat(validData) == true);
 
   final invalidData = Uint8List.fromList(utf8.encode('{"invalid":"format"}'));
@@ -235,7 +247,9 @@ Future<void> assessDatabaseDamage(SupabaseClient client) async {
 
       if (!titleValid || !propsValid) {
         corruptedNotes++;
-        print('❌ Note ${note['id']}: Title valid: $titleValid, Props valid: $propsValid');
+        print(
+          '❌ Note ${note['id']}: Title valid: $titleValid, Props valid: $propsValid',
+        );
       } else {
         validNotes++;
       }
@@ -244,15 +258,18 @@ Future<void> assessDatabaseDamage(SupabaseClient client) async {
     print('\n📊 Assessment Results:');
     print('Valid notes: $validNotes');
     print('Corrupted notes: $corruptedNotes');
-    print('Corruption rate: ${(corruptedNotes / (validNotes + corruptedNotes) * 100).toStringAsFixed(2)}%');
+    print(
+      'Corruption rate: ${(corruptedNotes / (validNotes + corruptedNotes) * 100).toStringAsFixed(2)}%',
+    );
 
     if (corruptedNotes > 0) {
-      print('\n⚠️ WARNING: Corrupted data detected! Immediate action required.');
+      print(
+        '\n⚠️ WARNING: Corrupted data detected! Immediate action required.',
+      );
       print('Run data recovery migration to fix corrupted records.');
     } else {
       print('\n✅ Good news: No corruption detected in sampled data.');
     }
-
   } catch (e) {
     print('❌ Error assessing database: $e');
   }
@@ -275,7 +292,9 @@ void main(List<String> args) async {
 
     if (url.isEmpty || anonKey.isEmpty) {
       print('❌ Error: SUPABASE_URL and SUPABASE_ANON_KEY must be set');
-      print('Run with: dart --define=SUPABASE_URL=<url> --define=SUPABASE_ANON_KEY=<key> emergency_encryption_fix.dart --assess');
+      print(
+        'Run with: dart --define=SUPABASE_URL=<url> --define=SUPABASE_ANON_KEY=<key> emergency_encryption_fix.dart --assess',
+      );
       return;
     }
 
@@ -288,7 +307,9 @@ void main(List<String> args) async {
     print('3. Run tests to verify the fix');
     print('4. Deploy as emergency hotfix');
     print('\nTo assess database damage, run:');
-    print('dart --define=SUPABASE_URL=<url> --define=SUPABASE_ANON_KEY=<key> emergency_encryption_fix.dart --assess');
+    print(
+      'dart --define=SUPABASE_URL=<url> --define=SUPABASE_ANON_KEY=<key> emergency_encryption_fix.dart --assess',
+    );
   }
 
   print('\n✅ Emergency fix validation complete');

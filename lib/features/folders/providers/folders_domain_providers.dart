@@ -14,7 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// This provider implements the dual provider pattern for gradual migration:
 /// - When 'folders' feature flag is enabled: uses domain repository
 /// - Otherwise: uses legacy folder list provider
-final domainFoldersProvider = FutureProvider.autoDispose<List<domain.Folder>>((ref) async {
+final domainFoldersProvider = FutureProvider.autoDispose<List<domain.Folder>>((
+  ref,
+) async {
   final config = ref.watch(migrationConfigProvider);
 
   if (config.isFeatureEnabled('folders')) {
@@ -35,28 +37,29 @@ final domainFoldersProvider = FutureProvider.autoDispose<List<domain.Folder>>((r
 /// This provider implements the dual provider pattern for gradual migration:
 /// - When 'folders' feature flag is enabled: uses domain repository
 /// - Otherwise: uses legacy folder list provider with updates stream
-final domainFoldersStreamProvider = StreamProvider.autoDispose<List<domain.Folder>>((ref) async* {
-  final config = ref.watch(migrationConfigProvider);
+final domainFoldersStreamProvider =
+    StreamProvider.autoDispose<List<domain.Folder>>((ref) async* {
+      final config = ref.watch(migrationConfigProvider);
 
-  if (config.isFeatureEnabled('folders')) {
-    // Riverpod 3.0: Fetch initial data with .future
-    await ref.watch(folderUpdatesProvider.future);
-    final repository = ref.read(folderCoreRepositoryProvider);
-    yield await repository.listFolders();
+      if (config.isFeatureEnabled('folders')) {
+        // Riverpod 3.0: Fetch initial data with .future
+        await ref.watch(folderUpdatesProvider.future);
+        final repository = ref.read(folderCoreRepositoryProvider);
+        yield await repository.listFolders();
 
-    // Listen for subsequent updates
-    ref.listen(folderUpdatesProvider, (previous, next) async {
-      // Provider will auto-rebuild when folderUpdatesProvider changes
+        // Listen for subsequent updates
+        ref.listen(folderUpdatesProvider, (previous, next) async {
+          // Provider will auto-rebuild when folderUpdatesProvider changes
+        });
+      } else {
+        // folderListProvider already returns domain.Folder
+        await ref.watch(folderUpdatesProvider.future);
+        final domainFolders = ref.read(folderListProvider);
+        yield domainFolders;
+
+        // Listen for subsequent updates
+        ref.listen(folderUpdatesProvider, (previous, next) {
+          // Provider will auto-rebuild when folderUpdatesProvider changes
+        });
+      }
     });
-  } else {
-    // folderListProvider already returns domain.Folder
-    await ref.watch(folderUpdatesProvider.future);
-    final domainFolders = ref.read(folderListProvider);
-    yield domainFolders;
-
-    // Listen for subsequent updates
-    ref.listen(folderUpdatesProvider, (previous, next) {
-      // Provider will auto-rebuild when folderUpdatesProvider changes
-    });
-  }
-});

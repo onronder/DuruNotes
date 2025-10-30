@@ -1,19 +1,24 @@
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
 import 'package:duru_notes/features/search/providers/search_providers.dart';
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Domain notes stream provider - provides clean stream of domain.Note entities
 /// This replaces the conditional providers to fix UI-Infrastructure connectivity
-final domainNotesStreamProvider = StreamProvider.autoDispose<List<domain.Note>>((ref) {
-  final repository = ref.watch(notesCoreRepositoryProvider);
-  return repository.watchNotes();
-});
+final domainNotesStreamProvider = StreamProvider.autoDispose<List<domain.Note>>(
+  (ref) {
+    final repository = ref.watch(notesCoreRepositoryProvider);
+    return repository.watchNotes();
+  },
+);
 
 /// Domain filtered notes provider - provides filtered domain notes with folder and filter support
-final domainFilteredNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
+final domainFilteredNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((
+  ref,
+) async {
   final repository = ref.watch(notesCoreRepositoryProvider);
   final currentFolder = ref.watch(currentFolderProvider);
   // TODO: Integrate filterState when filters are properly defined
@@ -62,19 +67,24 @@ final domainFilteredNotesProvider = FutureProvider.autoDispose<List<domain.Note>
 });
 
 /// Domain pinned notes provider - provides only pinned domain notes
-final domainPinnedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
-  final notes = await ref.watch(domainFilteredNotesProvider.future);
-  return notes.where((note) => note.isPinned).toList();
-});
+final domainPinnedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>(
+  (ref) async {
+    final notes = await ref.watch(domainFilteredNotesProvider.future);
+    return notes.where((note) => note.isPinned).toList();
+  },
+);
 
 /// Domain unpinned notes provider - provides only unpinned domain notes
-final domainUnpinnedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
-  final notes = await ref.watch(domainFilteredNotesProvider.future);
-  return notes.where((note) => !note.isPinned).toList();
-});
+final domainUnpinnedNotesProvider =
+    FutureProvider.autoDispose<List<domain.Note>>((ref) async {
+      final notes = await ref.watch(domainFilteredNotesProvider.future);
+      return notes.where((note) => !note.isPinned).toList();
+    });
 
 /// Domain notes provider - uses domain repository
-final domainNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
+final domainNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((
+  ref,
+) async {
   // Always use domain repository (migration complete)
   final repository = ref.watch(notesCoreRepositoryProvider);
   return repository.list();

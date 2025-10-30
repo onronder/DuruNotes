@@ -66,9 +66,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: BoxConstraints(
           maxWidth: 500,
@@ -152,9 +150,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
+                  top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
                 ),
               ),
               child: Row(
@@ -234,7 +230,9 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               variable.type.displayName,
               style: TextStyle(
                 fontSize: 12,
-                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.5),
+                color: (isDark ? Colors.white : Colors.black).withValues(
+                  alpha: 0.5,
+                ),
               ),
             ),
           ],
@@ -344,10 +342,7 @@ class _TemplateVariableDialogState extends State<TemplateVariableDialog> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            suffixIcon: Icon(
-              CupertinoIcons.clock,
-              color: DuruColors.primary,
-            ),
+            suffixIcon: Icon(CupertinoIcons.clock, color: DuruColors.primary),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,

@@ -199,9 +199,7 @@ class _LinkDialogScreenState extends State<LinkDialogScreen>
         ),
 
         // Search results
-        Expanded(
-          child: _buildNoteSearchResults(theme, colorScheme),
-        ),
+        Expanded(child: _buildNoteSearchResults(theme, colorScheme)),
       ],
     );
   }
@@ -232,11 +230,7 @@ class _LinkDialogScreenState extends State<LinkDialogScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
             const SizedBox(height: 16),
             Text(
               _error!,
@@ -435,11 +429,7 @@ class _LinkDialogScreenState extends State<LinkDialogScreen>
               padding: const EdgeInsets.only(bottom: 16),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: colorScheme.error,
-                    size: 20,
-                  ),
+                  Icon(Icons.error_outline, color: colorScheme.error, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

@@ -26,9 +26,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
     final colorScheme = theme.colorScheme;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500),
         padding: const EdgeInsets.all(24),
@@ -41,11 +39,7 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
               // Header
               Row(
                 children: [
-                  Icon(
-                    Icons.flag,
-                    color: colorScheme.primary,
-                    size: 32,
-                  ),
+                  Icon(Icons.flag, color: colorScheme.primary, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -80,16 +74,18 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
                   ),
                 ),
                 items: GoalType.values
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Row(
-                            children: [
-                              Icon(_getIconForGoalType(type), size: 20),
-                              const SizedBox(width: 8),
-                              Text(_getDisplayNameForGoalType(type)),
-                            ],
-                          ),
-                        ))
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Row(
+                          children: [
+                            Icon(_getIconForGoalType(type), size: 20),
+                            const SizedBox(width: 8),
+                            Text(_getDisplayNameForGoalType(type)),
+                          ],
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -211,8 +207,9 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
 
               // Current Goals List
               FutureBuilder<List<ProductivityGoal>>(
-                future:
-                    ref.read(productivityGoalsServiceProvider).getActiveGoals(),
+                future: ref
+                    .read(productivityGoalsServiceProvider)
+                    .getActiveGoals(),
                 builder: (context, snapshot) {
                   if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                     return Column(
@@ -306,8 +303,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
           _targetValue = _selectedPeriod == GoalPeriod.daily
               ? 5
               : _selectedPeriod == GoalPeriod.weekly
-                  ? 30
-                  : 100;
+              ? 30
+              : 100;
           break;
         case GoalType.completionRate:
           _targetValue = 80;
@@ -325,8 +322,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
           _targetValue = _selectedPeriod == GoalPeriod.daily
               ? 120
               : _selectedPeriod == GoalPeriod.weekly
-                  ? 600
-                  : 2400;
+              ? 600
+              : 2400;
           break;
         case GoalType.averageTasksPerDay:
           _targetValue = 5;
@@ -360,8 +357,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return _selectedPeriod == GoalPeriod.daily
             ? 20
             : _selectedPeriod == GoalPeriod.weekly
-                ? 100
-                : 500;
+            ? 100
+            : 500;
       case GoalType.completionRate:
         return 100;
       case GoalType.timeAccuracy:
@@ -374,8 +371,8 @@ class _GoalsDialogState extends ConsumerState<GoalsDialog> {
         return _selectedPeriod == GoalPeriod.daily
             ? 480
             : _selectedPeriod == GoalPeriod.weekly
-                ? 2400
-                : 10000;
+            ? 2400
+            : 10000;
       case GoalType.averageTasksPerDay:
         return 50;
     }

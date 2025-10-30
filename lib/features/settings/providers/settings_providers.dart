@@ -19,10 +19,7 @@ final userPreferencesServiceProvider = Provider<UserPreferencesService>((ref) {
   final client = Supabase.instance.client;
   final logger = ref.watch(loggerProvider);
 
-  return UserPreferencesService(
-    client: client,
-    logger: logger,
-  );
+  return UserPreferencesService(client: client, logger: logger);
 });
 
 /// Theme mode provider with database sync
@@ -42,6 +39,6 @@ final localeProvider = StateNotifierProvider<LocaleNotifier, Locale?>((ref) {
 /// Analytics settings provider
 final analyticsSettingsProvider =
     StateNotifierProvider<AnalyticsNotifier, bool>((ref) {
-  final analytics = ref.watch(analyticsProvider);
-  return AnalyticsNotifier(analytics);
-});
+      final analytics = ref.watch(analyticsProvider);
+      return AnalyticsNotifier(analytics);
+    });

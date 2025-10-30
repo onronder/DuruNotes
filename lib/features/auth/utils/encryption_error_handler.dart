@@ -37,7 +37,8 @@ class EncryptionError {
       return const EncryptionError(
         type: EncryptionErrorType.invalidPassword,
         message: 'Invalid password. Please try again.',
-        recoveryAction: 'Double-check your password and try again. If you forgot your password, contact support.',
+        recoveryAction:
+            'Double-check your password and try again. If you forgot your password, contact support.',
       );
     }
 
@@ -45,7 +46,8 @@ class EncryptionError {
       return const EncryptionError(
         type: EncryptionErrorType.alreadySetup,
         message: 'Encryption is already set up for this account.',
-        recoveryAction: 'If you need to change your password, go to Settings > Security > Change Encryption Password.',
+        recoveryAction:
+            'If you need to change your password, go to Settings > Security > Change Encryption Password.',
       );
     }
 
@@ -54,7 +56,8 @@ class EncryptionError {
       return const EncryptionError(
         type: EncryptionErrorType.notSetup,
         message: 'No encryption found. Please set up encryption first.',
-        recoveryAction: 'Go to Settings > Security > Set Up Encryption to enable encryption.',
+        recoveryAction:
+            'Go to Settings > Security > Set Up Encryption to enable encryption.',
       );
     }
 
@@ -77,13 +80,13 @@ class EncryptionError {
       );
     }
 
-    if (errorStr.contains('migration') ||
-        errorStr.contains('rewrap')) {
+    if (errorStr.contains('migration') || errorStr.contains('rewrap')) {
       return EncryptionError(
         type: EncryptionErrorType.migrationFailure,
         message: 'Failed to migrate encrypted data.',
         technicalDetails: error.toString(),
-        recoveryAction: 'Contact support for help migrating your encrypted data.',
+        recoveryAction:
+            'Contact support for help migrating your encrypted data.',
       );
     }
 
@@ -103,7 +106,8 @@ class EncryptionError {
       type: EncryptionErrorType.unknown,
       message: 'An unexpected error occurred.',
       technicalDetails: error.toString(),
-      recoveryAction: 'Please try again. If the problem persists, contact support.',
+      recoveryAction:
+          'Please try again. If the problem persists, contact support.',
     );
   }
 
@@ -170,10 +174,7 @@ class EncryptionErrorHandler {
   }
 
   /// Show error snackbar
-  static void showErrorSnackbar(
-    BuildContext context,
-    EncryptionError error,
-  ) {
+  static void showErrorSnackbar(BuildContext context, EncryptionError error) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -185,9 +186,7 @@ class EncryptionErrorHandler {
         ),
         backgroundColor: error.color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         action: error.recoveryAction != null
             ? SnackBarAction(
                 label: 'Help',
@@ -235,9 +234,7 @@ class _EncryptionErrorDialog extends StatelessWidget {
     final theme = Theme.of(context);
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       contentPadding: EdgeInsets.all(DuruSpacing.lg),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -250,11 +247,7 @@ class _EncryptionErrorDialog extends StatelessWidget {
               color: error.color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              error.icon,
-              size: 32,
-              color: error.color,
-            ),
+            child: Icon(error.icon, size: 32, color: error.color),
           ),
           SizedBox(height: DuruSpacing.md),
 
@@ -273,7 +266,9 @@ class _EncryptionErrorDialog extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(DuruSpacing.md),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -351,7 +346,9 @@ class _EncryptionErrorDialog extends StatelessWidget {
                     backgroundColor: DuruColors.primary,
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(onContactSupport != null ? 'Contact Support' : 'OK'),
+                  child: Text(
+                    onContactSupport != null ? 'Contact Support' : 'OK',
+                  ),
                 ),
               ),
             ],

@@ -15,12 +15,11 @@ class DatabaseOptimizationValidator {
   final QueryPerformanceMonitor _monitor;
   final OptimizedQueries _queries;
 
-  DatabaseOptimizationValidator({
-    required AppDb db,
-  }) : _db = db,
-       _logger = LoggerFactory.instance,
-       _monitor = QueryPerformanceMonitor(db: db),
-       _queries = OptimizedQueries(db);
+  DatabaseOptimizationValidator({required AppDb db})
+    : _db = db,
+      _logger = LoggerFactory.instance,
+      _monitor = QueryPerformanceMonitor(db: db),
+      _queries = OptimizedQueries(db);
 
   /// Run complete database optimization validation
   Future<ValidationReport> runCompleteValidation() async {
@@ -55,9 +54,12 @@ class DatabaseOptimizationValidator {
         'Database validation completed in ${report.executionTime.inMilliseconds}ms',
         data: {'validation_passed': report.isValid},
       );
-
     } catch (e, stackTrace) {
-      _logger.error('Database validation failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Database validation failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       report.isValid = false;
       report.error = e.toString();
       report.executionTime = DateTime.now().difference(startTime);
@@ -93,7 +95,9 @@ class DatabaseOptimizationValidator {
         'note_links',
       };
 
-      final actualTables = tables.map((row) => row.read<String>('name')).toSet();
+      final actualTables = tables
+          .map((row) => row.read<String>('name'))
+          .toSet();
       result.missingTables = expectedTables.difference(actualTables).toList();
       result.extraTables = actualTables.difference(expectedTables).toList();
 
@@ -101,8 +105,8 @@ class DatabaseOptimizationValidator {
       final fkCheck = await _db.customSelect('PRAGMA foreign_keys').getSingle();
       result.foreignKeysEnabled = fkCheck.read<int>('foreign_keys') == 1;
 
-      result.isValid = result.missingTables.isEmpty && result.foreignKeysEnabled;
-
+      result.isValid =
+          result.missingTables.isEmpty && result.foreignKeysEnabled;
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -135,7 +139,9 @@ class DatabaseOptimizationValidator {
         'idx_folders_parent_order',
       ];
 
-      final existingIndexes = indexes.map((row) => row.read<String>('name')).toSet();
+      final existingIndexes = indexes
+          .map((row) => row.read<String>('name'))
+          .toSet();
 
       result.missingCriticalIndexes = criticalIndexes
           .where((idx) => !existingIndexes.contains(idx))
@@ -145,7 +151,6 @@ class DatabaseOptimizationValidator {
       result.indexStats = await _getIndexUsageStats();
 
       result.isValid = result.missingCriticalIndexes.isEmpty;
-
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -181,7 +186,6 @@ class DatabaseOptimizationValidator {
 
       result.maxQueryTime = queryTimes.reduce((a, b) => a > b ? a : b);
       result.isValid = result.maxQueryTime <= 100;
-
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -210,15 +214,19 @@ class DatabaseOptimizationValidator {
       // Test individual queries (should be much slower due to N+1)
       final individualStartTime = DateTime.now();
       for (final noteData in notesWithRelations.take(5)) {
-        await _queries.getNoteWithRelations(noteData.note.id, userId: 'test-user');
+        await _queries.getNoteWithRelations(
+          noteData.note.id,
+          userId: 'test-user',
+        );
       }
       final individualTime = DateTime.now().difference(individualStartTime);
       result.individualQueriesTime = individualTime.inMilliseconds;
 
       // Batch loading should be significantly faster
-      result.performanceImprovement = result.individualQueriesTime / result.batchQueryTime;
-      result.isValid = result.performanceImprovement > 2.0; // At least 2x faster
-
+      result.performanceImprovement =
+          result.individualQueriesTime / result.batchQueryTime;
+      result.isValid =
+          result.performanceImprovement > 2.0; // At least 2x faster
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -233,10 +241,14 @@ class DatabaseOptimizationValidator {
 
     try {
       // Check migration was applied successfully
-      result.migrationApplied = await Migration14AttachmentsInboxOptimization.validateMigration(_db);
+      result.migrationApplied =
+          await Migration14AttachmentsInboxOptimization.validateMigration(_db);
 
       // Get migration metrics
-      result.migrationMetrics = await Migration14AttachmentsInboxOptimization.getPerformanceMetrics(_db);
+      result.migrationMetrics =
+          await Migration14AttachmentsInboxOptimization.getPerformanceMetrics(
+            _db,
+          );
 
       // Check schema version
       final versionResult = await _db.customSelect('''
@@ -246,9 +258,9 @@ class DatabaseOptimizationValidator {
       result.currentSchemaVersion = versionResult?.read<int>('version') ?? 0;
       result.expectedSchemaVersion = 14;
 
-      result.isValid = result.migrationApplied &&
-                      result.currentSchemaVersion >= result.expectedSchemaVersion;
-
+      result.isValid =
+          result.migrationApplied &&
+          result.currentSchemaVersion >= result.expectedSchemaVersion;
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -263,17 +275,26 @@ class DatabaseOptimizationValidator {
 
     try {
       // Database integrity check
-      final integrityResult = await _db.customSelect('PRAGMA integrity_check').getSingle();
-      result.integrityCheck = integrityResult.read<String>('integrity_check') == 'ok';
+      final integrityResult = await _db
+          .customSelect('PRAGMA integrity_check')
+          .getSingle();
+      result.integrityCheck =
+          integrityResult.read<String>('integrity_check') == 'ok';
 
       // Get database size
-      final sizeResult = await _db.customSelect('PRAGMA page_count').getSingle();
+      final sizeResult = await _db
+          .customSelect('PRAGMA page_count')
+          .getSingle();
       final pageSize = await _db.customSelect('PRAGMA page_size').getSingle();
-      result.databaseSizeMB = (sizeResult.read<int>('page_count') *
-                              pageSize.read<int>('page_size')) / (1024 * 1024);
+      result.databaseSizeMB =
+          (sizeResult.read<int>('page_count') *
+              pageSize.read<int>('page_size')) /
+          (1024 * 1024);
 
       // Check vacuum recommendation
-      final freePageResult = await _db.customSelect('PRAGMA freelist_count').getSingle();
+      final freePageResult = await _db
+          .customSelect('PRAGMA freelist_count')
+          .getSingle();
       final freePages = freePageResult.read<int>('freelist_count');
       result.needsVacuum = freePages > 1000; // Arbitrary threshold
 
@@ -281,7 +302,6 @@ class DatabaseOptimizationValidator {
       result.totalRecords = await _getTotalRecordCount();
 
       result.isValid = result.integrityCheck;
-
     } catch (e) {
       result.error = e.toString();
       result.isValid = false;
@@ -338,13 +358,17 @@ class DatabaseOptimizationValidator {
       WHERE type='index' AND name LIKE 'idx_%'
     ''').getSingle();
 
-    return {
-      'total_indexes': result.read<int>('index_count'),
-    };
+    return {'total_indexes': result.read<int>('index_count')};
   }
 
   Future<int> _getTotalRecordCount() async {
-    final tables = ['local_notes', 'note_tasks', 'note_tags', 'local_attachments', 'local_inbox_items'];
+    final tables = [
+      'local_notes',
+      'note_tasks',
+      'note_tags',
+      'local_attachments',
+      'local_inbox_items',
+    ];
     int total = 0;
 
     for (final table in tables) {
@@ -358,7 +382,9 @@ class DatabaseOptimizationValidator {
         throw ArgumentError('Invalid table name format: $table');
       }
 
-      final result = await _db.customSelect('SELECT COUNT(*) as count FROM $table').getSingle();
+      final result = await _db
+          .customSelect('SELECT COUNT(*) as count FROM $table')
+          .getSingle();
       total += result.read<int>('count');
     }
 
@@ -367,11 +393,11 @@ class DatabaseOptimizationValidator {
 
   bool _isValidationSuccessful(ValidationReport report) {
     return report.schemaValidation.isValid &&
-           report.indexValidation.isValid &&
-           report.performanceValidation.isValid &&
-           report.n1QueryValidation.isValid &&
-           report.migrationValidation.isValid &&
-           report.overallHealth.isValid;
+        report.indexValidation.isValid &&
+        report.performanceValidation.isValid &&
+        report.n1QueryValidation.isValid &&
+        report.migrationValidation.isValid &&
+        report.overallHealth.isValid;
   }
 }
 
@@ -382,7 +408,8 @@ class ValidationReport {
   Duration executionTime = Duration.zero;
   SchemaValidationResult schemaValidation = SchemaValidationResult();
   IndexValidationResult indexValidation = IndexValidationResult();
-  PerformanceValidationResult performanceValidation = PerformanceValidationResult();
+  PerformanceValidationResult performanceValidation =
+      PerformanceValidationResult();
   N1QueryValidationResult n1QueryValidation = N1QueryValidationResult();
   MigrationValidationResult migrationValidation = MigrationValidationResult();
   HealthCheckResult overallHealth = HealthCheckResult();

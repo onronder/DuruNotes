@@ -11,8 +11,8 @@ class IncomingMailFolderManager {
   IncomingMailFolderManager({
     required IFolderRepository folderRepository,
     required String userId,
-  })  : _folderRepository = folderRepository,
-        _userId = userId;
+  }) : _folderRepository = folderRepository,
+       _userId = userId;
 
   final IFolderRepository _folderRepository;
   final String _userId;
@@ -100,7 +100,9 @@ class IncomingMailFolderManager {
       }
 
       // Folder doesn't exist - DO NOT CREATE IT
-      _logger.debug('[IncomingMailFolder] Folder does not exist (not creating)');
+      _logger.debug(
+        '[IncomingMailFolder] Folder does not exist (not creating)',
+      );
       return null;
     } catch (e, stackTrace) {
       _logger.error(
@@ -124,7 +126,9 @@ class IncomingMailFolderManager {
       }
 
       // Create new folder only if it doesn't exist
-      _logger.info('[IncomingMailFolder] Creating Incoming Mail folder for email processing');
+      _logger.info(
+        '[IncomingMailFolder] Creating Incoming Mail folder for email processing',
+      );
       final newFolderId = _uuid.v4();
       await _folderRepository.createOrUpdateFolder(
         id: newFolderId,
@@ -278,7 +282,10 @@ class IncomingMailFolderManager {
             // Remove from duplicate folder
             await _folderRepository.removeNoteFromFolder(domainNote.id);
             // Add to canonical folder
-            await _folderRepository.addNoteToFolder(domainNote.id, canonicalFolder.id);
+            await _folderRepository.addNoteToFolder(
+              domainNote.id,
+              canonicalFolder.id,
+            );
             _logger.debug(
               '[IncomingMailFolder] Moved note ${domainNote.id} from duplicate ${duplicate.id} to canonical ${canonicalFolder.id}',
             );

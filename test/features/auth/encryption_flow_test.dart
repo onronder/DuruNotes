@@ -83,10 +83,7 @@ void main() {
             home: Builder(
               builder: (context) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  showEncryptionSetupDialog(
-                    context,
-                    allowCancel: allowCancel,
-                  );
+                  showEncryptionSetupDialog(context, allowCancel: allowCancel);
                 });
                 return const SizedBox.shrink();
               },
@@ -103,13 +100,9 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(800, 1200));
       await openSetupDialog(tester);
 
-      final setupButton =
-          find.widgetWithText(FilledButton, 'Setup');
+      final setupButton = find.widgetWithText(FilledButton, 'Setup');
       expect(setupButton, findsOneWidget);
-      expect(
-        tester.widget<FilledButton>(setupButton).onPressed,
-        isNull,
-      );
+      expect(tester.widget<FilledButton>(setupButton).onPressed, isNull);
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Encryption Password'),
@@ -120,20 +113,14 @@ void main() {
         'Mismatch!',
       );
       await tester.pump();
-      expect(
-        tester.widget<FilledButton>(setupButton).onPressed,
-        isNull,
-      );
+      expect(tester.widget<FilledButton>(setupButton).onPressed, isNull);
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Confirm Password'),
         'Secure!Pass',
       );
       await tester.pump();
-      expect(
-        tester.widget<FilledButton>(setupButton).onPressed,
-        isNotNull,
-      );
+      expect(tester.widget<FilledButton>(setupButton).onPressed, isNotNull);
 
       tester.cleanupEncryption();
     });
@@ -151,7 +138,9 @@ void main() {
   });
 
   group('NewUserEncryptionSetupGate', () {
-    testWidgets('completes provisioning after valid submission', (tester) async {
+    testWidgets('completes provisioning after valid submission', (
+      tester,
+    ) async {
       final mocks = await SecurityTestSetup.setupMockEncryption(
         encryptionEnabled: true,
         isSetup: false,

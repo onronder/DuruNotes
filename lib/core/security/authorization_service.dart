@@ -22,11 +22,9 @@ class AuthorizationService {
   final SupabaseClient _supabase;
   final AppLogger _logger;
 
-  AuthorizationService({
-    required SupabaseClient supabase,
-    AppLogger? logger,
-  })  : _supabase = supabase,
-        _logger = logger ?? LoggerFactory.instance;
+  AuthorizationService({required SupabaseClient supabase, AppLogger? logger})
+    : _supabase = supabase,
+      _logger = logger ?? LoggerFactory.instance;
 
   /// Get the currently authenticated user's ID
   ///
@@ -79,7 +77,9 @@ class AuthorizationService {
     required String resourceId,
     String operation = 'access',
   }) {
-    final currentUser = requireAuthenticatedUser(context: '$operation $resourceType');
+    final currentUser = requireAuthenticatedUser(
+      context: '$operation $resourceType',
+    );
 
     // Fail-safe: if resource has no userId, deny access
     if (resourceUserId == null) {
@@ -134,7 +134,9 @@ class AuthorizationService {
     required String resourceType,
     String operation = 'access',
   }) {
-    final currentUser = requireAuthenticatedUser(context: '$operation $resourceType');
+    final currentUser = requireAuthenticatedUser(
+      context: '$operation $resourceType',
+    );
 
     for (final (userId, id) in resources) {
       if (userId == null || userId != currentUser) {
@@ -142,7 +144,8 @@ class AuthorizationService {
           'SECURITY: Batch authorization failed: User $currentUser attempted to $operation $resourceType $id',
         );
         throw AuthorizationException(
-          message: 'You do not have permission to $operation these ${resourceType}s',
+          message:
+              'You do not have permission to $operation these ${resourceType}s',
           resourceType: resourceType,
           resourceId: id,
           userId: currentUser,

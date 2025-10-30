@@ -25,8 +25,8 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
         final type = level == 1
             ? NoteBlockType.heading1
             : level == 2
-                ? NoteBlockType.heading2
-                : NoteBlockType.heading3;
+            ? NoteBlockType.heading2
+            : NoteBlockType.heading3;
         blocks.add(NoteBlock(type: type, data: text));
         continue;
       }
@@ -69,7 +69,8 @@ List<NoteBlock> parseMarkdownToBlocks(String markdown) {
 
       // Store todo with format: "completed:level:text" or "incomplete:level:text"
       // This preserves hierarchy information for HierarchicalTodoBlockWidget
-      final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
+      final todoData =
+          '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
       blocks.add(NoteBlock(type: NoteBlockType.todo, data: todoData));
       continue;
     }
@@ -191,15 +192,20 @@ NoteBlock createHeadingBlock(int level, String text) {
   final type = level == 1
       ? NoteBlockType.heading1
       : level == 2
-          ? NoteBlockType.heading2
-          : NoteBlockType.heading3;
+      ? NoteBlockType.heading2
+      : NoteBlockType.heading3;
   return NoteBlock(type: type, data: text);
 }
 
 /// Helper function to create a todo block
 /// PRODUCTION-GRADE: Creates with format "completed:level:text"
-NoteBlock createTodoBlock(String text, {bool isCompleted = false, int indentLevel = 0}) {
-  final todoData = '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
+NoteBlock createTodoBlock(
+  String text, {
+  bool isCompleted = false,
+  int indentLevel = 0,
+}) {
+  final todoData =
+      '${isCompleted ? 'completed' : 'incomplete'}:$indentLevel:$text';
   return NoteBlock(type: NoteBlockType.todo, data: todoData);
 }
 

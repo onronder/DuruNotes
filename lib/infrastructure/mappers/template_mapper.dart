@@ -24,10 +24,14 @@ class TemplateMapper {
       tags: '[]', // Empty tags array by default
       isSystem: domain.isSystem,
       category: 'general', // Default category
-      description: _extractDescription(domain.content), // Extract description from content
+      description: _extractDescription(
+        domain.content,
+      ), // Extract description from content
       icon: 'description', // Default icon
       sortOrder: 0, // Default sort order
-      metadata: _encodeVariables(domain.variables), // Encode variables as metadata
+      metadata: _encodeVariables(
+        domain.variables,
+      ), // Encode variables as metadata
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
     );
@@ -50,7 +54,8 @@ class TemplateMapper {
     try {
       final decoded = json.decode(metadata);
       if (decoded is Map<String, dynamic>) {
-        return decoded['variables'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        return decoded['variables'] as Map<String, dynamic>? ??
+            <String, dynamic>{};
       }
       return <String, dynamic>{};
     } catch (e) {
@@ -63,10 +68,7 @@ class TemplateMapper {
     if (variables.isEmpty) return null;
 
     try {
-      final metadata = {
-        'variables': variables,
-        'template_version': '1.0',
-      };
+      final metadata = {'variables': variables, 'template_version': '1.0'};
       return json.encode(metadata);
     } catch (e) {
       return null;

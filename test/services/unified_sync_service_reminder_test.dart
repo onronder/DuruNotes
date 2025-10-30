@@ -122,7 +122,7 @@ void main() {
     'syncReminders downloads remote reminders into local database',
     () async {
       final createdAt = DateTime.utc(2025, 1, 2, 8);
-    await seedNote(noteId: 'note-remote', timestamp: createdAt);
+      await seedNote(noteId: 'note-remote', timestamp: createdAt);
 
       final remoteReminder = {
         'id': 99,

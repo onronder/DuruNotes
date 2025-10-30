@@ -37,8 +37,8 @@ class SettingsTile extends StatelessWidget {
     final effectiveTextColor = isDestructive
         ? colorScheme.error
         : enabled
-            ? colorScheme.onSurface
-            : colorScheme.onSurface.withValues(alpha: 0.5);
+        ? colorScheme.onSurface
+        : colorScheme.onSurface.withValues(alpha: 0.5);
 
     return ListTile(
       enabled: enabled,
@@ -51,9 +51,7 @@ class SettingsTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: effectiveTextColor,
-        ),
+        style: theme.textTheme.bodyLarge?.copyWith(color: effectiveTextColor),
       ),
       subtitle: subtitle != null
           ? Text(
@@ -63,7 +61,8 @@ class SettingsTile extends StatelessWidget {
               ),
             )
           : null,
-      trailing: trailing ??
+      trailing:
+          trailing ??
           (onTap != null
               ? Icon(
                   Icons.chevron_right,
@@ -71,11 +70,9 @@ class SettingsTile extends StatelessWidget {
                 )
               : null),
       onTap: enabled ? onTap : null,
-      contentPadding: contentPadding ??
-          const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 4,
-          ),
+      contentPadding:
+          contentPadding ??
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 }
@@ -100,7 +97,8 @@ class SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveTitleStyle = titleStyle ??
+    final effectiveTitleStyle =
+        titleStyle ??
         theme.textTheme.titleSmall?.copyWith(
           color: titleColor ?? theme.colorScheme.primary,
           fontWeight: FontWeight.bold,
@@ -114,17 +112,12 @@ class SettingsSection extends StatelessWidget {
           if (title != null) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                title!.toUpperCase(),
-                style: effectiveTitleStyle,
-              ),
+              child: Text(title!.toUpperCase(), style: effectiveTitleStyle),
             ),
           ],
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: children,
-            ),
+            child: Column(children: children),
           ),
         ],
       ),
@@ -161,10 +154,7 @@ class SettingsSwitchTile extends StatelessWidget {
       subtitle: subtitle,
       enabled: enabled,
       iconColor: iconColor,
-      trailing: Switch(
-        value: value,
-        onChanged: enabled ? onChanged : null,
-      ),
+      trailing: Switch(value: value, onChanged: enabled ? onChanged : null),
       onTap: enabled ? () => onChanged(!value) : null,
     );
   }
@@ -375,8 +365,9 @@ class SettingsAccountHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: colorScheme.primaryContainer,
-                backgroundImage:
-                    avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+                backgroundImage: avatarUrl != null
+                    ? NetworkImage(avatarUrl!)
+                    : null,
                 child: avatarUrl == null
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -441,8 +432,9 @@ class SettingsVersionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final versionText =
-        buildNumber != null ? 'v$version ($buildNumber)' : 'v$version';
+    final versionText = buildNumber != null
+        ? 'v$version ($buildNumber)'
+        : 'v$version';
 
     return InkWell(
       onTap: onTap,
@@ -460,8 +452,9 @@ class SettingsVersionFooter extends StatelessWidget {
             Text(
               versionText,
               style: theme.textTheme.bodySmall?.copyWith(
-                color:
-                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
             ),
           ],

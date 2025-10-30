@@ -2,8 +2,7 @@ import 'dart:async';
 
 /// Cached query result with expiration
 class CachedResult<T> {
-  CachedResult(this.value, this.ttl)
-      : expiresAt = DateTime.now().add(ttl);
+  CachedResult(this.value, this.ttl) : expiresAt = DateTime.now().add(ttl);
 
   final T value;
   final Duration ttl;
@@ -144,7 +143,7 @@ class CacheStatistics {
   @override
   String toString() {
     return 'CacheStatistics(hits: $hitCount, misses: $missCount, '
-           'hitRate: ${(hitRate * 100).toStringAsFixed(1)}%, '
-           'size: $size/$maxSize)';
+        'hitRate: ${(hitRate * 100).toStringAsFixed(1)}%, '
+        'size: $size/$maxSize)';
   }
 }

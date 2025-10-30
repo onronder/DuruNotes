@@ -161,9 +161,4 @@ class PassphraseValidator {
   }
 }
 
-enum PassphraseStrength {
-  weak,
-  medium,
-  strong,
-  veryStrong,
-}
+enum PassphraseStrength { weak, medium, strong, veryStrong }

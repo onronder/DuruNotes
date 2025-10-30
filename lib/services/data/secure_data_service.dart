@@ -15,7 +15,9 @@ import 'package:duru_notes/data/local/app_db.dart';
 /// converting to domain entities.
 ///
 /// Use NotesCoreRepository and TaskCoreRepository instead - they handle encryption automatically.
-@Deprecated('Use NotesCoreRepository and TaskCoreRepository instead - they handle encryption automatically')
+@Deprecated(
+  'Use NotesCoreRepository and TaskCoreRepository instead - they handle encryption automatically',
+)
 class SecureDataService {
   static final SecureDataService _instance = SecureDataService._internal();
   factory SecureDataService() => _instance;
@@ -29,13 +31,17 @@ class SecureDataService {
   /// Encrypt sensitive note data before storage
   @Deprecated('Use NotesCoreRepository instead')
   Future<LocalNote> encryptNoteData(LocalNote note) async {
-    throw UnsupportedError('SecureDataService is deprecated. Use NotesCoreRepository instead.');
+    throw UnsupportedError(
+      'SecureDataService is deprecated. Use NotesCoreRepository instead.',
+    );
   }
 
   /// Decrypt sensitive note data after retrieval
   @Deprecated('Use NotesCoreRepository instead')
   Future<LocalNote> decryptNoteData(LocalNote note) async {
-    throw UnsupportedError('SecureDataService is deprecated. Use NotesCoreRepository instead.');
+    throw UnsupportedError(
+      'SecureDataService is deprecated. Use NotesCoreRepository instead.',
+    );
   }
 
   /// Store encrypted user preferences
@@ -69,26 +75,36 @@ class SecureDataService {
 
   /// Encrypt file attachment before storage
   @Deprecated('Use repository layer for attachment encryption')
-  Future<Uint8List> encryptAttachment(Uint8List data, String attachmentId) async {
+  Future<Uint8List> encryptAttachment(
+    Uint8List data,
+    String attachmentId,
+  ) async {
     throw UnsupportedError('SecureDataService is deprecated.');
   }
 
   /// Decrypt file attachment after retrieval
   @Deprecated('Use repository layer for attachment decryption')
-  Future<Uint8List> decryptAttachment(Uint8List encryptedData, String attachmentId) async {
+  Future<Uint8List> decryptAttachment(
+    Uint8List encryptedData,
+    String attachmentId,
+  ) async {
     throw UnsupportedError('SecureDataService is deprecated.');
   }
 
   /// Encrypt multiple notes in batch
   @Deprecated('Use NotesCoreRepository instead')
   Future<List<LocalNote>> encryptNotesBatch(List<LocalNote> notes) async {
-    throw UnsupportedError('SecureDataService is deprecated. Use NotesCoreRepository instead.');
+    throw UnsupportedError(
+      'SecureDataService is deprecated. Use NotesCoreRepository instead.',
+    );
   }
 
   /// Decrypt multiple notes in batch
   @Deprecated('Use NotesCoreRepository instead')
   Future<List<LocalNote>> decryptNotesBatch(List<LocalNote> notes) async {
-    throw UnsupportedError('SecureDataService is deprecated. Use NotesCoreRepository instead.');
+    throw UnsupportedError(
+      'SecureDataService is deprecated. Use NotesCoreRepository instead.',
+    );
   }
 
   /// Re-encrypt all data with new key during key rotation

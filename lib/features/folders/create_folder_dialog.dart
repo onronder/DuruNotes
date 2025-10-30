@@ -129,8 +129,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
 
   Future<void> _loadParentFolder(String parentId) async {
     try {
-      final folder =
-          await ref.read(folderRepositoryProvider)?.getFolder(parentId);
+      final folder = await ref
+          .read(folderRepositoryProvider)
+          ?.getFolder(parentId);
       if (mounted && folder != null) {
         setState(() {
           _selectedParent = folder;
@@ -170,7 +171,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
       }
 
       // Create the actual folder and wait for the real ID
-      final realFolderId = await ref.read(folderProvider.notifier).createFolder(
+      final realFolderId = await ref
+          .read(folderProvider.notifier)
+          .createFolder(
             name: folderName,
             parentId: parentId,
             color: color,
@@ -187,10 +190,12 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
         }
 
         // Get the actual folder from the repository to ensure we have the correct data
-        final realFolder =
-            await ref.read(folderRepositoryProvider)?.getFolder(realFolderId);
+        final realFolder = await ref
+            .read(folderRepositoryProvider)
+            ?.getFolder(realFolderId);
 
-        final folderToReturn = realFolder ??
+        final folderToReturn =
+            realFolder ??
             domain.Folder(
               id: realFolderId,
               name: folderName,
@@ -214,7 +219,8 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
         }
       } else {
         // Failed to create folder - get error message from state
-        final errorMessage = ref.read(folderProvider).error ?? 'Failed to create folder';
+        final errorMessage =
+            ref.read(folderProvider).error ?? 'Failed to create folder';
 
         if (kDebugMode) {
           debugPrint('❌ Failed to create folder: $errorMessage');
@@ -232,7 +238,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
               content: Text(errorMessage),
               backgroundColor: Theme.of(context).colorScheme.error,
               behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4), // Longer duration for errors
+              duration: const Duration(
+                seconds: 4,
+              ), // Longer duration for errors
               action: SnackBarAction(
                 label: 'Dismiss',
                 textColor: Colors.white,
@@ -260,12 +268,16 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
 
         // Create user-friendly error message
         String userMessage = 'Failed to create folder';
-        if (e.toString().contains('limit') || e.toString().contains('maximum')) {
-          userMessage = 'Folder limit reached. Please delete some folders first.';
+        if (e.toString().contains('limit') ||
+            e.toString().contains('maximum')) {
+          userMessage =
+              'Folder limit reached. Please delete some folders first.';
         } else if (e.toString().contains('name')) {
           userMessage = 'Invalid folder name. Please try a different name.';
-        } else if (e.toString().contains('network') || e.toString().contains('connection')) {
-          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (e.toString().contains('network') ||
+            e.toString().contains('connection')) {
+          userMessage =
+              'Network error. Please check your connection and try again.';
         } else if (kDebugMode) {
           // In debug mode, show actual error
           userMessage = 'Failed to create folder: ${e.toString()}';
@@ -321,11 +333,11 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
         child: SlideTransition(
           position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
               .animate(
-            CurvedAnimation(
-              parent: _slideController,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+                CurvedAnimation(
+                  parent: _slideController,
+                  curve: Curves.easeOutCubic,
+                ),
+              ),
           child: AlertDialog(
             backgroundColor: colorScheme.surface,
             surfaceTintColor: colorScheme.surfaceTint,
@@ -371,8 +383,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                         decoration: InputDecoration(
                           labelText: l10n.folderName,
                           hintText: l10n.folderNameHint,
-                          prefixIcon:
-                              const Icon(Icons.drive_file_rename_outline),
+                          prefixIcon: const Icon(
+                            Icons.drive_file_rename_outline,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -506,7 +519,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
                                 borderRadius: BorderRadius.circular(8),
                                 border: isSelected
                                     ? Border.all(
-                                        color: _selectedColor, width: 2)
+                                        color: _selectedColor,
+                                        width: 2,
+                                      )
                                     : null,
                               ),
                               child: Icon(
@@ -544,8 +559,9 @@ class _CreateFolderDialogState extends ConsumerState<CreateFolderDialog>
             ),
             actions: [
               TextButton(
-                onPressed:
-                    _isCreating ? null : () => Navigator.of(context).pop(),
+                onPressed: _isCreating
+                    ? null
+                    : () => Navigator.of(context).pop(),
                 child: Text(l10n.cancel),
               ),
               FilledButton(

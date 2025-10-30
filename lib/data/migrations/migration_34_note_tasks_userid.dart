@@ -17,7 +17,9 @@ class Migration34NoteTasksUserId {
     _logger.info('[Migration 34] Adding user_id to note_tasks');
 
     await db.transaction(() async {
-      await db.customStatement('ALTER TABLE note_tasks ADD COLUMN user_id TEXT');
+      await db.customStatement(
+        'ALTER TABLE note_tasks ADD COLUMN user_id TEXT',
+      );
 
       // Backfill ownership from parent notes.
       await db.customStatement('''
@@ -40,8 +42,9 @@ class Migration34NoteTasksUserId {
   }
 
   static Future<bool> _hasUserIdColumn(DatabaseConnectionUser db) async {
-    final results =
-        await db.customSelect('PRAGMA table_info(note_tasks)').get();
+    final results = await db
+        .customSelect('PRAGMA table_info(note_tasks)')
+        .get();
     for (final row in results) {
       final name = row.data['name'] as String?;
       if (name != null && name.toLowerCase() == 'user_id') {

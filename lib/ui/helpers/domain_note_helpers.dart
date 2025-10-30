@@ -22,10 +22,7 @@ class DomainNoteHelpers {
   ) {
     _logger.warning(
       'Failed to $context from note metadata',
-      data: {
-        'noteId': note.id,
-        'noteType': note.noteType.name,
-      },
+      data: {'noteId': note.id, 'noteType': note.noteType.name},
     );
     unawaited(Sentry.captureException(error, stackTrace: stackTrace));
   }
@@ -36,14 +33,24 @@ class DomainNoteHelpers {
     try {
       if (note.attachmentMeta is Map) {
         final meta = note.attachmentMeta as Map<String, dynamic>;
-        return meta.isNotEmpty && meta.containsKey('count') && (meta['count'] as int? ?? 0) > 0;
+        return meta.isNotEmpty &&
+            meta.containsKey('count') &&
+            (meta['count'] as int? ?? 0) > 0;
       }
       if (note.attachmentMeta is String) {
         final meta = jsonDecode(note.attachmentMeta as String);
-        return meta is Map && meta.isNotEmpty && meta['count'] != null && (meta['count'] as int? ?? 0) > 0;
+        return meta is Map &&
+            meta.isNotEmpty &&
+            meta['count'] != null &&
+            (meta['count'] as int? ?? 0) > 0;
       }
     } catch (error, stackTrace) {
-      _logParsingFailure('determine attachment presence', note, error, stackTrace);
+      _logParsingFailure(
+        'determine attachment presence',
+        note,
+        error,
+        stackTrace,
+      );
       return false;
     }
     return false;
@@ -101,15 +108,15 @@ class DomainNoteHelpers {
       if (note.metadata is Map) {
         final meta = note.metadata as Map<String, dynamic>;
         return meta['source'] == 'web' ||
-               meta['source_type'] == 'web' ||
-               meta['source'] == 'clipper';
+            meta['source_type'] == 'web' ||
+            meta['source'] == 'clipper';
       }
       if (note.metadata is String) {
         final meta = jsonDecode(note.metadata as String);
         if (meta is Map) {
           return meta['source'] == 'web' ||
-                 meta['source_type'] == 'web' ||
-                 meta['source'] == 'clipper';
+              meta['source_type'] == 'web' ||
+              meta['source'] == 'clipper';
         }
       }
     } catch (error, stackTrace) {
@@ -128,7 +135,8 @@ class DomainNoteHelpers {
       if (note.attachmentMeta is Map) {
         meta = note.attachmentMeta as Map<String, dynamic>;
       } else if (note.attachmentMeta is String) {
-        meta = jsonDecode(note.attachmentMeta as String) as Map<String, dynamic>;
+        meta =
+            jsonDecode(note.attachmentMeta as String) as Map<String, dynamic>;
       } else {
         return [];
       }
@@ -174,7 +182,7 @@ class DomainNoteHelpers {
 
     final lowerQuery = query.toLowerCase();
     return note.title.toLowerCase().contains(lowerQuery) ||
-           note.body.toLowerCase().contains(lowerQuery);
+        note.body.toLowerCase().contains(lowerQuery);
   }
 
   /// Get note source icon name
@@ -226,9 +234,7 @@ class DomainNoteHelpers {
     }
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      filtered = filtered
-          .where((n) => matchesSearch(n, searchQuery))
-          .toList();
+      filtered = filtered.where((n) => matchesSearch(n, searchQuery)).toList();
     }
 
     if (noteType != null) {
@@ -249,12 +255,14 @@ class DomainNoteHelpers {
     switch (sortBy) {
       case 'title':
         sorted.sort((a, b) {
-          final comparison = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          final comparison = a.title.toLowerCase().compareTo(
+            b.title.toLowerCase(),
+          );
           return ascending ? comparison : -comparison;
         });
         break;
       case 'createdAt':
-        // Fall through to updatedAt (LocalNotes doesn't have createdAt)
+      // Fall through to updatedAt (LocalNotes doesn't have createdAt)
       case 'updatedAt':
       default:
         sorted.sort((a, b) {

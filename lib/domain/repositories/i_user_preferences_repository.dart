@@ -42,9 +42,7 @@ abstract class IUserPreferencesRepository {
   /// Partially update user preferences (only specified fields)
   ///
   /// More efficient than full update when changing single fields.
-  Future<UserPreferences> patchUserPreferences(
-    Map<String, dynamic> updates,
-  );
+  Future<UserPreferences> patchUserPreferences(Map<String, dynamic> updates);
 
   /// Partially update notification preferences (only specified fields)
   ///
@@ -119,13 +117,16 @@ class PreferencesException implements Exception {
   final Object? cause;
 
   @override
-  String toString() => 'PreferencesException: $message${cause != null ? ' ($cause)' : ''}';
+  String toString() =>
+      'PreferencesException: $message${cause != null ? ' ($cause)' : ''}';
 }
 
 /// Thrown when preferences are not found
 class PreferencesNotFoundException extends PreferencesException {
   PreferencesNotFoundException([String? userId])
-      : super('Preferences not found${userId != null ? ' for user $userId' : ''}');
+    : super(
+        'Preferences not found${userId != null ? ' for user $userId' : ''}',
+      );
 }
 
 /// Thrown when a conflict is detected during update (optimistic locking)
@@ -134,8 +135,8 @@ class PreferencesConflictException extends PreferencesException {
     required this.currentVersion,
     required this.attemptedVersion,
   }) : super(
-          'Preferences conflict: expected version $attemptedVersion, but current version is $currentVersion',
-        );
+         'Preferences conflict: expected version $attemptedVersion, but current version is $currentVersion',
+       );
 
   final int currentVersion;
   final int attemptedVersion;

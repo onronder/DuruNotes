@@ -4,7 +4,8 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
-import 'package:duru_notes/features/search/providers/search_providers.dart' show tagRepositoryInterfaceProvider;
+import 'package:duru_notes/features/search/providers/search_providers.dart'
+    show tagRepositoryInterfaceProvider;
 import 'package:duru_notes/domain/entities/tag.dart' show TagWithCount;
 import 'package:duru_notes/search/search_parser.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
@@ -276,8 +277,9 @@ class _FiltersBottomSheetState extends ConsumerState<FiltersBottomSheet>
                       _filterState.pinnedOnly
                           ? Icons.push_pin
                           : Icons.push_pin_outlined,
-                      color:
-                          _filterState.pinnedOnly ? colorScheme.primary : null,
+                      color: _filterState.pinnedOnly
+                          ? colorScheme.primary
+                          : null,
                     ),
                     value: _filterState.pinnedOnly,
                     onChanged: (value) {

@@ -79,23 +79,26 @@ void main() {
         expect(result.message, contains('No saved searches'));
       });
 
-      test('Scenario 2: All searches have userId - migration complete', () async {
-        // Insert saved searches with userId
-        await _insertSavedSearch(testDb, 'search-1', userId: 'user-1');
-        await _insertSavedSearch(testDb, 'search-2', userId: 'user-1');
+      test(
+        'Scenario 2: All searches have userId - migration complete',
+        () async {
+          // Insert saved searches with userId
+          await _insertSavedSearch(testDb, 'search-1', userId: 'user-1');
+          await _insertSavedSearch(testDb, 'search-2', userId: 'user-1');
 
-        final service = SavedSearchMigrationService(
-          db: testDb,
-          supabase: mockSupabase,
-          logger: mockLogger,
-        );
+          final service = SavedSearchMigrationService(
+            db: testDb,
+            supabase: mockSupabase,
+            logger: mockLogger,
+          );
 
-        final result = await service.runAutoMigration();
+          final result = await service.runAutoMigration();
 
-        expect(result.status, equals(MigrationStatus.complete));
-        expect(result.searchesProcessed, equals(0));
-        expect(result.message, contains('already have userId'));
-      });
+          expect(result.status, equals(MigrationStatus.complete));
+          expect(result.searchesProcessed, equals(0));
+          expect(result.message, contains('already have userId'));
+        },
+      );
 
       test('Scenario 3: User logged in - automatic migration', () async {
         // Insert saved searches without userId (legacy data)
@@ -119,16 +122,20 @@ void main() {
         expect(result.message, contains('Successfully migrated 3'));
 
         // Verify all searches now have userId
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['searchesWithoutUserId'], equals(0));
         expect(stats['searchesWithUserId'], equals(3));
 
         // Verify userId is correct
-        final search = await testDb.customSelect(
-          'SELECT user_id FROM saved_searches WHERE id = ?',
-          variables: [Variable.withString('search-1')],
-        ).getSingleOrNull();
+        final search = await testDb
+            .customSelect(
+              'SELECT user_id FROM saved_searches WHERE id = ?',
+              variables: [Variable.withString('search-1')],
+            )
+            .getSingleOrNull();
         expect(search?.data['user_id'], equals('test-user-123'));
       });
 
@@ -153,8 +160,10 @@ void main() {
         expect(result.message, contains('log in'));
 
         // Verify searches still don't have userId
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['searchesWithoutUserId'], equals(2));
       });
     });
@@ -186,18 +195,23 @@ void main() {
           logger: mockLogger,
         );
 
-        final postLoginResults = await postLoginService
-            .runPostLoginMigrations('test-user-123');
+        final postLoginResults = await postLoginService.runPostLoginMigrations(
+          'test-user-123',
+        );
 
         expect(postLoginResults, hasLength(1));
-        expect(postLoginResults.first.migrationType,
-            equals(PostLoginMigrationType.savedSearches));
+        expect(
+          postLoginResults.first.migrationType,
+          equals(PostLoginMigrationType.savedSearches),
+        );
         expect(postLoginResults.first.success, isTrue);
         expect(postLoginResults.first.itemsProcessed, equals(2));
 
         // Step 4: Verify migration completed
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['searchesWithoutUserId'], equals(0));
         expect(stats['searchesWithUserId'], equals(2));
       });
@@ -216,8 +230,12 @@ void main() {
         );
 
         // Run migration twice
-        final result1 = await postLoginService.runPostLoginMigrations('test-user-123');
-        final result2 = await postLoginService.runPostLoginMigrations('test-user-123');
+        final result1 = await postLoginService.runPostLoginMigrations(
+          'test-user-123',
+        );
+        final result2 = await postLoginService.runPostLoginMigrations(
+          'test-user-123',
+        );
 
         // Both should succeed with 0 items processed
         expect(result1.first.success, isTrue);
@@ -226,8 +244,10 @@ void main() {
         expect(result2.first.itemsProcessed, equals(0));
 
         // Data should remain intact
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['totalSearches'], equals(2));
         expect(stats['searchesWithUserId'], equals(2));
       });
@@ -253,20 +273,27 @@ void main() {
         final result = await service.runAutoMigration();
 
         expect(result.status, equals(MigrationStatus.success));
-        expect(result.searchesProcessed, equals(2)); // Only search-2 and search-4
+        expect(
+          result.searchesProcessed,
+          equals(2),
+        ); // Only search-2 and search-4
 
         // Verify existing assignments were preserved
-        final search1 = await testDb.customSelect(
-          'SELECT user_id FROM saved_searches WHERE id = ?',
-          variables: [Variable.withString('search-1')],
-        ).getSingleOrNull();
+        final search1 = await testDb
+            .customSelect(
+              'SELECT user_id FROM saved_searches WHERE id = ?',
+              variables: [Variable.withString('search-1')],
+            )
+            .getSingleOrNull();
         expect(search1?.data['user_id'], equals('other-user'));
 
         // Verify new assignments were created
-        final search2 = await testDb.customSelect(
-          'SELECT user_id FROM saved_searches WHERE id = ?',
-          variables: [Variable.withString('search-2')],
-        ).getSingleOrNull();
+        final search2 = await testDb
+            .customSelect(
+              'SELECT user_id FROM saved_searches WHERE id = ?',
+              variables: [Variable.withString('search-2')],
+            )
+            .getSingleOrNull();
         expect(search2?.data['user_id'], equals('test-user-123'));
       });
 
@@ -292,12 +319,17 @@ void main() {
         expect(result.searchesProcessed, equals(100));
 
         // Should complete in reasonable time (< 2 seconds for 100 items)
-        expect(stopwatch.elapsedMilliseconds, lessThan(2000),
-            reason: 'Migration should be performant');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(2000),
+          reason: 'Migration should be performant',
+        );
 
         // Verify all migrated correctly
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['searchesWithoutUserId'], equals(0));
         expect(stats['searchesWithUserId'], equals(100));
       });
@@ -381,8 +413,10 @@ void main() {
         expect(result.status, equals(MigrationStatus.success));
         expect(result.searchesProcessed, equals(2));
 
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['searchesWithoutUserId'], equals(0));
       });
     });
@@ -405,8 +439,10 @@ void main() {
         expect(result.searchesProcessed, equals(2));
 
         // Verify only search-2 remains
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
         expect(stats['totalSearches'], equals(1));
         expect(stats['searchesWithUserId'], equals(1));
       });
@@ -415,11 +451,7 @@ void main() {
 }
 
 /// Helper function to insert a saved search
-Future<void> _insertSavedSearch(
-  AppDb db,
-  String id, {
-  String? userId,
-}) async {
+Future<void> _insertSavedSearch(AppDb db, String id, {String? userId}) async {
   // Use a placeholder value for tests that need to simulate missing userId
   // The tests will update this to null when testing migration scenarios
   final actualUserId = userId ?? 'NEEDS_MIGRATION';

@@ -17,8 +17,8 @@ class EncryptionFormatMigration {
     required this.cryptoBox,
     required this.keyManager,
     EncryptionService? encryptionService,
-  })  : _encryptionService = encryptionService,
-        _logger = LoggerFactory.instance;
+  }) : _encryptionService = encryptionService,
+       _logger = LoggerFactory.instance;
 
   final AppDb db;
   final SupabaseClient supabase;
@@ -97,12 +97,7 @@ class EncryptionFormatMigration {
         );
         onProgress?.call(progress);
 
-        await _migrateBatch(
-          batch,
-          userId,
-          encryptionService,
-          result,
-        );
+        await _migrateBatch(batch, userId, encryptionService, result);
       }
 
       // Mark migration as complete
@@ -254,11 +249,7 @@ class EncryptionFormatMigration {
 
         // Update remote if migration was needed
         if (needsMigration) {
-          await _updateRemoteNote(
-            noteId,
-            newTitleEnc,
-            newPropsEnc,
-          );
+          await _updateRemoteNote(noteId, newTitleEnc, newPropsEnc);
 
           result.migratedItems++;
           _logger.debug('Migrated note: $noteId');
@@ -289,8 +280,8 @@ class EncryptionFormatMigration {
       final decryptedBytes = decryptedData is List<int>
           ? decryptedData
           : decryptedData is String
-              ? utf8.encode(decryptedData)
-              : throw Exception('Unexpected decryption result type');
+          ? utf8.encode(decryptedData)
+          : throw Exception('Unexpected decryption result type');
       final decryptedStr = utf8.decode(decryptedBytes);
 
       // Try to parse as JSON
@@ -325,10 +316,7 @@ class EncryptionFormatMigration {
     if (updates.isNotEmpty) {
       updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
-      await supabase
-          .from('notes')
-          .update(updates)
-          .eq('id', noteId);
+      await supabase.from('notes').update(updates).eq('id', noteId);
     }
   }
 
@@ -358,13 +346,13 @@ class MigrationResult {
   List<String> errors = [];
 
   Map<String, dynamic> toJson() => {
-        'success': success,
-        'totalItems': totalItems,
-        'migratedItems': migratedItems,
-        'skippedItems': skippedItems,
-        'failedItems': failedItems,
-        'errors': errors,
-      };
+    'success': success,
+    'totalItems': totalItems,
+    'migratedItems': migratedItems,
+    'skippedItems': skippedItems,
+    'failedItems': failedItems,
+    'errors': errors,
+  };
 }
 
 /// Progress indicator for migration

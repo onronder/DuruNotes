@@ -113,33 +113,41 @@ class MigrationTablesSetup {
     // Record current schema version as baseline
     final currentVersion = db.schemaVersion;
 
-    await db.customStatement('''
+    await db.customStatement(
+      '''
       INSERT OR IGNORE INTO migration_history (
         version, applied_at, migration_type, status, metadata
       ) VALUES (?, ?, ?, ?, ?)
-    ''', [
-      'baseline_v$currentVersion',
-      DateTime.now().toIso8601String(),
-      'initial_schema',
-      'completed',
-      '{"source": "migration_tables_setup", "baseline": true}'
-    ]);
+    ''',
+      [
+        'baseline_v$currentVersion',
+        DateTime.now().toIso8601String(),
+        'initial_schema',
+        'completed',
+        '{"source": "migration_tables_setup", "baseline": true}',
+      ],
+    );
 
     // Initialize sync status for upcoming Phase 3 migration
-    await db.customStatement('''
+    await db.customStatement(
+      '''
       INSERT OR IGNORE INTO migration_sync_status (
         migration_version, local_status, remote_status, metadata
       ) VALUES (?, ?, ?, ?)
-    ''', [
-      '3.0.0',
-      'pending',
-      'pending',
-      '{"phase": "3", "description": "Data Layer Optimization", "auto_created": true}'
-    ]);
+    ''',
+      [
+        '3.0.0',
+        'pending',
+        'pending',
+        '{"phase": "3", "description": "Data Layer Optimization", "auto_created": true}',
+      ],
+    );
   }
 
   /// Get migration history for analysis
-  static Future<List<Map<String, dynamic>>> getMigrationHistory(AppDb db) async {
+  static Future<List<Map<String, dynamic>>> getMigrationHistory(
+    AppDb db,
+  ) async {
     final result = await db.customSelect('''
       SELECT * FROM migration_history
       ORDER BY applied_at DESC
@@ -151,7 +159,7 @@ class MigrationTablesSetup {
   /// Get current migration sync status
   static Future<Map<String, dynamic>?> getCurrentSyncStatus(
     AppDb db,
-    String migrationVersion
+    String migrationVersion,
   ) async {
     final result = await db.customSelect('''
       SELECT * FROM migration_sync_status
@@ -236,11 +244,14 @@ class MigrationTablesSetup {
         .toIso8601String();
 
     // Mark for cleanup
-    await db.customStatement('''
+    await db.customStatement(
+      '''
       UPDATE migration_backups
       SET status = 'cleanup_scheduled', cleanup_at = ?
       WHERE created_at < ? AND status NOT IN ('rollback_applied', 'cleanup_scheduled', 'deleted')
-    ''', [DateTime.now().toIso8601String(), cutoffDate]);
+    ''',
+      [DateTime.now().toIso8601String(), cutoffDate],
+    );
 
     // Count affected rows
     final result = await db.customSelect('''
@@ -256,7 +267,11 @@ class MigrationTablesSetup {
   static Future<bool> verifyMigrationTables(AppDb db) async {
     try {
       // Check all tables exist
-      final tables = ['migration_history', 'migration_backups', 'migration_sync_status'];
+      final tables = [
+        'migration_history',
+        'migration_backups',
+        'migration_sync_status',
+      ];
 
       for (final table in tables) {
         final result = await db.customSelect('''

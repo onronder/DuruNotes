@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/notifications/notification_bootstrap.dart';
 import 'package:duru_notes/ui/enhanced_task_list_screen.dart';
@@ -333,11 +334,7 @@ class TaskReminderBridge {
           reason: 'reminderId=${task.reminderId}',
         );
       } else {
-        _audit(
-          'cancelTaskReminder',
-          granted: false,
-          reason: 'missing_user',
-        );
+        _audit('cancelTaskReminder', granted: false, reason: 'missing_user');
       }
 
       await _deactivateRemoteReminder(task);
@@ -373,7 +370,10 @@ class TaskReminderBridge {
       }
 
       // Get the reminder to check snooze count
-      final reminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
+      final reminder = await _db.getReminderById(
+        task.reminderId!,
+        userId,
+      ); // P0.5 SECURITY
       if (reminder == null) {
         _logger.warning('Reminder not found for task ${task.id}');
         _audit('snoozeTaskReminder', granted: false, reason: 'not_found');
@@ -407,17 +407,16 @@ class TaskReminderBridge {
 
         // Notify user via notification
         await _notifyMaxSnoozeReached(task);
-        _audit(
-          'snoozeTaskReminder',
-          granted: false,
-          reason: 'snooze_limit',
-        );
+        _audit('snoozeTaskReminder', granted: false, reason: 'snooze_limit');
         return;
       }
 
       // Get the updated reminder to get new snooze time
-      final updatedReminder = await _db.getReminderById(task.reminderId!, userId); // P0.5 SECURITY
-        if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
+      final updatedReminder = await _db.getReminderById(
+        task.reminderId!,
+        userId,
+      ); // P0.5 SECURITY
+      if (updatedReminder != null && updatedReminder.snoozedUntil != null) {
         _logger.info(
           'Snoozed task reminder via SnoozeService',
           data: {
@@ -429,25 +428,25 @@ class TaskReminderBridge {
           },
         );
 
-          await _syncRemoteReminder(
-            task: task,
-            scheduledAtUtc: updatedReminder.snoozedUntil!,
-            title: _formatTaskNotificationTitle(task, isSnoozed: true),
-            body: await _formatTaskNotificationBody(task),
-            metadata: {
-              'reminderId': task.reminderId,
-              'snoozeCount': updatedReminder.snoozeCount,
-              'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
-            },
-            isActive: true,
-          );
+        await _syncRemoteReminder(
+          task: task,
+          scheduledAtUtc: updatedReminder.snoozedUntil!,
+          title: _formatTaskNotificationTitle(task, isSnoozed: true),
+          body: await _formatTaskNotificationBody(task),
+          metadata: {
+            'reminderId': task.reminderId,
+            'snoozeCount': updatedReminder.snoozeCount,
+            'snoozedUntil': updatedReminder.snoozedUntil!.toIso8601String(),
+          },
+          isActive: true,
+        );
 
-          _audit(
-            'snoozeTaskReminder',
-            granted: true,
-            reason: 'reminderId=${task.reminderId}',
-          );
-        }
+        _audit(
+          'snoozeTaskReminder',
+          granted: true,
+          reason: 'reminderId=${task.reminderId}',
+        );
+      }
     } catch (e, stack) {
       _logger.error(
         'Failed to snooze task reminder',
@@ -1206,7 +1205,9 @@ class TaskReminderBridge {
       // P0.5 SECURITY: Get userId for queries
       final userId = _currentUserId;
       if (userId == null) {
-        _logger.warning('Cannot cleanup orphaned reminders - no authenticated user');
+        _logger.warning(
+          'Cannot cleanup orphaned reminders - no authenticated user',
+        );
         return;
       }
 

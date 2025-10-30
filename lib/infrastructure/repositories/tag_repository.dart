@@ -110,10 +110,8 @@ class TagRepository implements ITagRepository {
 
       final results = tagCounts
           .map(
-            (entry) => domain.TagWithCount(
-              tag: entry.tag,
-              noteCount: entry.count,
-            ),
+            (entry) =>
+                domain.TagWithCount(tag: entry.tag, noteCount: entry.count),
           )
           .toList();
 

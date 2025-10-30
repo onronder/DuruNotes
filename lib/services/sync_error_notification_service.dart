@@ -9,7 +9,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// - Connection issues
 /// - Data validation errors
 class SyncErrorNotificationService {
-  static final SyncErrorNotificationService _instance = SyncErrorNotificationService._internal();
+  static final SyncErrorNotificationService _instance =
+      SyncErrorNotificationService._internal();
   factory SyncErrorNotificationService() => _instance;
   SyncErrorNotificationService._internal();
 
@@ -26,13 +27,15 @@ class SyncErrorNotificationService {
     String? error,
     BuildContext? context,
   }) {
-    _addError(SyncError(
-      type: SyncErrorType.decryption,
-      message: 'Failed to decrypt $field for note',
-      details: error,
-      noteId: noteId,
-      timestamp: DateTime.now(),
-    ));
+    _addError(
+      SyncError(
+        type: SyncErrorType.decryption,
+        message: 'Failed to decrypt $field for note',
+        details: error,
+        noteId: noteId,
+        timestamp: DateTime.now(),
+      ),
+    );
 
     _logger.error('Decryption failure for note $noteId field $field: $error');
 
@@ -56,15 +59,19 @@ class SyncErrorNotificationService {
     required String resolution,
     BuildContext? context,
   }) {
-    _addError(SyncError(
-      type: SyncErrorType.conflict,
-      message: 'Sync conflict in $entityType',
-      details: 'Resolved using: $resolution',
-      noteId: entityId,
-      timestamp: DateTime.now(),
-    ));
+    _addError(
+      SyncError(
+        type: SyncErrorType.conflict,
+        message: 'Sync conflict in $entityType',
+        details: 'Resolved using: $resolution',
+        noteId: entityId,
+        timestamp: DateTime.now(),
+      ),
+    );
 
-    _logger.warning('Sync conflict for $entityType $entityId - resolved: $resolution');
+    _logger.warning(
+      'Sync conflict for $entityType $entityId - resolved: $resolution',
+    );
 
     if (context != null && context.mounted) {
       _showSnackBar(
@@ -81,12 +88,14 @@ class SyncErrorNotificationService {
     String? error,
     BuildContext? context,
   }) {
-    _addError(SyncError(
-      type: SyncErrorType.connection,
-      message: 'Connection failed during $operation',
-      details: error,
-      timestamp: DateTime.now(),
-    ));
+    _addError(
+      SyncError(
+        type: SyncErrorType.connection,
+        message: 'Connection failed during $operation',
+        details: error,
+        timestamp: DateTime.now(),
+      ),
+    );
 
     _logger.error('Connection error during $operation: $error');
 
@@ -105,21 +114,19 @@ class SyncErrorNotificationService {
     required String message,
     BuildContext? context,
   }) {
-    _addError(SyncError(
-      type: SyncErrorType.validation,
-      message: 'Validation failed for $field',
-      details: message,
-      timestamp: DateTime.now(),
-    ));
+    _addError(
+      SyncError(
+        type: SyncErrorType.validation,
+        message: 'Validation failed for $field',
+        details: message,
+        timestamp: DateTime.now(),
+      ),
+    );
 
     _logger.warning('Validation error for $field: $message');
 
     if (context != null && context.mounted) {
-      _showSnackBar(
-        context,
-        'Data validation failed: $message',
-        isError: true,
-      );
+      _showSnackBar(context, 'Data validation failed: $message', isError: true);
     }
   }
 
@@ -295,12 +302,7 @@ class SyncErrorNotificationService {
 }
 
 /// Types of sync errors
-enum SyncErrorType {
-  decryption,
-  conflict,
-  connection,
-  validation,
-}
+enum SyncErrorType { decryption, conflict, connection, validation }
 
 /// Represents a sync error
 class SyncError {
@@ -319,5 +321,6 @@ class SyncError {
   final DateTime timestamp;
 
   @override
-  String toString() => '[$type] $message ${details != null ? "($details)" : ""} @ $timestamp';
+  String toString() =>
+      '[$type] $message ${details != null ? "($details)" : ""} @ $timestamp';
 }

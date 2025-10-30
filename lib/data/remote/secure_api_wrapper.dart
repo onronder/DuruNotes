@@ -22,9 +22,15 @@ class SecureApiWrapper {
            ? SecurityInitialization.rateLimiter
            : (() {
                if (kDebugMode) {
-                 debugPrint('⚠️ [SecureApiWrapper] FALLBACK: Creating local RateLimitingMiddleware');
-                 debugPrint('⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false');
-                 debugPrint('⚠️ [SecureApiWrapper] This indicates a race condition bug');
+                 debugPrint(
+                   '⚠️ [SecureApiWrapper] FALLBACK: Creating local RateLimitingMiddleware',
+                 );
+                 debugPrint(
+                   '⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false',
+                 );
+                 debugPrint(
+                   '⚠️ [SecureApiWrapper] This indicates a race condition bug',
+                 );
                  debugPrint('⚠️ [SecureApiWrapper] Stack trace:');
                  debugPrint(StackTrace.current.toString());
                }
@@ -34,8 +40,12 @@ class SecureApiWrapper {
            ? SecurityInitialization.errorLogging
            : (() {
                if (kDebugMode) {
-                 debugPrint('⚠️ [SecureApiWrapper] FALLBACK: Creating local ErrorLoggingService');
-                 debugPrint('⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false');
+                 debugPrint(
+                   '⚠️ [SecureApiWrapper] FALLBACK: Creating local ErrorLoggingService',
+                 );
+                 debugPrint(
+                   '⚠️ [SecureApiWrapper] SecurityInitialization.isInitialized = false',
+                 );
                }
                return ErrorLoggingService();
              })(),

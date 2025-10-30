@@ -19,18 +19,12 @@ void main() async {
     TestFile(
       path: 'test/features/notes/pagination_infinite_loop_regression_test.dart',
       status: 'minor',
-      fixes: [
-        'Update provider references',
-        'Fix pagination logic',
-      ],
+      fixes: ['Update provider references', 'Fix pagination logic'],
     ),
     TestFile(
       path: 'test/services/metadata_preservation_test.dart',
       status: 'minor',
-      fixes: [
-        'Update to use domain.Note',
-        'Fix metadata field access',
-      ],
+      fixes: ['Update to use domain.Note', 'Fix metadata field access'],
     ),
 
     // Major rewrites needed
@@ -72,7 +66,9 @@ void main() async {
   }
 
   for (final entry in groups.entries) {
-    print('\n${_getStatusEmoji(entry.key)} ${entry.key.toUpperCase()} (${entry.value.length} files)');
+    print(
+      '\n${_getStatusEmoji(entry.key)} ${entry.key.toUpperCase()} (${entry.value.length} files)',
+    );
     for (final file in entry.value) {
       print('  - ${file.path.split('/').last}');
       for (final fix in file.fixes) {
@@ -175,9 +171,5 @@ class TestFile {
   final String status; // minor, major, blocked
   final List<String> fixes;
 
-  TestFile({
-    required this.path,
-    required this.status,
-    required this.fixes,
-  });
+  TestFile({required this.path, required this.status, required this.fixes});
 }

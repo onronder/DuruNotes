@@ -50,11 +50,15 @@ class IndexVerifier {
 
     try {
       // Get all indexes from database
-      final indexQuery = await db.customSelect(
-        "SELECT name, sql FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
-      ).get();
+      final indexQuery = await db
+          .customSelect(
+            "SELECT name, sql FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+          )
+          .get();
 
-      final existingIndexes = indexQuery.map((row) => row.read<String>('name')).toSet();
+      final existingIndexes = indexQuery
+          .map((row) => row.read<String>('name'))
+          .toSet();
 
       // Check each expected index
       for (final expectedIndex in expectedIndexes) {
@@ -74,7 +78,6 @@ class IndexVerifier {
 
       result.totalExpected = expectedIndexes.length;
       result.totalFound = result.successIndexes.length;
-
     } catch (e) {
       result.error = e.toString();
     }
@@ -93,10 +96,12 @@ class IndexVerifier {
     ];
 
     for (final indexName in criticalIndexes) {
-      final exists = await db.customSelect(
-        "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
-        variables: [Variable.withString(indexName)],
-      ).getSingleOrNull();
+      final exists = await db
+          .customSelect(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            variables: [Variable.withString(indexName)],
+          )
+          .getSingleOrNull();
 
       if (exists == null) {
         return false;
@@ -111,9 +116,11 @@ class IndexVerifier {
     final details = <String, IndexInfo>{};
 
     try {
-      final indexQuery = await db.customSelect(
-        "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
-      ).get();
+      final indexQuery = await db
+          .customSelect(
+            "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+          )
+          .get();
 
       for (final row in indexQuery) {
         final name = row.read<String>('name');
@@ -140,21 +147,20 @@ class IndexVerifier {
 
     try {
       // Get query plan
-      final plan = await db.customSelect(
-        'EXPLAIN QUERY PLAN $query',
-      ).get();
+      final plan = await db.customSelect('EXPLAIN QUERY PLAN $query').get();
 
       analysis.queryPlan = plan.map((row) => row.data.toString()).toList();
 
       // Check if indexes are used
       final planText = plan.map((row) => row.data.toString()).join(' ');
       analysis.usesIndex = planText.contains('USING INDEX');
-      analysis.scanType = planText.contains('SCAN TABLE') ? 'full_scan' : 'index_scan';
+      analysis.scanType = planText.contains('SCAN TABLE')
+          ? 'full_scan'
+          : 'index_scan';
 
       // Extract index names used
       final indexMatches = RegExp(r'USING INDEX (\w+)').allMatches(planText);
       analysis.indexesUsed = indexMatches.map((m) => m.group(1)!).toList();
-
     } catch (e) {
       analysis.error = e.toString();
     }
@@ -168,9 +174,11 @@ class IndexVerifier {
 
     try {
       // Count custom indexes
-      final indexCount = await db.customSelect(
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
-      ).getSingle();
+      final indexCount = await db
+          .customSelect(
+            "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+          )
+          .getSingle();
       stats.customIndexCount = indexCount.read<int>('count');
 
       // Get table row counts
@@ -184,9 +192,9 @@ class IndexVerifier {
 
       for (final entry in tables.entries) {
         try {
-          final count = await db.customSelect(
-            'SELECT COUNT(*) as count FROM ${entry.key}',
-          ).getSingle();
+          final count = await db
+              .customSelect('SELECT COUNT(*) as count FROM ${entry.key}')
+              .getSingle();
           stats.tableCounts[entry.value] = count.read<int>('count');
         } catch (_) {
           stats.tableCounts[entry.value] = 0;
@@ -196,10 +204,10 @@ class IndexVerifier {
       // Get database size
       final pageCount = await db.customSelect('PRAGMA page_count').getSingle();
       final pageSize = await db.customSelect('PRAGMA page_size').getSingle();
-      stats.databaseSizeBytes = pageCount.read<int>('page_count') * pageSize.read<int>('page_size');
+      stats.databaseSizeBytes =
+          pageCount.read<int>('page_count') * pageSize.read<int>('page_size');
 
       stats.timestamp = DateTime.now();
-
     } catch (e) {
       stats.error = e.toString();
     }
@@ -245,7 +253,9 @@ class IndexVerifier {
 
     print('=== PERFORMANCE STATISTICS ===\n');
     print('Custom Indexes: ${stats.customIndexCount}');
-    print('Database Size: ${(stats.databaseSizeBytes / 1024 / 1024).toStringAsFixed(2)} MB');
+    print(
+      'Database Size: ${(stats.databaseSizeBytes / 1024 / 1024).toStringAsFixed(2)} MB',
+    );
     print('Table Counts:');
     stats.tableCounts.forEach((table, count) {
       print('   - $table: $count');

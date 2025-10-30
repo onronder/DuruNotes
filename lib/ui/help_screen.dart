@@ -47,7 +47,8 @@ class _HelpScreenState extends State<HelpScreen> {
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
-          _errorMessage = 'We could not load the help content. Please try again.';
+          _errorMessage =
+              'We could not load the help content. Please try again.';
           _isLoading = false;
         });
       }
@@ -61,17 +62,18 @@ class _HelpScreenState extends State<HelpScreen> {
     }
 
     if (mounted) {
-      _logger.warning(
-        'Failed to launch help screen URL',
-        data: {'url': url},
+      _logger.warning('Failed to launch help screen URL', data: {'url': url});
+      unawaited(
+        Sentry.captureException(
+          Exception('Could not launch help URL'),
+          stackTrace: StackTrace.current,
+        ),
       );
-      unawaited(Sentry.captureException(
-        Exception('Could not launch help URL'),
-        stackTrace: StackTrace.current,
-      ));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Could not open the link. Please try again later.'),
+          content: const Text(
+            'Could not open the link. Please try again later.',
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -108,8 +110,8 @@ class _HelpScreenState extends State<HelpScreen> {
               ),
             )
           : _errorMessage != null
-              ? _buildErrorView()
-              : _buildHelpContent(),
+          ? _buildErrorView()
+          : _buildHelpContent(),
     );
   }
 
@@ -204,7 +206,9 @@ class _HelpScreenState extends State<HelpScreen> {
               Text(
                 'Find answers, contact support, or learn about features',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
+                  color: (isDark ? Colors.white : Colors.black87).withValues(
+                    alpha: 0.7,
+                  ),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -251,11 +255,13 @@ class _HelpScreenState extends State<HelpScreen> {
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.white,
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+                color: (isDark ? Colors.white : Colors.grey).withValues(
+                  alpha: 0.1,
+                ),
               ),
             ),
             child: ClipRRect(
@@ -269,60 +275,59 @@ class _HelpScreenState extends State<HelpScreen> {
                   }
                 },
                 styleSheet: MarkdownStyleSheet(
-              h1: theme.textTheme.headlineMedium?.copyWith(
+                  h1: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: DuruColors.primary,
                   ),
-              h2: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-              h3: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-              p: theme.textTheme.bodyMedium?.copyWith(
-                color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.8),
-              ),
-              code: theme.textTheme.bodyMedium?.copyWith(
-                fontFamily: 'monospace',
-                backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
-                color: DuruColors.primary,
-              ),
-              codeblockDecoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    DuruColors.primary.withValues(alpha: 0.05),
-                    DuruColors.accent.withValues(alpha: 0.02),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: DuruColors.primary.withValues(alpha: 0.2),
-                ),
-              ),
-              blockquoteDecoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    DuruColors.accent.withValues(alpha: 0.05),
-                    DuruColors.accent.withValues(alpha: 0.02),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border(
-                  left: BorderSide(
-                    color: DuruColors.accent,
-                    width: 4,
+                  h2: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  h3: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  p: theme.textTheme.bodyMedium?.copyWith(
+                    color: (isDark ? Colors.white : Colors.black87).withValues(
+                      alpha: 0.8,
+                    ),
+                  ),
+                  code: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
+                    color: DuruColors.primary,
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        DuruColors.primary.withValues(alpha: 0.05),
+                        DuruColors.accent.withValues(alpha: 0.02),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: DuruColors.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        DuruColors.accent.withValues(alpha: 0.05),
+                        DuruColors.accent.withValues(alpha: 0.02),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border(
+                      left: BorderSide(color: DuruColors.accent, width: 4),
+                    ),
+                  ),
+                  listBullet: theme.textTheme.bodyMedium?.copyWith(
+                    color: DuruColors.primary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
+                selectable: true,
               ),
-              listBullet: theme.textTheme.bodyMedium?.copyWith(
-                color: DuruColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            selectable: true,
-          ),
             ),
           ),
         ),
@@ -354,10 +359,7 @@ class _HelpScreenState extends State<HelpScreen> {
               color.withValues(alpha: 0.05),
             ],
           ),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -368,11 +370,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: color,
-              ),
+              child: Icon(icon, size: 24, color: color),
             ),
             const SizedBox(height: 8),
             Text(
@@ -484,7 +482,9 @@ class _HelpScreenState extends State<HelpScreen> {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isDark ? Colors.white : DuruColors.primary).withValues(alpha: 0.1),
+          color: (isDark ? Colors.white : DuruColors.primary).withValues(
+            alpha: 0.1,
+          ),
         ),
       ),
       child: ListTile(
@@ -506,21 +506,23 @@ class _HelpScreenState extends State<HelpScreen> {
         subtitle: Text(
           subtitle,
           style: TextStyle(
-            color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
+            color: (isDark ? Colors.white : Colors.black87).withValues(
+              alpha: 0.7,
+            ),
           ),
         ),
         trailing: Icon(
           CupertinoIcons.chevron_forward,
           size: 16,
-          color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.5),
+          color: (isDark ? Colors.white : Colors.black87).withValues(
+            alpha: 0.5,
+          ),
         ),
         onTap: () {
           Navigator.of(context).pop();
           onTap();
         },
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -533,9 +535,7 @@ class _HelpScreenState extends State<HelpScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -586,7 +586,8 @@ class _HelpScreenState extends State<HelpScreen> {
                   Text(
                     'Version: 1.0.0 • Build: 100',
                     style: TextStyle(
-                      color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.7),
+                      color: (isDark ? Colors.white : Colors.black87)
+                          .withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -792,37 +793,43 @@ class _HelpScreenState extends State<HelpScreen> {
   }
 }
 
-  List<Widget> _buildFeaturesList(BuildContext context) {
-    final features = [
-      {'icon': CupertinoIcons.bell, 'text': 'Advanced reminders'},
-      {'icon': CupertinoIcons.mic, 'text': 'Voice transcription'},
-      {'icon': CupertinoIcons.camera, 'text': 'OCR text scanning'},
-      {'icon': CupertinoIcons.lock_shield, 'text': 'End-to-end encryption'},
-      {'icon': CupertinoIcons.cloud_upload, 'text': 'Cross-platform sync'},
-    ];
+List<Widget> _buildFeaturesList(BuildContext context) {
+  final features = [
+    {'icon': CupertinoIcons.bell, 'text': 'Advanced reminders'},
+    {'icon': CupertinoIcons.mic, 'text': 'Voice transcription'},
+    {'icon': CupertinoIcons.camera, 'text': 'OCR text scanning'},
+    {'icon': CupertinoIcons.lock_shield, 'text': 'End-to-end encryption'},
+    {'icon': CupertinoIcons.cloud_upload, 'text': 'Cross-platform sync'},
+  ];
 
-    return features.map((feature) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            feature['icon'] as IconData,
-            size: 16,
-            color: DuruColors.primary,
+  return features
+      .map(
+        (feature) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Icon(
+                feature['icon'] as IconData,
+                size: 16,
+                color: DuruColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                feature['text'] as String,
+                style: TextStyle(
+                  color:
+                      (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black87)
+                          .withValues(alpha: 0.8),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            feature['text'] as String,
-            style: TextStyle(
-              color: (Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black87).withValues(alpha: 0.8),
-            ),
-          ),
-        ],
-      ),
-    )).toList();
-  }
+        ),
+      )
+      .toList();
+}
 
 class _QuickHelpSection extends StatelessWidget {
   const _QuickHelpSection({required this.title, required this.items});
@@ -846,7 +853,9 @@ class _QuickHelpSection extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isDark ? Colors.white : DuruColors.primary).withValues(alpha: 0.1),
+          color: (isDark ? Colors.white : DuruColors.primary).withValues(
+            alpha: 0.1,
+          ),
         ),
       ),
       child: Column(
@@ -896,7 +905,8 @@ class _QuickHelpSection extends StatelessWidget {
                     child: Text(
                       item,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: (isDark ? Colors.white : Colors.black87).withValues(alpha: 0.8),
+                        color: (isDark ? Colors.white : Colors.black87)
+                            .withValues(alpha: 0.8),
                       ),
                     ),
                   ),

@@ -19,19 +19,15 @@ class EncryptionUnlockDialog extends ConsumerStatefulWidget {
   final VoidCallback? onSkip;
 
   @override
-  ConsumerState<EncryptionUnlockDialog> createState() => _EncryptionUnlockDialogState();
+  ConsumerState<EncryptionUnlockDialog> createState() =>
+      _EncryptionUnlockDialogState();
 
   /// Show dialog and return true if unlock was successful
-  static Future<bool?> show(
-    BuildContext context, {
-    bool allowSkip = true,
-  }) {
+  static Future<bool?> show(BuildContext context, {bool allowSkip = true}) {
     return showDialog<bool>(
       context: context,
       barrierDismissible: allowSkip,
-      builder: (context) => EncryptionUnlockDialog(
-        allowSkip: allowSkip,
-      ),
+      builder: (context) => EncryptionUnlockDialog(allowSkip: allowSkip),
     );
   }
 }
@@ -78,7 +74,9 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
     HapticFeedback.lightImpact();
 
     final password = _passwordController.text;
-    final success = await ref.read(encryptionStateProvider.notifier).unlockEncryption(password);
+    final success = await ref
+        .read(encryptionStateProvider.notifier)
+        .unlockEncryption(password);
 
     if (!mounted) return;
 
@@ -158,9 +156,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
               // TODO: Implement reset encryption flow
               Navigator.of(context).pop();
             },
-            style: TextButton.styleFrom(
-              foregroundColor: DuruColors.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: DuruColors.error),
             child: const Text('Contact Support'),
           ),
         ],
@@ -177,16 +173,12 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
     return AnimatedBuilder(
       animation: _shakeController,
       builder: (context, child) {
-        final offset = 10 * (_shakeController.value * 4 * (1 - _shakeController.value));
-        return Transform.translate(
-          offset: Offset(offset, 0),
-          child: child,
-        );
+        final offset =
+            10 * (_shakeController.value * 4 * (1 - _shakeController.value));
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         contentPadding: EdgeInsets.zero,
         content: Container(
           width: MediaQuery.of(context).size.width * 0.9,
@@ -200,10 +192,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
                       const Color(0xFF1A1A1A),
                       DuruColors.primary.withValues(alpha: 0.1),
                     ]
-                  : [
-                      Colors.white,
-                      DuruColors.primary.withValues(alpha: 0.02),
-                    ],
+                  : [Colors.white, DuruColors.primary.withValues(alpha: 0.02)],
             ),
             borderRadius: BorderRadius.circular(24),
           ),
@@ -300,9 +289,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
       decoration: BoxDecoration(
         color: DuruColors.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: DuruColors.primary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: DuruColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -344,7 +331,9 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.3,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -357,16 +346,11 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: DuruColors.primary,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: DuruColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: DuruColors.error,
-          ),
+          borderSide: BorderSide(color: DuruColors.error),
         ),
       ),
       validator: (value) {
@@ -422,9 +406,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
       decoration: BoxDecoration(
         color: DuruColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: DuruColors.error.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: DuruColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -455,7 +437,9 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
         SizedBox(
           height: 50,
           child: ElevatedButton(
-            onPressed: (_isLoading || _attemptCount >= _maxAttempts) ? null : _unlockEncryption,
+            onPressed: (_isLoading || _attemptCount >= _maxAttempts)
+                ? null
+                : _unlockEncryption,
             style: ElevatedButton.styleFrom(
               backgroundColor: DuruColors.primary,
               foregroundColor: Colors.white,
@@ -475,10 +459,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
                   )
                 : const Text(
                     'Unlock',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
           ),
         ),
@@ -499,9 +480,7 @@ class _EncryptionUnlockDialogState extends ConsumerState<EncryptionUnlockDialog>
             ),
             child: Text(
               'Continue Without Encryption',
-              style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
         ],

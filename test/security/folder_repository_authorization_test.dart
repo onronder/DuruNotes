@@ -13,8 +13,6 @@
 /// - Least Privilege: Users see only their data
 library;
 
-
-
 const userAId = 'user-a-uuid';
 const userBId = 'user-b-uuid';
 

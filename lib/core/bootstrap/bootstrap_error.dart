@@ -164,8 +164,7 @@ class RetryRecoveryStrategy implements BootstrapRecoveryStrategy {
 
   @override
   bool canHandle(BootstrapError error) {
-    return error.retryable &&
-           (_retryCount[error.stage] ?? 0) < maxRetries;
+    return error.retryable && (_retryCount[error.stage] ?? 0) < maxRetries;
   }
 
   @override
@@ -173,9 +172,10 @@ class RetryRecoveryStrategy implements BootstrapRecoveryStrategy {
     final currentRetries = _retryCount[error.stage] ?? 0;
     _retryCount[error.stage] = currentRetries + 1;
 
-    final delay = (delayMs *
-        (currentRetries > 0 ? backoffMultiplier * currentRetries : 1))
-        .round();
+    final delay =
+        (delayMs *
+                (currentRetries > 0 ? backoffMultiplier * currentRetries : 1))
+            .round();
 
     await Future<void>.delayed(Duration(milliseconds: delay));
 
@@ -199,7 +199,7 @@ class FallbackRecoveryStrategy implements BootstrapRecoveryStrategy {
   @override
   bool canHandle(BootstrapError error) {
     return error.fallbackAvailable &&
-           error.severity != BootstrapErrorSeverity.fatal;
+        error.severity != BootstrapErrorSeverity.fatal;
   }
 
   @override
@@ -211,12 +211,9 @@ class FallbackRecoveryStrategy implements BootstrapRecoveryStrategy {
 
 /// Manager for bootstrap error recovery
 class BootstrapErrorManager {
-  BootstrapErrorManager({
-    List<BootstrapRecoveryStrategy>? strategies,
-  }) : _strategies = strategies ?? [
-          RetryRecoveryStrategy(),
-          FallbackRecoveryStrategy(),
-        ];
+  BootstrapErrorManager({List<BootstrapRecoveryStrategy>? strategies})
+    : _strategies =
+          strategies ?? [RetryRecoveryStrategy(), FallbackRecoveryStrategy()];
 
   final List<BootstrapRecoveryStrategy> _strategies;
   final List<BootstrapError> _errors = [];
@@ -230,8 +227,7 @@ class BootstrapErrorManager {
   List<BootstrapError> get errors => List.unmodifiable(_errors);
 
   /// Check if there are any critical errors
-  bool get hasCriticalErrors =>
-      _errors.any((e) => e.isCritical);
+  bool get hasCriticalErrors => _errors.any((e) => e.isCritical);
 
   /// Check if there are any fatal errors
   bool get hasFatalErrors =>
@@ -267,9 +263,9 @@ class BootstrapErrorManager {
     return {
       'total': _errors.length,
       'critical': _errors.where((e) => e.isCritical).length,
-      'warnings': _errors.where(
-        (e) => e.severity == BootstrapErrorSeverity.warning,
-      ).length,
+      'warnings': _errors
+          .where((e) => e.severity == BootstrapErrorSeverity.warning)
+          .length,
       'byStage': {
         for (final stage in BootstrapStage.values)
           stage.name: errorsByStage(stage).length,

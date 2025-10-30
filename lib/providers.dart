@@ -1,9 +1,13 @@
 // Phase 9: Removed unused imports - all service implementations now in organized files
 import 'package:duru_notes/core/providers/auth_providers.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show migrationConfigProvider;
-import 'package:duru_notes/core/providers/security_providers.dart' show cryptoBoxProvider;
-import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart' show folderCoreRepositoryProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show migrationConfigProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show cryptoBoxProvider;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:duru_notes/infrastructure/repositories/search_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/tag_repository.dart';
 import 'package:duru_notes/domain/repositories/i_search_repository.dart';
@@ -24,10 +28,7 @@ export 'features/settings/providers/settings_providers.dart'
 // ===== PHASE 2 & 4: Re-export organized providers for backward compatibility =====
 // Export auth providers from organized file
 export 'package:duru_notes/core/providers/auth_providers.dart'
-    show
-        authStateChangesProvider,
-        supabaseClientProvider,
-        userIdProvider;
+    show authStateChangesProvider, supabaseClientProvider, userIdProvider;
 
 // Export search providers from organized file
 export 'package:duru_notes/core/providers/search_providers.dart'
@@ -49,10 +50,7 @@ export 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
 
 // Phase 4: Export security providers from organized file
 export 'package:duru_notes/core/providers/security_providers.dart'
-    show
-        accountKeyServiceProvider,
-        keyManagerProvider,
-        cryptoBoxProvider;
+    show accountKeyServiceProvider, keyManagerProvider, cryptoBoxProvider;
 
 // Phase 5: Export domain entity providers from organized files
 export 'package:duru_notes/features/notes/providers/notes_domain_providers.dart'
@@ -64,14 +62,10 @@ export 'package:duru_notes/features/notes/providers/notes_domain_providers.dart'
         domainUnpinnedNotesProvider;
 
 export 'package:duru_notes/features/folders/providers/folders_domain_providers.dart'
-    show
-        domainFoldersProvider,
-        domainFoldersStreamProvider;
+    show domainFoldersProvider, domainFoldersStreamProvider;
 
 export 'package:duru_notes/features/templates/providers/templates_providers.dart'
-    show
-        domainTemplatesProvider,
-        domainTemplatesStreamProvider;
+    show domainTemplatesProvider, domainTemplatesStreamProvider;
 
 export 'package:duru_notes/features/tasks/providers/tasks_domain_providers.dart'
     show
@@ -108,9 +102,7 @@ export 'package:duru_notes/features/templates/providers/templates_providers.dart
         userTemplateListProvider;
 
 export 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
-    show
-        taskCoreRepositoryProvider,
-        taskRepositoryProvider;
+    show taskCoreRepositoryProvider, taskRepositoryProvider;
 
 // Phase 8: Export task service providers from organized file
 export 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
@@ -126,7 +118,8 @@ export 'package:duru_notes/features/tasks/providers/tasks_services_providers.dar
 // Phase 9: Export service providers from organized files
 export 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider, analyticsProvider;
-export 'package:duru_notes/core/providers/database_providers.dart' show dbProvider;
+export 'package:duru_notes/core/providers/database_providers.dart'
+    show dbProvider;
 export 'package:duru_notes/services/providers/services_providers.dart'
     show
         exportServiceProvider,
@@ -193,7 +186,12 @@ final searchRepositoryProvider = Provider<ISearchRepository>((ref) {
   final crypto = ref.watch(cryptoBoxProvider);
   final client = ref.watch(supabaseClientProvider);
   final folderRepo = ref.watch(folderCoreRepositoryProvider);
-  return SearchRepository(db: db, client: client, crypto: crypto, folderRepository: folderRepo);
+  return SearchRepository(
+    db: db,
+    client: client,
+    crypto: crypto,
+    folderRepository: folderRepo,
+  );
 });
 
 // ===== MIGRATION CONFIGURATION =====

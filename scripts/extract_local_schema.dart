@@ -33,19 +33,19 @@ void main() async {
       print('Processing table: $tableName');
 
       // Get column information
-      final columns = await db.customSelect(
-        'PRAGMA table_info("$tableName")'
-      ).get();
+      final columns = await db
+          .customSelect('PRAGMA table_info("$tableName")')
+          .get();
 
       // Get foreign keys
-      final foreignKeys = await db.customSelect(
-        'PRAGMA foreign_key_list("$tableName")'
-      ).get();
+      final foreignKeys = await db
+          .customSelect('PRAGMA foreign_key_list("$tableName")')
+          .get();
 
       // Get indexes for this table
-      final tableIndexes = await db.customSelect(
-        'PRAGMA index_list("$tableName")'
-      ).get();
+      final tableIndexes = await db
+          .customSelect('PRAGMA index_list("$tableName")')
+          .get();
 
       final columnsList = <Map<String, dynamic>>[];
       for (final col in columns) {
@@ -77,9 +77,9 @@ void main() async {
         final indexName = idx.read<String>('name');
 
         // Get index columns
-        final indexInfo = await db.customSelect(
-          'PRAGMA index_info("$indexName")'
-        ).get();
+        final indexInfo = await db
+            .customSelect('PRAGMA index_info("$indexName")')
+            .get();
 
         final indexColumns = <String>[];
         for (final info in indexInfo) {
@@ -138,7 +138,6 @@ void main() async {
     }
     print('- Total columns: $totalColumns');
     print('- Total foreign keys: $totalForeignKeys');
-
   } catch (e, stack) {
     print('Error extracting schema: $e');
     print('Stack trace: $stack');

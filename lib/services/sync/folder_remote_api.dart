@@ -24,8 +24,8 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
     required this.client,
     required this.logger,
     required CryptoBox crypto,
-  })  : _crypto = crypto,
-        _noteApi = SupabaseNoteApi(client);
+  }) : _crypto = crypto,
+       _noteApi = SupabaseNoteApi(client);
 
   final SupabaseClient client;
   final AppLogger logger;
@@ -46,7 +46,8 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
         stackTrace: stackTrace,
         withScope: (scope) {
           scope.setTag('service', 'FolderRemoteApi');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
@@ -157,8 +158,9 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
       results.sort((a, b) {
         final bTime = DateTime.tryParse((b['updated_at'] as String?) ?? '');
         final aTime = DateTime.tryParse((a['updated_at'] as String?) ?? '');
-        return (bTime ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(aTime ?? DateTime.fromMillisecondsSinceEpoch(0));
+        return (bTime ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          aTime ?? DateTime.fromMillisecondsSinceEpoch(0),
+        );
       });
       return results;
     } catch (error, stack) {
@@ -259,13 +261,20 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
     try {
       final userId = _requireUserId();
       // Soft delete by marking as deleted
-      await client.from(_tableName).update({
-        'deleted': true,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId).eq('id', folderId);
+      await client
+          .from(_tableName)
+          .update({
+            'deleted': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .eq('id', folderId);
     } catch (error, stack) {
-      logger.error('Failed to mark folder as deleted',
-          error: error, stackTrace: stack);
+      logger.error(
+        'Failed to mark folder as deleted',
+        error: error,
+        stackTrace: stack,
+      );
       _captureRemoteException(
         operation: 'markFolderDeleted',
         error: error,
@@ -283,8 +292,11 @@ class SupabaseFolderRemoteApi implements FolderRemoteApi {
         await upsertFolder(folder);
       }
     } catch (error, stack) {
-      logger.error('Failed to batch upsert folders',
-          error: error, stackTrace: stack);
+      logger.error(
+        'Failed to batch upsert folders',
+        error: error,
+        stackTrace: stack,
+      );
       _captureRemoteException(
         operation: 'batchUpsertFolders',
         error: error,

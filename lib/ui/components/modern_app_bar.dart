@@ -189,10 +189,7 @@ class ModernTabBar extends StatelessWidget implements PreferredSizeWidget {
         labelColor: labelColor ?? Colors.white,
         unselectedLabelColor:
             unselectedLabelColor ?? Colors.white.withValues(alpha: 0.7),
-        labelStyle: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w400,
           fontSize: 14,
@@ -242,7 +239,8 @@ class ModernSliverAppBar extends StatelessWidget {
       elevation: 0,
       backgroundColor: Colors.transparent,
       actions: actions,
-      flexibleSpace: flexibleSpace ??
+      flexibleSpace:
+          flexibleSpace ??
           FlexibleSpaceBar(
             title: pinned
                 ? Text(
@@ -267,7 +265,8 @@ class ModernSliverAppBar extends StatelessWidget {
                 ),
               ),
               child: SafeArea(
-                child: heroContent ??
+                child:
+                    heroContent ??
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -347,10 +346,7 @@ class ModernAppBarAction extends StatelessWidget {
                 color: DuruColors.error,
                 shape: BoxShape.circle,
               ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
               child: Text(
                 badge!,
                 style: const TextStyle(

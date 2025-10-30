@@ -43,11 +43,14 @@ class SyncRecoveryManager {
     bool forceRecovery = false,
   }) async {
     final stopwatch = Stopwatch()..start();
-    _logger.info('Starting sync recovery', data: {
-      'strategy': strategy.name,
-      'recovery_window': recoveryWindow?.toIso8601String(),
-      'force_recovery': forceRecovery,
-    });
+    _logger.info(
+      'Starting sync recovery',
+      data: {
+        'strategy': strategy.name,
+        'recovery_window': recoveryWindow?.toIso8601String(),
+        'force_recovery': forceRecovery,
+      },
+    );
 
     try {
       final recoveryActions = <RecoveryAction>[];
@@ -58,9 +61,10 @@ class SyncRecoveryManager {
       recoveryMetrics.healthScore = healthAssessment.healthScore;
 
       if (!forceRecovery && healthAssessment.healthScore > 0.8) {
-        _logger.info('Sync health is good, recovery not needed', data: {
-          'health_score': healthAssessment.healthScore,
-        });
+        _logger.info(
+          'Sync health is good, recovery not needed',
+          data: {'health_score': healthAssessment.healthScore},
+        );
 
         return SyncRecoveryResult.success(
           actions: recoveryActions,
@@ -81,7 +85,9 @@ class SyncRecoveryManager {
           break;
 
         case SyncRecoveryStrategy.conservative:
-          final conservativeActions = await _executeConservativeRecovery(failedOps);
+          final conservativeActions = await _executeConservativeRecovery(
+            failedOps,
+          );
           recoveryActions.addAll(conservativeActions);
           break;
 
@@ -106,12 +112,17 @@ class SyncRecoveryManager {
       stopwatch.stop();
       recoveryMetrics.recoveryDuration = stopwatch.elapsed;
 
-      _logger.info('Sync recovery completed', data: {
-        'actions_performed': recoveryActions.length,
-        'successful_actions': recoveryActions.where((a) => a.isSuccessful).length,
-        'verification_passed': recoveryMetrics.verificationPassed,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-      });
+      _logger.info(
+        'Sync recovery completed',
+        data: {
+          'actions_performed': recoveryActions.length,
+          'successful_actions': recoveryActions
+              .where((a) => a.isSuccessful)
+              .length,
+          'verification_passed': recoveryMetrics.verificationPassed,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+        },
+      );
 
       return SyncRecoveryResult(
         isSuccessful: recoveryMetrics.verificationPassed,
@@ -121,14 +132,9 @@ class SyncRecoveryManager {
         duration: stopwatch.elapsed,
         timestamp: DateTime.now(),
       );
-
     } catch (e, stackTrace) {
       stopwatch.stop();
-      _logger.error(
-        'Sync recovery failed',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _logger.error('Sync recovery failed', error: e, stackTrace: stackTrace);
 
       return SyncRecoveryResult.failed(
         error: 'Sync recovery failed: $e',
@@ -180,7 +186,7 @@ class SyncRecoveryManager {
           healthScore -= 0.2;
           issues.add('No successful sync in ${timeSinceSync.inHours} hours');
         }
-            } else {
+      } else {
         healthScore -= 0.5;
         issues.add('No successful sync found');
       }
@@ -189,7 +195,9 @@ class SyncRecoveryManager {
       final validationResult = await _validator.validateSyncIntegrity();
       if (!validationResult.isValid) {
         healthScore -= 0.3;
-        issues.add('Data integrity issues found (${validationResult.issues.length})');
+        issues.add(
+          'Data integrity issues found (${validationResult.issues.length})',
+        );
       }
 
       return SyncHealthAssessment(
@@ -199,7 +207,6 @@ class SyncRecoveryManager {
         pendingOperations: pendingCount,
         failedOperations: failedCount,
       );
-
     } catch (e, stack) {
       _logger.error(
         'Failed to assess sync health',
@@ -216,35 +223,40 @@ class SyncRecoveryManager {
   }
 
   /// Identify failed sync operations
-  Future<List<FailedOperation>> _identifyFailedOperations(DateTime? window) async {
+  Future<List<FailedOperation>> _identifyFailedOperations(
+    DateTime? window,
+  ) async {
     final failedOps = <FailedOperation>[];
 
     try {
       final windowStart = window ?? DateTime.now().subtract(_recoveryWindow);
 
-      final result = await _localDb.customSelect(
-        '''
+      final result = await _localDb
+          .customSelect(
+            '''
         SELECT * FROM pending_ops
         WHERE (operation_type LIKE '%failed%' OR operation_type = 'error')
           AND created_at > ?
         ORDER BY created_at DESC
       ''',
-        variables: [Variable.withDateTime(windowStart)],
-      ).get();
+            variables: [Variable.withDateTime(windowStart)],
+          )
+          .get();
 
       for (final row in result) {
-        failedOps.add(FailedOperation(
-          id: row.read<String>('id'),
-          operationType: row.read<String>('operation_type'),
-          tableName: row.read<String>('table_name'),
-          recordId: row.read<String>('record_id'),
-          errorMessage: row.read<String>('error_message'),
-          retryCount: row.read<int>('retry_count'),
-          createdAt: row.read<DateTime>('created_at'),
-          lastAttemptAt: row.read<DateTime>('last_attempt_at'),
-        ));
+        failedOps.add(
+          FailedOperation(
+            id: row.read<String>('id'),
+            operationType: row.read<String>('operation_type'),
+            tableName: row.read<String>('table_name'),
+            recordId: row.read<String>('record_id'),
+            errorMessage: row.read<String>('error_message'),
+            retryCount: row.read<int>('retry_count'),
+            createdAt: row.read<DateTime>('created_at'),
+            lastAttemptAt: row.read<DateTime>('last_attempt_at'),
+          ),
+        );
       }
-
     } catch (e, stack) {
       _logger.error(
         'Failed to identify failed operations',
@@ -257,7 +269,9 @@ class SyncRecoveryManager {
   }
 
   /// Execute automatic recovery strategy
-  Future<List<RecoveryAction>> _executeAutomaticRecovery(List<FailedOperation> failedOps) async {
+  Future<List<RecoveryAction>> _executeAutomaticRecovery(
+    List<FailedOperation> failedOps,
+  ) async {
     final actions = <RecoveryAction>[];
 
     for (final failedOp in failedOps) {
@@ -283,13 +297,15 @@ class SyncRecoveryManager {
             'retry_count': failedOp.retryCount,
           },
         );
-        actions.add(RecoveryAction(
-          type: RecoveryActionType.error,
-          operationId: failedOp.id,
-          description: 'Recovery action failed: $e',
-          isSuccessful: false,
-          errorMessage: e.toString(),
-        ));
+        actions.add(
+          RecoveryAction(
+            type: RecoveryActionType.error,
+            operationId: failedOp.id,
+            description: 'Recovery action failed: $e',
+            isSuccessful: false,
+            errorMessage: e.toString(),
+          ),
+        );
       }
     }
 
@@ -297,7 +313,9 @@ class SyncRecoveryManager {
   }
 
   /// Execute conservative recovery strategy
-  Future<List<RecoveryAction>> _executeConservativeRecovery(List<FailedOperation> failedOps) async {
+  Future<List<RecoveryAction>> _executeConservativeRecovery(
+    List<FailedOperation> failedOps,
+  ) async {
     final actions = <RecoveryAction>[];
 
     for (final failedOp in failedOps) {
@@ -308,12 +326,15 @@ class SyncRecoveryManager {
           actions.add(action);
         } else {
           // Flag for manual review
-          actions.add(RecoveryAction(
-            type: RecoveryActionType.flagForReview,
-            operationId: failedOp.id,
-            description: 'Operation flagged for manual review (conservative strategy)',
-            isSuccessful: true,
-          ));
+          actions.add(
+            RecoveryAction(
+              type: RecoveryActionType.flagForReview,
+              operationId: failedOp.id,
+              description:
+                  'Operation flagged for manual review (conservative strategy)',
+              isSuccessful: true,
+            ),
+          );
         }
       } catch (e, stack) {
         _logger.error(
@@ -325,13 +346,15 @@ class SyncRecoveryManager {
             'operation_type': failedOp.operationType,
           },
         );
-        actions.add(RecoveryAction(
-          type: RecoveryActionType.error,
-          operationId: failedOp.id,
-          description: 'Conservative recovery failed: $e',
-          isSuccessful: false,
-          errorMessage: e.toString(),
-        ));
+        actions.add(
+          RecoveryAction(
+            type: RecoveryActionType.error,
+            operationId: failedOp.id,
+            description: 'Conservative recovery failed: $e',
+            isSuccessful: false,
+            errorMessage: e.toString(),
+          ),
+        );
       }
     }
 
@@ -339,7 +362,9 @@ class SyncRecoveryManager {
   }
 
   /// Execute aggressive recovery strategy
-  Future<List<RecoveryAction>> _executeAggressiveRecovery(List<FailedOperation> failedOps) async {
+  Future<List<RecoveryAction>> _executeAggressiveRecovery(
+    List<FailedOperation> failedOps,
+  ) async {
     final actions = <RecoveryAction>[];
 
     for (final failedOp in failedOps) {
@@ -363,13 +388,15 @@ class SyncRecoveryManager {
             'operation_type': failedOp.operationType,
           },
         );
-        actions.add(RecoveryAction(
-          type: RecoveryActionType.error,
-          operationId: failedOp.id,
-          description: 'Aggressive recovery failed: $e',
-          isSuccessful: false,
-          errorMessage: e.toString(),
-        ));
+        actions.add(
+          RecoveryAction(
+            type: RecoveryActionType.error,
+            operationId: failedOp.id,
+            description: 'Aggressive recovery failed: $e',
+            isSuccessful: false,
+            errorMessage: e.toString(),
+          ),
+        );
       }
     }
 
@@ -377,17 +404,21 @@ class SyncRecoveryManager {
   }
 
   /// Provide recovery guidance for manual intervention
-  Future<List<RecoveryAction>> _provideRecoveryGuidance(List<FailedOperation> failedOps) async {
+  Future<List<RecoveryAction>> _provideRecoveryGuidance(
+    List<FailedOperation> failedOps,
+  ) async {
     final actions = <RecoveryAction>[];
 
     for (final failedOp in failedOps) {
       final guidance = _generateRecoveryGuidance(failedOp);
-      actions.add(RecoveryAction(
-        type: RecoveryActionType.guidance,
-        operationId: failedOp.id,
-        description: guidance,
-        isSuccessful: true,
-      ));
+      actions.add(
+        RecoveryAction(
+          type: RecoveryActionType.guidance,
+          operationId: failedOp.id,
+          description: guidance,
+          isSuccessful: true,
+        ),
+      );
     }
 
     return actions;
@@ -398,7 +429,9 @@ class SyncRecoveryManager {
     try {
       // Calculate delay based on retry count
       final delay = Duration(
-        milliseconds: (_baseRetryDelay.inMilliseconds * math.pow(2, failedOp.retryCount)).round(),
+        milliseconds:
+            (_baseRetryDelay.inMilliseconds * math.pow(2, failedOp.retryCount))
+                .round(),
       );
       final actualDelay = delay > _maxRetryDelay ? _maxRetryDelay : delay;
 
@@ -437,7 +470,6 @@ class SyncRecoveryManager {
         isSuccessful: success,
         errorMessage: errorMessage,
       );
-
     } catch (e, stack) {
       _logger.error(
         'Retry failed with exception',
@@ -461,15 +493,19 @@ class SyncRecoveryManager {
   }
 
   /// Resolve a failed operation using conflict resolution
-  Future<RecoveryAction> _resolveFailedOperation(FailedOperation failedOp) async {
+  Future<RecoveryAction> _resolveFailedOperation(
+    FailedOperation failedOp,
+  ) async {
     try {
       // Use conflict resolution engine to handle the failed operation
-      final resolutionResult = await _conflictEngine.detectAndResolveNoteConflicts(
-        strategy: ConflictResolutionStrategy.lastWriteWins,
-      );
+      final resolutionResult = await _conflictEngine
+          .detectAndResolveNoteConflicts(
+            strategy: ConflictResolutionStrategy.lastWriteWins,
+          );
 
-      final success = resolutionResult.totalConflicts == 0 ||
-                     resolutionResult.resolvedConflicts > 0;
+      final success =
+          resolutionResult.totalConflicts == 0 ||
+          resolutionResult.resolvedConflicts > 0;
 
       if (success) {
         await _updateOperationStatus(failedOp.id, 'conflict_resolved');
@@ -481,7 +517,6 @@ class SyncRecoveryManager {
         description: 'Resolved operation using conflict resolution',
         isSuccessful: success,
       );
-
     } catch (e, stack) {
       _logger.error(
         'Conflict resolution failed',
@@ -531,7 +566,6 @@ class SyncRecoveryManager {
         description: 'Force resynced ${failedOp.tableName} record',
         isSuccessful: success,
       );
-
     } catch (e, stack) {
       _logger.error(
         'Force resync failed',
@@ -568,7 +602,9 @@ class SyncRecoveryManager {
     switch (failedOp.operationType) {
       case 'note_sync_failed':
         buffer.writeln('Suggested Actions:');
-        buffer.writeln('1. Check if note exists in both local and remote databases');
+        buffer.writeln(
+          '1. Check if note exists in both local and remote databases',
+        );
         buffer.writeln('2. Verify user permissions for the note');
         buffer.writeln('3. Check for conflicting timestamps');
         buffer.writeln('4. Consider manual conflict resolution');
@@ -610,12 +646,14 @@ class SyncRecoveryManager {
       final failureCount = remainingFailures.read<int>('count');
 
       if (failureCount > 0) {
-        validationResult.issues.add(ValidationIssue(
-          type: ValidationIssueType.systemError,
-          severity: ValidationSeverity.warning,
-          description: '$failureCount failed operations still pending',
-          affectedTable: 'pending_ops',
-        ));
+        validationResult.issues.add(
+          ValidationIssue(
+            type: ValidationIssueType.systemError,
+            severity: ValidationSeverity.warning,
+            description: '$failureCount failed operations still pending',
+            affectedTable: 'pending_ops',
+          ),
+        );
       }
 
       return validationResult;
@@ -631,7 +669,7 @@ class SyncRecoveryManager {
           severity: ValidationSeverity.critical,
           description: 'Recovery verification failed: $e',
           affectedTable: 'system',
-        )
+        ),
       ]);
     }
   }
@@ -643,8 +681,12 @@ class SyncRecoveryManager {
       final localNote = await _localDb.getNote(noteId);
       if (localNote != null) {
         // Convert String to Uint8List for encrypted fields
-        final titleBytes = Uint8List.fromList((localNote.titleEncrypted).codeUnits);
-        final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
+        final titleBytes = Uint8List.fromList(
+          (localNote.titleEncrypted).codeUnits,
+        );
+        final propsBytes = Uint8List.fromList(
+          (localNote.encryptedMetadata ?? '').codeUnits,
+        );
 
         await _remoteApi.upsertEncryptedNote(
           id: localNote.id,
@@ -669,12 +711,15 @@ class SyncRecoveryManager {
 
   Future<bool> _retryFolderSync(String folderId) async {
     try {
-      final localFolder = await (_localDb.select(_localDb.localFolders)
-        ..where((t) => t.id.equals(folderId))).getSingleOrNull();
+      final localFolder = await (_localDb.select(
+        _localDb.localFolders,
+      )..where((t) => t.id.equals(folderId))).getSingleOrNull();
       if (localFolder != null) {
         // Convert String to Uint8List for encrypted fields
         final nameBytes = Uint8List.fromList(localFolder.name.codeUnits);
-        final propsBytes = Uint8List.fromList(localFolder.description.codeUnits);
+        final propsBytes = Uint8List.fromList(
+          localFolder.description.codeUnits,
+        );
 
         await _remoteApi.upsertEncryptedFolder(
           id: localFolder.id,
@@ -698,9 +743,9 @@ class SyncRecoveryManager {
 
   Future<bool> _retryTaskSync(String taskId) async {
     try {
-      final localTask = await (_localDb.select(_localDb.noteTasks)
-            ..where((t) => t.id.equals(taskId)))
-          .getSingleOrNull();
+      final localTask = await (_localDb.select(
+        _localDb.noteTasks,
+      )..where((t) => t.id.equals(taskId))).getSingleOrNull();
       if (localTask != null) {
         await _remoteApi.upsertNoteTask(
           id: localTask.id,
@@ -751,8 +796,12 @@ class SyncRecoveryManager {
 
         if (localTime.isAfter(remoteTime)) {
           // Local is newer, push to remote
-          final titleBytes = Uint8List.fromList(localNote.titleEncrypted.codeUnits);
-          final propsBytes = Uint8List.fromList((localNote.encryptedMetadata ?? '').codeUnits);
+          final titleBytes = Uint8List.fromList(
+            localNote.titleEncrypted.codeUnits,
+          );
+          final propsBytes = Uint8List.fromList(
+            (localNote.encryptedMetadata ?? '').codeUnits,
+          );
 
           await _remoteApi.upsertEncryptedNote(
             id: localNote.id,
@@ -763,19 +812,29 @@ class SyncRecoveryManager {
           );
         } else {
           // Remote is newer, pull to local
-          await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
-            LocalNotesCompanion.insert(
-              id: noteId,
-              titleEncrypted: Value(remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String? ?? ''),
-              bodyEncrypted: Value(remoteNote['body_encrypted'] as String? ?? ''),
-              createdAt: remoteNote['created_at'] != null
-                  ? DateTime.parse(remoteNote['created_at'] as String)
-                  : DateTime.now().toUtc(),
-              updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
-              encryptedMetadata: Value(remoteNote['encrypted_metadata'] as String?),
-              deleted: Value(remoteNote['deleted'] as bool? ?? false),
-            ),
-          );
+          await _localDb
+              .into(_localDb.localNotes)
+              .insertOnConflictUpdate(
+                LocalNotesCompanion.insert(
+                  id: noteId,
+                  titleEncrypted: Value(
+                    remoteNote['title_encrypted'] as String? ??
+                        remoteNote['title'] as String? ??
+                        '',
+                  ),
+                  bodyEncrypted: Value(
+                    remoteNote['body_encrypted'] as String? ?? '',
+                  ),
+                  createdAt: remoteNote['created_at'] != null
+                      ? DateTime.parse(remoteNote['created_at'] as String)
+                      : DateTime.now().toUtc(),
+                  updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
+                  encryptedMetadata: Value(
+                    remoteNote['encrypted_metadata'] as String?,
+                  ),
+                  deleted: Value(remoteNote['deleted'] as bool? ?? false),
+                ),
+              );
         }
         return true;
       }
@@ -803,21 +862,30 @@ class SyncRecoveryManager {
 
   /// Helper methods for operation status management
 
-  Future<void> _updateOperationStatus(String operationId, String newStatus) async {
-    await _localDb.customStatement('''
+  Future<void> _updateOperationStatus(
+    String operationId,
+    String newStatus,
+  ) async {
+    await _localDb.customStatement(
+      '''
       UPDATE pending_ops
       SET operation_type = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    ''', [newStatus, operationId]);
+    ''',
+      [newStatus, operationId],
+    );
   }
 
   Future<void> _incrementRetryCount(String operationId) async {
-    await _localDb.customStatement('''
+    await _localDb.customStatement(
+      '''
       UPDATE pending_ops
       SET retry_count = COALESCE(retry_count, 0) + 1,
           last_attempt_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    ''', [operationId]);
+    ''',
+      [operationId],
+    );
   }
 
   Future<void> _updateRecoveryHistory(
@@ -826,19 +894,22 @@ class SyncRecoveryManager {
   ) async {
     try {
       for (final action in actions) {
-        await _localDb.customStatement('''
+        await _localDb.customStatement(
+          '''
           INSERT OR REPLACE INTO sync_recovery_history (
             operation_id, recovery_type, recovery_action, is_successful,
             error_message, performed_at
           ) VALUES (?, ?, ?, ?, ?, ?)
-        ''', [
-          action.operationId,
-          action.type.name,
-          action.description,
-          action.isSuccessful ? 1 : 0,
-          action.errorMessage,
-          DateTime.now().toIso8601String(),
-        ]);
+        ''',
+          [
+            action.operationId,
+            action.type.name,
+            action.description,
+            action.isSuccessful ? 1 : 0,
+            action.errorMessage,
+            DateTime.now().toIso8601String(),
+          ],
+        );
       }
     } catch (e) {
       _logger.warning(
@@ -979,9 +1050,9 @@ class RecoveryMetrics {
 }
 
 enum SyncRecoveryStrategy {
-  automatic,     // Automatic recovery with standard policies
-  conservative,  // Conservative recovery, minimal risk
-  aggressive,    // Aggressive recovery, try multiple methods
+  automatic, // Automatic recovery with standard policies
+  conservative, // Conservative recovery, minimal risk
+  aggressive, // Aggressive recovery, try multiple methods
   manualGuidance, // Provide guidance for manual intervention
 }
 

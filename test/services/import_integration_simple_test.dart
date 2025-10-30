@@ -57,9 +57,7 @@ void main() {
     db = AppDb.forTesting(NativeDatabase.memory());
 
     container = ProviderContainer(
-      overrides: [
-        loggerProvider.overrideWithValue(const ConsoleLogger()),
-      ],
+      overrides: [loggerProvider.overrideWithValue(const ConsoleLogger())],
     );
 
     noteIndexer = container.read(noteIndexerProvider);
@@ -74,40 +72,50 @@ void main() {
     when(mockAuth.currentUser).thenReturn(mockUser);
     when(mockUser.id).thenReturn(testUserId);
 
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
     when(mockAnalytics.startTiming(any)).thenReturn(null);
-    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
-        .thenReturn(null);
-    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.endTiming(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
+    when(
+      mockAnalytics.featureUsed(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
-    Uint8List encode(String value) => Uint8List.fromList(utf8.encode('enc:$value'));
+    Uint8List encode(String value) =>
+        Uint8List.fromList(utf8.encode('enc:$value'));
 
-    when(mockCrypto.encryptStringForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      text: anyNamed('text'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockCrypto.encryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        text: anyNamed('text'),
+      ),
+    ).thenAnswer((invocation) async {
       final text = invocation.namedArguments[#text] as String;
       return encode(text);
     });
 
-    when(mockCrypto.decryptStringForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      data: anyNamed('data'),
-    )).thenAnswer((invocation) async {
+    when(
+      mockCrypto.decryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        data: anyNamed('data'),
+      ),
+    ).thenAnswer((invocation) async {
       final data = invocation.namedArguments[#data] as Uint8List;
       final decoded = utf8.decode(data);
       return decoded.startsWith('enc:') ? decoded.substring(4) : decoded;
     });
 
-    when(mockCrypto.encryptJsonForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      json: anyNamed('json'),
-    )).thenAnswer((_) async => encode('json'));
+    when(
+      mockCrypto.encryptJsonForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        json: anyNamed('json'),
+      ),
+    ).thenAnswer((_) async => encode('json'));
 
     final secureApi = SecureApiWrapper.testing(
       api: mockSupabaseNoteApi,
@@ -147,8 +155,12 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       expect(result.successCount, 1);
-      verify(mockAnalytics.event('import.success', properties: anyNamed('properties')))
-          .called(1);
+      verify(
+        mockAnalytics.event(
+          'import.success',
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
 
       final localNotes = await db.select(db.localNotes).get();
       expect(localNotes, hasLength(1));
@@ -167,9 +179,11 @@ void main() {
     });
 
     test('imports Obsidian vault end-to-end', () async {
-      final obsidianDir = Directory(p.join(tempDir.path, 'vault'))..createSync();
-      File(p.join(obsidianDir.path, 'alpha.md'))
-        .writeAsStringSync('# Alpha\n#ops\nAudit encryption.');
+      final obsidianDir = Directory(p.join(tempDir.path, 'vault'))
+        ..createSync();
+      File(
+        p.join(obsidianDir.path, 'alpha.md'),
+      ).writeAsStringSync('# Alpha\n#ops\nAudit encryption.');
       File(p.join(obsidianDir.path, 'nested', 'beta.md'))
         ..createSync(recursive: true)
         ..writeAsStringSync('# Beta\n#ops #focus\nDeploy fixes.');
@@ -192,18 +206,17 @@ void main() {
       final localNotes = await db.select(db.localNotes).get();
       final importedIds = localNotes.map((n) => n.id).toList();
       expect(importedIds.length, equals(2));
-      expect(
-        noteIndexer.searchNotes('audit'),
-        contains(importedIds.first),
-      );
-      expect(
-        noteIndexer.searchNotes('deploy'),
-        contains(importedIds.last),
-      );
-      verify(mockAnalytics.event(
-        'import.success',
-        properties: argThat(containsPair('type', 'obsidian'), named: 'properties'),
-      )).called(1);
+      expect(noteIndexer.searchNotes('audit'), contains(importedIds.first));
+      expect(noteIndexer.searchNotes('deploy'), contains(importedIds.last));
+      verify(
+        mockAnalytics.event(
+          'import.success',
+          properties: argThat(
+            containsPair('type', 'obsidian'),
+            named: 'properties',
+          ),
+        ),
+      ).called(1);
     });
   });
 }

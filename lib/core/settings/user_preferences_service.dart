@@ -11,8 +11,8 @@ class UserPreferencesService {
   UserPreferencesService({
     required SupabaseClient client,
     required AppLogger logger,
-  })  : _client = client,
-        _logger = logger;
+  }) : _client = client,
+       _logger = logger;
 
   final SupabaseClient _client;
   final AppLogger _logger;
@@ -35,14 +35,11 @@ class UserPreferencesService {
         '[UserPreferences] Syncing language preference: $languageCode for user ${userId.substring(0, 8)}',
       );
 
-      await _client.from('user_preferences').upsert(
-        {
-          'user_id': userId,
-          'language': languageCode,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'user_id',
-      );
+      await _client.from('user_preferences').upsert({
+        'user_id': userId,
+        'language': languageCode,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
 
       _logger.info('[UserPreferences] Language preference synced successfully');
     } on PostgrestException catch (e) {
@@ -78,21 +75,15 @@ class UserPreferencesService {
         '[UserPreferences] Syncing theme preference: $theme for user ${userId.substring(0, 8)}',
       );
 
-      await _client.from('user_preferences').upsert(
-        {
-          'user_id': userId,
-          'theme': theme,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'user_id',
-      );
+      await _client.from('user_preferences').upsert({
+        'user_id': userId,
+        'theme': theme,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
 
       _logger.info('[UserPreferences] Theme preference synced successfully');
     } on PostgrestException catch (e) {
-      _logger.error(
-        '[UserPreferences] Database error syncing theme',
-        error: e,
-      );
+      _logger.error('[UserPreferences] Database error syncing theme', error: e);
     } catch (e) {
       _logger.error(
         '[UserPreferences] Error syncing theme preference',
@@ -116,16 +107,15 @@ class UserPreferencesService {
         '[UserPreferences] Syncing notifications enabled: $enabled for user ${userId.substring(0, 8)}',
       );
 
-      await _client.from('user_preferences').upsert(
-        {
-          'user_id': userId,
-          'notifications_enabled': enabled,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'user_id',
-      );
+      await _client.from('user_preferences').upsert({
+        'user_id': userId,
+        'notifications_enabled': enabled,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
 
-      _logger.info('[UserPreferences] Notifications preference synced successfully');
+      _logger.info(
+        '[UserPreferences] Notifications preference synced successfully',
+      );
     } on PostgrestException catch (e) {
       _logger.error(
         '[UserPreferences] Database error syncing notifications',
@@ -169,7 +159,9 @@ class UserPreferencesService {
           .maybeSingle();
 
       if (existing != null) {
-        _logger.info('[UserPreferences] Preferences already exist, skipping initialization');
+        _logger.info(
+          '[UserPreferences] Preferences already exist, skipping initialization',
+        );
         return;
       }
 
@@ -224,10 +216,7 @@ class UserPreferencesService {
 
       return data;
     } catch (e) {
-      _logger.error(
-        '[UserPreferences] Error fetching preferences',
-        error: e,
-      );
+      _logger.error('[UserPreferences] Error fetching preferences', error: e);
       return null;
     }
   }

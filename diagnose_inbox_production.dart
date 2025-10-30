@@ -1,4 +1,5 @@
 #!/usr/bin/env dart
+
 /// Production-grade diagnostic tool for email inbox issue
 /// This script connects to production Supabase and diagnoses the exact root cause
 library;
@@ -16,15 +17,17 @@ void main() async {
 
   // Load environment configuration
   print('🔍 Step 1: Loading Supabase credentials...');
-  final supabaseUrl = Platform.environment['SUPABASE_URL'] ??
-                      'https://$projectRef.supabase.co';
+  final supabaseUrl =
+      Platform.environment['SUPABASE_URL'] ?? 'https://$projectRef.supabase.co';
   final anonKey = Platform.environment['SUPABASE_ANON_KEY'];
   final serviceRoleKey = Platform.environment['SUPABASE_SERVICE_ROLE_KEY'];
 
   if (anonKey == null || serviceRoleKey == null) {
     print('❌ ERROR: Missing Supabase credentials');
     print('   Please set SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-    print('   You can find these in: https://supabase.com/dashboard/project/$projectRef/settings/api');
+    print(
+      '   You can find these in: https://supabase.com/dashboard/project/$projectRef/settings/api',
+    );
     exit(1);
   }
 
@@ -45,7 +48,9 @@ void main() async {
     );
 
     if (aliasResponse.isEmpty) {
-      print('❌ PROBLEM IDENTIFIED: Alias "$targetAlias" does NOT exist in database');
+      print(
+        '❌ PROBLEM IDENTIFIED: Alias "$targetAlias" does NOT exist in database',
+      );
       print('');
       print('🔧 ROOT CAUSE:');
       print('   The email alias has not been created for this user.');
@@ -114,7 +119,9 @@ void main() async {
       print('💡 DIAGNOSTIC STEPS:');
       print('');
       print('   A) Check SendGrid webhook configuration:');
-      print('      URL: https://$projectRef.supabase.co/functions/v1/email-inbox');
+      print(
+        '      URL: https://$projectRef.supabase.co/functions/v1/email-inbox',
+      );
       print('      Go to: https://app.sendgrid.com/settings/parse');
       print('');
       print('   B) Check SendGrid billing:');
@@ -125,7 +132,9 @@ void main() async {
       print('');
       print('   D) Test Edge Function manually:');
       print('      curl -X POST \\');
-      print('        "https://$projectRef.supabase.co/functions/v1/email-inbox?secret=YOUR_SECRET" \\');
+      print(
+        '        "https://$projectRef.supabase.co/functions/v1/email-inbox?secret=YOUR_SECRET" \\',
+      );
       print('        -H "Content-Type: application/json" \\');
       print('        -d \'{');
       print('          "to": "$targetAlias@in.durunotes.app",');
@@ -151,9 +160,9 @@ void main() async {
     print('');
 
     // Step 4: Check if records are processed
-    final unprocessed = inboxResponse.where((r) =>
-      r['is_processed'] == null || r['is_processed'] == false
-    ).toList();
+    final unprocessed = inboxResponse
+        .where((r) => r['is_processed'] == null || r['is_processed'] == false)
+        .toList();
 
     print('📊 Summary:');
     print('   Total Records: ${inboxResponse.length}');
@@ -165,7 +174,9 @@ void main() async {
       print('❌ PROBLEM IDENTIFIED: All emails are marked as PROCESSED');
       print('');
       print('🔧 ROOT CAUSE:');
-      print('   The app query filters by: is_processed IS NULL OR is_processed = false');
+      print(
+        '   The app query filters by: is_processed IS NULL OR is_processed = false',
+      );
       print('   But all emails have is_processed = true');
       print('');
       print('💡 SOLUTION:');
@@ -173,10 +184,14 @@ void main() async {
       print('   UPDATE clipper_inbox');
       print('   SET is_processed = false');
       print('   WHERE user_id = \'$userId\'');
-      print('     AND (converted_to_note_id IS NULL OR converted_to_note_id = \'\');');
+      print(
+        '     AND (converted_to_note_id IS NULL OR converted_to_note_id = \'\');',
+      );
       print('');
       print('   Option 2: Change app query to show all records:');
-      print('   Remove the .or(\'is_processed.is.null,is_processed.eq.false\') filter');
+      print(
+        '   Remove the .or(\'is_processed.is.null,is_processed.eq.false\') filter',
+      );
       exit(1);
     }
 
@@ -230,7 +245,6 @@ void main() async {
     print('=' * 60);
     print('✅ Diagnostic Complete');
     print('');
-
   } catch (e, stack) {
     print('❌ ERROR: $e');
     print('Stack trace: $stack');

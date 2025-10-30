@@ -14,7 +14,8 @@ class FeatureFlags {
     'use_new_block_editor': true, // ENABLED for development
     'use_refactored_components': true, // ENABLED for development
     'use_unified_permission_manager': true, // ENABLED for development
-    'use_block_editor_for_notes': false, // ❌ DISABLED - Breaks regular note creation, needs proper integration
+    'use_block_editor_for_notes':
+        false, // ❌ DISABLED - Breaks regular note creation, needs proper integration
     'enable_userid_filtering': false, // SECURITY: Gradual rollout gate
   };
 

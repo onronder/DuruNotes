@@ -11,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Exponential backoff for retry logic
 /// - Distributed rate limiting support
 class RateLimitingMiddleware {
-  static final RateLimitingMiddleware _instance = RateLimitingMiddleware._internal();
+  static final RateLimitingMiddleware _instance =
+      RateLimitingMiddleware._internal();
   factory RateLimitingMiddleware() => _instance;
   RateLimitingMiddleware._internal() {
     _initializeCleanupTimer();
@@ -131,7 +132,10 @@ class RateLimitingMiddleware {
   }
 
   /// Get current rate limit status
-  RateLimitStatus getStatus(String identifier, {RateLimitType type = RateLimitType.user}) {
+  RateLimitStatus getStatus(
+    String identifier, {
+    RateLimitType type = RateLimitType.user,
+  }) {
     final key = _getBucketKey(identifier, type, null);
     final bucket = _getBucket(key, type);
     final window = _slidingWindows[key];
@@ -172,7 +176,11 @@ class RateLimitingMiddleware {
 
   // Private helper methods
 
-  String _getBucketKey(String identifier, RateLimitType type, String? endpoint) {
+  String _getBucketKey(
+    String identifier,
+    RateLimitType type,
+    String? endpoint,
+  ) {
     return '${type.name}:$identifier${endpoint != null ? ':$endpoint' : ''}';
   }
 
@@ -259,7 +267,9 @@ class RateLimitingMiddleware {
 
     // Clean up inactive buckets
     final inactiveThreshold = now.subtract(const Duration(hours: 1));
-    _userBuckets.removeWhere((k, v) => v.lastRefill.isBefore(inactiveThreshold));
+    _userBuckets.removeWhere(
+      (k, v) => v.lastRefill.isBefore(inactiveThreshold),
+    );
     _ipBuckets.removeWhere((k, v) => v.lastRefill.isBefore(inactiveThreshold));
   }
 
@@ -338,10 +348,7 @@ class SlidingWindow {
   final int maxRequests;
   final Queue<DateTime> _requests = Queue();
 
-  SlidingWindow({
-    required this.windowSize,
-    required this.maxRequests,
-  });
+  SlidingWindow({required this.windowSize, required this.maxRequests});
 
   bool allowRequest(DateTime now) {
     _removeOldRequests(now);
@@ -458,9 +465,4 @@ class EndpointRateLimitConfig {
 }
 
 /// Rate limit types
-enum RateLimitType {
-  user,
-  ip,
-  api,
-  endpoint,
-}
+enum RateLimitType { user, ip, api, endpoint }

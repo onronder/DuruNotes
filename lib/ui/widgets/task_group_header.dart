@@ -212,11 +212,11 @@ class _ExpandableTaskGroupState extends State<ExpandableTaskGroup>
                   children: widget.children,
                 )
               : _isExpanded
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: widget.children,
-                    )
-                  : const SizedBox.shrink(),
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: widget.children,
+                )
+              : const SizedBox.shrink(),
         ),
       ],
     );
@@ -269,10 +269,7 @@ class EmptyTaskGroup extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          if (action != null) ...[
-            const SizedBox(height: 24),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 24), action!],
         ],
       ),
     );

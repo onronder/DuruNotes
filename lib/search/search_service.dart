@@ -47,7 +47,12 @@ class SearchService {
     }
 
     // Use unified search that combines FTS, folder, and tag filtering in one SQL pass
-    return _unifiedSearch.search(query, userId: userId, sort: sort, limit: limit);
+    return _unifiedSearch.search(
+      query,
+      userId: userId,
+      sort: sort,
+      limit: limit,
+    );
   }
 
   /// Save a search query

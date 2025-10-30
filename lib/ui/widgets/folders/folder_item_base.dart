@@ -33,8 +33,9 @@ abstract class BaseFolderItem extends StatelessWidget {
   /// Build folder icon based on state
   Widget buildIcon(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final iconColor =
-        isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final iconColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
 
     IconData iconData;
     if (folder.isSpecial) {
@@ -43,11 +44,7 @@ abstract class BaseFolderItem extends StatelessWidget {
       iconData = isExpanded ? Icons.folder_open : Icons.folder;
     }
 
-    return Icon(
-      iconData,
-      color: iconColor,
-      size: 20,
-    );
+    return Icon(iconData, color: iconColor, size: 20);
   }
 
   /// Build folder title with appropriate styling
@@ -55,8 +52,9 @@ abstract class BaseFolderItem extends StatelessWidget {
     final theme = Theme.of(context);
     final textStyle = theme.textTheme.bodyLarge?.copyWith(
       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      color:
-          isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+      color: isSelected
+          ? theme.colorScheme.primary
+          : theme.colorScheme.onSurface,
     );
 
     return Text(
@@ -87,8 +85,9 @@ abstract class BaseFolderItem extends StatelessWidget {
       child: Text(
         noteCount.toString(),
         style: theme.textTheme.bodySmall?.copyWith(
-          color:
-              isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+          color: isSelected
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -121,10 +120,9 @@ abstract class BaseFolderItem extends StatelessWidget {
       icon: Icon(
         Icons.more_vert,
         size: 18,
-        color: Theme.of(context)
-            .colorScheme
-            .onSurfaceVariant
-            .withValues(alpha: 0.5),
+        color: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
       ),
       padding: EdgeInsets.zero,
       onSelected: (value) {
@@ -219,12 +217,7 @@ class FolderListItem extends BaseFolderItem {
             ? colorScheme.primaryContainer.withValues(alpha: 0.3)
             : null,
         border: isSelected
-            ? Border(
-                left: BorderSide(
-                  color: colorScheme.primary,
-                  width: 3,
-                ),
-              )
+            ? Border(left: BorderSide(color: colorScheme.primary, width: 3))
             : null,
       ),
       child: ListTile(
@@ -241,10 +234,7 @@ class FolderListItem extends BaseFolderItem {
         title: buildTitle(context),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            buildNoteCount(context),
-            buildActionMenu(context),
-          ],
+          children: [buildNoteCount(context), buildActionMenu(context)],
         ),
         onTap: onTap,
         selected: isSelected,

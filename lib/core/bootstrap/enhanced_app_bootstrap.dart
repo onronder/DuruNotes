@@ -47,16 +47,12 @@ class EnhancedBootstrapResult {
 
   bool get hasErrors => errorManager.errors.isNotEmpty;
   bool get hasCriticalErrors => errorManager.hasCriticalErrors;
-  bool get isFullyFunctional =>
-      !hasErrors && !degradedMode && !offlineMode;
+  bool get isFullyFunctional => !hasErrors && !degradedMode && !offlineMode;
 }
 
 /// Progress callback for bootstrap process
-typedef BootstrapProgressCallback = void Function(
-  BootstrapStage stage,
-  double progress,
-  String? message,
-);
+typedef BootstrapProgressCallback =
+    void Function(BootstrapStage stage, double progress, String? message);
 
 /// Enhanced application bootstrap with retry logic and timeout handling
 class EnhancedAppBootstrap {
@@ -85,8 +81,7 @@ class EnhancedAppBootstrap {
 
     // Wrap the entire bootstrap in a timeout
     try {
-      return await _performBootstrap(startTime)
-          .timeout(maxBootstrapDuration);
+      return await _performBootstrap(startTime).timeout(maxBootstrapDuration);
     } on TimeoutException {
       _errorManager.addError(
         BootstrapError(
@@ -104,9 +99,7 @@ class EnhancedAppBootstrap {
     }
   }
 
-  Future<EnhancedBootstrapResult> _performBootstrap(
-    DateTime startTime,
-  ) async {
+  Future<EnhancedBootstrapResult> _performBootstrap(DateTime startTime) async {
     final warnings = <String>[];
     bool degradedMode = false;
     bool offlineMode = false;
@@ -117,11 +110,7 @@ class EnhancedAppBootstrap {
 
     void reportProgress(BootstrapStage stage, String? message) {
       currentStage++;
-      progressCallback?.call(
-        stage,
-        currentStage / totalStages,
-        message,
-      );
+      progressCallback?.call(stage, currentStage / totalStages, message);
     }
 
     // 1. Environment configuration
@@ -135,10 +124,13 @@ class EnhancedAppBootstrap {
     final logger = await _initializeLogging(environment);
 
     // Log bootstrap start
-    logger.info('Bootstrap started', data: {
-      'environment': environment.environment.name,
-      'debugMode': environment.debugMode,
-    });
+    logger.info(
+      'Bootstrap started',
+      data: {
+        'environment': environment.environment.name,
+        'debugMode': environment.debugMode,
+      },
+    );
 
     // 3. Platform-specific optimizations
     reportProgress(BootstrapStage.platform, 'Platform optimization');
@@ -177,12 +169,15 @@ class EnhancedAppBootstrap {
     final duration = DateTime.now().difference(startTime);
 
     // Log bootstrap completion
-    logger.info('Bootstrap completed', data: {
-      'duration': duration.inMilliseconds,
-      'errors': _errorManager.errors.length,
-      'degradedMode': degradedMode,
-      'offlineMode': offlineMode,
-    });
+    logger.info(
+      'Bootstrap completed',
+      data: {
+        'duration': duration.inMilliseconds,
+        'errors': _errorManager.errors.length,
+        'degradedMode': degradedMode,
+        'offlineMode': offlineMode,
+      },
+    );
 
     return EnhancedBootstrapResult(
       environment: environment,
@@ -202,11 +197,10 @@ class EnhancedAppBootstrap {
   }
 
   /// Initialize environment with error handling
-  Future<({
-    EnvironmentConfig environment,
-    String source,
-    List<String> warnings,
-  })> _initializeEnvironment() async {
+  Future<
+    ({EnvironmentConfig environment, String source, List<String> warnings})
+  >
+  _initializeEnvironment() async {
     return await _executeWithRetry(
       stage: BootstrapStage.environment,
       operation: () async {
@@ -321,9 +315,9 @@ class EnhancedAppBootstrap {
 
         // Test connection with timeout
         final client = Supabase.instance.client;
-        await client.auth
-            .signInAnonymously()
-            .timeout(const Duration(seconds: 5));
+        await client.auth.signInAnonymously().timeout(
+          const Duration(seconds: 5),
+        );
 
         return client;
       },
@@ -381,9 +375,7 @@ class EnhancedAppBootstrap {
       stage: BootstrapStage.adapty,
       operation: () async {
         await Adapty().setLogLevel(
-          environment.debugMode
-              ? AdaptyLogLevel.warn
-              : AdaptyLogLevel.error,
+          environment.debugMode ? AdaptyLogLevel.warn : AdaptyLogLevel.error,
         );
         await Adapty().activate(
           configuration: AdaptyConfiguration(apiKey: adaptyKey)

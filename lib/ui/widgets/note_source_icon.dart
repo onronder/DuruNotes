@@ -30,10 +30,7 @@ class NoteSourceIcon extends StatelessWidget {
     } catch (error, stackTrace) {
       _logger.warning(
         'Failed to decode note metadata JSON for source icon',
-        data: {
-          'noteId': note.id,
-          'error': error.toString(),
-        },
+        data: {'noteId': note.id, 'error': error.toString()},
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
     }
@@ -58,7 +55,10 @@ class NoteSourceIcon extends StatelessWidget {
     return false;
   }
 
-  bool _hasAttachmentFromNote(domain.Note note, Map<String, dynamic>? metadata) {
+  bool _hasAttachmentFromNote(
+    domain.Note note,
+    Map<String, dynamic>? metadata,
+  ) {
     if (_hasAttachmentMetadata(metadata)) return true;
 
     final attachmentMeta = _decodeJsonMap(note.attachmentMeta);
@@ -91,7 +91,9 @@ class NoteSourceIcon extends StatelessWidget {
         metadata?.containsKey('url') == true;
 
     if (looksLikeEmail()) {
-      return hasAttachments ? NoteSourceType.emailWithAttachment : NoteSourceType.email;
+      return hasAttachments
+          ? NoteSourceType.emailWithAttachment
+          : NoteSourceType.email;
     }
 
     if (looksLikeWeb()) {

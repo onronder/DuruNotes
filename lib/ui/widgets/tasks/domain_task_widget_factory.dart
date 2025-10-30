@@ -73,27 +73,23 @@ class DomainTaskWidgetFactory {
     Set<String>? selectedIds,
   }) {
     return tasks
-        .map((task) => create(
-              mode: mode,
-              task: task,
-              subtasks: subtasksMap?[task.id],
-              callbacks: callbacks,
-              isSelected: selectedIds?.contains(task.id) ?? false,
-            ))
+        .map(
+          (task) => create(
+            mode: mode,
+            task: task,
+            subtasks: subtasksMap?[task.id],
+            callbacks: callbacks,
+            isSelected: selectedIds?.contains(task.id) ?? false,
+          ),
+        )
         .toList();
   }
 
   /// Create a separator widget for grouping tasks
-  static Widget createSeparator({
-    required String label,
-    TextStyle? style,
-  }) {
+  static Widget createSeparator({required String label, TextStyle? style}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        label,
-        style: style,
-      ),
+      child: Text(label, style: style),
     );
   }
 
@@ -112,10 +108,7 @@ class DomainTaskWidgetFactory {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
           if (onAction != null && actionLabel != null) ...[
@@ -159,10 +152,7 @@ class _DomainCompactTaskWidget extends StatelessWidget {
               : Colors.transparent,
           border: isSelected
               ? Border(
-                  left: BorderSide(
-                    color: theme.colorScheme.primary,
-                    width: 3,
-                  ),
+                  left: BorderSide(color: theme.colorScheme.primary, width: 3),
                 )
               : null,
         ),
@@ -215,8 +205,7 @@ class _DomainCompactTaskWidget extends StatelessWidget {
                 child: Icon(
                   Icons.calendar_today,
                   size: 14,
-                  color: task.dueDate!.isBefore(DateTime.now()) &&
-                          !isCompleted
+                  color: task.dueDate!.isBefore(DateTime.now()) && !isCompleted
                       ? Colors.red
                       : theme.colorScheme.onSurfaceVariant,
                 ),

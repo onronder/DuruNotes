@@ -245,8 +245,9 @@ class PasswordValidator {
         }
       }
 
-      final copyLength =
-          keyLength - pos < result.length ? keyLength - pos : result.length;
+      final copyLength = keyLength - pos < result.length
+          ? keyLength - pos
+          : result.length;
       derivedKey.setRange(pos, pos + copyLength, result);
       pos += copyLength;
       currentBlock++;

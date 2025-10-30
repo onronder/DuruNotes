@@ -7,10 +7,9 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 
 /// Manages database encryption keys for SQLCipher
 class DatabaseEncryption {
-  DatabaseEncryption({
-    FlutterSecureStorage? storage,
-  })  : _storage = storage ?? const FlutterSecureStorage(),
-        _logger = LoggerFactory.instance;
+  DatabaseEncryption({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage(),
+      _logger = LoggerFactory.instance;
 
   final FlutterSecureStorage _storage;
   final AppLogger _logger;

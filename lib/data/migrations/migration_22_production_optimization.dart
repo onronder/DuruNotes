@@ -284,22 +284,30 @@ class Migration22ProductionOptimization {
         VALUES ($version, CURRENT_TIMESTAMP, '$description')
       ''');
 
-      logger.info('Migration 22 completed successfully - Production optimizations applied');
+      logger.info(
+        'Migration 22 completed successfully - Production optimizations applied',
+      );
 
       // Log index statistics
-      final indexCount = await db.customSelect(
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index'"
-      ).getSingle();
+      final indexCount = await db
+          .customSelect(
+            "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index'",
+          )
+          .getSingle();
 
-      logger.info('Database optimization complete', data: {
-        'total_indexes': indexCount.read<int>('count'),
-        'migration_version': version,
-      });
-
+      logger.info(
+        'Database optimization complete',
+        data: {
+          'total_indexes': indexCount.read<int>('count'),
+          'migration_version': version,
+        },
+      );
     } catch (e, stack) {
       logger.error('Failed to apply Migration 22: $e\nStack: $stack');
       // Don't rethrow - allow app to continue but log the issue
-      logger.warning('Continuing without full optimizations - performance may be impacted');
+      logger.warning(
+        'Continuing without full optimizations - performance may be impacted',
+      );
     }
   }
 
@@ -314,9 +322,9 @@ class Migration22ProductionOptimization {
         'idx_note_tags_covering',
       ];
 
-      final indexes = await db.customSelect(
-        "SELECT name FROM sqlite_master WHERE type='index'"
-      ).get();
+      final indexes = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type='index'")
+          .get();
 
       final indexNames = indexes.map((i) => i.read<String>('name')).toSet();
 
@@ -327,9 +335,10 @@ class Migration22ProductionOptimization {
         }
       }
 
-      LoggerFactory.instance.info('Migration 22 verification passed - All critical indexes present');
+      LoggerFactory.instance.info(
+        'Migration 22 verification passed - All critical indexes present',
+      );
       return true;
-
     } catch (e) {
       LoggerFactory.instance.error('Migration 22 verification failed: $e');
       return false;

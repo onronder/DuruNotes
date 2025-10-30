@@ -1,4 +1,3 @@
-
 /// Pre-deployment validation test suite
 ///
 /// This test runs comprehensive validation of the system before

@@ -86,11 +86,7 @@ class TimeSeriesData {
   final double value;
   final String? label;
 
-  TimeSeriesData({
-    required this.date,
-    required this.value,
-    this.label,
-  });
+  TimeSeriesData({required this.date, required this.value, this.label});
 
   Map<String, dynamic> toJson() => {
     'date': date.toIso8601String(),
@@ -228,12 +224,7 @@ class PerformanceAnalytics {
   };
 }
 
-enum ReportFormat {
-  json,
-  csv,
-  html,
-  markdown,
-}
+enum ReportFormat { json, csv, html, markdown }
 
 enum TimeRange {
   today,
@@ -268,7 +259,8 @@ class AnalyticsFilter {
 }
 
 class UnifiedAnalyticsService {
-  static final UnifiedAnalyticsService _instance = UnifiedAnalyticsService._internal();
+  static final UnifiedAnalyticsService _instance =
+      UnifiedAnalyticsService._internal();
   factory UnifiedAnalyticsService() => _instance;
   UnifiedAnalyticsService._internal();
 
@@ -329,7 +321,8 @@ class UnifiedAnalyticsService {
     AnalyticsFilter filter = const AnalyticsFilter(),
   }) async {
     try {
-      final cacheKey = 'overview_${filter.timeRange}_${filter.startDate}_${filter.endDate}';
+      final cacheKey =
+          'overview_${filter.timeRange}_${filter.startDate}_${filter.endDate}';
       if (_analyticsCache.containsKey(cacheKey)) {
         return _analyticsCache[cacheKey] as AnalyticsOverview;
       }
@@ -401,7 +394,9 @@ class UnifiedAnalyticsService {
         }
       }
 
-      final taskCompletionRate = tasks.isEmpty ? 0.0 : completedTasks / tasks.length;
+      final taskCompletionRate = tasks.isEmpty
+          ? 0.0
+          : completedTasks / tasks.length;
       final averageNoteLength = notes.isEmpty ? 0.0 : totalWords / notes.length;
 
       // Calculate productivity score
@@ -435,9 +430,12 @@ class UnifiedAnalyticsService {
 
       _analyticsCache[cacheKey] = overview;
       return overview;
-
     } catch (e, stack) {
-      _logger.error('Failed to get analytics overview', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get analytics overview',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -481,15 +479,18 @@ class UnifiedAnalyticsService {
       final weeklyActivity = <TimeSeriesData>[];
 
       var currentDate = dateRange.start;
-      while (currentDate.isBefore(dateRange.end) || currentDate.isAtSameMomentAs(dateRange.end)) {
+      while (currentDate.isBefore(dateRange.end) ||
+          currentDate.isAtSameMomentAs(dateRange.end)) {
         final notesCount = notesByDate[_dateOnly(currentDate)] ?? 0;
         final tasksCount = tasksByDate[_dateOnly(currentDate)] ?? 0;
 
-        dailyActivity.add(TimeSeriesData(
-          date: currentDate,
-          value: notesCount + tasksCount * 0.5, // Weight tasks less
-          label: 'Notes: $notesCount, Tasks: $tasksCount',
-        ));
+        dailyActivity.add(
+          TimeSeriesData(
+            date: currentDate,
+            value: notesCount + tasksCount * 0.5, // Weight tasks less
+            label: 'Notes: $notesCount, Tasks: $tasksCount',
+          ),
+        );
 
         currentDate = currentDate.add(const Duration(days: 1));
       }
@@ -498,12 +499,17 @@ class UnifiedAnalyticsService {
       for (int i = 0; i < dailyActivity.length; i += 7) {
         final weekData = dailyActivity.skip(i).take(7);
         if (weekData.isNotEmpty) {
-          final weekTotal = weekData.fold<double>(0, (sum, data) => sum + data.value);
-          weeklyActivity.add(TimeSeriesData(
-            date: weekData.first.date,
-            value: weekTotal,
-            label: 'Week total: ${weekTotal.round()}',
-          ));
+          final weekTotal = weekData.fold<double>(
+            0,
+            (sum, data) => sum + data.value,
+          );
+          weeklyActivity.add(
+            TimeSeriesData(
+              date: weekData.first.date,
+              value: weekTotal,
+              label: 'Week total: ${weekTotal.round()}',
+            ),
+          );
         }
       }
 
@@ -513,8 +519,10 @@ class UnifiedAnalyticsService {
 
       for (final note in notes) {
         final createdAt = _getNoteCreatedAt(note);
-        hourlyDistribution[createdAt.hour] = (hourlyDistribution[createdAt.hour] ?? 0) + 1;
-        weekdayDistribution[createdAt.weekday] = (weekdayDistribution[createdAt.weekday] ?? 0) + 1;
+        hourlyDistribution[createdAt.hour] =
+            (hourlyDistribution[createdAt.hour] ?? 0) + 1;
+        weekdayDistribution[createdAt.weekday] =
+            (weekdayDistribution[createdAt.weekday] ?? 0) + 1;
       }
 
       // Normalize distributions
@@ -523,7 +531,10 @@ class UnifiedAnalyticsService {
 
       // Calculate scores
       final focusScore = _calculateFocusScore(hourlyDistribution);
-      final consistencyScore = _calculateConsistencyScore(notesByDate, daysDiff);
+      final consistencyScore = _calculateConsistencyScore(
+        notesByDate,
+        daysDiff,
+      );
 
       return ProductivityMetrics(
         dailyAverage: dailyAverage,
@@ -538,9 +549,12 @@ class UnifiedAnalyticsService {
         focusScore: focusScore,
         consistencyScore: consistencyScore,
       );
-
     } catch (e, stack) {
-      _logger.error('Failed to get productivity metrics', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get productivity metrics',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -573,7 +587,8 @@ class UnifiedAnalyticsService {
         // Word frequency
         for (final word in words) {
           final cleaned = word.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '');
-          if (cleaned.length > 3) { // Skip short words
+          if (cleaned.length > 3) {
+            // Skip short words
             wordCounts[cleaned] = (wordCounts[cleaned] ?? 0) + 1;
           }
         }
@@ -631,7 +646,9 @@ class UnifiedAnalyticsService {
       }).toList();
 
       // Calculate readability (simplified Flesch Reading Ease)
-      final averageWordsPerNote = notes.isEmpty ? 0.0 : totalWords / notes.length;
+      final averageWordsPerNote = notes.isEmpty
+          ? 0.0
+          : totalWords / notes.length;
       final readabilityScore = _calculateReadabilityScore(
         averageWordsPerNote: averageWordsPerNote,
         totalWords: totalWords,
@@ -649,9 +666,12 @@ class UnifiedAnalyticsService {
         readabilityScore: readabilityScore,
         linkStatistics: linkStats,
       );
-
     } catch (e, stack) {
-      _logger.error('Failed to get content analytics', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get content analytics',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -681,9 +701,12 @@ class UnifiedAnalyticsService {
         },
         systemHealth: 92.5, // percentage
       );
-
     } catch (e, stack) {
-      _logger.error('Failed to get performance analytics', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get performance analytics',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -720,7 +743,9 @@ class UnifiedAnalyticsService {
 
       switch (format) {
         case ReportFormat.json:
-          reportContent = const JsonEncoder.withIndent('  ').convert(reportData);
+          reportContent = const JsonEncoder.withIndent(
+            '  ',
+          ).convert(reportData);
           fileExtension = 'json';
           break;
         case ReportFormat.csv:
@@ -738,15 +763,21 @@ class UnifiedAnalyticsService {
       }
 
       // Save to file
-      final fileName = 'analytics_report_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-      final file = File(outputPath ?? path.join(Directory.systemTemp.path, fileName));
+      final fileName =
+          'analytics_report_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final file = File(
+        outputPath ?? path.join(Directory.systemTemp.path, fileName),
+      );
       await file.writeAsString(reportContent);
 
       _logger.info('Analytics report exported to ${file.path}');
       return file;
-
     } catch (e, stack) {
-      _logger.error('Failed to export analytics report', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to export analytics report',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -782,19 +813,27 @@ class UnifiedAnalyticsService {
     return tagCounts.map((tc) => tc.tag).toList();
   }
 
-  List<dynamic> _filterNotesByDate(List<dynamic> notes, AnalyticsFilter filter) {
+  List<dynamic> _filterNotesByDate(
+    List<dynamic> notes,
+    AnalyticsFilter filter,
+  ) {
     final dateRange = _getDateRange(filter);
     return notes.where((note) {
       final createdAt = _getNoteCreatedAt(note);
-      return createdAt.isAfter(dateRange.start) && createdAt.isBefore(dateRange.end);
+      return createdAt.isAfter(dateRange.start) &&
+          createdAt.isBefore(dateRange.end);
     }).toList();
   }
 
-  List<dynamic> _filterTasksByDate(List<dynamic> tasks, AnalyticsFilter filter) {
+  List<dynamic> _filterTasksByDate(
+    List<dynamic> tasks,
+    AnalyticsFilter filter,
+  ) {
     final dateRange = _getDateRange(filter);
     return tasks.where((task) {
       final createdAt = _getTaskCreatedAt(task);
-      return createdAt.isAfter(dateRange.start) && createdAt.isBefore(dateRange.end);
+      return createdAt.isAfter(dateRange.start) &&
+          createdAt.isBefore(dateRange.end);
     }).toList();
   }
 
@@ -821,7 +860,10 @@ class UnifiedAnalyticsService {
       case TimeRange.last90Days:
         return (start: now.subtract(const Duration(days: 90)), end: now);
       case TimeRange.custom:
-        return (start: filter.startDate ?? DateTime(2020), end: filter.endDate ?? now);
+        return (
+          start: filter.startDate ?? DateTime(2020),
+          end: filter.endDate ?? now,
+        );
       case TimeRange.allTime:
       default:
         return (start: DateTime(2020), end: now);
@@ -830,8 +872,10 @@ class UnifiedAnalyticsService {
 
   // Type-agnostic property accessors
   DateTime _getNoteCreatedAt(dynamic note) {
-    if (note is domain.Note) return note.updatedAt; // Note doesn't have createdAt
-    if (note is LocalNote) return note.updatedAt; // LocalNote doesn't have createdAt
+    if (note is domain.Note)
+      return note.updatedAt; // Note doesn't have createdAt
+    if (note is LocalNote)
+      return note.updatedAt; // LocalNote doesn't have createdAt
     throw ArgumentError('Unknown note type');
   }
 
@@ -843,7 +887,9 @@ class UnifiedAnalyticsService {
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
-    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote content access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   bool _isNoteDeleted(dynamic note) {
@@ -864,11 +910,14 @@ class UnifiedAnalyticsService {
   Future<List<String>> _getNoteTagIds(dynamic note) async {
     if (note is domain.Note) return note.tags;
     // LocalNote tag access deprecated post-encryption
-    throw UnsupportedError('LocalNote tag access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote tag access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   DateTime _getTaskCreatedAt(dynamic task) {
-    if (task is domain.Task) return DateTime.now(); // Task doesn't have createdAt
+    if (task is domain.Task)
+      return DateTime.now(); // Task doesn't have createdAt
     if (task is NoteTask) return task.createdAt;
     throw ArgumentError('Unknown task type');
   }
@@ -908,7 +957,8 @@ class UnifiedAnalyticsService {
     final taskScore = (taskCompletionRate * 100) - (overdueTasks * 5.0);
 
     // Overall score (weighted average)
-    final overallScore = (dailyScore * 0.3 + weeklyScore * 0.3 + taskScore * 0.4);
+    final overallScore =
+        (dailyScore * 0.3 + weeklyScore * 0.3 + taskScore * 0.4);
 
     return {
       'daily': dailyScore.toDouble(),
@@ -918,7 +968,9 @@ class UnifiedAnalyticsService {
     };
   }
 
-  ({int current, int longest}) _calculateStreaks(Map<DateTime, int> notesByDate) {
+  ({int current, int longest}) _calculateStreaks(
+    Map<DateTime, int> notesByDate,
+  ) {
     if (notesByDate.isEmpty) return (current: 0, longest: 0);
 
     final sortedDates = notesByDate.keys.toList()..sort();
@@ -977,7 +1029,10 @@ class UnifiedAnalyticsService {
     return (concentrationScore * 0.5 + productiveHoursScore * 0.5);
   }
 
-  double _calculateConsistencyScore(Map<DateTime, int> notesByDate, int totalDays) {
+  double _calculateConsistencyScore(
+    Map<DateTime, int> notesByDate,
+    int totalDays,
+  ) {
     if (totalDays == 0) return 0;
 
     final daysWithNotes = notesByDate.length;
@@ -995,9 +1050,8 @@ class UnifiedAnalyticsService {
     final avgWordsPerSentence = totalWords / totalSentences;
     final avgSyllablesPerWord = 1.5; // Estimate
 
-    final score = 206.835 -
-                  1.015 * avgWordsPerSentence -
-                  84.6 * avgSyllablesPerWord;
+    final score =
+        206.835 - 1.015 * avgWordsPerSentence - 84.6 * avgSyllablesPerWord;
 
     return math.max(0, math.min(100, score));
   }
@@ -1136,24 +1190,40 @@ class UnifiedAnalyticsService {
     buffer.writeln('|--------|-------|');
     buffer.writeln('| Total Notes | **${overview['totalNotes']}** |');
     buffer.writeln('| Total Tasks | **${overview['totalTasks']}** |');
-    buffer.writeln('| Task Completion Rate | ${(overview['taskCompletionRate'] * 100).toStringAsFixed(1)}% |');
-    buffer.writeln('| Average Note Length | ${overview['averageNoteLength'].toStringAsFixed(0)} words |');
+    buffer.writeln(
+      '| Task Completion Rate | ${(overview['taskCompletionRate'] * 100).toStringAsFixed(1)}% |',
+    );
+    buffer.writeln(
+      '| Average Note Length | ${overview['averageNoteLength'].toStringAsFixed(0)} words |',
+    );
     buffer.writeln();
 
     buffer.writeln('## Productivity Metrics');
     buffer.writeln();
-    buffer.writeln('- **Daily Average**: ${productivity['dailyAverage'].toStringAsFixed(1)} items');
-    buffer.writeln('- **Current Streak**: ${productivity['currentStreak']} days');
-    buffer.writeln('- **Longest Streak**: ${productivity['longestStreak']} days');
-    buffer.writeln('- **Focus Score**: ${productivity['focusScore'].toStringAsFixed(1)}%');
-    buffer.writeln('- **Consistency Score**: ${productivity['consistencyScore'].toStringAsFixed(1)}%');
+    buffer.writeln(
+      '- **Daily Average**: ${productivity['dailyAverage'].toStringAsFixed(1)} items',
+    );
+    buffer.writeln(
+      '- **Current Streak**: ${productivity['currentStreak']} days',
+    );
+    buffer.writeln(
+      '- **Longest Streak**: ${productivity['longestStreak']} days',
+    );
+    buffer.writeln(
+      '- **Focus Score**: ${productivity['focusScore'].toStringAsFixed(1)}%',
+    );
+    buffer.writeln(
+      '- **Consistency Score**: ${productivity['consistencyScore'].toStringAsFixed(1)}%',
+    );
     buffer.writeln();
 
     buffer.writeln('## Content Analytics');
     buffer.writeln();
     buffer.writeln('- **Total Words**: ${content['totalWords']}');
     buffer.writeln('- **Total Characters**: ${content['totalCharacters']}');
-    buffer.writeln('- **Readability Score**: ${content['readabilityScore'].toStringAsFixed(1)}');
+    buffer.writeln(
+      '- **Readability Score**: ${content['readabilityScore'].toStringAsFixed(1)}',
+    );
 
     // Top keywords
     final topKeywords = content['topKeywords'] as Map<String, dynamic>;
@@ -1170,8 +1240,12 @@ class UnifiedAnalyticsService {
     buffer.writeln('## Performance');
     buffer.writeln();
     buffer.writeln('- **System Health**: ${performance['systemHealth']}%');
-    buffer.writeln('- **Average Sync Time**: ${performance['averageSyncTime']}s');
-    buffer.writeln('- **Average Search Time**: ${performance['averageSearchTime']}s');
+    buffer.writeln(
+      '- **Average Sync Time**: ${performance['averageSyncTime']}s',
+    );
+    buffer.writeln(
+      '- **Average Search Time**: ${performance['averageSearchTime']}s',
+    );
     buffer.writeln('- **Search Queries**: ${performance['searchQueries']}');
 
     return buffer.toString();

@@ -204,8 +204,9 @@ class DatabaseOptimizer {
     // Create each index if it doesn't exist
     for (final index in indexes) {
       try {
-        final whereClause =
-            index.whereClause != null ? ' ${index.whereClause}' : '';
+        final whereClause = index.whereClause != null
+            ? ' ${index.whereClause}'
+            : '';
         await _db.customStatement(
           'CREATE INDEX IF NOT EXISTS ${index.name} ON ${index.definition}$whereClause',
         );
@@ -265,8 +266,9 @@ class DatabaseOptimizer {
     stats.databaseSizeBytes = pageCount * pageSize;
 
     // Get cache statistics
-    final cacheStats =
-        await _db.customSelect('PRAGMA cache_stats').getSingleOrNull();
+    final cacheStats = await _db
+        .customSelect('PRAGMA cache_stats')
+        .getSingleOrNull();
     if (cacheStats != null) {
       stats.cacheHitRate = cacheStats.data['hit_rate'] as double?;
     }
@@ -333,17 +335,16 @@ class DatabaseStatistics {
   double? cacheHitRate;
 
   Map<String, dynamic> toJson() => {
-        'note_count': noteCount,
-        'folder_count': folderCount,
-        'tag_count': tagCount,
-        'reminder_count': reminderCount,
-        'task_count': taskCount,
-        'pending_ops_count': pendingOpsCount,
-        'database_size_bytes': databaseSizeBytes,
-        'database_size_mb':
-            (databaseSizeBytes / (1024 * 1024)).toStringAsFixed(2),
-        'cache_hit_rate': cacheHitRate,
-      };
+    'note_count': noteCount,
+    'folder_count': folderCount,
+    'tag_count': tagCount,
+    'reminder_count': reminderCount,
+    'task_count': taskCount,
+    'pending_ops_count': pendingOpsCount,
+    'database_size_bytes': databaseSizeBytes,
+    'database_size_mb': (databaseSizeBytes / (1024 * 1024)).toStringAsFixed(2),
+    'cache_hit_rate': cacheHitRate,
+  };
 }
 
 /// Provider for database optimizer

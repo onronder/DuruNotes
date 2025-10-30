@@ -4,7 +4,8 @@ import 'package:duru_notes/core/sync/sync_integrity_validator.dart';
 import 'package:duru_notes/core/sync/conflict_resolution_engine.dart';
 import 'package:duru_notes/core/sync/data_consistency_checker.dart';
 import 'package:duru_notes/core/sync/sync_recovery_manager.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/features/notes/providers/notes_repository_providers.dart'
@@ -33,7 +34,9 @@ final syncIntegrityValidatorProvider = Provider<SyncIntegrityValidator>((ref) {
 });
 
 /// Provider for conflict resolution engine
-final conflictResolutionEngineProvider = Provider<ConflictResolutionEngine>((ref) {
+final conflictResolutionEngineProvider = Provider<ConflictResolutionEngine>((
+  ref,
+) {
   final appDb = ref.watch(appDbProvider);
   final remoteApi = ref.watch(supabaseNoteApiProvider);
   final logger = ref.watch(loggerProvider);
@@ -88,57 +91,66 @@ final syncRecoveryManagerProvider = Provider<SyncRecoveryManager>((ref) {
 });
 
 /// Provider for running sync integrity validation
-final syncValidationProvider = FutureProvider.family<ValidationResult, SyncValidationParams>(
-  (ref, params) async {
-    final validator = ref.watch(syncIntegrityValidatorProvider);
+final syncValidationProvider =
+    FutureProvider.family<ValidationResult, SyncValidationParams>((
+      ref,
+      params,
+    ) async {
+      final validator = ref.watch(syncIntegrityValidatorProvider);
 
-    return validator.validateSyncIntegrity(
-      deepValidation: params.deepValidation,
-      validationWindow: params.validationWindow,
-    );
-  },
-);
+      return validator.validateSyncIntegrity(
+        deepValidation: params.deepValidation,
+        validationWindow: params.validationWindow,
+      );
+    });
 
 /// Provider for conflict detection and resolution
-final conflictResolutionProvider = FutureProvider.family<ConflictResolutionResult, ConflictResolutionParams>(
-  (ref, params) async {
-    final engine = ref.watch(conflictResolutionEngineProvider);
+final conflictResolutionProvider =
+    FutureProvider.family<ConflictResolutionResult, ConflictResolutionParams>((
+      ref,
+      params,
+    ) async {
+      final engine = ref.watch(conflictResolutionEngineProvider);
 
-    return engine.detectAndResolveNoteConflicts(
-      strategy: params.strategy,
-      conflictWindow: params.conflictWindow,
-    );
-  },
-);
+      return engine.detectAndResolveNoteConflicts(
+        strategy: params.strategy,
+        conflictWindow: params.conflictWindow,
+      );
+    });
 
 /// Provider for data consistency checking
-final consistencyCheckProvider = FutureProvider.family<ConsistencyCheckResult, ConsistencyCheckParams>(
-  (ref, params) async {
-    final checker = ref.watch(dataConsistencyCheckerProvider);
+final consistencyCheckProvider =
+    FutureProvider.family<ConsistencyCheckResult, ConsistencyCheckParams>((
+      ref,
+      params,
+    ) async {
+      final checker = ref.watch(dataConsistencyCheckerProvider);
 
-    return checker.performConsistencyCheck(
-      checkSince: params.checkSince,
-      deepCheck: params.deepCheck,
-      specificTables: params.specificTables,
-    );
-  },
-);
+      return checker.performConsistencyCheck(
+        checkSince: params.checkSince,
+        deepCheck: params.deepCheck,
+        specificTables: params.specificTables,
+      );
+    });
 
 /// Provider for sync recovery operations
-final syncRecoveryProvider = FutureProvider.family<SyncRecoveryResult, SyncRecoveryParams>(
-  (ref, params) async {
-    final recoveryManager = ref.watch(syncRecoveryManagerProvider);
+final syncRecoveryProvider =
+    FutureProvider.family<SyncRecoveryResult, SyncRecoveryParams>((
+      ref,
+      params,
+    ) async {
+      final recoveryManager = ref.watch(syncRecoveryManagerProvider);
 
-    return recoveryManager.recoverSync(
-      strategy: params.strategy,
-      recoveryWindow: params.recoveryWindow,
-      forceRecovery: params.forceRecovery,
-    );
-  },
-);
+      return recoveryManager.recoverSync(
+        strategy: params.strategy,
+        recoveryWindow: params.recoveryWindow,
+        forceRecovery: params.forceRecovery,
+      );
+    });
 
 /// State notifier for managing sync verification operations
-class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerificationState>> {
+class SyncVerificationNotifier
+    extends StateNotifier<AsyncValue<SyncVerificationState>> {
   final SyncIntegrityValidator _validator;
   final ConflictResolutionEngine _conflictEngine;
   final DataConsistencyChecker _consistencyChecker;
@@ -149,16 +161,17 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
     required ConflictResolutionEngine conflictEngine,
     required DataConsistencyChecker consistencyChecker,
     required SyncRecoveryManager recoveryManager,
-  })  : _validator = validator,
-        _conflictEngine = conflictEngine,
-        _consistencyChecker = consistencyChecker,
-        _recoveryManager = recoveryManager,
-        super(AsyncValue.data(SyncVerificationState.initial()));
+  }) : _validator = validator,
+       _conflictEngine = conflictEngine,
+       _consistencyChecker = consistencyChecker,
+       _recoveryManager = recoveryManager,
+       super(AsyncValue.data(SyncVerificationState.initial()));
 
   /// Perform comprehensive sync verification
   Future<void> performFullVerification({
     bool deepValidation = true,
-    ConflictResolutionStrategy conflictStrategy = ConflictResolutionStrategy.lastWriteWins,
+    ConflictResolutionStrategy conflictStrategy =
+        ConflictResolutionStrategy.lastWriteWins,
   }) async {
     state = const AsyncValue.loading();
 
@@ -172,15 +185,13 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
       verificationState.validationResult = validationResult;
 
       // Step 2: Conflict detection and resolution
-      final conflictResult = await _conflictEngine.detectAndResolveNoteConflicts(
-        strategy: conflictStrategy,
-      );
+      final conflictResult = await _conflictEngine
+          .detectAndResolveNoteConflicts(strategy: conflictStrategy);
       verificationState.conflictResult = conflictResult;
 
       // Step 3: Consistency checking
-      final consistencyResult = await _consistencyChecker.performConsistencyCheck(
-        deepCheck: deepValidation,
-      );
+      final consistencyResult = await _consistencyChecker
+          .performConsistencyCheck(deepCheck: deepValidation);
       verificationState.consistencyResult = consistencyResult;
 
       // Step 4: Recovery if needed
@@ -195,7 +206,6 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
       verificationState.completedAt = DateTime.now();
 
       state = AsyncValue.data(verificationState);
-
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }
@@ -215,16 +225,14 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
       verificationState.validationResult = validationResult;
 
       // Quick consistency check
-      final consistencyResult = await _consistencyChecker.performConsistencyCheck(
-        deepCheck: false,
-      );
+      final consistencyResult = await _consistencyChecker
+          .performConsistencyCheck(deepCheck: false);
       verificationState.consistencyResult = consistencyResult;
 
       verificationState.isCompleted = true;
       verificationState.completedAt = DateTime.now();
 
       state = AsyncValue.data(verificationState);
-
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }
@@ -244,13 +252,15 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
 
     // Deduct for validation issues
     if (currentState.validationResult?.isValid == false) {
-      final criticalIssues = currentState.validationResult!.criticalIssues.length;
+      final criticalIssues =
+          currentState.validationResult!.criticalIssues.length;
       score -= (criticalIssues * 0.2);
     }
 
     // Deduct for consistency issues
     if (currentState.consistencyResult?.isConsistent == false) {
-      final criticalIssues = currentState.consistencyResult!.criticalIssues.length;
+      final criticalIssues =
+          currentState.consistencyResult!.criticalIssues.length;
       score -= (criticalIssues * 0.2);
     }
 
@@ -264,19 +274,23 @@ class SyncVerificationNotifier extends StateNotifier<AsyncValue<SyncVerification
 }
 
 /// Provider for sync verification state management
-final syncVerificationProvider = StateNotifierProvider<SyncVerificationNotifier, AsyncValue<SyncVerificationState>>((ref) {
-  final validator = ref.watch(syncIntegrityValidatorProvider);
-  final conflictEngine = ref.watch(conflictResolutionEngineProvider);
-  final consistencyChecker = ref.watch(dataConsistencyCheckerProvider);
-  final recoveryManager = ref.watch(syncRecoveryManagerProvider);
+final syncVerificationProvider =
+    StateNotifierProvider<
+      SyncVerificationNotifier,
+      AsyncValue<SyncVerificationState>
+    >((ref) {
+      final validator = ref.watch(syncIntegrityValidatorProvider);
+      final conflictEngine = ref.watch(conflictResolutionEngineProvider);
+      final consistencyChecker = ref.watch(dataConsistencyCheckerProvider);
+      final recoveryManager = ref.watch(syncRecoveryManagerProvider);
 
-  return SyncVerificationNotifier(
-    validator: validator,
-    conflictEngine: conflictEngine,
-    consistencyChecker: consistencyChecker,
-    recoveryManager: recoveryManager,
-  );
-});
+      return SyncVerificationNotifier(
+        validator: validator,
+        conflictEngine: conflictEngine,
+        consistencyChecker: consistencyChecker,
+        recoveryManager: recoveryManager,
+      );
+    });
 
 /// Provider for sync health monitoring
 final syncHealthProvider = Provider<double>((ref) {
@@ -304,10 +318,7 @@ class SyncValidationParams {
   final bool deepValidation;
   final DateTime? validationWindow;
 
-  SyncValidationParams({
-    this.deepValidation = false,
-    this.validationWindow,
-  });
+  SyncValidationParams({this.deepValidation = false, this.validationWindow});
 
   @override
   bool operator ==(Object other) =>

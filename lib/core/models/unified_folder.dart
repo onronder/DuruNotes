@@ -21,8 +21,9 @@ abstract class UnifiedFolder {
 
   // Factory constructors to create from different sources
   factory UnifiedFolder.fromLocal(LocalFolder folder) = _UnifiedFolderFromLocal;
-  factory UnifiedFolder.fromDomain(domain.Folder folder) = _UnifiedFolderFromDomain;
-  
+  factory UnifiedFolder.fromDomain(domain.Folder folder) =
+      _UnifiedFolderFromDomain;
+
   // Smart factory that detects type
   factory UnifiedFolder.from(dynamic folder) {
     if (folder is LocalFolder) return UnifiedFolder.fromLocal(folder);
@@ -223,8 +224,9 @@ class UnifiedFolderList {
   }
 
   // Helper to get folders as a tree structure
-  List<UnifiedFolder> get rootFolders => folders.where((f) => f.isRoot).toList();
-  
-  List<UnifiedFolder> getChildren(String parentId) => 
+  List<UnifiedFolder> get rootFolders =>
+      folders.where((f) => f.isRoot).toList();
+
+  List<UnifiedFolder> getChildren(String parentId) =>
       folders.where((f) => f.parentId == parentId).toList();
 }

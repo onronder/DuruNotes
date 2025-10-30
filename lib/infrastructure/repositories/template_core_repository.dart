@@ -81,11 +81,7 @@ class TemplateCoreRepository implements ITemplateRepository {
     );
   }
 
-  void _auditAccess(
-    String resource, {
-    required bool granted,
-    String? reason,
-  }) {
+  void _auditAccess(String resource, {required bool granted, String? reason}) {
     unawaited(
       _securityAuditTrail.logAccess(
         resource: resource,
@@ -98,10 +94,7 @@ class TemplateCoreRepository implements ITemplateRepository {
   String? _requireUserId({required String method, Map<String, dynamic>? data}) {
     final userId = _currentUserId();
     if (userId == null || userId.isEmpty) {
-      _logger.warning(
-        '$method denied - unauthenticated user',
-        data: data,
-      );
+      _logger.warning('$method denied - unauthenticated user', data: data);
       _captureRepositoryException(
         method: method,
         error: StateError('Unauthenticated access'),
@@ -109,11 +102,7 @@ class TemplateCoreRepository implements ITemplateRepository {
         data: data,
         level: SentryLevel.warning,
       );
-      _auditAccess(
-        'templates.$method',
-        granted: false,
-        reason: 'missing_user',
-      );
+      _auditAccess('templates.$method', granted: false, reason: 'missing_user');
       return null;
     }
     return userId;
@@ -781,7 +770,9 @@ class TemplateCoreRepository implements ITemplateRepository {
         data: {'templateId': templateId},
       );
       if (userId == null) {
-        throw StateError('User must be authenticated to create note from template');
+        throw StateError(
+          'User must be authenticated to create note from template',
+        );
       }
 
       String? resolveStringValue(Map<String, dynamic> source, String key) {

@@ -36,7 +36,6 @@ class TransactionManager {
 
       debugPrint('✅ Transaction completed: $operationName');
       return result;
-
     } catch (error) {
       debugPrint('❌ Transaction failed: $operationName - $error');
       rethrow;
@@ -52,25 +51,26 @@ class TransactionManager {
     String batchName,
     List<Future<T> Function(DatabaseConnectionUser db)> operations,
   ) async {
-    return await executeInTransaction<List<T>>(
-      'batch_$batchName',
-      (db) async {
-        final results = <T>[];
+    return await executeInTransaction<List<T>>('batch_$batchName', (db) async {
+      final results = <T>[];
 
-        for (int i = 0; i < operations.length; i++) {
-          try {
-            final result = await operations[i](db);
-            results.add(result);
-            debugPrint('✓ Batch operation ${i + 1}/${operations.length} completed: $batchName');
-          } catch (error) {
-            debugPrint('❌ Batch operation ${i + 1}/${operations.length} failed: $batchName - $error');
-            rethrow; // This will roll back the entire transaction
-          }
+      for (int i = 0; i < operations.length; i++) {
+        try {
+          final result = await operations[i](db);
+          results.add(result);
+          debugPrint(
+            '✓ Batch operation ${i + 1}/${operations.length} completed: $batchName',
+          );
+        } catch (error) {
+          debugPrint(
+            '❌ Batch operation ${i + 1}/${operations.length} failed: $batchName - $error',
+          );
+          rethrow; // This will roll back the entire transaction
         }
+      }
 
-        return results;
-      },
-    );
+      return results;
+    });
   }
 
   /// Execute note-related operations atomically
@@ -78,14 +78,11 @@ class TransactionManager {
     String noteId,
     List<Future<void> Function(DatabaseConnectionUser db)> operations,
   ) async {
-    await executeInTransaction<void>(
-      'note_ops_$noteId',
-      (db) async {
-        for (final operation in operations) {
-          await operation(db);
-        }
-      },
-    );
+    await executeInTransaction<void>('note_ops_$noteId', (db) async {
+      for (final operation in operations) {
+        await operation(db);
+      }
+    });
   }
 
   /// Execute sync operations atomically to prevent partial sync states
@@ -108,7 +105,9 @@ class TransactionManager {
         .toList();
 
     if (activeCompleters.isNotEmpty) {
-      debugPrint('⏳ Waiting for ${activeCompleters.length} active transactions to complete');
+      debugPrint(
+        '⏳ Waiting for ${activeCompleters.length} active transactions to complete',
+      );
       await Future.wait(activeCompleters.map((c) => c.future));
     }
   }
@@ -142,26 +141,26 @@ class TransactionManager {
     Map<String, dynamic> noteData,
     Uint8List? encryptedMetadata,
   ) async {
-    await executeSyncOperation<void>(
-      'note',
-      noteId,
-      (db) async {
-        // Validate encrypted metadata before insertion
-        if (encryptedMetadata != null) {
-          await _validateEncryptedMetadata(encryptedMetadata);
-        }
+    await executeSyncOperation<void>('note', noteId, (db) async {
+      // Validate encrypted metadata before insertion
+      if (encryptedMetadata != null) {
+        await _validateEncryptedMetadata(encryptedMetadata);
+      }
 
-        // Perform the actual sync operation within the transaction
-        await db.customStatement('''
+      // Perform the actual sync operation within the transaction
+      await db.customStatement(
+        '''
           INSERT OR REPLACE INTO local_notes (
             id, title, body, updated_at, deleted, encrypted_metadata,
             is_pinned, note_type, version, user_id, attachment_meta, metadata
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
+        ''',
+        [
           noteData['id'],
           noteData['title'] ?? '',
           noteData['body'] ?? '',
-          (noteData['updated_at'] as DateTime?)?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
+          (noteData['updated_at'] as DateTime?)?.millisecondsSinceEpoch ??
+              DateTime.now().millisecondsSinceEpoch,
           noteData['deleted'] == true ? 1 : 0,
           encryptedMetadata,
           noteData['is_pinned'] == true ? 1 : 0,
@@ -170,20 +169,24 @@ class TransactionManager {
           noteData['user_id'],
           noteData['attachment_meta'],
           noteData['metadata'],
-        ]);
-      },
-    );
+        ],
+      );
+    });
   }
 
   /// Validate encrypted metadata before database insertion
   Future<void> _validateEncryptedMetadata(Uint8List data) async {
     // Check for corruption patterns
     if (data.length == 2 && data[0] == 91 && data[1] == 93) {
-      throw FormatException('Corrupted encrypted metadata: Empty JSON array detected');
+      throw FormatException(
+        'Corrupted encrypted metadata: Empty JSON array detected',
+      );
     }
 
     if (data.length < 32) {
-      throw FormatException('Invalid encrypted metadata size: ${data.length} bytes (minimum 32 required)');
+      throw FormatException(
+        'Invalid encrypted metadata size: ${data.length} bytes (minimum 32 required)',
+      );
     }
 
     // Try to parse as UTF-8 JSON to verify structure
@@ -193,11 +196,17 @@ class TransactionManager {
 
       if (parsed is Map<String, dynamic>) {
         // Check for required SecretBox keys
-        if (!parsed.containsKey('n') || !parsed.containsKey('c') || !parsed.containsKey('m')) {
-          throw FormatException('Invalid SecretBox structure: Missing required keys (n, c, m)');
+        if (!parsed.containsKey('n') ||
+            !parsed.containsKey('c') ||
+            !parsed.containsKey('m')) {
+          throw FormatException(
+            'Invalid SecretBox structure: Missing required keys (n, c, m)',
+          );
         }
       } else {
-        throw FormatException('Invalid encrypted metadata: Expected JSON object, got ${parsed.runtimeType}');
+        throw FormatException(
+          'Invalid encrypted metadata: Expected JSON object, got ${parsed.runtimeType}',
+        );
       }
     } catch (e) {
       throw FormatException('Invalid encrypted metadata format: $e');

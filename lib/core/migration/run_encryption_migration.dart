@@ -46,12 +46,15 @@ class EncryptionMigrationRunner {
       );
 
       if (result.success) {
-        logger.info('Encryption migration completed successfully', data: {
-          'totalItems': result.totalItems,
-          'migratedItems': result.migratedItems,
-          'skippedItems': result.skippedItems,
-          'failedItems': result.failedItems,
-        });
+        logger.info(
+          'Encryption migration completed successfully',
+          data: {
+            'totalItems': result.totalItems,
+            'migratedItems': result.migratedItems,
+            'skippedItems': result.skippedItems,
+            'failedItems': result.failedItems,
+          },
+        );
 
         // Mark migration as run
         await prefs.setBool(_migrationRunKey, true);
@@ -65,11 +68,14 @@ class EncryptionMigrationRunner {
           logger.error('Migration validation failed - manual review required');
         }
       } else {
-        logger.error('Encryption migration failed', data: {
-          'errors': result.errors,
-          'totalItems': result.totalItems,
-          'failedItems': result.failedItems,
-        });
+        logger.error(
+          'Encryption migration failed',
+          data: {
+            'errors': result.errors,
+            'totalItems': result.totalItems,
+            'failedItems': result.failedItems,
+          },
+        );
 
         // Don't mark as complete if migration failed
         // This allows retry on next app launch
@@ -113,7 +119,9 @@ class EncryptionMigrationRunner {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_migrationRunKey);
     await prefs.remove(_migrationValidatedKey);
-    await prefs.remove('encryption_format_migration_v1'); // Remove the migration's own flag
+    await prefs.remove(
+      'encryption_format_migration_v1',
+    ); // Remove the migration's own flag
 
     await runMigrationIfNeeded(ref);
   }
@@ -125,7 +133,8 @@ class EncryptionMigrationRunner {
     return MigrationStatus(
       hasRun: prefs.getBool(_migrationRunKey) ?? false,
       isValidated: prefs.getBool(_migrationValidatedKey) ?? false,
-      migrationCompleted: prefs.getBool('encryption_format_migration_v1') ?? false,
+      migrationCompleted:
+          prefs.getBool('encryption_format_migration_v1') ?? false,
     );
   }
 }
@@ -145,9 +154,9 @@ class MigrationStatus {
   bool get isFullyComplete => hasRun && isValidated && migrationCompleted;
 
   Map<String, dynamic> toJson() => {
-        'hasRun': hasRun,
-        'isValidated': isValidated,
-        'migrationCompleted': migrationCompleted,
-        'isFullyComplete': isFullyComplete,
-      };
+    'hasRun': hasRun,
+    'isValidated': isValidated,
+    'migrationCompleted': migrationCompleted,
+    'isFullyComplete': isFullyComplete,
+  };
 }

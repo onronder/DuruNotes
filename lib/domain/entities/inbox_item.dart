@@ -28,7 +28,8 @@ class InboxItem {
   String? get emailSubject => isEmail ? payload['subject'] as String? : null;
   String? get emailText => isEmail ? payload['text'] as String? : null;
   String? get emailHtml => isEmail ? payload['html'] as String? : null;
-  String? get emailMessageId => isEmail ? payload['message_id'] as String? : null;
+  String? get emailMessageId =>
+      isEmail ? payload['message_id'] as String? : null;
 
   // Web clip-specific getters
   String? get webTitle => isWebClip ? payload['title'] as String? : null;
@@ -128,9 +129,7 @@ class InboxItem {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is InboxItem &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is InboxItem && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

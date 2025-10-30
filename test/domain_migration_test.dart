@@ -1,4 +1,3 @@
-
 void main() {
   /* COMMENTED OUT - Tests use old database schema (190 errors)
    * These tests reference old Note/Task/Folder models with properties

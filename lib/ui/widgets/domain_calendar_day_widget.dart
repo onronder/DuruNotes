@@ -28,13 +28,19 @@ class DomainCalendarDayWidget extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     // Determine task priority levels
-    final hasUrgent = tasks.any((t) => t.priority == domain.TaskPriority.urgent);
+    final hasUrgent = tasks.any(
+      (t) => t.priority == domain.TaskPriority.urgent,
+    );
     final hasHigh = tasks.any((t) => t.priority == domain.TaskPriority.high);
-    final hasMedium = tasks.any((t) => t.priority == domain.TaskPriority.medium);
-    final hasOverdue = tasks.any((t) =>
-        t.dueDate != null &&
-        t.dueDate!.isBefore(DateTime.now()) &&
-        t.status != domain.TaskStatus.completed);
+    final hasMedium = tasks.any(
+      (t) => t.priority == domain.TaskPriority.medium,
+    );
+    final hasOverdue = tasks.any(
+      (t) =>
+          t.dueDate != null &&
+          t.dueDate!.isBefore(DateTime.now()) &&
+          t.status != domain.TaskStatus.completed,
+    );
 
     // Determine indicator color based on highest priority
     Color? indicatorColor;
@@ -51,10 +57,12 @@ class DomainCalendarDayWidget extends StatelessWidget {
     }
 
     // Filter incomplete tasks for count
-    final incompleteTasks =
-        tasks.where((t) => t.status != domain.TaskStatus.completed).toList();
-    final completedTasks =
-        tasks.where((t) => t.status == domain.TaskStatus.completed).toList();
+    final incompleteTasks = tasks
+        .where((t) => t.status != domain.TaskStatus.completed)
+        .toList();
+    final completedTasks = tasks
+        .where((t) => t.status == domain.TaskStatus.completed)
+        .toList();
 
     return Material(
       color: Colors.transparent,
@@ -167,10 +175,7 @@ class DomainCalendarDayWidget extends StatelessWidget {
 
   Border? _getBorder(ColorScheme colorScheme) {
     if (isToday && !isSelected) {
-      return Border.all(
-        color: colorScheme.primary,
-        width: 2,
-      );
+      return Border.all(color: colorScheme.primary, width: 2);
     }
     return null;
   }
@@ -265,7 +270,8 @@ class DomainCalendarMonthWidget extends StatelessWidget {
             final date = days[index];
             final dateKey = DateTime(date.year, date.month, date.day);
             final tasks = tasksByDate[dateKey] ?? [];
-            final isSelected = selectedDate != null &&
+            final isSelected =
+                selectedDate != null &&
                 selectedDate!.year == date.year &&
                 selectedDate!.month == date.month &&
                 selectedDate!.day == date.day;

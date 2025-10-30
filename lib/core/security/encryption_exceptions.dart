@@ -39,12 +39,13 @@ class EncryptionKeyUnavailableException extends EncryptionException {
     String? recoverySuggestion,
     this.requiresDeviceSecurity = true,
   }) : super(
-          message ?? 'Encryption keys are unavailable',
-          code: code ?? 'ENCRYPTION_KEY_UNAVAILABLE',
-          recoverySuggestion: recoverySuggestion ??
-              'Please ensure your device has a screen lock (PIN, pattern, or biometric) '
-              'enabled. This is required for secure data storage.',
-        );
+         message ?? 'Encryption keys are unavailable',
+         code: code ?? 'ENCRYPTION_KEY_UNAVAILABLE',
+         recoverySuggestion:
+             recoverySuggestion ??
+             'Please ensure your device has a screen lock (PIN, pattern, or biometric) '
+                 'enabled. This is required for secure data storage.',
+       );
 
   /// Whether this error requires device security to be enabled
   final bool requiresDeviceSecurity;
@@ -104,12 +105,13 @@ class DatabaseEncryptionException extends EncryptionException {
     this.operation,
     this.underlyingError,
   }) : super(
-          message ?? 'Database encryption operation failed',
-          code: code ?? 'DATABASE_ENCRYPTION_FAILED',
-          recoverySuggestion: recoverySuggestion ??
-              'A database encryption error occurred. '
-              'Your data is safe, but the operation could not be completed.',
-        );
+         message ?? 'Database encryption operation failed',
+         code: code ?? 'DATABASE_ENCRYPTION_FAILED',
+         recoverySuggestion:
+             recoverySuggestion ??
+             'A database encryption error occurred. '
+                 'Your data is safe, but the operation could not be completed.',
+       );
 
   /// The operation that failed (e.g., 'encrypt', 'decrypt', 'key_rotation')
   final String? operation;
@@ -169,10 +171,10 @@ class NoteEncryptionException extends EncryptionException {
     this.noteId,
     this.operation,
   }) : super(
-          message ?? 'Note encryption operation failed',
-          code: code ?? 'NOTE_ENCRYPTION_FAILED',
-          recoverySuggestion: recoverySuggestion,
-        );
+         message ?? 'Note encryption operation failed',
+         code: code ?? 'NOTE_ENCRYPTION_FAILED',
+         recoverySuggestion: recoverySuggestion,
+       );
 
   /// The ID of the note that failed to encrypt/decrypt
   final String? noteId;
@@ -197,11 +199,12 @@ class KeyDerivationException extends EncryptionException {
     String? recoverySuggestion,
     this.algorithm,
   }) : super(
-          message ?? 'Key derivation failed',
-          code: code ?? 'KEY_DERIVATION_FAILED',
-          recoverySuggestion: recoverySuggestion ??
-              'Failed to derive encryption key. This is a system-level error.',
-        );
+         message ?? 'Key derivation failed',
+         code: code ?? 'KEY_DERIVATION_FAILED',
+         recoverySuggestion:
+             recoverySuggestion ??
+             'Failed to derive encryption key. This is a system-level error.',
+       );
 
   /// The key derivation algorithm that failed (e.g., 'PBKDF2', 'HKDF')
   final String? algorithm;

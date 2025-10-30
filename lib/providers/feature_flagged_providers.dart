@@ -6,7 +6,8 @@ library;
 
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/reminders/reminder_coordinator.dart';
 import 'package:duru_notes/services/permission_manager.dart';
@@ -16,8 +17,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final _logger = LoggerFactory.instance;
 
 /// Feature flag provider for easy access
-final featureFlagsProvider =
-    Provider<FeatureFlags>((ref) => FeatureFlags.instance);
+final featureFlagsProvider = Provider<FeatureFlags>(
+  (ref) => FeatureFlags.instance,
+);
 
 /// Reminder coordinator provider (unified implementation)
 /// Phase 1 complete - always uses refactored implementation
@@ -32,15 +34,19 @@ final featureFlaggedReminderCoordinatorProvider = Provider<dynamic>((ref) {
 
   // Initialize on creation
   coordinator.initialize().catchError((Object error) {
-    _logger.error('[FeatureFlags] Error initializing coordinator', error: error);
+    _logger.error(
+      '[FeatureFlags] Error initializing coordinator',
+      error: error,
+    );
   });
 
   return coordinator;
 });
 
 /// Feature-flagged permission manager provider
-final featureFlaggedPermissionManagerProvider =
-    Provider<PermissionManager>((ref) {
+final featureFlaggedPermissionManagerProvider = Provider<PermissionManager>((
+  ref,
+) {
   final featureFlags = ref.watch(featureFlagsProvider);
 
   if (featureFlags.useUnifiedPermissionManager) {
@@ -58,19 +64,18 @@ final featureFlaggedPermissionManagerProvider =
 /// Phase 1 complete - uses unified implementation
 final featureFlaggedAdvancedReminderServiceProvider =
     Provider<AdvancedReminderService>((ref) {
-  final plugin = FlutterLocalNotificationsPlugin();
-  final db = ref.read(appDbProvider);
+      final plugin = FlutterLocalNotificationsPlugin();
+      final db = ref.read(appDbProvider);
 
-  _logger.debug('[FeatureFlags] ✅ Using unified AdvancedReminderService');
+      _logger.debug('[FeatureFlags] ✅ Using unified AdvancedReminderService');
 
-  return AdvancedReminderService(ref, plugin, db);
-});
+      return AdvancedReminderService(ref, plugin, db);
+    });
 
 /// Helper function to check if refactored components should be used
 bool shouldUseRefactoredComponents() {
   return FeatureFlags.instance.useRefactoredComponents;
 }
-
 
 /// Helper function to check if new block editor should be used
 bool shouldUseNewBlockEditor() {
@@ -82,7 +87,6 @@ extension FeatureFlagExtensions on WidgetRef {
   /// Check if refactored components should be used
   bool get useRefactoredComponents =>
       read(featureFlagsProvider).useRefactoredComponents;
-
 
   /// Check if new block editor should be used
   bool get useNewBlockEditor => read(featureFlagsProvider).useNewBlockEditor;

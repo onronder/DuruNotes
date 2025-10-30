@@ -10,15 +10,28 @@ import 'package:crypto/crypto.dart';
 /// - LDAP injection
 /// - NoSQL injection
 class InputValidationService {
-  static final InputValidationService _instance = InputValidationService._internal();
+  static final InputValidationService _instance =
+      InputValidationService._internal();
   factory InputValidationService() => _instance;
   InputValidationService._internal();
 
   // XSS Protection Patterns
-  static final RegExp _scriptPattern = RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false);
-  static final RegExp _eventHandlerPattern = RegExp(r'on\w+\s*=', caseSensitive: false);
-  static final RegExp _javascriptUrlPattern = RegExp(r'javascript:', caseSensitive: false);
-  static final RegExp _dataUrlPattern = RegExp(r'data:text/html', caseSensitive: false);
+  static final RegExp _scriptPattern = RegExp(
+    r'<script[^>]*>.*?</script>',
+    caseSensitive: false,
+  );
+  static final RegExp _eventHandlerPattern = RegExp(
+    r'on\w+\s*=',
+    caseSensitive: false,
+  );
+  static final RegExp _javascriptUrlPattern = RegExp(
+    r'javascript:',
+    caseSensitive: false,
+  );
+  static final RegExp _dataUrlPattern = RegExp(
+    r'data:text/html',
+    caseSensitive: false,
+  );
 
   // SQL Injection Protection Patterns
   static final RegExp _sqlKeywordPattern = RegExp(
@@ -26,16 +39,22 @@ class InputValidationService {
     caseSensitive: false,
   );
   static final RegExp _sqlCommentPattern = RegExp(r'(--|#|/\*|\*/|@@|@)');
-  static final RegExp _sqlOperatorPattern = RegExp(r'''('|"|;|\\|`|\||&|%|=|<|>|\^|\*|\+|-|/)''');
+  static final RegExp _sqlOperatorPattern = RegExp(
+    r'''('|"|;|\\|`|\||&|%|=|<|>|\^|\*|\+|-|/)''',
+  );
 
   // Path Traversal Protection
-  static final RegExp _pathTraversalPattern = RegExp(r'(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.%2e/|%2e\./|%2e%2e\\)');
+  static final RegExp _pathTraversalPattern = RegExp(
+    r'(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.%2e/|%2e\./|%2e%2e\\)',
+  );
 
   // Command Injection Protection
   static final RegExp _commandInjectionPattern = RegExp(r'[;&|`$(){}[\]<>\\]');
 
   // NoSQL Injection Protection
-  static final RegExp _noSqlPattern = RegExp(r'(\$ne|\$gt|\$lt|\$gte|\$lte|\$in|\$nin|\$regex|\$where|\$exists)');
+  static final RegExp _noSqlPattern = RegExp(
+    r'(\$ne|\$gt|\$lt|\$gte|\$lte|\$in|\$nin|\$regex|\$where|\$exists)',
+  );
 
   // Email Validation
   static final RegExp _emailPattern = RegExp(
@@ -66,10 +85,14 @@ class InputValidationService {
 
     // Length validation
     if (minLength != null && input.length < minLength) {
-      throw ValidationException('$fieldName must be at least $minLength characters long');
+      throw ValidationException(
+        '$fieldName must be at least $minLength characters long',
+      );
     }
     if (maxLength != null && input.length > maxLength) {
-      throw ValidationException('$fieldName must not exceed $maxLength characters');
+      throw ValidationException(
+        '$fieldName must not exceed $maxLength characters',
+      );
     }
 
     // Check blacklisted words
@@ -90,7 +113,9 @@ class InputValidationService {
     // XSS Protection
     if (!allowHtml) {
       if (_containsXssPattern(input)) {
-        throw ValidationException('$fieldName contains potentially malicious content');
+        throw ValidationException(
+          '$fieldName contains potentially malicious content',
+        );
       }
       input = _sanitizeHtml(input);
     }
@@ -102,7 +127,9 @@ class InputValidationService {
 
     // Command Injection Protection
     if (!allowSpecialChars && _commandInjectionPattern.hasMatch(input)) {
-      throw ValidationException('$fieldName contains invalid special characters');
+      throw ValidationException(
+        '$fieldName contains invalid special characters',
+      );
     }
 
     return input.trim();
@@ -155,7 +182,11 @@ class InputValidationService {
   }
 
   /// Validates URLs
-  String? validateUrl(String? url, {bool required = false, List<String>? allowedDomains}) {
+  String? validateUrl(
+    String? url, {
+    bool required = false,
+    List<String>? allowedDomains,
+  }) {
     if (url == null || url.isEmpty) {
       if (required) throw ValidationException('URL is required');
       return null;
@@ -184,7 +215,11 @@ class InputValidationService {
   }
 
   /// Validates file paths (prevents path traversal)
-  String? validateFilePath(String? path, {bool required = false, String? basePath}) {
+  String? validateFilePath(
+    String? path, {
+    bool required = false,
+    String? basePath,
+  }) {
     if (path == null || path.isEmpty) {
       if (required) throw ValidationException('File path is required');
       return null;
@@ -281,7 +316,11 @@ class InputValidationService {
   }
 
   /// Validate CSRF token
-  bool validateCsrfToken(String token, String sessionId, {Duration maxAge = const Duration(hours: 1)}) {
+  bool validateCsrfToken(
+    String token,
+    String sessionId, {
+    Duration maxAge = const Duration(hours: 1),
+  }) {
     try {
       // Token format validation
       if (token.length != 64) return false;
@@ -304,12 +343,37 @@ class InputValidationService {
   String sanitizeHtml(String html) {
     // Define allowed tags (whitelist approach)
     const allowedTags = {
-      'p', 'br', 'b', 'i', 'u', 'em', 'strong', 'mark', 'del', 'ins',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li',
-      'a', 'span', 'div',
-      'blockquote', 'code', 'pre',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'p',
+      'br',
+      'b',
+      'i',
+      'u',
+      'em',
+      'strong',
+      'mark',
+      'del',
+      'ins',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'a',
+      'span',
+      'div',
+      'blockquote',
+      'code',
+      'pre',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
     };
 
     // Define allowed attributes per tag
@@ -336,15 +400,39 @@ class InputValidationService {
     sanitized = sanitized.replaceAll(_dataUrlPattern, '');
 
     // Step 4: Remove style tags (to prevent CSS injection)
-    sanitized = sanitized.replaceAll(RegExp(r'<style[^>]*>.*?</style>', caseSensitive: false), '');
+    sanitized = sanitized.replaceAll(
+      RegExp(r'<style[^>]*>.*?</style>', caseSensitive: false),
+      '',
+    );
 
     // Step 5: Remove iframe, embed, object tags (security risk)
-    sanitized = sanitized.replaceAll(RegExp(r'<(iframe|embed|object|applet)[^>]*>.*?</\1>', caseSensitive: false), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<(iframe|embed|object|applet)[^>]*/>', caseSensitive: false), '');
+    sanitized = sanitized.replaceAll(
+      RegExp(
+        r'<(iframe|embed|object|applet)[^>]*>.*?</\1>',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    sanitized = sanitized.replaceAll(
+      RegExp(r'<(iframe|embed|object|applet)[^>]*/>', caseSensitive: false),
+      '',
+    );
 
     // Step 6: Remove form-related tags
-    sanitized = sanitized.replaceAll(RegExp(r'<(form|input|button|textarea|select)[^>]*>.*?</\1>', caseSensitive: false), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<(form|input|button|textarea|select)[^>]*/>', caseSensitive: false), '');
+    sanitized = sanitized.replaceAll(
+      RegExp(
+        r'<(form|input|button|textarea|select)[^>]*>.*?</\1>',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    sanitized = sanitized.replaceAll(
+      RegExp(
+        r'<(form|input|button|textarea|select)[^>]*/>',
+        caseSensitive: false,
+      ),
+      '',
+    );
 
     // Step 7: Basic tag filtering - remove tags not in whitelist
     // This is a simplified approach; for production, use a proper HTML parser
@@ -380,7 +468,10 @@ class InputValidationService {
   }
 
   /// Filter attributes to only allow whitelisted attributes per tag
-  String _filterAttributesByWhitelist(String html, Map<String, Set<String>> allowedAttributes) {
+  String _filterAttributesByWhitelist(
+    String html,
+    Map<String, Set<String>> allowedAttributes,
+  ) {
     // Pattern to match HTML opening tags with attributes
     final tagPattern = RegExp(r'<(\w+)([^>]*)>', caseSensitive: false);
 
@@ -448,7 +539,10 @@ class InputValidationService {
   /// Validate and sanitize href URLs
   String _validateHrefUrls(String html) {
     // Pattern to match href attributes
-    final hrefPattern = RegExp(r'''href\s*=\s*["']([^"']*)["']''', caseSensitive: false);
+    final hrefPattern = RegExp(
+      r'''href\s*=\s*["']([^"']*)["']''',
+      caseSensitive: false,
+    );
 
     return html.replaceAllMapped(hrefPattern, (match) {
       final url = match.group(1)!;
@@ -553,11 +647,16 @@ class InputValidationService {
     if (obj is Map) {
       for (final entry in obj.entries) {
         // Validate keys
-        if (entry.key is String && (entry.key as String).contains(RegExp(r'[\$\.]'))) {
+        if (entry.key is String &&
+            (entry.key as String).contains(RegExp(r'[\$\.]'))) {
           throw ValidationException('Invalid JSON key: ${entry.key}');
         }
         // Recursively validate values
-        _validateJsonStructure(entry.value, depth: depth + 1, maxDepth: maxDepth);
+        _validateJsonStructure(
+          entry.value,
+          depth: depth + 1,
+          maxDepth: maxDepth,
+        );
       }
     } else if (obj is List) {
       for (final item in obj) {
@@ -578,11 +677,7 @@ class ValidationException implements Exception {
   final String? fieldName;
   final dynamic invalidValue;
 
-  ValidationException(
-    this.message, {
-    this.fieldName,
-    this.invalidValue,
-  });
+  ValidationException(this.message, {this.fieldName, this.invalidValue});
 
   @override
   String toString() => 'ValidationException: $message';

@@ -60,93 +60,123 @@ void main() {
     });
 
     group('Database Query Performance', () {
-      test('Query 1000 notes with userId filter completes in < 100ms', () async {
-        // Insert 1000 notes for test user
-        final seedTime = DateTime.now();
-        for (int i = 0; i < 1000; i++) {
-          await testDb.into(testDb.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: 'note-$i',
-              userId: const Value('test-user-123'),
-              titleEncrypted: Value('Test Note $i'),
-              bodyEncrypted: Value('Content for note $i'),
-              createdAt: seedTime,
-              updatedAt: seedTime,
-              deleted: const Value(false),
-            ),
+      test(
+        'Query 1000 notes with userId filter completes in < 100ms',
+        () async {
+          // Insert 1000 notes for test user
+          final seedTime = DateTime.now();
+          for (int i = 0; i < 1000; i++) {
+            await testDb
+                .into(testDb.localNotes)
+                .insert(
+                  LocalNotesCompanion.insert(
+                    id: 'note-$i',
+                    userId: const Value('test-user-123'),
+                    titleEncrypted: Value('Test Note $i'),
+                    bodyEncrypted: Value('Content for note $i'),
+                    createdAt: seedTime,
+                    updatedAt: seedTime,
+                    deleted: const Value(false),
+                  ),
+                );
+          }
+
+          // Benchmark query
+          final stopwatch = Stopwatch()..start();
+
+          final result = await testDb
+              .customSelect(
+                'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100',
+                variables: [Variable.withString('test-user-123')],
+              )
+              .get();
+
+          stopwatch.stop();
+
+          expect(result, isNotEmpty);
+          expect(
+            stopwatch.elapsedMilliseconds,
+            lessThan(100),
+            reason: 'Query should complete in < 100ms',
           );
-        }
+        },
+      );
 
-        // Benchmark query
-        final stopwatch = Stopwatch()..start();
-
-        final result = await testDb.customSelect(
-          'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100',
-          variables: [Variable.withString('test-user-123')],
-        ).get();
-
-        stopwatch.stop();
-
-        expect(result, isNotEmpty);
-        expect(stopwatch.elapsedMilliseconds, lessThan(100),
-            reason: 'Query should complete in < 100ms');
-      });
-
-      test('Query 500 folders with userId filter completes in < 50ms', () async {
-        // Insert 500 folders
-        for (int i = 0; i < 500; i++) {
-          await testDb.customStatement(
-            '''
+      test(
+        'Query 500 folders with userId filter completes in < 50ms',
+        () async {
+          // Insert 500 folders
+          for (int i = 0; i < 500; i++) {
+            await testDb.customStatement(
+              '''
             INSERT INTO local_folders (
               id, user_id, name, parent_id, path, created_at, updated_at, deleted
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''',
-            [
-              'folder-$i',
-              'test-user-123',
-              'Folder $i',
-              null,
-              '/Folder $i',
-              DateTime.now().millisecondsSinceEpoch,
-              DateTime.now().millisecondsSinceEpoch,
-              0,
-            ],
+              [
+                'folder-$i',
+                'test-user-123',
+                'Folder $i',
+                null,
+                '/Folder $i',
+                DateTime.now().millisecondsSinceEpoch,
+                DateTime.now().millisecondsSinceEpoch,
+                0,
+              ],
+            );
+          }
+
+          final stopwatch = Stopwatch()..start();
+
+          final result = await testDb
+              .customSelect(
+                'SELECT * FROM local_folders WHERE user_id = ?',
+                variables: [Variable.withString('test-user-123')],
+              )
+              .get();
+
+          stopwatch.stop();
+
+          expect(result.length, equals(500));
+          expect(
+            stopwatch.elapsedMilliseconds,
+            lessThan(50),
+            reason: 'Folder query should complete in < 50ms',
           );
-        }
+        },
+      );
 
-        final stopwatch = Stopwatch()..start();
+      test(
+        'Query 100 saved searches with userId filter completes in < 30ms',
+        () async {
+          // Insert 100 saved searches
+          for (int i = 0; i < 100; i++) {
+            await _insertSavedSearch(
+              testDb,
+              'search-$i',
+              userId: 'test-user-123',
+            );
+          }
 
-        final result = await testDb.customSelect(
-          'SELECT * FROM local_folders WHERE user_id = ?',
-          variables: [Variable.withString('test-user-123')],
-        ).get();
+          final stopwatch = Stopwatch()..start();
 
-        stopwatch.stop();
+          final result = await testDb
+              .customSelect(
+                'SELECT * FROM saved_searches WHERE user_id = ?',
+                variables: [Variable.withString('test-user-123')],
+              )
+              .get();
 
-        expect(result.length, equals(500));
-        expect(stopwatch.elapsedMilliseconds, lessThan(50),
-            reason: 'Folder query should complete in < 50ms');
-      });
+          stopwatch.stop();
 
-      test('Query 100 saved searches with userId filter completes in < 30ms', () async {
-        // Insert 100 saved searches
-        for (int i = 0; i < 100; i++) {
-          await _insertSavedSearch(testDb, 'search-$i', userId: 'test-user-123');
-        }
-
-        final stopwatch = Stopwatch()..start();
-
-        final result = await testDb.customSelect(
-          'SELECT * FROM saved_searches WHERE user_id = ?',
-          variables: [Variable.withString('test-user-123')],
-        ).get();
-
-        stopwatch.stop();
-
-        expect(result.length, equals(100));
-        expect(stopwatch.elapsedMilliseconds, lessThan(30),
-            reason: 'SavedSearch query should complete in < 30ms');
-      });
+          expect(result.length, equals(100));
+          expect(
+            stopwatch.elapsedMilliseconds,
+            lessThan(30),
+            reason: 'SavedSearch query should complete in < 30ms',
+          );
+        },
+      );
     });
 
     group('Migration Performance', () {
@@ -169,8 +199,11 @@ void main() {
         stopwatch.stop();
 
         expect(result.searchesProcessed, equals(100));
-        expect(stopwatch.elapsedMilliseconds, lessThan(500),
-            reason: 'Migration of 100 searches should complete in < 500ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(500),
+          reason: 'Migration of 100 searches should complete in < 500ms',
+        );
       });
 
       test('Migrate 1000 saved searches completes in < 2000ms', () async {
@@ -192,8 +225,11 @@ void main() {
         stopwatch.stop();
 
         expect(result.searchesProcessed, equals(1000));
-        expect(stopwatch.elapsedMilliseconds, lessThan(2000),
-            reason: 'Migration of 1000 searches should complete in < 2s');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(2000),
+          reason: 'Migration of 1000 searches should complete in < 2s',
+        );
       });
 
       test('Migration stats query completes in < 20ms', () async {
@@ -202,59 +238,81 @@ void main() {
           await _insertSavedSearch(testDb, 'migrated-$i', userId: 'user-1');
         }
         for (int i = 0; i < 50; i++) {
-          await _insertSavedSearch(testDb, 'unmigrated-$i', allowNullUserId: true);
+          await _insertSavedSearch(
+            testDb,
+            'unmigrated-$i',
+            allowNullUserId: true,
+          );
         }
 
         final stopwatch = Stopwatch()..start();
 
-        final stats = await Migration26SavedSearchesUserId
-            .getUserIdPopulationStats(testDb);
+        final stats =
+            await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+              testDb,
+            );
 
         stopwatch.stop();
 
         expect(stats['totalSearches'], equals(100));
-        expect(stopwatch.elapsedMilliseconds, lessThan(20),
-            reason: 'Stats query should complete in < 20ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(20),
+          reason: 'Stats query should complete in < 20ms',
+        );
       });
     });
 
     group('Multi-Tenant Data Isolation Performance', () {
-      test('Query isolation for 10 users with 100 notes each completes efficiently', () async {
-        // Create 10 users with 100 notes each
-        final isolationSeed = DateTime.now();
-        for (int userId = 0; userId < 10; userId++) {
-          for (int noteId = 0; noteId < 100; noteId++) {
-            await testDb.into(testDb.localNotes).insert(
-              LocalNotesCompanion.insert(
-                id: 'user-$userId-note-$noteId',
-                userId: Value('user-$userId'),
-                titleEncrypted: Value('Note $noteId'),
-                bodyEncrypted: const Value('Content'),
-                createdAt: isolationSeed,
-                updatedAt: isolationSeed,
-                deleted: const Value(false),
-              ),
+      test(
+        'Query isolation for 10 users with 100 notes each completes efficiently',
+        () async {
+          // Create 10 users with 100 notes each
+          final isolationSeed = DateTime.now();
+          for (int userId = 0; userId < 10; userId++) {
+            for (int noteId = 0; noteId < 100; noteId++) {
+              await testDb
+                  .into(testDb.localNotes)
+                  .insert(
+                    LocalNotesCompanion.insert(
+                      id: 'user-$userId-note-$noteId',
+                      userId: Value('user-$userId'),
+                      titleEncrypted: Value('Note $noteId'),
+                      bodyEncrypted: const Value('Content'),
+                      createdAt: isolationSeed,
+                      updatedAt: isolationSeed,
+                      deleted: const Value(false),
+                    ),
+                  );
+            }
+          }
+
+          // Query for each user and verify isolation
+          for (int userId = 0; userId < 10; userId++) {
+            final stopwatch = Stopwatch()..start();
+
+            final result = await testDb
+                .customSelect(
+                  'SELECT * FROM local_notes WHERE user_id = ?',
+                  variables: [Variable.withString('user-$userId')],
+                )
+                .get();
+
+            stopwatch.stop();
+
+            expect(
+              result.length,
+              equals(100),
+              reason: 'Each user should see only their 100 notes',
+            );
+            expect(
+              stopwatch.elapsedMilliseconds,
+              lessThan(50),
+              reason: 'User isolation query should complete in < 50ms',
             );
           }
-        }
-
-        // Query for each user and verify isolation
-        for (int userId = 0; userId < 10; userId++) {
-          final stopwatch = Stopwatch()..start();
-
-          final result = await testDb.customSelect(
-            'SELECT * FROM local_notes WHERE user_id = ?',
-            variables: [Variable.withString('user-$userId')],
-          ).get();
-
-          stopwatch.stop();
-
-          expect(result.length, equals(100),
-              reason: 'Each user should see only their 100 notes');
-          expect(stopwatch.elapsedMilliseconds, lessThan(50),
-              reason: 'User isolation query should complete in < 50ms');
-        }
-      });
+        },
+      );
 
       test('Folder hierarchy query with userId filter is performant', () async {
         // Create folder hierarchy for 5 users
@@ -305,45 +363,61 @@ void main() {
         // Query folders for a specific user
         final stopwatch = Stopwatch()..start();
 
-        final result = await testDb.customSelect(
-          'SELECT * FROM local_folders WHERE user_id = ?',
-          variables: [Variable.withString('user-0')],
-        ).get();
+        final result = await testDb
+            .customSelect(
+              'SELECT * FROM local_folders WHERE user_id = ?',
+              variables: [Variable.withString('user-0')],
+            )
+            .get();
 
         stopwatch.stop();
 
-        expect(result.length, equals(55), // 5 root + 50 subfolders
-            reason: 'User should see their folder hierarchy');
-        expect(stopwatch.elapsedMilliseconds, lessThan(100),
-            reason: 'Hierarchy query should complete in < 100ms');
+        expect(
+          result.length,
+          equals(55), // 5 root + 50 subfolders
+          reason: 'User should see their folder hierarchy',
+        );
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(100),
+          reason: 'Hierarchy query should complete in < 100ms',
+        );
       });
 
-      test('SavedSearch isolation for 20 users with 50 searches each', () async {
-        // Create 20 users with 50 saved searches each
-        for (int userId = 0; userId < 20; userId++) {
-          for (int searchId = 0; searchId < 50; searchId++) {
-            await _insertSavedSearch(
-              testDb,
-              'user-$userId-search-$searchId',
-              userId: 'user-$userId',
-            );
+      test(
+        'SavedSearch isolation for 20 users with 50 searches each',
+        () async {
+          // Create 20 users with 50 saved searches each
+          for (int userId = 0; userId < 20; userId++) {
+            for (int searchId = 0; searchId < 50; searchId++) {
+              await _insertSavedSearch(
+                testDb,
+                'user-$userId-search-$searchId',
+                userId: 'user-$userId',
+              );
+            }
           }
-        }
 
-        // Query for random user
-        final stopwatch = Stopwatch()..start();
+          // Query for random user
+          final stopwatch = Stopwatch()..start();
 
-        final result = await testDb.customSelect(
-          'SELECT * FROM saved_searches WHERE user_id = ?',
-          variables: [Variable.withString('user-5')],
-        ).get();
+          final result = await testDb
+              .customSelect(
+                'SELECT * FROM saved_searches WHERE user_id = ?',
+                variables: [Variable.withString('user-5')],
+              )
+              .get();
 
-        stopwatch.stop();
+          stopwatch.stop();
 
-        expect(result.length, equals(50));
-        expect(stopwatch.elapsedMilliseconds, lessThan(30),
-            reason: 'SavedSearch isolation query should complete in < 30ms');
-      });
+          expect(result.length, equals(50));
+          expect(
+            stopwatch.elapsedMilliseconds,
+            lessThan(30),
+            reason: 'SavedSearch isolation query should complete in < 30ms',
+          );
+        },
+      );
     });
 
     group('Concurrent Operation Performance', () {
@@ -351,17 +425,19 @@ void main() {
         // Insert test data
         final concurrentSeed = DateTime.now();
         for (int i = 0; i < 100; i++) {
-          await testDb.into(testDb.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: 'note-$i',
-              userId: Value('user-${i % 5}'),
-              titleEncrypted: Value('Note $i'),
-              bodyEncrypted: const Value('Content'),
-              createdAt: concurrentSeed,
-              updatedAt: concurrentSeed,
-              deleted: const Value(false),
-            ),
-          );
+          await testDb
+              .into(testDb.localNotes)
+              .insert(
+                LocalNotesCompanion.insert(
+                  id: 'note-$i',
+                  userId: Value('user-${i % 5}'),
+                  titleEncrypted: Value('Note $i'),
+                  bodyEncrypted: const Value('Content'),
+                  createdAt: concurrentSeed,
+                  updatedAt: concurrentSeed,
+                  deleted: const Value(false),
+                ),
+              );
         }
 
         // Execute 10 concurrent queries
@@ -370,10 +446,12 @@ void main() {
         final futures = <Future<List<QueryRow>>>[];
         for (int i = 0; i < 10; i++) {
           futures.add(
-            testDb.customSelect(
-              'SELECT * FROM local_notes WHERE user_id = ?',
-              variables: [Variable.withString('user-${i % 5}')],
-            ).get(),
+            testDb
+                .customSelect(
+                  'SELECT * FROM local_notes WHERE user_id = ?',
+                  variables: [Variable.withString('user-${i % 5}')],
+                )
+                .get(),
           );
         }
 
@@ -383,8 +461,11 @@ void main() {
 
         expect(results, hasLength(10));
         expect(results.every((r) => r.isNotEmpty), isTrue);
-        expect(stopwatch.elapsedMilliseconds, lessThan(200),
-            reason: '10 concurrent queries should complete in < 200ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(200),
+          reason: '10 concurrent queries should complete in < 200ms',
+        );
       });
 
       test('Concurrent migration and query operations', () async {
@@ -395,7 +476,11 @@ void main() {
 
         // Insert migrated searches for different user
         for (int i = 0; i < 50; i++) {
-          await _insertSavedSearch(testDb, 'other-search-$i', userId: 'other-user');
+          await _insertSavedSearch(
+            testDb,
+            'other-search-$i',
+            userId: 'other-user',
+          );
         }
 
         final migrationService = SavedSearchMigrationService(
@@ -409,16 +494,21 @@ void main() {
         // Run migration and query concurrently
         await Future.wait([
           migrationService.runAutoMigration(),
-          testDb.customSelect(
-            'SELECT * FROM saved_searches WHERE user_id = ?',
-            variables: [Variable.withString('other-user')],
-          ).get(),
+          testDb
+              .customSelect(
+                'SELECT * FROM saved_searches WHERE user_id = ?',
+                variables: [Variable.withString('other-user')],
+              )
+              .get(),
         ]);
 
         stopwatch.stop();
 
-        expect(stopwatch.elapsedMilliseconds, lessThan(600),
-            reason: 'Concurrent migration and query should complete in < 600ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(600),
+          reason: 'Concurrent migration and query should complete in < 600ms',
+        );
       });
     });
 
@@ -426,53 +516,69 @@ void main() {
       test('userId index improves query performance significantly', () async {
         // Insert 1000 saved searches
         for (int i = 0; i < 1000; i++) {
-          await _insertSavedSearch(testDb, 'search-$i', userId: 'user-${i % 10}');
+          await _insertSavedSearch(
+            testDb,
+            'search-$i',
+            userId: 'user-${i % 10}',
+          );
         }
 
         // Query with userId filter (should use index)
         final stopwatch = Stopwatch()..start();
 
-        final result = await testDb.customSelect(
-          'SELECT * FROM saved_searches WHERE user_id = ?',
-          variables: [Variable.withString('user-0')],
-        ).get();
+        final result = await testDb
+            .customSelect(
+              'SELECT * FROM saved_searches WHERE user_id = ?',
+              variables: [Variable.withString('user-0')],
+            )
+            .get();
 
         stopwatch.stop();
 
         expect(result.length, equals(100));
-        expect(stopwatch.elapsedMilliseconds, lessThan(30),
-            reason: 'Indexed query should be very fast (< 30ms)');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(30),
+          reason: 'Indexed query should be very fast (< 30ms)',
+        );
       });
 
       test('Notes userId index improves large dataset queries', () async {
         // Insert 5000 notes across 10 users
         final indexSeed = DateTime.now();
         for (int i = 0; i < 5000; i++) {
-          await testDb.into(testDb.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: 'note-$i',
-              userId: Value('user-${i % 10}'),
-              titleEncrypted: Value('Note $i'),
-              bodyEncrypted: const Value('Content'),
-              createdAt: indexSeed,
-              updatedAt: indexSeed,
-              deleted: const Value(false),
-            ),
-          );
+          await testDb
+              .into(testDb.localNotes)
+              .insert(
+                LocalNotesCompanion.insert(
+                  id: 'note-$i',
+                  userId: Value('user-${i % 10}'),
+                  titleEncrypted: Value('Note $i'),
+                  bodyEncrypted: const Value('Content'),
+                  createdAt: indexSeed,
+                  updatedAt: indexSeed,
+                  deleted: const Value(false),
+                ),
+              );
         }
 
         final stopwatch = Stopwatch()..start();
 
-        final result = await testDb.customSelect(
-          'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100',
-          variables: [Variable.withString('user-0')],
-        ).get();
+        final result = await testDb
+            .customSelect(
+              'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100',
+              variables: [Variable.withString('user-0')],
+            )
+            .get();
 
         stopwatch.stop();
 
         expect(result.length, equals(100));
-        expect(stopwatch.elapsedMilliseconds, lessThan(100),
-            reason: 'Indexed query on large dataset should complete in < 100ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(100),
+          reason: 'Indexed query on large dataset should complete in < 100ms',
+        );
       });
     });
 
@@ -481,17 +587,21 @@ void main() {
         // Insert 1000 notes
         final memorySeed = DateTime.now();
         for (int i = 0; i < 1000; i++) {
-          await testDb.into(testDb.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: 'note-$i',
-              userId: const Value('test-user'),
-              titleEncrypted: Value('Note $i'),
-              bodyEncrypted: Value('Content for note $i with some reasonable text length'),
-              createdAt: memorySeed,
-              updatedAt: memorySeed,
-              deleted: const Value(false),
-            ),
-          );
+          await testDb
+              .into(testDb.localNotes)
+              .insert(
+                LocalNotesCompanion.insert(
+                  id: 'note-$i',
+                  userId: const Value('test-user'),
+                  titleEncrypted: Value('Note $i'),
+                  bodyEncrypted: Value(
+                    'Content for note $i with some reasonable text length',
+                  ),
+                  createdAt: memorySeed,
+                  updatedAt: memorySeed,
+                  deleted: const Value(false),
+                ),
+              );
         }
 
         // Query with pagination (memory efficient)
@@ -499,21 +609,26 @@ void main() {
 
         var totalResults = 0;
         for (int page = 0; page < 10; page++) {
-          final result = await testDb.customSelect(
-            'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100 OFFSET ?',
-            variables: [
-              Variable.withString('test-user'),
-              Variable.withInt(page * 100),
-            ],
-          ).get();
+          final result = await testDb
+              .customSelect(
+                'SELECT * FROM local_notes WHERE user_id = ? LIMIT 100 OFFSET ?',
+                variables: [
+                  Variable.withString('test-user'),
+                  Variable.withInt(page * 100),
+                ],
+              )
+              .get();
           totalResults += result.length;
         }
 
         stopwatch.stop();
 
         expect(totalResults, equals(1000));
-        expect(stopwatch.elapsedMilliseconds, lessThan(500),
-            reason: 'Paginated queries should be memory efficient and fast');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(500),
+          reason: 'Paginated queries should be memory efficient and fast',
+        );
       });
 
       test('Migration processes data in manageable batches', () async {
@@ -535,8 +650,11 @@ void main() {
         stopwatch.stop();
 
         expect(result.searchesProcessed, equals(500));
-        expect(stopwatch.elapsedMilliseconds, lessThan(1000),
-            reason: 'Batch migration should complete in < 1s');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(1000),
+          reason: 'Batch migration should complete in < 1s',
+        );
       });
     });
 
@@ -554,8 +672,11 @@ void main() {
 
         stopwatch.stop();
 
-        expect(stopwatch.elapsedMilliseconds, lessThan(20),
-            reason: '100 authorization checks should complete in < 20ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(20),
+          reason: '100 authorization checks should complete in < 20ms',
+        );
       });
 
       test('Ownership verification is performant', () async {
@@ -571,8 +692,11 @@ void main() {
 
         stopwatch.stop();
 
-        expect(stopwatch.elapsedMilliseconds, lessThan(5),
-            reason: '100 ownership checks should complete in < 5ms');
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(5),
+          reason: '100 ownership checks should complete in < 5ms',
+        );
       });
     });
   });

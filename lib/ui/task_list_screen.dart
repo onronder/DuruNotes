@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:duru_notes/domain/entities/task.dart' as domain;
-import 'package:duru_notes/domain/entities/task.dart' show TaskPriority, TaskStatus;
+import 'package:duru_notes/domain/entities/task.dart'
+    show TaskPriority, TaskStatus;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
@@ -129,7 +130,11 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                 value: TaskViewMode.grouped,
                 child: Row(
                   children: [
-                    Icon(CupertinoIcons.rectangle_3_offgrid, size: 18, color: DuruColors.primary),
+                    Icon(
+                      CupertinoIcons.rectangle_3_offgrid,
+                      size: 18,
+                      color: DuruColors.primary,
+                    ),
                     SizedBox(width: 8),
                     Text('Smart Groups'),
                   ],
@@ -139,7 +144,11 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                 value: TaskViewMode.list,
                 child: Row(
                   children: [
-                    Icon(CupertinoIcons.list_bullet, size: 18, color: DuruColors.primary),
+                    Icon(
+                      CupertinoIcons.list_bullet,
+                      size: 18,
+                      color: DuruColors.primary,
+                    ),
                     SizedBox(width: 8),
                     Text('Simple List'),
                   ],
@@ -149,7 +158,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           ),
           // Toggle completed
           IconButton(
-            icon: Icon(_showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye),
+            icon: Icon(
+              _showCompleted ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+            ),
             onPressed: () => setState(() => _showCompleted = !_showCompleted),
             tooltip: _showCompleted ? 'Hide Completed' : 'Show Completed',
           ),
@@ -205,10 +216,14 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
         ),
       ),
       child: StreamBuilder<List<domain.Task>>(
-        stream: ref.watch(taskCoreRepositoryProvider)?.watchAllTasks() ?? Stream.value([]),
+        stream:
+            ref.watch(taskCoreRepositoryProvider)?.watchAllTasks() ??
+            Stream.value([]),
         builder: (context, snapshot) {
           final tasks = snapshot.data ?? [];
-          final pendingTasks = tasks.where((t) => t.status != domain.TaskStatus.completed).length;
+          final pendingTasks = tasks
+              .where((t) => t.status != domain.TaskStatus.completed)
+              .length;
           final completedToday = tasks.where((t) {
             if (t.completedAt == null) return false;
             final now = DateTime.now();
@@ -244,7 +259,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
                 icon: CupertinoIcons.exclamationmark_triangle,
                 value: overdueTasks.toString(),
                 label: 'Overdue',
-                color: overdueTasks > 0 ? DuruColors.error : DuruColors.surfaceVariant,
+                color: overdueTasks > 0
+                    ? DuruColors.error
+                    : DuruColors.surfaceVariant,
               ),
             ],
           );
@@ -283,7 +300,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -526,11 +545,13 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                   );
 
                   final tasks = tasksByDate[date] ?? [];
-                  final isSelected = _selectedDate != null &&
+                  final isSelected =
+                      _selectedDate != null &&
                       date.year == _selectedDate!.year &&
                       date.month == _selectedDate!.month &&
                       date.day == _selectedDate!.day;
-                  final isToday = date.year == DateTime.now().year &&
+                  final isToday =
+                      date.year == DateTime.now().year &&
                       date.month == DateTime.now().month &&
                       date.day == DateTime.now().day;
 
@@ -545,8 +566,8 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                         color: isSelected
                             ? theme.primaryColor.withValues(alpha: 0.2)
                             : isToday
-                                ? theme.primaryColor.withValues(alpha: 0.1)
-                                : null,
+                            ? theme.primaryColor.withValues(alpha: 0.1)
+                            : null,
                         border: Border.all(
                           color: isSelected
                               ? theme.primaryColor
@@ -577,11 +598,13 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: tasks.any(
-                                        (t) =>
-                                            t.priority == TaskPriority.urgent ||
-                                            t.priority == TaskPriority.high,
-                                      )
+                                      color:
+                                          tasks.any(
+                                            (t) =>
+                                                t.priority ==
+                                                    TaskPriority.urgent ||
+                                                t.priority == TaskPriority.high,
+                                          )
                                           ? Colors.red
                                           : theme.primaryColor,
                                       shape: BoxShape.circle,
@@ -632,8 +655,10 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
     final allTasks = await taskRepo.getAllTasks();
     final tasks = allTasks.where((task) {
       if (task.dueDate == null) return false;
-      return task.dueDate!.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
-             task.dueDate!.isBefore(endOfMonth.add(const Duration(days: 1)));
+      return task.dueDate!.isAfter(
+            startOfMonth.subtract(const Duration(days: 1)),
+          ) &&
+          task.dueDate!.isBefore(endOfMonth.add(const Duration(days: 1)));
     }).toList();
 
     final tasksByDate = <DateTime, List<domain.Task>>{};
@@ -675,56 +700,54 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
                 child: Center(child: Text('No tasks for this date')),
               )
             else
-              ...tasks.map(
-                (task) {
-                  // Use task.title directly (already decrypted in domain.Task)
-                  final content = task.title;
-                  return ListTile(
-                    leading: Checkbox(
-                      value: task.status == TaskStatus.completed,
-                      onChanged: (_) async {
-                        final logger = ref.read(loggerProvider);
-                        final controller = _controllerOrNull();
-                        if (controller == null) return;
-                        try {
-                          await controller.toggleStatus(task.id);
-                          if (mounted) setState(() {});
-                          Navigator.pop(context);
-                        } catch (error, stackTrace) {
-                          logger.error(
-                            'Failed to toggle task status from calendar',
-                            error: error,
+              ...tasks.map((task) {
+                // Use task.title directly (already decrypted in domain.Task)
+                final content = task.title;
+                return ListTile(
+                  leading: Checkbox(
+                    value: task.status == TaskStatus.completed,
+                    onChanged: (_) async {
+                      final logger = ref.read(loggerProvider);
+                      final controller = _controllerOrNull();
+                      if (controller == null) return;
+                      try {
+                        await controller.toggleStatus(task.id);
+                        if (mounted) setState(() {});
+                        Navigator.pop(context);
+                      } catch (error, stackTrace) {
+                        logger.error(
+                          'Failed to toggle task status from calendar',
+                          error: error,
+                          stackTrace: stackTrace,
+                          data: {'taskId': task.id},
+                        );
+                        unawaited(
+                          Sentry.captureException(
+                            error,
                             stackTrace: stackTrace,
-                            data: {'taskId': task.id},
-                          );
-                          unawaited(
-                            Sentry.captureException(
-                              error,
-                              stackTrace: stackTrace,
+                          ),
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Could not toggle task. Please try again.',
+                              ),
+                              backgroundColor: DuruColors.error,
                             ),
                           );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Could not toggle task. Please try again.',
-                                ),
-                                backgroundColor: DuruColors.error,
-                              ),
-                            );
-                          }
                         }
-                      },
-                    ),
-                    title: Text(content),
-                    subtitle: Text(_getPriorityLabel(task.priority)),
-                    trailing: Icon(
-                      _getPriorityIcon(task.priority),
-                      color: _getPriorityColor(task.priority),
-                    ),
-                  );
-                },
-              ),
+                      }
+                    },
+                  ),
+                  title: Text(content),
+                  subtitle: Text(_getPriorityLabel(task.priority)),
+                  trailing: Icon(
+                    _getPriorityIcon(task.priority),
+                    color: _getPriorityColor(task.priority),
+                  ),
+                );
+              }),
           ],
         ),
       ),

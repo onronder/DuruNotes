@@ -50,20 +50,25 @@ void main() {
 
     when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
     when(mockLogger.debug(any, data: anyNamed('data'))).thenReturn(null);
-    when(mockLogger.error(
-      any,
-      error: anyNamed('error'),
-      stackTrace: anyNamed('stackTrace'),
-      data: anyNamed('data'),
-    )).thenReturn(null);
+    when(
+      mockLogger.error(
+        any,
+        error: anyNamed('error'),
+        stackTrace: anyNamed('stackTrace'),
+        data: anyNamed('data'),
+      ),
+    ).thenReturn(null);
 
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
     when(mockAnalytics.startTiming(any)).thenReturn(null);
-    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
-        .thenReturn(null);
-    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.endTiming(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
+    when(
+      mockAnalytics.featureUsed(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
     sampleNote = domain.Note(
       id: 'note-123',
@@ -99,10 +104,12 @@ void main() {
       final markdownFile = File(p.join(tempDir.path, 'daily.md'))
         ..writeAsStringSync('# Daily Log\nFocus on critical fixes.');
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-      )).thenAnswer((_) async => sampleNote);
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer((_) async => sampleNote);
       when(mockNoteIndexer.indexNote(any)).thenAnswer((_) async {});
 
       final progress = <ImportProgress>[];
@@ -118,25 +125,31 @@ void main() {
       expect(result.importedFiles, contains(markdownFile.path));
       expect(progress.map((e) => e.phase), contains(ImportPhase.completed));
 
-      verify(mockNotesRepository.createOrUpdate(
-        title: 'Daily Log',
-        body: anyNamed('body'),
-      )).called(1);
+      verify(
+        mockNotesRepository.createOrUpdate(
+          title: 'Daily Log',
+          body: anyNamed('body'),
+        ),
+      ).called(1);
       verify(mockNoteIndexer.indexNote(sampleNote)).called(1);
-      verify(mockAnalytics.event(
-        'import.success',
-        properties: anyNamed('properties'),
-      )).called(1);
+      verify(
+        mockAnalytics.event(
+          'import.success',
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
     });
 
     test('returns error result when repository throws', () async {
       final markdownFile = File(p.join(tempDir.path, 'broken.md'))
         ..writeAsStringSync('# Broken\nThis will fail.');
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-      )).thenThrow(Exception('Database unavailable'));
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+        ),
+      ).thenThrow(Exception('Database unavailable'));
 
       final result = await importService.importMarkdown(markdownFile);
 
@@ -144,10 +157,9 @@ void main() {
       expect(result.errorCount, equals(1));
       expect(result.errors.single.message, contains('Exception'));
 
-      verify(mockAnalytics.event(
-        'import.error',
-        properties: anyNamed('properties'),
-      )).called(1);
+      verify(
+        mockAnalytics.event('import.error', properties: anyNamed('properties')),
+      ).called(1);
       verifyNever(mockNoteIndexer.indexNote(any));
     });
   });
@@ -155,7 +167,9 @@ void main() {
   group('importObsidian', () {
     test('imports multiple markdown files and reports progress', () async {
       final vaultDir = Directory(p.join(tempDir.path, 'vault'))..createSync();
-      File(p.join(vaultDir.path, 'alpha.md')).writeAsStringSync('# Alpha\n#focus\nImportant decisions.');
+      File(
+        p.join(vaultDir.path, 'alpha.md'),
+      ).writeAsStringSync('# Alpha\n#focus\nImportant decisions.');
       final betaFile = File(p.join(vaultDir.path, 'notes', 'beta.markdown'));
       betaFile.createSync(recursive: true);
       betaFile.writeAsStringSync('# Beta\nWrap up sprint.');
@@ -165,10 +179,12 @@ void main() {
       var createCall = 0;
       final indexedNotes = <domain.Note>[];
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-      )).thenAnswer((invocation) async {
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer((invocation) async {
         createCall++;
         final title = invocation.namedArguments[#title] as String;
         return domain.Note(
@@ -201,22 +217,32 @@ void main() {
       expect(result.isSuccess, isTrue);
       expect(result.successCount, equals(2));
       expect(result.importedFiles.length, equals(2));
-      expect(indexedNotes.map((n) => n.id), containsAll(['imported-1', 'imported-2']));
-      expect(progressEvents.map((e) => e.phase), contains(ImportPhase.scanning));
+      expect(
+        indexedNotes.map((n) => n.id),
+        containsAll(['imported-1', 'imported-2']),
+      );
+      expect(
+        progressEvents.map((e) => e.phase),
+        contains(ImportPhase.scanning),
+      );
       expect(progressEvents.last.phase, ImportPhase.completed);
 
-      verify(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-      )).called(2);
-      verify(mockNoteIndexer.indexNote(any)).called(2);
-      verify(mockAnalytics.event(
-        'import.success',
-        properties: argThat(
-          containsPair('type', 'obsidian'),
-          named: 'properties',
+      verify(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
         ),
-      )).called(1);
+      ).called(2);
+      verify(mockNoteIndexer.indexNote(any)).called(2);
+      verify(
+        mockAnalytics.event(
+          'import.success',
+          properties: argThat(
+            containsPair('type', 'obsidian'),
+            named: 'properties',
+          ),
+        ),
+      ).called(1);
 
       // Ensure hidden/system files were not processed
       expect(result.importedFiles.every((f) => !f.contains('README')), isTrue);

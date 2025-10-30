@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/core/security/secure_storage_manager.dart';
 import 'package:duru_notes/core/security/security_monitor.dart';
 import 'package:duru_notes/core/security/database_encryption.dart';
@@ -53,13 +54,8 @@ final databaseEncryptionProvider = Provider<DatabaseEncryption>((ref) {
 /// Provider for encryption format migration
 final encryptionMigrationProvider = Provider<EncryptionFormatMigration>((ref) {
   final supabase = Supabase.instance.client;
-  final accountKeyService = AccountKeyService(
-    ref,
-    client: supabase,
-  );
-  final keyManager = KeyManager(
-    accountKeyService: accountKeyService,
-  );
+  final accountKeyService = AccountKeyService(ref, client: supabase);
+  final keyManager = KeyManager(accountKeyService: accountKeyService);
   final cryptoBox = CryptoBox(keyManager);
 
   // Use singleton AppDb instance to prevent memory leaks
@@ -76,9 +72,7 @@ final encryptionMigrationProvider = Provider<EncryptionFormatMigration>((ref) {
 /// Provider for current security threat level
 final threatLevelProvider = StreamProvider<SecurityThreatLevel>((ref) {
   final monitor = ref.watch(securityMonitorProvider);
-  return monitor.metricsStream
-      .map((metrics) => metrics.threatLevel)
-      .distinct();
+  return monitor.metricsStream.map((metrics) => metrics.threatLevel).distinct();
 });
 
 /// Provider for security alerts
@@ -195,9 +189,9 @@ class SecurityHealthStatus {
   bool isInLockdown = false;
 
   Map<String, dynamic> toJson() => {
-        'secureStorageAvailable': secureStorageAvailable,
-        'databaseEncrypted': databaseEncrypted,
-        'currentThreatLevel': currentThreatLevel.name,
-        'isInLockdown': isInLockdown,
-      };
+    'secureStorageAvailable': secureStorageAvailable,
+    'databaseEncrypted': databaseEncrypted,
+    'currentThreatLevel': currentThreatLevel.name,
+    'isInLockdown': isInLockdown,
+  };
 }

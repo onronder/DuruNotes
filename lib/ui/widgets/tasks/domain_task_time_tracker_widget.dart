@@ -41,8 +41,7 @@ class _DomainTaskTimeTrackerWidgetState
   static const String _startTimeKey = 'task_tracking_start_time';
 
   // Extract time tracking values from metadata
-  int get actualMinutes =>
-      (widget.task.metadata['actualMinutes'] as int?) ?? 0;
+  int get actualMinutes => (widget.task.metadata['actualMinutes'] as int?) ?? 0;
   int get estimatedMinutes =>
       (widget.task.metadata['estimatedMinutes'] as int?) ?? 0;
 
@@ -160,9 +159,7 @@ class _DomainTaskTimeTrackerWidgetState
       final updatedMetadata = Map<String, dynamic>.from(widget.task.metadata);
       updatedMetadata['actualMinutes'] = actualMinutes;
 
-      final updatedTask = widget.task.copyWith(
-        metadata: updatedMetadata,
-      );
+      final updatedTask = widget.task.copyWith(metadata: updatedMetadata);
 
       await taskRepo.updateTask(updatedTask);
 
@@ -181,8 +178,9 @@ class _DomainTaskTimeTrackerWidgetState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                const Text('Could not save tracked time. Please try again.'),
+            content: const Text(
+              'Could not save tracked time. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -255,8 +253,10 @@ class _DomainTaskTimeTrackerWidgetState
                 const Spacer(),
                 // Timer display
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _isTracking
                         ? colorScheme.primary
@@ -338,8 +338,9 @@ class _DomainTaskTimeTrackerWidgetState
                     icon: Icon(_isTracking ? Icons.pause : Icons.play_arrow),
                     label: Text(_isTracking ? 'Pause' : 'Start'),
                     style: FilledButton.styleFrom(
-                      backgroundColor:
-                          _isTracking ? colorScheme.error : colorScheme.primary,
+                      backgroundColor: _isTracking
+                          ? colorScheme.error
+                          : colorScheme.primary,
                     ),
                   ),
                 ),
@@ -390,8 +391,9 @@ class _DomainTaskTimeTrackerWidgetState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Timer?'),
-        content:
-            const Text('This will reset the tracked time to 0. Are you sure?'),
+        content: const Text(
+          'This will reset the tracked time to 0. Are you sure?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -424,17 +426,13 @@ class _DomainTaskTimeTrackerWidgetState
 
 /// Compact time tracker for task list items using domain entities
 class DomainCompactTimeTracker extends StatelessWidget {
-  const DomainCompactTimeTracker({
-    super.key,
-    required this.task,
-  });
+  const DomainCompactTimeTracker({super.key, required this.task});
 
   final domain.Task task;
 
   // Extract time tracking values from metadata
   int get actualMinutes => (task.metadata['actualMinutes'] as int?) ?? 0;
-  int get estimatedMinutes =>
-      (task.metadata['estimatedMinutes'] as int?) ?? 0;
+  int get estimatedMinutes => (task.metadata['estimatedMinutes'] as int?) ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -470,16 +468,20 @@ class DomainCompactTimeTracker extends StatelessWidget {
           Icon(
             Icons.timer,
             size: 14,
-            color:
-                actualMinutes > 0 ? progressColor : colorScheme.onSurfaceVariant,
+            color: actualMinutes > 0
+                ? progressColor
+                : colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: 4),
           Text(
-            actualMinutes > 0 ? '${actualMinutes}m' : '${estimatedMinutes}m est',
+            actualMinutes > 0
+                ? '${actualMinutes}m'
+                : '${estimatedMinutes}m est',
             style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color:
-                  actualMinutes > 0 ? progressColor : colorScheme.onSurfaceVariant,
+              color: actualMinutes > 0
+                  ? progressColor
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
           if (estimatedMinutes > 0 && actualMinutes > 0) ...[

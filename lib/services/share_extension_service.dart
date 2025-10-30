@@ -20,10 +20,10 @@ class ShareExtensionService {
     required AttachmentService attachmentService,
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _notesRepository = notesRepository,
-        _attachmentService = attachmentService,
-        _logger = logger,
-        _analytics = analytics;
+  }) : _notesRepository = notesRepository,
+       _attachmentService = attachmentService,
+       _logger = logger,
+       _analytics = analytics;
   final NotesRepository _notesRepository;
   final AttachmentService _attachmentService;
   final AppLogger _logger;
@@ -173,7 +173,8 @@ class ShareExtensionService {
       final uri = Uri.tryParse(sharedUrl);
       final title = uri?.host ?? 'Shared Link';
 
-      final noteContent = '''# $title
+      final noteContent =
+          '''# $title
 
 **Link**: $sharedUrl
 
@@ -275,7 +276,8 @@ class ShareExtensionService {
     final content = item['content'] as String? ?? url;
 
     if (url.isNotEmpty) {
-      final noteContent = '''# $title
+      final noteContent =
+          '''# $title
 
 **Link**: $url
 
@@ -312,7 +314,8 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
           );
 
           final url = attachment?.url ?? '';
-          final noteContent = '''# $title
+          final noteContent =
+              '''# $title
 
 ![Shared Image]($url)
 
@@ -359,7 +362,8 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
         );
 
         final url = attachment?.url ?? '';
-        final noteContent = '''# Shared Image
+        final noteContent =
+            '''# Shared Image
 
 ![$fileName]($url)
 
@@ -379,7 +383,8 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
         );
 
         final url = attachment?.url ?? '';
-        final noteContent = '''# Shared File: $fileName
+        final noteContent =
+            '''# Shared File: $fileName
 
 [Download $fileName]($url)
 
@@ -445,8 +450,8 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
       final noteId = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
-        tags:
-            tagSet.toList(), // PRODUCTION FIX: Pass tags to be stored in note_tags table
+        tags: tagSet
+            .toList(), // PRODUCTION FIX: Pass tags to be stored in note_tags table
         metadataJson: metadata,
       );
 

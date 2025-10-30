@@ -14,7 +14,7 @@ abstract class CompatibilityLayer {
   static LocalNote domainToLocal(domain.Note note) {
     throw UnsupportedError(
       'CompatibilityLayer.domainToLocal is no longer supported after encryption migration. '
-      'Use NotesRepository methods which properly handle encryption/decryption.'
+      'Use NotesRepository methods which properly handle encryption/decryption.',
     );
   }
 
@@ -22,7 +22,7 @@ abstract class CompatibilityLayer {
   static domain.Note localToDomain(LocalNote note) {
     throw UnsupportedError(
       'CompatibilityLayer.localToDomain is no longer supported after encryption migration. '
-      'Use NotesRepository methods which properly handle encryption/decryption.'
+      'Use NotesRepository methods which properly handle encryption/decryption.',
     );
   }
 
@@ -30,7 +30,7 @@ abstract class CompatibilityLayer {
   static List<LocalNote> domainListToLocal(List<domain.Note> notes) {
     throw UnsupportedError(
       'CompatibilityLayer.domainListToLocal is no longer supported after encryption migration. '
-      'Use NotesRepository methods which properly handle encryption/decryption.'
+      'Use NotesRepository methods which properly handle encryption/decryption.',
     );
   }
 
@@ -38,7 +38,7 @@ abstract class CompatibilityLayer {
   static List<domain.Note> localListToDomain(List<LocalNote> notes) {
     throw UnsupportedError(
       'CompatibilityLayer.localListToDomain is no longer supported after encryption migration. '
-      'Use NotesRepository methods which properly handle encryption/decryption.'
+      'Use NotesRepository methods which properly handle encryption/decryption.',
     );
   }
 }

@@ -42,9 +42,7 @@ class SavedSearchRegistry {
 
     final keyName = id.substring('saved_search_'.length);
     try {
-      return SavedSearchKey.values.firstWhere(
-        (key) => key.name == keyName,
-      );
+      return SavedSearchKey.values.firstWhere((key) => key.name == keyName);
     } catch (_) {
       return null;
     }

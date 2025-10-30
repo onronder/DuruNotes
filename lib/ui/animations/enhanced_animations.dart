@@ -29,11 +29,7 @@ class SpringAnimationController {
   }) {
     _controller = AnimationController(vsync: vsync);
     _simulation = SpringSimulation(
-      SpringDescription(
-        mass: 1,
-        stiffness: stiffness,
-        damping: damping,
-      ),
+      SpringDescription(mass: 1, stiffness: stiffness, damping: damping),
       0, // Start
       1, // End
       0, // Velocity
@@ -83,18 +79,12 @@ class _BouncyScaleTransitionState extends State<BouncyScaleTransition>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
     _scaleAnimation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: widget.curve,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.curve));
 
     Future<void>.delayed(widget.delay, () {
       if (mounted) _controller.forward();
@@ -112,10 +102,7 @@ class _BouncyScaleTransitionState extends State<BouncyScaleTransition>
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        );
+        return Transform.scale(scale: _scaleAnimation.value, child: child);
       },
       child: widget.child,
     );
@@ -195,15 +182,9 @@ class _MorphingContainerState extends State<MorphingContainer>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: widget.curve,
-    );
+    _animation = CurvedAnimation(parent: _controller, curve: widget.curve);
 
     _controller.forward();
   }
@@ -284,7 +265,8 @@ class GlassMorphicContainer extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
             decoration: BoxDecoration(
-              gradient: gradient ??
+              gradient:
+                  gradient ??
                   LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -294,7 +276,8 @@ class GlassMorphicContainer extends StatelessWidget {
                     ],
                   ),
               borderRadius: BorderRadius.circular(borderRadius),
-              border: border ??
+              border:
+                  border ??
                   Border.all(
                     color: colorScheme.outline.withValues(alpha: 0.2),
                     width: 1.5,
@@ -349,10 +332,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
     _animation = Tween<double>(
       begin: -1,
       end: 2,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -379,11 +359,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
               stops: [
                 (_animation.value - 0.3).clamp(0.0, 1.0),
                 _animation.value.clamp(0.0, 1.0),
@@ -431,26 +407,19 @@ class _CustomRippleState extends State<CustomRipple>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
     _scaleAnimation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.5,
-      end: 0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.5, end: 0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
+      ),
+    );
   }
 
   @override
@@ -491,8 +460,9 @@ class _CustomRippleState extends State<CustomRipple>
                     painter: RipplePainter(
                       center: _tapPosition!,
                       radius: _scaleAnimation.value * 200,
-                      color:
-                          rippleColor.withValues(alpha: _fadeAnimation.value),
+                      color: rippleColor.withValues(
+                        alpha: _fadeAnimation.value,
+                      ),
                     ),
                   ),
                 );
@@ -576,10 +546,7 @@ class _StaggeredAnimationListState extends State<StaggeredAnimationList>
       final animation = Tween<double>(
         begin: 0,
         end: 1,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: widget.curve,
-      ));
+      ).animate(CurvedAnimation(parent: controller, curve: widget.curve));
 
       _controllers.add(controller);
       _animations.add(animation);
@@ -613,10 +580,7 @@ class _StaggeredAnimationListState extends State<StaggeredAnimationList>
             builder: (context, child) {
               return Transform.translate(
                 offset: Offset(0, 20 * (1 - _animations[i].value)),
-                child: Opacity(
-                  opacity: _animations[i].value,
-                  child: child,
-                ),
+                child: Opacity(opacity: _animations[i].value, child: child),
               );
             },
             child: widget.children[i],
@@ -716,16 +680,15 @@ class _ExpandableFabState extends State<ExpandableFab>
           animation: _expandAnimation,
           builder: (context, child) {
             return Positioned(
-              left: widget.distance -
+              left:
+                  widget.distance -
                   (widget.distance * math.cos(angle) * _expandAnimation.value),
-              top: widget.distance -
+              top:
+                  widget.distance -
                   (widget.distance * math.sin(angle) * _expandAnimation.value),
               child: Transform.scale(
                 scale: _expandAnimation.value,
-                child: Opacity(
-                  opacity: _expandAnimation.value,
-                  child: child,
-                ),
+                child: Opacity(opacity: _expandAnimation.value, child: child),
               ),
             );
           },

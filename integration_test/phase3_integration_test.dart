@@ -457,8 +457,8 @@ void main() {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: UnifiedMetricCard.simple(
-                     title: 'Completed',
-                     value: '85%',
+                      title: 'Completed',
+                      value: '85%',
                       icon: Icons.check_circle,
                       color: Colors.green,
                     ),

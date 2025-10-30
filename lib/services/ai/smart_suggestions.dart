@@ -110,7 +110,8 @@ class SmartSuggestionsService {
           matches++;
         }
         final description = folder.description;
-        if (description != null && description.toLowerCase().contains(keyword.toLowerCase())) {
+        if (description != null &&
+            description.toLowerCase().contains(keyword.toLowerCase())) {
           score += 0.2;
           matches++;
         }
@@ -362,7 +363,8 @@ class SmartSuggestionsService {
           SimilarNote(
             noteId: otherNote.id,
             similarity: similarity,
-            folderId: otherNote.folderId, // Include folderId to avoid extra lookups
+            folderId:
+                otherNote.folderId, // Include folderId to avoid extra lookups
           ),
         );
       }
@@ -475,8 +477,9 @@ class SmartSuggestionsService {
   void _cleanCache() {
     if (_suggestionCache.length > 100) {
       // Keep only recent entries
-      final keysToRemove =
-          _suggestionCache.keys.take(_suggestionCache.length - 50).toList();
+      final keysToRemove = _suggestionCache.keys
+          .take(_suggestionCache.length - 50)
+          .toList();
       for (final key in keysToRemove) {
         _suggestionCache.remove(key);
       }
@@ -673,12 +676,12 @@ final smartSuggestionsProvider = Provider<SmartSuggestionsService>((ref) {
 /// Suggestions for current note provider
 final noteSuggestionsProvider =
     FutureProvider.family<List<FolderSuggestion>, String>((ref, noteId) async {
-  final repository = ref.watch(notesCoreRepositoryProvider);
-  final suggestionsService = ref.watch(smartSuggestionsProvider);
+      final repository = ref.watch(notesCoreRepositoryProvider);
+      final suggestionsService = ref.watch(smartSuggestionsProvider);
 
-  // Get note using repository (returns domain.Note, already decrypted)
-  final note = await repository.getNoteById(noteId);
-  if (note == null) return [];
+      // Get note using repository (returns domain.Note, already decrypted)
+      final note = await repository.getNoteById(noteId);
+      if (note == null) return [];
 
-  return suggestionsService.getSuggestionsForNote(note);
-});
+      return suggestionsService.getSuggestionsForNote(note);
+    });

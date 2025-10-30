@@ -24,7 +24,9 @@ import 'package:duru_notes/features/tasks/providers/tasks_domain_providers.dart'
 
 /// Secure notes provider with automatic error recovery
 /// Returns domain.Note objects - consumers should use domain types
-final secureNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((ref) async {
+final secureNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((
+  ref,
+) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
@@ -49,29 +51,30 @@ final secureNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((
 
 /// Secure filtered notes provider
 /// Returns domain.Note objects - filtering is handled by the domain providers
-final secureFilteredNotesProvider = FutureProvider.autoDispose<List<domain_note.Note>>((ref) async {
-  final recovery = SecurityInitialization.providerRecovery;
+final secureFilteredNotesProvider =
+    FutureProvider.autoDispose<List<domain_note.Note>>((ref) async {
+      final recovery = SecurityInitialization.providerRecovery;
 
-  // Configure specific recovery for filtered notes
-  recovery.configureProvider(
-    providerId: 'filtered_notes_provider',
-    fallbackValue: <domain_note.Note>[],
-    retryPolicy: RetryPolicy(
-      maxAttempts: 2,
-      retryDelay: const Duration(seconds: 1),
-      backoffStrategy: BackoffStrategy.fixed,
-    ),
-  );
+      // Configure specific recovery for filtered notes
+      recovery.configureProvider(
+        providerId: 'filtered_notes_provider',
+        fallbackValue: <domain_note.Note>[],
+        retryPolicy: RetryPolicy(
+          maxAttempts: 2,
+          retryDelay: const Duration(seconds: 1),
+          backoffStrategy: BackoffStrategy.fixed,
+        ),
+      );
 
-  return recovery.executeWithRecovery(
-    providerId: 'filtered_notes_provider',
-    operation: () async {
-      // Use the domain notes provider - filtering happens elsewhere
-      return await ref.watch(domainNotesProvider.future);
-    },
-    fallbackValue: <domain_note.Note>[],
-  );
-});
+      return recovery.executeWithRecovery(
+        providerId: 'filtered_notes_provider',
+        operation: () async {
+          // Use the domain notes provider - filtering happens elsewhere
+          return await ref.watch(domainNotesProvider.future);
+        },
+        fallbackValue: <domain_note.Note>[],
+      );
+    });
 
 // ============================================================================
 // TASKS PROVIDERS WITH ERROR RECOVERY
@@ -81,7 +84,9 @@ final secureFilteredNotesProvider = FutureProvider.autoDispose<List<domain_note.
 /// Returns domain.Task objects
 ///
 /// NOTE: Riverpod 3.0+ - Using async* generator instead of deprecated .stream
-final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((ref) async* {
+final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((
+  ref,
+) async* {
   final recovery = SecurityInitialization.providerRecovery;
 
   // Use streamWithRecovery with a factory that doesn't rely on deprecated .stream
@@ -102,7 +107,9 @@ final secureTasksProvider = StreamProvider.autoDispose<List<domain_task.Task>>((
 });
 
 /// Secure task stats provider
-final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
+final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((
+  ref,
+) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
@@ -113,21 +120,23 @@ final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((re
 
       return {
         'total': tasks.length,
-        'completed': tasks.where((t) => t.status == domain_task.TaskStatus.completed).length,
-        'pending': tasks.where((t) => t.status != domain_task.TaskStatus.completed).length,
-        'overdue': tasks.where((t) =>
-          t.status != domain_task.TaskStatus.completed &&
-          t.dueDate != null &&
-          t.dueDate!.isBefore(now)
-        ).length,
+        'completed': tasks
+            .where((t) => t.status == domain_task.TaskStatus.completed)
+            .length,
+        'pending': tasks
+            .where((t) => t.status != domain_task.TaskStatus.completed)
+            .length,
+        'overdue': tasks
+            .where(
+              (t) =>
+                  t.status != domain_task.TaskStatus.completed &&
+                  t.dueDate != null &&
+                  t.dueDate!.isBefore(now),
+            )
+            .length,
       };
     },
-    fallbackValue: {
-      'total': 0,
-      'completed': 0,
-      'pending': 0,
-      'overdue': 0,
-    },
+    fallbackValue: {'total': 0, 'completed': 0, 'pending': 0, 'overdue': 0},
   );
 });
 
@@ -137,22 +146,25 @@ final secureTaskStatsProvider = FutureProvider.autoDispose<Map<String, int>>((re
 
 /// Secure folders provider
 /// Returns domain.Folder objects
-final secureFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
-  final recovery = SecurityInitialization.providerRecovery;
+final secureFoldersProvider =
+    FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
+      final recovery = SecurityInitialization.providerRecovery;
 
-  return recovery.executeWithRecovery(
-    providerId: 'folders_provider',
-    operation: () async {
-      return await ref.watch(domainFoldersProvider.future);
-    },
-    fallbackValue: <domain_folder.Folder>[],
-  );
-});
+      return recovery.executeWithRecovery(
+        providerId: 'folders_provider',
+        operation: () async {
+          return await ref.watch(domainFoldersProvider.future);
+        },
+        fallbackValue: <domain_folder.Folder>[],
+      );
+    });
 
 /// Secure folder tree provider
 /// DEPRECATED: Folder tree structure should be built from flat list
 @Deprecated('Build tree from domainFoldersProvider instead')
-final secureFolderTreeProvider = FutureProvider.autoDispose<domain_folder.Folder?>((ref) async {
+final secureFolderTreeProvider = FutureProvider.autoDispose<domain_folder.Folder?>((
+  ref,
+) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
@@ -188,7 +200,9 @@ final secureTagsProvider = StreamProvider.autoDispose<List<String>>((ref) {
 /// Secure popular tags provider
 /// DEPRECATED: Extract from notes instead
 @Deprecated('Extract popular tags from notes instead')
-final securePopularTagsProvider = FutureProvider.autoDispose<List<String>>((ref) async {
+final securePopularTagsProvider = FutureProvider.autoDispose<List<String>>((
+  ref,
+) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
@@ -221,13 +235,17 @@ final secureSyncStatusProvider = StreamProvider.autoDispose<SyncStatus>((ref) {
 
   return recovery.streamWithRecovery(
     providerId: 'sync_status_provider',
-    streamFactory: () => Stream.value(SyncStatus.idle), // TODO: Implement actual sync status stream
+    streamFactory: () => Stream.value(
+      SyncStatus.idle,
+    ), // TODO: Implement actual sync status stream
     fallbackValue: SyncStatus.idle,
   );
 });
 
 /// Secure sync operation provider
-final secureSyncOperationProvider = FutureProvider.autoDispose<void>((ref) async {
+final secureSyncOperationProvider = FutureProvider.autoDispose<void>((
+  ref,
+) async {
   final recovery = SecurityInitialization.providerRecovery;
 
   return recovery.executeWithRecovery(
@@ -256,107 +274,118 @@ final secureSyncOperationProvider = FutureProvider.autoDispose<void>((ref) async
 
 /// Secure search provider
 /// Returns domain.Note objects
-final secureSearchProvider = FutureProvider.autoDispose.family<List<domain_note.Note>, String>(
-  (ref, query) async {
-    final recovery = SecurityInitialization.providerRecovery;
+final secureSearchProvider = FutureProvider.autoDispose
+    .family<List<domain_note.Note>, String>((ref, query) async {
+      final recovery = SecurityInitialization.providerRecovery;
 
-    return recovery.executeWithRecovery(
-      providerId: 'search_provider_$query',
-      operation: () async {
-        // Validate search query
-        final validatedQuery = SecurityInitialization.validation.validateAndSanitizeText(
-          query,
-          fieldName: 'search',
-          maxLength: 100,
-          allowHtml: false,
-        );
+      return recovery.executeWithRecovery(
+        providerId: 'search_provider_$query',
+        operation: () async {
+          // Validate search query
+          final validatedQuery = SecurityInitialization.validation
+              .validateAndSanitizeText(
+                query,
+                fieldName: 'search',
+                maxLength: 100,
+                allowHtml: false,
+              );
 
-        if (validatedQuery == null || validatedQuery.isEmpty) {
-          return <domain_note.Note>[];
-        }
+          if (validatedQuery == null || validatedQuery.isEmpty) {
+            return <domain_note.Note>[];
+          }
 
-        // Perform search using domain notes provider
-        final allNotes = await ref.watch(domainNotesProvider.future);
-        final lowerQuery = validatedQuery.toLowerCase();
+          // Perform search using domain notes provider
+          final allNotes = await ref.watch(domainNotesProvider.future);
+          final lowerQuery = validatedQuery.toLowerCase();
 
-        return allNotes.where((note) {
-          return note.title.toLowerCase().contains(lowerQuery) ||
-                 note.body.toLowerCase().contains(lowerQuery);
-        }).toList();
-      },
-      fallbackValue: <domain_note.Note>[],
-    );
-  },
-);
+          return allNotes.where((note) {
+            return note.title.toLowerCase().contains(lowerQuery) ||
+                note.body.toLowerCase().contains(lowerQuery);
+          }).toList();
+        },
+        fallbackValue: <domain_note.Note>[],
+      );
+    });
 
 // ============================================================================
 // USER PREFERENCES WITH ERROR RECOVERY
 // ============================================================================
 
 /// Secure user preferences provider
-final secureUserPreferencesProvider = StateNotifierProvider.autoDispose<
-    UserPreferencesNotifier, UserPreferences>((ref) {
-  final recovery = SecurityInitialization.providerRecovery;
+final secureUserPreferencesProvider =
+    StateNotifierProvider.autoDispose<UserPreferencesNotifier, UserPreferences>(
+      (ref) {
+        final recovery = SecurityInitialization.providerRecovery;
 
-  // Load preferences with error recovery
-  recovery.executeWithRecovery(
-    providerId: 'user_preferences_loader',
-    operation: () async {
-      // TODO: Implement user preferences provider
-      return UserPreferences.defaults();
-    },
-    fallbackValue: UserPreferences.defaults(),
-  );
+        // Load preferences with error recovery
+        recovery.executeWithRecovery(
+          providerId: 'user_preferences_loader',
+          operation: () async {
+            // TODO: Implement user preferences provider
+            return UserPreferences.defaults();
+          },
+          fallbackValue: UserPreferences.defaults(),
+        );
 
-  // TODO: Implement user preferences notifier
-  return UserPreferencesNotifier();
-});
+        // TODO: Implement user preferences notifier
+        return UserPreferencesNotifier();
+      },
+    );
 
 // ============================================================================
 // ANALYTICS PROVIDERS WITH ERROR RECOVERY
 // ============================================================================
 
 /// Secure analytics data provider
-final secureAnalyticsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final recovery = SecurityInitialization.providerRecovery;
+final secureAnalyticsProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+      final recovery = SecurityInitialization.providerRecovery;
 
-  return recovery.executeWithRecovery(
-    providerId: 'analytics_provider',
-    operation: () async {
-      final notes = await ref.watch(domainNotesProvider.future);
-      final tasks = await ref.watch(domainTasksProvider.future);
+      return recovery.executeWithRecovery(
+        providerId: 'analytics_provider',
+        operation: () async {
+          final notes = await ref.watch(domainNotesProvider.future);
+          final tasks = await ref.watch(domainTasksProvider.future);
 
-      return {
-        'totalNotes': notes.length,
-        'totalTasks': tasks.length,
-        'completionRate': tasks.isEmpty
-          ? 0.0
-          : tasks.where((t) => t.status == domain_task.TaskStatus.completed).length / tasks.length,
-        'lastActivity': DateTime.now().toIso8601String(),
-      };
-    },
-    fallbackValue: {
-      'totalNotes': 0,
-      'totalTasks': 0,
-      'completionRate': 0.0,
-      'lastActivity': null,
-    },
-  );
-});
+          return {
+            'totalNotes': notes.length,
+            'totalTasks': tasks.length,
+            'completionRate': tasks.isEmpty
+                ? 0.0
+                : tasks
+                          .where(
+                            (t) => t.status == domain_task.TaskStatus.completed,
+                          )
+                          .length /
+                      tasks.length,
+            'lastActivity': DateTime.now().toIso8601String(),
+          };
+        },
+        fallbackValue: {
+          'totalNotes': 0,
+          'totalTasks': 0,
+          'completionRate': 0.0,
+          'lastActivity': null,
+        },
+      );
+    });
 
 // ============================================================================
 // PROVIDER ERROR MONITORING
 // ============================================================================
 
 /// Monitor provider health
-final providerHealthProvider = Provider.autoDispose<ProviderHealthMonitor>((ref) {
+final providerHealthProvider = Provider.autoDispose<ProviderHealthMonitor>((
+  ref,
+) {
   return ProviderHealthMonitor(ref);
 });
 
 /// Provider health monitoring service
 class ProviderHealthMonitor {
   final Ref ref;
-  final ProviderErrorRecovery _recovery = SecurityInitialization.providerRecovery;
+  final ProviderErrorRecovery _recovery =
+      SecurityInitialization.providerRecovery;
   Timer? _healthTimer; // Store timer reference to prevent memory leak
 
   ProviderHealthMonitor(this.ref) {
@@ -370,13 +399,11 @@ class ProviderHealthMonitor {
 
       if (providersInError.isNotEmpty) {
         // Log providers in error state
-        SecurityInitialization.errorLogging.logWarning(
-          'Providers in error state',
-          {
-            'count': providersInError.length,
-            'providers': providersInError.keys.toList(),
-          },
-        );
+        SecurityInitialization.errorLogging
+            .logWarning('Providers in error state', {
+              'count': providersInError.length,
+              'providers': providersInError.keys.toList(),
+            });
 
         // Attempt to recover critical providers
         for (final entry in providersInError.entries) {
@@ -420,11 +447,15 @@ class ProviderHealthMonitor {
 
 // Type placeholders (these should match your actual types)
 enum SyncStatus { idle, syncing, success, error }
+
 class UserPreferences {
   static UserPreferences defaults() => UserPreferences();
 }
+
 class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
   UserPreferencesNotifier() : super(UserPreferences.defaults());
 }
+
 class FolderNode {}
+
 class TagModel {}

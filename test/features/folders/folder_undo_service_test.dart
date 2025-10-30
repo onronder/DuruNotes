@@ -33,18 +33,12 @@ class _RecordingFolderRepository implements IFolderRepository {
 
   @override
   Future<void> moveFolder(String folderId, String? newParentId) async {
-    moveFolderCalls.add({
-      'folderId': folderId,
-      'parentId': newParentId,
-    });
+    moveFolderCalls.add({'folderId': folderId, 'parentId': newParentId});
   }
 
   @override
   Future<void> renameFolder(String folderId, String newName) async {
-    renameFolderCalls.add({
-      'folderId': folderId,
-      'name': newName,
-    });
+    renameFolderCalls.add({'folderId': folderId, 'name': newName});
   }
 
   // The remaining interface members are not required for these tests.
@@ -67,8 +61,7 @@ class _RecordingFolderRepository implements IFolderRepository {
     String? color,
     String? icon,
     String? description,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
   @override
   Future<void> deleteFolder(String folderId) => throw UnimplementedError();
   @override
@@ -82,7 +75,8 @@ class _RecordingFolderRepository implements IFolderRepository {
   Future<void> moveNoteToFolder(String noteId, String? folderId) =>
       throw UnimplementedError();
   @override
-  Future<void> removeNoteFromFolder(String noteId) => throw UnimplementedError();
+  Future<void> removeNoteFromFolder(String noteId) =>
+      throw UnimplementedError();
   @override
   Future<domain.Folder?> getFolderForNote(String noteId) async => null;
   @override

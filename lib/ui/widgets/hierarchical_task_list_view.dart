@@ -394,13 +394,15 @@ class TaskHierarchyPanel extends ConsumerWidget {
             SnackBar(content: Text('Completed ${rootTasks.length} root tasks')),
           );
         }
-        ref.read(loggerProvider)
+        ref
+            .read(loggerProvider)
             .info(
               'Completed all root tasks',
               data: {'noteId': noteId, 'count': rootTasks.length},
             );
       } catch (error, stackTrace) {
-        ref.read(loggerProvider)
+        ref
+            .read(loggerProvider)
             .error(
               'Failed to complete all root tasks',
               error: error,
@@ -475,13 +477,15 @@ class TaskHierarchyPanel extends ConsumerWidget {
             ),
           );
         }
-        ref.read(loggerProvider)
+        ref
+            .read(loggerProvider)
             .info(
               'Archived completed tasks',
               data: {'noteId': noteId, 'count': completedTasks.length},
             );
       } catch (error, stackTrace) {
-        ref.read(loggerProvider)
+        ref
+            .read(loggerProvider)
             .error(
               'Failed to archive completed tasks',
               error: error,

@@ -19,11 +19,9 @@ class TaskHierarchyNode {
 
 /// Service responsible for managing task hierarchies and parent-child relationships
 class TaskHierarchyService {
-  TaskHierarchyService({
-    required ITaskRepository repository,
-    AppLogger? logger,
-  })  : _repository = repository,
-        _logger = logger ?? LoggerFactory.instance;
+  TaskHierarchyService({required ITaskRepository repository, AppLogger? logger})
+    : _repository = repository,
+      _logger = logger ?? LoggerFactory.instance;
 
   final ITaskRepository _repository;
   final AppLogger _logger;
@@ -41,9 +39,10 @@ class TaskHierarchyService {
   /// Get all subtasks of a parent task
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async {
     try {
-      _logger.debug('[TaskHierarchyService] Getting subtasks', data: {
-        'parentTaskId': parentTaskId,
-      });
+      _logger.debug(
+        '[TaskHierarchyService] Getting subtasks',
+        data: {'parentTaskId': parentTaskId},
+      );
 
       final allTasks = await _repository.getAllTasks();
       final subtasks = allTasks
@@ -51,17 +50,23 @@ class TaskHierarchyService {
           .toList();
 
       // Sort by position
-      subtasks.sort((a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0));
+      subtasks.sort(
+        (a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0),
+      );
 
-      _logger.info('[TaskHierarchyService] Found subtasks', data: {
-        'parentTaskId': parentTaskId,
-        'count': subtasks.length,
-      });
+      _logger.info(
+        '[TaskHierarchyService] Found subtasks',
+        data: {'parentTaskId': parentTaskId, 'count': subtasks.length},
+      );
 
       return subtasks;
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to get subtasks',
-          error: e, stackTrace: stack, data: {'parentTaskId': parentTaskId});
+      _logger.error(
+        '[TaskHierarchyService] Failed to get subtasks',
+        error: e,
+        stackTrace: stack,
+        data: {'parentTaskId': parentTaskId},
+      );
       return [];
     }
   }
@@ -69,26 +74,27 @@ class TaskHierarchyService {
   /// Move a task to a new parent
   Future<bool> moveTask(String taskId, String? newParentId) async {
     try {
-      _logger.info('[TaskHierarchyService] Moving task', data: {
-        'taskId': taskId,
-        'newParentId': newParentId,
-      });
+      _logger.info(
+        '[TaskHierarchyService] Moving task',
+        data: {'taskId': taskId, 'newParentId': newParentId},
+      );
 
       // Validate the move (prevent circular dependencies)
       if (newParentId != null && !(await canMove(taskId, newParentId))) {
-        _logger.warning('[TaskHierarchyService] Move would create circular dependency', data: {
-          'taskId': taskId,
-          'newParentId': newParentId,
-        });
+        _logger.warning(
+          '[TaskHierarchyService] Move would create circular dependency',
+          data: {'taskId': taskId, 'newParentId': newParentId},
+        );
         return false;
       }
 
       // Get the task
       final task = await _repository.getTaskById(taskId);
       if (task == null) {
-        _logger.warning('[TaskHierarchyService] Task not found', data: {
-          'taskId': taskId,
-        });
+        _logger.warning(
+          '[TaskHierarchyService] Task not found',
+          data: {'taskId': taskId},
+        );
         return false;
       }
 
@@ -101,24 +107,23 @@ class TaskHierarchyService {
       }
       updatedMetadata['updatedAt'] = DateTime.now().toIso8601String();
 
-      final updated = task.copyWith(
-        metadata: updatedMetadata,
-      );
+      final updated = task.copyWith(metadata: updatedMetadata);
 
       await _repository.updateTask(updated);
 
-      _logger.info('[TaskHierarchyService] Task moved successfully', data: {
-        'taskId': taskId,
-        'newParentId': newParentId,
-      });
+      _logger.info(
+        '[TaskHierarchyService] Task moved successfully',
+        data: {'taskId': taskId, 'newParentId': newParentId},
+      );
 
       return true;
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to move task',
-          error: e, stackTrace: stack, data: {
-            'taskId': taskId,
-            'newParentId': newParentId,
-          });
+      _logger.error(
+        '[TaskHierarchyService] Failed to move task',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'newParentId': newParentId},
+      );
       return false;
     }
   }
@@ -126,9 +131,10 @@ class TaskHierarchyService {
   /// Build complete hierarchy tree for a root task
   Future<TaskHierarchyNode?> buildHierarchy(String rootId) async {
     try {
-      _logger.debug('[TaskHierarchyService] Building hierarchy', data: {
-        'rootId': rootId,
-      });
+      _logger.debug(
+        '[TaskHierarchyService] Building hierarchy',
+        data: {'rootId': rootId},
+      );
 
       final rootTask = await _repository.getTaskById(rootId);
       if (rootTask == null) return null;
@@ -143,8 +149,12 @@ class TaskHierarchyService {
         path: [],
       );
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to build hierarchy',
-          error: e, stackTrace: stack, data: {'rootId': rootId});
+      _logger.error(
+        '[TaskHierarchyService] Failed to build hierarchy',
+        error: e,
+        stackTrace: stack,
+        data: {'rootId': rootId},
+      );
       return null;
     }
   }
@@ -159,19 +169,22 @@ class TaskHierarchyService {
     final currentPath = [...path, task.id];
 
     // Find children
-    final children = taskMap.values
-        .where((t) => _getParentTaskId(t) == task.id)
-        .toList()
-      ..sort((a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0));
+    final children =
+        taskMap.values.where((t) => _getParentTaskId(t) == task.id).toList()
+          ..sort(
+            (a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0),
+          );
 
     // Build child nodes recursively
     final childNodes = children
-        .map((child) => _buildNodeRecursive(
-              task: child,
-              taskMap: taskMap,
-              level: level + 1,
-              path: currentPath,
-            ))
+        .map(
+          (child) => _buildNodeRecursive(
+            task: child,
+            taskMap: taskMap,
+            level: level + 1,
+            path: currentPath,
+          ),
+        )
         .toList();
 
     return TaskHierarchyNode(
@@ -190,7 +203,9 @@ class TaskHierarchyService {
           : await _repository.getAllTasks();
 
       // Build hierarchy for root tasks
-      final rootTasks = tasks.where((t) => _getParentTaskId(t) == null).toList();
+      final rootTasks = tasks
+          .where((t) => _getParentTaskId(t) == null)
+          .toList();
       final taskMap = {for (final task in tasks) task.id: task};
       final flatList = <TaskHierarchyNode>[];
 
@@ -206,8 +221,12 @@ class TaskHierarchyService {
 
       return flatList;
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to get flat hierarchy',
-          error: e, stackTrace: stack, data: {'noteId': noteId});
+      _logger.error(
+        '[TaskHierarchyService] Failed to get flat hierarchy',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
       return [];
     }
   }
@@ -223,25 +242,30 @@ class TaskHierarchyService {
     final currentPath = [...path, task.id];
 
     // Find children
-    final children = taskMap.values
-        .where((t) => _getParentTaskId(t) == task.id)
-        .toList()
-      ..sort((a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0));
+    final children =
+        taskMap.values.where((t) => _getParentTaskId(t) == task.id).toList()
+          ..sort(
+            (a, b) => (_getPosition(a) ?? 0).compareTo(_getPosition(b) ?? 0),
+          );
 
     // Add current node
-    flatList.add(TaskHierarchyNode(
-      task: task,
-      children: children
-          .map((child) => _buildNodeRecursive(
+    flatList.add(
+      TaskHierarchyNode(
+        task: task,
+        children: children
+            .map(
+              (child) => _buildNodeRecursive(
                 task: child,
                 taskMap: taskMap,
                 level: level + 1,
                 path: currentPath,
-              ))
-          .toList(),
-      level: level,
-      path: currentPath,
-    ));
+              ),
+            )
+            .toList(),
+        level: level,
+        path: currentPath,
+      ),
+    );
 
     // Add children recursively
     for (final child in children) {
@@ -264,11 +288,12 @@ class TaskHierarchyService {
       final descendants = await _getAllDescendants(taskId);
       return !descendants.contains(targetParentId);
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to check move validity',
-          error: e, stackTrace: stack, data: {
-            'taskId': taskId,
-            'targetParentId': targetParentId,
-          });
+      _logger.error(
+        '[TaskHierarchyService] Failed to check move validity',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'targetParentId': targetParentId},
+      );
       return false;
     }
   }
@@ -280,7 +305,8 @@ class TaskHierarchyService {
 
     void addDescendants(String parentId) {
       for (final task in allTasks) {
-        if (_getParentTaskId(task) == parentId && !descendants.contains(task.id)) {
+        if (_getParentTaskId(task) == parentId &&
+            !descendants.contains(task.id)) {
           descendants.add(task.id);
           addDescendants(task.id); // Recursive call
         }
@@ -310,8 +336,12 @@ class TaskHierarchyService {
 
       return depth;
     } catch (e, stack) {
-      _logger.error('[TaskHierarchyService] Failed to get task depth',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskHierarchyService] Failed to get task depth',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return 0;
     }
   }

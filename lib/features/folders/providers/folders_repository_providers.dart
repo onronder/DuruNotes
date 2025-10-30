@@ -2,9 +2,11 @@ import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart'
     show authStateChangesProvider;
 import 'package:duru_notes/infrastructure/repositories/folder_core_repository.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 // Phase 4: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/security_providers.dart' show cryptoBoxProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show cryptoBoxProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

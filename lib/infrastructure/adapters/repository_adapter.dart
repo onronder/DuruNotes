@@ -75,7 +75,11 @@ class RepositoryAdapter {
     try {
       return await domainNotesRepo.getNoteById(id);
     } catch (e, stack) {
-      _logger.error('Failed to get note by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get note by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -114,7 +118,11 @@ class RepositoryAdapter {
       );
       return result?.id ?? id ?? '';
     } catch (e, stack) {
-      _logger.error('Failed to create/update note', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create/update note',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -142,7 +150,11 @@ class RepositoryAdapter {
         pinnedFirst: pinnedFirst,
       );
     } catch (e, stack) {
-      _logger.error('Failed to create notes watch stream', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create notes watch stream',
+        error: e,
+        stackTrace: stack,
+      );
       return Stream.error(e, stack);
     }
   }
@@ -155,7 +167,11 @@ class RepositoryAdapter {
     try {
       return await domainFoldersRepo.getFolder(id);
     } catch (e, stack) {
-      _logger.error('Failed to get folder by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get folder by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -185,7 +201,11 @@ class RepositoryAdapter {
         description: description,
       );
     } catch (e, stack) {
-      _logger.error('Failed to create folder: $name', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create folder: $name',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -207,7 +227,11 @@ class RepositoryAdapter {
     try {
       return await domainTemplatesRepo.getTemplateById(id);
     } catch (e, stack) {
-      _logger.error('Failed to get template by id: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get template by id: $id',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -229,7 +253,11 @@ class RepositoryAdapter {
     try {
       return await domainTasksRepo.getTasksForNote(noteId);
     } catch (e, stack) {
-      _logger.error('Failed to get tasks for note: $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get tasks for note: $noteId',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -259,8 +287,16 @@ class RepositoryAdapter {
   // NOTE: Direct conversion methods removed - encryption required for notes/templates
   // Use repository methods which handle encryption properly
 
-  db.LocalNote domainNoteToLocal(domain.Note note, {required String titleEncrypted, required String bodyEncrypted}) {
-    return NoteMapper.toInfrastructure(note, titleEncrypted: titleEncrypted, bodyEncrypted: bodyEncrypted);
+  db.LocalNote domainNoteToLocal(
+    domain.Note note, {
+    required String titleEncrypted,
+    required String bodyEncrypted,
+  }) {
+    return NoteMapper.toInfrastructure(
+      note,
+      titleEncrypted: titleEncrypted,
+      bodyEncrypted: bodyEncrypted,
+    );
   }
 
   domain.Note localNoteToDomain(
@@ -323,7 +359,11 @@ class RepositoryAdapter {
       // Feature flags are now controlled at the provider level
       _logger.info('Feature $feature enabled for user $userId');
     } catch (e, stack) {
-      _logger.error('Failed to enable feature $feature for user $userId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to enable feature $feature for user $userId',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -334,7 +374,11 @@ class RepositoryAdapter {
       // Feature flags are now controlled at the provider level
       _logger.info('Feature $feature disabled for user $userId');
     } catch (e, stack) {
-      _logger.error('Failed to disable feature $feature for user $userId', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to disable feature $feature for user $userId',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -356,7 +400,11 @@ class RepositoryAdapter {
         'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (e, stack) {
-      _logger.error('Failed to get migration status', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get migration status',
+        error: e,
+        stackTrace: stack,
+      );
       return {
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
@@ -380,7 +428,11 @@ class RepositoryAdapter {
 
       return results;
     } catch (e, stack) {
-      _logger.error('Failed to validate data consistency', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to validate data consistency',
+        error: e,
+        stackTrace: stack,
+      );
       return {
         'error': e.toString(),
         'timestamp': DateTime.now().toIso8601String(),
@@ -392,60 +444,36 @@ class RepositoryAdapter {
   Future<Map<String, dynamic>> _validateNotesConsistency() async {
     try {
       final notes = await domainNotesRepo.localNotes();
-      return {
-        'count': notes.length,
-        'status': 'ok',
-      };
+      return {'count': notes.length, 'status': 'ok'};
     } catch (e) {
-      return {
-        'error': e.toString(),
-        'status': 'error',
-      };
+      return {'error': e.toString(), 'status': 'error'};
     }
   }
 
   Future<Map<String, dynamic>> _validateFoldersConsistency() async {
     try {
       final folders = await domainFoldersRepo.listFolders();
-      return {
-        'count': folders.length,
-        'status': 'ok',
-      };
+      return {'count': folders.length, 'status': 'ok'};
     } catch (e) {
-      return {
-        'error': e.toString(),
-        'status': 'error',
-      };
+      return {'error': e.toString(), 'status': 'error'};
     }
   }
 
   Future<Map<String, dynamic>> _validateTemplatesConsistency() async {
     try {
       final templates = await domainTemplatesRepo.getAllTemplates();
-      return {
-        'count': templates.length,
-        'status': 'ok',
-      };
+      return {'count': templates.length, 'status': 'ok'};
     } catch (e) {
-      return {
-        'error': e.toString(),
-        'status': 'error',
-      };
+      return {'error': e.toString(), 'status': 'error'};
     }
   }
 
   Future<Map<String, dynamic>> _validateTasksConsistency() async {
     try {
       final tasks = await domainTasksRepo.getAllTasks();
-      return {
-        'count': tasks.length,
-        'status': 'ok',
-      };
+      return {'count': tasks.length, 'status': 'ok'};
     } catch (e) {
-      return {
-        'error': e.toString(),
-        'status': 'error',
-      };
+      return {'error': e.toString(), 'status': 'error'};
     }
   }
 }

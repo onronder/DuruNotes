@@ -124,9 +124,11 @@ class FeatureFlaggedBlockFactory {
     _logger.debug('=== Feature Flag State ===');
     _logger.debug('useNewBlockEditor: ${_featureFlags.useNewBlockEditor}');
     _logger.debug(
-        'useRefactoredComponents: ${_featureFlags.useRefactoredComponents}');
+      'useRefactoredComponents: ${_featureFlags.useRefactoredComponents}',
+    );
     _logger.debug(
-        'useUnifiedPermissionManager: ${_featureFlags.useUnifiedPermissionManager}');
+      'useUnifiedPermissionManager: ${_featureFlags.useUnifiedPermissionManager}',
+    );
     _logger.debug('========================');
   }
 }

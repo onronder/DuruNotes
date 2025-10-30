@@ -912,8 +912,9 @@ class ExportService {
                 style: pw.TextStyle(
                   font: fontRegular,
                   fontSize: _defaultFontSize,
-                  decoration:
-                      isCompleted ? pw.TextDecoration.lineThrough : null,
+                  decoration: isCompleted
+                      ? pw.TextDecoration.lineThrough
+                      : null,
                 ),
               ),
             ),

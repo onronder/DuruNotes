@@ -16,8 +16,8 @@ class Insight {
     this.actionText,
     this.action,
     this.metadata,
-  })  : id = DateTime.now().millisecondsSinceEpoch.toString(),
-        generatedAt = DateTime.now();
+  }) : id = DateTime.now().millisecondsSinceEpoch.toString(),
+       generatedAt = DateTime.now();
 
   final String id;
   final InsightType type;
@@ -159,8 +159,8 @@ class AIInsightsService {
     final tendency = stats.underEstimates > stats.overEstimates
         ? 'underestimate'
         : stats.overEstimates > stats.underEstimates
-            ? 'overestimate'
-            : 'vary';
+        ? 'overestimate'
+        : 'vary';
 
     insights.add(
       Insight(
@@ -257,7 +257,8 @@ class AIInsightsService {
       Insight(
         type: InsightType.achievement,
         title: 'Completion Streak',
-        description: 'Great job! You are on a $streak day completion streak. '
+        description:
+            'Great job! You are on a $streak day completion streak. '
             'Complete at least one task today to keep it going.',
         metadata: {'streak': streak},
       ),

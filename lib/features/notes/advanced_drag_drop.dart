@@ -4,9 +4,12 @@ import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/haptic_utils.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/services/providers/services_providers.dart' show undoRedoServiceProvider;
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderProvider, folderHierarchyProvider;
-import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart' show folderCoreRepositoryProvider;
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show undoRedoServiceProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderProvider, folderHierarchyProvider;
+import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
+    show folderCoreRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -203,7 +206,8 @@ class _AdvancedDraggableNoteState extends ConsumerState<AdvancedDraggableNote>
                       ),
                     ],
                   ),
-                  if (notes.length == 1 && notes.first.bodyEncrypted.isNotEmpty) ...[
+                  if (notes.length == 1 &&
+                      notes.first.bodyEncrypted.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
                       notes.first.bodyEncrypted,
@@ -525,12 +529,13 @@ class _AdvancedFolderDropTargetState
                                     : colorScheme.error,
                                 width: 2,
                               ),
-                              color: (_willAccept
-                                      ? colorScheme.primary
-                                      : colorScheme.error)
-                                  .withValues(
-                                alpha: 0.1 * _glowAnimation.value,
-                              ),
+                              color:
+                                  (_willAccept
+                                          ? colorScheme.primary
+                                          : colorScheme.error)
+                                      .withValues(
+                                        alpha: 0.1 * _glowAnimation.value,
+                                      ),
                             ),
                           ),
                         ),

@@ -3,7 +3,8 @@ import 'dart:collection';
 
 import 'package:duru_notes/core/animation_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
@@ -76,8 +77,9 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
     _loadRootFolders();
 
     // Configure visibility detector
-    VisibilityDetectorController.instance.updateInterval =
-        const Duration(milliseconds: 100);
+    VisibilityDetectorController.instance.updateInterval = const Duration(
+      milliseconds: 100,
+    );
   }
 
   @override
@@ -102,8 +104,8 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
 
     final viewportHeight = _scrollController.position.viewportDimension;
     final startIndex = (_scrollOffset / widget.itemHeight).floor();
-    final endIndex =
-        (((_scrollOffset + viewportHeight) / widget.itemHeight).ceil());
+    final endIndex = (((_scrollOffset + viewportHeight) / widget.itemHeight)
+        .ceil());
 
     // Calculate visible range with buffer
     final bufferSize = 5;
@@ -111,7 +113,8 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
     final visibleEnd = (endIndex + bufferSize).clamp(0, _totalItemCount);
 
     _logger.debug(
-        'Visible range: $visibleStart - $visibleEnd of $_totalItemCount items');
+      'Visible range: $visibleStart - $visibleEnd of $_totalItemCount items',
+    );
 
     // Trigger lazy loading for visible items
     _processLazyLoadQueue();
@@ -129,10 +132,12 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
         final domainFolders = await repository.getRootFolders();
 
         // Convert domain folders to infrastructure folders
-        folders = domainFolders.map((f) => FolderMapper.toInfrastructure(f)).toList();
+        folders = domainFolders
+            .map((f) => FolderMapper.toInfrastructure(f))
+            .toList();
 
         // Cache the result
-          await cache.setRootFolders(folders);
+        await cache.setRootFolders(folders);
       }
 
       if (mounted) {
@@ -167,10 +172,12 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
         final domainChildren = await repository.getChildFolders(parentId);
 
         // Convert domain folders to infrastructure folders
-        children = domainChildren.map((f) => FolderMapper.toInfrastructure(f)).toList();
+        children = domainChildren
+            .map((f) => FolderMapper.toInfrastructure(f))
+            .toList();
 
         // Cache the result
-          await cache.setChildFolders(parentId, children);
+        await cache.setChildFolders(parentId, children);
       }
 
       if (mounted) {
@@ -181,8 +188,11 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
         });
       }
     } catch (e, stack) {
-      _logger.error('Failed to load child folders',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to load child folders',
+        error: e,
+        stackTrace: stack,
+      );
       if (mounted) {
         setState(() {
           _loadingFolders.remove(parentId);
@@ -253,14 +263,16 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
 
     void buildFolder(List<LocalFolder> folders, int level) {
       for (final folder in folders) {
-        items.add(VirtualFolderItem(
-          folder: folder,
-          level: level,
-          index: currentIndex++,
-          isExpanded: _expandedFolders.contains(folder.id),
-          isLoading: _loadingFolders.contains(folder.id),
-          hasChildren: true, // Will be determined by actual data
-        ));
+        items.add(
+          VirtualFolderItem(
+            folder: folder,
+            level: level,
+            index: currentIndex++,
+            isExpanded: _expandedFolders.contains(folder.id),
+            isLoading: _loadingFolders.contains(folder.id),
+            hasChildren: true, // Will be determined by actual data
+          ),
+        );
 
         if (_expandedFolders.contains(folder.id)) {
           final children = _folderCache[folder.id];
@@ -290,22 +302,19 @@ class _VirtualizedFolderTreeState extends ConsumerState<VirtualizedFolderTree> {
       controller: _scrollController,
       slivers: [
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index >= items.length) return null;
+          delegate: SliverChildBuilderDelegate((context, index) {
+            if (index >= items.length) return null;
 
-              final item = items[index];
-              return VirtualFolderTreeItem(
-                key: ValueKey(item.folder.id),
-                item: item,
-                indentWidth: widget.indentWidth,
-                isSelected: widget.selectedFolderId == item.folder.id,
-                onTap: () => widget.onFolderSelected?.call(item.folder),
-                onExpand: () => _toggleFolder(item.folder.id),
-              );
-            },
-            childCount: items.length,
-          ),
+            final item = items[index];
+            return VirtualFolderTreeItem(
+              key: ValueKey(item.folder.id),
+              item: item,
+              indentWidth: widget.indentWidth,
+              isSelected: widget.selectedFolderId == item.folder.id,
+              onTap: () => widget.onFolderSelected?.call(item.folder),
+              onExpand: () => _toggleFolder(item.folder.id),
+            );
+          }, childCount: items.length),
         ),
       ],
     );
@@ -516,17 +525,20 @@ class _VirtualFolderTreeItemState extends ConsumerState<VirtualFolderTreeItem>
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: FolderIconHelpers.getFolderColor(
-                                widget.item.folder.color)
-                            ?.withValues(alpha: 0.2) ??
+                    color:
+                        FolderIconHelpers.getFolderColor(
+                          widget.item.folder.color,
+                        )?.withValues(alpha: 0.2) ??
                         colorScheme.primaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     FolderIconHelpers.getFolderIcon(widget.item.folder.icon),
                     size: 18,
-                    color: FolderIconHelpers.getFolderColor(
-                            widget.item.folder.color) ??
+                    color:
+                        FolderIconHelpers.getFolderColor(
+                          widget.item.folder.color,
+                        ) ??
                         colorScheme.primary,
                   ),
                 ),
@@ -550,8 +562,10 @@ class _VirtualFolderTreeItemState extends ConsumerState<VirtualFolderTreeItem>
                 // Note count badge
                 if (_noteCount != null && _noteCount! > 0)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
@@ -582,8 +596,9 @@ class _VirtualFolderTreeItemState extends ConsumerState<VirtualFolderTreeItem>
 }
 
 /// Provider for virtualized folder tree configuration
-final virtualizedFolderConfigProvider =
-    Provider<VirtualizedFolderConfig>((ref) {
+final virtualizedFolderConfigProvider = Provider<VirtualizedFolderConfig>((
+  ref,
+) {
   return VirtualizedFolderConfig(
     maxInitialItems: 50,
     itemHeight: 56.0,

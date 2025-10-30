@@ -89,16 +89,18 @@ class MarkdownUtils {
     String prefix, {
     bool toggle = false,
   }) {
-    return lines.map((line) {
-      if (toggle && line.startsWith(prefix)) {
-        // Remove prefix
-        return line.substring(prefix.length);
-      } else if (!line.startsWith(prefix)) {
-        // Add prefix
-        return '$prefix$line';
-      }
-      return line;
-    }).join('\n');
+    return lines
+        .map((line) {
+          if (toggle && line.startsWith(prefix)) {
+            // Remove prefix
+            return line.substring(prefix.length);
+          } else if (!line.startsWith(prefix)) {
+            // Add prefix
+            return '$prefix$line';
+          }
+          return line;
+        })
+        .join('\n');
   }
 }
 
@@ -130,10 +132,12 @@ class BoldCommand extends MarkdownCommand {
       if (isMultiline) {
         // For multiline, apply to each line
         final lines = selectedText.split('\n');
-        final formattedLines = lines.map((line) {
-          if (line.trim().isEmpty) return line;
-          return MarkdownUtils.toggleWrapper(line, '**');
-        }).join('\n');
+        final formattedLines = lines
+            .map((line) {
+              if (line.trim().isEmpty) return line;
+              return MarkdownUtils.toggleWrapper(line, '**');
+            })
+            .join('\n');
 
         final newText = text.replaceRange(
           selection.start,
@@ -315,7 +319,8 @@ class ListCommand extends MarkdownCommand {
       }
 
       // Check if we should toggle off
-      final shouldRemove = (type == ListType.bullet && line.startsWith('- ')) ||
+      final shouldRemove =
+          (type == ListType.bullet && line.startsWith('- ')) ||
           (type == ListType.numbered && RegExp(r'^\d+\.\s').hasMatch(line)) ||
           (type == ListType.checkbox && line.startsWith('- [ ]'));
 

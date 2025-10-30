@@ -231,8 +231,8 @@ class _FrameRateMonitorState extends State<FrameRateMonitor> {
                 color: _fps < 30
                     ? Colors.red.withValues(alpha: 0.8)
                     : _fps < 50
-                        ? Colors.orange.withValues(alpha: 0.8)
-                        : Colors.green.withValues(alpha: 0.8),
+                    ? Colors.orange.withValues(alpha: 0.8)
+                    : Colors.green.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

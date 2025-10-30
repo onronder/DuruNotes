@@ -1,8 +1,10 @@
 import 'package:duru_notes/features/folders/batch_operations/batch_selection_provider.dart';
 import 'package:duru_notes/features/folders/folder_picker_component.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart' show currentNotesProvider;
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, folderListProvider;
+import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
+    show currentNotesProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider, folderListProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,10 +81,10 @@ class KeyboardShortcuts {
 
   // Quick folder access (1-9)
   static List<SingleActivator> get quickFolderShortcuts => List.generate(
-        9,
-        (index) =>
-            SingleActivator(LogicalKeyboardKey(0x00000031 + index), meta: true),
-      ); // 1-9 keys
+    9,
+    (index) =>
+        SingleActivator(LogicalKeyboardKey(0x00000031 + index), meta: true),
+  ); // 1-9 keys
 }
 
 /// Widget that handles keyboard shortcuts for folder operations
@@ -584,47 +586,35 @@ class KeyboardShortcutsHelp extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildShortcutSection(
-                  'Selection',
-                  [
-                    const _ShortcutItem('Select All', '⌘A'),
-                    const _ShortcutItem('Clear Selection', '⌘D'),
-                    const _ShortcutItem('Invert Selection', '⌘I'),
-                  ],
-                  theme),
+              _buildShortcutSection('Selection', [
+                const _ShortcutItem('Select All', '⌘A'),
+                const _ShortcutItem('Clear Selection', '⌘D'),
+                const _ShortcutItem('Invert Selection', '⌘I'),
+              ], theme),
               const SizedBox(height: 16),
-              _buildShortcutSection(
-                  'Navigation',
-                  [
-                    const _ShortcutItem('Expand All Folders', '⌘E'),
-                    const _ShortcutItem('Collapse All Folders', '⌘W'),
-                    const _ShortcutItem('Next Folder', '↓'),
-                    const _ShortcutItem('Previous Folder', '↑'),
-                    const _ShortcutItem('Quick Folder Access', '⌘1-9'),
-                  ],
-                  theme),
+              _buildShortcutSection('Navigation', [
+                const _ShortcutItem('Expand All Folders', '⌘E'),
+                const _ShortcutItem('Collapse All Folders', '⌘W'),
+                const _ShortcutItem('Next Folder', '↓'),
+                const _ShortcutItem('Previous Folder', '↑'),
+                const _ShortcutItem('Quick Folder Access', '⌘1-9'),
+              ], theme),
               const SizedBox(height: 16),
-              _buildShortcutSection(
-                  'Actions',
-                  [
-                    const _ShortcutItem('Delete Selected', 'Delete'),
-                    const _ShortcutItem('Move to Folder', '⌘M'),
-                    const _ShortcutItem('Create Folder', '⌘⇧N'),
-                    const _ShortcutItem('Refresh Folders', '⌘R'),
-                    const _ShortcutItem('Search Folders', '⌘F'),
-                    const _ShortcutItem('Clear Search', 'Esc'),
-                  ],
-                  theme),
+              _buildShortcutSection('Actions', [
+                const _ShortcutItem('Delete Selected', 'Delete'),
+                const _ShortcutItem('Move to Folder', '⌘M'),
+                const _ShortcutItem('Create Folder', '⌘⇧N'),
+                const _ShortcutItem('Refresh Folders', '⌘R'),
+                const _ShortcutItem('Search Folders', '⌘F'),
+                const _ShortcutItem('Clear Search', 'Esc'),
+              ], theme),
               const SizedBox(height: 16),
-              _buildShortcutSection(
-                  'Batch Operations',
-                  [
-                    const _ShortcutItem('Archive Selected', '⌘⇧A'),
-                    const _ShortcutItem('Favorite Selected', '⌘S'),
-                    const _ShortcutItem('Share Selected', '⌘⇧S'),
-                    const _ShortcutItem('Export Selected', '⌘⇧E'),
-                  ],
-                  theme),
+              _buildShortcutSection('Batch Operations', [
+                const _ShortcutItem('Archive Selected', '⌘⇧A'),
+                const _ShortcutItem('Favorite Selected', '⌘S'),
+                const _ShortcutItem('Share Selected', '⌘⇧S'),
+                const _ShortcutItem('Export Selected', '⌘⇧E'),
+              ], theme),
             ],
           ),
         ),

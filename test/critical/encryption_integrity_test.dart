@@ -12,14 +12,14 @@ import 'package:duru_notes/services/account_key_service.dart';
 class _StaticGoTrueClient extends GoTrueClient {
   _StaticGoTrueClient(User? user)
     : _session = user == null
-            ? null
-            : Session(
-                accessToken: 'stub-access',
-                refreshToken: 'stub-refresh',
-                tokenType: 'bearer',
-                expiresIn: 3600,
-                user: user,
-              ),
+          ? null
+          : Session(
+              accessToken: 'stub-access',
+              refreshToken: 'stub-refresh',
+              tokenType: 'bearer',
+              expiresIn: 3600,
+              user: user,
+            ),
       super();
 
   final Session? _session;
@@ -55,7 +55,9 @@ void main() {
     late AccountKeyService accountKeyService;
 
     setUp(() {
-      FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform({});
+      FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
+        {},
+      );
       container = ProviderContainer();
       storage = const FlutterSecureStorage();
       final client = _ThrowingSupabaseClient(
@@ -87,25 +89,32 @@ void main() {
       container.dispose();
     });
 
-    test('provisionAmkForUser stores AMK locally even if remote upsert fails', () async {
-      await accountKeyService.provisionAmkForUser(
-        passphrase: 'S3cureP@ss',
-        userId: 'user-encryption',
-      );
+    test(
+      'provisionAmkForUser stores AMK locally even if remote upsert fails',
+      () async {
+        await accountKeyService.provisionAmkForUser(
+          passphrase: 'S3cureP@ss',
+          userId: 'user-encryption',
+        );
 
-      final amk = await accountKeyService.getLocalAmk(userId: 'user-encryption');
-      expect(amk, isNotNull);
-      expect(amk, hasLength(32));
+        final amk = await accountKeyService.getLocalAmk(
+          userId: 'user-encryption',
+        );
+        expect(amk, isNotNull);
+        expect(amk, hasLength(32));
 
-      final metadata = await storage.read(key: 'amk_meta:user-encryption');
-      expect(metadata, isNotNull);
-    });
+        final metadata = await storage.read(key: 'amk_meta:user-encryption');
+        expect(metadata, isNotNull);
+      },
+    );
 
     test('unlockAmkWithPassphrase succeeds when AMK cached locally', () async {
       final cachedAmk = Uint8List.fromList(List<int>.generate(32, (i) => i));
       await accountKeyService.setLocalAmk(cachedAmk, userId: 'user-encryption');
 
-      final unlocked = await accountKeyService.unlockAmkWithPassphrase('unused');
+      final unlocked = await accountKeyService.unlockAmkWithPassphrase(
+        'unused',
+      );
       expect(unlocked, isTrue);
     });
 
@@ -117,7 +126,9 @@ void main() {
 
       await accountKeyService.clearLocalAmk();
 
-      final amk = await accountKeyService.getLocalAmk(userId: 'user-encryption');
+      final amk = await accountKeyService.getLocalAmk(
+        userId: 'user-encryption',
+      );
       expect(amk, isNull);
 
       final meta = await storage.read(key: 'amk_meta:user-encryption');

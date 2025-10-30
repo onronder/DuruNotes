@@ -1,5 +1,4 @@
 #!/usr/bin/env dart
-
 // Comprehensive Schema Comparison Tool
 //
 // Compares ALL local Drift tables with ALL remote Supabase tables
@@ -129,20 +128,23 @@ List<ColumnDef> _parseColumns(String tableContent) {
 
   for (final match in matches) {
     final columnName = match.group(2)!; // e.g., userId
-    final baseType = match.group(3)!;   // e.g., text
-    final modifiers = match.group(4)!;  // e.g., .nullable()
+    final baseType = match.group(3)!; // e.g., text
+    final modifiers = match.group(4)!; // e.g., .nullable()
 
     final isNullable = modifiers.contains('.nullable()');
-    final isPrimaryKey = tableContent.contains('primaryKey => {$columnName}') ||
+    final isPrimaryKey =
+        tableContent.contains('primaryKey => {$columnName}') ||
         tableContent.contains('primaryKey => {$columnName,');
 
-    columns.add(ColumnDef(
-      name: columnName,
-      type: _mapDriftTypeToSql(baseType),
-      isNullable: isNullable,
-      isPrimaryKey: isPrimaryKey,
-      rawDefinition: match.group(0)!,
-    ));
+    columns.add(
+      ColumnDef(
+        name: columnName,
+        type: _mapDriftTypeToSql(baseType),
+        isNullable: isNullable,
+        isPrimaryKey: isPrimaryKey,
+        rawDefinition: match.group(0)!,
+      ),
+    );
   }
 
   return columns;
@@ -174,11 +176,11 @@ Future<Map<String, RemoteTableDef>> extractRemoteTables() async {
   print('   Running: supabase db dump...');
 
   // Get remote schema dump
-  final result = await Process.run(
-    'supabase',
-    ['db', 'dump', '--data-only=false'],
-    runInShell: true,
-  );
+  final result = await Process.run('supabase', [
+    'db',
+    'dump',
+    '--data-only=false',
+  ], runInShell: true);
 
   if (result.exitCode != 0) {
     throw Exception('Failed to dump remote schema: ${result.stderr}');
@@ -239,13 +241,15 @@ List<ColumnDef> _parseRemoteColumns(String columnsContent) {
       final isNullable = !rest.contains('NOT NULL');
       final isPrimaryKey = rest.contains('PRIMARY KEY');
 
-      columns.add(ColumnDef(
-        name: name,
-        type: type,
-        isNullable: isNullable,
-        isPrimaryKey: isPrimaryKey,
-        rawDefinition: trimmed,
-      ));
+      columns.add(
+        ColumnDef(
+          name: name,
+          type: type,
+          isNullable: isNullable,
+          isPrimaryKey: isPrimaryKey,
+          rawDefinition: trimmed,
+        ),
+      );
     }
   }
 
@@ -379,12 +383,16 @@ ColumnMismatch? compareColumn(String name, ColumnDef local, ColumnDef remote) {
   // Nullability mismatch (CRITICAL for sync)
   if (local.isNullable != remote.isNullable) {
     final severity = 'CRITICAL';
-    issues.add('$severity - Nullability: local=${local.isNullable ? 'NULL' : 'NOT NULL'}, remote=${remote.isNullable ? 'NULL' : 'NOT NULL'}');
+    issues.add(
+      '$severity - Nullability: local=${local.isNullable ? 'NULL' : 'NOT NULL'}, remote=${remote.isNullable ? 'NULL' : 'NOT NULL'}',
+    );
   }
 
   // Primary key mismatch
   if (local.isPrimaryKey != remote.isPrimaryKey) {
-    issues.add('Primary Key: local=${local.isPrimaryKey}, remote=${remote.isPrimaryKey}');
+    issues.add(
+      'Primary Key: local=${local.isPrimaryKey}, remote=${remote.isPrimaryKey}',
+    );
   }
 
   if (issues.isEmpty) return null;
@@ -432,7 +440,9 @@ String generateReport(SchemaComparison comparison) {
   buffer.writeln();
   buffer.writeln('| Metric | Count |');
   buffer.writeln('|--------|-------|');
-  buffer.writeln('| Tables with mismatches | ${comparison.mismatches.length} |');
+  buffer.writeln(
+    '| Tables with mismatches | ${comparison.mismatches.length} |',
+  );
   buffer.writeln('| Tables only in LOCAL | ${comparison.localOnly.length} |');
   buffer.writeln('| Tables only in REMOTE | ${comparison.remoteOnly.length} |');
   buffer.writeln('| Critical issues | ${comparison.criticalIssues} |');
@@ -455,7 +465,9 @@ String generateReport(SchemaComparison comparison) {
   if (comparison.localOnly.isNotEmpty) {
     buffer.writeln('## Tables Only in LOCAL (Not Synced to Remote)');
     buffer.writeln();
-    buffer.writeln('These tables exist locally but NOT in the remote Supabase database:');
+    buffer.writeln(
+      'These tables exist locally but NOT in the remote Supabase database:',
+    );
     buffer.writeln();
     for (final table in comparison.localOnly) {
       buffer.writeln('- `$table` - ⚠️ Will not sync to cloud');
@@ -467,7 +479,9 @@ String generateReport(SchemaComparison comparison) {
   if (comparison.remoteOnly.isNotEmpty) {
     buffer.writeln('## Tables Only in REMOTE (Not in Local App)');
     buffer.writeln();
-    buffer.writeln('These tables exist in Supabase but NOT in the local Drift schema:');
+    buffer.writeln(
+      'These tables exist in Supabase but NOT in the local Drift schema:',
+    );
     buffer.writeln();
     for (final table in comparison.remoteOnly) {
       buffer.writeln('- `$table` - ℹ️ App cannot access this data');
@@ -509,7 +523,9 @@ String generateReport(SchemaComparison comparison) {
         buffer.writeln('| Column | Issues |');
         buffer.writeln('|--------|--------|');
         for (final colMismatch in mismatch.columnMismatches) {
-          buffer.writeln('| `${colMismatch.columnName}` | ${colMismatch.issues.join(', ')} |');
+          buffer.writeln(
+            '| `${colMismatch.columnName}` | ${colMismatch.issues.join(', ')} |',
+          );
         }
         buffer.writeln();
       }
@@ -596,7 +612,10 @@ class SchemaComparison {
   }
 
   int get warnings {
-    return localOnly.length + remoteOnly.length + mismatches.length - criticalIssues;
+    return localOnly.length +
+        remoteOnly.length +
+        mismatches.length -
+        criticalIssues;
   }
 }
 

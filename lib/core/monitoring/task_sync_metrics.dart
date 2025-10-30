@@ -37,12 +37,15 @@ class TaskSyncMetrics {
       metadata: metadata ?? {},
     );
 
-    _logger.debug('Started sync operation', data: {
-      'syncId': syncId,
-      'noteId': noteId,
-      'syncType': syncType,
-      ...?metadata,
-    });
+    _logger.debug(
+      'Started sync operation',
+      data: {
+        'syncId': syncId,
+        'noteId': noteId,
+        'syncType': syncType,
+        ...?metadata,
+      },
+    );
 
     return syncId;
   }
@@ -57,8 +60,10 @@ class TaskSyncMetrics {
   }) {
     final metric = _metrics[syncId];
     if (metric == null) {
-      _logger
-          .warning('Attempted to end unknown sync', data: {'syncId': syncId});
+      _logger.warning(
+        'Attempted to end unknown sync',
+        data: {'syncId': syncId},
+      );
       return;
     }
 
@@ -120,37 +125,45 @@ class TaskSyncMetrics {
   void _checkForAnomalies(_SyncMetric metric) {
     // Check for excessive duplicates
     if (metric.duplicatesFound != null && metric.duplicatesFound! > 5) {
-      _logger.warning('High duplicate count detected', data: {
-        'noteId': metric.noteId,
-        'duplicates': metric.duplicatesFound,
-        'syncType': metric.syncType,
-      });
+      _logger.warning(
+        'High duplicate count detected',
+        data: {
+          'noteId': metric.noteId,
+          'duplicates': metric.duplicatesFound,
+          'syncType': metric.syncType,
+        },
+      );
     }
 
     // Check for slow sync
     if (metric.duration != null && metric.duration!.inMilliseconds > 1000) {
-      _logger.warning('Slow sync operation', data: {
-        'noteId': metric.noteId,
-        'duration': metric.duration!.inMilliseconds,
-        'syncType': metric.syncType,
-        'taskCount': metric.taskCount,
-      });
+      _logger.warning(
+        'Slow sync operation',
+        data: {
+          'noteId': metric.noteId,
+          'duration': metric.duration!.inMilliseconds,
+          'syncType': metric.syncType,
+          'taskCount': metric.taskCount,
+        },
+      );
     }
 
     // Check for frequent errors
     final recentErrors = _metrics.values
-        .where((m) =>
-            m.noteId == metric.noteId &&
-            !m.success &&
-            m.endTime != null &&
-            DateTime.now().difference(m.endTime!).inMinutes < 5)
+        .where(
+          (m) =>
+              m.noteId == metric.noteId &&
+              !m.success &&
+              m.endTime != null &&
+              DateTime.now().difference(m.endTime!).inMinutes < 5,
+        )
         .length;
 
     if (recentErrors >= 3) {
-      _logger.error('Multiple sync failures detected', data: {
-        'noteId': metric.noteId,
-        'recentErrors': recentErrors,
-      });
+      _logger.error(
+        'Multiple sync failures detected',
+        data: {'noteId': metric.noteId, 'recentErrors': recentErrors},
+      );
     }
   }
 
@@ -163,13 +176,16 @@ class TaskSyncMetrics {
   }) {
     _duplicateCounts[noteId] = (_duplicateCounts[noteId] ?? 0) + 1;
 
-    _logger.warning('Duplicate task detected', data: {
-      'noteId': noteId,
-      'taskId': taskId,
-      'duplicateId': duplicateId,
-      'reason': reason,
-      'totalDuplicates': _duplicateCounts[noteId],
-    });
+    _logger.warning(
+      'Duplicate task detected',
+      data: {
+        'noteId': noteId,
+        'taskId': taskId,
+        'duplicateId': duplicateId,
+        'reason': reason,
+        'totalDuplicates': _duplicateCounts[noteId],
+      },
+    );
   }
 
   /// Get sync performance statistics
@@ -213,8 +229,9 @@ class TaskSyncMetrics {
 
   /// Get detailed metrics for a specific note
   Map<String, dynamic> getNoteMetrics(String noteId) {
-    final noteMetrics =
-        _metrics.values.where((m) => m.noteId == noteId).toList();
+    final noteMetrics = _metrics.values
+        .where((m) => m.noteId == noteId)
+        .toList();
 
     if (noteMetrics.isEmpty) {
       return {'noteId': noteId, 'syncCount': 0};
@@ -249,15 +266,17 @@ class TaskSyncMetrics {
           .toList()
           .reversed
           .take(10)
-          .map((m) => {
-                'noteId': m.noteId,
-                'syncType': m.syncType,
-                'duration': m.duration?.inMilliseconds,
-                'success': m.success,
-                'taskCount': m.taskCount,
-                'duplicatesFound': m.duplicatesFound,
-                'timestamp': m.endTime?.toIso8601String(),
-              })
+          .map(
+            (m) => {
+              'noteId': m.noteId,
+              'syncType': m.syncType,
+              'duration': m.duration?.inMilliseconds,
+              'success': m.success,
+              'taskCount': m.taskCount,
+              'duplicatesFound': m.duplicatesFound,
+              'timestamp': m.endTime?.toIso8601String(),
+            },
+          )
           .toList(),
     };
   }

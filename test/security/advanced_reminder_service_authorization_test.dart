@@ -106,19 +106,23 @@ void main() {
 
     mockAnalytics = MockAnalyticsService();
     when(mockAnalytics.isEnabled).thenReturn(true);
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
     mockPlugin = MockFlutterLocalNotificationsPlugin();
     mockAndroidPlugin = MockAndroidFlutterLocalNotificationsPlugin();
 
     when(mockPlugin.initialize(any)).thenAnswer((_) async => true);
     when(
-      mockPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>(),
+      mockPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >(),
     ).thenReturn(mockAndroidPlugin);
-    when(mockAndroidPlugin.createNotificationChannel(any))
-        .thenAnswer((_) async => {});
+    when(
+      mockAndroidPlugin.createNotificationChannel(any),
+    ).thenAnswer((_) async => {});
 
     scheduledIds = <int>[];
     cancelledIds = <int>[];
@@ -138,7 +142,9 @@ void main() {
       scheduledIds.add(invocation.positionalArguments[0] as int);
     });
 
-    when(mockPlugin.cancel(any, tag: anyNamed('tag'))).thenAnswer((invocation) async {
+    when(mockPlugin.cancel(any, tag: anyNamed('tag'))).thenAnswer((
+      invocation,
+    ) async {
       cancelledIds.add(invocation.positionalArguments[0] as int);
     });
 
@@ -201,8 +207,7 @@ void main() {
       });
 
       expect(reminderId, isNotNull);
-      final stored =
-          await db.getReminderById(reminderId!, _userA);
+      final stored = await db.getReminderById(reminderId!, _userA);
       expect(stored, isNotNull);
       expect(stored!.userId, equals(_userA));
       expect(scheduledIds, contains(reminderId.hashCode.abs()));
@@ -257,14 +262,10 @@ void main() {
         await service.deleteReminder(reminderId);
       });
 
-      final stored =
-          await db.getReminderById(reminderId, _userA);
+      final stored = await db.getReminderById(reminderId, _userA);
       expect(stored, isNotNull);
 
-      final auditEvents = _eventsFor(
-        events,
-        'advancedReminder.deleteReminder',
-      );
+      final auditEvents = _eventsFor(events, 'advancedReminder.deleteReminder');
       expect(auditEvents, isNotEmpty);
       expect(auditEvents.last.metadata?['granted'], isFalse);
       expect(auditEvents.last.metadata?['reason'], 'not_found');
@@ -285,18 +286,14 @@ void main() {
         );
       });
 
-      final stored =
-          await db.getReminderById(reminderId, _userA);
+      final stored = await db.getReminderById(reminderId, _userA);
       expect(stored, isNotNull);
       expect(stored!.snoozeCount, equals(0));
       expect(stored.snoozedUntil, isNull);
       expect(cancelledIds, isEmpty);
       expect(scheduledIds, isEmpty);
 
-      final auditEvents = _eventsFor(
-        events,
-        'advancedReminder.snoozeReminder',
-      );
+      final auditEvents = _eventsFor(events, 'advancedReminder.snoozeReminder');
       expect(auditEvents, isNotEmpty);
       expect(auditEvents.last.metadata?['granted'], isFalse);
       expect(auditEvents.last.metadata?['reason'], 'not_found');

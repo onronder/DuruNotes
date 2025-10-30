@@ -133,11 +133,7 @@ class A11yHelper {
     required Widget child,
     bool header = true,
   }) {
-    return Semantics(
-      label: label,
-      header: header,
-      child: child,
-    );
+    return Semantics(label: label, header: header, child: child);
   }
 
   /// Wraps an image with proper alt text
@@ -146,12 +142,7 @@ class A11yHelper {
     required Widget child,
     String? hint,
   }) {
-    return Semantics(
-      label: label,
-      hint: hint,
-      image: true,
-      child: child,
-    );
+    return Semantics(label: label, hint: hint, image: true, child: child);
   }
 
   /// Wraps a link with proper semantics
@@ -200,12 +191,7 @@ class A11yHelper {
     required Widget child,
     String? hint,
   }) {
-    return Semantics(
-      label: label,
-      hint: hint,
-      liveRegion: true,
-      child: child,
-    );
+    return Semantics(label: label, hint: hint, liveRegion: true, child: child);
   }
 
   /// Live region for dynamic content announcements
@@ -214,11 +200,7 @@ class A11yHelper {
     required Widget child,
     bool assertive = false,
   }) {
-    return Semantics(
-      label: label,
-      liveRegion: true,
-      child: child,
-    );
+    return Semantics(label: label, liveRegion: true, child: child);
   }
 
   /// Slider with proper semantics
@@ -263,10 +245,7 @@ class A11yHelper {
   }
 
   /// Merges semantics of children (for complex widgets)
-  static Widget merged({
-    required Widget child,
-    bool excluding = true,
-  }) {
+  static Widget merged({required Widget child, bool excluding = true}) {
     return MergeSemantics(child: child);
   }
 
@@ -344,7 +323,11 @@ class A11yHelper {
     TextDirection textDirection = TextDirection.ltr,
     Assertiveness assertiveness = Assertiveness.polite,
   }) {
-    SemanticsService.announce(message, textDirection, assertiveness: assertiveness);
+    SemanticsService.announce(
+      message,
+      textDirection,
+      assertiveness: assertiveness,
+    );
   }
 
   /// Announces a polite message (doesn't interrupt)
@@ -422,7 +405,9 @@ class A11yHelper {
     buffer.write(title.isEmpty ? 'Untitled note' : title);
 
     if (content != null && content.isNotEmpty) {
-      buffer.write('. ${content.substring(0, content.length > 100 ? 100 : content.length)}');
+      buffer.write(
+        '. ${content.substring(0, content.length > 100 ? 100 : content.length)}',
+      );
     }
 
     if (isPinned) {
@@ -480,7 +465,9 @@ class A11yHelper {
     buffer.write(title);
 
     if (description != null && description.isNotEmpty) {
-      buffer.write('. ${description.substring(0, description.length > 100 ? 100 : description.length)}');
+      buffer.write(
+        '. ${description.substring(0, description.length > 100 ? 100 : description.length)}',
+      );
     }
 
     if (priority != null) {
@@ -568,15 +555,8 @@ class A11yHelper {
   }
 
   /// Bottom sheet with semantic label
-  static Widget bottomSheet({
-    required String title,
-    required Widget child,
-  }) {
-    return Semantics(
-      label: title,
-      scopesRoute: true,
-      child: child,
-    );
+  static Widget bottomSheet({required String title, required Widget child}) {
+    return Semantics(label: title, scopesRoute: true, child: child);
   }
 
   // ============================================================================
@@ -607,15 +587,8 @@ class A11yHelper {
   }
 
   /// Error message announcement
-  static Widget errorMessage({
-    required String message,
-    required Widget child,
-  }) {
-    return Semantics(
-      label: 'Error: $message',
-      liveRegion: true,
-      child: child,
-    );
+  static Widget errorMessage({required String message, required Widget child}) {
+    return Semantics(label: 'Error: $message', liveRegion: true, child: child);
   }
 
   /// Success message announcement

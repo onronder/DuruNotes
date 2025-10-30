@@ -47,8 +47,9 @@ void main() {
     group('Permission Descriptions', () {
       test('should return correct description for each permission type', () {
         expect(
-          permissionManager
-              .getPermissionDescription(PermissionType.notification),
+          permissionManager.getPermissionDescription(
+            PermissionType.notification,
+          ),
           equals('Send you reminders and important updates'),
         );
         expect(
@@ -56,8 +57,9 @@ void main() {
           equals('Create location-based reminders'),
         );
         expect(
-          permissionManager
-              .getPermissionDescription(PermissionType.locationAlways),
+          permissionManager.getPermissionDescription(
+            PermissionType.locationAlways,
+          ),
           equals('Trigger reminders even when app is in background'),
         );
         expect(
@@ -139,10 +141,7 @@ void main() {
         );
 
         // Remove observer
-        permissionManager.removeObserver(
-          PermissionType.notification,
-          callback,
-        );
+        permissionManager.removeObserver(PermissionType.notification, callback);
 
         // Verify observer management (internal state)
         expect(callbackCalled, isFalse);
@@ -165,10 +164,7 @@ void main() {
         // For now, we're testing the structure
 
         // Clean up
-        permissionManager.removeObserver(
-          PermissionType.notification,
-          callback,
-        );
+        permissionManager.removeObserver(PermissionType.notification, callback);
 
         expect(notifiedStatus, isA<PermissionStatus>());
       });
@@ -191,10 +187,7 @@ void main() {
       });
 
       test('should check if all permissions are granted', () async {
-        final types = [
-          PermissionType.notification,
-          PermissionType.location,
-        ];
+        final types = [PermissionType.notification, PermissionType.location];
 
         // Note: In a real test, we'd mock the permission handler
         // This tests the structure of the extension method
@@ -205,17 +198,19 @@ void main() {
     });
 
     group('Feature Flag Integration', () {
-      test('should use unified permission manager when flag is enabled',
-          () async {
-        // This test verifies that the feature flag is checked
-        // In a real test, we'd inject the feature flags dependency
+      test(
+        'should use unified permission manager when flag is enabled',
+        () async {
+          // This test verifies that the feature flag is checked
+          // In a real test, we'd inject the feature flags dependency
 
-        when(mockFeatureFlags.useUnifiedPermissionManager).thenReturn(true);
+          when(mockFeatureFlags.useUnifiedPermissionManager).thenReturn(true);
 
-        // The permission manager should use the unified implementation
-        // (verified through behavior in integration tests)
-        expect(true, isTrue);
-      });
+          // The permission manager should use the unified implementation
+          // (verified through behavior in integration tests)
+          expect(true, isTrue);
+        },
+      );
 
       test('should fall back to legacy when flag is disabled', () async {
         when(mockFeatureFlags.useUnifiedPermissionManager).thenReturn(false);

@@ -1,4 +1,3 @@
-
 /// Dashboard configuration for folder analytics
 class FolderDashboardConfig {
   /// Main folder management dashboard
@@ -331,22 +330,9 @@ enum WidgetType {
   gauge,
 }
 
-enum MetricFormat {
-  number,
-  percentage,
-  currency,
-  milliseconds,
-  seconds,
-  rate,
-}
+enum MetricFormat { number, percentage, currency, milliseconds, seconds, rate }
 
-enum ComparisonPeriod {
-  lastDay,
-  lastWeek,
-  lastMonth,
-  lastQuarter,
-  lastYear,
-}
+enum ComparisonPeriod { lastDay, lastWeek, lastMonth, lastQuarter, lastYear }
 
 enum TimeRange {
   last24Hours,
@@ -357,21 +343,8 @@ enum TimeRange {
   allTime,
 }
 
-enum CohortType {
-  daily,
-  weekly,
-  monthly,
-}
+enum CohortType { daily, weekly, monthly }
 
-enum AlertSeverity {
-  info,
-  warning,
-  critical,
-}
+enum AlertSeverity { info, warning, critical }
 
-enum NotificationType {
-  email,
-  slack,
-  pagerDuty,
-  webhook,
-}
+enum NotificationType { email, slack, pagerDuty, webhook }

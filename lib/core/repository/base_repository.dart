@@ -39,13 +39,9 @@ class QuerySpec {
 /// Result wrapper for repository operations
 @immutable
 class RepositoryResult<T> {
-  const RepositoryResult.success(this.data)
-      : error = null,
-        isSuccess = true;
+  const RepositoryResult.success(this.data) : error = null, isSuccess = true;
 
-  const RepositoryResult.failure(this.error)
-      : data = null,
-        isSuccess = false;
+  const RepositoryResult.failure(this.error) : data = null, isSuccess = false;
 
   final T? data;
   final RepositoryError? error;
@@ -242,12 +238,7 @@ class SyncResult {
 }
 
 /// Sync status
-enum SyncStatus {
-  idle,
-  syncing,
-  error,
-  offline,
-}
+enum SyncStatus { idle, syncing, error, offline }
 
 /// Transaction support for repositories
 abstract class TransactionalRepository<T, ID> extends Repository<T, ID> {

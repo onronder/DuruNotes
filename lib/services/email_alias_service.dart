@@ -26,7 +26,9 @@ class EmailAliasService {
     // Try compile-time environment variable (production builds)
     const fromCompileTime = String.fromEnvironment('INBOUND_EMAIL_DOMAIN');
     if (fromCompileTime.isNotEmpty) {
-      _logger.info('[EmailAliasService] Using domain from compile-time: $fromCompileTime');
+      _logger.info(
+        '[EmailAliasService] Using domain from compile-time: $fromCompileTime',
+      );
       return fromCompileTime;
     }
 

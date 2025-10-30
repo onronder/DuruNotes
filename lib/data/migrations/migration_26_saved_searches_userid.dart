@@ -27,26 +27,19 @@ import 'package:drift/drift.dart';
 /// - Provides rollback capability
 class Migration26SavedSearchesUserId {
   /// Run the migration to add userId column to SavedSearches
-  static Future<void> run(
-    DatabaseConnectionUser db,
-    int fromVersion,
-  ) async {
+  static Future<void> run(DatabaseConnectionUser db, int fromVersion) async {
     // Add userId column to saved_searches table
-    await db.customStatement(
-      '''
+    await db.customStatement('''
       ALTER TABLE saved_searches
       ADD COLUMN user_id TEXT NULL
-      ''',
-    );
+      ''');
 
     // Create index for userId filtering (performance optimization)
-    await db.customStatement(
-      '''
+    await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_saved_searches_user_id
       ON saved_searches(user_id)
       WHERE user_id IS NOT NULL
-      ''',
-    );
+      ''');
   }
 
   /// Populate userId for all saved searches owned by a single user
@@ -117,15 +110,13 @@ class Migration26SavedSearchesUserId {
   static Future<Map<String, int>> getUserIdPopulationStats(
     DatabaseConnectionUser db,
   ) async {
-    final stats = await db.customSelect(
-      '''
+    final stats = await db.customSelect('''
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) as with_user_id,
         SUM(CASE WHEN user_id IS NULL THEN 1 ELSE 0 END) as without_user_id
       FROM saved_searches
-      ''',
-    ).getSingleOrNull();
+      ''').getSingleOrNull();
 
     return {
       'totalSearches': stats?.data['total'] as int? ?? 0,
@@ -151,14 +142,12 @@ class Migration26SavedSearchesUserId {
   static Future<List<Map<String, dynamic>>> getSavedSearchesWithoutUserId(
     DatabaseConnectionUser db,
   ) async {
-    final result = await db.customSelect(
-      '''
+    final result = await db.customSelect('''
       SELECT id, name, query, search_type, created_at
       FROM saved_searches
       WHERE user_id IS NULL
       ORDER BY created_at DESC
-      ''',
-    ).get();
+      ''').get();
 
     return result.map((row) => row.data).toList();
   }
@@ -170,12 +159,10 @@ class Migration26SavedSearchesUserId {
   static Future<void> rollback(DatabaseConnectionUser db) async {
     await db.transaction(() async {
       // Clear userId from saved searches
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         UPDATE saved_searches
         SET user_id = NULL
-        ''',
-      );
+        ''');
     });
   }
 
@@ -183,20 +170,16 @@ class Migration26SavedSearchesUserId {
   ///
   /// **USE CASE**: Clean up searches that cannot be assigned to users
   /// **WARNING**: This permanently deletes data
-  static Future<int> deleteOrphanedSearches(
-    DatabaseConnectionUser db,
-  ) async {
+  static Future<int> deleteOrphanedSearches(DatabaseConnectionUser db) async {
     // Get count before deletion
     final stats = await getUserIdPopulationStats(db);
     final orphanedCount = stats['searchesWithoutUserId']!;
 
     if (orphanedCount > 0) {
-      await db.customStatement(
-        '''
+      await db.customStatement('''
         DELETE FROM saved_searches
         WHERE user_id IS NULL
-        ''',
-      );
+        ''');
     }
 
     return orphanedCount;
@@ -211,16 +194,18 @@ class SavedSearchUserIdPopulationGuide {
 
   /// Check if userId population is needed
   Future<bool> isPopulationNeeded() async {
-    final stats = await Migration26SavedSearchesUserId
-        .getUserIdPopulationStats(db);
+    final stats = await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+      db,
+    );
 
     return stats['searchesWithoutUserId']! > 0;
   }
 
   /// Get detailed migration status report
   Future<String> getStatusReport() async {
-    final stats = await Migration26SavedSearchesUserId
-        .getUserIdPopulationStats(db);
+    final stats = await Migration26SavedSearchesUserId.getUserIdPopulationStats(
+      db,
+    );
 
     final buffer = StringBuffer();
     buffer.writeln('=== SavedSearches User ID Population Status ===');
@@ -231,17 +216,22 @@ class SavedSearchUserIdPopulationGuide {
     buffer.writeln('  Without userId: ${stats['searchesWithoutUserId']}');
     buffer.writeln();
 
-    final isComplete = await Migration26SavedSearchesUserId
-        .validateUserIdPopulation(db);
+    final isComplete =
+        await Migration26SavedSearchesUserId.validateUserIdPopulation(db);
     buffer.writeln(
-        'Status: ${isComplete ? "✅ Complete" : "⚠️  Incomplete - Action Required"}');
+      'Status: ${isComplete ? "✅ Complete" : "⚠️  Incomplete - Action Required"}',
+    );
 
     if (!isComplete) {
       buffer.writeln();
       buffer.writeln('ACTION REQUIRED:');
-      buffer.writeln('1. Call populateForSingleUser(userId) for single-user apps');
+      buffer.writeln(
+        '1. Call populateForSingleUser(userId) for single-user apps',
+      );
       buffer.writeln('2. Or manually assign userId to each saved search');
-      buffer.writeln('3. Or call deleteOrphanedSearches() to remove unassigned searches');
+      buffer.writeln(
+        '3. Or call deleteOrphanedSearches() to remove unassigned searches',
+      );
     }
 
     return buffer.toString();

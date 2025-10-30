@@ -1,5 +1,6 @@
 import 'package:duru_notes/data/local/app_db.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
     show taskAnalyticsServiceProvider;
 import 'package:duru_notes/features/auth/providers/auth_providers.dart'

@@ -10,8 +10,8 @@ class SubscriptionService {
   SubscriptionService({
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _logger = logger,
-        _analytics = analytics;
+  }) : _logger = logger,
+       _analytics = analytics;
   final AppLogger _logger;
   final AnalyticsService _analytics;
 

@@ -205,10 +205,9 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
                 const SizedBox(height: 8),
                 Text(
                   _stackTrace.toString(),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontFamily: 'monospace'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                 ),
               ],
             ],

@@ -37,7 +37,10 @@ void main() {
         print('\n⚙️ Testing provider initialization...');
         final providerTest = await _testProviderInitialization(container);
         results['provider_initialization'] = providerTest;
-        _printStepResult('Provider Initialization', providerTest['success'] == true);
+        _printStepResult(
+          'Provider Initialization',
+          providerTest['success'] == true,
+        );
 
         // Generate baseline report
         final summary = _generateBasicSummary(results, timestamp);
@@ -49,7 +52,9 @@ void main() {
         // Print summary
         print('\n🎯 VALIDATION SUMMARY');
         print('=' * 60);
-        print('Overall Status: ${summary['overall_health_status'] ?? 'UNKNOWN'}');
+        print(
+          'Overall Status: ${summary['overall_health_status'] ?? 'UNKNOWN'}',
+        );
         print('Database Status: ${summary['database_accessible'] ?? false}');
         print('Providers Status: ${summary['providers_initialized'] ?? false}');
 
@@ -62,14 +67,20 @@ void main() {
           }
         }
 
-        print('\n📄 Baseline report saved to: docs/simple_deployment_baseline_report.json');
+        print(
+          '\n📄 Baseline report saved to: docs/simple_deployment_baseline_report.json',
+        );
 
         // Test should pass if basic connectivity works
-        final isHealthy = summary['overall_health_status'] == 'HEALTHY' ||
-                         summary['overall_health_status'] == 'PARTIAL';
-        expect(isHealthy, isTrue,
-               reason: 'Basic connectivity must work. Status: ${summary['overall_health_status']}');
-
+        final isHealthy =
+            summary['overall_health_status'] == 'HEALTHY' ||
+            summary['overall_health_status'] == 'PARTIAL';
+        expect(
+          isHealthy,
+          isTrue,
+          reason:
+              'Basic connectivity must work. Status: ${summary['overall_health_status']}',
+        );
       } catch (error, stackTrace) {
         print('\n❌ Validation failed with error: $error');
         results['error'] = {
@@ -95,7 +106,11 @@ void main() {
         expect(true, isTrue, reason: 'Flutter test environment should work');
 
         print('📦 Checking provider container...');
-        expect(container, isNotNull, reason: 'Provider container should be available');
+        expect(
+          container,
+          isNotNull,
+          reason: 'Provider container should be available',
+        );
 
         print('✅ Basic system readiness confirmed');
       } catch (error) {
@@ -107,13 +122,19 @@ void main() {
 }
 
 /// Test local SQLite database connectivity
-Future<Map<String, dynamic>> _testLocalDatabase(ProviderContainer container) async {
+Future<Map<String, dynamic>> _testLocalDatabase(
+  ProviderContainer container,
+) async {
   try {
     final appDb = container.read(appDbProvider);
 
     // Test basic database operations
-    final noteCount = await appDb.customSelect('SELECT COUNT(*) as count FROM notes').getSingle();
-    final folderCount = await appDb.customSelect('SELECT COUNT(*) as count FROM folders').getSingle();
+    final noteCount = await appDb
+        .customSelect('SELECT COUNT(*) as count FROM notes')
+        .getSingle();
+    final folderCount = await appDb
+        .customSelect('SELECT COUNT(*) as count FROM folders')
+        .getSingle();
 
     return {
       'success': true,
@@ -132,7 +153,9 @@ Future<Map<String, dynamic>> _testLocalDatabase(ProviderContainer container) asy
 }
 
 /// Test provider initialization
-Future<Map<String, dynamic>> _testProviderInitialization(ProviderContainer container) async {
+Future<Map<String, dynamic>> _testProviderInitialization(
+  ProviderContainer container,
+) async {
   try {
     final providers = <String, bool>{};
 
@@ -178,9 +201,13 @@ Future<Map<String, dynamic>> _testProviderInitialization(ProviderContainer conta
 }
 
 /// Generate basic validation summary
-Map<String, dynamic> _generateBasicSummary(Map<String, dynamic> results, DateTime timestamp) {
+Map<String, dynamic> _generateBasicSummary(
+  Map<String, dynamic> results,
+  DateTime timestamp,
+) {
   final localDb = results['local_database'] as Map<String, dynamic>? ?? {};
-  final providers = results['provider_initialization'] as Map<String, dynamic>? ?? {};
+  final providers =
+      results['provider_initialization'] as Map<String, dynamic>? ?? {};
 
   final dbWorking = localDb['success'] == true;
   final providersWorking = providers['success'] == true;
@@ -207,7 +234,10 @@ Map<String, dynamic> _generateBasicSummary(Map<String, dynamic> results, DateTim
 }
 
 /// Generate next steps based on basic validation results
-List<String> _generateBasicNextSteps(String healthStatus, Map<String, dynamic> results) {
+List<String> _generateBasicNextSteps(
+  String healthStatus,
+  Map<String, dynamic> results,
+) {
   final steps = <String>[];
 
   if (healthStatus == 'HEALTHY') {
@@ -219,7 +249,8 @@ List<String> _generateBasicNextSteps(String healthStatus, Map<String, dynamic> r
     ]);
   } else if (healthStatus == 'PARTIAL') {
     final localDb = results['local_database'] as Map<String, dynamic>? ?? {};
-    final providers = results['provider_initialization'] as Map<String, dynamic>? ?? {};
+    final providers =
+        results['provider_initialization'] as Map<String, dynamic>? ?? {};
 
     if (localDb['success'] != true) {
       steps.add('🔴 Fix local database connectivity issues');
@@ -246,7 +277,9 @@ List<String> _generateBasicNextSteps(String healthStatus, Map<String, dynamic> r
 
 /// Save baseline report to file
 Future<void> _saveBaselineReport(Map<String, dynamic> results) async {
-  final reportFile = File('/Users/onronder/duru-notes/docs/simple_deployment_baseline_report.json');
+  final reportFile = File(
+    '/Users/onronder/duru-notes/docs/simple_deployment_baseline_report.json',
+  );
 
   // Ensure directory exists
   await reportFile.parent.create(recursive: true);

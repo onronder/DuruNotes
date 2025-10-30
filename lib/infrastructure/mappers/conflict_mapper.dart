@@ -153,7 +153,9 @@ class ConflictMapper {
   }
 
   /// Determine resolution action from domain resolution
-  static ResolutionAction _determineAction(domain.ConflictResolution resolution) {
+  static ResolutionAction _determineAction(
+    domain.ConflictResolution resolution,
+  ) {
     if (!resolution.isResolved) {
       return ResolutionAction.requiresManualReview;
     }

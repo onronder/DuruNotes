@@ -57,13 +57,16 @@ class QueryCache<K, V> {
     while (_accessOrder.length > maxSize) {
       final oldestKey = _accessOrder.removeAt(0);
       _cache.remove(oldestKey);
-      _logger.debug('[QueryCache:$name] Evicted old entry', data: {'key': oldestKey});
+      _logger.debug(
+        '[QueryCache:$name] Evicted old entry',
+        data: {'key': oldestKey},
+      );
     }
 
-    _logger.debug('[QueryCache:$name] Cached value', data: {
-      'key': key,
-      'cacheSize': _cache.length,
-    });
+    _logger.debug(
+      '[QueryCache:$name] Cached value',
+      data: {'key': key, 'cacheSize': _cache.length},
+    );
   }
 
   /// Get or compute a value
@@ -89,9 +92,10 @@ class QueryCache<K, V> {
     for (final key in keysToRemove) {
       invalidate(key);
     }
-    _logger.debug('[QueryCache:$name] Invalidated matching keys', data: {
-      'count': keysToRemove.length,
-    });
+    _logger.debug(
+      '[QueryCache:$name] Invalidated matching keys',
+      data: {'count': keysToRemove.length},
+    );
   }
 
   /// Clear the entire cache
@@ -104,7 +108,9 @@ class QueryCache<K, V> {
   /// Get cache statistics
   Map<String, dynamic> getStats() {
     final now = DateTime.now();
-    final expired = _cache.entries.where((e) => e.value.expiresAt.isBefore(now)).length;
+    final expired = _cache.entries
+        .where((e) => e.value.expiresAt.isBefore(now))
+        .length;
 
     return {
       'name': name,
@@ -117,10 +123,7 @@ class QueryCache<K, V> {
 }
 
 class _CacheEntry<V> {
-  const _CacheEntry({
-    required this.value,
-    required this.expiresAt,
-  });
+  const _CacheEntry({required this.value, required this.expiresAt});
 
   final V value;
   final DateTime expiresAt;
@@ -131,7 +134,7 @@ class _CacheEntry<V> {
 /// Manages multiple caches
 class CacheManager {
   CacheManager({AppLogger? logger})
-      : _logger = logger ?? LoggerFactory.instance;
+    : _logger = logger ?? LoggerFactory.instance;
 
   final AppLogger _logger;
   final Map<String, QueryCache<dynamic, dynamic>> _caches = {};
@@ -143,7 +146,10 @@ class CacheManager {
     Duration ttl = const Duration(minutes: 5),
   }) {
     if (_caches.containsKey(name)) {
-      _logger.warning('[CacheManager] Cache already registered', data: {'name': name});
+      _logger.warning(
+        '[CacheManager] Cache already registered',
+        data: {'name': name},
+      );
       return _caches[name] as QueryCache<K, V>;
     }
 
@@ -155,11 +161,10 @@ class CacheManager {
     );
 
     _caches[name] = cache;
-    _logger.info('[CacheManager] Cache registered', data: {
-      'name': name,
-      'maxSize': maxSize,
-      'ttl': ttl.inSeconds,
-    });
+    _logger.info(
+      '[CacheManager] Cache registered',
+      data: {'name': name, 'maxSize': maxSize, 'ttl': ttl.inSeconds},
+    );
 
     return cache;
   }

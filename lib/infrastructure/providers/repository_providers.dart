@@ -86,10 +86,7 @@ final noteLinkParserProvider = Provider<NoteLinkParser>((ref) {
   final logger = ref.watch(loggerProvider);
   final indexer = ref.watch(noteIndexerProvider);
 
-  return NoteLinkParser(
-    logger: logger,
-    noteIndexer: indexer,
-  );
+  return NoteLinkParser(logger: logger, noteIndexer: indexer);
 });
 
 /// Provider for the tag repository
@@ -98,11 +95,7 @@ final tagRepositoryProvider = Provider<ITagRepository>((ref) {
   final crypto = ref.watch(cryptoBoxProvider);
   final client = ref.watch(supabaseClientProvider);
 
-  return TagRepository(
-    db: db,
-    client: client,
-    crypto: crypto,
-  );
+  return TagRepository(db: db, client: client, crypto: crypto);
 });
 
 /// Provider for the search repository
@@ -126,8 +119,9 @@ final folderRepositoryInterfaceProvider = Provider<IFolderRepository>((ref) {
 });
 
 /// Provider for the template repository (interface)
-final templateRepositoryInterfaceProvider =
-    Provider<ITemplateRepository>((ref) {
+final templateRepositoryInterfaceProvider = Provider<ITemplateRepository>((
+  ref,
+) {
   return ref.watch(templateCoreRepositoryProvider);
 });
 
@@ -138,8 +132,9 @@ final inboxRepositoryProvider = Provider<IInboxRepository>((ref) {
 });
 
 /// Provider for the user preferences repository
-final userPreferencesRepositoryProvider =
-    Provider<IUserPreferencesRepository>((ref) {
+final userPreferencesRepositoryProvider = Provider<IUserPreferencesRepository>((
+  ref,
+) {
   final client = ref.watch(supabaseClientProvider);
   return UserPreferencesRepositoryImpl(client: client);
 });

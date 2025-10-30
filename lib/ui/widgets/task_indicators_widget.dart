@@ -38,16 +38,12 @@ class TaskIndicatorsWidget extends StatelessWidget {
 
     // Reminder indicator
     if (task.metadata['reminderId'] != null) {
-      indicators.add(
-        _buildReminderIndicator(colorScheme, compact),
-      );
+      indicators.add(_buildReminderIndicator(colorScheme, compact));
     }
 
     // Tags indicator (domain.Task uses 'tags' not 'labels')
     if (task.tags.isNotEmpty) {
-      indicators.add(
-        _buildLabelsIndicator(task.tags, colorScheme, compact),
-      );
+      indicators.add(_buildLabelsIndicator(task.tags, colorScheme, compact));
     }
 
     // Time estimate indicator
@@ -62,15 +58,14 @@ class TaskIndicatorsWidget extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Wrap(
-      spacing: compact ? 4 : 6,
-      runSpacing: 2,
-      children: indicators,
-    );
+    return Wrap(spacing: compact ? 4 : 6, runSpacing: 2, children: indicators);
   }
 
   Widget _buildPriorityIndicator(
-      domain.TaskPriority priority, ColorScheme colorScheme, bool compact) {
+    domain.TaskPriority priority,
+    ColorScheme colorScheme,
+    bool compact,
+  ) {
     final color = _getPriorityColor(priority);
     final size = compact ? 14.0 : 16.0;
 
@@ -83,19 +78,20 @@ class TaskIndicatorsWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
-        child: Icon(
-          Icons.flag,
-          size: size,
-          color: color,
-        ),
+        child: Icon(Icons.flag, size: size, color: color),
       ),
     );
   }
 
   Widget _buildDueDateIndicator(
-      DateTime dueDate, DateTime now, ColorScheme colorScheme, bool compact) {
+    DateTime dueDate,
+    DateTime now,
+    ColorScheme colorScheme,
+    bool compact,
+  ) {
     final isOverdue = dueDate.isBefore(now);
-    final isToday = dueDate.day == now.day &&
+    final isToday =
+        dueDate.day == now.day &&
         dueDate.month == now.month &&
         dueDate.year == now.year;
     final isTomorrow =
@@ -132,11 +128,7 @@ class TaskIndicatorsWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
-        child: Icon(
-          icon,
-          size: size,
-          color: color,
-        ),
+        child: Icon(icon, size: size, color: color),
       ),
     );
   }
@@ -152,7 +144,9 @@ class TaskIndicatorsWidget extends StatelessWidget {
           color: colorScheme.secondary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-              color: colorScheme.secondary.withValues(alpha: 0.3), width: 1),
+            color: colorScheme.secondary.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Icon(
           Icons.notifications,
@@ -164,7 +158,10 @@ class TaskIndicatorsWidget extends StatelessWidget {
   }
 
   Widget _buildLabelsIndicator(
-      List<String> labels, ColorScheme colorScheme, bool compact) {
+    List<String> labels,
+    ColorScheme colorScheme,
+    bool compact,
+  ) {
     final size = compact ? 14.0 : 16.0;
     final tooltip = 'Labels: ${labels.join(', ')}';
 
@@ -176,16 +173,14 @@ class TaskIndicatorsWidget extends StatelessWidget {
           color: colorScheme.tertiary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-              color: colorScheme.tertiary.withValues(alpha: 0.3), width: 1),
+            color: colorScheme.tertiary.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.label,
-              size: size,
-              color: colorScheme.tertiary,
-            ),
+            Icon(Icons.label, size: size, color: colorScheme.tertiary),
             if (!compact && labels.length == 1) ...[
               const SizedBox(width: 2),
               Text(
@@ -214,7 +209,10 @@ class TaskIndicatorsWidget extends StatelessWidget {
   }
 
   Widget _buildTimeEstimateIndicator(
-      int minutes, ColorScheme colorScheme, bool compact) {
+    int minutes,
+    ColorScheme colorScheme,
+    bool compact,
+  ) {
     final size = compact ? 14.0 : 16.0;
     final tooltip = 'Estimated time: ${_formatDuration(minutes)}';
 
@@ -226,16 +224,14 @@ class TaskIndicatorsWidget extends StatelessWidget {
           color: colorScheme.outline.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.3), width: 1),
+            color: colorScheme.outline.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.timer,
-              size: size,
-              color: colorScheme.outline,
-            ),
+            Icon(Icons.timer, size: size, color: colorScheme.outline),
             if (!compact) ...[
               const SizedBox(width: 2),
               Text(

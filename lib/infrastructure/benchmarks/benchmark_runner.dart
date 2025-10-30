@@ -40,11 +40,7 @@ class BenchmarkRunner {
       crypto: crypto,
     );
 
-    final taskRepo = TaskCoreRepository(
-      db: db,
-      client: client,
-      crypto: crypto,
-    );
+    final taskRepo = TaskCoreRepository(db: db, client: client, crypto: crypto);
 
     // Run benchmarks
     final results = await PerformanceBenchmark.runFullSuite(
@@ -125,7 +121,9 @@ class BenchmarkRunner {
           final status = durationMet && queriesMet ? '✅ PASS' : '❌ FAIL';
 
           print('$status ${entry.key}');
-          print('   Duration: ${result.duration.inMilliseconds}ms (target: <${targetMs}ms)');
+          print(
+            '   Duration: ${result.duration.inMilliseconds}ms (target: <${targetMs}ms)',
+          );
           print('   Queries: ${result.queryCount} (target: <$targetQueries)');
           print('');
         }
@@ -146,14 +144,19 @@ class BenchmarkRunner {
       noteCount: 100,
     );
 
-    final passed = result.duration.inMilliseconds < 100 && result.queryCount <= 10;
+    final passed =
+        result.duration.inMilliseconds < 100 && result.queryCount <= 10;
 
     if (passed) {
       print('✅ Performance check PASSED!');
-      print('   100 notes loaded in ${result.duration.inMilliseconds}ms with ${result.queryCount} queries');
+      print(
+        '   100 notes loaded in ${result.duration.inMilliseconds}ms with ${result.queryCount} queries',
+      );
     } else {
       print('❌ Performance check FAILED!');
-      print('   Duration: ${result.duration.inMilliseconds}ms (target: <100ms)');
+      print(
+        '   Duration: ${result.duration.inMilliseconds}ms (target: <100ms)',
+      );
       print('   Queries: ${result.queryCount} (target: <10)');
     }
 
@@ -187,7 +190,9 @@ class BenchmarkRunner {
     if (speedup >= 2) {
       print('✅ Cache is effective (${speedup.toStringAsFixed(1)}x speedup)');
     } else {
-      print('⚠️  Cache impact is minimal (${speedup.toStringAsFixed(1)}x speedup)');
+      print(
+        '⚠️  Cache impact is minimal (${speedup.toStringAsFixed(1)}x speedup)',
+      );
     }
   }
 }

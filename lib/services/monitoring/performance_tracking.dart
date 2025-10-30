@@ -499,14 +499,14 @@ class PerformanceMetric {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'category': category.name,
-        'count': _count,
-        'total_ms': _totalDuration.inMilliseconds,
-        'average_ms': averageDuration.inMilliseconds,
-        'min_ms': _minDuration.inMilliseconds,
-        'max_ms': _maxDuration.inMilliseconds,
-      };
+    'name': name,
+    'category': category.name,
+    'count': _count,
+    'total_ms': _totalDuration.inMilliseconds,
+    'average_ms': averageDuration.inMilliseconds,
+    'min_ms': _minDuration.inMilliseconds,
+    'max_ms': _maxDuration.inMilliseconds,
+  };
 }
 
 /// Metric categories

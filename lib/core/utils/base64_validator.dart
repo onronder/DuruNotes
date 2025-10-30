@@ -15,10 +15,7 @@ class Base64Validator {
     if (value.length % 4 != 0) return false;
 
     // Base64 pattern: alphanumeric + / + plus padding
-    final base64Pattern = RegExp(
-      r'^[A-Za-z0-9+/]+={0,2}$',
-      multiLine: false,
-    );
+    final base64Pattern = RegExp(r'^[A-Za-z0-9+/]+={0,2}$', multiLine: false);
 
     if (!base64Pattern.hasMatch(value)) return false;
 
@@ -58,7 +55,7 @@ class Base64Validator {
       final contextMsg = context != null ? ' for $context' : '';
       throw FormatException(
         'Invalid base64 format$contextMsg. '
-        'Length: ${value.length}, Contains whitespace: ${value.contains(RegExp(r'\s'))}'
+        'Length: ${value.length}, Contains whitespace: ${value.contains(RegExp(r'\s'))}',
       );
     }
 
@@ -109,17 +106,11 @@ class Base64Validator {
   /// Get detailed validation result for debugging
   static ValidationResult validate(String? value) {
     if (value == null) {
-      return ValidationResult(
-        isValid: false,
-        error: 'Value is null',
-      );
+      return ValidationResult(isValid: false, error: 'Value is null');
     }
 
     if (value.isEmpty) {
-      return ValidationResult(
-        isValid: false,
-        error: 'Value is empty',
-      );
+      return ValidationResult(isValid: false, error: 'Value is empty');
     }
 
     if (value.length % 4 != 0) {
@@ -141,20 +132,14 @@ class Base64Validator {
       base64.decode(value);
       return ValidationResult(isValid: true);
     } catch (e) {
-      return ValidationResult(
-        isValid: false,
-        error: 'Decode failed: $e',
-      );
+      return ValidationResult(isValid: false, error: 'Decode failed: $e');
     }
   }
 }
 
 /// Result of base64 validation with details
 class ValidationResult {
-  const ValidationResult({
-    required this.isValid,
-    this.error,
-  });
+  const ValidationResult({required this.isValid, this.error});
 
   final bool isValid;
   final String? error;

@@ -42,7 +42,8 @@ class TaskDecryptionHelper {
   /// The encrypted data is stored as a JSON string: {"n":"...", "c":"...", "m":"..."}
   /// We convert it to UTF-8 bytes and pass to CryptoBox for decryption.
   Future<String?> decryptLabels(NoteTask task, String noteId) async {
-    if (task.labelsEncrypted == null || task.labelsEncrypted!.isEmpty) return null;
+    if (task.labelsEncrypted == null || task.labelsEncrypted!.isEmpty)
+      return null;
 
     final userId = task.userId;
 
@@ -67,7 +68,8 @@ class TaskDecryptionHelper {
   /// The encrypted data is stored as a JSON string: {"n":"...", "c":"...", "m":"..."}
   /// We convert it to UTF-8 bytes and pass to CryptoBox for decryption.
   Future<String?> decryptNotes(NoteTask task, String noteId) async {
-    if (task.notesEncrypted == null || task.notesEncrypted!.isEmpty) return null;
+    if (task.notesEncrypted == null || task.notesEncrypted!.isEmpty)
+      return null;
 
     final userId = task.userId;
 
@@ -91,7 +93,11 @@ class TaskDecryptionHelper {
   ///
   /// DEPRECATED: This method is not used by the repository.
   /// The repository encrypts directly via CryptoBox.encryptStringForNote()
-  Future<String> encryptContent(String userId, String noteId, String content) async {
+  Future<String> encryptContent(
+    String userId,
+    String noteId,
+    String content,
+  ) async {
     final contentBytes = await crypto.encryptJsonForNote(
       userId: userId,
       noteId: noteId,
@@ -104,7 +110,11 @@ class TaskDecryptionHelper {
   ///
   /// DEPRECATED: This method is not used by the repository.
   /// The repository encrypts directly via CryptoBox.encryptStringForNote()
-  Future<String?> encryptLabels(String userId, String noteId, String? labels) async {
+  Future<String?> encryptLabels(
+    String userId,
+    String noteId,
+    String? labels,
+  ) async {
     if (labels == null) return null;
 
     final labelsBytes = await crypto.encryptJsonForNote(
@@ -119,7 +129,11 @@ class TaskDecryptionHelper {
   ///
   /// DEPRECATED: This method is not used by the repository.
   /// The repository encrypts directly via CryptoBox.encryptStringForNote()
-  Future<String?> encryptNotes(String userId, String noteId, String? notes) async {
+  Future<String?> encryptNotes(
+    String userId,
+    String noteId,
+    String? notes,
+  ) async {
     if (notes == null) return null;
 
     final notesBytes = await crypto.encryptJsonForNote(

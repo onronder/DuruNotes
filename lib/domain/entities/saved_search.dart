@@ -102,10 +102,16 @@ class SearchFilters {
 
   factory SearchFilters.fromJson(Map<String, dynamic> json) {
     return SearchFilters(
-      tags: json['tags'] != null ? List<String>.from(json['tags'] as List<dynamic>) : null,
+      tags: json['tags'] != null
+          ? List<String>.from(json['tags'] as List<dynamic>)
+          : null,
       folderId: json['folderId'] as String?,
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : null,
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'] as String)
+          : null,
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'] as String)
+          : null,
       isPinned: json['isPinned'] as bool?,
       hasAttachments: json['hasAttachments'] as bool?,
       noteType: json['noteType'] as String?,

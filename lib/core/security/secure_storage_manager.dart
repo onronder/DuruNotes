@@ -25,7 +25,8 @@ class SecureStorageManager {
     encryptedSharedPreferences: true,
     sharedPreferencesName: 'com.durunotes.secure',
     resetOnError: true,
-    keyCipherAlgorithm: KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
+    keyCipherAlgorithm:
+        KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
     storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
   );
 
@@ -334,10 +335,7 @@ class SecureStorageManager {
           macLength: algorithm.macAlgorithm.macLength,
         );
 
-        final decrypted = await algorithm.decrypt(
-          box,
-          secretKey: secretKey,
-        );
+        final decrypted = await algorithm.decrypt(box, secretKey: secretKey);
 
         return utf8.decode(decrypted);
       } catch (e) {
@@ -352,7 +350,8 @@ class SecureStorageManager {
   Future<void> _performIntegrityCheck() async {
     try {
       // Check storage integrity
-      final testKey = 'integrity_check_${DateTime.now().millisecondsSinceEpoch}';
+      final testKey =
+          'integrity_check_${DateTime.now().millisecondsSinceEpoch}';
       const testValue = 'test_value';
 
       await _storage.write(
@@ -432,8 +431,8 @@ class SecureStorageManager {
 
 /// Types of storage data for proper categorization
 enum StorageType {
-  auth,   // Authentication tokens, session data
+  auth, // Authentication tokens, session data
   crypto, // Encryption keys, certificates
-  user,   // User preferences, settings
-  app,    // Application state, cache
+  user, // User preferences, settings
+  app, // Application state, cache
 }

@@ -10,9 +10,11 @@ import 'package:duru_notes/features/folders/providers/folders_integration_provid
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
 import 'package:duru_notes/features/notes/providers/notes_providers.dart';
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
-import 'package:duru_notes/services/providers/services_providers.dart' show undoRedoServiceProvider;
+import 'package:duru_notes/services/providers/services_providers.dart'
+    show undoRedoServiceProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,13 +68,13 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
     });
 
     return SlideTransition(
-      position:
-          Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-        CurvedAnimation(
-          parent: _slideController,
-          curve: Curves.easeOutCubic,
-        ),
-      ),
+      position: Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _slideController,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
       child: Container(
         height: AccessibilityUtils.minTouchTarget + 12, // 44dp + padding
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -97,7 +99,8 @@ class _FolderFilterChipsState extends ConsumerState<FolderFilterChips>
                 _AllNotesDropTarget(
                   label: l10n.notesListTitle,
                   icon: Icons.notes,
-                  isSelected: currentFolder == null &&
+                  isSelected:
+                      currentFolder == null &&
                       !ref.watch(isInboxFilterActiveProvider),
                   onSelected: () {
                     HapticUtils.selection();
@@ -349,7 +352,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color: FolderIconHelpers.getFolderColor(
+                      color:
+                          FolderIconHelpers.getFolderColor(
                             widget.folder.color,
                           ) ??
                           colorScheme.primary,
@@ -459,8 +463,8 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                 child: Text(
                   widget.folder.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const Divider(height: 1),
@@ -547,11 +551,11 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
                     // Check for duplicate name among siblings
                     final siblings = widget.folder.parentId != null
                         ? await ref
-                            .read(folderCoreRepositoryProvider)
-                            .getChildFolders(widget.folder.parentId!)
+                              .read(folderCoreRepositoryProvider)
+                              .getChildFolders(widget.folder.parentId!)
                         : await ref
-                            .read(folderCoreRepositoryProvider)
-                            .getRootFolders();
+                              .read(folderCoreRepositoryProvider)
+                              .getRootFolders();
                     final isDuplicate = siblings.any(
                       (f) => f.id != widget.folder.id && f.name == name,
                     );
@@ -630,7 +634,9 @@ class _FolderChipState extends ConsumerState<_FolderChip> {
     if (selectedParentId != null &&
         selectedParentId != widget.folder.parentId) {
       try {
-        await ref.read(folderCoreRepositoryProvider).moveFolder(
+        await ref
+            .read(folderCoreRepositoryProvider)
+            .moveFolder(
               widget.folder.id,
               selectedParentId == 'root' ? null : selectedParentId,
             );
@@ -873,7 +879,7 @@ class FolderBreadcrumb extends ConsumerWidget {
                                     alpha: 0.5,
                                   )
                                 : colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.3),
+                                      .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -883,7 +889,8 @@ class FolderBreadcrumb extends ConsumerWidget {
                                 width: 14,
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: FolderIconHelpers.getFolderColor(
+                                  color:
+                                      FolderIconHelpers.getFolderColor(
                                         folder.color,
                                       ) ??
                                       colorScheme.primary,
@@ -1049,7 +1056,8 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
                                   width: 16,
                                   height: 16,
                                   decoration: BoxDecoration(
-                                    color: FolderIconHelpers.getFolderColor(
+                                    color:
+                                        FolderIconHelpers.getFolderColor(
                                           folder.color,
                                         ) ??
                                         theme.colorScheme.primary,
@@ -1124,8 +1132,8 @@ class _CreateFolderSheetState extends ConsumerState<_CreateFolderSheet> {
       // Check for duplicate name among siblings
       final siblings = _selectedParentId != null
           ? await ref
-              .read(folderCoreRepositoryProvider)
-              .getChildFolders(_selectedParentId!)
+                .read(folderCoreRepositoryProvider)
+                .getChildFolders(_selectedParentId!)
           : await ref.read(folderCoreRepositoryProvider).getRootFolders();
 
       final isDuplicate = siblings.any((f) => f.name == name);
@@ -1230,7 +1238,8 @@ class _ParentFolderPicker extends ConsumerWidget {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: FolderIconHelpers.getFolderColor(
+                              color:
+                                  FolderIconHelpers.getFolderColor(
                                     folder.color,
                                   ) ??
                                   theme.colorScheme.primary,
@@ -1378,13 +1387,9 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _highlightAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _highlightController,
-      curve: Curves.easeOut,
-    ));
+    _highlightAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _highlightController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -1573,8 +1578,8 @@ class _AllNotesDropTargetState extends ConsumerState<_AllNotesDropTarget>
                     color: _isDragOver
                         ? colorScheme.primary
                         : widget.isSelected
-                            ? Colors.transparent
-                            : colorScheme.outline,
+                        ? Colors.transparent
+                        : colorScheme.outline,
                     width: _isDragOver ? 2 : 1,
                   ),
                   shape: RoundedRectangleBorder(
@@ -1608,8 +1613,9 @@ class _InboxPresetChip extends ConsumerWidget {
         final folderId = folderSnapshot.data!;
 
         return FutureBuilder<int>(
-          future:
-              ref.read(notesCoreRepositoryProvider).getNotesCountInFolder(folderId),
+          future: ref
+              .read(notesCoreRepositoryProvider)
+              .getNotesCountInFolder(folderId),
           builder: (context, countSnapshot) {
             final count = countSnapshot.data ?? 0;
 
@@ -1628,7 +1634,9 @@ class _InboxPresetChip extends ConsumerWidget {
 
                 // Toggle inbox filter
                 final newActiveState = !isActive;
-                ref.read(isInboxFilterActiveProvider.notifier).update((_) => newActiveState);
+                ref
+                    .read(isInboxFilterActiveProvider.notifier)
+                    .update((_) => newActiveState);
 
                 if (newActiveState) {
                   // Activate inbox filter - show only notes in incoming mail folder
@@ -1636,7 +1644,9 @@ class _InboxPresetChip extends ConsumerWidget {
                       .read(folderCoreRepositoryProvider)
                       .getFolder(folderId);
                   if (folder != null) {
-                    ref.read(currentFolderProvider.notifier).setCurrentFolder(folder);
+                    ref
+                        .read(currentFolderProvider.notifier)
+                        .setCurrentFolder(folder);
                   }
                 } else {
                   // Deactivate inbox filter

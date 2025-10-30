@@ -10,7 +10,8 @@ import 'package:duru_notes/core/migration/migration_result.dart';
 
 /// Migration helper for handling old encrypted notes that can't be decrypted
 class EncryptionMigrationHelper {
-  static final EncryptionMigrationHelper _instance = EncryptionMigrationHelper._internal();
+  static final EncryptionMigrationHelper _instance =
+      EncryptionMigrationHelper._internal();
   factory EncryptionMigrationHelper() => _instance;
   EncryptionMigrationHelper._internal();
 
@@ -84,10 +85,13 @@ class EncryptionMigrationHelper {
               recoveredNotes++;
               needsUpdate = true;
             } else {
-              newTitle = 'Recovered Note (${DateTime.now().toIso8601String().split('T')[0]})';
+              newTitle =
+                  'Recovered Note (${DateTime.now().toIso8601String().split('T')[0]})';
               failedDecryptions++;
               needsUpdate = true;
-              errors.add('Failed to decrypt title for note $noteId: ${titleResult.error}');
+              errors.add(
+                'Failed to decrypt title for note $noteId: ${titleResult.error}',
+              );
             }
           }
         }
@@ -121,7 +125,8 @@ class EncryptionMigrationHelper {
               needsUpdate = true;
             } else {
               newProps = {
-                'body': 'This note could not be decrypted. It may have been corrupted during a previous migration.\n\nOriginal note ID: $noteId\nMigration date: ${DateTime.now().toIso8601String()}',
+                'body':
+                    'This note could not be decrypted. It may have been corrupted during a previous migration.\n\nOriginal note ID: $noteId\nMigration date: ${DateTime.now().toIso8601String()}',
                 'folder_id': null,
                 'is_pinned': false,
                 'tags': ['migration-recovery'],
@@ -130,7 +135,9 @@ class EncryptionMigrationHelper {
                 failedDecryptions++;
               }
               needsUpdate = true;
-              errors.add('Failed to decrypt props for note $noteId: ${propsResult.error}');
+              errors.add(
+                'Failed to decrypt props for note $noteId: ${propsResult.error}',
+              );
             }
           }
         }
@@ -142,17 +149,21 @@ class EncryptionMigrationHelper {
               api: api,
               noteId: noteId,
               title: newTitle ?? 'Untitled Note',
-              props: newProps ?? {
-                'body': '',
-                'folder_id': null,
-                'is_pinned': false,
-                'tags': <String>[],
-              },
+              props:
+                  newProps ??
+                  {
+                    'body': '',
+                    'folder_id': null,
+                    'is_pinned': false,
+                    'tags': <String>[],
+                  },
               encryptionService: encryptionService,
             );
             _logger.debug('Re-encrypted note $noteId with current encryption');
           } catch (reencryptError) {
-            errors.add('Failed to re-encrypt recovered note $noteId: $reencryptError');
+            errors.add(
+              'Failed to re-encrypt recovered note $noteId: $reencryptError',
+            );
           }
         }
       }
@@ -162,7 +173,6 @@ class EncryptionMigrationHelper {
         await prefs.setBool(migrationKey, true);
         _logger.info('Encryption migration completed successfully');
       }
-
     } catch (e, stack) {
       _logger.error('Migration failed', error: e, stackTrace: stack);
       errors.add('Migration failed: $e');
@@ -180,7 +190,7 @@ class EncryptionMigrationHelper {
       'Migration ${dryRun ? 'dry run ' : ''}completed: '
       '$totalNotes total, $successfulDecryptions successful, '
       '$failedDecryptions failed, $recoveredNotes recovered, '
-      '${errors.length} errors'
+      '${errors.length} errors',
     );
 
     return result;
@@ -257,7 +267,9 @@ class EncryptionMigrationHelper {
       final recovered = utf8.decode(titleBytes);
 
       if (recovered.isNotEmpty && recovered.length < 1000) {
-        _logger.info('Recovered title for note $noteId using direct UTF-8 method');
+        _logger.info(
+          'Recovered title for note $noteId using direct UTF-8 method',
+        );
         return recovered;
       }
     } catch (e) {
@@ -312,7 +324,7 @@ class EncryptionMigrationHelper {
     // Encrypt title
     final titleEncrypted = await encryptionService.encryptData(title);
     final titleBytes = Uint8List.fromList(
-      utf8.encode(jsonEncode(titleEncrypted.toJson()))
+      utf8.encode(jsonEncode(titleEncrypted.toJson())),
     );
 
     // Encrypt props
@@ -320,7 +332,7 @@ class EncryptionMigrationHelper {
       jsonEncode(props),
     );
     final propsBytes = Uint8List.fromList(
-      utf8.encode(jsonEncode(propsEncrypted.toJson()))
+      utf8.encode(jsonEncode(propsEncrypted.toJson())),
     );
 
     // Update the note

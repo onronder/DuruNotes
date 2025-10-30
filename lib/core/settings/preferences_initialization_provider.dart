@@ -35,11 +35,15 @@ final preferencesInitializationProvider = FutureProvider<bool>((ref) async {
     final needsInit = await initializer.needsInitialization();
 
     if (needsInit) {
-      logger.info('[PreferencesInit] Initializing preferences for user ${user.id.substring(0, 8)}');
+      logger.info(
+        '[PreferencesInit] Initializing preferences for user ${user.id.substring(0, 8)}',
+      );
       await initializer.initialize();
       return true;
     } else {
-      logger.info('[PreferencesInit] No initialization needed for user ${user.id.substring(0, 8)}');
+      logger.info(
+        '[PreferencesInit] No initialization needed for user ${user.id.substring(0, 8)}',
+      );
       return false;
     }
   } catch (e) {

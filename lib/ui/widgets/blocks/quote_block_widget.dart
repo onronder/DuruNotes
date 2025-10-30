@@ -185,11 +185,11 @@ class QuoteBlockPreview extends StatelessWidget {
               child: Text(
                 '— $attribution',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
+                  fontStyle: FontStyle.italic,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
             ),
           ],
@@ -242,9 +242,9 @@ class InspirationalQuoteWidget extends StatelessWidget {
               Text(
                 quote,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      height: 1.5,
-                    ),
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -253,9 +253,9 @@ class InspirationalQuoteWidget extends StatelessWidget {
               Text(
                 '— $author',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ],
           ),

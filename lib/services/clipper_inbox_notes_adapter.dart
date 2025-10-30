@@ -7,7 +7,7 @@ typedef NotesRepository = NotesCoreRepository;
 
 class CaptureNotesAdapter implements NotesCapturePort {
   CaptureNotesAdapter({required NotesRepository repository, required AppDb db})
-      : _repository = repository;
+    : _repository = repository;
   final NotesRepository _repository;
 
   @override
@@ -48,8 +48,8 @@ class CaptureNotesAdapter implements NotesCapturePort {
     final note = await _repository.createOrUpdate(
       title: title,
       body: bodyWithTags,
-      tags:
-          tagSet.toList(), // PRODUCTION FIX: Pass normalized tags to be stored in note_tags table
+      tags: tagSet
+          .toList(), // PRODUCTION FIX: Pass normalized tags to be stored in note_tags table
       metadataJson: metadataJson.isNotEmpty ? metadataJson : null,
     );
 

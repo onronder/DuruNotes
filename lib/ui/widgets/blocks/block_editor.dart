@@ -96,8 +96,9 @@ class _BlockEditorState extends ConsumerState<BlockEditor> {
       setState(() {
         _blocks.removeAt(index);
         if (_focusedBlockIndex != null && _focusedBlockIndex! >= index) {
-          _focusedBlockIndex =
-              _focusedBlockIndex! > 0 ? _focusedBlockIndex! - 1 : 0;
+          _focusedBlockIndex = _focusedBlockIndex! > 0
+              ? _focusedBlockIndex! - 1
+              : 0;
         }
       });
       _updateBlocks();

@@ -137,11 +137,7 @@ abstract class UserPreferences with _$UserPreferences {
   /// Create default preferences for a new user
   factory UserPreferences.newUser(String userId) {
     final now = DateTime.now();
-    return UserPreferences(
-      userId: userId,
-      createdAt: now,
-      updatedAt: now,
-    );
+    return UserPreferences(userId: userId, createdAt: now, updatedAt: now);
   }
 
   /// Check if preferences are stale and need syncing
@@ -271,8 +267,10 @@ abstract class QuietHours with _$QuietHours {
   Map<String, dynamic> toJson() {
     return {
       'enabled': enabled,
-      'start': '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
-      'end': '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+      'start':
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+      'end':
+          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
     };
   }
 }
@@ -280,10 +278,8 @@ abstract class QuietHours with _$QuietHours {
 /// Do Not Disturb configuration
 @freezed
 abstract class DoNotDisturb with _$DoNotDisturb {
-  const factory DoNotDisturb({
-    required bool enabled,
-    DateTime? until,
-  }) = _DoNotDisturb;
+  const factory DoNotDisturb({required bool enabled, DateTime? until}) =
+      _DoNotDisturb;
 
   const DoNotDisturb._();
 
@@ -399,8 +395,11 @@ abstract class NotificationPreferences with _$NotificationPreferences {
   /// Check if daily limit needs reset
   bool get needsDailyReset {
     final today = DateTime.now();
-    return DateTime(today.year, today.month, today.day)
-        .isAfter(dailyCountResetAt);
+    return DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).isAfter(dailyCountResetAt);
   }
 
   /// Get configuration for a specific event
@@ -425,9 +424,6 @@ extension TimeOfDayExtension on TimeOfDay {
 
   static TimeOfDay fromIso8601(String time) {
     final parts = time.split(':');
-    return TimeOfDay(
-      hour: int.parse(parts[0]),
-      minute: int.parse(parts[1]),
-    );
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 }

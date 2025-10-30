@@ -11,8 +11,6 @@
 /// - Ownership verification in complex scenarios
 library;
 
-
-
 void main() {
   /* COMMENTED OUT - 27 errors - old auth integration patterns
    * This test uses old models/APIs that no longer exist after domain migration.

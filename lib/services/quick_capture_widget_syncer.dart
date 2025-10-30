@@ -33,11 +33,9 @@ class NoopQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
 
 /// iOS implementation that talks to the WidgetKit extension via MethodChannel.
 class IosQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
-  IosQuickCaptureWidgetSyncer({
-    MethodChannel? channel,
-    AppLogger? logger,
-  })  : _channel = channel ?? const MethodChannel(_channelName),
-        _logger = logger;
+  IosQuickCaptureWidgetSyncer({MethodChannel? channel, AppLogger? logger})
+    : _channel = channel ?? const MethodChannel(_channelName),
+      _logger = logger;
 
   static const String _channelName =
       'com.fittechs.durunotes/quick_capture_widget';

@@ -210,8 +210,8 @@ class BatchSelectionNotifier extends StateNotifier<BatchSelectionState> {
 /// Provider for batch selection state
 final batchSelectionProvider =
     StateNotifierProvider<BatchSelectionNotifier, BatchSelectionState>((ref) {
-  return BatchSelectionNotifier();
-});
+      return BatchSelectionNotifier();
+    });
 
 /// Provider for selected notes objects
 final selectedNotesProvider = Provider<List<domain.Note>>((ref) {
@@ -470,8 +470,8 @@ class BatchOperationsNotifier extends StateNotifier<AsyncValue<void>> {
 /// Provider for batch operations
 final batchOperationsProvider =
     StateNotifierProvider<BatchOperationsNotifier, AsyncValue<void>>((ref) {
-  return BatchOperationsNotifier(ref);
-});
+      return BatchOperationsNotifier(ref);
+    });
 
 /// Statistics for current selection
 class BatchSelectionStats {
