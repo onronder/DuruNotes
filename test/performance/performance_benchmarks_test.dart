@@ -680,7 +680,8 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(25),
-          reason: '100 authorization checks should complete in < 25ms (adjusted for caching optimization)',
+          reason:
+              '100 authorization checks should complete in < 25ms (adjusted for caching optimization)',
         );
       });
 
@@ -700,7 +701,8 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(15),
-          reason: '100 ownership checks should complete in < 15ms (adjusted for caching optimization)',
+          reason:
+              '100 ownership checks should complete in < 15ms (adjusted for caching optimization)',
         );
       });
     });

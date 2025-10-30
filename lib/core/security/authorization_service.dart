@@ -35,7 +35,13 @@ class AuthorizationService {
   /// Returns null if no user is authenticated.
   /// The result is cached to avoid repeated Supabase auth access.
   String? get currentUserId {
-    _cachedUserId ??= _supabase.auth.currentUser?.id;
+    final liveUserId = _supabase.auth.currentUser?.id;
+
+    // Refresh the cache whenever Supabase auth state changes
+    if (liveUserId != _cachedUserId) {
+      _cachedUserId = liveUserId;
+    }
+
     return _cachedUserId;
   }
 
