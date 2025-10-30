@@ -33,11 +33,33 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Setup CMake for argon2_ffi
+      - name: Ensure CMake 3.10.2 for argon2_ffi
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake
           cmake --version
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Android SDK root is not set" >&2
+            exit 1
+          fi
+
+          SDKMANAGER=""
+          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -x "$SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found in Android SDK" >&2
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" "cmake;3.10.2.4988404"
 
       - name: Get dependencies
         run: flutter pub get
@@ -68,11 +90,33 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Setup CMake for argon2_ffi
+      - name: Ensure CMake 3.10.2 for argon2_ffi
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake
           cmake --version
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Android SDK root is not set" >&2
+            exit 1
+          fi
+
+          SDKMANAGER=""
+          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -x "$SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found in Android SDK" >&2
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" "cmake;3.10.2.4988404"
 
       - name: Get dependencies
         run: flutter pub get
@@ -119,11 +163,33 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
 
-      - name: Setup CMake for argon2_ffi
+      - name: Ensure CMake 3.10.2 for argon2_ffi
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake
           cmake --version
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Android SDK root is not set" >&2
+            exit 1
+          fi
+
+          SDKMANAGER=""
+          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -x "$SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found in Android SDK" >&2
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" "cmake;3.10.2.4988404"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -212,16 +278,16 @@ jobs:
         run: |
           echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/Runner/GoogleService-Info.plist
 
-      - name: Clean CocoaPods cache
+      - name: Reset CocoaPods workspace
         run: |
           cd ios
-          rm -rf Pods Podfile.lock
+          rm -rf Pods Podfile.lock .symlinks
           pod cache clean --all || true
 
       - name: Install CocoaPods
         run: |
           cd ios
-          pod install
+          pod install --repo-update
 
       - name: Build iOS (no codesign for CI)
         run: flutter build ios --release --no-codesign
