@@ -4,9 +4,7 @@ import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
 import 'package:duru_notes/core/providers/database_providers.dart'
     show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
-    show loggerProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
-    show supabaseClientProvider;
+    show loggerProvider, supabaseClientProvider;
 
 /// Provider for the unified migration coordinator
 final migrationCoordinatorProvider = Provider<UnifiedMigrationCoordinator>((

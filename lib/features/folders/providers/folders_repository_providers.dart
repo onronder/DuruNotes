@@ -10,7 +10,6 @@ import 'package:duru_notes/core/providers/database_providers.dart'
 import 'package:duru_notes/core/providers/security_providers.dart'
     show cryptoBoxProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Folder repository provider (now uses domain architecture)
 ///
