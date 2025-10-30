@@ -326,7 +326,7 @@ domain.Task _makeTask(
 
 Future<void> _saveTestResults(String name, Map<String, dynamic> results) async {
   final file = File(
-    '/Users/onronder/duru-notes/docs/test_reports/phase3_performance_${name}_${DateTime.now().millisecondsSinceEpoch}.json',
+    'docs/test_reports/phase3_performance_${name}_${DateTime.now().millisecondsSinceEpoch}.json',
   );
   await file.parent.create(recursive: true);
   await file.writeAsString(

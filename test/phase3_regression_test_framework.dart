@@ -385,7 +385,7 @@ Future<void> _saveTestResults(
   };
 
   final reportFile = File(
-    '/Users/onronder/duru-notes/docs/test_reports/phase3_regression_${testName}_${DateTime.now().millisecondsSinceEpoch}.json',
+    'docs/test_reports/phase3_regression_${testName}_${DateTime.now().millisecondsSinceEpoch}.json',
   );
 
   await reportFile.parent.create(recursive: true);
