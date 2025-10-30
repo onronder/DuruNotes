@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/notifications/notification_bootstrap.dart';

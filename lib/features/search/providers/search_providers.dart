@@ -1,7 +1,7 @@
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
 import 'package:duru_notes/domain/repositories/i_search_repository.dart';
 import 'package:duru_notes/domain/repositories/i_tag_repository.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
     show currentFolderProvider;

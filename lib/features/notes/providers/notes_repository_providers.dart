@@ -4,7 +4,6 @@ import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart'
     show authStateChangesProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase Note API provider for sync verification system
 /// Returns null when user is not authenticated to prevent crashes

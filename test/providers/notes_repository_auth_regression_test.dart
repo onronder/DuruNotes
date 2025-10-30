@@ -10,7 +10,10 @@ import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
 import 'package:duru_notes/domain/entities/note.dart' as domain_note;
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/models/note_kind.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart';
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show supabaseClientProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show authStateChangesProvider;
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';

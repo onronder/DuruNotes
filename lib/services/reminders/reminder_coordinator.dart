@@ -7,7 +7,7 @@ import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

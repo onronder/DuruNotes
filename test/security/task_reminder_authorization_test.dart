@@ -5,14 +5,14 @@ import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/services/advanced_reminder_service.dart';
 import 'package:duru_notes/services/task_reminder_bridge.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart'
-    show supabaseClientProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show supabaseClientProvider, loggerProvider;
+import 'package:duru_notes/providers/infrastructure_providers.dart'
+    show navigatorKeyProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
     show taskCoreRepositoryProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_services_providers.dart'
     show taskReminderBridgeProvider;
-import 'package:duru_notes/providers/infrastructure_providers.dart'
-    show navigatorKeyProvider, loggerProvider;
 import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
