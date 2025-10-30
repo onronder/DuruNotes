@@ -1,3 +1,5 @@
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show supabaseClientProvider;
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/features/auth/providers/auth_providers.dart'
     show authStateChangesProvider;
@@ -20,7 +22,7 @@ final folderRepositoryProvider = Provider<IFolderRepository?>((ref) {
   // Rebuild when auth state changes
   ref.watch(authStateChangesProvider);
 
-  final client = Supabase.instance.client;
+  final client = ref.watch(supabaseClientProvider);
   final userId = client.auth.currentUser?.id;
 
   // PRODUCTION FIX: Return null when not authenticated
@@ -37,7 +39,7 @@ final folderRepositoryProvider = Provider<IFolderRepository?>((ref) {
 /// Folder core repository provider (domain architecture)
 final folderCoreRepositoryProvider = Provider<IFolderRepository>((ref) {
   final db = ref.watch(appDbProvider);
-  final client = Supabase.instance.client;
+  final client = ref.watch(supabaseClientProvider);
   final crypto = ref.watch(cryptoBoxProvider);
   return FolderCoreRepository(db: db, client: client, crypto: crypto);
 });
